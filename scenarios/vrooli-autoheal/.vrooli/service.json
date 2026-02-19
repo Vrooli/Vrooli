@@ -158,13 +158,6 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Health check history and configuration storage",
-        "schema": "vrooli_autoheal"
-      },
       "redis": {
         "type": "redis",
         "enabled": true,

@@ -53,7 +53,7 @@ function SortableHeader({
     <button
       onClick={() => onSort(sortKey)}
       className={`flex items-center gap-1 text-xs font-medium uppercase tracking-wider transition-colors ${alignClass} ${
-        isActive ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
+        isActive ? "text-accent-primary" : "text-text-muted hover:text-text-primary"
       }`}
     >
       {label}
@@ -169,7 +169,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
 
   if (trends.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="py-8 text-center text-text-muted">
         <p>No check data available yet</p>
         <p className="text-xs mt-1">Run a health check tick to see trends</p>
       </div>
@@ -180,7 +180,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
     <div className="overflow-x-auto" data-testid="autoheal-trends-check-grid">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-white/10">
+          <tr className="border-b border-border-default/60">
             <th className="pb-2 pr-4 text-left">
               <SortableHeader
                 label="Check"
@@ -191,7 +191,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
               />
             </th>
             <th className="pb-2 px-2 text-center w-16">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Trend</span>
+              <span className="text-xs font-medium uppercase tracking-wider text-text-muted">Trend</span>
             </th>
             <th className="pb-2 px-2 text-right w-16">
               <SortableHeader
@@ -250,7 +250,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
             <tr
               key={trend.checkId}
               onClick={() => onCheckClick?.(trend.checkId)}
-              className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
+              className={`border-b border-border-default/30 transition-colors hover:bg-surface-overlay/30 ${
                 onCheckClick ? "cursor-pointer" : ""
               }`}
               role={onCheckClick ? "button" : undefined}
@@ -267,11 +267,11 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 <div className="flex items-center gap-2">
                   <StatusIcon status={trend.currentStatus} size={14} />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-200 truncate" title={trend.checkId}>
+                    <div className="truncate text-sm font-medium text-text-primary" title={trend.checkId}>
                       {getTitle(trend.checkId)}
                     </div>
                     {getTitle(trend.checkId) !== trend.checkId && (
-                      <div className="text-xs text-slate-600 font-mono truncate">{trend.checkId}</div>
+                      <div className="truncate font-mono text-xs text-text-muted/80">{trend.checkId}</div>
                     )}
                   </div>
                 </div>
@@ -304,21 +304,21 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
 
               {/* Warning count */}
               <td className="py-2 px-2 text-right">
-                <span className={`text-sm ${trend.warning > 0 ? "text-amber-400" : "text-slate-600"}`}>
+                <span className={`text-sm ${trend.warning > 0 ? "text-amber-400" : "text-text-muted/60"}`}>
                   {trend.warning}
                 </span>
               </td>
 
               {/* Critical count */}
               <td className="py-2 px-2 text-right">
-                <span className={`text-sm ${trend.critical > 0 ? "text-red-400" : "text-slate-600"}`}>
+                <span className={`text-sm ${trend.critical > 0 ? "text-red-400" : "text-text-muted/60"}`}>
                   {trend.critical}
                 </span>
               </td>
 
               {/* Total count */}
               <td className="py-2 pl-2 text-right">
-                <span className="text-sm text-slate-400">{trend.total}</span>
+                <span className="text-sm text-text-muted">{trend.total}</span>
               </td>
             </tr>
           ))}

@@ -50,9 +50,16 @@ import {
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  autoRefresh: boolean;
+  onAutoRefreshChange: (enabled: boolean) => void;
 }
 
-export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+export function SettingsDialog({
+  isOpen,
+  onClose,
+  autoRefresh,
+  onAutoRefreshChange,
+}: SettingsDialogProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [localConfig, setLocalConfig] = useState<Config | null>(null);
@@ -318,7 +325,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   return (
     <ModalOverlay onDismiss={onClose}>
       <ModalContent size="lg" data-testid="settings-dialog">
-        <div className="flex items-center justify-between border-b border-border-default/70 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border-default/70 px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-3">
             <Settings className="text-accent-primary" size={24} />
             <h2 className="text-xl font-semibold">Settings</h2>
@@ -334,7 +341,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           </Button>
         </div>
 
-        <div className="flex border-b border-border-default/70 px-6">
+        <div className="flex overflow-x-auto border-b border-border-default/70 px-3 sm:px-6">
           {[
             { id: "general", label: "General" },
             { id: "checks", label: "Health Checks" },
@@ -346,19 +353,26 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
               onClick={() => setActiveTab(tab.id as SettingsTab)}
               active={activeTab === tab.id}
               size="regular"
+              className="shrink-0 whitespace-nowrap"
             >
               {tab.label}
             </TabTrigger>
           ))}
         </div>
 
-        <div className="overflow-y-auto p-6" style={{ maxHeight: "calc(90vh - 180px)" }}>
+        <div className="min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(90vh - 180px)" }}>
           {configLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="animate-spin text-accent-primary" size={32} />
             </div>
           ) : activeTab === "general" ? (
-            <GeneralSettings config={localConfig} defaults={defaults} onChange={updateGlobalConfig} />
+            <GeneralSettings
+              config={localConfig}
+              defaults={defaults}
+              onChange={updateGlobalConfig}
+              autoRefresh={autoRefresh}
+              onAutoRefreshChange={onAutoRefreshChange}
+            />
           ) : activeTab === "checks" ? (
             <ChecksSettings
               checksByCategory={checksByCategory}
@@ -398,8 +412,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-border-default/70 px-6 py-4">
-          <div className="text-sm text-text-muted">
+        <div className="flex flex-col gap-3 border-t border-border-default/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <div className="text-sm text-text-muted sm:min-h-5">
             {hasChanges && (
               <span className="flex items-center gap-2 text-accent-warning">
                 <AlertTriangle size={16} />
@@ -419,11 +433,16 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
               </span>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex w-full gap-3 sm:w-auto">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!hasChanges || saveStatus === "saving"} data-testid="settings-save">
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || saveStatus === "saving"}
+              data-testid="settings-save"
+              className="ml-auto sm:ml-0"
+            >
               {saveStatus === "saving" ? (
                 <>
                   <Loader2 className="mr-2 animate-spin" size={16} />

@@ -284,7 +284,7 @@ export function MarkdownViewer({
   if (isLoading) {
     return (
       <div
-        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-6"
+        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-3 sm:p-6"
         data-testid="docs-viewer"
       >
         <p className="text-text-muted">Loading document...</p>
@@ -295,7 +295,7 @@ export function MarkdownViewer({
   if (error) {
     return (
       <div
-        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-6"
+        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-3 sm:p-6"
         data-testid="docs-viewer"
       >
         <p className="text-accent-danger">Failed to load document: {error.message}</p>
@@ -310,7 +310,7 @@ export function MarkdownViewer({
   if (!content && !path) {
     return (
       <div
-        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-6"
+        className="flex-1 rounded-xl border border-border-default/70 bg-surface-elevated/40 p-3 sm:p-6"
         data-testid="docs-viewer"
       >
         <div className="text-center py-12">
@@ -322,17 +322,17 @@ export function MarkdownViewer({
 
   return (
     <div
-      className="flex-1 overflow-hidden rounded-xl border border-border-default/70 bg-surface-elevated/40 p-6"
+      className="flex-1 overflow-hidden rounded-xl border border-border-default/70 bg-surface-elevated/40 p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] sm:p-6"
       data-testid="docs-viewer"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2 text-sm text-text-muted">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-text-muted">
           <button onClick={onBack} className="transition hover:text-text-primary">
             Docs
           </button>
           <span>/</span>
-          <span className="text-text-primary">{path.replace(/\.md$/, "")}</span>
+          <span className="truncate break-all text-text-primary">{path.replace(/\.md$/, "")}</span>
         </div>
         <Button
           variant="outline"
@@ -357,7 +357,7 @@ export function MarkdownViewer({
       {/* Content */}
       <article
         ref={articleRef}
-        className="prose prose-invert prose-sm max-w-none overflow-y-auto max-h-[calc(100vh-300px)]"
+        className="prose prose-invert prose-sm max-h-[60dvh] max-w-none overflow-y-auto pb-2 sm:max-h-[calc(100dvh-20rem)] lg:max-h-[calc(100dvh-16rem)]"
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </div>

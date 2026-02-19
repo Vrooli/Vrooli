@@ -594,7 +594,7 @@ func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 
 // buildEnv constructs environment variables for resource-opencode run.
 func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 
 	// Non-interactive mode
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
@@ -623,11 +623,7 @@ func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
 	}
 
 	// Add any custom environment from the request
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	return env
+	return appendEnvMap(env, req.Environment)
 }
 
 // =============================================================================
@@ -1216,12 +1212,9 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 	}
 
 	// Set environment
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-	cmd.Env = env
+	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Track the running command for cancellation
 	r.mu.Lock()

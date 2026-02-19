@@ -13,11 +13,13 @@ import (
 
 // FeedbackItemSummary describes feedback state for a single backlog item.
 type FeedbackItemSummary struct {
-	Kind                BacklogKind `json:"kind"`
-	Name                string      `json:"name"`
-	Title               string      `json:"title"`
-	UnansweredQuestions int         `json:"unanswered_questions"`
-	PendingSuggestions  int         `json:"pending_suggestions"`
+	Kind                BacklogKind      `json:"kind"`
+	Name                string           `json:"name"`
+	Title               string           `json:"title"`
+	UnansweredQuestions int              `json:"unanswered_questions"`
+	PendingSuggestions  int              `json:"pending_suggestions"`
+	QuestionsContent    json.RawMessage  `json:"questions_content"`
+	SuggestionsContent  json.RawMessage  `json:"suggestions_content"`
 }
 
 // FeedbackSummaryResponse is the response for the feedback-summary endpoint.
@@ -58,8 +60,8 @@ func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 	for _, item := range items {
 		itemDir := h.itemDir(item.Kind, item.Name)
 
-		unanswered := countUnansweredQuestions(filepath.Join(itemDir, "clarify", "questions.json"))
-		pending := countPendingSuggestions(filepath.Join(itemDir, "suggest", "suggestions.json"))
+		qContent, unanswered := readQuestionsFile(filepath.Join(itemDir, "clarify", "questions.json"))
+		sContent, pending := readSuggestionsFile(filepath.Join(itemDir, "suggest", "suggestions.json"))
 
 		if unanswered == 0 && pending == 0 {
 			continue
@@ -71,6 +73,8 @@ func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 			Title:               item.Title,
 			UnansweredQuestions: unanswered,
 			PendingSuggestions:  pending,
+			QuestionsContent:    qContent,
+			SuggestionsContent:  sContent,
 		})
 		totalUnanswered += unanswered
 		totalPending += pending
@@ -91,14 +95,15 @@ func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func countUnansweredQuestions(path string) int {
+// readQuestionsFile returns the raw JSON content and the count of unanswered questions.
+func readQuestionsFile(path string) (json.RawMessage, int) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0
+		return nil, 0
 	}
 	var f questionsFile
 	if err := json.Unmarshal(data, &f); err != nil {
-		return 0
+		return nil, 0
 	}
 	count := 0
 	for _, q := range f.Questions {
@@ -106,17 +111,18 @@ func countUnansweredQuestions(path string) int {
 			count++
 		}
 	}
-	return count
+	return json.RawMessage(data), count
 }
 
-func countPendingSuggestions(path string) int {
+// readSuggestionsFile returns the raw JSON content and the count of pending suggestions.
+func readSuggestionsFile(path string) (json.RawMessage, int) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0
+		return nil, 0
 	}
 	var f suggestionsFile
 	if err := json.Unmarshal(data, &f); err != nil {
-		return 0
+		return nil, 0
 	}
 	count := 0
 	for _, s := range f.Suggestions {
@@ -124,5 +130,17 @@ func countPendingSuggestions(path string) int {
 			count++
 		}
 	}
+	return json.RawMessage(data), count
+}
+
+// countUnansweredQuestions returns just the count (used by queue handler).
+func countUnansweredQuestions(path string) int {
+	_, count := readQuestionsFile(path)
+	return count
+}
+
+// countPendingSuggestions returns just the count (used by queue handler).
+func countPendingSuggestions(path string) int {
+	_, count := readSuggestionsFile(path)
 	return count
 }

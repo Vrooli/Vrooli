@@ -52,8 +52,10 @@ export type { ErrorCategory, ErrorLogEntry } from "./error-utils";
 export {
   IDEA_AGENT_FILE_PATHS,
   parseClarifyQuestionsFile,
+  parseClarifyQuestionsObject,
   buildClarifyQuestionsContent,
   parseSuggestionsFile,
+  parseSuggestionsObject,
   buildSuggestionsContent,
   findBacklogFileByPath,
 } from "./idea-agent-files";

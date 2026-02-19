@@ -158,6 +158,8 @@ export interface FeedbackItemSummary {
   title: string;
   unanswered_questions: number;
   pending_suggestions: number;
+  questions_content: Record<string, unknown> | null;
+  suggestions_content: Record<string, unknown> | null;
 }
 
 /**

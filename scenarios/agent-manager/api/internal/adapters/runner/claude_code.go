@@ -466,13 +466,10 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	cmd.Dir = req.WorkingDir
 
 	// Set environment - use stream-json for event streaming
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 	env = append(env, "OUTPUT_FORMAT=stream-json")
 	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-	cmd.Env = env
+	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Create a new process group so we can kill the entire subprocess tree
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -744,7 +741,7 @@ func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 
 // buildEnv constructs environment variables for resource-claude-code run.
 func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 
 	// Output format - use stream-json for event streaming
 	env = append(env, "OUTPUT_FORMAT=stream-json")
@@ -783,11 +780,7 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 	}
 
 	// Add any custom environment from the request
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	return env
+	return appendEnvMap(env, req.Environment)
 }
 
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.

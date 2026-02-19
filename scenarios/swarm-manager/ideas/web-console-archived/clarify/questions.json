@@ -8,97 +8,78 @@
   "questions": [
     {
       "id": "Q1",
-      "category": "scope",
-      "importance": "critical",
       "question": "This scenario was archived. What is the intended next step — revive it as a standalone scenario, merge its terminal capabilities into an existing scenario (e.g., agent-manager or app-monitor), or keep it archived as a reference for future terminal needs?",
-      "context": "The archive metadata shows it was explicitly deleted. Understanding the revival path determines whether we build a new scenario, extend an existing one, or just preserve the PRD for future reference.",
       "options": [
         "Revive as standalone web-console scenario",
         "Merge terminal capabilities into agent-manager",
         "Merge terminal capabilities into app-monitor",
         "Keep archived as reference only"
       ],
-      "answer": null
+      "answer": "Revive as standalone web-console scenario"
     },
     {
       "id": "Q2",
-      "category": "integration",
-      "importance": "critical",
       "question": "Which parent scenarios will embed the web console via iframe, and what authentication/proxy headers do they provide? The PRD references 'authenticated parent scenarios' but does not specify the header contract.",
-      "context": "The networking requirement (WC-P0-004) depends on understanding the parent proxy model. Without knowing what headers are forwarded (e.g., X-Forwarded-User, Bearer tokens, custom session IDs), the API auth layer cannot be designed correctly.",
       "options": [
         "Only app-monitor embeds it",
         "Multiple scenarios embed it (list them)",
         "Any scenario can embed it via a standard Vrooli iframe contract"
       ],
-      "answer": null
+      "answer": "You don't need to worry about this. As long as packages/api-base is adopted properly, it should all magically work"
     },
     {
       "id": "Q3",
-      "category": "technical",
-      "importance": "critical",
       "question": "What is the MVP persistence backend for durable sessions and transcripts? The PRD mentions local storage by default with Redis/Postgres as future adapters. Should MVP use flat files, SQLite, or an existing shared resource like the Vrooli Postgres instance?",
-      "context": "Session durability (WC-P0-003) is a P0 requirement with never-expire default. The persistence choice affects data model, backup strategy, and whether a new resource dependency is introduced.",
       "options": [
         "SQLite local database (self-contained, no external deps)",
         "Flat file transcript storage",
         "Shared Vrooli Postgres instance",
         "In-memory only for MVP (persist later)"
       ],
-      "answer": null
+      "answer": "redis/postgres should be removed completely from the spec. Only sqlite should be used, per scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md"
     },
     {
       "id": "Q4",
-      "category": "users",
-      "importance": "important",
       "question": "How important is mobile terminal usage in practice? The PRD includes a P0 floating keyboard toolbar (WC-P0-007), but is this based on actual mobile usage patterns or aspirational? Could mobile toolbar be deferred to P1?",
-      "context": "Mobile terminal UX is inherently limited. If real usage is predominantly desktop/laptop via iframe embedding, the mobile toolbar could be deferred to reduce P0 scope and ship core terminal fidelity faster.",
       "options": [
         "Mobile is critical — operators actively use phones for terminal access",
         "Mobile is nice-to-have — could defer to P1",
         "Mobile is aspirational — defer to P2"
       ],
-      "answer": null
+      "answer": "Mobile is critical — operators actively use phones for terminal access"
     },
     {
       "id": "Q5",
-      "category": "technical",
-      "importance": "important",
       "question": "For the AI command generation feature (WC-P0-005), what context should be provided to the LLM when generating commands? Should it receive the current terminal output/history, the session working directory, or just the user prompt?",
-      "context": "The PRD specifies Ollama-first with OpenRouter fallback but does not define the prompt engineering strategy. The amount of context sent to the AI affects both UX quality and API design (e.g., whether the backend needs to maintain a context window from terminal output).",
       "options": [
         "User prompt only (simple, stateless)",
         "User prompt + last N lines of terminal output",
         "User prompt + terminal output + working directory + shell environment",
         "Configurable per-session context depth"
       ],
-      "answer": null
+      "answer": "User prompt + last N lines of terminal output"
     },
     {
       "id": "Q6",
-      "category": "scope",
-      "importance": "important",
       "question": "Should the web console support multiple simultaneous users (multi-tenant), or is it single-user by design since it runs on a personal Vrooli server?",
-      "context": "The PRD mentions collaborative session modes as P2, but the core session model does not specify whether sessions are user-scoped. This affects the data model, session isolation, and whether user identity tracking is needed in MVP.",
       "options": [
         "Single-user only (personal server assumption)",
         "Multi-user aware but single-user MVP",
         "Multi-user from the start"
       ],
-      "answer": null
+      "answer": "Single-user only (personal server assumption)"
     },
     {
       "id": "Q7",
-      "category": "constraints",
-      "importance": "nice-to-have",
       "question": "Are there specific performance targets for terminal latency (keystroke-to-display round-trip) or maximum concurrent terminal sessions?",
-      "context": "Terminal UX is latency-sensitive. Knowing whether there are hard targets (e.g., <50ms keystroke latency, support 10+ concurrent PTYs) helps inform architectural decisions like buffering strategy and resource limits.",
       "options": [
         "No specific targets — just feels responsive",
         "Sub-50ms keystroke latency target",
         "Specific concurrent session limit needed"
       ],
-      "answer": null
+      "answer": "No specific targets — just feels responsive"
     }
-  ]
+  ],
+  "generatedAt": "2026-02-18T22:45:54.086Z",
+  "updatedAt": "2026-02-18T22:45:54.086Z"
 }

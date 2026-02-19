@@ -14,11 +14,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
@@ -61,16 +62,11 @@ func run() error {
 	}
 	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
 
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver:       database.DriverPostgres,
-		MaxOpenConns: 10,
-		MaxIdleConns: 5,
-	})
+	db, err := connectPersistenceDB(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
+	log.Printf("persistence backend selected: sqlite")
 
 	// Initialize database schema (idempotent - uses CREATE TABLE IF NOT EXISTS)
 	if err := initializeSchema(db); err != nil {
@@ -202,11 +198,10 @@ func loggingMiddleware(next http.Handler) http.Handler {
 // initializeSchema runs the database schema initialization script.
 // Uses CREATE TABLE IF NOT EXISTS, making it safe to run on every startup.
 func initializeSchema(db *sql.DB) error {
-	// Look for schema.sql in initialization/postgres/ relative to binary or cwd
 	schemaPaths := []string{
-		filepath.Join(filepath.Dir(os.Args[0]), "..", "initialization", "postgres", "schema.sql"),
-		filepath.Join("initialization", "postgres", "schema.sql"),
-		filepath.Join("..", "initialization", "postgres", "schema.sql"),
+		filepath.Join(filepath.Dir(os.Args[0]), "..", "initialization", "sqlite", "schema.sql"),
+		filepath.Join("initialization", "sqlite", "schema.sql"),
+		filepath.Join("..", "initialization", "sqlite", "schema.sql"),
 	}
 
 	var schemaSQL []byte
@@ -229,4 +224,46 @@ func initializeSchema(db *sql.DB) error {
 
 	log.Printf("database schema initialized successfully")
 	return nil
+}
+
+func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
+	dsn, err := resolveSQLiteDSN()
+	if err != nil {
+		return nil, err
+	}
+	db, err := database.Connect(ctx, database.Config{
+		Driver:       "sqlite",
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func resolveSQLiteDSN() (string, error) {
+	if dsn := os.Getenv("SQLITE_PATH"); dsn != "" {
+		return dsn, nil
+	}
+	if dsn := os.Getenv("SQLITE_DB"); dsn != "" {
+		return dsn, nil
+	}
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	paths, err := storage.EnsureAllDirs(resolver, storage.Options{
+		ScenarioID: "vrooli-autoheal",
+	}, 0)
+	if err != nil {
+		return "", fmt.Errorf("ensure storage directories: %w", err)
+	}
+
+	return filepath.Join(paths.DataDir, "autoheal.sqlite"), nil
 }

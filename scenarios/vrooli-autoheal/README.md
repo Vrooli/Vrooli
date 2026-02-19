@@ -90,8 +90,9 @@ The system detects the current platform and capabilities:
 Health checks and monitored resources/scenarios are configured via:
 
 1. **Environment variables** (e.g., `VROOLI_AUTOHEAL_RESOURCES`, `VROOLI_AUTOHEAL_SCENARIOS`)
-2. **PostgreSQL** (runtime configuration)
-3. **Default values** for common checks
+2. **Local config file** (`~/.vrooli-autoheal/config.json`, override with `VROOLI_AUTOHEAL_CONFIG`)
+3. **SQLite** for persisted health history/action logs (default backend)
+4. **Default values** for common checks
 
 ## Testing
 

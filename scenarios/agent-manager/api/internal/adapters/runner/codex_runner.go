@@ -691,7 +691,7 @@ func (r *CodexRunner) InstallHint() string {
 
 // buildEnv constructs environment variables for resource-codex run.
 func (r *CodexRunner) buildEnv(req ExecuteRequest) []string {
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 
 	// Non-interactive mode
 	env = append(env, "CODEX_NON_INTERACTIVE=true")
@@ -720,11 +720,7 @@ func (r *CodexRunner) buildEnv(req ExecuteRequest) []string {
 	}
 
 	// Add any custom environment from the request
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	return env
+	return appendEnvMap(env, req.Environment)
 }
 
 // buildJSONArgs constructs command-line arguments for codex exec --json.
@@ -906,18 +902,40 @@ func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*
 	case "command_execution":
 		// Codex emits shell commands as command_execution items; map to bash tool events.
 		toolName := "bash"
-		if item.Status == "completed" {
+		isTerminal := item.Status == "completed" || item.Status == "failed" || item.Status == "error" || item.Status == "cancelled" || item.Status == "timed_out"
+		if isTerminal {
+			events := make([]*domain.RunEvent, 0, 2)
+			// Keep backward-compatible behavior for successful command completion:
+			// only emit tool_result. For non-success terminal states, emit tool_call
+			// + tool_result so failed commands retain command/status context.
+			if item.Command != "" && item.Status != "completed" {
+				input := map[string]interface{}{
+					"command":     item.Command,
+					"status":      item.Status,
+					"runner_tool": "command_execution",
+				}
+				events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
+			}
+
 			var errMsg error
 			if item.ExitCode != nil && *item.ExitCode != 0 {
 				errMsg = fmt.Errorf("command exited with code %d", *item.ExitCode)
+			} else if item.Status != "completed" {
+				errMsg = fmt.Errorf("command status: %s", item.Status)
 			}
-			return []*domain.RunEvent{domain.NewToolResultEvent(
+
+			output := item.AggregatedOutput
+			if strings.TrimSpace(output) == "" {
+				output = item.Output
+			}
+			events = append(events, domain.NewToolResultEvent(
 				runID,
 				toolName,
 				"",
-				stripANSI(item.AggregatedOutput),
+				stripANSI(output),
 				errMsg,
-			)}
+			))
+			return events
 		}
 		if item.Command != "" {
 			input := map[string]interface{}{
@@ -1109,12 +1127,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	// Set environment
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 	env = append(env, "CODEX_NON_INTERACTIVE=true")
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-	cmd.Env = env
+	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Track the running command for cancellation
 	r.mu.Lock()

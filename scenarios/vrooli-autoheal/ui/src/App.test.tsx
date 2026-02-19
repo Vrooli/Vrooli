@@ -175,13 +175,16 @@ describe('App', () => {
     expect(screen.getAllByText('Warnings').length).toBeGreaterThan(0);
   });
 
-  it('[REQ:UI-REFRESH-001] shows auto-refresh toggle button', async () => {
+  it('[REQ:UI-REFRESH-001] removes header auto-refresh toggle and keeps settings access', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Auto')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-button')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /enable auto refresh|disable auto refresh/i }),
+      ).not.toBeInTheDocument();
     });
   });
 

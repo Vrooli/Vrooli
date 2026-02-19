@@ -45,6 +45,8 @@
   - Migrated `src/surfaces/dashboard/components/SystemProtection.tsx` off raw `white/slate/emerald/amber/red/blue` class clusters to semantic token classes and shared primitives/composites.
   - Added regression coverage in `src/shared/components/CheckDetailModal.test.tsx` for importance, dangerous-action confirmation, and post-action result notice states.
   - Migrated docs search control in `src/surfaces/docs/components/DocsSidebar.tsx` to `Input`.
+  - Consolidated duplicated health-group rendering logic in `src/surfaces/dashboard/DashboardSurface.tsx` into a single mapped section component with shared config.
+  - Added progressive-disclosure mobile nav behavior in `src/surfaces/docs/components/DocsSidebar.tsx` to reduce viewport contention on narrow screens.
 - Remaining:
   - Continue reducing density in `src/surfaces/dashboard/components/SystemProtection.tsx` via smaller local subcomponents/hooks.
   - Consider extracting monitoring section checkbox control into a shared checkbox primitive to complete primitive consistency.

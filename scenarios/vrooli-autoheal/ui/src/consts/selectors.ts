@@ -294,6 +294,7 @@ const literalSelectors: LiteralSelectorTree = {
   tabs: {
     dashboard: 'autoheal-tab-dashboard',
     trends: 'autoheal-tab-trends',
+    docs: 'autoheal-tab-docs',
   },
   // Trends page
   trends: {

@@ -173,11 +173,7 @@ export class APIError extends Error {
 
   /** User-friendly error message. Prefers the API-provided hint when available. */
   getUserMessage(): string {
-    // API-provided hint is the most accurate source
-    if (this.recovery.hint) {
-      return this.recovery.hint;
-    }
-    // Fallback to code-based messages
+    // Prefer code-specific messages so user guidance stays stable.
     switch (this.code) {
       case "NETWORK_ERROR":
         return "Unable to connect to the API. Check your network connection.";
@@ -200,6 +196,14 @@ export class APIError extends Error {
 
   /** Suggested next action for the user, based on recovery semantics. */
   getSuggestedAction(): string {
+    if (this.code === "NOT_FOUND") {
+      return "This item may have been removed. If this persists, check if the scenario is running.";
+    }
+
+    if (!this.isRetryable && this.recovery.action !== "report") {
+      return "If this persists, check if the scenario is running.";
+    }
+
     switch (this.recovery.action) {
       case "retry":
         return "Try again in a few seconds.";

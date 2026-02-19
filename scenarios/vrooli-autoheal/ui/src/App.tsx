@@ -8,7 +8,7 @@ import { TabTrigger } from "./shared/ui/composites";
 import { fetchChecks, fetchStatus, groupChecksByStatus, runTick, statusToEmoji } from "./lib/api";
 import type { CheckInfo } from "./lib/api";
 import { selectors } from "./consts/selectors";
-import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog, StatusBadge } from "./shared/components";
+import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog } from "./shared/components";
 import { DashboardSurface, type CollapsedGroups, type EnrichedCheck } from "./surfaces/dashboard";
 import { TrendsSurface } from "./surfaces/trends";
 import { DocsSurface } from "./surfaces/docs";
@@ -59,6 +59,11 @@ function loadCollapsedState(): CollapsedGroups {
 
 export default function App() {
   const queryClient = useQueryClient();
+  const tabSelectors = selectors.tabs ?? {
+    dashboard: "autoheal-tab-dashboard",
+    trends: "autoheal-tab-trends",
+    docs: "autoheal-tab-docs",
+  };
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>(getTabFromHash);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -86,7 +91,7 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["status"],
     queryFn: fetchStatus,
     refetchInterval: autoRefresh ? AUTO_REFRESH_INTERVAL : false,
@@ -167,37 +172,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface-base text-text-primary" data-testid={selectors.dashboard}>
       <header className="sticky top-0 z-10 border-b border-border-default/70 bg-surface-elevated/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Shield className="text-accent-primary" size={28} />
-            <div>
-              <h1 className="text-xl font-semibold">Vrooli Autoheal</h1>
-              <p className="text-xs text-text-muted">Self-healing infrastructure supervisor</p>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Shield className="shrink-0 text-accent-primary" size={24} />
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-semibold sm:text-xl">Vrooli Autoheal</h1>
+              <p className="hidden text-xs text-text-muted sm:block">Self-healing infrastructure supervisor</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {data && <StatusBadge status={data.status} />}
-
-            <div className="h-6 w-px bg-border-default/70" />
-
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => setSettingsOpen(true)}
               data-testid="settings-button"
+              title="Open settings"
+              aria-label="Open settings"
             >
               <Settings className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={autoRefresh ? "border-accent-primary/40 text-accent-primary" : ""}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-              {autoRefresh ? "Auto" : "Manual"}
             </Button>
 
             <Button
@@ -205,19 +198,22 @@ export default function App() {
               onClick={() => tickMutation.mutate()}
               disabled={tickMutation.isPending}
               data-testid={selectors.runTickButton}
+              className="px-2 sm:px-4"
+              aria-label="Run Tick"
             >
-              <Play className={`mr-2 h-4 w-4 ${tickMutation.isPending ? "animate-pulse" : ""}`} />
-              Run Tick
+              <Play className={`h-4 w-4 sm:mr-2 ${tickMutation.isPending ? "animate-pulse" : ""}`} />
+              <span className="hidden sm:inline">Run Tick</span>
             </Button>
           </div>
         </div>
 
         <div className="mx-auto max-w-6xl px-4">
-          <nav className="flex gap-1">
+          <nav className="flex gap-1 overflow-x-auto">
             <TabTrigger
               onClick={() => handleTabChange("dashboard")}
               active={activeTab === "dashboard"}
-              data-testid="autoheal-tab-dashboard"
+              data-testid={tabSelectors.dashboard}
+              className="shrink-0"
             >
               <LayoutDashboard size={16} />
               Dashboard
@@ -225,7 +221,8 @@ export default function App() {
             <TabTrigger
               onClick={() => handleTabChange("trends")}
               active={activeTab === "trends"}
-              data-testid="autoheal-tab-trends"
+              data-testid={tabSelectors.trends}
+              className="shrink-0"
             >
               <TrendingUp size={16} />
               Trends
@@ -233,7 +230,8 @@ export default function App() {
             <TabTrigger
               onClick={() => handleTabChange("docs")}
               active={activeTab === "docs"}
-              data-testid="autoheal-tab-docs"
+              data-testid={tabSelectors.docs}
+              className="shrink-0"
             >
               <BookOpen size={16} />
               Docs
@@ -242,7 +240,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
         {activeTab === "dashboard" ? (
           <ReactErrorBoundary sectionName="Dashboard">
             <DashboardSurface
@@ -269,7 +267,12 @@ export default function App() {
         )}
       </main>
 
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        autoRefresh={autoRefresh}
+        onAutoRefreshChange={setAutoRefresh}
+      />
 
       {selectedCheckId && (
         <ReactErrorBoundary sectionName="Check details modal">

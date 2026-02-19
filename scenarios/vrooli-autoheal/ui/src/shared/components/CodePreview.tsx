@@ -76,19 +76,19 @@ export const CodePreview = memo(function CodePreview({
   }, [codeString, displayLang]);
 
   return (
-    <div className={`relative group rounded-lg overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
-        <span className="text-xs text-slate-400 font-mono">{displayLang}</span>
+    <div className={`relative overflow-hidden rounded-lg border border-border-default/70 bg-surface-base ${className}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-border-default/70 bg-surface-overlay/60 px-3 py-2 sm:px-4">
+        <span className="truncate font-mono text-xs text-text-muted">{displayLang}</span>
         <button
           onClick={copyCode}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-text-muted transition-colors hover:bg-surface-overlay/50 hover:text-text-primary"
           aria-label={copied ? "Copied" : "Copy code"}
           type="button"
         >
           {copied ? (
             <>
-              <Check className="h-3.5 w-3.5 text-green-400" />
-              <span className="text-green-400">Copied</span>
+              <Check className="h-3.5 w-3.5 text-accent-success" />
+              <span className="text-accent-success">Copied</span>
             </>
           ) : (
             <>
@@ -100,7 +100,7 @@ export const CodePreview = memo(function CodePreview({
       </div>
 
       <div
-        className="bg-slate-800 overflow-x-auto"
+        className="overflow-x-auto bg-surface-base"
         style={{ maxHeight, overflowY: maxHeight !== "none" ? "auto" : undefined }}
       >
         {highlightedHtml ? (
@@ -109,7 +109,7 @@ export const CodePreview = memo(function CodePreview({
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <pre className="p-4 text-sm text-slate-200 font-mono whitespace-pre-wrap overflow-x-auto">
+          <pre className="overflow-x-auto whitespace-pre-wrap p-4 font-mono text-sm text-text-primary">
             {codeString}
           </pre>
         )}

@@ -155,6 +155,42 @@ export function buildSuggestionsContent(
   return JSON.stringify(payload, null, 2);
 }
 
+/**
+ * Parse questions from a pre-parsed object (as returned inline from the summary endpoint).
+ * Skips JSON.parse since the data arrives already deserialized.
+ */
+export function parseClarifyQuestionsObject(content: Record<string, unknown> | null): {
+  raw: Record<string, unknown> | null;
+  questions: IdeaClarificationQuestion[];
+} {
+  if (!content) {
+    return { raw: null, questions: [] };
+  }
+  const rawQuestions = Array.isArray(content.questions) ? content.questions : [];
+  const questions = rawQuestions
+    .map((item, index) => normalizeQuestion(item, index))
+    .filter((item): item is IdeaClarificationQuestion => Boolean(item));
+  return { raw: content, questions };
+}
+
+/**
+ * Parse suggestions from a pre-parsed object (as returned inline from the summary endpoint).
+ * Skips JSON.parse since the data arrives already deserialized.
+ */
+export function parseSuggestionsObject(content: Record<string, unknown> | null): {
+  raw: Record<string, unknown> | null;
+  suggestions: IdeaSuggestion[];
+} {
+  if (!content) {
+    return { raw: null, suggestions: [] };
+  }
+  const rawSuggestions = Array.isArray(content.suggestions) ? content.suggestions : [];
+  const suggestions = rawSuggestions
+    .map((item, index) => normalizeSuggestion(item, index))
+    .filter((item): item is IdeaSuggestion => Boolean(item));
+  return { raw: content, suggestions };
+}
+
 export function findBacklogFileByPath(files: BacklogFile[] | undefined, targetPath: string): BacklogFile | null {
   if (!files || files.length === 0) return null;
   for (const file of files) {

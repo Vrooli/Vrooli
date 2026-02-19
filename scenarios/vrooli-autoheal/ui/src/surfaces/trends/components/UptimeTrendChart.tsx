@@ -60,27 +60,27 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   const uptimePercent = total > 0 ? ((dataPoint.ok / total) * 100).toFixed(1) : "100.0";
 
   return (
-    <div className="bg-slate-900 border border-white/20 rounded-lg p-3 shadow-xl">
-      <p className="text-xs text-slate-400 mb-2">
+    <div className="rounded-lg border border-border-default/70 bg-surface-base p-3 shadow-xl">
+      <p className="mb-2 text-xs text-text-muted">
         {formatTooltipTime(dataPoint.timestamp)}
       </p>
       <div className="space-y-1 text-sm">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-emerald-400">OK</span>
+          <span className="text-accent-success">OK</span>
           <span className="font-medium">{dataPoint.ok}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-amber-400">Warning</span>
+          <span className="text-accent-warning">Warning</span>
           <span className="font-medium">{dataPoint.warning}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-red-400">Critical</span>
+          <span className="text-accent-danger">Critical</span>
           <span className="font-medium">{dataPoint.critical}</span>
         </div>
-        <div className="border-t border-white/10 pt-1 mt-1">
+        <div className="mt-1 border-t border-border-default/60 pt-1">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-400">Uptime</span>
-            <span className="font-medium text-emerald-400">{uptimePercent}%</span>
+            <span className="text-text-muted">Uptime</span>
+            <span className="font-medium text-accent-success">{uptimePercent}%</span>
           </div>
         </div>
       </div>
@@ -116,7 +116,7 @@ export function UptimeTrendChart({ windowHours = 24, bucketCount = 24 }: UptimeT
 
   if (isLoading) {
     return (
-      <div className="h-48 flex items-center justify-center text-slate-500">
+      <div className="flex h-48 items-center justify-center text-text-muted">
         Loading trend data...
       </div>
     );
@@ -128,7 +128,7 @@ export function UptimeTrendChart({ windowHours = 24, bucketCount = 24 }: UptimeT
 
   if (chartData.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-slate-500">
+      <div className="flex h-48 items-center justify-center text-text-muted">
         <div className="text-center">
           <p>No historical data available yet</p>
           <p className="text-xs mt-1">Data will appear after health checks run</p>

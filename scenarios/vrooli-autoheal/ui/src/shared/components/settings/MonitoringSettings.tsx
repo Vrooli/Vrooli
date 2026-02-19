@@ -55,7 +55,7 @@ export function MonitoringSettings({
   const sortedResources = [...resources].sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <Notice tone="info" className="p-4">
         <div className="flex items-start gap-3">
           <Monitor className="mt-0.5 shrink-0 text-accent-primary" size={20} />
@@ -78,7 +78,7 @@ export function MonitoringSettings({
           </div>
         </div>
 
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           <Input
             type="text"
             value={newScenario}
@@ -87,7 +87,7 @@ export function MonitoringSettings({
             className="flex-1"
             onKeyDown={(e) => e.key === "Enter" && handleAddScenario()}
           />
-          <label className="flex items-center gap-2 rounded-lg border border-border-default/70 bg-surface-overlay/50 px-3 py-2">
+          <label className="flex items-center gap-2 rounded-lg border border-border-default/70 bg-surface-overlay/50 px-3 py-2 sm:w-fit">
             <input
               type="checkbox"
               checked={newScenarioCritical}
@@ -114,20 +114,20 @@ export function MonitoringSettings({
               .map(([name, config]) => (
                 <div
                   key={name}
-                  className="flex items-center justify-between rounded-lg bg-surface-overlay/50 px-3 py-2 hover:bg-surface-overlay/70"
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-overlay/50 px-3 py-2 hover:bg-surface-overlay/70"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                     {config.critical ? (
                       <AlertCircle className="text-accent-danger" size={16} />
                     ) : (
                       <AlertTriangle className="text-accent-warning" size={16} />
                     )}
-                    <span className="text-sm font-medium">{name}</span>
-                    <Badge tone={config.critical ? "danger" : "warning"} size="sm">
+                    <span className="truncate text-sm font-medium">{name}</span>
+                    <Badge tone={config.critical ? "danger" : "warning"} size="sm" className="shrink-0">
                       {config.critical ? "Critical" : "Non-Critical"}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Switch
                       checked={config.critical}
                       onCheckedChange={(checked) => onSetCritical(name, checked)}
@@ -160,7 +160,7 @@ export function MonitoringSettings({
           </div>
         </div>
 
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           <Input
             type="text"
             value={newResource}
@@ -182,10 +182,10 @@ export function MonitoringSettings({
             sortedResources.map((resource) => (
               <div
                 key={resource}
-                className="flex items-center gap-2 rounded-lg border border-accent-success/20 bg-accent-success/10 px-3 py-1.5"
+                className="flex min-w-0 items-center gap-2 rounded-lg border border-accent-success/20 bg-accent-success/10 px-3 py-1.5"
               >
                 <Database className="text-accent-success" size={14} />
-                <span className="text-sm font-medium">{resource}</span>
+                <span className="break-all text-sm font-medium">{resource}</span>
                 <button
                   onClick={() => onRemoveResource(resource)}
                   disabled={isUpdating}

@@ -5,23 +5,10 @@ import { Clock, Filter } from "lucide-react";
 import { useState, useMemo } from "react";
 import { fetchTimeline, TimelineEvent } from "../../../lib/api";
 import { ErrorDisplay, StatusIcon } from "../../../shared/components";
+import { Card } from "../../../shared/ui/primitives";
 import { selectors } from "../../../consts/selectors";
 import { useCheckMetadata } from "../../../shared/contexts/CheckMetadataContext";
-
-function formatRelativeTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `${diffDays}d ago`;
-}
+import { formatRelativeTime } from "../../../lib/utils";
 
 type FilterOption = "all" | "issues";
 
@@ -52,21 +39,21 @@ export function EventsTimeline() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Clock size={18} className="text-blue-400" />
+          <Clock size={18} className="text-accent-primary" />
           <h3 className="font-medium">Recent Events</h3>
         </div>
-        <p className="text-sm text-slate-500">Loading timeline...</p>
-      </div>
+        <p className="text-sm text-text-muted">Loading timeline...</p>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Clock size={18} className="text-blue-400" />
+          <Clock size={18} className="text-accent-primary" />
           <h3 className="font-medium">Recent Events</h3>
         </div>
         <ErrorDisplay
@@ -74,28 +61,28 @@ export function EventsTimeline() {
           onRetry={() => refetch()}
           compact
         />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5" data-testid={selectors.eventsTimeline}>
+    <Card data-testid={selectors.eventsTimeline}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <Clock size={18} className="text-blue-400" />
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-default/50 p-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Clock size={18} className="text-accent-primary" />
           <h3 className="font-medium">Recent Events</h3>
-          <span className="text-xs text-slate-500">({data?.count || 0} total)</span>
+          <span className="text-xs text-text-muted">({data?.count || 0} total)</span>
         </div>
 
         {/* Filter toggle */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilter(filter === "all" ? "issues" : "all")}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
+            className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors ${
               filter === "issues"
-                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                : "bg-white/5 text-slate-400 hover:bg-white/10"
+                ? "border border-accent-warning/40 bg-accent-warning/20 text-accent-warning"
+                : "bg-surface-overlay/50 text-text-muted hover:bg-surface-overlay/70"
             }`}
           >
             <Filter size={12} />
@@ -107,11 +94,11 @@ export function EventsTimeline() {
       {/* Events list */}
       <div className="max-h-80 overflow-y-auto">
         {filteredEvents.length === 0 ? (
-          <div className="p-4 text-center text-slate-500 text-sm">
+          <div className="p-4 text-center text-sm text-text-muted">
             {filter === "issues" ? "No issues found" : "No events yet"}
           </div>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-border-default/30">
             {filteredEvents.map((event, idx) => (
               <EventRow key={`${event.checkId}-${event.timestamp}-${idx}`} event={event} />
             ))}
@@ -121,16 +108,16 @@ export function EventsTimeline() {
 
       {/* Show more */}
       {data?.events && data.events.length > showCount && (
-        <div className="p-2 border-t border-white/10">
+        <div className="border-t border-border-default/50 p-2">
           <button
             onClick={() => setShowCount(prev => prev + 20)}
-            className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            className="w-full py-1.5 text-xs text-text-muted transition-colors hover:text-text-primary"
           >
             Show more ({data.events.length - showCount} remaining)
           </button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -140,25 +127,25 @@ function EventRow({ event }: { event: TimelineEvent }) {
   const showCheckId = title !== event.checkId; // Only show checkId if we have a different title
 
   return (
-    <div className="flex items-start gap-3 p-3 hover:bg-white/[0.02] transition-colors">
+    <div className="flex items-start gap-3 p-3 transition-colors hover:bg-surface-overlay/40">
       <div className="mt-0.5">
         <StatusIcon status={event.status} size={14} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <span className="text-sm font-medium text-slate-200 truncate block" title={event.checkId}>
+            <span className="block truncate text-sm font-medium text-text-primary" title={event.checkId}>
               {title}
             </span>
             {showCheckId && (
-              <span className="text-xs text-slate-600 font-mono">{event.checkId}</span>
+              <span className="break-all font-mono text-xs text-text-muted/80">{event.checkId}</span>
             )}
           </div>
-          <span className="text-xs text-slate-500 flex-shrink-0" title={new Date(event.timestamp).toLocaleString()}>
+          <span className="shrink-0 text-xs text-text-muted" title={new Date(event.timestamp).toLocaleString()}>
             {formatRelativeTime(event.timestamp)}
           </span>
         </div>
-        <p className="text-xs text-slate-400 truncate mt-0.5">{event.message}</p>
+        <p className="mt-0.5 break-words text-xs text-text-muted">{event.message}</p>
       </div>
     </div>
   );

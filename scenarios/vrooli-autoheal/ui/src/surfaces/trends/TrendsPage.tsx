@@ -5,9 +5,11 @@ import { useState, useCallback, useMemo } from "react";
 import { TrendingUp, Activity, AlertTriangle, Clock, Download } from "lucide-react";
 import { fetchTimeline, fetchUptimeStats, fetchIncidents, fetchCheckTrends, TimelineEvent } from "../../lib/api";
 import { CheckDetailModal, ErrorDisplay, StatusIcon } from "../../shared/components";
+import { Button, Card } from "../../shared/ui/primitives";
 import { UptimeTrendChart, CheckTrendGrid } from "./components";
 import { exportTrendDataToCSV } from "../../lib/export";
 import { useCheckMetadata } from "../../shared/contexts/CheckMetadataContext";
+import { formatRelativeTime } from "../../lib/utils";
 
 // Helper to detect status transitions (incidents)
 function detectIncidents(events: TimelineEvent[]): Array<{
@@ -62,21 +64,6 @@ function detectIncidents(events: TimelineEvent[]): Array<{
   return incidents.sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-}
-
-function formatRelativeTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `${diffDays}d ago`;
 }
 
 // Time window options
@@ -147,26 +134,26 @@ export function TrendsPage() {
   return (
     <div className="space-y-6" data-testid="autoheal-trends-page">
       {/* Header with Time Window Selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <TrendingUp className="text-blue-400" size={28} />
+          <TrendingUp className="text-accent-primary" size={24} />
           <div>
             <h2 className="text-xl font-semibold">Health Trends</h2>
-            <p className="text-xs text-slate-400">Historical analysis and patterns</p>
+            <p className="text-xs text-text-muted">Historical analysis and patterns</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* Time Window Selector */}
-          <div className="flex rounded-lg border border-white/10 overflow-hidden" data-testid="time-window-selector">
+          <div className="flex overflow-x-auto rounded-lg border border-border-default/70" data-testid="time-window-selector">
             {TIME_WINDOWS.map((window) => (
               <button
                 key={window.label}
                 onClick={() => setSelectedWindow(window)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`shrink-0 px-3 py-1.5 text-sm font-medium transition-colors ${
                   selectedWindow.label === window.label
-                    ? "bg-blue-500 text-white"
-                    : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                    ? "bg-accent-primary text-text-primary"
+                    : "bg-surface-overlay/40 text-text-muted hover:bg-surface-overlay/70 hover:text-text-primary"
                 }`}
                 data-testid={`time-window-${window.label}`}
               >
@@ -176,36 +163,38 @@ export function TrendsPage() {
           </div>
 
           {/* Export Button */}
-          <button
+          <Button
             onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors"
+            variant="outline"
+            size="sm"
+            className="justify-center"
             data-testid="export-csv-button"
           >
             <Download size={16} />
             Export CSV
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Uptime Overview */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="p-4 sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-medium flex items-center gap-2">
-            <Activity size={18} className="text-blue-400" />
+            <Activity size={18} className="text-accent-primary" />
             {selectedWindow.label} Health Trend
           </h3>
           {uptimeData && (
             <div className="text-right">
-              <div className="text-2xl font-bold text-emerald-400">
+              <div className="text-2xl font-bold text-accent-success">
                 {uptimeData.uptimePercentage.toFixed(1)}%
               </div>
-              <div className="text-xs text-slate-500">overall uptime</div>
+              <div className="text-xs text-text-muted">overall uptime</div>
             </div>
           )}
         </div>
 
         {uptimeLoading ? (
-          <div className="h-48 flex items-center justify-center text-slate-500">
+          <div className="flex h-48 items-center justify-center text-text-muted">
             Loading trend data...
           </div>
         ) : uptimeError ? (
@@ -213,20 +202,20 @@ export function TrendsPage() {
         ) : (
           <UptimeTrendChart windowHours={selectedWindow.hours} bucketCount={selectedWindow.buckets} />
         )}
-      </div>
+      </Card>
 
       {/* Per-Check Trends */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card className="p-4 sm:p-6">
         <h3 className="font-medium flex items-center gap-2 mb-4">
-          <Activity size={18} className="text-blue-400" />
+          <Activity size={18} className="text-accent-primary" />
           Per-Check Health
-          <span className="text-xs text-slate-500 font-normal">
+          <span className="text-xs font-normal text-text-muted">
             (click for details)
           </span>
         </h3>
 
         {trendsLoading ? (
-          <div className="h-32 flex items-center justify-center text-slate-500">
+          <div className="flex h-32 items-center justify-center text-text-muted">
             Loading check data...
           </div>
         ) : trendsError ? (
@@ -238,64 +227,64 @@ export function TrendsPage() {
             onCheckClick={handleCheckClick}
           />
         )}
-      </div>
+      </Card>
 
       {/* Incidents Timeline */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card className="p-4 sm:p-6">
         <h3 className="font-medium flex items-center gap-2 mb-4">
-          <AlertTriangle size={18} className="text-amber-400" />
+          <AlertTriangle size={18} className="text-accent-warning" />
           Status Transitions
-          <span className="text-xs text-slate-500 font-normal">
+          <span className="text-xs font-normal text-text-muted">
             ({incidents.length} in last {selectedWindow.label})
           </span>
         </h3>
 
         {incidentsLoading ? (
-          <div className="h-32 flex items-center justify-center text-slate-500">
+          <div className="flex h-32 items-center justify-center text-text-muted">
             Loading incidents...
           </div>
         ) : incidentsError && !incidents.length ? (
           <ErrorDisplay error={incidentsError} onRetry={() => refetchIncidents()} compact />
         ) : incidents.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
+          <div className="py-8 text-center text-text-muted">
             <Clock size={32} className="mx-auto mb-2 opacity-50" />
             <p>No status transitions detected</p>
             <p className="text-xs mt-1">All checks have maintained consistent status</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto" data-testid="incidents-list">
+          <div className="max-h-64 space-y-2 overflow-y-auto" data-testid="incidents-list">
             {incidents.slice(0, 50).map((incident, idx) => (
               <div
                 key={`${incident.checkId}-${incident.timestamp}-${idx}`}
-                className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                className="flex cursor-pointer items-start gap-3 rounded-lg bg-surface-overlay/20 p-3 transition-colors hover:bg-surface-overlay/40"
                 onClick={() => handleCheckClick(incident.checkId)}
               >
                 <div className="flex items-center gap-1 mt-0.5">
                   <StatusIcon status={incident.fromStatus as "ok" | "warning" | "critical"} size={12} />
-                  <span className="text-slate-500">→</span>
+                  <span className="text-text-muted">→</span>
                   <StatusIcon status={incident.toStatus as "ok" | "warning" | "critical"} size={12} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <span className="text-sm font-medium text-slate-200 block truncate" title={incident.checkId}>
+                      <span className="block truncate text-sm font-medium text-text-primary" title={incident.checkId}>
                         {getTitle(incident.checkId)}
                       </span>
                       {getTitle(incident.checkId) !== incident.checkId && (
-                        <span className="text-xs text-slate-600 font-mono">{incident.checkId}</span>
+                        <span className="font-mono text-xs text-text-muted/80 break-all">{incident.checkId}</span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-500 flex-shrink-0">
+                    <span className="shrink-0 text-xs text-text-muted">
                       {formatRelativeTime(incident.timestamp)}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate">{incident.message}</p>
+                  <p className="break-words text-xs text-text-muted">{incident.message}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Check Detail Modal */}
       {selectedCheckId && (

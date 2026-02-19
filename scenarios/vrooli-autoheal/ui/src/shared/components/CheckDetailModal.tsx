@@ -8,6 +8,7 @@ import {
   fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
   type ActionResult, type RecoveryAction, normalizeHealthStatus
 } from "../../lib/api";
+import { formatRelativeTime } from "../../lib/utils";
 import { CodePreview } from "./CodePreview";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
@@ -42,21 +43,6 @@ function formatTimestamp(timestamp: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function formatRelativeTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  return `${diffDays}d ago`;
 }
 
 function formatInterval(seconds: number): string {
@@ -222,10 +208,10 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
       aria-labelledby="modal-title"
       data-testid="check-detail-modal"
     >
-      <ModalContent size="md" className="max-h-[85vh]">
+      <ModalContent size="md" className="max-h-[92vh] sm:max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border-default/70 p-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-default/70 p-3 sm:p-4">
+          <div className="min-w-0">
             <h2 id="modal-title" className="text-lg font-semibold text-text-primary">
               {title}
             </h2>
@@ -236,7 +222,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               {metadata?.description || "Check History & Details"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <Button
               onClick={() => {
                 onClose();
@@ -249,7 +235,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               data-testid="modal-learn-more"
             >
               <BookOpen size={14} />
-              Docs
+              <span className="hidden sm:inline">Docs</span>
             </Button>
             <Button
               onClick={handleExport}
@@ -260,7 +246,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               title="Export history to CSV"
             >
               <Download size={14} />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
             <Button
               onClick={onClose}
@@ -275,7 +261,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-3 sm:p-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12 text-text-muted">
               <Clock className="mr-2 animate-spin" size={20} />
@@ -297,7 +283,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               )}
 
               {/* Auto-Heal Controls */}
-              <div className="flex items-center justify-between rounded-lg border border-border-default/70 bg-surface-overlay/40 p-3">
+              <div className="rounded-lg border border-border-default/70 bg-surface-overlay/40 p-3">
                 <div className="flex items-center gap-3">
                   <Zap size={18} className={autoHealEnabled ? "text-accent-primary" : "text-text-muted"} />
                   <div>
@@ -309,7 +295,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-2 sm:justify-end">
                   {/* Auto-Heal Toggle */}
                   <Switch
                     checked={autoHealEnabled && checkEnabled}
@@ -421,7 +407,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
 
               {/* Stats Summary */}
               {stats && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="rounded-lg bg-surface-overlay/40 p-3 text-center">
                     <div className="text-xl font-bold text-text-primary">{stats.total}</div>
                     <div className="text-xs text-text-muted">Total</div>
@@ -450,8 +436,8 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               {/* Uptime with Sparkline */}
               {stats && stats.total > 0 && (
                 <div className="rounded-lg bg-surface-overlay/40 p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <span className="text-sm text-text-muted">Uptime</span>
                       <span
                         className={`text-lg font-semibold ${
@@ -471,7 +457,7 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 overflow-x-auto">
                       <span className="text-xs text-text-muted">Recent:</span>
                       <StatusSparkline statuses={recentStatuses} maxBars={24} barHeight={20} />
                     </div>
@@ -485,16 +471,18 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
               )}
 
               {/* Tab Navigation */}
-              <div className="flex items-center gap-1 border-b border-border-default/70">
+              <div className="flex items-center gap-1 overflow-x-auto border-b border-border-default/70">
                 <TabTrigger
                   onClick={() => setActiveTab("details")}
                   active={activeTab === "details"}
+                  className="shrink-0"
                 >
                   Details
                 </TabTrigger>
                 <TabTrigger
                   onClick={() => setActiveTab("history")}
                   active={activeTab === "history"}
+                  className="shrink-0"
                 >
                   History ({data?.count || 0})
                 </TabTrigger>

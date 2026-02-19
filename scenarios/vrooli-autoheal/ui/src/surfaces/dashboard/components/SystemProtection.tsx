@@ -196,7 +196,7 @@ function OneClickInstall({ onClose, onInstalled }: { onClose: () => void; onInst
 
       <div className="space-y-2">
         <p className="text-xs text-text-muted">Choose installation type:</p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             onClick={() => handleOneClickInstall(false)}
             disabled={isInstalling}
@@ -445,7 +445,7 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
       {data.lastError && <p className="mt-2 text-xs text-accent-warning">{data.lastError}</p>}
 
       {data.canInstall && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           {!data.watchdogInstalled ? (
             <Button
               onClick={() => {
@@ -477,10 +477,11 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
                   setShowInstall(false);
                 }}
                 variant="outline"
-                className="border-accent-danger/30 bg-accent-danger/10 px-3 text-accent-danger hover:bg-accent-danger/20"
+                className="justify-center border-accent-danger/30 bg-accent-danger/10 px-3 text-accent-danger hover:bg-accent-danger/20"
                 title="Uninstall watchdog"
               >
                 <Trash2 size={16} />
+                <span className="ml-2">Uninstall</span>
               </Button>
             </>
           )}

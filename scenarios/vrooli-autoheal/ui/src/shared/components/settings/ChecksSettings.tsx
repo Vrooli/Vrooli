@@ -26,8 +26,8 @@ export function ChecksSettings({
   isUpdating,
 }: ChecksSettingsProps) {
   return (
-    <div className="space-y-4">
-      <div className="mb-4 flex flex-wrap gap-2">
+    <div className="min-w-0 space-y-4">
+      <div className="mb-4 flex flex-wrap gap-2 overflow-x-hidden">
         <Button variant="outline" size="sm" onClick={() => onBulkUpdate("enableAll")} disabled={isUpdating}>
           Enable All
         </Button>
@@ -56,12 +56,12 @@ export function ChecksSettings({
           <div key={category} className="overflow-hidden rounded-lg border border-border-default/70">
             <button
               onClick={() => toggleCategory(category)}
-              className="flex w-full items-center justify-between bg-surface-overlay/40 px-4 py-3 transition-colors hover:bg-surface-overlay/70"
+              className="flex w-full min-w-0 items-center justify-between gap-2 bg-surface-overlay/40 px-4 py-3 text-left transition-colors hover:bg-surface-overlay/70"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 {Icon ? <Icon size={18} className="text-accent-primary" /> : null}
-                <span className="font-medium">{categoryLabels[category]}</span>
-                <span className="text-xs text-text-muted">({checks.length} checks)</span>
+                <span className="truncate font-medium">{categoryLabels[category]}</span>
+                <span className="shrink-0 text-xs text-text-muted">({checks.length} checks)</span>
               </div>
               {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
             </button>
@@ -69,20 +69,17 @@ export function ChecksSettings({
             {isExpanded && (
               <div className="divide-y divide-border-default/30">
                 {checks.map((check) => (
-                  <div
-                    key={check.id}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-surface-overlay/30"
-                  >
+                  <div key={check.id} className="flex min-w-0 flex-col gap-3 px-4 py-3 hover:bg-surface-overlay/30 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{check.title}</span>
-                        <span className="text-xs text-text-muted">({check.intervalSeconds}s)</span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">{check.title}</span>
+                        <span className="shrink-0 text-xs text-text-muted">({check.intervalSeconds}s)</span>
                       </div>
                       <p className="truncate text-xs text-text-muted">{check.description}</p>
                     </div>
 
-                    <div className="ml-4 flex items-center gap-4">
-                      <label className="cursor-pointer items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3 sm:ml-4">
+                      <label className="flex cursor-pointer items-center gap-2">
                         <span className="text-xs text-text-muted">Enabled</span>
                         <Switch
                           checked={check.config.enabled}
@@ -94,7 +91,7 @@ export function ChecksSettings({
                         />
                       </label>
 
-                      <label className="cursor-pointer items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-2">
                         <span className="text-xs text-text-muted">Auto-Heal</span>
                         <Switch
                           checked={check.config.autoHeal && check.config.enabled}

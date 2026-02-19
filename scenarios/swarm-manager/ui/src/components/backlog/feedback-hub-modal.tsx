@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Copy,
   Check,
@@ -22,9 +22,9 @@ import { backlogService } from "../../services";
 import type { ImportBacklogResponse } from "../../services/backlog-service";
 import {
   IDEA_AGENT_FILE_PATHS,
-  parseClarifyQuestionsFile,
+  parseClarifyQuestionsObject,
   buildClarifyQuestionsContent,
-  parseSuggestionsFile,
+  parseSuggestionsObject,
   buildSuggestionsContent,
 } from "../../lib";
 import type {
@@ -78,40 +78,37 @@ function ReviewItemSection({
   onSaved: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const [local, setLocal] = useState<ReviewItemState | null>(null);
 
-  const clarifyQuery = useQuery({
-    queryKey: ["feedback-hub-clarify", item.kind, item.name],
-    queryFn: () =>
-      backlogService.getFileContent(item.kind, item.name, IDEA_AGENT_FILE_PATHS.clarify),
-    enabled: expanded,
-  });
+  const parsed = useMemo(() => {
+    const cResult = parseClarifyQuestionsObject(item.questions_content);
+    const sResult = parseSuggestionsObject(item.suggestions_content);
+    return { cResult, sResult };
+  }, [item.questions_content, item.suggestions_content]);
 
-  const suggestQuery = useQuery({
-    queryKey: ["feedback-hub-suggest", item.kind, item.name],
-    queryFn: () =>
-      backlogService.getFileContent(item.kind, item.name, IDEA_AGENT_FILE_PATHS.suggest),
-    enabled: expanded,
-  });
+  const [local, setLocal] = useState<ReviewItemState>(() => ({
+    questions: parsed.cResult.questions,
+    questionsRaw: parsed.cResult.raw,
+    suggestions: parsed.sResult.suggestions,
+    suggestionsRaw: parsed.sResult.raw,
+    saved: false,
+    questionsDirty: false,
+    suggestionsDirty: false,
+  }));
 
   useEffect(() => {
-    if (!expanded) return;
-    const cResult = parseClarifyQuestionsFile(clarifyQuery.data);
-    const sResult = parseSuggestionsFile(suggestQuery.data);
     setLocal({
-      questions: cResult.questions,
-      questionsRaw: cResult.raw,
-      suggestions: sResult.suggestions,
-      suggestionsRaw: sResult.raw,
+      questions: parsed.cResult.questions,
+      questionsRaw: parsed.cResult.raw,
+      suggestions: parsed.sResult.suggestions,
+      suggestionsRaw: parsed.sResult.raw,
       saved: false,
       questionsDirty: false,
       suggestionsDirty: false,
     });
-  }, [expanded, clarifyQuery.data, suggestQuery.data]);
+  }, [parsed]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!local) return;
       const promises: Promise<unknown>[] = [];
       if (local.questionsDirty && local.questions.length > 0) {
         promises.push(
@@ -151,8 +148,7 @@ function ReviewItemSection({
   if (item.pending_suggestions > 0)
     counts.push(`${item.pending_suggestions} suggestion${item.pending_suggestions === 1 ? "" : "s"}`);
 
-  const isLoading = clarifyQuery.isLoading || suggestQuery.isLoading;
-  const isDirty = local ? local.questionsDirty || local.suggestionsDirty : false;
+  const isDirty = local.questionsDirty || local.suggestionsDirty;
 
   return (
     <div className="rounded-lg border border-white/10 bg-slate-800/40">
@@ -177,15 +173,6 @@ function ReviewItemSection({
 
       {expanded && (
         <div className="border-t border-white/5 px-4 py-4 space-y-4">
-          {isLoading && (
-            <div className="flex items-center gap-2 py-4">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-cyan-400" />
-              <span className="text-sm text-slate-400">Loading feedback...</span>
-            </div>
-          )}
-
-          {!isLoading && local && (
-            <>
               {/* Questions */}
               {local.questions.length > 0 && (
                 <div className="space-y-3">
@@ -271,8 +258,6 @@ function ReviewItemSection({
                   {saveMutation.isPending ? "Saving..." : "Save"}
                 </Button>
               </div>
-            </>
-          )}
         </div>
       )}
     </div>

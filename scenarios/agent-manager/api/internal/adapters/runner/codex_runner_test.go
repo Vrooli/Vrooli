@@ -74,6 +74,7 @@ var codexSamples = map[string]string{
 	"data_prefix_tool_call":       `data: {"type":"item.started","item":{"id":"item_3","type":"tool_call","name":"bash","input":{"command":"ls -la"}}}`,
 	"command_execution_started":   `{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}`,
 	"command_execution_completed": `{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"test\n","exit_code":0,"status":"completed"}}`,
+	"command_execution_failed":    `{"type":"item.completed","item":{"id":"item_5","type":"command_execution","command":"/bin/bash -lc \"badcmd\"","aggregated_output":"bash: badcmd: command not found\n","exit_code":127,"status":"failed"}}`,
 }
 
 func newCodexRunnerWithPricing(runID uuid.UUID) *CodexRunner {
@@ -396,6 +397,41 @@ func TestCodexRunner_ParseStreamEvent_CommandExecutionCompleted(t *testing.T) {
 	}
 	if toolData.ToolName != "bash" {
 		t.Errorf("ToolName = %s, want bash", toolData.ToolName)
+	}
+}
+
+func TestCodexRunner_ParseStreamEvent_CommandExecutionFailed_EmitsResultWithError(t *testing.T) {
+	runner := &CodexRunner{}
+	runID := uuid.New()
+
+	events := runner.parseCodexStreamEvents(runID, codexSamples["command_execution_failed"])
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+
+	if events[0].EventType != domain.EventTypeToolCall {
+		t.Fatalf("first event type = %s, want %s", events[0].EventType, domain.EventTypeToolCall)
+	}
+	callData, ok := events[0].Data.(*domain.ToolCallEventData)
+	if !ok {
+		t.Fatalf("expected ToolCallEventData, got %T", events[0].Data)
+	}
+	if status, ok := callData.Input["status"].(string); !ok || status != "failed" {
+		t.Fatalf("tool_call status = %v, want failed", callData.Input["status"])
+	}
+
+	if events[1].EventType != domain.EventTypeToolResult {
+		t.Fatalf("second event type = %s, want %s", events[1].EventType, domain.EventTypeToolResult)
+	}
+	resultData, ok := events[1].Data.(*domain.ToolResultEventData)
+	if !ok {
+		t.Fatalf("expected ToolResultEventData, got %T", events[1].Data)
+	}
+	if resultData.Error == "" {
+		t.Fatal("expected tool_result error to be populated for failed command")
+	}
+	if resultData.Output == "" {
+		t.Fatal("expected tool_result output to include aggregated command output")
 	}
 }
 

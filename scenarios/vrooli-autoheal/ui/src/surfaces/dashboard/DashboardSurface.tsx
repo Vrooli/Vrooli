@@ -17,6 +17,88 @@ export interface CollapsedGroups {
   ok: boolean;
 }
 
+type GroupKey = keyof CollapsedGroups;
+
+const GROUP_CONFIG: Record<
+  GroupKey,
+  {
+    title: string;
+    icon: typeof AlertCircle;
+    headerClass: string;
+    countClass: string;
+  }
+> = {
+  critical: {
+    title: "Critical Issues",
+    icon: AlertCircle,
+    headerClass: "bg-accent-danger/10 text-accent-danger hover:bg-accent-danger/20",
+    countClass: "text-accent-danger/80",
+  },
+  warning: {
+    title: "Warnings",
+    icon: AlertTriangle,
+    headerClass: "bg-accent-warning/10 text-accent-warning hover:bg-accent-warning/20",
+    countClass: "text-accent-warning/80",
+  },
+  ok: {
+    title: "Healthy",
+    icon: CheckCircle,
+    headerClass: "bg-accent-success/10 text-accent-success hover:bg-accent-success/20",
+    countClass: "text-accent-success/80",
+  },
+};
+
+interface CheckGroupSectionProps {
+  group: GroupKey;
+  checks: EnrichedCheck[];
+  collapsed: boolean;
+  onToggleGroup: (group: GroupKey) => void;
+  onSelectCheck: (checkId: string) => void;
+}
+
+function CheckGroupSection({
+  group,
+  checks,
+  collapsed,
+  onToggleGroup,
+  onSelectCheck,
+}: CheckGroupSectionProps) {
+  if (checks.length === 0) {
+    return null;
+  }
+
+  const config = GROUP_CONFIG[group];
+  const Icon = config.icon;
+
+  return (
+    <div className="space-y-1.5 sm:space-y-2">
+      <button
+        onClick={() => onToggleGroup(group)}
+        className={`flex w-full flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition-colors ${config.headerClass}`}
+      >
+        {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+        <Icon size={16} />
+        <span>{config.title}</span>
+        <span className={`ml-auto text-xs font-normal ${config.countClass}`}>
+          {checks.length} {checks.length === 1 ? "check" : "checks"}
+        </span>
+      </button>
+      {!collapsed && (
+        <div className="rounded-lg border border-border-default/70 bg-surface-elevated/40 divide-y divide-border-default/70 sm:space-y-2 sm:divide-y-0 sm:border-none sm:bg-transparent">
+          {checks.map((check) => (
+            <CheckCard
+              key={check.checkId}
+              check={check}
+              onInfoClick={onSelectCheck}
+              mobileListItem
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DashboardSurfaceProps {
   data: StatusResponse | undefined;
   checksMetadataCount: number;
@@ -47,8 +129,8 @@ export function DashboardSurface({
   onSelectCheck,
 }: DashboardSurfaceProps) {
   return (
-    <>
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="min-w-0">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4">
         <SummaryCard
           title="Total Checks"
           value={data?.summary.total || 0}
@@ -75,86 +157,28 @@ export function DashboardSurface({
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="space-y-4 md:col-span-2">
-          <h2 className="flex items-center gap-2 text-lg font-medium">
+      <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+        <div className="space-y-3 sm:space-y-4 md:col-span-2">
+          <h2 className="flex flex-wrap items-center gap-2 text-lg font-medium">
             <Activity size={20} className="text-accent-primary" />
             Health Checks
             {enrichedChecks.length === 0 && checksMetadataCount > 0 && (
-              <span className="text-sm font-normal text-text-muted/80">
+              <span className="text-xs font-normal text-text-muted/80 sm:text-sm">
                 ({checksMetadataCount} registered - click &quot;Run Tick&quot; to execute)
               </span>
             )}
           </h2>
 
-          {groupedChecks.critical.length > 0 && (
-            <div className="space-y-2">
-              <button
-                onClick={() => onToggleGroup("critical")}
-                className="flex w-full items-center gap-2 text-left text-sm font-medium text-red-400 transition-colors hover:text-red-300"
-              >
-                {collapsedGroups.critical ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                <AlertCircle size={16} />
-                <span>Critical Issues</span>
-                <span className="ml-auto text-xs font-normal text-red-500/80">
-                  {groupedChecks.critical.length} {groupedChecks.critical.length === 1 ? "check" : "checks"}
-                </span>
-              </button>
-              {!collapsedGroups.critical && (
-                <div className="ml-1 space-y-2">
-                  {groupedChecks.critical.map((check) => (
-                    <CheckCard key={check.checkId} check={check} onInfoClick={onSelectCheck} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {groupedChecks.warning.length > 0 && (
-            <div className="space-y-2">
-              <button
-                onClick={() => onToggleGroup("warning")}
-                className="flex w-full items-center gap-2 text-left text-sm font-medium text-amber-400 transition-colors hover:text-amber-300"
-              >
-                {collapsedGroups.warning ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                <AlertTriangle size={16} />
-                <span>Warnings</span>
-                <span className="ml-auto text-xs font-normal text-amber-500/80">
-                  {groupedChecks.warning.length} {groupedChecks.warning.length === 1 ? "check" : "checks"}
-                </span>
-              </button>
-              {!collapsedGroups.warning && (
-                <div className="ml-1 space-y-2">
-                  {groupedChecks.warning.map((check) => (
-                    <CheckCard key={check.checkId} check={check} onInfoClick={onSelectCheck} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {groupedChecks.ok.length > 0 && (
-            <div className="space-y-2">
-              <button
-                onClick={() => onToggleGroup("ok")}
-                className="flex w-full items-center gap-2 text-left text-sm font-medium text-emerald-400 transition-colors hover:text-emerald-300"
-              >
-                {collapsedGroups.ok ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                <CheckCircle size={16} />
-                <span>Healthy</span>
-                <span className="ml-auto text-xs font-normal text-emerald-500/80">
-                  {groupedChecks.ok.length} {groupedChecks.ok.length === 1 ? "check" : "checks"}
-                </span>
-              </button>
-              {!collapsedGroups.ok && (
-                <div className="ml-1 space-y-2">
-                  {groupedChecks.ok.map((check) => (
-                    <CheckCard key={check.checkId} check={check} onInfoClick={onSelectCheck} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {(Object.keys(GROUP_CONFIG) as GroupKey[]).map((group) => (
+            <CheckGroupSection
+              key={group}
+              group={group}
+              checks={groupedChecks[group]}
+              collapsed={collapsedGroups[group]}
+              onToggleGroup={onToggleGroup}
+              onSelectCheck={onSelectCheck}
+            />
+          ))}
         </div>
 
         <div className="space-y-4">
@@ -181,6 +205,6 @@ export function DashboardSurface({
       <div className="mt-6">
         <EventsTimeline />
       </div>
-    </>
+    </div>
   );
 }

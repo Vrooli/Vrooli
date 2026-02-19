@@ -108,7 +108,7 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
   // Loading state
   if (isLoading) {
     return (
-      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+      <div className="mt-2 flex items-center gap-2 text-xs text-text-muted">
         <Loader2 size={12} className="animate-spin" />
         Loading actions...
       </div>
@@ -125,9 +125,9 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
   const textSize = compact ? "text-[10px]" : "text-xs";
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-2 min-w-0 space-y-2">
       {/* Actions row */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex min-w-0 flex-wrap gap-1.5">
         {/* Available actions - prominent display */}
         {availableActions.map((action) => {
           const Icon = actionIcons[action.id] || Play;
@@ -140,10 +140,10 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
               }}
               disabled={executeMutation.isPending}
               title={action.description}
-              className={`flex items-center gap-1 ${buttonSize} ${textSize} rounded border transition-colors ${
+              className={`flex min-w-0 items-center gap-1 ${buttonSize} ${textSize} rounded border transition-colors ${
                 action.dangerous
-                  ? "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                  : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                  ? "border-accent-warning/30 bg-accent-warning/10 text-accent-warning hover:bg-accent-warning/20"
+                  : "border-border-default/70 bg-surface-overlay/40 text-text-primary hover:bg-surface-overlay/70"
               }`}
             >
               {executeMutation.isPending && executeMutation.variables?.actionId === action.id ? (
@@ -151,7 +151,7 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
               ) : (
                 <Icon size={iconSize} />
               )}
-              {action.name}
+              <span className="break-words">{action.name}</span>
             </button>
           );
         })}
@@ -164,10 +164,10 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
             <div
               key={action.id}
               title={reason}
-              className={`flex items-center gap-1 ${buttonSize} ${textSize} rounded border border-white/5 bg-white/[0.02] text-slate-600 cursor-not-allowed`}
+              className={`flex min-w-0 cursor-not-allowed items-center gap-1 rounded border border-border-default/50 bg-surface-overlay/20 ${buttonSize} ${textSize} text-text-muted/70`}
             >
               <Icon size={iconSize} />
-              {action.name}
+              <span className="break-words">{action.name}</span>
               <Info size={compact ? 8 : 10} className="ml-0.5 opacity-50" />
             </div>
           );
@@ -176,24 +176,24 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
 
       {/* Confirmation dialog */}
       {confirmAction && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+        <div className="rounded-lg border border-accent-warning/20 bg-accent-warning/10 p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-accent-warning" />
             <div className="flex-1">
-              <p className="text-sm text-amber-300 font-medium">Confirm Action</p>
-              <p className="text-xs text-amber-200/80 mt-1">
+              <p className="text-sm font-medium text-accent-warning">Confirm Action</p>
+              <p className="mt-1 text-xs text-text-muted">
                 Are you sure you want to {confirmAction.name.toLowerCase()} this resource?
                 {confirmAction.id === "stop" && " This will cause downtime."}
                 {confirmAction.id === "restart" && " This will cause brief downtime."}
               </p>
-              <div className="flex gap-2 mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleConfirm();
                   }}
                   disabled={executeMutation.isPending}
-                  className="px-3 py-1 text-xs font-medium rounded bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 transition-colors"
+                  className="rounded bg-accent-warning px-3 py-1 text-xs font-medium text-text-inverse transition-colors hover:bg-accent-warning/80 disabled:opacity-50"
                 >
                   {executeMutation.isPending ? "Executing..." : "Confirm"}
                 </button>
@@ -203,7 +203,7 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
                     setConfirmAction(null);
                   }}
                   disabled={executeMutation.isPending}
-                  className="px-3 py-1 text-xs rounded border border-white/10 text-slate-300 hover:bg-white/5 transition-colors"
+                  className="rounded border border-border-default/70 px-3 py-1 text-xs text-text-primary transition-colors hover:bg-surface-overlay/40"
                 >
                   Cancel
                 </button>
@@ -215,10 +215,10 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
 
       {/* Last result */}
       {lastResult && (
-        <div className={`p-3 rounded-lg border ${
+        <div className={`rounded-lg border p-3 ${
           lastResult.success
-            ? "bg-emerald-500/10 border-emerald-500/20"
-            : "bg-red-500/10 border-red-500/20"
+            ? "border-accent-success/20 bg-accent-success/10"
+            : "border-accent-danger/20 bg-accent-danger/10"
         }`}>
           <div className="flex items-start gap-2">
             {lastResult.success ? (
@@ -227,21 +227,21 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
               <XCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium ${lastResult.success ? "text-emerald-300" : "text-red-300"}`}>
+              <p className={`text-sm font-medium ${lastResult.success ? "text-accent-success" : "text-accent-danger"}`}>
                 {lastResult.message}
               </p>
               {lastResult.output && (
                 <CodePreview code={lastResult.output} language="text" maxHeight="8rem" className="mt-2" />
               )}
               {lastResult.error && (
-                <p className="mt-1 text-xs text-red-400">{lastResult.error}</p>
+                <p className="mt-1 text-xs text-accent-danger">{lastResult.error}</p>
               )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setLastResult(null);
                 }}
-                className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+                className="mt-2 text-xs text-text-muted transition-colors hover:text-text-primary"
               >
                 Dismiss
               </button>
