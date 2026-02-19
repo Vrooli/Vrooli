@@ -283,9 +283,9 @@ func (t *Task) Validate() error {
 		return NewValidationError("title", "must be 255 characters or less")
 	}
 
-	// Description has a reasonable limit
-	if len(t.Description) > 16384 {
-		return NewValidationError("description", "must be 16384 characters or less")
+	// Description has a reasonable limit (64KB accommodates large agent prompts)
+	if len(t.Description) > 65536 {
+		return NewValidationError("description", "must be 65536 characters or less")
 	}
 
 	// ScopePath is required

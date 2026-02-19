@@ -874,6 +874,27 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 
+	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
+	// Fall back to DefaultProjectRoot when the task has no project root set.
+	if pr := strings.TrimSpace(task.ProjectRoot); pr == "" || !filepath.IsAbs(pr) {
+		resolved := pr
+		if resolved == "" {
+			resolved = strings.TrimSpace(o.config.DefaultProjectRoot)
+		}
+		if resolved != "" && !filepath.IsAbs(resolved) {
+			if abs, err := filepath.Abs(resolved); err == nil {
+				resolved = abs
+			}
+		}
+		if resolved != task.ProjectRoot {
+			task.ProjectRoot = resolved
+			if o.tasks != nil {
+				task.UpdatedAt = time.Now()
+				_ = o.tasks.Update(ctx, task)
+			}
+		}
+	}
+
 	if req.AgentProfileID != nil && req.ProfileRef != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",

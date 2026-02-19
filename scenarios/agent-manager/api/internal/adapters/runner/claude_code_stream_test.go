@@ -789,6 +789,16 @@ func TestClaudeCodeRunner_DetectRateLimit_DailyLimit(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeRunner_DetectRateLimit_HitYourLimitMessage(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+
+	info := runner.detectRateLimit("You've hit your limit · resets 10am (America/New_York)")
+
+	if !info.Detected {
+		t.Error("expected rate limit to be detected")
+	}
+}
+
 func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 	runner := &ClaudeCodeRunner{}
 
@@ -796,6 +806,30 @@ func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 
 	if info.Detected {
 		t.Error("expected rate limit NOT to be detected for unrelated message")
+	}
+}
+
+func TestClaudeCodeRunner_ParseResultEvent_NonErrorRateLimitMessage(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+	event := &ClaudeStreamEvent{
+		Type:    "result",
+		IsError: false,
+		Result:  json.RawMessage(`"You've hit your limit · resets 10am (America/New_York)"`),
+	}
+
+	parsed, err := runner.parseResultEvent(runID, event)
+	if err != nil {
+		t.Fatalf("parseResultEvent returned error: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("expected event, got nil")
+	}
+	if parsed.EventType != domain.EventTypeError {
+		t.Fatalf("expected EventTypeError, got %s", parsed.EventType)
+	}
+	if _, ok := parsed.Data.(*domain.RateLimitEventData); !ok {
+		t.Fatalf("expected RateLimitEventData, got %T", parsed.Data)
 	}
 }
 

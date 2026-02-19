@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -1304,5 +1305,89 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 		if errors.As(err, &capErr) {
 			t.Fatal("MaxConcurrentRuns=0 should disable capacity check")
 		}
+	}
+}
+
+// TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot verifies that a task
+// with a relative projectRoot (e.g., ".") gets resolved to an absolute path
+// before sandbox creation. This prevents the workspace-sandbox API from
+// rejecting the request with a database constraint violation.
+//
+// Regression test for: investigation runs failing with "Unable to create
+// isolated workspace" when the source run's task had projectRoot=".".
+func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	runnerRegistry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "mock runner available")
+	mustRegisterRunner(t, runnerRegistry, mockRunner)
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{
+			DefaultTimeout:          30 * time.Minute,
+			MaxConcurrentRuns:       10,
+			RequireSandboxByDefault: true,
+			DefaultProjectRoot:      "/fallback/root",
+		}),
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
+	)
+	ctx := context.Background()
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "resolve-root-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Model:      "claude-3-opus",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	})
+
+	// Create task with relative projectRoot "." — the exact scenario that
+	// caused the bug when investigation runs inherited this from source tasks.
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		ID:          uuid.New(),
+		Title:       "Relative Root Task",
+		ScopePath:   ".",
+		ProjectRoot: ".",
+		Status:      domain.TaskStatusQueued,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	})
+
+	// CreateRun should succeed past the preflight validation.
+	// It will still fail asynchronously (no sandbox provider), but the run
+	// should be created with the task's projectRoot resolved to absolute.
+	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "Test prompt",
+		Force:          true,
+	})
+	// The run should be created (preflight passes)
+	if err != nil {
+		t.Fatalf("CreateRun failed unexpectedly: %v", err)
+	}
+	if run == nil {
+		t.Fatal("expected run to be created")
+	}
+
+	// Verify the task's projectRoot was resolved to an absolute path
+	updatedTask, err := svc.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTask failed: %v", err)
+	}
+	if !filepath.IsAbs(updatedTask.ProjectRoot) {
+		t.Errorf("expected task.ProjectRoot to be absolute, got %q", updatedTask.ProjectRoot)
+	}
+	if updatedTask.ProjectRoot == "." {
+		t.Error("task.ProjectRoot should not remain as '.'")
 	}
 }

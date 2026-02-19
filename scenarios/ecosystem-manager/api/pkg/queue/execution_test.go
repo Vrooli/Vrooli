@@ -10,6 +10,7 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // setupExecutionTestProcessor creates a test processor with minimal dependencies
@@ -165,8 +166,8 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 
 		// NEW FIXED CODE does:
 		finalizeErrCh <- processor.finalizeTaskStatus(&task, "completed") // finalize FIRST
-		time.Sleep(20 * time.Millisecond)                // ensure overlap
-		processor.unregisterExecution(task.ID)           // unregister AFTER
+		time.Sleep(20 * time.Millisecond)                                 // ensure overlap
+		processor.unregisterExecution(task.ID)                            // unregister AFTER
 	}()
 
 	wg.Wait()
@@ -580,5 +581,44 @@ func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
 	}
 	if finalTask.Status != "completed" {
 		t.Errorf("Task status should be completed, got %s", finalTask.Status)
+	}
+}
+
+func TestMapAgentManagerResult_DetectsRateLimitInSuccessfulOutput(t *testing.T) {
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	task := tasks.TaskItem{ID: "rate-limit-task"}
+	output := "System context received\nYou've hit your limit · resets 10am (America/New_York)\nStatus: running -> complete"
+
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
+
+	if resp.Success {
+		t.Fatal("expected success=false for rate-limited output")
+	}
+	if !resp.RateLimited {
+		t.Fatal("expected rate_limited=true for rate-limited output")
+	}
+	if resp.RetryAfter <= 0 {
+		t.Fatalf("expected positive retry_after, got %d", resp.RetryAfter)
+	}
+}
+
+func TestMapAgentManagerResult_LeavesNormalCompleteUntouched(t *testing.T) {
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	task := tasks.TaskItem{ID: "normal-task"}
+	output := "Task finished successfully"
+
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
+
+	if !resp.Success {
+		t.Fatal("expected success=true for non-rate-limited complete run")
+	}
+	if resp.RateLimited {
+		t.Fatal("expected rate_limited=false for non-rate-limited complete run")
 	}
 }

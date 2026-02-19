@@ -75,6 +75,8 @@ func isRateLimitPattern(output string) bool {
 		"rate/usage limit reached",
 		"claude ai usage limit reached",
 		"you've reached your claude usage limit",
+		"you've hit your limit",
+		"hit your limit",
 		"usage limit reached",
 		"rate limit reached",
 		"rate limit exceeded",

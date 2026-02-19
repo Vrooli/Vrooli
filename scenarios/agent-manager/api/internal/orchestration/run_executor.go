@@ -31,6 +31,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -540,6 +541,14 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	// Use idempotency key to allow safe retries of sandbox creation
 	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
 
+	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths)
+	projectRoot := e.task.ProjectRoot
+	if projectRoot != "" && !filepath.IsAbs(projectRoot) {
+		if absRoot, err := filepath.Abs(projectRoot); err == nil {
+			projectRoot = absRoot
+		}
+	}
+
 	metadata := map[string]string{
 		"agent_manager_run_id": e.run.ID.String(),
 	}
@@ -547,7 +556,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
 		NoLock:         e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock,
-		ProjectRoot:    e.task.ProjectRoot,
+		ProjectRoot:    projectRoot,
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
 		IdempotencyKey: idempotencyKey,

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, RefreshCw, Save, FolderOpen, Eye, Copy, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { FileText, RefreshCw, Save, FolderOpen, Copy, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -12,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { usePromptFile, usePromptFiles, useSavePromptFile } from '@/hooks/usePromptFiles';
 import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
-import { markdownToHtml } from '@/lib/markdown';
+import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
 import type { PromptFileInfo, SkillResponse } from '@/types/api';
 
 function formatBytes(size?: number) {
@@ -168,7 +167,6 @@ export function PromptLibraryPanel() {
   // Find current info for the metadata panel
   const currentLocalFile: PromptFileInfo | undefined = files.find((f) => f.id === selectedId);
   const isDirty = !isSkillSelected && draft !== (file?.content ?? '');
-  const renderedPreview = useMemo(() => markdownToHtml(draft), [draft]);
 
   const handleSave = () => {
     if (!selectedId || isSkillSelected) return;
@@ -379,33 +377,15 @@ export function PromptLibraryPanel() {
             )}
           </div>
 
-          <Textarea
+          <MarkdownDisplay
             value={draft}
-            onChange={(e) => !isSkillSelected && setDraft(e.target.value)}
-            className="font-mono text-sm min-h-[320px] bg-slate-900"
-            spellCheck={false}
+            onChange={setDraft}
             readOnly={isSkillSelected}
+            defaultMode="preview"
             placeholder={fileLoading || skillsLoading ? 'Loading prompt...' : 'Select a prompt file to edit'}
+            storageKey="ecosystem-manager.settings.promptLibrary"
+            className="h-[640px]"
           />
-
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs uppercase text-slate-400">
-              <Eye className="h-4 w-4" />
-              <span>Rendered Preview</span>
-            </div>
-            <div className="rounded-md border border-white/10 bg-card p-4 max-h-[260px] overflow-y-auto">
-              {draft ? (
-                <div
-                  className="prose prose-invert prose-sm max-w-none space-y-3 [&_code]:bg-black/40 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_pre]:text-xs [&_pre]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5"
-                  dangerouslySetInnerHTML={{ __html: renderedPreview }}
-                />
-              ) : (
-                <div className="text-slate-500 text-sm">
-                  {fileLoading || skillsLoading ? 'Loading preview...' : 'No content to preview'}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>

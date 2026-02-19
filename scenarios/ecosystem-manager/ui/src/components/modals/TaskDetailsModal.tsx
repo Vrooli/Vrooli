@@ -30,12 +30,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
 import { api, ApiError } from '@/lib/api';
-import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
 import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
+import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
 import {
   SteeringConfigPicker,
   deriveSteeringConfig,
@@ -555,7 +555,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     (latestExecutionOutput as any)?.output ??
     (latestExecutionOutput as any)?.content ??
     '';
-  const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
   const toNumber = (val: unknown): number =>
@@ -1149,9 +1148,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                         {isLoadingLatestOutput ? (
                           <div className="text-xs text-slate-500">Loading output...</div>
                         ) : latestOutputText ? (
-                          <pre className="rounded-md border border-white/5 bg-slate-800/60 p-2 text-xs text-slate-100 whitespace-pre-wrap max-h-52 overflow-y-auto">
-                            {latestOutputText}
-                          </pre>
+                          <MarkdownDisplay
+                            value={latestOutputText}
+                            readOnly
+                            defaultMode="preview"
+                            storageKey="ecosystem-manager.taskDetails.lastExecutionOutput"
+                            className="h-72"
+                          />
                         ) : (
                           <div className="text-xs text-slate-500">No output captured yet.</div>
                         )}
@@ -1180,22 +1183,14 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
           {/* Prompt Tab */}
           <TabsContent value="prompt" className="mt-4">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
-                {assembledPrompt || 'No prompt available'}
-              </div>
-              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-card">
-                <div className="text-xs uppercase text-slate-400 mb-2">Preview</div>
-                {assembledPrompt ? (
-                  <div
-                    className="text-sm leading-relaxed space-y-3 [&_code]:bg-black/40 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_pre]:text-xs [&_pre]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{ __html: assembledPromptHtml }}
-                  />
-                ) : (
-                  <div className="text-slate-500 text-sm">No prompt available</div>
-                )}
-              </div>
-            </div>
+            <MarkdownDisplay
+              value={assembledPrompt}
+              readOnly
+              defaultMode="preview"
+              placeholder="No prompt available"
+              storageKey="ecosystem-manager.taskDetails.promptTab"
+              className="h-[520px]"
+            />
           </TabsContent>
 
           {/* Executions Tab */}

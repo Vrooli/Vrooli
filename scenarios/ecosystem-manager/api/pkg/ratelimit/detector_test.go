@@ -54,6 +54,13 @@ func TestDetectFromError_NoMatch(t *testing.T) {
 	}
 }
 
+func TestDetectFromError_HitYourLimitPattern(t *testing.T) {
+	result := DetectFromError(nil, "You've hit your limit · resets 10am (America/New_York)", 5*time.Second)
+	if !result.IsRateLimited {
+		t.Fatalf("expected rate limited true, got false")
+	}
+}
+
 func TestExtractRetryDurationCapsAndPatterns(t *testing.T) {
 	if got := ExtractRetryDuration("retry-after=50000"); got != MaxRetrySeconds {
 		t.Fatalf("expected max cap %d, got %d", MaxRetrySeconds, got)

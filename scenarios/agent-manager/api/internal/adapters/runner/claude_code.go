@@ -232,6 +232,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
 	var errorOutput strings.Builder
+	var rateLimitEvent *domain.RateLimitEventData
 
 	// Read stderr in background
 	go func() {
@@ -280,6 +281,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			}
 			// Update metrics based on event
 			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+				rateLimitEvent = data
+			}
 
 			// Emit to sink
 			if req.EventSink != nil {
@@ -373,6 +377,13 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = err.Error()
+		}
+	} else if rateLimitEvent != nil {
+		result.Success = false
+		result.ExitCode = 429
+		result.ErrorMessage = strings.TrimSpace(rateLimitEvent.Message)
+		if result.ErrorMessage == "" {
+			result.ErrorMessage = "rate limit reached"
 		}
 	} else {
 		result.Success = true
@@ -546,6 +557,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
 	var errorOutput strings.Builder
+	var rateLimitEvent *domain.RateLimitEventData
 
 	// Read stderr in background
 	go func() {
@@ -589,6 +601,9 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 				continue
 			}
 			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+				rateLimitEvent = data
+			}
 			if req.EventSink != nil {
 				_ = req.EventSink.Emit(event)
 			}
@@ -656,6 +671,13 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			result.Success = false
 			result.ExitCode = -1
 			result.ErrorMessage = err.Error()
+		}
+	} else if rateLimitEvent != nil {
+		result.Success = false
+		result.ExitCode = 429
+		result.ErrorMessage = strings.TrimSpace(rateLimitEvent.Message)
+		if result.ErrorMessage == "" {
+			result.ErrorMessage = "rate limit reached"
 		}
 	} else {
 		result.Success = true
@@ -1335,25 +1357,25 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 
 // parseResultEvent handles the final "result" event which contains cost and rate limit info.
 func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
-	// Check for rate limit error in result
+	var resultStr string
+	if event.Result != nil {
+		_ = json.Unmarshal(event.Result, &resultStr)
+	}
+
+	// Rate limit messages can appear in result payload even when is_error=false.
+	rateLimitInfo := r.detectRateLimit(resultStr)
+	if rateLimitInfo.Detected {
+		return domain.NewRateLimitEvent(
+			runID,
+			rateLimitInfo.LimitType,
+			rateLimitInfo.Message,
+			rateLimitInfo.ResetTime,
+			rateLimitInfo.RetryAfter,
+		), nil
+	}
+
+	// Check for non-rate-limit errors in result
 	if event.IsError {
-		var resultStr string
-		if event.Result != nil {
-			_ = json.Unmarshal(event.Result, &resultStr)
-		}
-
-		// Check for rate limit pattern: "Claude AI usage limit reached|timestamp"
-		rateLimitInfo := r.detectRateLimit(resultStr)
-		if rateLimitInfo.Detected {
-			return domain.NewRateLimitEvent(
-				runID,
-				rateLimitInfo.LimitType,
-				rateLimitInfo.Message,
-				rateLimitInfo.ResetTime,
-				rateLimitInfo.RetryAfter,
-			), nil
-		}
-
 		// Generic error
 		return domain.NewErrorEvent(
 			runID,
@@ -1404,8 +1426,13 @@ func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
 		Message:  resultStr,
 	}
 
+	lowerMsg := strings.ToLower(resultStr)
+
 	// Pattern 1: "Claude AI usage limit reached|timestamp"
-	if strings.Contains(resultStr, "usage limit reached") || strings.Contains(resultStr, "rate limit") {
+	if strings.Contains(lowerMsg, "usage limit reached") ||
+		strings.Contains(lowerMsg, "rate limit") ||
+		strings.Contains(lowerMsg, "hit your limit") ||
+		strings.Contains(lowerMsg, "reached your limit") {
 		info.Detected = true
 		info.LimitType = "5_hour" // Most common limit type
 
@@ -1423,7 +1450,6 @@ func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
 		}
 
 		// Determine limit type from message content
-		lowerMsg := strings.ToLower(resultStr)
 		if strings.Contains(lowerMsg, "daily") {
 			info.LimitType = "daily"
 		} else if strings.Contains(lowerMsg, "weekly") {

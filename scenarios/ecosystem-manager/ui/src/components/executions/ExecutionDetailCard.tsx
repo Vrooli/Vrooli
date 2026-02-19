@@ -1,4 +1,5 @@
 import { cn, getPhaseDisplayName } from '@/lib/utils';
+import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
 import type { AutoSteerProfile, ExecutionHistory, PhaseInfo } from '@/types/api';
 
 interface ExecutionDetailCardProps {
@@ -220,9 +221,13 @@ export function ExecutionDetailCard({
         {isLoadingOutput ? (
           <div className="text-xs text-slate-500">Loading output...</div>
         ) : outputText ? (
-          <pre className="bg-slate-950/60 border border-white/10 rounded p-3 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-            {outputText}
-          </pre>
+          <MarkdownDisplay
+            value={outputText}
+            readOnly
+            defaultMode="preview"
+            storageKey="ecosystem-manager.execution.output"
+            className="h-[360px]"
+          />
         ) : (
           <div className="text-xs text-slate-500">No output captured for this execution.</div>
         )}
@@ -233,9 +238,13 @@ export function ExecutionDetailCard({
         {isLoadingPrompt ? (
           <div className="text-xs text-slate-500">Loading prompt...</div>
         ) : promptText ? (
-          <pre className="bg-slate-950/60 border border-white/10 rounded p-3 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-            {promptText}
-          </pre>
+          <MarkdownDisplay
+            value={promptText}
+            readOnly
+            defaultMode="preview"
+            storageKey="ecosystem-manager.execution.prompt"
+            className="h-[360px]"
+          />
         ) : (
           <div className="text-xs text-slate-500">Prompt not captured for this execution.</div>
         )}

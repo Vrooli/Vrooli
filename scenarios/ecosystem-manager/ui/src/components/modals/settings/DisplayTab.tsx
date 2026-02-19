@@ -3,7 +3,7 @@
  * Settings for UI display preferences
  */
 
-import { Sun, Moon, Laptop, Eye } from 'lucide-react';
+import { Sun, Moon, Laptop, Eye, ListOrdered } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useEditorPreferences } from '@/hooks/useEditorPreferences';
 import type { DisplaySettings } from '@/types/api';
 
 interface DisplayTabProps {
@@ -23,6 +24,7 @@ interface DisplayTabProps {
 
 export function DisplayTab({ settings, onChange }: DisplayTabProps) {
   const { setTheme } = useTheme();
+  const { showLineNumbers, setShowLineNumbers } = useEditorPreferences();
 
   const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
     onChange({ theme });
@@ -102,6 +104,24 @@ export function DisplayTab({ settings, onChange }: DisplayTabProps) {
         </div>
         <p className="text-xs text-slate-500 ml-8">
           Reduces spacing and padding throughout the UI to show more content on screen. Useful for smaller displays.
+        </p>
+      </div>
+
+      {/* Markdown Editor Line Numbers */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id="markdown-line-numbers"
+            checked={showLineNumbers}
+            onCheckedChange={(checked) => setShowLineNumbers(!!checked)}
+          />
+          <Label htmlFor="markdown-line-numbers" className="cursor-pointer font-medium flex items-center gap-2">
+            <ListOrdered className="h-4 w-4 text-slate-400" />
+            Show markdown editor line numbers
+          </Label>
+        </div>
+        <p className="text-xs text-slate-500 ml-8">
+          Controls line numbers in all Monaco-backed markdown raw views (task prompt/output and prompt library).
         </p>
       </div>
 

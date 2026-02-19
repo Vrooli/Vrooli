@@ -593,6 +593,27 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 		}
 	}
 
+	// Defensive detection: if agent-manager reported COMPLETE but output/summary clearly
+	// indicates a rate limit, treat this as rate-limited instead of successful.
+	rateLimitText := strings.TrimSpace(strings.Join([]string{
+		run.ErrorMsg,
+		output,
+		response.Message,
+		response.FinalMessage,
+	}, "\n"))
+	rateLimitDetection := ratelimit.DetectFromError(nil, rateLimitText, 0)
+	if rateLimitDetection.IsRateLimited {
+		response.Success = false
+		response.RateLimited = true
+		response.RetryAfter = rateLimitDetection.RetryAfter
+		if response.RetryAfter <= 0 {
+			response.RetryAfter = DefaultRateLimitRetry
+		}
+		if response.Error == "" {
+			response.Error = "RATE_LIMIT: API rate limit reached"
+		}
+	}
+
 	if detectMaxTurnsExceeded(run.ErrorMsg) || detectMaxTurnsExceeded(output) {
 		response.MaxTurnsExceeded = true
 		response.Success = false
@@ -611,6 +632,7 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 }
 
 // handleNonZeroExit handles non-zero exit codes from Claude Code.
+//
 //nolint:unused // Reserved for future integration with non-zero exit handling.
 func (em *ExecutionManager) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int, elapsed time.Duration) (*tasks.ClaudeCodeResponse, bool) {
 	if detectMaxTurnsExceeded(combinedOutput) {
