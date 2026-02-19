@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+trap 'true' EXIT
+
 # Configuration
 SCRIPT_NAME="comprehensive-system-analyzer"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -157,9 +159,9 @@ fi
 
 # Network Anomalies (checking for unusually high connection counts)
 echo "🌐 Checking network connections..."
-TCP_COUNT=$(ss -t | wc -l)
-ESTABLISHED=$(ss -t state established | wc -l)
-TIME_WAIT=$(ss -t state time-wait | wc -l)
+TCP_COUNT=$(timeout 10 ss -t 2>/dev/null | wc -l)
+ESTABLISHED=$(timeout 10 ss -t state established 2>/dev/null | wc -l)
+TIME_WAIT=$(timeout 10 ss -t state time-wait 2>/dev/null | wc -l)
 
 jq ".network_anomalies = {
   \"tcp_connections\": $TCP_COUNT,

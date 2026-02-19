@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+trap 'true' EXIT
+
 SCRIPT_NAME="network-connection-summary-proc"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
 RESULTS_FILE="${OUTPUT_DIR}/results.json"

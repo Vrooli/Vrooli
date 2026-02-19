@@ -3,7 +3,7 @@
   "archivedAt": "2026-02-16T04:14:56Z",
   "archivedBy": "matthalloran8",
   "created": "2026-02-16T04:14:56Z",
-  "description": "Remote-first terminal console with quick command shortcuts",
+  "description": "Standalone browser terminal scenario with pane-based workspaces, PTY-backed session durability (SQLite), AI command generation (Ollama/OpenRouter), configurable launch shortcuts, and mobile-first floating toolbar. Single-user design; auth delegated to api-base.",
   "kind": "idea",
   "name": "web-console-archived",
   "preservePresetOrCustom": "custom",
@@ -26,5 +26,5 @@
     "from-scenario"
   ],
   "title": "[Archived] web-console",
-  "updated": "2026-02-18T18:06:30Z"
+  "updated": "2026-02-19T01:06:20Z"
 }
