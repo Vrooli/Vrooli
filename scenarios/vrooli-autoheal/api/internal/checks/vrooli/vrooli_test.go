@@ -397,6 +397,15 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			expectedMsg:    "vrooli-autoheal scenario is unhealthy",
 		},
 		{
+			name:           "non-critical scenario unhealthy",
+			scenarioName:   "deployment-manager",
+			critical:       false,
+			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"unhealthy"}}`,
+			cliError:       nil,
+			expectedStatus: checks.StatusWarning,
+			expectedMsg:    "deployment-manager scenario is unhealthy",
+		},
+		{
 			name:           "critical scenario stopped",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,

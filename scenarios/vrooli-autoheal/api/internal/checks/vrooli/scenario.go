@@ -207,7 +207,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		result.Status = checks.StatusWarning
 		result.Message = c.scenarioName + " scenario is degraded"
 	case "unhealthy":
-		result.Status = checks.StatusCritical
+		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario is unhealthy"
 	case "running":
 		result.Status = checks.StatusOK

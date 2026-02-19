@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -52,6 +53,7 @@ type ScenarioApp struct {
 	CLI          *App
 	StaleChecker *cliutil.StaleChecker
 	tokenSource  func() string
+	warnedLocal  bool
 
 	options     ScenarioOptions
 	baseOptions func() cliutil.APIBaseOptions
@@ -133,6 +135,8 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 	}
 
 	preflight := func(cmd Command, global GlobalOptions) error {
+		a.warnIfRunningScenarioLocalBinary()
+
 		if cmd.NeedsAPI {
 			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
 				// If auto-start is enabled, try to start the scenario
@@ -174,6 +178,40 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 		StaleChecker:     a.StaleChecker,
 		Preflight:        preflight,
 	})
+}
+
+func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
+	if a.warnedLocal || strings.TrimSpace(os.Getenv("VROOLI_SUPPRESS_CLI_PATH_WARNING")) != "" {
+		return
+	}
+	executablePath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	if !isScenarioLocalCLIExecutablePath(a.options.Name, executablePath) {
+		return
+	}
+
+	a.warnedLocal = true
+	relativeScenario := filepath.ToSlash(filepath.Join("scenarios", a.options.Name))
+	fmt.Fprintf(os.Stderr, "Warning: running %s from a scenario-local CLI binary (%s).\n", a.options.Name, executablePath)
+	fmt.Fprintf(os.Stderr, "Install and run the canonical binary instead:\n")
+	fmt.Fprintf(os.Stderr, "  cd %s/cli && ./install.sh\n", relativeScenario)
+	fmt.Fprintf(os.Stderr, "  %s <command>\n", a.options.Name)
+}
+
+func isScenarioLocalCLIExecutablePath(appName, executablePath string) bool {
+	normalizedName := strings.ToLower(strings.TrimSpace(appName))
+	if normalizedName == "" {
+		return false
+	}
+
+	path := filepath.ToSlash(strings.ToLower(strings.TrimSpace(executablePath)))
+	if path == "" {
+		return false
+	}
+	needle := "/scenarios/" + normalizedName + "/cli/"
+	return strings.Contains(path, needle)
 }
 
 // APIBaseOptions returns the current API base resolution options for use in

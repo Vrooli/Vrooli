@@ -208,64 +208,49 @@ scenario::lifecycle::stop_all() {
     # Temporarily disable strict error handling for stop-all
     local orig_flags=$-
     set +euo pipefail
-    
+
     log::info "Stopping all scenarios..."
-    
-    # Direct PID-based approach - no sourcing of complex lifecycle functions
+
+    # Source lifecycle.sh for access to lifecycle::stop_scenario_processes
+    {
+        lifecycle::main() { return 0; }
+        source "${APP_ROOT}/scripts/lib/utils/lifecycle.sh" >/dev/null 2>&1
+        unset -f lifecycle::main
+    }
+
     local scenarios_dir="$HOME/.vrooli/processes/scenarios"
     local stopped_count=0
     local failed_count=0
     local stopped_scenarios=()
     local failed_scenarios=()
-    
+
     if [[ -d "$scenarios_dir" ]]; then
-        # Process each scenario directory
         for scenario_dir in "$scenarios_dir"/*; do
             [[ -d "$scenario_dir" ]] || continue
-            
+
             local scenario_name=$(basename "$scenario_dir")
-            local scenario_stopped=false
-            local scenario_processes=0
-            
-            # Stop all processes for this scenario
-            for pid_file in "$scenario_dir"/*.pid; do
-                [[ -f "$pid_file" ]] || continue
-                
-                local pid=$(cat "$pid_file" 2>/dev/null || echo "")
-                local step_name=$(basename "$pid_file" .pid)
-                
-                if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
-                    ((scenario_processes++))
-                    if kill -0 "$pid" 2>/dev/null; then
-                        # Process is running, stop it
-                        log::info "Stopping $scenario_name:$step_name (PID: $pid)"
-                        if kill -TERM "$pid" 2>/dev/null; then
-                            scenario_stopped=true
-                            # Wait a moment for graceful shutdown
-                            sleep 0.5
-                            # Force kill if still running
-                            kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
-                        fi
-                    fi
+
+            # Check if scenario has any tracked processes (json or pid files)
+            local has_processes=false
+            for f in "$scenario_dir"/*.json "$scenario_dir"/*.pid; do
+                if [[ -f "$f" ]]; then
+                    has_processes=true
+                    break
                 fi
-                
-                # Clean up PID file and JSON metadata
-                rm -f "$pid_file" "$scenario_dir/$step_name.json" 2>/dev/null
             done
-            
-            # Record results for this scenario
-            if [[ $scenario_processes -gt 0 ]]; then
-                if [[ "$scenario_stopped" == "true" ]]; then
-                    stopped_scenarios+=("$scenario_name")
-                    ((stopped_count++))
-                else
-                    failed_scenarios+=("$scenario_name") 
-                    ((failed_count++))
-                fi
+            [[ "$has_processes" == "true" ]] || continue
+
+            log::info "Stopping scenario: $scenario_name"
+            if lifecycle::stop_scenario_processes "$scenario_name"; then
+                stopped_scenarios+=("$scenario_name")
+                ((stopped_count++))
+            else
+                failed_scenarios+=("$scenario_name")
+                ((failed_count++))
             fi
         done
     fi
-    
+
     # Report results
     if [[ $stopped_count -gt 0 ]]; then
         log::success "Stopped $stopped_count scenarios"
@@ -275,7 +260,7 @@ scenario::lifecycle::stop_all() {
             echo "  ✅ $scenario"
         done
     fi
-    
+
     if [[ $failed_count -gt 0 ]]; then
         echo ""
         echo "Failed to stop:"
@@ -283,14 +268,14 @@ scenario::lifecycle::stop_all() {
             echo "  ❌ $scenario"
         done
     fi
-    
+
     if [[ $stopped_count -eq 0 && $failed_count -eq 0 ]]; then
         log::info "No running scenarios found"
     fi
-    
-    # Restore original shell flags  
+
+    # Restore original shell flags
     set -$orig_flags
-    
+
     # Return success if we stopped any scenarios
     [[ $stopped_count -gt 0 ]] || [[ $failed_count -eq 0 ]]
 }

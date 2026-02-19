@@ -52,7 +52,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Visit tracking dashboard port",
-      "range": "35000-39999"
+      "port": 36241
     }
   },
   "lifecycle": {

@@ -2,10 +2,10 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, LayoutDashboard, Play, RefreshCw, Settings, Shield, TrendingUp } from "lucide-react";
-import { Button, Card } from "./shared/ui/primitives";
+import { AlertCircle, CheckCircle2, BookOpen, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, TrendingUp } from "lucide-react";
+import { Badge, Button, Card } from "./shared/ui/primitives";
 import { TabTrigger } from "./shared/ui/composites";
-import { fetchChecks, fetchStatus, groupChecksByStatus, runTick, statusToEmoji } from "./lib/api";
+import { APIError, fetchChecks, fetchStatus, groupChecksByStatus, runTick, sortChecksForDisplay, statusToEmoji } from "./lib/api";
 import type { CheckInfo } from "./lib/api";
 import { selectors } from "./consts/selectors";
 import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog } from "./shared/components";
@@ -16,6 +16,13 @@ import { DocsSurface } from "./surfaces/docs";
 const AUTO_REFRESH_INTERVAL = 30000;
 
 type TabType = "dashboard" | "trends" | "docs";
+type TickNoticeTone = "info" | "success" | "warning" | "danger";
+
+interface TickNotice {
+  tone: TickNoticeTone;
+  message: string;
+  detail?: string;
+}
 
 function getTabFromHash(): TabType {
   const hash = window.location.hash.slice(1);
@@ -69,6 +76,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedState);
   const [selectedCheckId, setSelectedCheckId] = useState<string | null>(null);
+  const [tickNotice, setTickNotice] = useState<TickNotice | null>(null);
 
   const toggleGroup = useCallback((group: keyof CollapsedGroups) => {
     setCollapsedGroups((prev) => {
@@ -94,7 +102,13 @@ export default function App() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["status"],
     queryFn: fetchStatus,
-    refetchInterval: autoRefresh ? AUTO_REFRESH_INTERVAL : false,
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      if (status?.tickRunning) {
+        return 2000;
+      }
+      return autoRefresh ? AUTO_REFRESH_INTERVAL : false;
+    },
   });
 
   const { data: checksMetadata } = useQuery({
@@ -115,10 +129,61 @@ export default function App() {
 
   const tickMutation = useMutation({
     mutationFn: () => runTick(true),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      setTickNotice({
+        tone: "success",
+        message: `Health check completed (${response.summary.ok}/${response.summary.total} checks healthy)`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["status"] });
+    },
+    onError: (mutationError) => {
+      if (mutationError instanceof APIError && mutationError.code === "CONFLICT") {
+        setTickNotice({
+          tone: "warning",
+          message: "A health check cycle is already running.",
+          detail: mutationError.recovery.hint ?? mutationError.getSuggestedAction(),
+        });
+        queryClient.invalidateQueries({ queryKey: ["status"] });
+        return;
+      }
+
+      if (mutationError instanceof APIError) {
+        if (mutationError.statusCode === 502) {
+          setTickNotice({
+            tone: "warning",
+            message: "Tick request hit an upstream gateway error (502).",
+            detail: "The health cycle may still be running in the background. The dashboard will keep polling status.",
+          });
+          queryClient.invalidateQueries({ queryKey: ["status"] });
+          return;
+        }
+        setTickNotice({
+          tone: "danger",
+          message: mutationError.getUserMessage(),
+          detail: mutationError.getSuggestedAction(),
+        });
+        return;
+      }
+
+      const detail = mutationError instanceof Error ? mutationError.message : "Unknown error";
+      setTickNotice({
+        tone: "danger",
+        message: "Failed to run health check cycle.",
+        detail,
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["status"] });
     },
   });
+
+  useEffect(() => {
+    if (!tickNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setTickNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [tickNotice]);
 
   const enrichedChecks: EnrichedCheck[] = useMemo(() => {
     const checks = data?.checks || [];
@@ -135,7 +200,9 @@ export default function App() {
     });
   }, [data?.checks, checksMetadataMap]);
 
-  const groupedChecks = useMemo(() => groupChecksByStatus(enrichedChecks), [enrichedChecks]);
+  const sortedEnrichedChecks = useMemo(() => sortChecksForDisplay(enrichedChecks), [enrichedChecks]);
+  const groupedChecks = useMemo(() => groupChecksByStatus(sortedEnrichedChecks), [sortedEnrichedChecks]);
+  const isTickRunning = tickMutation.isPending || Boolean(data?.tickRunning);
 
   useEffect(() => {
     if (data) {
@@ -196,14 +263,19 @@ export default function App() {
             <Button
               size="sm"
               onClick={() => tickMutation.mutate()}
-              disabled={tickMutation.isPending}
+              disabled={isTickRunning}
               data-testid={selectors.runTickButton}
               className="px-2 sm:px-4"
               aria-label="Run Tick"
             >
-              <Play className={`h-4 w-4 sm:mr-2 ${tickMutation.isPending ? "animate-pulse" : ""}`} />
+              {isTickRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+              ) : (
+                <Play className="h-4 w-4 sm:mr-2" />
+              )}
               <span className="hidden sm:inline">Run Tick</span>
             </Button>
+            {data?.tickRunning ? <Badge tone="info">Tick Running</Badge> : null}
           </div>
         </div>
 
@@ -241,6 +313,50 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+        {isTickRunning ? (
+          <Card className="mb-4 border-accent-primary/40 bg-accent-primary/10 p-3">
+            <div className="flex items-start gap-2 text-sm">
+              <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-accent-primary" />
+              <div>
+                <p className="font-medium text-text-primary">Health check cycle is currently running.</p>
+                <p className="text-text-muted">
+                  This may be from the loop, another user action, or a manual API/CLI tick.
+                </p>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {tickNotice ? (
+          <Card
+            className={`mb-4 p-3 ${
+              tickNotice.tone === "success"
+                ? "border-accent-success/40 bg-accent-success/10"
+                : tickNotice.tone === "warning"
+                  ? "border-accent-warning/40 bg-accent-warning/10"
+                  : tickNotice.tone === "danger"
+                    ? "border-accent-danger/40 bg-accent-danger/10"
+                    : "border-accent-primary/40 bg-accent-primary/10"
+            }`}
+          >
+            <div className="flex items-start gap-2 text-sm">
+              {tickNotice.tone === "success" ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent-success" />
+              ) : tickNotice.tone === "danger" ? (
+                <AlertCircle className="mt-0.5 h-4 w-4 text-accent-danger" />
+              ) : tickNotice.tone === "warning" ? (
+                <AlertCircle className="mt-0.5 h-4 w-4 text-accent-warning" />
+              ) : (
+                <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-accent-primary" />
+              )}
+              <div>
+                <p className="font-medium text-text-primary">{tickNotice.message}</p>
+                {tickNotice.detail ? <p className="text-text-muted">{tickNotice.detail}</p> : null}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
         {activeTab === "dashboard" ? (
           <ReactErrorBoundary sectionName="Dashboard">
             <DashboardSurface

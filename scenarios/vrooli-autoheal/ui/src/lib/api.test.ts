@@ -1,6 +1,6 @@
 // API client error handling tests
 import { describe, it, expect } from 'vitest';
-import { APIError } from './api';
+import { APIError, sortChecksForDisplay, type HealthResult } from './api';
 
 describe('[REQ:FAIL-SAFE-001] APIError', () => {
   describe('constructor', () => {
@@ -79,5 +79,64 @@ describe('[REQ:FAIL-SAFE-001] APIError', () => {
       const error = new APIError('', 'UNKNOWN', 400);
       expect(error.getSuggestedAction()).toContain('scenario');
     });
+  });
+});
+
+describe('sortChecksForDisplay', () => {
+  it('applies deterministic ordering for dashboard rendering', () => {
+    const input: Array<HealthResult & { title?: string; category?: string }> = [
+      {
+        checkId: 'scenario-zeta',
+        status: 'warning',
+        message: 'z',
+        timestamp: '2026-02-19T00:00:00Z',
+        duration: 1,
+        title: 'Zeta Scenario',
+        category: 'scenario',
+      },
+      {
+        checkId: 'infra-beta',
+        status: 'warning',
+        message: 'b',
+        timestamp: '2026-02-19T00:00:00Z',
+        duration: 1,
+        title: 'Beta Infra',
+        category: 'infrastructure',
+      },
+      {
+        checkId: 'resource-alpha',
+        status: 'warning',
+        message: 'a',
+        timestamp: '2026-02-19T00:00:00Z',
+        duration: 1,
+        title: 'Alpha Resource',
+        category: 'resource',
+      },
+      {
+        checkId: 'critical-a',
+        status: 'critical',
+        message: 'crit',
+        timestamp: '2026-02-19T00:00:00Z',
+        duration: 1,
+        category: 'infrastructure',
+      },
+      {
+        checkId: 'ok-a',
+        status: 'ok',
+        message: 'ok',
+        timestamp: '2026-02-19T00:00:00Z',
+        duration: 1,
+        category: 'infrastructure',
+      },
+    ];
+
+    const sorted = sortChecksForDisplay(input).map((c) => c.checkId);
+    expect(sorted).toEqual([
+      'critical-a',
+      'infra-beta',
+      'resource-alpha',
+      'scenario-zeta',
+      'ok-a',
+    ]);
   });
 });

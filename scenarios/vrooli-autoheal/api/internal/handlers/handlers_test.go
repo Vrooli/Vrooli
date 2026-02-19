@@ -120,6 +120,38 @@ func TestStatus(t *testing.T) {
 	if _, ok := summary["total"]; !ok {
 		t.Error("summary should have total field")
 	}
+
+	if tickRunning, ok := resp["tickRunning"].(bool); !ok || tickRunning {
+		t.Errorf("tickRunning = %v, want false", resp["tickRunning"])
+	}
+
+	if _, ok := resp["tickStartedAt"]; !ok {
+		t.Error("response should include tickStartedAt field")
+	}
+}
+
+func TestStatus_IncludesActiveTickState(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	started := time.Now().Add(-2 * time.Second)
+	h.tickLock.Lock()
+	h.tickRunning = true
+	h.tickStarted = started
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if tickRunning, ok := resp["tickRunning"].(bool); !ok || !tickRunning {
+		t.Fatalf("tickRunning = %v, want true", resp["tickRunning"])
+	}
+
+	if startedAt, ok := resp["tickStartedAt"].(string); !ok || startedAt == "" {
+		t.Fatalf("tickStartedAt = %v, want RFC3339 timestamp string", resp["tickStartedAt"])
+	}
 }
 
 func TestTick(t *testing.T) {

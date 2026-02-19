@@ -49,6 +49,22 @@ type Handlers struct {
 	tickStarted time.Time
 }
 
+func (h *Handlers) getTickState() (bool, *time.Time) {
+	h.tickLock.Lock()
+	defer h.tickLock.Unlock()
+
+	if !h.tickRunning {
+		return false, nil
+	}
+
+	if h.tickStarted.IsZero() {
+		return true, nil
+	}
+
+	started := h.tickStarted.UTC()
+	return true, &started
+}
+
 // New creates a new Handlers instance
 func New(registry *checks.Registry, store *persistence.Store, plat *platform.Capabilities) *Handlers {
 	return &Handlers{
@@ -107,10 +123,13 @@ func (h *Handlers) Platform(w http.ResponseWriter, r *http.Request) {
 // Status returns the current health summary
 func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	summary := h.registry.GetSummary()
+	tickRunning, tickStartedAt := h.getTickState()
 
 	response := map[string]interface{}{
-		"status":   summary.Status,
-		"platform": h.platform,
+		"status":        summary.Status,
+		"platform":      h.platform,
+		"tickRunning":   tickRunning,
+		"tickStartedAt": tickStartedAt,
 		"summary": map[string]interface{}{
 			"total":    summary.TotalCount,
 			"ok":       summary.OkCount,

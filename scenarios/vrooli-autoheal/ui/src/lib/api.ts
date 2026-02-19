@@ -70,6 +70,8 @@ export interface StatusResponse {
   platform: PlatformCapabilities;
   summary: HealthSummary;
   checks: HealthResult[];
+  tickRunning?: boolean;
+  tickStartedAt?: string | null;
   timestamp: string;
 }
 
@@ -568,6 +570,44 @@ export function sortChecksBySeverity(checks: HealthResult[]): HealthResult[] {
   return [...checks].sort(
     (a, b) => STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status]
   );
+}
+
+/**
+ * Stable UI ordering for health checks so cards don't "shuffle" between refreshes.
+ * Sort priority:
+ *   1) severity (critical > warning > ok)
+ *   2) category (infrastructure > resource > scenario > unknown)
+ *   3) display name (title if present, otherwise checkId)
+ *   4) checkId (final deterministic tie-breaker)
+ */
+export function sortChecksForDisplay<T extends HealthResult & { title?: string; category?: string }>(checks: T[]): T[] {
+  const categoryOrder: Record<string, number> = {
+    infrastructure: 0,
+    resource: 1,
+    scenario: 2,
+  };
+
+  return [...checks].sort((a, b) => {
+    const severityDiff = STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status];
+    if (severityDiff !== 0) {
+      return severityDiff;
+    }
+
+    const categoryA = a.category ? (categoryOrder[a.category] ?? 99) : 99;
+    const categoryB = b.category ? (categoryOrder[b.category] ?? 99) : 99;
+    if (categoryA !== categoryB) {
+      return categoryA - categoryB;
+    }
+
+    const nameA = (a.title ?? a.checkId).toLowerCase();
+    const nameB = (b.title ?? b.checkId).toLowerCase();
+    const nameDiff = nameA.localeCompare(nameB);
+    if (nameDiff !== 0) {
+      return nameDiff;
+    }
+
+    return a.checkId.localeCompare(b.checkId);
+  });
 }
 
 /**

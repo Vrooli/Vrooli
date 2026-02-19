@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
 import {
@@ -126,6 +126,13 @@ describe('App', () => {
     vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
     vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse({ checkId: 'test' }));
+    vi.mocked(api.runTick).mockResolvedValue({
+      success: true,
+      status: 'ok',
+      summary: { total: 1, ok: 1, warning: 0, critical: 0 },
+      results: [createHealthResult()],
+      timestamp: new Date().toISOString(),
+    });
   });
 
   it('[REQ:UI-HEALTH-001] renders loading state initially', () => {
@@ -195,6 +202,45 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Run Tick')).toBeInTheDocument();
+    });
+  });
+
+  it('shows running indicator when a tick is active externally', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(
+      createStatusResponse({ ...mockStatusResponse, tickRunning: true, tickStartedAt: new Date().toISOString() }),
+    );
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Health check cycle is currently running.')).toBeInTheDocument();
+      expect(screen.getByText('Tick Running')).toBeInTheDocument();
+    });
+  });
+
+  it('shows conflict feedback when tick is already running', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+    vi.mocked(api.runTick).mockRejectedValue(
+      new api.APIError(
+        'A health check cycle is already running. Please wait for it to complete.',
+        'CONFLICT',
+        409,
+        'req-1',
+        { action: 'wait', retryable: true, hint: 'Wait for the current operation to complete, then try again.' }
+      ),
+    );
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Run Tick')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /run tick/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('A health check cycle is already running.')).toBeInTheDocument();
+      expect(screen.getByText('Wait for the current operation to complete, then try again.')).toBeInTheDocument();
     });
   });
 
