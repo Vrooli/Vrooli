@@ -4,10 +4,12 @@ package bootstrap
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/userconfig"
 )
 
 // =============================================================================
@@ -102,6 +104,32 @@ func TestDefaultCheckFactory_CreateInfrastructureChecks(t *testing.T) {
 		if !checkIDs[id] {
 			t.Errorf("expected check %q to be created", id)
 		}
+	}
+}
+
+func TestNewCheckFactoryFromConfigManager_CloudflaredSettings(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "config.schema.json")
+
+	mgr := userconfig.NewManager(configPath, schemaPath)
+
+	cfg := mgr.Get()
+	if cfg.Checks == nil {
+		cfg.Checks = make(map[string]userconfig.Check)
+	}
+	cfg.Checks["infra-cloudflared"] = userconfig.Check{
+		Settings: &userconfig.CheckSettings{
+			TunnelTestURL: "https://app-monitor.example.com/",
+		},
+	}
+	if err := mgr.Update(cfg); err != nil {
+		t.Fatalf("failed to update config: %v", err)
+	}
+
+	factory := NewCheckFactoryFromConfigManager(mgr)
+	if factory.cloudflaredExternalURL != "https://app-monitor.example.com/" {
+		t.Fatalf("cloudflaredExternalURL = %q, want %q", factory.cloudflaredExternalURL, "https://app-monitor.example.com/")
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +35,8 @@ var DefaultLookPather LookPather = &defaultLookPather{}
 // cloudflaredErrorThreshold is the number of ERR entries in journalctl
 // that triggers a warning status (matches legacy bash behavior)
 const cloudflaredErrorThreshold = 10
+
+var portPattern = regexp.MustCompile(`\b(\d{2,5})\b`)
 
 // CloudflaredInstallState represents cloudflared installation status
 type CloudflaredInstallState int
@@ -148,7 +152,7 @@ func WithCloudflaredLookPather(lp LookPather) CloudflaredOption {
 func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
 	c := &CloudflaredCheck{
 		caps:           caps,
-		localTestPort:  21774, // Default: app-monitor UI port
+		localTestPort:  0, // Auto-detect app-monitor UI port at runtime when possible
 		connectTimeout: 5 * time.Second,
 		executor:       checks.DefaultExecutor,
 		lookPather:     DefaultLookPather,
@@ -226,10 +230,24 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 	allPassed := true
 
 	// Test 1: Local port connectivity (verifies tunnel is forwarding)
-	if c.localTestPort > 0 {
-		localURL := fmt.Sprintf("http://127.0.0.1:%d/", c.localTestPort)
-		result.Details["localTestPort"] = c.localTestPort
+	localTestPort := c.localTestPort
+	localPortSource := "configured"
+	if localTestPort <= 0 {
+		detectedPort, detectErr := c.detectAppMonitorUIPort(ctx)
+		if detectErr == nil {
+			localTestPort = detectedPort
+			localPortSource = "app-monitor-ui-port"
+		} else {
+			result.Details["localTestSkipped"] = true
+			result.Details["localTestSkipReason"] = detectErr.Error()
+		}
+	}
+
+	if localTestPort > 0 {
+		localURL := fmt.Sprintf("http://127.0.0.1:%d/", localTestPort)
+		result.Details["localTestPort"] = localTestPort
 		result.Details["localTestURL"] = localURL
+		result.Details["localTestPortSource"] = localPortSource
 
 		localPassed, localDetail := c.testHTTPConnectivity(ctx, localURL, "local tunnel endpoint")
 		subChecks = append(subChecks, checks.SubCheck{
@@ -286,11 +304,11 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 	}
 
 	// Determine overall status
-	if !allPassed && c.localTestPort > 0 {
+	if !allPassed && localTestPort > 0 {
 		// Local connectivity failed - this is critical for tunnel operation
 		result.Status = checks.StatusWarning
 		result.Message = "Cloudflared running but tunnel connectivity issues detected"
-		result.Details["recommendation"] = "Check if target service is running on port " + fmt.Sprintf("%d", c.localTestPort)
+		result.Details["recommendation"] = "Check if target service is running on port " + fmt.Sprintf("%d", localTestPort)
 		return result
 	}
 
@@ -305,6 +323,25 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 	result.Status = checks.StatusOK
 	result.Message = "Cloudflared is healthy"
 	return result
+}
+
+func (c *CloudflaredCheck) detectAppMonitorUIPort(ctx context.Context) (int, error) {
+	output, err := c.executor.Output(ctx, "vrooli", "scenario", "port", "app-monitor", "UI_PORT")
+	if err != nil {
+		return 0, fmt.Errorf("unable to discover app-monitor UI port: %w", err)
+	}
+
+	matches := portPattern.FindStringSubmatch(string(output))
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("unable to parse app-monitor UI port from output: %q", strings.TrimSpace(string(output)))
+	}
+
+	port, convErr := strconv.Atoi(matches[1])
+	if convErr != nil || port <= 0 || port > 65535 {
+		return 0, fmt.Errorf("invalid app-monitor UI port value: %q", matches[1])
+	}
+
+	return port, nil
 }
 
 // testHTTPConnectivity tests HTTP connectivity to a URL
@@ -360,11 +397,26 @@ func (c *CloudflaredCheck) countRecentErrors(ctx context.Context) int {
 	// Count lines containing "ERR" (case-sensitive, matching legacy behavior)
 	count := 0
 	for _, line := range strings.Split(string(output), "\n") {
-		if strings.Contains(line, "ERR") {
+		if isTunnelHealthErrorLogLine(line) {
 			count++
 		}
 	}
 	return count
+}
+
+func isTunnelHealthErrorLogLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || !strings.Contains(trimmed, "ERR") {
+		return false
+	}
+
+	// Ignore origin-backend failures. These indicate one routed scenario is down,
+	// not that cloudflared itself is unhealthy.
+	if strings.Contains(trimmed, "Unable to reach the origin service") {
+		return false
+	}
+
+	return true
 }
 
 // RecoveryActions returns available recovery actions for cloudflared

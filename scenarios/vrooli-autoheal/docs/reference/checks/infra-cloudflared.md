@@ -18,7 +18,7 @@ This check performs a multi-stage verification:
 1. **Installation Check**: Verifies `cloudflared` binary is in PATH
 2. **Service Check**: On Linux with systemd, checks if the cloudflared service is active
 3. **Connectivity Tests**: Tests actual tunnel functionality:
-   - Local endpoint connectivity (default port 21774)
+   - Local endpoint connectivity (auto-detected from current app-monitor UI port when available)
    - External URL connectivity (optional)
 4. **Error Rate Monitoring**: Checks journal logs for ERR entries in the last 5 minutes
 
@@ -43,9 +43,10 @@ flowchart TD
 The check performs HTTP connectivity tests to verify the tunnel is actually forwarding traffic:
 
 ### Local Endpoint Test
-- Tests `http://127.0.0.1:{port}/` where port defaults to 21774 (app-monitor UI)
+- Attempts to detect app-monitor UI port dynamically via `vrooli scenario port app-monitor UI_PORT`
+- Tests `http://127.0.0.1:{port}/` when a valid port is detected
 - Verifies the tunnel's target service is reachable
-- A failed local test indicates the target service may be down
+- If no stable local port can be detected, the local probe is skipped (service + error-rate checks still run)
 
 ### External URL Test (Optional)
 - If configured, tests the public tunnel URL
@@ -192,7 +193,7 @@ sudo cloudflared service install
 ### Test Tunnel
 
 The Test Tunnel action performs connectivity tests:
-1. Tests local endpoint connectivity (default port 21774)
+1. Tests local endpoint connectivity (detected app-monitor UI port when available)
 2. Tests external URL if configured
 3. Reports pass/fail for each test
 

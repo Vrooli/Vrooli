@@ -527,8 +527,8 @@ func TestCloudflaredCheckOptions(t *testing.T) {
 func TestCloudflaredCheckDefaultOptions(t *testing.T) {
 	check := NewCloudflaredCheck(testCaps())
 
-	if check.localTestPort != 21774 {
-		t.Errorf("default localTestPort = %d, want %d", check.localTestPort, 21774)
+	if check.localTestPort != 0 {
+		t.Errorf("default localTestPort = %d, want %d", check.localTestPort, 0)
 	}
 	if check.externalURL != "" {
 		t.Errorf("default externalURL = %q, want empty", check.externalURL)

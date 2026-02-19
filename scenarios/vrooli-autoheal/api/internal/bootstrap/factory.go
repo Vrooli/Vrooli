@@ -30,11 +30,12 @@ type CheckFactory interface {
 // DefaultCheckFactory is the production implementation of CheckFactory.
 // It creates real checks using the check packages.
 type DefaultCheckFactory struct {
-	networkTarget        string
-	dnsDomain            string
-	criticalScenarios    []string
-	nonCriticalScenarios []string
-	resources            []string
+	networkTarget          string
+	dnsDomain              string
+	cloudflaredExternalURL string
+	criticalScenarios      []string
+	nonCriticalScenarios   []string
+	resources              []string
 }
 
 // NewDefaultCheckFactory creates a factory with standard configuration.
@@ -48,11 +49,12 @@ func NewDefaultCheckFactory() *DefaultCheckFactory {
 // This allows the factory to be configured dynamically from user settings.
 func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *DefaultCheckFactory {
 	return &DefaultCheckFactory{
-		networkTarget:        DefaultNetworkTarget,
-		dnsDomain:            DefaultDNSDomain,
-		criticalScenarios:    monitoring.GetCriticalScenarios(),
-		nonCriticalScenarios: monitoring.GetNonCriticalScenarios(),
-		resources:            monitoring.Resources,
+		networkTarget:          DefaultNetworkTarget,
+		dnsDomain:              DefaultDNSDomain,
+		cloudflaredExternalURL: "",
+		criticalScenarios:      monitoring.GetCriticalScenarios(),
+		nonCriticalScenarios:   monitoring.GetNonCriticalScenarios(),
+		resources:              monitoring.Resources,
 	}
 }
 
@@ -60,7 +62,14 @@ func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *Defa
 // This is the preferred method for production use as it respects user configuration.
 func NewCheckFactoryFromConfigManager(mgr *userconfig.Manager) *DefaultCheckFactory {
 	monitoring := mgr.GetMonitoring()
-	return NewCheckFactoryFromMonitoring(monitoring)
+	factory := NewCheckFactoryFromMonitoring(monitoring)
+
+	cloudflaredCfg := mgr.GetCheck("infra-cloudflared")
+	if cloudflaredCfg.Settings.TunnelTestURL != "" {
+		factory.cloudflaredExternalURL = cloudflaredCfg.Settings.TunnelTestURL
+	}
+
+	return factory
 }
 
 // DefaultCheckFactoryOption configures the DefaultCheckFactory
@@ -112,11 +121,12 @@ func NewDefaultCheckFactoryWithOptions(opts ...DefaultCheckFactoryOption) *Defau
 
 // CreateInfrastructureChecks creates all infrastructure checks
 func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabilities) []checks.Check {
+	cloudflaredCheck := infra.NewCloudflaredCheck(caps, infra.WithExternalURL(f.cloudflaredExternalURL))
 	return []checks.Check{
 		infra.NewNetworkCheck(f.networkTarget),
 		infra.NewDNSCheck(f.dnsDomain, caps),
 		infra.NewDockerCheck(caps),
-		infra.NewCloudflaredCheck(caps),
+		cloudflaredCheck,
 		infra.NewRDPCheck(caps),
 		infra.NewNTPCheck(caps),
 		infra.NewResolvedCheck(caps),
