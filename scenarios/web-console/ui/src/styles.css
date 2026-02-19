@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* ── Design Tokens ──
+   * Semantic palette used throughout the app.
+   * Components reference these via Tailwind custom colors (see tailwind.config.ts).
+   * Terminal hex values in consts/config.ts are kept in sync manually.
+   */
+
+  /* Surfaces */
+  --wc-surface-base: 2 6 23;           /* slate-950 */
+  --wc-surface-raised: 15 23 42;       /* slate-900 */
+  --wc-surface-input: 30 41 59;        /* slate-800 */
+
+  /* Text */
+  --wc-text-primary: 248 250 252;      /* slate-50 */
+  --wc-text-secondary: 226 232 240;    /* slate-200 */
+  --wc-text-muted: 148 163 184;        /* slate-400 */
+  --wc-text-faint: 100 116 139;        /* slate-500 */
+
+  /* Borders */
+  --wc-border-default: 255 255 255 / 0.1;
+  --wc-border-hover: 255 255 255 / 0.3;
+
+  /* Accent */
+  --wc-accent: 34 211 238;             /* cyan-400 */
+  --wc-accent-border: 6 182 212 / 0.4; /* cyan-500/40 */
+  --wc-accent-active: 14 116 144 / 0.4; /* cyan-700/40 */
+
+  /* Semantic: error */
+  --wc-error-text: 252 165 165;        /* red-300 */
+  --wc-error-detail: 248 113 113;      /* red-400 */
+  --wc-error-border: 239 68 68 / 0.3;  /* red-500/30 */
+  --wc-error-surface: 69 10 10 / 0.5;  /* red-950/50 */
+
+  /* Overlay */
+  --wc-backdrop: 0 0 0 / 0.4;
+  --wc-backdrop-heavy: 0 0 0 / 0.6;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+}

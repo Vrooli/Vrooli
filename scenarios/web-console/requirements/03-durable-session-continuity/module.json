@@ -1,0 +1,104 @@
+{
+  "description": "Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "children": ["REQ-P0-003b"],
+      "description": "Session metadata (ID, created_at, last_connected, shell command) persisted in database. Sessions default to never-expire policy.",
+      "id": "REQ-P0-003a",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Session Persistence Store",
+      "validation": [
+        {
+          "notes": "Session metadata stored and retrievable after create",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_Get",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Session list returns all active sessions",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_List",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "List sessions handler returns JSON array",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestHandleListSessions",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "SessionsPage renders session list, loading/empty states, refresh, double-click delete confirmation",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/sessions-page.test.tsx",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Idempotency cache TTL expiry removes stale entries on Get",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestIdempotencyCache_TTLExpiry",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Idempotency cache eviction scan triggered at >100 entries",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestIdempotencyCache_EvictionScan",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": ["REQ-P0-003b-i"],
+      "description": "Reconnecting WebSocket re-attaches to the existing PTY process. Client receives buffered output generated while disconnected.",
+      "id": "REQ-P0-003b",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Reconnect State Restoration",
+      "validation": [
+        {
+          "notes": "Offline buffer delivers output generated while disconnected",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSession_OfflineBuffer",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Fake PTY offline buffer replay works correctly",
+          "phase": "unit",
+          "ref": "api/pty_test.go:TestFakePTY_OfflineBuffer",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Offline buffer replays accumulated output in order when client reconnects. Buffer has bounded size to prevent memory exhaustion.",
+      "id": "REQ-P0-003b-i",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Offline Buffer Replay",
+      "validation": [
+        {
+          "notes": "Offline buffer replay delivers output in order",
+          "phase": "unit",
+          "ref": "api/pty_test.go:TestFakePTY_OfflineBuffer",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Durable Session Continuity"
+}

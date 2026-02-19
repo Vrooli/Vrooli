@@ -1,0 +1,83 @@
+{
+  "description": "AI command generation uses Ollama first with OpenRouter fallback and deterministic failover behavior",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "children": ["REQ-P0-005b"],
+      "description": "Go API endpoint accepts prompt + terminal context and returns generated command suggestion. Provider chain executes Ollama first, falls back to OpenRouter on failure.",
+      "id": "REQ-P0-005a",
+      "prd_ref": "OT-P0-005",
+      "status": "passed",
+      "title": "AI Command Generation API",
+      "validation": [
+        {
+          "notes": "Test provider failover logic (TestAIProviderChainFailover, TestAIProviderChainPrimarySuccess, TestAIProviderChainAllFail, TestAIProviderChainEmpty)",
+          "phase": "unit",
+          "ref": "api/ai_generate_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Handler tests (TestHandleAIGenerateSuccess, TestHandleAIGenerateEmptyPrompt, TestHandleAIGenerateAllProvidersFail, TestHandleAIGenerateMetrics, TestHandleAIGenerateWithContext)",
+          "phase": "unit",
+          "ref": "api/ai_generate_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "extractCommand output cleaning (TestExtractCommand)",
+          "phase": "unit",
+          "ref": "api/ai_generate_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "children": ["REQ-P0-005b-i"],
+      "description": "AI input UI component in terminal workspace accepts natural language prompt, displays suggested command, and allows one-click execution into the active terminal.",
+      "id": "REQ-P0-005b",
+      "prd_ref": "OT-P0-005",
+      "status": "passed",
+      "title": "AI Input UI Component",
+      "validation": [
+        {
+          "notes": "API client tests for generateAICommand (sends POST, includes context, throws APIError on failure)",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/ai-input.test.ts",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "AiInput component tests: module export, props interface, API contract shape, request format, structured error propagation",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/ai-component.test.ts",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "One-click execution injects generated command into the active terminal pane's input stream via sendToActiveTerminal callback.",
+      "id": "REQ-P0-005b-i",
+      "prd_ref": "OT-P0-005",
+      "status": "passed",
+      "title": "Command Execution Injection",
+      "validation": [
+        {
+          "notes": "AiInput execute selector registered and component accepts onExecute prop",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/ai-component.test.ts",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "AI Input with Provider Fallback"
+}

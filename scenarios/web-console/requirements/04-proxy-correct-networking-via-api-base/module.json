@@ -1,0 +1,69 @@
+{
+  "description": "UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": ["REQ-P0-004b"],
+      "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
+      "id": "REQ-P0-004a",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "api-base HTTP Integration",
+      "validation": [
+        {
+          "notes": "All REST calls use api-base URL builder",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/api.test.ts:createSession sends POST",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Delete session uses api-base routing",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/api.test.ts:deleteSession sends DELETE",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "children": ["REQ-P0-004b-i"],
+      "description": "WebSocket connections for terminal I/O use api-base WS URL resolution. Connection upgrades work through reverse proxies.",
+      "id": "REQ-P0-004b",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "api-base WebSocket Integration",
+      "validation": [
+        {
+          "notes": "WebSocket URL constructed through api-base resolver",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "WebSocket upgrade requests route through reverse proxy without direct-origin assumptions. Connection negotiation handles proxy headers.",
+      "id": "REQ-P0-004b-i",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Proxy Connection Upgrade",
+      "validation": [
+        {
+          "notes": "WebSocket URL resolution uses api-base WS helpers",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Proxy-Correct Networking via api-base"
+}

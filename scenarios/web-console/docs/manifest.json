@@ -1,0 +1,99 @@
+{
+  "version": "1.0.0",
+  "title": "Web Console Documentation",
+  "description": "Documentation for the web-console scenario — a browser-based terminal with PTY-backed sessions, pane layouts, and AI command generation",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get a browser terminal running in under 2 minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "High-level system design: API, UI, WebSocket protocol, and integration layers"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration Reference",
+          "description": "All tunable levers — API environment variables and UI compile-time constants"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams & Boundaries",
+          "description": "Responsibility zones, testability seams, and change axes",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Problems",
+          "description": "Known issues, risks, and tech debt",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Development Progress",
+          "description": "Phase-by-phase development history",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR_SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error categories, recovery paths, and the error response contract",
+          "internal": true
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "title": "Research Notes",
+          "description": "Technical references, design decisions, and related scenarios",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async operation inventory, race conditions, ordering assumptions, and scheduling behavior",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Replay & Idempotency Invariants",
+          "description": "State-mutating operations, idempotency status, safe/unsafe retry patterns, and event emission guards",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference"],
+    "secondary": ["internal"]
+  }
+}

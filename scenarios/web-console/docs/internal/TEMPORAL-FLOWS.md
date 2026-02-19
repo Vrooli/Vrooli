@@ -1,0 +1,96 @@
+# Temporal Flows — Web Console
+
+> Source of truth: the code. Verify claims below against actual implementation.
+
+## Async Operation Inventory
+
+### API (Go)
+
+| Flow | File | Trigger | Depends On | Updates | Completion |
+|------|------|---------|------------|---------|------------|
+| **PTY readLoop** | `session.go:146` | `SessionManager.Create()` | PTY file descriptor | Broadcasts to client channels, sets `processExited`, closes `exitCh` | PTY read error (process exit) |
+| **Session auto-cleanup** | `session.go:261` | `SessionManager.Create()` | `<-sess.Done()` (exitCh closed) | Removes session from manager map | Immediate after Done signal |
+| **ExpirationSweeper** | `session_policy.go:157` | `Server` startup via `NewServer` | 30s ticker, session list | Deletes expired sessions, emits events, updates metrics | `Stop()` called in server Cleanup |
+| **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel | Writes stdout/exit to WS conn | Channel closed (process exit) or WS write error |
+| **WebSocket input loop** | `terminal_ws.go:131` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error or `writerDone` signal |
+| **AI provider chain** | `ai_generate.go:253` | `POST /api/v1/ai/generate` | HTTP request context | Per-provider timeout context, health metrics | All providers tried or first success |
+
+### UI (React/TypeScript)
+
+| Flow | File | Trigger | Depends On | Updates | Cleanup |
+|------|------|---------|------------|---------|---------|
+| **Terminal init** | `TerminalPane.tsx:41` | Component mount | Container DOM ref | Creates Terminal, FitAddon, WebLinksAddon | `term.dispose()`, clears refs |
+| **WebSocket lifecycle** | `useTerminalSocket.ts:96` | `sessionId` + `terminal` ready | Terminal instance | WS connection, input listener | Disposes input listener, closes WS |
+| **Resize observer** | `TerminalPane.tsx:72` | Terminal + sendResize ready | Container element | fit() + sendResize via rAF throttle | Disconnects observer, cancels rAF |
+| **Health check** | `App.tsx:23` | App mount | React Query | Retry with backoff (3 retries, 1s delay) | Managed by React Query |
+| **Session creation** | `useSessionManager.ts:39` | User action (launch) | API call | Panes, activePane, createError | Error auto-dismiss timer cleaned on unmount |
+| **Error auto-dismiss** | `useSessionManager.ts` | Failed session creation | setTimeout ref | Clears createError after 8s | Timer cleared on unmount via ref |
+| **AI generation** | `AiInput.tsx:29` | User prompt submit | API call | command, provider, error, isLoading | Generation ID guards stale responses on unmount |
+| **Countdown timer** | `useCountdown.ts` | Session with expiry policy | 1s setInterval | Remaining seconds display | Interval cleared on unmount |
+| **Settings load** | `SettingsPage.tsx:131` | Page mount | API call | profiles, error, loading | Cancellation signal on unmount |
+| **Provider health** | `ProviderHealthPanel.tsx:34` | Panel open | API call | Provider health data | Single fetch, no polling |
+
+## Ordering Assumptions & Stability
+
+### Stable (tested/guaranteed)
+- **Terminal init → WS connect**: Terminal `useState` triggers WS effect. Ordering enforced by React's `useEffect` dependency chain.
+- **PTY readLoop → auto-cleanup**: Cleanup goroutine waits on `<-sess.Done()`. Channel close is the coordination signal.
+- **Sweeper start → stop**: Started in `NewServer`, stopped in server `Cleanup` callback. Lifecycle tied to HTTP server.
+- **Output forwarder ↔ input loop**: Coordinated via `writerDone` channel + `writeMu` mutex for WS writes.
+
+### Assumptions to monitor
+- **Session limit check → create**: `isSessionLimitReached()` uses RLock, then `Create()` takes write lock. TOCTOU gap exists but is acceptable for a soft limit.
+- **Expired session access window**: Up to 30s after expiration, a session can still accept WS connections. The sweeper runs on a 30s interval.
+
+## Race Conditions & Mitigation
+
+| Race | Location | Status | Mitigation |
+|------|----------|--------|------------|
+| Concurrent WS writes | `terminal_ws.go:89` | **Mitigated** | `writeMu sync.Mutex` serializes all WS writes |
+| Client channel drop | `session.go:134` | **By design** | Non-blocking send; slow clients lose frames (acceptable) |
+| Event subscriber drop | `events.go:74` | **By design** | Non-blocking fan-out; full channels skip events |
+| Stale AI response | `AiInput.tsx` | **Mitigated** | Generation ID ref discards stale setState calls |
+| Stale settings load | `SettingsPage.tsx` | **Mitigated** | Cancellation signal prevents setState on unmounted component |
+| Error dismiss after unmount | `useSessionManager.ts` | **Mitigated** | Timer ref cleaned up in useEffect cleanup |
+
+## Initialization & Teardown
+
+### Server startup sequence
+1. Database connect (`main.go:145`)
+2. `NewServer()` — creates SessionManager, EventLogger, Metrics, AI chain, config stores
+3. ExpirationSweeper created and started (`main.go` — `sweeper.Start()`)
+4. Routes registered
+5. `server.Run()` — starts HTTP listener
+
+### Server shutdown sequence
+1. HTTP server graceful shutdown (via `server.Run` signal handling)
+2. Cleanup callback: `sweeper.Stop()` → `db.Close()`
+
+### UI component lifecycle
+1. `App` mounts → health check via React Query
+2. `Workspace` renders → `useSessionManager` initializes pane/ref state
+3. User launches session → API call → pane added → `TerminalPane` mounts
+4. `TerminalPane` mounts → xterm.js init → `useTerminalSocket` connects WS
+5. On unmount: WS closed, input listener disposed, ResizeObserver disconnected, rAF cancelled
+
+## Polling, Retry & Scheduling
+
+| Mechanism | Interval | Bounded? | Failure Handling |
+|-----------|----------|----------|-----------------|
+| ExpirationSweeper | 30s | Yes (stop via channel) | Continues on individual session delete errors |
+| Health check retry | 1s backoff, 3 attempts | Yes | Shows error UI after exhaustion |
+| Countdown timer | 1s | Yes (cleared on unmount) | Shows 0 when expired |
+| ResizeObserver | Per-frame (rAF throttled) | Yes (cancelled on unmount) | No-op on error |
+
+## Configuration Points
+
+| Parameter | Default | Location |
+|-----------|---------|----------|
+| Sweep interval | 30s | `session_policy.go:129` |
+| AI provider timeout | Per-config (`timeout_sec`) | `ai_generate.go:273` |
+| HTTP client timeout | 30s | `ai_generate.go:90,149` |
+| Offline buffer max | Config-driven | `config.go` |
+| Error auto-dismiss | 8s | `consts/config.ts:69` |
+| Health retry count | 3 | `consts/config.ts:63` |
+| Health retry delay | 1000ms | `consts/config.ts:66` |
+| Client channel buffer | Config-driven | `config.go` |

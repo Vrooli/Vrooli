@@ -1,0 +1,97 @@
+{
+  "description": "Drawer exposes session/workspace status and core controls without blocking primary terminal workflow",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "children": ["REQ-P0-008b"],
+      "description": "Collapsible side drawer component slides in/out without disrupting terminal pane layout. Accessible via hamburger icon or keyboard shortcut.",
+      "id": "REQ-P0-008a",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Drawer Layout Component",
+      "validation": [
+        {
+          "notes": "Drawer component module exports default function",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/drawer.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Drawer panel selector registered",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes drawer panel selector",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Drawer open/close, backdrop, session list, empty state, ProviderHealthPanel integration",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/session-drawer.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "children": ["REQ-P0-008b-i"],
+      "description": "Drawer displays active session list with status indicators, workspace controls, and session management actions (rename, terminate).",
+      "id": "REQ-P0-008b",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Session Status and Controls",
+      "validation": [
+        {
+          "notes": "Drawer displays session list with terminate controls and props interface",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/drawer.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Session time formatting for drawer display",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/format.test.ts:formatSessionTime",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Session rows rendering, selection, multiple sessions count, policy dropdown",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/session-drawer.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Session terminate action provides visual feedback: confirmation state on first click, immediate deletion on second click.",
+      "id": "REQ-P0-008b-i",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Session Action Feedback",
+      "validation": [
+        {
+          "notes": "Drawer session list with terminate controls",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/drawer.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Double-click delete confirmation pattern, title change on arm",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/session-drawer.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Sidebar/Drawer Controls Surface"
+}

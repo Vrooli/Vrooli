@@ -1,0 +1,289 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+)
+
+// wsURL converts an httptest.Server URL to a WebSocket URL.
+func wsURL(s *httptest.Server, path string) string {
+	return "ws" + strings.TrimPrefix(s.URL, "http") + path
+}
+
+// setupWSServer creates a test server with routes registered for WebSocket testing.
+func setupWSServer(t *testing.T) (*httptest.Server, *Server) {
+	t.Helper()
+	srv := newFakeTestServer()
+	srv.setupRoutes()
+	ts := httptest.NewServer(srv.router)
+	t.Cleanup(ts.Close)
+	return ts, srv
+}
+
+// createTestSession creates a session via the API and returns its ID.
+func createTestSession(t *testing.T, ts *httptest.Server) string {
+	t.Helper()
+	resp, err := http.Post(ts.URL+"/api/v1/sessions", "application/json",
+		strings.NewReader(`{"cols":80,"rows":24}`))
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	var sr SessionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return sr.ID
+}
+
+// [REQ:P0-002b] WebSocket I/O Streaming - session not found returns 404
+func TestHandleTerminalWS_SessionNotFound(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.setupRoutes()
+
+	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent/ws", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
+	rec := httptest.NewRecorder()
+
+	srv.handleTerminalWS(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for missing session, got %d", rec.Code)
+	}
+}
+
+// [REQ:P0-002b] WebSocket I/O Streaming - exited session auto-removed returns 404
+func TestHandleTerminalWS_ExitedSession(t *testing.T) {
+	deadFake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(deadFake))
+	deadSrv := &Server{
+		router:    mux.NewRouter(),
+		sessions:  sm,
+		events:    NewEventLogger(100),
+		metrics:   NewMetrics(),
+		aiChain:   NewAIProviderChain(),
+		shortcuts: NewShortcutProfileStore(),
+		aiConfig:  NewAIProviderConfigStore(),
+	}
+	deadSess, _ := sm.Create("/fake/shell", 80, 24)
+	sessID := deadSess.ID
+
+	// Close output pipe to simulate process exit; auto-removal cleans up the map
+	deadFake.outW.Close()
+	time.Sleep(150 * time.Millisecond)
+
+	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sessID+"/ws", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": sessID})
+	rec := httptest.NewRecorder()
+
+	deadSrv.handleTerminalWS(rec, req)
+
+	// After auto-removal, session is no longer in the map → 404
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for auto-removed dead session, got %d", rec.Code)
+	}
+}
+
+// [REQ:P0-002b] WebSocket I/O Streaming - successful WS upgrade and ping/pong
+func TestHandleTerminalWS_PingPong(t *testing.T) {
+	ts, _ := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send ping
+	ping := TerminalMessage{Type: MsgTypePing}
+	if err := conn.WriteJSON(ping); err != nil {
+		t.Fatalf("write ping: %v", err)
+	}
+
+	// Expect pong
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var pong TerminalMessage
+	if err := conn.ReadJSON(&pong); err != nil {
+		t.Fatalf("read pong: %v", err)
+	}
+	if pong.Type != MsgTypePong {
+		t.Errorf("expected pong message, got type=%s", pong.Type)
+	}
+}
+
+// [REQ:P0-002b] WebSocket I/O Streaming - stdin writes succeed without error
+func TestHandleTerminalWS_Stdin(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	beforeReceived := srv.metrics.WSMessagesReceived.Load()
+
+	// Send stdin data - should not cause an error
+	msg := TerminalMessage{Type: MsgTypeStdin, Data: "test input"}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write stdin: %v", err)
+	}
+
+	// Give server time to process
+	time.Sleep(100 * time.Millisecond)
+
+	afterReceived := srv.metrics.WSMessagesReceived.Load()
+	if afterReceived <= beforeReceived {
+		t.Errorf("WSMessagesReceived should increment: before=%d after=%d", beforeReceived, afterReceived)
+	}
+}
+
+// [REQ:P0-002c] Terminal Resize Handling - resize via WebSocket
+func TestHandleTerminalWS_Resize(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send resize
+	msg := TerminalMessage{Type: MsgTypeResize, Cols: 120, Rows: 40}
+	if err := conn.WriteJSON(msg); err != nil {
+		t.Fatalf("write resize: %v", err)
+	}
+
+	// Give the server time to process
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify resize was applied
+	sess, ok := srv.sessions.Get(sessID)
+	if !ok {
+		t.Fatal("session not found after resize")
+	}
+	if sess.Cols != 120 || sess.Rows != 40 {
+		t.Errorf("expected 120x40, got %dx%d", sess.Cols, sess.Rows)
+	}
+}
+
+// [REQ:P0-002b] WebSocket I/O Streaming - invalid JSON returns error message
+func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
+	ts, _ := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send invalid JSON
+	if err := conn.WriteMessage(websocket.TextMessage, []byte("not json")); err != nil {
+		t.Fatalf("write invalid: %v", err)
+	}
+
+	// Should get error message back
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var resp TerminalMessage
+	if err := conn.ReadJSON(&resp); err != nil {
+		t.Fatalf("read error: %v", err)
+	}
+	if resp.Type != MsgTypeError {
+		t.Errorf("expected error message, got type=%s", resp.Type)
+	}
+}
+
+// [REQ:P1-004a] Metrics - WebSocket connections increment metrics
+func TestHandleTerminalWS_MetricsIncrement(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	before := srv.metrics.ConnectionsTotal.Load()
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+
+	// Give server time to process connection
+	time.Sleep(50 * time.Millisecond)
+
+	after := srv.metrics.ConnectionsTotal.Load()
+	if after <= before {
+		t.Errorf("ConnectionsTotal should increment: before=%d after=%d", before, after)
+	}
+
+	conn.Close()
+	time.Sleep(50 * time.Millisecond)
+}
+
+// [REQ:P0-002b] WebSocket message type constants are defined
+func TestTerminalMessageTypes(t *testing.T) {
+	types := map[string]string{
+		"stdin":  MsgTypeStdin,
+		"stdout": MsgTypeStdout,
+		"resize": MsgTypeResize,
+		"exit":   MsgTypeExit,
+		"error":  MsgTypeError,
+		"ping":   MsgTypePing,
+		"pong":   MsgTypePong,
+	}
+	for expected, actual := range types {
+		if actual != expected {
+			t.Errorf("MsgType constant mismatch: expected %q, got %q", expected, actual)
+		}
+	}
+}
+
+// [REQ:P0-002b] TerminalMessage JSON serialization
+func TestTerminalMessage_JSON(t *testing.T) {
+	msg := TerminalMessage{Type: MsgTypeStdout, Data: "hello"}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded TerminalMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Type != MsgTypeStdout || decoded.Data != "hello" {
+		t.Errorf("round-trip mismatch: %+v", decoded)
+	}
+}
+
+// [REQ:P0-002c] TerminalMessage resize fields
+func TestTerminalMessage_ResizeFields(t *testing.T) {
+	msg := TerminalMessage{Type: MsgTypeResize, Cols: 120, Rows: 40}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded TerminalMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Cols != 120 || decoded.Rows != 40 {
+		t.Errorf("resize fields mismatch: cols=%d rows=%d", decoded.Cols, decoded.Rows)
+	}
+}

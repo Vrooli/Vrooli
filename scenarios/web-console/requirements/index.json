@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "entity": "web-console",
+    "generated_at": "2026-02-18T22:07:36-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-pane-based-terminal-workspace/module.json",
+    "02-production-grade-web-terminal-fidelity/module.json",
+    "03-durable-session-continuity/module.json",
+    "04-proxy-correct-networking-via-api-base/module.json",
+    "05-ai-input-with-provider-fallback/module.json",
+    "06-new-terminal-launcher-with-configurable/module.json",
+    "07-mobile-terminal-usability-toolbar/module.json",
+    "08-sidebar-drawer-controls-surface/module.json",
+    "09-session-policy-controls/module.json",
+    "10-shortcut-profile-management/module.json",
+    "11-ai-provider-policy-controls/module.json",
+    "12-operational-observability-coverage/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-pane-based-terminal-workspace",
+      "priority": "P0",
+      "title": "Pane-Based Terminal Workspace"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-production-grade-web-terminal-fidelity",
+      "priority": "P0",
+      "title": "Production-Grade Web Terminal Fidelity"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-durable-session-continuity",
+      "priority": "P0",
+      "title": "Durable Session Continuity"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-proxy-correct-networking-via-api-base",
+      "priority": "P0",
+      "title": "Proxy-Correct Networking via api-base"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-ai-input-with-provider-fallback",
+      "priority": "P0",
+      "title": "AI Input with Provider Fallback"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-new-terminal-launcher-with-configurable",
+      "priority": "P0",
+      "title": "New Terminal Launcher with Configurable Shortcuts"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-mobile-terminal-usability-toolbar",
+      "priority": "P0",
+      "title": "Mobile Terminal Usability Toolbar"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-sidebar-drawer-controls-surface",
+      "priority": "P0",
+      "title": "Sidebar/Drawer Controls Surface"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-session-policy-controls",
+      "priority": "P1",
+      "title": "Session Policy Controls"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-shortcut-profile-management",
+      "priority": "P1",
+      "title": "Shortcut Profile Management"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-ai-provider-policy-controls",
+      "priority": "P1",
+      "title": "AI Provider Policy Controls"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-operational-observability-coverage",
+      "priority": "P1",
+      "title": "Operational Observability Coverage"
+    }
+  ]
+}
