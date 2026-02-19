@@ -265,27 +265,103 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+const literalSelectors = {
+  app: {
+    header: "app-header",
+    title: "app-title",
+    skipLink: "skip-link",
+    desktopNav: "desktop-nav",
+    mobileMenuToggle: "mobile-menu-toggle",
+    mobileNav: "mobile-nav",
+    mainContent: "main-content",
   },
-  */
-};
+  dashboard: {
+    tunnelHealth: "tunnel-health-panel",
+    routeManifest: "route-manifest-panel",
+    livenessProbes: "liveness-probes-panel",
+    portAudit: "port-audit-panel",
+    recoveryEvents: "recovery-events-panel",
+  },
+  tunnelStatus: {
+    statusIndicator: "tunnel-status-indicator",
+    scoreValue: "tunnel-score-value",
+    refreshButton: "tunnel-health-refresh",
+    retryButton: "tunnel-health-retry",
+  },
+  routes: {
+    table: "route-table",
+    search: "routes-search",
+    addButton: "route-add-button",
+    form: "route-form",
+    formSubmit: "route-form-submit",
+    formClose: "route-form-close",
+    formDelete: "route-form-delete",
+    emptyState: "routes-empty-state",
+    emptyCta: "routes-empty-cta",
+  },
+  confirmDialog: {
+    root: "confirm-dialog",
+    confirm: "confirm-dialog-confirm",
+    cancel: "confirm-dialog-cancel",
+  },
+  probes: {
+    runButton: "probes-run-button",
+    summaryUp: "probes-summary-up",
+    summaryDown: "probes-summary-down",
+    resultsTable: "probes-results-table",
+    historyTable: "probes-history-table",
+    emptyState: "probes-empty-state",
+  },
+  metrics: {
+    currentPanel: "metrics-current-panel",
+    historyPanel: "metrics-history-panel",
+    historyTable: "metrics-history-table",
+    refreshButton: "metrics-refresh",
+  },
+  health: {
+    overviewPanel: "health-overview-panel",
+    routeHealthTable: "health-route-table",
+    refreshButton: "health-refresh",
+    statusBadge: "health-status-badge",
+  },
+  recovery: {
+    statePanel: "recovery-state-panel",
+    triggerButton: "recovery-trigger-button",
+    resetCircuitButton: "recovery-reset-circuit",
+    eventsTimeline: "recovery-events-timeline",
+    statusValue: "recovery-status-value",
+    circuitValue: "recovery-circuit-value",
+  },
+  audit: {
+    panel: "audit-panel",
+    refreshButton: "audit-refresh",
+    summaryCompliant: "audit-summary-compliant",
+    summaryViolations: "audit-summary-violations",
+    resultsTable: "audit-results-table",
+  },
+  pagination: {
+    root: "pagination",
+    prev: "pagination-prev",
+    next: "pagination-next",
+  },
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+const dynamicSelectorDefinitions = {
+  routes: {
+    rowBySubdomain: defineDynamicSelector({
+      description: "Route table row by subdomain",
+      testIdPattern: "route-row-${subdomain}",
+      params: { subdomain: { type: "string" } },
     }),
   },
-  */
-};
+  recovery: {
+    eventById: defineDynamicSelector({
+      description: "Recovery event by ID",
+      testIdPattern: "recovery-event-${id}",
+      params: { id: { type: "number" } },
+    }),
+  },
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

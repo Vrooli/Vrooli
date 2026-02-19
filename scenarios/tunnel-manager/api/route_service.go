@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,6 +24,16 @@ type Route struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// routeColumns is the canonical column list for route queries, used in SELECT and RETURNING clauses.
+const routeColumns = "id, subdomain, scenario_name, local_port, health_path, public_url, enabled, created_at, updated_at"
+
+// scanRoute scans a single Route from the given row (sql.Row or compatible scanner).
+func scanRoute(scanner interface{ Scan(dest ...any) error }) (Route, error) {
+	var r Route
+	err := scanner.Scan(&r.ID, &r.Subdomain, &r.ScenarioName, &r.LocalPort, &r.HealthPath, &r.PublicURL, &r.Enabled, &r.CreatedAt, &r.UpdatedAt)
+	return r, err
+}
+
 // RouteInput is the create/update payload for routes.
 type RouteInput struct {
 	Subdomain    string `json:"subdomain"`
@@ -45,7 +54,7 @@ func NewRouteService(db *sql.DB) *RouteService {
 }
 
 func (rs *RouteService) List() ([]Route, error) {
-	rows, err := rs.db.Query(`SELECT id, subdomain, scenario_name, local_port, health_path, public_url, enabled, created_at, updated_at FROM routes ORDER BY subdomain`)
+	rows, err := rs.db.Query(`SELECT ` + routeColumns + ` FROM routes ORDER BY subdomain`)
 	if err != nil {
 		return nil, fmt.Errorf("list routes: %w", err)
 	}
@@ -53,8 +62,8 @@ func (rs *RouteService) List() ([]Route, error) {
 
 	var routes []Route
 	for rows.Next() {
-		var r Route
-		if err := rows.Scan(&r.ID, &r.Subdomain, &r.ScenarioName, &r.LocalPort, &r.HealthPath, &r.PublicURL, &r.Enabled, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		r, err := scanRoute(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan route: %w", err)
 		}
 		routes = append(routes, r)
@@ -63,9 +72,7 @@ func (rs *RouteService) List() ([]Route, error) {
 }
 
 func (rs *RouteService) GetByID(id int) (*Route, error) {
-	var r Route
-	err := rs.db.QueryRow(`SELECT id, subdomain, scenario_name, local_port, health_path, public_url, enabled, created_at, updated_at FROM routes WHERE id = $1`, id).
-		Scan(&r.ID, &r.Subdomain, &r.ScenarioName, &r.LocalPort, &r.HealthPath, &r.PublicURL, &r.Enabled, &r.CreatedAt, &r.UpdatedAt)
+	r, err := scanRoute(rs.db.QueryRow(`SELECT `+routeColumns+` FROM routes WHERE id = $1`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -88,10 +95,10 @@ func (rs *RouteService) Create(in RouteInput) (*Route, error) {
 		enabled = *in.Enabled
 	}
 
-	var r Route
-	err := rs.db.QueryRow(`INSERT INTO routes (subdomain, scenario_name, local_port, health_path, public_url, enabled) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, subdomain, scenario_name, local_port, health_path, public_url, enabled, created_at, updated_at`,
+	r, err := scanRoute(rs.db.QueryRow(
+		`INSERT INTO routes (subdomain, scenario_name, local_port, health_path, public_url, enabled) VALUES ($1, $2, $3, $4, $5, $6) RETURNING `+routeColumns,
 		in.Subdomain, in.ScenarioName, in.LocalPort, healthPath, in.PublicURL, enabled,
-	).Scan(&r.ID, &r.Subdomain, &r.ScenarioName, &r.LocalPort, &r.HealthPath, &r.PublicURL, &r.Enabled, &r.CreatedAt, &r.UpdatedAt)
+	))
 	if err != nil {
 		return nil, fmt.Errorf("create route: %w", err)
 	}
@@ -110,7 +117,32 @@ func (rs *RouteService) Update(id int, in RouteInput) (*Route, error) {
 		return nil, nil
 	}
 
-	// Merge fields
+	mergeRouteFields(existing, in)
+
+	r, err := scanRoute(rs.db.QueryRow(
+		`UPDATE routes SET subdomain=$1, scenario_name=$2, local_port=$3, health_path=$4, public_url=$5, enabled=$6, updated_at=NOW() WHERE id=$7 RETURNING `+routeColumns,
+		existing.Subdomain, existing.ScenarioName, existing.LocalPort, existing.HealthPath, existing.PublicURL, existing.Enabled, id,
+	))
+	if err != nil {
+		return nil, fmt.Errorf("update route %d: %w", id, err)
+	}
+	return &r, nil
+}
+
+func (rs *RouteService) Delete(id int) error {
+	result, err := rs.db.Exec(`DELETE FROM routes WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete route %d: %w", id, err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("route %d not found", id)
+	}
+	return nil
+}
+
+// mergeRouteFields applies non-zero fields from in onto existing.
+func mergeRouteFields(existing *Route, in RouteInput) {
 	if in.Subdomain != "" {
 		existing.Subdomain = in.Subdomain
 	}
@@ -129,27 +161,6 @@ func (rs *RouteService) Update(id int, in RouteInput) (*Route, error) {
 	if in.Enabled != nil {
 		existing.Enabled = *in.Enabled
 	}
-
-	var r Route
-	err = rs.db.QueryRow(`UPDATE routes SET subdomain=$1, scenario_name=$2, local_port=$3, health_path=$4, public_url=$5, enabled=$6, updated_at=NOW() WHERE id=$7 RETURNING id, subdomain, scenario_name, local_port, health_path, public_url, enabled, created_at, updated_at`,
-		existing.Subdomain, existing.ScenarioName, existing.LocalPort, existing.HealthPath, existing.PublicURL, existing.Enabled, id,
-	).Scan(&r.ID, &r.Subdomain, &r.ScenarioName, &r.LocalPort, &r.HealthPath, &r.PublicURL, &r.Enabled, &r.CreatedAt, &r.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("update route %d: %w", id, err)
-	}
-	return &r, nil
-}
-
-func (rs *RouteService) Delete(id int) error {
-	result, err := rs.db.Exec(`DELETE FROM routes WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("delete route %d: %w", id, err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("route %d not found", id)
-	}
-	return nil
 }
 
 func validateRouteInput(in RouteInput, isUpdate bool) error {
@@ -172,6 +183,17 @@ func validateRouteInput(in RouteInput, isUpdate bool) error {
 
 // --- HTTP Handlers ---
 
+// parseRouteID extracts and validates the {id} path parameter.
+// Returns the parsed ID, or writes a 400 error and returns -1.
+func parseRouteID(w http.ResponseWriter, r *http.Request) (int, bool) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid route id")
+		return 0, false
+	}
+	return id, true
+}
+
 func handleListRoutes(svc *RouteService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		routes, err := svc.List()
@@ -188,9 +210,8 @@ func handleListRoutes(svc *RouteService) http.HandlerFunc {
 
 func handleGetRoute(svc *RouteService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(mux.Vars(r)["id"])
-		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "invalid route id")
+		id, ok := parseRouteID(w, r)
+		if !ok {
 			return
 		}
 		route, err := svc.GetByID(id)
@@ -209,8 +230,7 @@ func handleGetRoute(svc *RouteService) http.HandlerFunc {
 func handleCreateRoute(svc *RouteService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var in RouteInput
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		if !decodeJSON(w, r, &in) {
 			return
 		}
 		route, err := svc.Create(in)
@@ -224,14 +244,12 @@ func handleCreateRoute(svc *RouteService) http.HandlerFunc {
 
 func handleUpdateRoute(svc *RouteService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(mux.Vars(r)["id"])
-		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "invalid route id")
+		id, ok := parseRouteID(w, r)
+		if !ok {
 			return
 		}
 		var in RouteInput
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		if !decodeJSON(w, r, &in) {
 			return
 		}
 		route, err := svc.Update(id, in)
@@ -249,9 +267,8 @@ func handleUpdateRoute(svc *RouteService) http.HandlerFunc {
 
 func handleDeleteRoute(svc *RouteService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(mux.Vars(r)["id"])
-		if err != nil {
-			writeJSONError(w, http.StatusBadRequest, "invalid route id")
+		id, ok := parseRouteID(w, r)
+		if !ok {
 			return
 		}
 		if err := svc.Delete(id); err != nil {

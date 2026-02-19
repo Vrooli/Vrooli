@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// INTEROP-CRITICAL: base must be './' for tunnel/proxy/iframe embedding contexts
 export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
+  base: './',
   plugins: [react()],
   test: {
     globals: true,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,12 +21,15 @@ import (
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	db            *sql.DB
-	router        *mux.Router
-	routeSvc      *RouteService
-	portAuditor   *PortAuditor
-	tunnelHealth  *TunnelHealthChecker
-	probeSvc      *ProbeService
+	db             *sql.DB
+	router         *mux.Router
+	routeSvc       *RouteService
+	portAuditor    *PortAuditor
+	tunnelHealth   *TunnelHealthChecker
+	probeSvc       *ProbeService
+	recoveryEngine *RecoveryEngine
+	metricsStore   *MetricsStore
+	probeStore     *ProbeStore
 }
 
 // NewServer initializes services and routes
@@ -33,13 +37,17 @@ func NewServer(db *sql.DB) *Server {
 	routeSvc := NewRouteService(db)
 	scenariosRoot := detectScenariosRoot()
 
+	tunnelHealth := NewTunnelHealthChecker()
 	srv := &Server{
-		db:           db,
-		router:       mux.NewRouter(),
-		routeSvc:     routeSvc,
-		portAuditor:  NewPortAuditor(routeSvc, scenariosRoot),
-		tunnelHealth: NewTunnelHealthChecker(),
-		probeSvc:     NewProbeService(db, routeSvc),
+		db:             db,
+		router:         mux.NewRouter(),
+		routeSvc:       routeSvc,
+		portAuditor:    NewPortAuditor(routeSvc, scenariosRoot),
+		tunnelHealth:   tunnelHealth,
+		probeSvc:       NewProbeService(db, routeSvc),
+		recoveryEngine: NewRecoveryEngine(db, tunnelHealth),
+		metricsStore:   NewMetricsStore(db),
+		probeStore:     NewProbeStore(db),
 	}
 	srv.setupRoutes()
 	return srv
@@ -70,8 +78,24 @@ func (s *Server) setupRoutes() {
 	// Tunnel health
 	api.HandleFunc("/tunnel/health", handleTunnelHealth(s.tunnelHealth)).Methods("GET")
 
+	// Detailed health (cross-scenario consumption) [REQ:OBS-004]
+	api.HandleFunc("/health/detailed", handleDetailedHealth(s.tunnelHealth, s.routeSvc, s.probeSvc)).Methods("GET")
+
+	// Metrics history [REQ:OBS-001]
+	api.HandleFunc("/metrics/history", handleMetricsHistory(s.metricsStore)).Methods("GET")
+	api.HandleFunc("/metrics/latest", handleMetricsLatest(s.metricsStore)).Methods("GET")
+
+	// Probe history [REQ:OBS-002]
+	api.HandleFunc("/probes/history", handleProbeHistory(s.probeStore)).Methods("GET")
+
 	// Liveness probes
 	api.HandleFunc("/probes", handleRunProbes(s.probeSvc)).Methods("POST")
+
+	// Recovery engine
+	api.HandleFunc("/recovery/state", handleRecoveryState(s.recoveryEngine)).Methods("GET")
+	api.HandleFunc("/recovery/trigger", handleRecoveryTrigger(s.recoveryEngine)).Methods("POST")
+	api.HandleFunc("/recovery/events", handleRecoveryEvents(s.recoveryEngine)).Methods("GET")
+	api.HandleFunc("/recovery/circuit/reset", handleCircuitReset(s.recoveryEngine)).Methods("POST")
 }
 
 // Handler returns the HTTP handler with recovery middleware
@@ -109,6 +133,9 @@ func main() {
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
+
+	// Initialize structured logging [REQ:OBS-003]
+	InitStructuredLogging(slog.LevelInfo)
 
 	// Connect to database with automatic retry and backoff
 	db, err := database.Connect(context.Background(), database.Config{

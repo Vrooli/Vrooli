@@ -39,7 +39,7 @@ func WithCmdRunner(fn func(ctx context.Context, name string, args ...string) ([]
 
 func NewTunnelHealthChecker(opts ...TunnelHealthOption) *TunnelHealthChecker {
 	thc := &TunnelHealthChecker{
-		metricsURL: "http://127.0.0.1:20241",
+		metricsURL: defaultMetricsURL,
 		httpClient: &http.Client{Timeout: 5 * time.Second},
 	}
 	thc.cmdRunner = defaultCmdRunner

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -84,7 +86,7 @@ func startTestContainerDB(t *testing.T) string {
 
 		testContainerURL = connStr
 		testContainerCleanup = func() {
-			container.Terminate(context.Background())
+			_ = container.Terminate(context.Background())
 		}
 	})
 
@@ -98,10 +100,30 @@ func startTestContainerDB(t *testing.T) string {
 
 func cleanTables(t *testing.T, db *sql.DB) {
 	t.Helper()
-	for _, table := range []string{"probe_results", "recovery_events", "routes"} {
+	for _, table := range []string{"metrics_history", "probe_results", "recovery_events", "routes"} {
 		if _, err := db.Exec("DELETE FROM " + table); err != nil {
 			t.Fatalf("Failed to clean table %s: %v", table, err)
 		}
+	}
+}
+
+func itoa(i int) string {
+	return fmt.Sprintf("%d", i)
+}
+
+func writeServiceJSON(t *testing.T, dir string, uiPort int) {
+	t.Helper()
+	svc := map[string]any{
+		"ports": map[string]any{
+			"ui": map[string]any{
+				"port":    uiPort,
+				"env_var": "UI_PORT",
+			},
+		},
+	}
+	data, _ := json.Marshal(svc)
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), data, 0o644); err != nil {
+		t.Fatalf("write service.json: %v", err)
 	}
 }
 

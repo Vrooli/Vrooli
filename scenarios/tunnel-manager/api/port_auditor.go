@@ -49,17 +49,22 @@ func (pa *PortAuditor) Audit() ([]PortAuditResult, error) {
 	return results, nil
 }
 
+// newAuditResult creates a base PortAuditResult from a route with common fields pre-filled.
+func newAuditResult(route Route, status, detail string) PortAuditResult {
+	return PortAuditResult{
+		Subdomain:    route.Subdomain,
+		ScenarioName: route.ScenarioName,
+		ExpectedPort: route.LocalPort,
+		Status:       status,
+		Detail:       detail,
+	}
+}
+
 func (pa *PortAuditor) auditRoute(route Route) PortAuditResult {
 	svcPath := filepath.Join(pa.scenariosRoot, route.ScenarioName, ".vrooli", "service.json")
 	data, err := os.ReadFile(svcPath)
 	if err != nil {
-		return PortAuditResult{
-			Subdomain:    route.Subdomain,
-			ScenarioName: route.ScenarioName,
-			ExpectedPort: route.LocalPort,
-			Status:       "missing_scenario",
-			Detail:       fmt.Sprintf("service.json not found: %s", svcPath),
-		}
+		return newAuditResult(route, "missing_scenario", fmt.Sprintf("service.json not found: %s", svcPath))
 	}
 
 	var svc struct {
@@ -69,45 +74,24 @@ func (pa *PortAuditor) auditRoute(route Route) PortAuditResult {
 		} `json:"ports"`
 	}
 	if err := json.Unmarshal(data, &svc); err != nil {
-		return PortAuditResult{
-			Subdomain:    route.Subdomain,
-			ScenarioName: route.ScenarioName,
-			ExpectedPort: route.LocalPort,
-			Status:       "missing_port",
-			Detail:       fmt.Sprintf("failed to parse service.json: %v", err),
-		}
+		return newAuditResult(route, "missing_port", fmt.Sprintf("failed to parse service.json: %v", err))
 	}
 
 	// Look for UI port (tunnel routes typically point to UI)
 	uiPort, hasUI := svc.Ports["ui"]
 	if !hasUI || uiPort.Port == 0 {
-		return PortAuditResult{
-			Subdomain:    route.Subdomain,
-			ScenarioName: route.ScenarioName,
-			ExpectedPort: route.LocalPort,
-			Status:       "missing_port",
-			Detail:       "no fixed UI port defined in service.json",
-		}
+		return newAuditResult(route, "missing_port", "no fixed UI port defined in service.json")
 	}
 
 	if uiPort.Port != route.LocalPort {
-		return PortAuditResult{
-			Subdomain:    route.Subdomain,
-			ScenarioName: route.ScenarioName,
-			ExpectedPort: route.LocalPort,
-			ActualPort:   uiPort.Port,
-			Status:       "mismatch",
-			Detail:       fmt.Sprintf("manifest expects port %d but service.json has %d", route.LocalPort, uiPort.Port),
-		}
+		r := newAuditResult(route, "mismatch", fmt.Sprintf("manifest expects port %d but service.json has %d", route.LocalPort, uiPort.Port))
+		r.ActualPort = uiPort.Port
+		return r
 	}
 
-	return PortAuditResult{
-		Subdomain:    route.Subdomain,
-		ScenarioName: route.ScenarioName,
-		ExpectedPort: route.LocalPort,
-		ActualPort:   uiPort.Port,
-		Status:       "compliant",
-	}
+	r := newAuditResult(route, "compliant", "")
+	r.ActualPort = uiPort.Port
+	return r
 }
 
 // --- HTTP Handler ---

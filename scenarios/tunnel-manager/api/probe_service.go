@@ -86,29 +86,31 @@ func (ps *ProbeService) probeInternal(ctx context.Context, route Route) ProbeRes
 
 func (ps *ProbeService) probeExternal(ctx context.Context, route Route) ProbeResult {
 	if route.PublicURL == "" {
-		return ProbeResult{
-			RouteID:   route.ID,
-			Subdomain: route.Subdomain,
-			ProbeType: "external",
-			Status:    "error",
-			ErrorMsg:  "no public_url configured",
-		}
+		r := newProbeResult(route.ID, route.Subdomain, "external", "error")
+		r.ErrorMsg = "no public_url configured"
+		return r
 	}
 	url := route.PublicURL + route.HealthPath
 	return ps.doProbe(ctx, route.ID, route.Subdomain, "external", url)
+}
+
+// newProbeResult creates a base ProbeResult with the common identity fields filled in.
+func newProbeResult(routeID int, subdomain, probeType, status string) ProbeResult {
+	return ProbeResult{
+		RouteID:   routeID,
+		Subdomain: subdomain,
+		ProbeType: probeType,
+		Status:    status,
+	}
 }
 
 func (ps *ProbeService) doProbe(ctx context.Context, routeID int, subdomain, probeType, url string) ProbeResult {
 	start := time.Now()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return ProbeResult{
-			RouteID:   routeID,
-			Subdomain: subdomain,
-			ProbeType: probeType,
-			Status:    "error",
-			ErrorMsg:  err.Error(),
-		}
+		r := newProbeResult(routeID, subdomain, probeType, "error")
+		r.ErrorMsg = err.Error()
+		return r
 	}
 
 	resp, err := ps.httpClient.Do(req)
@@ -118,30 +120,21 @@ func (ps *ProbeService) doProbe(ctx context.Context, routeID int, subdomain, pro
 		if ctx.Err() != nil {
 			status = "timeout"
 		}
-		return ProbeResult{
-			RouteID:   routeID,
-			Subdomain: subdomain,
-			ProbeType: probeType,
-			Status:    status,
-			LatencyMs: latency,
-			ErrorMsg:  err.Error(),
-		}
+		r := newProbeResult(routeID, subdomain, probeType, status)
+		r.LatencyMs = latency
+		r.ErrorMsg = err.Error()
+		return r
 	}
 	defer resp.Body.Close()
 
-	probeStatus := "up"
+	status := "up"
 	if resp.StatusCode >= 400 {
-		probeStatus = "down"
+		status = "down"
 	}
-
-	return ProbeResult{
-		RouteID:    routeID,
-		Subdomain:  subdomain,
-		ProbeType:  probeType,
-		Status:     probeStatus,
-		LatencyMs:  latency,
-		StatusCode: resp.StatusCode,
-	}
+	r := newProbeResult(routeID, subdomain, probeType, status)
+	r.LatencyMs = latency
+	r.StatusCode = resp.StatusCode
+	return r
 }
 
 func (ps *ProbeService) persistResult(pr ProbeResult) {

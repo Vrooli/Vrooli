@@ -1,7 +1,11 @@
 {
   "module": "tunnel-health",
   "description": "Monitor cloudflared tunnel health via systemd, Prometheus metrics, and ready endpoint",
-  "prd_refs": ["OT-P0-003", "OT-P1-004", "OT-P1-009"],
+  "prd_refs": [
+    "OT-P0-003",
+    "OT-P1-004",
+    "OT-P1-009"
+  ],
   "requirements": [
     {
       "id": "HEALTH-001",
@@ -14,7 +18,7 @@
           "type": "test",
           "phase": "api",
           "status": "complete",
-          "ref": "api/tunnel_health_test.go"
+          "ref": "api/tunnel_systemd_test.go"
         }
       ],
       "status": "complete"
@@ -30,7 +34,7 @@
           "type": "test",
           "phase": "api",
           "status": "complete",
-          "ref": "api/tunnel_health_test.go"
+          "ref": "api/tunnel_ready_test.go"
         }
       ],
       "status": "complete"
@@ -41,15 +45,54 @@
       "description": "Scrape cloudflared's /metrics endpoint for key gauges: cloudflared_tunnel_ha_connections, cloudflared_tunnel_request_errors, cloudflared_tunnel_active_streams, quic_client_smoothed_rtt",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
+      "children": [
+        "HEALTH-003A",
+        "HEALTH-003B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-003A",
+      "title": "Metric gauge extraction",
+      "description": "Parse Prometheus text format to extract named gauge values from the /metrics endpoint response",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "children": [
+        "HEALTH-003A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-003A1",
+      "title": "Missing metric handling",
+      "description": "Handle missing or unparseable metrics gracefully by reporting them as unknown rather than failing",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "complete",
           "ref": "api/metrics_scraper_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-003B",
+      "title": "Scrape scheduling",
+      "description": "Schedule periodic metric scrapes at configurable interval and store timestamped results",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/metrics_scraper_test.go"
+        }
+      ],
+      "status": "complete"
     },
     {
       "id": "HEALTH-004",
@@ -61,11 +104,11 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/tunnel_health_test.go"
+          "status": "complete",
+          "ref": "api/recovery_ha_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "HEALTH-005",
@@ -77,11 +120,11 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "complete",
           "ref": "api/metrics_scraper_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "HEALTH-006",
@@ -89,12 +132,51 @@
       "description": "Calculate overall tunnel health as: healthy (systemd active + ready 200 + HA >= 4), degraded (systemd active + any sub-check warning), critical (systemd inactive or ready non-200)",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
+      "children": [
+        "HEALTH-006A",
+        "HEALTH-006B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-006A",
+      "title": "Health state classification",
+      "description": "Classify tunnel state into healthy, degraded, or critical based on sub-check results",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "children": [
+        "HEALTH-006A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-006A1",
+      "title": "Sub-check aggregation logic",
+      "description": "Aggregate systemd, ready, and HA connection sub-checks with worst-case-wins precedence",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
       "validation": [
         {
           "type": "test",
           "phase": "api",
           "status": "complete",
-          "ref": "api/tunnel_health_test.go"
+          "ref": "api/tunnel_score_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-006B",
+      "title": "Health score API response",
+      "description": "Return composite health score with per-check breakdown in API responses",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/health_handler_test.go"
         }
       ],
       "status": "complete"

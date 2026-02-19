@@ -1,7 +1,11 @@
 {
   "module": "cloudflare-api",
   "description": "Remote tunnel configuration management via Cloudflare API v4",
-  "prd_refs": ["OT-P1-001", "OT-P1-003", "OT-P1-006"],
+  "prd_refs": [
+    "OT-P1-001",
+    "OT-P1-003",
+    "OT-P1-006"
+  ],
   "requirements": [
     {
       "id": "CFAPI-001",
@@ -9,15 +13,54 @@
       "description": "Store Cloudflare API token securely (environment variable or encrypted file). Token requires 'Cloudflare Tunnel:Edit' permission scope.",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
+      "children": [
+        "CFAPI-001A",
+        "CFAPI-001B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-001A",
+      "title": "Token source resolution",
+      "description": "Resolve API token from environment variable (CF_API_TOKEN) with fallback to encrypted file storage",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "children": [
+        "CFAPI-001A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-001A1",
+      "title": "Missing token error handling",
+      "description": "Return clear error message when no API token is available from any source",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
+          "ref": "api/mode_switch_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-001B",
+      "title": "Permission scope validation",
+      "description": "Validate that the token has required 'Cloudflare Tunnel:Edit' permission scope on first use",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
           "ref": "api/cf_client_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CFAPI-002",
@@ -29,11 +72,11 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
           "ref": "api/cf_client_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CFAPI-003",
@@ -41,15 +84,54 @@
       "description": "PUT /accounts/{id}/cfd_tunnel/{tunnel_id}/configurations to update ingress rules from the route manifest. Full replacement (read-modify-write pattern). Always includes catch-all 404 rule as last entry.",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
+      "children": [
+        "CFAPI-003A",
+        "CFAPI-003B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-003A",
+      "title": "Ingress rule generation from manifest",
+      "description": "Convert route manifest entries to Cloudflare ingress rule format with hostname and service fields",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "children": [
+        "CFAPI-003A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-003A1",
+      "title": "Catch-all 404 rule",
+      "description": "Always append a catch-all rule returning 404 as the last ingress entry",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
           "ref": "api/cf_config_sync_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-003B",
+      "title": "Full replacement semantics",
+      "description": "Use read-modify-write pattern to fully replace tunnel configuration rather than partial updates",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/cf_config_sync_test.go"
+        }
+      ],
+      "status": "complete"
     },
     {
       "id": "CFAPI-004",
@@ -61,11 +143,11 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
           "ref": "api/cf_config_sync_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CFAPI-005",
@@ -77,11 +159,11 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
           "ref": "api/cf_client_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "CFAPI-006",
@@ -89,15 +171,43 @@
       "description": "tunnel-manager config mode [local|remote] switches management mode. When switching to remote: validate API token, read current local config, push to API. When switching to local: read current API config, write to config.yml.",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
+      "children": [
+        "CFAPI-006A",
+        "CFAPI-006B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-006A",
+      "title": "Switch to remote mode",
+      "description": "Validate API token, read local config, and push configuration to Cloudflare API on mode switch",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
+          "status": "passing",
           "ref": "api/mode_switch_test.go"
         }
       ],
-      "status": "pending"
+      "status": "complete"
+    },
+    {
+      "id": "CFAPI-006B",
+      "title": "Switch to local mode",
+      "description": "Read API config and write to local config.yml on mode switch to local",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/mode_switch_test.go"
+        }
+      ],
+      "status": "complete"
     }
   ]
 }

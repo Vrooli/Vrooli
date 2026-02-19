@@ -41,6 +41,15 @@ func ensureSchema(db *sql.DB) {
 		`CREATE INDEX IF NOT EXISTS idx_probe_results_route_id ON probe_results(route_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_probe_results_created_at ON probe_results(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_recovery_events_created_at ON recovery_events(created_at)`,
+		`CREATE TABLE IF NOT EXISTS metrics_history (
+			id              SERIAL PRIMARY KEY,
+			ha_connections  INT     NOT NULL DEFAULT 0,
+			request_errors  FLOAT8  NOT NULL DEFAULT 0,
+			active_streams  INT     NOT NULL DEFAULT 0,
+			smoothed_rtt_ms FLOAT8  NOT NULL DEFAULT 0,
+			scraped_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_history_scraped_at ON metrics_history(scraped_at)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := db.Exec(stmt); err != nil {
