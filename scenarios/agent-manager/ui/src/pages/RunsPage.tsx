@@ -14,7 +14,6 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { formatStandardRelativeTime } from "../lib/dateTime";
@@ -570,20 +569,6 @@ export function RunsPage({
           icon={<RunStatusIcon status={run.status} />}
           actions={
             <div className="flex items-center gap-1">
-              <Badge
-                variant={
-                  runStatusLabel(run.status) as
-                    | "pending"
-                    | "starting"
-                    | "running"
-                    | "needs_review"
-                    | "complete"
-                    | "failed"
-                    | "cancelled"
-                }
-              >
-                {runStatusLabel(run.status).replace("_", " ")}
-              </Badge>
               {run.actions?.canStop && (
                 <Button
                   variant="ghost"
@@ -750,39 +735,47 @@ export function RunsPage({
   );
 }
 
-function runStatusLabel(status: RunStatus): string {
+function runStatusTooltip(status: RunStatus): string {
   switch (status) {
-    case RunStatus.PENDING:
-      return "pending";
-    case RunStatus.STARTING:
-      return "starting";
-    case RunStatus.RUNNING:
-      return "running";
-    case RunStatus.NEEDS_REVIEW:
-      return "needs_review";
     case RunStatus.COMPLETE:
-      return "complete";
+      return "Complete";
     case RunStatus.FAILED:
-      return "failed";
+      return "Failed";
+    case RunStatus.RUNNING:
+      return "Running";
+    case RunStatus.STARTING:
+      return "Starting";
+    case RunStatus.NEEDS_REVIEW:
+      return "Needs Review";
     case RunStatus.CANCELLED:
-      return "cancelled";
+      return "Cancelled";
+    case RunStatus.PENDING:
+      return "Pending";
     default:
-      return "pending";
+      return "Pending";
   }
 }
 
 function RunStatusIcon({ status }: { status: RunStatus }) {
+  const tooltip = runStatusTooltip(status);
+  let icon: JSX.Element;
   switch (status) {
     case RunStatus.COMPLETE:
-      return <Check className="h-5 w-5 text-success flex-shrink-0" />;
+      icon = <Check className="h-5 w-5 text-success" />;
+      break;
     case RunStatus.FAILED:
-      return <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />;
+      icon = <XCircle className="h-5 w-5 text-destructive" />;
+      break;
     case RunStatus.RUNNING:
     case RunStatus.STARTING:
-      return <Activity className="h-5 w-5 text-primary animate-pulse flex-shrink-0" />;
+      icon = <Activity className="h-5 w-5 text-primary animate-pulse" />;
+      break;
     case RunStatus.NEEDS_REVIEW:
-      return <Clock className="h-5 w-5 text-warning flex-shrink-0" />;
+      icon = <Clock className="h-5 w-5 text-warning" />;
+      break;
     default:
-      return <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+      icon = <Clock className="h-5 w-5 text-muted-foreground" />;
+      break;
   }
+  return <span className="flex-shrink-0" title={tooltip}>{icon}</span>;
 }

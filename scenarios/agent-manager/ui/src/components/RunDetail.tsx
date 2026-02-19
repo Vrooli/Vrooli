@@ -3,12 +3,11 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
-  Check,
   ChevronDown,
   ChevronRight,
   Clock,
   DollarSign,
-  ExternalLink,
+  Eye,
   FileCode,
   File,
   FolderOpen,
@@ -21,15 +20,11 @@ import {
   Terminal,
   Trash2,
   Wrench,
-  X,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
-import { buildSandboxReviewUrl, cn, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { formatStandardDateTime } from "../lib/dateTime";
@@ -42,13 +37,15 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 import { KPICard } from "../features/stats/components/kpi/KPICard";
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { ModelCostComparison } from "./ModelCostComparison";
 import { ChatInterface } from "./ChatInterface";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
+import { DiffViewer } from "./DiffViewer";
+import { ReviewModal } from "./ReviewModal";
 
 interface RunDetailProps {
   run: Run;
@@ -90,11 +87,7 @@ export function RunDetail({
   deleteLoading,
 }: RunDetailProps) {
   const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("events");
-  const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
-  const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
-  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
-  const [showApprovalForm, setShowApprovalForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
 
@@ -191,38 +184,6 @@ export function RunDetail({
     setEventsAutoScroll(true);
   }, [activeTab]);
 
-  const handleApprove = async () => {
-    setSubmitting(true);
-    try {
-      await onApprove({
-        actor: approvalForm.actor.trim() || undefined,
-        commitMsg: approvalForm.commitMsg || undefined,
-      });
-      setApprovalForm({ actor: "", commitMsg: "" });
-      setShowRejectConfirm(false);
-    } catch (err) {
-      console.error("Failed to approve run:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReject = async () => {
-    setSubmitting(true);
-    try {
-      await onReject({
-        actor: rejectForm.actor.trim() || undefined,
-        reason: rejectForm.reason || undefined,
-      });
-      setRejectForm({ actor: "", reason: "" });
-      setShowRejectConfirm(false);
-    } catch (err) {
-      console.error("Failed to reject run:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) */}
@@ -232,7 +193,7 @@ export function RunDetail({
       >
         {/* Header - always visible, clickable to toggle */}
         <div
-          className="flex items-center justify-between px-4 py-3 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
+          className="flex items-center justify-between px-4 py-2 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
           onClick={toggleDetailsCollapsed}
         >
           <div className="flex items-center gap-2">
@@ -242,8 +203,6 @@ export function RunDetail({
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             )}
             <span className="font-semibold text-sm">Details</span>
-          </div>
-          <div className="flex items-center gap-2">
             <Badge
               variant={
                 runStatusLabel(run.status) as
@@ -258,14 +217,68 @@ export function RunDetail({
             >
               {runStatusLabel(run.status).replace("_", " ")}
             </Badge>
-            {run.approvalState !== ApprovalState.NONE && (
-              <Badge variant="outline">{approvalStateLabel(run.approvalState)}</Badge>
+          </div>
+          {/* Action buttons in header */}
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {actions?.canInvestigate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onInvestigate(run.id)}
+                className="gap-1 h-7 px-2"
+                title="Investigate"
+              >
+                <Search className="h-3 w-3" />
+                <span className="hidden lg:inline">Investigate</span>
+              </Button>
             )}
-            {/* Show task title summary when collapsed */}
-            {isDetailsCollapsed && (
-              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {taskTitle}
-              </span>
+            {canApplyFixes && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onApplyInvestigation(run.id)}
+                className="gap-1 h-7 px-2"
+                title="Apply Fixes"
+              >
+                <Wrench className="h-3 w-3" />
+                <span className="hidden lg:inline">Apply Fixes</span>
+              </Button>
+            )}
+            {actions?.canRetry && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRetry(run)}
+                className="gap-1 h-7 px-2"
+                title="Re-run"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span className="hidden lg:inline">Re-run</span>
+              </Button>
+            )}
+            {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReviewModal(true)}
+                className="gap-1 h-7 px-2"
+                title="Review changes"
+              >
+                <Eye className="h-3 w-3" />
+                <span className="hidden lg:inline">Review</span>
+              </Button>
+            )}
+            {canDeleteRun && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(run)}
+                className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
+                disabled={deleteLoading}
+                title="Delete run"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
             )}
           </div>
         </div>
@@ -394,225 +407,6 @@ export function RunDetail({
           </div>
         )}
 
-        {/* Actions bar - ALWAYS VISIBLE */}
-        <div
-          className="px-4 py-3 border-t border-border flex flex-wrap items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {actions?.canInvestigate && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onInvestigate(run.id)}
-              className="gap-1"
-            >
-              <Search className="h-3 w-3" />
-              Investigate
-            </Button>
-          )}
-          {canApplyFixes && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onApplyInvestigation(run.id)}
-              className="gap-1"
-            >
-              <Wrench className="h-3 w-3" />
-              Apply Fixes
-            </Button>
-          )}
-          {actions?.canRetry && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onRetry(run)}
-              className="gap-1"
-            >
-              <RotateCcw className="h-3 w-3" />
-              Re-run
-            </Button>
-          )}
-
-          {/* Review button - opens sandbox in workspace-sandbox UI */}
-          {actions?.canReview && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const url = buildSandboxReviewUrl(run.sandboxId ?? "");
-                window.open(url, "_blank", "noopener,noreferrer");
-              }}
-              className="gap-1"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Review
-            </Button>
-          )}
-
-          {/* Approval buttons - for NEEDS_REVIEW runs */}
-          {(actions?.canApprove || actions?.canReject) && (
-            <>
-              <Button
-                variant="success"
-                size="sm"
-                onClick={() => {
-                  setShowApprovalForm(true);
-                  setShowRejectConfirm(false);
-                }}
-                disabled={submitting || !actions?.canApprove}
-                className="gap-1"
-              >
-                <Check className="h-3 w-3" />
-                Approve
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  setShowRejectConfirm(true);
-                  setShowApprovalForm(false);
-                  setRejectForm({
-                    actor: approvalForm.actor,
-                    reason: "",
-                  });
-                }}
-                disabled={submitting || !actions?.canReject}
-                className="gap-1"
-              >
-                <X className="h-3 w-3" />
-                Reject
-              </Button>
-            </>
-          )}
-
-          {/* Delete button - right aligned */}
-          {canDeleteRun && (
-            <div className="ml-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete(run)}
-                className="gap-1 text-destructive hover:text-destructive"
-                disabled={deleteLoading}
-              >
-                <Trash2 className="h-3 w-3" />
-                Delete
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Inline approval form - shown when approve clicked */}
-        {showApprovalForm && (
-          <div className="px-4 py-3 border-t border-border bg-muted/30 space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="approveActor">Your Name (optional)</Label>
-                <Input
-                  id="approveActor"
-                  value={approvalForm.actor}
-                  onChange={(e) =>
-                    setApprovalForm({
-                      ...approvalForm,
-                      actor: e.target.value,
-                    })
-                  }
-                  placeholder="Leave blank to approve anonymously"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="commitMsg">Commit Message</Label>
-                <Input
-                  id="commitMsg"
-                  value={approvalForm.commitMsg}
-                  onChange={(e) =>
-                    setApprovalForm({
-                      ...approvalForm,
-                      commitMsg: e.target.value,
-                    })
-                  }
-                  placeholder="Optional custom message"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="success"
-                size="sm"
-                onClick={handleApprove}
-                disabled={submitting}
-                className="gap-2"
-              >
-                <Check className="h-4 w-4" />
-                Confirm Approval
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowApprovalForm(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Inline rejection form - shown when reject clicked */}
-        {showRejectConfirm && (
-          <div className="px-4 py-3 border-t border-border bg-destructive/5 space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="rejectActor">Your Name (optional)</Label>
-                <Input
-                  id="rejectActor"
-                  value={rejectForm.actor}
-                  onChange={(e) =>
-                    setRejectForm({
-                      ...rejectForm,
-                      actor: e.target.value,
-                    })
-                  }
-                  placeholder="Leave blank for anonymous"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rejectReason">Rejection Reason</Label>
-                <Textarea
-                  id="rejectReason"
-                  value={rejectForm.reason}
-                  onChange={(e) =>
-                    setRejectForm({
-                      ...rejectForm,
-                      reason: e.target.value,
-                    })
-                  }
-                  placeholder="Why are you rejecting these changes?"
-                  rows={2}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleReject}
-                disabled={submitting}
-              >
-                Confirm Rejection
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setRejectForm({ actor: "", reason: "" });
-                  setShowRejectConfirm(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Resize handle - only when expanded */}
@@ -818,6 +612,16 @@ export function RunDetail({
         </div>
         </div>
       </div>
+
+      <ReviewModal
+        open={showReviewModal}
+        onOpenChange={setShowReviewModal}
+        run={run}
+        diff={diff}
+        diffLoading={diffLoading}
+        onApprove={onApprove}
+        onReject={onReject}
+      />
     </div>
   );
 }
@@ -892,21 +696,6 @@ function runPhaseLabel(phase: RunPhase): string {
       return "completed";
     default:
       return "queued";
-  }
-}
-
-function approvalStateLabel(state: ApprovalState): string {
-  switch (state) {
-    case ApprovalState.APPROVED:
-      return "approved";
-    case ApprovalState.REJECTED:
-      return "rejected";
-    case ApprovalState.PARTIALLY_APPROVED:
-      return "partial approval";
-    case ApprovalState.PENDING:
-      return "pending review";
-    default:
-      return "no approval";
   }
 }
 
@@ -1296,76 +1085,3 @@ function CostBreakdown({ totals }: { totals: CostTotals }) {
   );
 }
 
-function DiffViewer({ diff }: { diff: RunDiff }) {
-  const fileCount = diff.files?.length ?? 0;
-  const totals = (diff.files ?? []).reduce(
-    (acc, file) => {
-      acc.additions += file.additions || 0;
-      acc.deletions += file.deletions || 0;
-      return acc;
-    },
-    { additions: 0, deletions: 0 }
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
-        <div className="flex gap-4 text-xs">
-          <span className="text-success">+{totals.additions}</span>
-          <span className="text-destructive">-{totals.deletions}</span>
-          <span className="text-muted-foreground">{fileCount} files</span>
-        </div>
-
-        {diff.files && diff.files.length > 0 && (
-          <div className="space-y-1">
-            {diff.files.map((file) => (
-              <div
-                key={file.path}
-                className="flex items-center gap-2 text-xs rounded px-2 py-1 bg-muted/50"
-              >
-                <Badge
-                  variant={
-                    file.changeType === "added"
-                      ? "success"
-                      : file.changeType === "deleted"
-                      ? "destructive"
-                      : "secondary"
-                  }
-                  className="text-[10px] px-1"
-                >
-                  {file.changeType}
-                </Badge>
-                <span className="font-mono truncate">{file.path}</span>
-                <span className="text-success">+{file.additions}</span>
-                <span className="text-destructive">-{file.deletions}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {diff.content && (
-        <div className="rounded-lg border border-border bg-card/50 p-4">
-          <pre className="text-[10px] font-mono bg-muted/50 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-            {diff.content.split("\n").map((line, i) => (
-              <div
-                key={i}
-                className={cn(
-                  line.startsWith("+") && !line.startsWith("+++")
-                    ? "diff-add"
-                    : line.startsWith("-") && !line.startsWith("---")
-                    ? "diff-remove"
-                    : line.startsWith("@@")
-                    ? "text-primary"
-                    : "diff-context"
-                )}
-              >
-                {line}
-              </div>
-            ))}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
-}

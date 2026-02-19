@@ -613,13 +613,19 @@ export function useTasks() {
 export function useRuns() {
   const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([]);
 
+  const hasFetchedRef = useRef(false);
+
   const fetchRuns = useCallback(async () => {
-    setLoading(true);
+    // Only show loading spinner on initial fetch, not on refetches
+    if (!hasFetchedRef.current) {
+      setLoading(true);
+    }
     setError(null);
     try {
-      const data = await apiRequest<unknown>("/runs");
-      const message = parseProto(ListRunsResponseSchema, data);
+      const resp = await apiRequest<unknown>("/runs");
+      const message = parseProto(ListRunsResponseSchema, resp);
       setData(message.runs ?? []);
+      hasFetchedRef.current = true;
     } catch (err) {
       setError((err as Error).message);
     } finally {
