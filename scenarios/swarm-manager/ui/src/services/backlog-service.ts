@@ -137,6 +137,10 @@ export interface IBacklogService {
     tags?: string[];
     includePrd?: boolean;
     includeRequirements?: boolean;
+    includeClarifyQuestions?: boolean;
+    includeSuggestions?: boolean;
+    includeNotes?: boolean;
+    includeTemplate?: boolean;
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
   getFeedbackSummary(): Promise<FeedbackSummaryResponse>;
@@ -386,6 +390,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       tags?: string[];
       includePrd?: boolean;
       includeRequirements?: boolean;
+      includeClarifyQuestions?: boolean;
+      includeSuggestions?: boolean;
+      includeNotes?: boolean;
+      includeTemplate?: boolean;
     }): Promise<Blob> {
       const response = await apiClient.post<Blob>(API_ENDPOINTS.backlogExport, params ?? {}, {
         responseType: "blob",

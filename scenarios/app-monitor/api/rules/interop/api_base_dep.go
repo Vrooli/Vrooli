@@ -20,7 +20,7 @@ Standard: vrooli-ui-interop-v1
 GoodExample:
     {
       "dependencies": {
-        "@vrooli/api-base": "workspace:*",
+        "@vrooli/api-base": "file:../../../packages/api-base",
         "react": "^18.2.0"
       }
     }
@@ -39,7 +39,7 @@ BadExample:
     {
       "name": "my-scenario-ui",
       "dependencies": {
-        "@vrooli/api-base": "workspace:*",
+        "@vrooli/api-base": "file:../../../packages/api-base",
         "react": "^18.2.0"
       }
     }

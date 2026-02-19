@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -342,5 +343,111 @@ func TestExport_NewItemTemplate(t *testing.T) {
 	}
 	if !strings.Contains(body, "<!-- item:NEW -->") {
 		t.Error("expected template marker")
+	}
+}
+
+// exportWithBody sends a POST with the given JSON body and returns the response body.
+func exportWithBody(t *testing.T, h *Handler, jsonBody string) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/export", bytes.NewReader([]byte(jsonBody)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.Export(w, req)
+	testutil.AssertStatusOK(t, w)
+	return w.Body.String()
+}
+
+func TestExport_ToggleClarifyQuestionsOff(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:     "toggle-test",
+		Title:    "Toggle Test",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Tags:     []string{},
+		Created:  "2026-02-10T00:00:00Z",
+		Updated:  "2026-02-10T00:00:00Z",
+	})
+	createQuestions(t, tmpDir, KindIdea, "toggle-test", []clarifyQuestion{
+		{ID: "q1", Question: "Test question?", Category: "tech", Importance: "high"},
+	})
+
+	// Default: questions included.
+	bodyDefault := exportWithBody(t, h, `{}`)
+	if !strings.Contains(bodyDefault, "Clarify Questions") {
+		t.Error("expected clarify questions by default")
+	}
+
+	// Explicitly off.
+	bodyOff := exportWithBody(t, h, `{"includeClarifyQuestions": false}`)
+	if strings.Contains(bodyOff, "Clarify Questions") {
+		t.Error("expected clarify questions to be omitted when toggled off")
+	}
+}
+
+func TestExport_ToggleSuggestionsOff(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:     "toggle-test",
+		Title:    "Toggle Test",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Tags:     []string{},
+		Created:  "2026-02-10T00:00:00Z",
+		Updated:  "2026-02-10T00:00:00Z",
+	})
+	createSuggestions(t, tmpDir, KindIdea, "toggle-test", []suggestion{
+		{ID: "s1", Title: "Test suggestion", Impact: "high", Category: "arch", Accepted: false},
+	})
+
+	bodyDefault := exportWithBody(t, h, `{}`)
+	if !strings.Contains(bodyDefault, "Suggestions") {
+		t.Error("expected suggestions by default")
+	}
+
+	bodyOff := exportWithBody(t, h, `{"includeSuggestions": false}`)
+	if strings.Contains(bodyOff, "Suggestions") {
+		t.Error("expected suggestions to be omitted when toggled off")
+	}
+}
+
+func TestExport_ToggleNotesOff(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:     "toggle-test",
+		Title:    "Toggle Test",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Tags:     []string{},
+		Created:  "2026-02-10T00:00:00Z",
+		Updated:  "2026-02-10T00:00:00Z",
+	})
+
+	bodyDefault := exportWithBody(t, h, `{}`)
+	if !strings.Contains(bodyDefault, "### Notes") {
+		t.Error("expected notes section by default")
+	}
+
+	// Also disable template since it contains "### Notes" too.
+	bodyOff := exportWithBody(t, h, `{"includeNotes": false, "includeTemplate": false}`)
+	if strings.Contains(bodyOff, "### Notes") {
+		t.Error("expected notes to be omitted when toggled off")
+	}
+}
+
+func TestExport_ToggleTemplateOff(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	bodyDefault := exportWithBody(t, h, `{}`)
+	if !strings.Contains(bodyDefault, "New Item Template") {
+		t.Error("expected template by default")
+	}
+
+	bodyOff := exportWithBody(t, h, `{"includeTemplate": false}`)
+	if strings.Contains(bodyOff, "New Item Template") {
+		t.Error("expected template to be omitted when toggled off")
 	}
 }

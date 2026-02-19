@@ -1,0 +1,46 @@
+{
+  "suggestions": [
+    {
+      "id": "s1",
+      "category": "architecture",
+      "title": "Reuse browser-automation-studio GuidedTour framework for step-by-step flows",
+      "details": "The browser-automation-studio scenario already has a proven GuidedTour component (ui/src/shared/onboarding/GuidedTour.tsx) with step tracking, skip/complete actions, and a useGuidedTour() hook. Rather than building onboarding step UI from scratch, extract this into a shared package or replicate the pattern. This gives you battle-tested step progression, progress persistence, and skip logic for free — critical for non-technical users who may abandon and resume setup across sessions.",
+      "impact": "high",
+      "status": "pending"
+    },
+    {
+      "id": "s2",
+      "category": "ux",
+      "title": "Add real-time resource health visualization during setup",
+      "details": "After a user enables a resource (e.g. claude-code or ollama), immediately show its health status using the existing health check infrastructure (.vrooli/running-resources.json + HTTP health endpoints). Non-technical users need instant visual feedback that something worked — a spinning indicator → green checkmark flow builds confidence. The tunnel-manager TunnelStatus and ProbeResults components already implement this pattern and can serve as reference. Without this, users configure resources blindly and only discover failures much later.",
+      "impact": "high",
+      "status": "pending"
+    },
+    {
+      "id": "s3",
+      "category": "risk",
+      "title": "Add secret validation and safe-entry UX before persisting to secrets.json",
+      "details": "Non-technical users will paste API keys incorrectly (trailing whitespace, partial keys, wrong key type). Before writing to .vrooli/secrets.json, validate each secret: trim whitespace, check format patterns (e.g. OpenRouter keys start with sk-or-), and do a lightweight API ping where possible (e.g. a list-models call to verify an OpenRouter key works). Show clear pass/fail feedback. This prevents the frustrating scenario where a user completes onboarding, tries to use a coding agent, and gets cryptic auth errors 20 minutes later.",
+      "impact": "high",
+      "status": "pending"
+    },
+    {
+      "id": "s4",
+      "category": "scope",
+      "title": "Defer prompt-manager and autoheal configuration to v2 — link out instead",
+      "details": "The spec mentions opening vrooli-autoheal and prompt-manager for configuration, but the v1 curated scope is coding agents + AI providers. Embedding full configuration UIs for autoheal and prompt-manager would dramatically expand scope. Instead, v1 should deep-link to those scenarios existing UIs with a brief explanation of what each does. This keeps v1 focused on the highest-value flow (getting a user from zero to a working coding agent) while the ongoing config hub can absorb these in v2.",
+      "impact": "medium",
+      "status": "pending"
+    },
+    {
+      "id": "s5",
+      "category": "opportunity",
+      "title": "Generate a personalized starter .vrooli/service.json based on onboarding choices",
+      "details": "Instead of just enabling resources one-by-one, use the onboarding answers to generate a complete, optimized service.json configuration. For example, if a user picks claude-code + openrouter, auto-enable the required transitive dependencies (postgres for state, etc.) and set sensible defaults. This becomes a reusable capability — any future scenario that needs guided setup can invoke the same config-generation logic. It also turns the onboarding into a Vrooli differentiator: one wizard produces a fully-working config, versus competitors that require manual YAML editing.",
+      "impact": "medium",
+      "status": "pending"
+    }
+  ],
+  "generatedAt": "2026-02-19T16:00:00.000Z",
+  "updatedAt": "2026-02-19T16:00:00.000Z"
+}

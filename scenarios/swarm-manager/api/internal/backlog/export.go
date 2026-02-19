@@ -174,6 +174,12 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		includeRequirements = *req.IncludeRequirements
 	}
 
+	// Default true for content toggles (nil = include).
+	includeClarify := req.IncludeClarifyQuestions == nil || *req.IncludeClarifyQuestions
+	includeSuggestions := req.IncludeSuggestions == nil || *req.IncludeSuggestions
+	includeNotes := req.IncludeNotes == nil || *req.IncludeNotes
+	includeTemplate := req.IncludeTemplate == nil || *req.IncludeTemplate
+
 	// Build the markdown document.
 	now := time.Now().UTC().Format(time.RFC3339)
 	var b strings.Builder
@@ -202,11 +208,13 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 
 	// Render each item.
 	for _, item := range filtered {
-		renderItem(&b, h, item, includePRD, includeRequirements)
+		renderItem(&b, h, item, includePRD, includeRequirements, includeClarify, includeSuggestions, includeNotes)
 	}
 
 	// Append new-item template.
-	renderNewItemTemplate(&b)
+	if includeTemplate {
+		renderNewItemTemplate(&b)
+	}
 
 	// Write response.
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
@@ -215,7 +223,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 }
 
 // renderItem writes a single backlog item as a markdown section.
-func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, includeRequirements bool) {
+func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, includeRequirements, includeClarify, includeSuggestions, includeNotes bool) {
 	emoji := kindEmoji[item.Kind]
 	if emoji == "" {
 		emoji = "\u2022"
@@ -261,14 +269,20 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 	}
 
 	// Clarify questions section.
-	renderClarifyQuestions(b, itemDir, item.Kind, item.Name)
+	if includeClarify {
+		renderClarifyQuestions(b, itemDir, item.Kind, item.Name)
+	}
 
 	// Suggestions section.
-	renderSuggestions(b, itemDir, item.Kind, item.Name)
+	if includeSuggestions {
+		renderSuggestions(b, itemDir, item.Kind, item.Name)
+	}
 
 	// Notes section placeholder.
-	b.WriteString("### Notes\n\n")
-	b.WriteString("_No notes._\n\n")
+	if includeNotes {
+		b.WriteString("### Notes\n\n")
+		b.WriteString("_No notes._\n\n")
+	}
 
 	b.WriteString("---\n\n")
 }

@@ -20,7 +20,7 @@ Standard: vrooli-ui-interop-v1
 GoodExample:
     {
       "dependencies": {
-        "@vrooli/iframe-bridge": "workspace:*",
+        "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
         "react": "^18.2.0"
       }
     }
@@ -39,7 +39,7 @@ BadExample:
     {
       "name": "my-scenario-ui",
       "dependencies": {
-        "@vrooli/iframe-bridge": "workspace:*",
+        "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
         "react": "^18.2.0"
       }
     }
