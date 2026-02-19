@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
@@ -155,6 +156,10 @@ func setupTestHandlers(store StoreInterface) *Handlers {
 	}
 
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Register a mock check.
 	registry.Register(&mockCheck{
@@ -190,6 +195,10 @@ func setupTestHandlersWithHealable(store StoreInterface) *Handlers {
 	}
 
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Register a healable mock check.
 	registry.Register(&mockHealableCheck{
@@ -268,6 +277,10 @@ func setupTestHandlersWithAutoHeal(store StoreInterface) (*Handlers, *mockHealab
 	}
 
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Create a critical check that will trigger auto-heal.
 	criticalCheck := &mockHealableCheckCritical{

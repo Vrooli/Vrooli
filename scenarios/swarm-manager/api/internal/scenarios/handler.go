@@ -952,7 +952,7 @@ func (h *Handler) SpecSyncArchive(w http.ResponseWriter, r *http.Request) {
 			httputil.ServiceUnavailable(w, "[scenarios] spec-sync-archive", "agent-manager is not available")
 			return
 		}
-		httputil.InternalError(w, "[scenarios] spec-sync-archive", "failed to queue spec-sync-archive")
+		httputil.InternalError(w, "[scenarios] spec-sync-archive", "failed to queue spec-sync-archive: "+httputil.TruncateErrorMessage(err, 240))
 		return
 	}
 

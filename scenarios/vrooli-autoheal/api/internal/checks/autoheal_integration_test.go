@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"testing"
+	"time"
 
 	"vrooli-autoheal/internal/platform"
 )
@@ -23,6 +24,15 @@ func newTestConfigProvider() *testConfigProvider {
 		autoHealEnabled: make(map[string]bool),
 		autoHealOn:      make(map[string]string),
 	}
+}
+
+func newConfiguredIntegrationRegistry(caps *platform.Capabilities) *Registry {
+	registry := NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
+	return registry
 }
 
 func (c *testConfigProvider) IsCheckEnabled(checkID string) bool {
@@ -96,7 +106,7 @@ func (c *mockAutoHealCheck) ExecuteAction(ctx context.Context, actionID string) 
 // triggers auto-heal when enabled and a safe action is available.
 func TestAutoHealIntegration_CriticalCheckTriggersHeal(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	// Create config provider
 	config := newTestConfigProvider()
@@ -179,7 +189,7 @@ func TestAutoHealIntegration_CriticalCheckTriggersHeal(t *testing.T) {
 // does not trigger when disabled for a check.
 func TestAutoHealIntegration_DisabledDoesNotTrigger(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -214,7 +224,7 @@ func TestAutoHealIntegration_DisabledDoesNotTrigger(t *testing.T) {
 // skips checks that only have dangerous actions.
 func TestAutoHealIntegration_NoSafeActionSkipsHeal(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -249,7 +259,7 @@ func TestAutoHealIntegration_NoSafeActionSkipsHeal(t *testing.T) {
 // is not triggered for healthy checks.
 func TestAutoHealIntegration_OKStatusSkipsHeal(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -283,7 +293,7 @@ func TestAutoHealIntegration_OKStatusSkipsHeal(t *testing.T) {
 // only triggers for critical checks, not warnings.
 func TestAutoHealIntegration_WarningStatusSkipsHeal(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -317,7 +327,7 @@ func TestAutoHealIntegration_WarningStatusSkipsHeal(t *testing.T) {
 // skips actions that are not currently available.
 func TestAutoHealIntegration_UnavailableActionSkipped(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -358,7 +368,7 @@ func TestAutoHealIntegration_UnavailableActionSkipped(t *testing.T) {
 // auto-heal actions are properly recorded.
 func TestAutoHealIntegration_FailedActionRecorded(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -414,7 +424,7 @@ func TestAutoHealIntegration_FailedActionRecorded(t *testing.T) {
 // handles multiple critical checks correctly.
 func TestAutoHealIntegration_MultipleChecksParallel(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)
@@ -469,7 +479,7 @@ func TestAutoHealIntegration_MultipleChecksParallel(t *testing.T) {
 // selects the first available safe action from the list.
 func TestAutoHealIntegration_SelectsFirstSafeAction(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := NewRegistry(caps)
+	registry := newConfiguredIntegrationRegistry(caps)
 
 	config := newTestConfigProvider()
 	registry.SetConfigProvider(config)

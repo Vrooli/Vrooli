@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"time"
 
 	"vrooli-autoheal/internal/platform"
 )
@@ -64,6 +65,14 @@ type mockConfigProvider struct {
 	autoHealOn     map[string]string
 }
 
+type fixedClock struct {
+	current time.Time
+}
+
+func (c *fixedClock) Now() time.Time {
+	return c.current
+}
+
 func (m *mockConfigProvider) IsCheckEnabled(checkID string) bool {
 	if m.enabledChecks == nil {
 		return true
@@ -102,4 +111,13 @@ func testPlatform() *platform.Capabilities {
 		IsHeadlessServer:    true,
 		SupportsCloudflared: true,
 	}
+}
+
+func newTestRegistry() *Registry {
+	reg := NewRegistry(testPlatform())
+	_ = reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
+	return reg
 }

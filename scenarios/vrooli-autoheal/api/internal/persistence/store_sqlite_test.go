@@ -78,6 +78,56 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_GetCheckTrends_WithSingleConnection(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+
+	seedHealthResults(t, db, time.Now().UTC())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	trends, err := store.GetCheckTrends(ctx, 24)
+	if err != nil {
+		t.Fatalf("GetCheckTrends() error = %v", err)
+	}
+	if trends.TotalChecks != 2 {
+		t.Fatalf("total checks = %d, want 2", trends.TotalChecks)
+	}
+	for _, trend := range trends.Trends {
+		if trend.CurrentStatus == "" {
+			t.Fatalf("current status for %s is empty", trend.CheckID)
+		}
+		if len(trend.RecentStatuses) == 0 {
+			t.Fatalf("recent statuses for %s should not be empty", trend.CheckID)
+		}
+	}
+}
+
+func TestSQLiteStore_GetUptimeHistory_WithSingleConnection(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+
+	seedHealthResults(t, db, time.Now().UTC())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	history, err := store.GetUptimeHistory(ctx, 24, 24)
+	if err != nil {
+		t.Fatalf("GetUptimeHistory() error = %v", err)
+	}
+	if len(history.Buckets) != 24 {
+		t.Fatalf("bucket count = %d, want 24", len(history.Buckets))
+	}
+	if history.WindowHours != 24 {
+		t.Fatalf("window hours = %d, want 24", history.WindowHours)
+	}
+	if history.BucketCount != 24 {
+		t.Fatalf("history bucket count = %d, want 24", history.BucketCount)
+	}
+}
+
 func openSQLiteTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
@@ -86,6 +136,8 @@ func openSQLiteTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("sql.Open() error = %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	schema := `
 	CREATE TABLE health_results (
@@ -124,4 +176,37 @@ func openSQLiteTestDB(t *testing.T) *sql.DB {
 	}
 
 	return db
+}
+
+func seedHealthResults(t *testing.T, db *sql.DB, now time.Time) {
+	t.Helper()
+
+	rows := []struct {
+		checkID string
+		status  string
+		offset  time.Duration
+	}{
+		{checkID: "infra-network", status: "ok", offset: -25 * time.Minute},
+		{checkID: "infra-network", status: "warning", offset: -15 * time.Minute},
+		{checkID: "infra-network", status: "ok", offset: -5 * time.Minute},
+		{checkID: "system-memory", status: "critical", offset: -20 * time.Minute},
+		{checkID: "system-memory", status: "warning", offset: -10 * time.Minute},
+		{checkID: "system-memory", status: "ok", offset: -2 * time.Minute},
+	}
+
+	query := `
+		INSERT INTO health_results (check_id, status, message, details, duration_ms, created_at)
+		VALUES (?, ?, ?, '{}', 10, ?)
+	`
+	for _, row := range rows {
+		if _, err := db.Exec(
+			query,
+			row.checkID,
+			row.status,
+			"seeded test data",
+			now.Add(row.offset).Format(time.RFC3339Nano),
+		); err != nil {
+			t.Fatalf("seed insert failed: %v", err)
+		}
+	}
 }

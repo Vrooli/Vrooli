@@ -17,6 +17,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
+	"swarm-manager/internal/jsonutil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/storage"
@@ -1009,7 +1010,14 @@ func loadBlockingQuestions(path string) []ProcessBlockingQuestion {
 	}
 	var parsed clarifyQuestionsFile
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return nil
+		// Attempt to salvage complete questions from truncated JSON
+		repaired := jsonutil.RepairTruncatedJSON(data)
+		if repaired == nil {
+			return nil
+		}
+		if err := json.Unmarshal(repaired, &parsed); err != nil {
+			return nil
+		}
 	}
 	blocking := make([]ProcessBlockingQuestion, 0)
 	for _, q := range parsed.Questions {

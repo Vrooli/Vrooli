@@ -13,6 +13,15 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+func newRegistryWithPolicy(caps *platform.Capabilities) *checks.Registry {
+	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
+	return registry
+}
+
 // =============================================================================
 // Full-Stack Integration Tests
 // =============================================================================
@@ -26,7 +35,7 @@ import (
 func TestFullStack_TickPersistAutohealCycle(t *testing.T) {
 	// Setup
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	store := newMockStore()
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)
@@ -185,7 +194,7 @@ func TestFullStack_TickPersistAutohealCycle(t *testing.T) {
 // TestFullStack_PopulateFromPersistence tests loading persisted state on startup
 func TestFullStack_PopulateFromPersistence(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	store := newMockStore()
 
 	// Pre-populate store with some results
@@ -239,7 +248,7 @@ func TestFullStack_PopulateFromPersistence(t *testing.T) {
 // TestFullStack_MultipleTickCycles tests multiple consecutive tick cycles
 func TestFullStack_MultipleTickCycles(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	store := newMockStore()
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)
@@ -348,7 +357,7 @@ func TestFullStack_MultipleTickCycles(t *testing.T) {
 // TestFullStack_DangerousActionsNotAutoExecuted tests that dangerous actions are skipped
 func TestFullStack_DangerousActionsNotAutoExecuted(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)
 
@@ -400,7 +409,7 @@ func TestFullStack_DangerousActionsNotAutoExecuted(t *testing.T) {
 // TestFullStack_DisabledAutoHealSkipped tests that disabled auto-heal is respected
 func TestFullStack_DisabledAutoHealSkipped(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)
 
@@ -445,7 +454,7 @@ func TestFullStack_DisabledAutoHealSkipped(t *testing.T) {
 // TestFullStack_FailedActionLogged tests that failed recovery actions are properly logged
 func TestFullStack_FailedActionLogged(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	store := newMockStore()
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)
@@ -522,7 +531,7 @@ func TestFullStack_FailedActionLogged(t *testing.T) {
 // TestFullStack_ConcurrentTicksAndAutoHeal tests concurrent access patterns
 func TestFullStack_ConcurrentTicksAndAutoHeal(t *testing.T) {
 	caps := &platform.Capabilities{Platform: platform.Linux}
-	registry := checks.NewRegistry(caps)
+	registry := newRegistryWithPolicy(caps)
 	store := newMockStore()
 	config := newMockConfigProvider()
 	registry.SetConfigProvider(config)

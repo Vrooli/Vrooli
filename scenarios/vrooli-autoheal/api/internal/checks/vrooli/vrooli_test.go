@@ -166,6 +166,7 @@ func TestResourceCheckHealable(t *testing.T) {
 		"start":   false,
 		"stop":    false,
 		"restart": false,
+		"status":  false,
 		"logs":    false,
 	}
 	for _, action := range actions {
@@ -956,7 +957,20 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 				}
 			}
 
-			check := NewScenarioCheck("test-scenario", true, WithScenarioExecutor(mockExecutor))
+			check := NewScenarioCheck(
+				"test-scenario",
+				true,
+				WithScenarioExecutor(mockExecutor),
+				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
+				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
+					if tt.actionID == "start" || tt.actionID == "restart" || tt.actionID == "restart-clean" {
+						if tt.cmdError == nil {
+							return true, ""
+						}
+					}
+					return false, "mock direct health check failed"
+				}),
+			)
 			result := check.ExecuteAction(context.Background(), tt.actionID)
 
 			if result.Success != tt.expectSuccess {

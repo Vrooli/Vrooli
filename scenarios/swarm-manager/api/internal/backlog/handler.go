@@ -452,7 +452,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := os.MkdirAll(itemDir, 0o755); err != nil {
 		log.Printf("[backlog] create: failed to create directory for %q: %v", name, err)
-		httputil.InternalError(w, "", "failed to create backlog directory")
+		httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
 		return
 	}
 
@@ -499,7 +499,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := h.saveItem(item); err != nil {
 		_ = os.RemoveAll(itemDir)
 		log.Printf("[backlog] create: failed to save %q: %v", name, err)
-		httputil.InternalError(w, "", "failed to save backlog item")
+		httputil.InternalError(w, "[backlog] create", "failed to save backlog item")
 		return
 	}
 
@@ -524,7 +524,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("[backlog] update: failed to load %q: %v", name, err)
-		httputil.InternalError(w, "", err.Error())
+		httputil.InternalError(w, "[backlog] update", httputil.TruncateErrorMessage(err, 240))
 		return
 	}
 
@@ -564,7 +564,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.saveItem(existing); err != nil {
 		log.Printf("[backlog] update: failed to save %q: %v", name, err)
-		httputil.InternalError(w, "", "failed to save backlog item")
+		httputil.InternalError(w, "[backlog] update", "failed to save backlog item")
 		return
 	}
 
@@ -595,7 +595,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := os.RemoveAll(itemDir); err != nil {
 		log.Printf("[backlog] delete: failed to delete %q: %v", name, err)
-		httputil.InternalError(w, "", "failed to delete backlog item")
+		httputil.InternalError(w, "[backlog] delete", "failed to delete backlog item")
 		return
 	}
 
@@ -1177,7 +1177,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("[backlog] queue: failed to load %q: %v", name, err)
-		httputil.InternalError(w, "", err.Error())
+		httputil.InternalError(w, "[backlog] queue", httputil.TruncateErrorMessage(err, 240))
 		return
 	}
 
@@ -1313,7 +1313,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			httputil.BadRequest(w, "[backlog] queue", err.Error())
 			return
 		}
-		httputil.InternalError(w, "[backlog] queue", "failed to queue execution")
+		httputil.InternalError(w, "[backlog] queue", "failed to queue execution: "+httputil.TruncateErrorMessage(err, 240))
 		return
 	}
 

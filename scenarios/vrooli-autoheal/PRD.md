@@ -9,7 +9,7 @@
 
 - **Purpose**: Self-healing supervisor that bootstraps the Vrooli environment, installs OS-level watchdogs, and continuously monitors/repairs critical infrastructure across platforms
 - **Primary users/verticals**: DevOps engineers, system administrators, Vrooli operators, automated agents
-- **Deployment surfaces**: CLI (`vrooli autoheal tick/loop/status`), API (health registry), UI (dashboard showing health status and history)
+- **Deployment surfaces**: CLI (`vrooli-autoheal tick/loop/status`), API (health registry), UI (dashboard showing health status and history)
 - **Value promise**: Ensures Vrooli infrastructure survives reboots, crashes, and failures without manual intervention. Centralizes all health logic in one place with a clean registry of checks.
 
 ### Why It Matters
@@ -24,8 +24,8 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli autoheal tick`
-- [ ] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli autoheal loop`
+- [ ] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
+- [ ] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli-autoheal loop`
 - [ ] OT-P0-003 | Platform detection | Detect platform (linux/windows/macos/other) and capabilities (supportsRdp, supportsSystemd, etc.)
 - [ ] OT-P0-004 | Health check registry | Extensible registry pattern for registering/running health checks with intervals and platform filters
 - [ ] OT-P0-005 | Core bootstrap | Bootstrap DB, core resources, and critical scenarios from cold state
@@ -33,7 +33,7 @@
 - [ ] OT-P0-007 | Scenario health checks | Monitor configured scenarios with auto-restart on failure
 - [ ] OT-P0-008 | OS watchdog installer | Idempotently install/verify systemd/launchd/Windows service that keeps autoheal loop running
 - [ ] OT-P0-009 | Health result persistence | Store health check results with timestamps for status queries and UI display
-- [ ] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli autoheal status`
+- [ ] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
 
 ### 🟠 P1 – Should have post-launch
 
@@ -102,13 +102,13 @@
 
 ```bash
 # Single health cycle (bootstrap + all checks + watchdog verify)
-vrooli autoheal tick
+vrooli-autoheal tick
 
 # Long-running mode (default 60s interval)
-vrooli autoheal loop [--interval-seconds=60]
+vrooli-autoheal loop [--interval-seconds=60]
 
 # Show last-known health summary
-vrooli autoheal status [--json]
+vrooli-autoheal status [--json]
 ```
 
 ### Platform Capabilities Model

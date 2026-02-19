@@ -223,9 +223,13 @@ export function BacklogPage() {
     setShowFeedbackHub(true);
   };
 
-  const createError = createMutation.isError ? "Failed to create backlog item. Please try again." : null;
+  const createError = createMutation.isError
+    ? createMutation.error instanceof Error ? createMutation.error.message : "Failed to create backlog item. Please try again."
+    : null;
   const queueError = queueMutation.isError
-    ? "Failed to queue backlog item."
+    ? queueMutation.error instanceof Error
+      ? queueMutation.error.message
+      : "Failed to queue backlog item."
     : bulkQueueMutation.isError
       ? bulkQueueMutation.error instanceof Error
         ? bulkQueueMutation.error.message

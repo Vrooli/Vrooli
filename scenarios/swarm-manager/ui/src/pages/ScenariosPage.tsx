@@ -109,7 +109,8 @@ export function ScenariosPage() {
   });
 
   const actionError = actionMutation.isError
-    ? `Failed to ${actionMutation.variables?.action ?? "run action"}. Please try again.`
+    ? actionMutation.error instanceof Error ? actionMutation.error.message
+      : `Failed to ${actionMutation.variables?.action ?? "run action"}. Please try again.`
     : null;
 
   const isActionPending = (scenarioName: string, action: ScenarioAction) =>

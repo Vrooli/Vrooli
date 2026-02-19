@@ -557,6 +557,10 @@ func TestNew(t *testing.T) {
 	// Test the production New constructor compiles and works
 	caps := &platform.Capabilities{Platform: platform.Linux}
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Note: This would need a real DB connection in production
 	// Here we just verify it compiles correctly
@@ -1194,6 +1198,10 @@ func TestTick_AutoHealSkippedWhenDisabled(t *testing.T) {
 	}
 
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Create a critical check
 	criticalCheck := &mockHealableCheckCritical{
@@ -1264,6 +1272,10 @@ func TestTick_AutoHealSkipsNonCritical(t *testing.T) {
 	}
 
 	registry := checks.NewRegistry(caps)
+	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	})
 
 	// Create a warning (non-critical) check
 	warningCheck := &mockHealableCheckCritical{

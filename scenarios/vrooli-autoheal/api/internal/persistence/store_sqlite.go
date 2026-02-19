@@ -244,18 +244,22 @@ func (s *Store) getUptimeHistorySQLite(ctx context.Context, windowHours, bucketC
 	if err != nil {
 		return nil, fmt.Errorf("query checks failed: %w", err)
 	}
-	defer checkRows.Close()
 
 	var checkIDs []string
 	for checkRows.Next() {
 		var checkID string
 		if err := checkRows.Scan(&checkID); err != nil {
+			checkRows.Close()
 			return nil, fmt.Errorf("scan check_id failed: %w", err)
 		}
 		checkIDs = append(checkIDs, checkID)
 	}
 	if err := checkRows.Err(); err != nil {
+		checkRows.Close()
 		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	if err := checkRows.Close(); err != nil {
+		return nil, fmt.Errorf("close check rows failed: %w", err)
 	}
 
 	statusStmt, err := s.db.PrepareContext(ctx, `
@@ -352,7 +356,38 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	defer rows.Close()
+
+	var trends []CheckTrend
+	for rows.Next() {
+		var t CheckTrend
+		var lastCheckedRaw any
+
+		if err := rows.Scan(&t.CheckID, &t.Total, &t.Ok, &t.Warning, &t.Critical, &lastCheckedRaw); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		lastChecked, err := parseDBTime(lastCheckedRaw)
+		if err != nil {
+			return nil, fmt.Errorf("parse last_checked failed: %w", err)
+		}
+		t.LastChecked = lastChecked.UTC().Format(time.RFC3339)
+
+		if t.Total > 0 {
+			t.UptimePercent = float64(t.Ok) / float64(t.Total) * 100
+		} else {
+			t.UptimePercent = 100
+		}
+
+		trends = append(trends, t)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close trends rows failed: %w", err)
+	}
 
 	currentStmt, err := s.db.PrepareContext(ctx, `
 		SELECT status
@@ -378,36 +413,16 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	}
 	defer recentStmt.Close()
 
-	var trends []CheckTrend
-	for rows.Next() {
-		var t CheckTrend
-		var lastCheckedRaw any
-
-		if err := rows.Scan(&t.CheckID, &t.Total, &t.Ok, &t.Warning, &t.Critical, &lastCheckedRaw); err != nil {
-			return nil, fmt.Errorf("scan failed: %w", err)
-		}
-
-		lastChecked, err := parseDBTime(lastCheckedRaw)
-		if err != nil {
-			return nil, fmt.Errorf("parse last_checked failed: %w", err)
-		}
-		t.LastChecked = lastChecked.UTC().Format(time.RFC3339)
-
-		if t.Total > 0 {
-			t.UptimePercent = float64(t.Ok) / float64(t.Total) * 100
-		} else {
-			t.UptimePercent = 100
-		}
-
-		if err := currentStmt.QueryRowContext(ctx, t.CheckID, modifier).Scan(&t.CurrentStatus); err != nil {
+	for i := range trends {
+		if err := currentStmt.QueryRowContext(ctx, trends[i].CheckID, modifier).Scan(&trends[i].CurrentStatus); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				t.CurrentStatus = "ok"
+				trends[i].CurrentStatus = "ok"
 			} else {
 				return nil, fmt.Errorf("current status query failed: %w", err)
 			}
 		}
 
-		recentRows, err := recentStmt.QueryContext(ctx, t.CheckID, modifier)
+		recentRows, err := recentStmt.QueryContext(ctx, trends[i].CheckID, modifier)
 		if err != nil {
 			return nil, fmt.Errorf("recent statuses query failed: %w", err)
 		}
@@ -417,18 +432,15 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 				recentRows.Close()
 				return nil, fmt.Errorf("scan recent status failed: %w", err)
 			}
-			t.RecentStatuses = append(t.RecentStatuses, status)
+			trends[i].RecentStatuses = append(trends[i].RecentStatuses, status)
 		}
 		if err := recentRows.Err(); err != nil {
 			recentRows.Close()
 			return nil, fmt.Errorf("recent rows error: %w", err)
 		}
-		recentRows.Close()
-
-		trends = append(trends, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		if err := recentRows.Close(); err != nil {
+			return nil, fmt.Errorf("close recent rows failed: %w", err)
+		}
 	}
 
 	return &CheckTrendsResponse{

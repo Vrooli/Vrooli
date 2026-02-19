@@ -462,6 +462,28 @@ func TestOrphanCheckAncestryTracking(t *testing.T) {
 	}
 }
 
+func TestIsSelfCheckProcess(t *testing.T) {
+	tests := []struct {
+		comm string
+		want bool
+	}{
+		{comm: "vrooli-autoheal", want: true},
+		{comm: "./orphan-check", want: true},
+		{comm: "zombie-detector", want: true},
+		{comm: "vrooli-orphan", want: false},
+		{comm: "browser-automation-studio-api", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.comm, func(t *testing.T) {
+			got := isSelfCheckProcess(tt.comm)
+			if got != tt.want {
+				t.Fatalf("isSelfCheckProcess(%q) = %v, want %v", tt.comm, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestVrooliProcessPatterns tests the process pattern matching
 // [REQ:ORPHAN-CHECK-001]
 func TestVrooliProcessPatterns(t *testing.T) {

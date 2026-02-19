@@ -79,6 +79,69 @@ const withTimestamps = <T extends Record<string, unknown>>(raw: Record<string, u
   return { ...(raw ?? {}), ...patch, generatedAt, updatedAt: now };
 };
 
+/**
+ * Attempt to repair truncated JSON by finding the last complete array element
+ * within a named array field (e.g. "questions" or "suggestions").
+ * Works by tracking brace depth to locate the last fully-closed object,
+ * then truncates and re-closes the JSON structure.
+ * Returns null if no repair is possible.
+ */
+function repairTruncatedJson(
+  content: string,
+  arrayKey: string,
+): { parsed: unknown; warning: string } | null {
+  const keyIdx = content.indexOf(`"${arrayKey}"`);
+  if (keyIdx === -1) return null;
+  const arrayStart = content.indexOf("[", keyIdx);
+  if (arrayStart === -1) return null;
+
+  // Walk forward through the array, tracking the last position where a
+  // top-level object (depth 0 → 1 → 0) closes with "}".
+  let lastGoodEnd = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = arrayStart + 1; i < content.length; i++) {
+    const ch = content[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (ch === "{" || ch === "[") {
+      depth++;
+    } else if (ch === "}" || ch === "]") {
+      depth--;
+      if (depth === 0 && ch === "}") {
+        lastGoodEnd = i;
+      }
+    }
+  }
+
+  if (lastGoodEnd === -1) return null;
+
+  const repaired = content.slice(0, lastGoodEnd + 1) + "\n  ]\n}";
+  try {
+    const parsed = JSON.parse(repaired);
+    const totalInFile = (content.match(/"id"\s*:/g) || []).length;
+    const recovered = Array.isArray(parsed?.[arrayKey]) ? parsed[arrayKey].length : 0;
+    const warning = `File appears truncated. Recovered ${recovered} of ~${totalInFile} item(s).`;
+    return { parsed, warning };
+  } catch {
+    return null;
+  }
+}
+
 export function parseClarifyQuestionsFile(content?: string | null): {
   raw: Record<string, unknown> | null;
   questions: IdeaClarificationQuestion[];
@@ -100,11 +163,22 @@ export function parseClarifyQuestionsFile(content?: string | null): {
       .filter((item): item is IdeaClarificationQuestion => Boolean(item));
 
     return { raw: parsed, questions };
-  } catch (error) {
+  } catch (parseError) {
+    // Attempt to salvage complete questions from truncated JSON
+    const repaired = repairTruncatedJson(content, "questions");
+    if (repaired && isRecord(repaired.parsed)) {
+      const rawQuestions = Array.isArray(repaired.parsed.questions) ? repaired.parsed.questions : [];
+      const questions = rawQuestions
+        .map((item, index) => normalizeQuestion(item, index))
+        .filter((item): item is IdeaClarificationQuestion => Boolean(item));
+      if (questions.length > 0) {
+        return { raw: repaired.parsed as Record<string, unknown>, questions, error: repaired.warning };
+      }
+    }
     return {
       raw: null,
       questions: [],
-      error: error instanceof Error ? error.message : "Unable to parse questions file.",
+      error: `Unable to parse clarify/questions.json: ${parseError instanceof Error ? parseError.message : "Unknown error"}`,
     };
   }
 }
@@ -138,11 +212,22 @@ export function parseSuggestionsFile(content?: string | null): {
       .filter((item): item is IdeaSuggestion => Boolean(item));
 
     return { raw: parsed, suggestions };
-  } catch (error) {
+  } catch (parseError) {
+    // Attempt to salvage complete suggestions from truncated JSON
+    const repaired = repairTruncatedJson(content, "suggestions");
+    if (repaired && isRecord(repaired.parsed)) {
+      const rawSuggestions = Array.isArray(repaired.parsed.suggestions) ? repaired.parsed.suggestions : [];
+      const suggestions = rawSuggestions
+        .map((item, index) => normalizeSuggestion(item, index))
+        .filter((item): item is IdeaSuggestion => Boolean(item));
+      if (suggestions.length > 0) {
+        return { raw: repaired.parsed as Record<string, unknown>, suggestions, error: repaired.warning };
+      }
+    }
     return {
       raw: null,
       suggestions: [],
-      error: error instanceof Error ? error.message : "Unable to parse suggestions file.",
+      error: `Unable to parse suggest/suggestions.json: ${parseError instanceof Error ? parseError.message : "Unknown error"}`,
     };
   }
 }

@@ -51,6 +51,10 @@ func (h *ConfigHandlers) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "update configuration", err))
 		return
 	}
+	if err := h.syncAutoHealPolicy(); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
@@ -132,6 +136,10 @@ func (h *ConfigHandlers) ImportConfig(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "apply imported configuration", err))
 		return
 	}
+	if err := h.syncAutoHealPolicy(); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
@@ -141,6 +149,18 @@ func (h *ConfigHandlers) ImportConfig(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		apierrors.LogError("import_config", "encode_response", err)
 	}
+}
+
+func (h *ConfigHandlers) syncAutoHealPolicy() error {
+	if h.registry == nil {
+		return nil
+	}
+	global := h.configMgr.GetGlobal()
+	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	if err != nil {
+		return err
+	}
+	return h.registry.SetAutoHealPolicy(policy)
 }
 
 // GetCheckConfig returns the effective configuration for a specific check

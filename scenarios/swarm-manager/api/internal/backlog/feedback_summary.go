@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/jsonutil"
 )
 
 // FeedbackItemSummary describes feedback state for a single backlog item.
@@ -103,8 +104,18 @@ func readQuestionsFile(path string) (json.RawMessage, int) {
 	}
 	var f questionsFile
 	if err := json.Unmarshal(data, &f); err != nil {
+		// Attempt to salvage complete questions from truncated JSON
+		if repaired := jsonutil.RepairTruncatedJSON(data); repaired != nil {
+			if json.Unmarshal(repaired, &f) == nil {
+				return readQuestionsFrom(repaired, f)
+			}
+		}
 		return nil, 0
 	}
+	return readQuestionsFrom(data, f)
+}
+
+func readQuestionsFrom(data []byte, f questionsFile) (json.RawMessage, int) {
 	count := 0
 	for _, q := range f.Questions {
 		if q.Answer == "" {
@@ -122,8 +133,17 @@ func readSuggestionsFile(path string) (json.RawMessage, int) {
 	}
 	var f suggestionsFile
 	if err := json.Unmarshal(data, &f); err != nil {
+		if repaired := jsonutil.RepairTruncatedJSON(data); repaired != nil {
+			if json.Unmarshal(repaired, &f) == nil {
+				return readSuggestionsFrom(repaired, f)
+			}
+		}
 		return nil, 0
 	}
+	return readSuggestionsFrom(data, f)
+}
+
+func readSuggestionsFrom(data []byte, f suggestionsFile) (json.RawMessage, int) {
 	count := 0
 	for _, s := range f.Suggestions {
 		if s.Status == "" || s.Status == "pending" {

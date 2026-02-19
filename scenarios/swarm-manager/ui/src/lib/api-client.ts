@@ -181,9 +181,12 @@ export class ApiClient implements IApiClient {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        throw new ApiError("http", `Request failed with status ${res.status}`, {
-          status: res.status,
-        });
+        let detail = "";
+        try {
+          detail = (await res.text()).trim();
+        } catch { /* ignore read failures */ }
+        const message = detail || `Request failed with status ${res.status}`;
+        throw new ApiError("http", message, { status: res.status });
       }
 
       // Handle response based on requested type or content-type

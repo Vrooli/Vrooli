@@ -220,6 +220,13 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Dangerous:   false,
 			Available:   true, // Always available
 		},
+		{
+			ID:          "logs",
+			Name:        "View Logs",
+			Description: "View recent logs from the " + c.resourceName + " resource",
+			Dangerous:   false,
+			Available:   true, // Always available
+		},
 	}
 
 	return actions
@@ -248,6 +255,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		needsVerification = true
 	case "status":
 		args = []string{"resource", "status", c.resourceName}
+	case "logs":
+		args = []string{"resource", "logs", c.resourceName, "--tail", "50"}
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
@@ -280,6 +289,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 		result.Message = c.resourceName + " resource stopped successfully"
 	case "status":
 		result.Message = "Retrieved status for " + c.resourceName
+	case "logs":
+		result.Message = "Retrieved logs for " + c.resourceName
 	}
 
 	return result

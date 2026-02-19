@@ -576,19 +576,29 @@ export function BacklogDetailsPage() {
     },
   });
 
-  const updateError = updateMutation.isError ? "Failed to update backlog item. Please try again." : null;
-  const deleteError = deleteMutation.isError ? "Failed to delete backlog item. Please try again." : null;
+  const updateError = updateMutation.isError
+    ? updateMutation.error instanceof Error ? updateMutation.error.message : "Failed to update backlog item. Please try again."
+    : null;
+  const deleteError = deleteMutation.isError
+    ? deleteMutation.error instanceof Error ? deleteMutation.error.message : "Failed to delete backlog item. Please try again."
+    : null;
   const agentError = agentMutation.isError
-    ? "Failed to start the agent. Make sure agent-manager is running."
+    ? agentMutation.error instanceof Error ? agentMutation.error.message : "Failed to start the agent. Make sure agent-manager is running."
     : null;
   const clarifyError = clarifyMutation.isError
-    ? "Failed to save answers or start the next agent."
+    ? clarifyMutation.error instanceof Error ? clarifyMutation.error.message : "Failed to save answers or start the next agent."
     : null;
   const suggestionsError = suggestionsMutation.isError
-    ? "Failed to save suggestions or start the Enhance agent."
+    ? suggestionsMutation.error instanceof Error ? suggestionsMutation.error.message : "Failed to save suggestions or start the Enhance agent."
     : null;
-  const queueError = queueMutation.isError ? "Failed to queue backlog item. Please try again." : null;
-  const convertError = convertMutation.isError ? "Failed to convert backlog item. Please try again." : null;
+  const queueError = queueMutation.isError
+    ? queueMutation.error instanceof Error
+      ? queueMutation.error.message
+      : "Failed to queue backlog item. Please try again."
+    : null;
+  const convertError = convertMutation.isError
+    ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
+    : null;
 
   const canQueue = Boolean(item && isBacklogQueueable(item));
   const queueBlockedReason = item ? getBacklogNotQueueableReason(item) : null;

@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-02-18T12:00:00Z",
+  "questions": [
+    {
+      "id": "Q1",
+      "category": "technical",
+      "importance": "critical",
+      "question": "For Q4 in PROBLEMS.md - sudo access for systemctl restart: which approach should be used for granting tunnel-manager the ability to restart cloudflared?",
+      "context": "The recovery engine needs to restart cloudflared, which requires elevated privileges. Option A is simplest and most common for this pattern. This must be decided before implementing auto-recovery.",
+      "options": [
+        "A: sudoers NOPASSWD rule for the specific systemctl restart cloudflared command",
+        "B: Use polkit rule to allow the vrooli user to manage the cloudflared unit",
+        "C: Run tunnel-manager as a systemd service with AmbientCapabilities or a drop-in override"
+      ]
+    },
+    {
+      "id": "Q2",
+      "category": "scope",
+      "importance": "critical",
+      "question": "For Q1 in PROBLEMS.md - remote-managed tunnel migration: should Tunnel Manager handle the local-to-remote migration automatically, document it as a manual prerequisite, or support both modes from day one?",
+      "context": "The current tunnel is locally-managed. Remote mode enables hot-reload without restart for config changes. This decision affects the P0 scope significantly - supporting both modes doubles the config management surface.",
+      "options": [
+        "A: Support both modes from day one; auto-detect current mode on startup",
+        "B: Require remote mode as a prerequisite; provide a one-time migration guide",
+        "C: Start with local mode only matching current state; add remote mode as P1"
+      ]
+    },
+    {
+      "id": "Q3",
+      "category": "scope",
+      "importance": "important",
+      "question": "For Q5 in PROBLEMS.md - route manifest seeding: on first run, how should the manifest be populated from the current tunnel config?",
+      "context": "The proposed approach is auto-seed with user confirmation. This needs confirmation: should the CLI show discovered routes interactively and prompt for approval, or write a draft routes.json for manual review?",
+      "options": [
+        "A: Interactive CLI prompt showing discovered routes, ask to confirm each",
+        "B: Generate a draft routes.json file that the user reviews and manually approves",
+        "C: Fully automatic seeding from current config with no confirmation needed"
+      ]
+    },
+    {
+      "id": "Q4",
+      "category": "integration",
+      "importance": "important",
+      "question": "How should Tunnel Manager coordinate with vrooli-autoheal's existing infra-cloudflared check to prevent conflicting restart actions?",
+      "context": "The research doc mentions defense-in-depth, but running two systems that both restart cloudflared could cause conflicts - e.g. autoheal restarts while Tunnel Manager is in exponential backoff. Need a clear coordination strategy.",
+      "options": [
+        "A: Defense-in-depth with a lock file to prevent concurrent restarts",
+        "B: Autoheal disables its cloudflared check when Tunnel Manager is detected as running",
+        "C: Autoheal check becomes report-only when Tunnel Manager is active; resumes recovery only if Tunnel Manager is down"
+      ]
+    },
+    {
+      "id": "Q5",
+      "category": "technical",
+      "importance": "important",
+      "question": "What Cloudflare API token permission scope should be used for remote mode, and where should the token be stored?",
+      "context": "Remote mode requires a Cloudflare API token. The research doc mentions storing in an environment variable with minimal scope, but the specific permissions and storage mechanism need to be specified.",
+      "options": [
+        "A: Environment variable with Account:Cloudflare Tunnel:Edit and Zone:DNS:Read scopes",
+        "B: Encrypted config file managed by Tunnel Manager with the same scopes",
+        "C: Defer to Vrooli secrets management if it exists, or environment variable as fallback"
+      ]
+    },
+    {
+      "id": "Q6",
+      "category": "constraints",
+      "importance": "important",
+      "question": "What is the target monitoring interval and acceptable latency for failure detection? The architecture doc defaults to 60s - is this acceptable for production?",
+      "context": "A 60s probe interval means worst-case 3 minutes to detect failure with 3 consecutive failures. For critical infrastructure, some teams prefer 15-30s intervals. Faster intervals increase load on cloudflared metrics endpoint and published routes.",
+      "options": [
+        "A: 60s default - conservative, low overhead, approx 3 min detection time",
+        "B: 30s default - balanced, approx 1.5 min detection time",
+        "C: Configurable per-route with 30s default for critical routes and 60s for others"
+      ]
+    }
+  ]
+}

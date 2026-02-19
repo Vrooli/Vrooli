@@ -12,20 +12,7 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// Auto-heal cooldown configuration
 const (
-	// DefaultHealCooldown is the minimum time between heal attempts for the same check
-	DefaultHealCooldown = 2 * time.Minute
-
-	// MaxConsecutiveFailures is the number of consecutive heal failures before backing off
-	MaxConsecutiveFailures = 3
-
-	// BackoffCooldown is the extended cooldown after MaxConsecutiveFailures
-	BackoffCooldown = 10 * time.Minute
-
-	// MaxBackoffCooldown is the maximum cooldown time after repeated failures
-	MaxBackoffCooldown = 30 * time.Minute
-
 	// DefaultCheckTimeout is the maximum time a single health check can run before timing out
 	DefaultCheckTimeout = 30 * time.Second
 
@@ -39,6 +26,55 @@ const (
 	// This prevents one stuck action from blocking the entire tick for too long.
 	DefaultAutoHealActionTimeout = 90 * time.Second
 )
+
+// AutoHealPolicy controls cooldown and retry behavior for auto-heal actions.
+// This must be configured explicitly from user configuration.
+type AutoHealPolicy struct {
+	// BaseCooldown is applied after successful heals and for early failures.
+	BaseCooldown time.Duration
+	// MaxRestartAttempts is the failure threshold after which backoff increases exponentially.
+	MaxRestartAttempts int
+}
+
+// NewAutoHealPolicyFromGlobal creates a policy from global configuration values.
+func NewAutoHealPolicyFromGlobal(restartCooldownSeconds, maxRestartAttempts int) (AutoHealPolicy, error) {
+	policy := AutoHealPolicy{
+		BaseCooldown:       time.Duration(restartCooldownSeconds) * time.Second,
+		MaxRestartAttempts: maxRestartAttempts,
+	}
+	if err := policy.Validate(); err != nil {
+		return AutoHealPolicy{}, err
+	}
+	return policy, nil
+}
+
+// Validate ensures the policy is safe and usable.
+func (p AutoHealPolicy) Validate() error {
+	if p.BaseCooldown <= 0 {
+		return fmt.Errorf("base cooldown must be > 0")
+	}
+	if p.MaxRestartAttempts < 1 {
+		return fmt.Errorf("max restart attempts must be >= 1")
+	}
+	return nil
+}
+
+// CalculateFailureCooldown returns the cooldown after a failed auto-heal attempt.
+// For failures below MaxRestartAttempts, BaseCooldown is used.
+// Once failures reach MaxRestartAttempts, cooldown grows exponentially:
+// BaseCooldown * 2^(consecutiveFailures - MaxRestartAttempts + 1).
+func (p AutoHealPolicy) CalculateFailureCooldown(consecutiveFailures int) time.Duration {
+	if consecutiveFailures <= 0 {
+		return p.BaseCooldown
+	}
+	if consecutiveFailures < p.MaxRestartAttempts {
+		return p.BaseCooldown
+	}
+
+	shift := consecutiveFailures - p.MaxRestartAttempts + 1
+	multiplier := 1 << shift
+	return time.Duration(multiplier) * p.BaseCooldown
+}
 
 // HealTracker tracks the healing state for a single check
 type HealTracker struct {
@@ -55,6 +91,11 @@ func (ht *HealTracker) IsInCooldown() bool {
 	return time.Now().Before(ht.CooldownUntil)
 }
 
+// IsInCooldownAt returns true if the check is in cooldown at the provided time.
+func (ht *HealTracker) IsInCooldownAt(now time.Time) bool {
+	return now.Before(ht.CooldownUntil)
+}
+
 // CooldownRemaining returns the time remaining in cooldown, or 0 if not in cooldown
 func (ht *HealTracker) CooldownRemaining() time.Duration {
 	if !ht.IsInCooldown() {
@@ -63,21 +104,12 @@ func (ht *HealTracker) CooldownRemaining() time.Duration {
 	return time.Until(ht.CooldownUntil)
 }
 
-// CalculateCooldown determines the next cooldown duration based on failure count
-func CalculateCooldown(consecutiveFailures int) time.Duration {
-	if consecutiveFailures < MaxConsecutiveFailures {
-		return DefaultHealCooldown
+// CooldownRemainingAt returns remaining cooldown at the provided time.
+func (ht *HealTracker) CooldownRemainingAt(now time.Time) time.Duration {
+	if !ht.IsInCooldownAt(now) {
+		return 0
 	}
-
-	// Exponential backoff: 2^(failures - MaxConsecutiveFailures) * BackoffCooldown
-	// Capped at MaxBackoffCooldown
-	multiplier := 1 << (consecutiveFailures - MaxConsecutiveFailures) // 2^n
-	cooldown := time.Duration(multiplier) * BackoffCooldown
-
-	if cooldown > MaxBackoffCooldown {
-		return MaxBackoffCooldown
-	}
-	return cooldown
+	return ht.CooldownUntil.Sub(now)
 }
 
 // HealTrackerStore abstracts persistence of heal tracker state.
@@ -95,9 +127,22 @@ type Registry struct {
 	results          map[string]Result
 	lastRun          map[string]time.Time
 	healTrackers     map[string]*HealTracker // Track healing state per check
+	autoHealPolicy   *AutoHealPolicy
 	platform         *platform.Capabilities
 	config           ConfigProvider
 	healTrackerStore HealTrackerStore // Optional persistence for heal trackers
+	clock            Clock
+}
+
+// Clock provides a seam for time-based logic.
+type Clock interface {
+	Now() time.Time
+}
+
+type realClock struct{}
+
+func (realClock) Now() time.Time {
+	return time.Now()
 }
 
 // NewRegistry creates a new health check registry with the given platform capabilities.
@@ -109,6 +154,7 @@ func NewRegistry(plat *platform.Capabilities) *Registry {
 		lastRun:      make(map[string]time.Time),
 		healTrackers: make(map[string]*HealTracker),
 		platform:     plat,
+		clock:        realClock{},
 	}
 }
 
@@ -135,6 +181,30 @@ func (r *Registry) SetConfigProvider(cp ConfigProvider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.config = cp
+}
+
+// SetAutoHealPolicy configures cooldown/backoff behavior for auto-heal.
+// This is required for RunAutoHeal to execute actions.
+func (r *Registry) SetAutoHealPolicy(policy AutoHealPolicy) error {
+	if err := policy.Validate(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p := policy
+	r.autoHealPolicy = &p
+	return nil
+}
+
+// SetClock sets the time source for cooldown calculations (used by tests).
+func (r *Registry) SetClock(clock Clock) {
+	if clock == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.clock = clock
 }
 
 // SetHealTrackerStore sets the store for persisting heal tracker state.
@@ -199,10 +269,9 @@ func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
 		return true
 	}
 
-	// Check interval
-	r.mu.RLock()
+	// Check interval.
+	// Caller must hold at least a read lock for r.lastRun access.
 	lastRun, exists := r.lastRun[check.ID()]
-	r.mu.RUnlock()
 
 	if !exists {
 		return true
@@ -449,11 +518,22 @@ func getHealPriority(checkID string) int {
 func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
 	autoHealResults := make([]AutoHealResult, 0)
 	candidates := make([]healCandidate, 0)
+	now := r.now()
+	_, hasPolicy := r.getAutoHealPolicy()
 
 	// Phase 1: Collect and filter candidates
 	for _, result := range results {
 		// Auto-heal trigger is per-check policy (critical or warning+critical).
 		if !r.shouldTriggerAutoHeal(result) {
+			continue
+		}
+
+		if !hasPolicy {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:   result.CheckID,
+				Attempted: false,
+				Reason:    "auto-heal policy not configured",
+			})
 			continue
 		}
 
@@ -469,12 +549,12 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 
 		// Check cooldown before attempting heal
 		tracker := r.getOrCreateHealTracker(result.CheckID)
-		if tracker.IsInCooldown() {
+		if tracker.IsInCooldownAt(now) {
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             result.CheckID,
 				Attempted:           false,
-				Reason:              fmt.Sprintf("in cooldown (%.0fs remaining)", tracker.CooldownRemaining().Seconds()),
-				CooldownRemaining:   tracker.CooldownRemaining(),
+				Reason:              fmt.Sprintf("in cooldown (%.0fs remaining)", tracker.CooldownRemainingAt(now).Seconds()),
+				CooldownRemaining:   tracker.CooldownRemainingAt(now),
 				ConsecutiveFailures: tracker.ConsecutiveFailures,
 			})
 			continue
@@ -561,7 +641,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:             c.result.CheckID,
 				Attempted:           true,
 				ActionResult:        actionResult,
-				CooldownRemaining:   updatedTracker.CooldownRemaining(),
+				CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 				ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 			})
 			continue
@@ -582,7 +662,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			CheckID:             c.result.CheckID,
 			Attempted:           true,
 			ActionResult:        actionResult,
-			CooldownRemaining:   updatedTracker.CooldownRemaining(),
+			CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 		})
 	}
@@ -683,21 +763,29 @@ func (r *Registry) updateHealTracker(checkID string, success bool) {
 		r.healTrackers[checkID] = tracker
 	}
 
-	now := time.Now()
+	now := r.clock.Now()
 	tracker.LastAttempt = now
 	tracker.TotalAttempts++
 
+	policy := r.autoHealPolicy
 	if success {
 		tracker.LastSuccess = now
 		tracker.TotalSuccesses++
 		tracker.ConsecutiveFailures = 0
-		// Still apply a cooldown after success to prevent rapid re-triggering
-		tracker.CooldownUntil = now.Add(DefaultHealCooldown)
+		// Apply base cooldown after success to prevent rapid re-triggering.
+		if policy != nil {
+			tracker.CooldownUntil = now.Add(policy.BaseCooldown)
+		} else {
+			tracker.CooldownUntil = now
+		}
 	} else {
 		tracker.ConsecutiveFailures++
-		// Calculate backoff cooldown based on consecutive failures
-		cooldown := CalculateCooldown(tracker.ConsecutiveFailures)
-		tracker.CooldownUntil = now.Add(cooldown)
+		if policy != nil {
+			cooldown := policy.CalculateFailureCooldown(tracker.ConsecutiveFailures)
+			tracker.CooldownUntil = now.Add(cooldown)
+		} else {
+			tracker.CooldownUntil = now
+		}
 	}
 
 	// Persist to store if configured (async to not block)
@@ -714,6 +802,26 @@ func (r *Registry) updateHealTracker(checkID string, success bool) {
 			_ = store.SaveHealTracker(ctx, checkID, &trackerCopy)
 		}()
 	}
+}
+
+func (r *Registry) now() time.Time {
+	r.mu.RLock()
+	clock := r.clock
+	r.mu.RUnlock()
+	if clock == nil {
+		return time.Now()
+	}
+	return clock.Now()
+}
+
+func (r *Registry) getAutoHealPolicy() (*AutoHealPolicy, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.autoHealPolicy == nil {
+		return nil, false
+	}
+	p := *r.autoHealPolicy
+	return &p, true
 }
 
 // GetHealTracker returns the heal tracker for a check (for API exposure)

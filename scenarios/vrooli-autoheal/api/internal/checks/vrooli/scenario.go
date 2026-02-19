@@ -29,6 +29,13 @@ type ScenarioCheck struct {
 	critical     bool // determines if stopped/failed → critical or warning
 	executor     checks.CommandExecutor
 	directHealth func(context.Context) (bool, string)
+	recoveryPoll scenarioRecoveryPollConfig
+}
+
+type scenarioRecoveryPollConfig struct {
+	timeout      time.Duration
+	interval     time.Duration
+	initialDelay time.Duration
 }
 
 type scenarioStatusJSON struct {
@@ -56,6 +63,22 @@ func WithScenarioDirectHealthChecker(checker func(context.Context) (bool, string
 	}
 }
 
+// WithScenarioRecoveryPolling configures recovery verification polling.
+// Intended for tests to avoid long waits and nondeterminism.
+func WithScenarioRecoveryPolling(timeout, interval, initialDelay time.Duration) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		if timeout > 0 {
+			c.recoveryPoll.timeout = timeout
+		}
+		if interval > 0 {
+			c.recoveryPoll.interval = interval
+		}
+		if initialDelay >= 0 {
+			c.recoveryPoll.initialDelay = initialDelay
+		}
+	}
+}
+
 // NewScenarioCheck creates a check for a Vrooli scenario.
 // The critical parameter determines if failures should be critical or warning level.
 func NewScenarioCheck(scenarioName string, critical bool, opts ...ScenarioCheckOption) *ScenarioCheck {
@@ -73,6 +96,11 @@ func NewScenarioCheck(scenarioName string, critical bool, opts ...ScenarioCheckO
 		interval:     60,
 		critical:     critical,
 		executor:     checks.DefaultExecutor,
+		recoveryPoll: scenarioRecoveryPollConfig{
+			timeout:      45 * time.Second,
+			interval:     3 * time.Second,
+			initialDelay: 5 * time.Second,
+		},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -427,9 +455,13 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 // during autoheal (especially when multiple things are healing in parallel).
 func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
 	// Configure polling
-	timeout := 45 * time.Second
-	interval := 3 * time.Second
-	initialDelay := 5 * time.Second
+	timeout := c.recoveryPoll.timeout
+	interval := c.recoveryPoll.interval
+	initialDelay := c.recoveryPoll.initialDelay
+	healthFn := c.directHealth
+	if healthFn == nil {
+		healthFn = c.checkScenarioHealthDirect
+	}
 
 	// Wait initial delay for scenario startup
 	select {
@@ -462,7 +494,7 @@ func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.Action
 		}
 
 		// Try direct health check - check if scenario processes are running
-		healthy, err := c.checkScenarioHealthDirect(ctx)
+		healthy, err := healthFn(ctx)
 		if healthy {
 			result.Duration = time.Since(start)
 			result.Success = true

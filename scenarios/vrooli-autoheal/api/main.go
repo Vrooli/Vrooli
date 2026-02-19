@@ -80,6 +80,20 @@ func run() error {
 
 	// Wire config manager into registry for enable/autoHeal checks
 	registry.SetConfigProvider(configMgr)
+	registry.SetHealTrackerStore(store)
+
+	// Configure auto-heal cooldown/backoff from global config.
+	// This is required - no internal hardcoded policy fallback.
+	if err := applyAutoHealPolicyFromConfig(registry, configMgr.GetGlobal()); err != nil {
+		return fmt.Errorf("invalid auto-heal policy configuration: %w", err)
+	}
+
+	// Restore cooldown/backoff tracker state from persistence.
+	ctxTrackers, cancelTrackers := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := registry.LoadHealTrackers(ctxTrackers); err != nil {
+		log.Printf("warning: could not load heal trackers: %v", err)
+	}
+	cancelTrackers()
 
 	// Register health checks using user's monitoring config (delegated to bootstrap module)
 	bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
@@ -266,4 +280,12 @@ func resolveSQLiteDSN() (string, error) {
 	}
 
 	return filepath.Join(paths.DataDir, "autoheal.sqlite"), nil
+}
+
+func applyAutoHealPolicyFromConfig(registry *checks.Registry, global userconfig.GlobalConfig) error {
+	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	if err != nil {
+		return err
+	}
+	return registry.SetAutoHealPolicy(policy)
 }

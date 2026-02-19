@@ -1,0 +1,53 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "category": "technical",
+      "importance": "critical",
+      "question": "What interface modality should the onboarding use: a CLI-based interactive wizard (like yeoman/create-react-app), a local web UI (like the swarm-manager console), or a TUI (terminal UI with rich widgets)?",
+      "context": "Vrooli currently has both CLI tools and web UIs (swarm-manager). The choice determines the tech stack, accessibility for non-technical users, and development effort. A web UI is friendlier but heavier; a CLI wizard is faster to build but less approachable.",
+      "options": [
+        "CLI interactive wizard (fastest to build, consistent with existing tools)",
+        "Local web UI served by an onboarding API (most beginner-friendly)",
+        "TUI with rich widgets like bubbletea (good middle ground)",
+        "Hybrid: CLI for setup steps, then opens web UI for configuration"
+      ]
+    },
+    {
+      "id": "q2",
+      "category": "scope",
+      "importance": "critical",
+      "question": "What is the MVP scope for v1? Should it cover only initial first-run setup, or also serve as an ongoing configuration hub that users return to?",
+      "context": "The description mentions both first-time setup (resources, secrets) and ongoing configuration (autoheal settings, prompt-manager). These are different products — a setup wizard vs. a settings dashboard. Scoping this wrong means building twice.",
+      "options": [
+        "First-run wizard only — guide through initial setup, then hand off to individual tools",
+        "Ongoing configuration hub — a central place users always come back to for all settings",
+        "First-run wizard for v1, with a roadmap to evolve into a configuration hub"
+      ]
+    },
+    {
+      "id": "q3",
+      "category": "users",
+      "importance": "critical",
+      "question": "How non-technical is the target user? Are we designing for someone who has never used a terminal, or someone comfortable with CLI but unfamiliar with Vrooli specifically?",
+      "context": "Vrooli currently requires running shell scripts and managing config files. If the target is truly non-technical, the onboarding needs to abstract away the terminal entirely (web UI, point-and-click). If it is developers new to Vrooli, a guided CLI flow may suffice.",
+      "options": [
+        "Non-technical: no terminal experience, needs full GUI",
+        "Semi-technical: comfortable with terminal basics, needs guidance on Vrooli concepts",
+        "Developer new to Vrooli: understands tools, just needs Vrooli-specific walkthrough"
+      ]
+    },
+    {
+      "id": "q4",
+      "category": "scope",
+      "importance": "important",
+      "question": "Which resources and scenarios should the onboarding cover in v1? The system has 46+ resources — should it guide through all enabled ones, or focus on a curated starter set?",
+      "context": "Currently 46 resources are configured in service.json. Guiding through all of them would be overwhelming. A curated starter set (e.g. postgres, redis, ollama) would be more approachable for v1.",
+      "options": [
+        "Curated starter set of essential resources only",
+        "All enabled resources with guided categorization",
+        "Let users pick from a checklist of available resources"
+      ]
+    }
+  ]
+}

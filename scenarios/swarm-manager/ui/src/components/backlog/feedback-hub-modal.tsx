@@ -238,7 +238,7 @@ function ReviewItemSection({
 
               {saveMutation.isError && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                  Failed to save. Please try again.
+                  {saveMutation.error instanceof Error ? saveMutation.error.message : "Failed to save. Please try again."}
                 </div>
               )}
 
@@ -366,7 +366,7 @@ function ExportTab({
 
       {exportMutation.isError && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          Failed to generate export. Please try again.
+          {exportMutation.error instanceof Error ? exportMutation.error.message : "Failed to generate export. Please try again."}
         </div>
       )}
 
@@ -481,7 +481,7 @@ function ImportTab({ onDataChanged }: { onDataChanged: () => void }) {
 
       {previewMutation.isError && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          Failed to preview import. Check the file format and try again.
+          {previewMutation.error instanceof Error ? previewMutation.error.message : "Failed to preview import. Check the file format and try again."}
         </div>
       )}
 

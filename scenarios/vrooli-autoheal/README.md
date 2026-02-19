@@ -6,7 +6,7 @@ Self-healing supervisor that bootstraps, monitors, and auto-repairs Vrooli infra
 
 vrooli-autoheal replaces the legacy bash-based autoheal cronjob with a cross-platform solution featuring:
 
-- **CLI commands** (`vrooli autoheal tick/loop/status`) for health management
+- **CLI commands** (`vrooli-autoheal tick/loop/status`) for health management
 - **Go API** for health status and configuration
 - **React dashboard** for visualization and monitoring
 - **OS-level watchdog** (systemd/launchd/Windows service) to keep autoheal running
@@ -21,22 +21,22 @@ vrooli scenario run vrooli-autoheal --setup
 make start   # or: vrooli scenario run vrooli-autoheal --dev
 
 # Check health status
-vrooli autoheal status
+vrooli-autoheal status
 
 # Run a single health cycle
-vrooli autoheal tick
+vrooli-autoheal tick
 
 # Run continuous health monitoring
-vrooli autoheal loop --interval-seconds=60
+vrooli-autoheal loop --interval-seconds=60
 ```
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `vrooli autoheal tick` | Single health cycle (bootstrap + checks + watchdog verify) |
-| `vrooli autoheal loop` | Continuous monitoring with configurable interval |
-| `vrooli autoheal status` | Show last-known health summary |
+| `vrooli-autoheal tick` | Single health cycle (bootstrap + checks + watchdog verify) |
+| `vrooli-autoheal loop` | Continuous monitoring with configurable interval |
+| `vrooli-autoheal status` | Show last-known health summary |
 
 ## Architecture
 

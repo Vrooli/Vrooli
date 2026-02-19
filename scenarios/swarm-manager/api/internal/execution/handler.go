@@ -190,18 +190,7 @@ func isCreateBadRequestError(err error) bool {
 }
 
 func summarizeCreateError(err error) string {
-	if err == nil {
-		return "unknown"
-	}
-	msg := strings.Join(strings.Fields(strings.TrimSpace(err.Error())), " ")
-	if msg == "" {
-		return "unknown"
-	}
-	const maxLen = 240
-	if len(msg) > maxLen {
-		return msg[:maxLen] + "..."
-	}
-	return msg
+	return httputil.TruncateErrorMessage(err, 240)
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +254,7 @@ func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err err
 	case strings.Contains(err.Error(), "not available"):
 		httputil.ServiceUnavailable(w, prefix, "agent-manager is not available")
 	default:
-		httputil.InternalError(w, prefix, "execution operation failed")
+		httputil.InternalError(w, prefix, "execution operation failed: "+httputil.TruncateErrorMessage(err, 240))
 	}
 }
 

@@ -101,6 +101,22 @@ func SafeFilePath(baseDir, relativePath string) (string, bool) {
 	return filepath.Join(baseDir, relativePath), true
 }
 
+// TruncateErrorMessage normalizes whitespace and truncates an error message
+// for safe inclusion in HTTP responses. Returns "unknown" for nil errors.
+func TruncateErrorMessage(err error, maxLen int) string {
+	if err == nil {
+		return "unknown"
+	}
+	msg := strings.Join(strings.Fields(strings.TrimSpace(err.Error())), " ")
+	if msg == "" {
+		return "unknown"
+	}
+	if maxLen > 0 && len(msg) > maxLen {
+		return msg[:maxLen] + "..."
+	}
+	return msg
+}
+
 // IsDryRun reports whether request should validate without mutating state.
 func IsDryRun(r *http.Request) bool {
 	if r == nil {

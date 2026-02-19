@@ -107,10 +107,10 @@ curl -X POST http://localhost:PORT/api/v1/checks/{checkId}/actions/{actionId}
 ### Via CLI
 ```bash
 # Trigger a full health cycle (runs all checks)
-vrooli autoheal tick
+vrooli-autoheal tick
 
 # Force all checks regardless of interval
-vrooli autoheal tick --force
+vrooli-autoheal tick --force
 ```
 
 ## Action Logging

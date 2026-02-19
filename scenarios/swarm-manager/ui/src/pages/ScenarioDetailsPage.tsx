@@ -382,7 +382,9 @@ export function ScenarioDetailsPage() {
 
   const handleSpecSyncCancel = () => {
     if (specSyncExecutionId) {
-      executionService.cancel(specSyncExecutionId).catch(() => {});
+      executionService.cancel(specSyncExecutionId).catch((err) => {
+        console.error("[spec-sync] cancel failed:", err);
+      });
     }
     setSpecSyncPhase("idle");
     setSpecSyncError(null);

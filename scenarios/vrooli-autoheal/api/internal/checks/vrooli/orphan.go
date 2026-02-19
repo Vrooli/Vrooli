@@ -245,9 +245,7 @@ type orphanProcessInfo struct {
 // Fallback: Pattern matching on command name (for legacy processes).
 func (c *OrphanCheck) isVrooliProcess(proc checks.ProcessInfo) bool {
 	// Skip self-check processes (never consider ourselves orphans)
-	if strings.Contains(proc.Comm, "vrooli-autoheal") ||
-		strings.Contains(proc.Comm, "orphan") ||
-		strings.Contains(proc.Comm, "zombie-detector") {
+	if isSelfCheckProcess(proc.Comm) {
 		return false
 	}
 
@@ -283,6 +281,18 @@ func (c *OrphanCheck) isVrooliProcess(proc checks.ProcessInfo) bool {
 	}
 
 	return false
+}
+
+func isSelfCheckProcess(comm string) bool {
+	normalized := strings.TrimSpace(strings.ToLower(comm))
+	normalized = strings.TrimPrefix(normalized, "./")
+
+	switch normalized {
+	case "vrooli-autoheal", "orphan", "orphan-check", "zombie-detector":
+		return true
+	default:
+		return false
+	}
 }
 
 // hasTrackedAncestor checks if the process or any of its ancestors is tracked
