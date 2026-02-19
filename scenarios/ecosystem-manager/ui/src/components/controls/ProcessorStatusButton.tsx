@@ -4,10 +4,10 @@ import { Play, Square, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 export function ProcessorStatusButton() {
-  const { data: queueStatus = {}, isLoading } = useQueueStatus();
+  const { data: queueStatus, isLoading } = useQueueStatus();
   const toggleProcessor = useToggleProcessor();
 
-  const isActive = (queueStatus as any)?.active ?? false;
+  const isActive = queueStatus?.active ?? false;
 
   const handleToggle = () => {
     const action = isActive ? 'stop' : 'start';

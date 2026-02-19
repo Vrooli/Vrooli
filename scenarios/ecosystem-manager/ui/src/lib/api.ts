@@ -18,6 +18,7 @@ import type {
   QueueStatus,
   RunningProcess,
   Settings,
+  SettingsConstraints,
   Resource,
   Scenario,
   Operation,
@@ -308,12 +309,12 @@ class ApiClient {
 
   // ==================== Settings Management ====================
 
-  async getSettings(): Promise<Settings> {
+  async getSettings(): Promise<{ settings: Settings; constraints: SettingsConstraints }> {
     const raw = await this.fetchJSON<unknown>(`/api/settings`);
     return parseSettingsResponse(raw);
   }
 
-  async updateSettings(settings: Settings): Promise<Settings> {
+  async updateSettings(settings: Settings): Promise<{ settings: Settings; constraints: SettingsConstraints }> {
     const payload = mapUiSettingsToProtoJson(settings);
     const raw = await this.fetchJSON<unknown>(`/api/settings`, {
       method: 'PUT',
@@ -322,7 +323,7 @@ class ApiClient {
     return parseSettingsResponse(raw);
   }
 
-  async resetSettings(): Promise<Settings> {
+  async resetSettings(): Promise<{ settings: Settings; constraints: SettingsConstraints }> {
     const raw = await this.fetchJSON<unknown>(`/api/settings/reset`, {
       method: 'POST',
     });
@@ -497,7 +498,10 @@ class ApiClient {
   // ==================== Auto Steer ====================
 
   async getAutoSteerProfiles(): Promise<AutoSteerProfile[]> {
-    return this.fetchJSON<AutoSteerProfile[]>(`/api/auto-steer/profiles`);
+    const response = await this.fetchJSON<AutoSteerProfile[] | { profiles?: AutoSteerProfile[]; count?: number }>(`/api/auto-steer/profiles`);
+    if (Array.isArray(response)) return response;
+    if (response && Array.isArray(response.profiles)) return response.profiles;
+    return [];
   }
 
   async createAutoSteerProfile(profile: Omit<AutoSteerProfile, 'id' | 'created_at' | 'updated_at'>): Promise<AutoSteerProfile> {

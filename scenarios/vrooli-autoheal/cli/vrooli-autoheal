@@ -792,7 +792,7 @@ RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 User=$USER
 TimeoutStopSec=30
@@ -823,7 +823,7 @@ RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 TimeoutStopSec=30
 

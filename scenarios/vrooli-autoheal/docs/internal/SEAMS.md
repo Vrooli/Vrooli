@@ -173,7 +173,7 @@ vrooli-autoheal follows a layered architecture with clear responsibility separat
 - command execution (`tasklist`, `pgrep`, `systemctl`, `launchctl`, `schtasks`, `loginctl`)
 - process inspection fallback (`/proc` directory and cmdline reads)
 - file existence checks for service artifacts
-- user/home/environment lookups used by detection and template rendering
+- user, home-directory, and environment lookups used by detection and template rendering
 
 Production uses `realDetectorProbe`; tests can inject a fake probe to exercise watchdog detection without real process tables, systemd state, launchctl, or Windows task scheduler.
 
@@ -265,7 +265,7 @@ This change:
 ### Remaining Weak Points
 
 - Some checks still rely on wall-clock `time.Now()` internally instead of injected clocks; those paths are testable but less deterministic for edge timing cases.
-- Some Vrooli check action flows (for example parts of `api/internal/checks/vrooli/api.go`) still perform direct env/home/filesystem lookups in action logic instead of a single injected boundary.
+- Some Vrooli check action flows (for example parts of `api/internal/checks/vrooli/api.go`) still perform direct environment, home-directory, and filesystem lookups in action logic instead of a single injected boundary.
 
 ---
 

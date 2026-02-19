@@ -132,8 +132,11 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 		AutoHeal:        defaults.AutoHeal,
 		IntervalSeconds: defaults.IntervalSeconds,
 		Settings: CheckSettings{
-			AutoHealOn: "critical",
+			AutoHealOn: defaults.AutoHealOn,
 		},
+	}
+	if result.Settings.AutoHealOn == "" {
+		result.Settings.AutoHealOn = "critical"
 	}
 
 	// Copy default thresholds if present

@@ -67,6 +67,12 @@ describe("BacklogPage", () => {
       runId: "run_1",
       baseUrl: "",
       created: "2026-01-28T00:00:00Z",
+      dryRun: false,
+      queued: true,
+      message: "",
+      blockingReasons: [],
+      unansweredQuestions: 0,
+      pendingSuggestions: 0,
     });
   });
 

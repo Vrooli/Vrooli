@@ -203,6 +203,37 @@ func TestResolveAgentManagerBaseURL(t *testing.T) {
 	}
 }
 
+func TestReadErrorResponse_IncludesBody(t *testing.T) {
+	resp := makeResponse(http.StatusBadRequest, `{"code":"VALIDATION_FIELD","message":"description must be 16384 characters or less"}`)
+	err := readErrorResponse(resp)
+	if !errors.Is(err, ErrRequestFailed) {
+		t.Fatalf("expected ErrRequestFailed, got %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "status 400") {
+		t.Errorf("expected status 400 in error, got %q", msg)
+	}
+	if !strings.Contains(msg, "VALIDATION_FIELD") {
+		t.Errorf("expected response body in error, got %q", msg)
+	}
+}
+
+func TestReadErrorResponse_EmptyBody(t *testing.T) {
+	resp := makeResponse(http.StatusInternalServerError, "")
+	err := readErrorResponse(resp)
+	if !errors.Is(err, ErrRequestFailed) {
+		t.Fatalf("expected ErrRequestFailed, got %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "status 500") {
+		t.Errorf("expected status 500 in error, got %q", msg)
+	}
+	// Should not have trailing colon or body text
+	if strings.HasSuffix(msg, ": ") {
+		t.Errorf("should not have trailing colon for empty body: %q", msg)
+	}
+}
+
 // buildTestTask creates a proto Task for testing.
 func buildTestTask(title string) *domainpb.Task {
 	return &domainpb.Task{

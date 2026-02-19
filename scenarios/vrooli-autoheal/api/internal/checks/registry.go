@@ -720,6 +720,15 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 }
 
 func selectAutoHealAction(checkID string, actions []RecoveryAction) *RecoveryAction {
+	// Policy: orphan cleanup may auto-run a restricted safe kill action.
+	if checkID == "vrooli-orphans" {
+		for _, action := range actions {
+			if action.Available && action.ID == "kill-safe" && !action.Dangerous {
+				return &action
+			}
+		}
+	}
+
 	// Controlled dangerous action policy for scenarios:
 	// allow "restart" auto-execution for scenario checks only.
 	if strings.HasPrefix(checkID, "scenario-") {

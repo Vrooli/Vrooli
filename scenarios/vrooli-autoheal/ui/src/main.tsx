@@ -11,7 +11,7 @@ const queryClient = new QueryClient();
 const rootElement = document.getElementById("root");
 
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: "vrooli-autoheal" });
 }
 
 if (!rootElement) {

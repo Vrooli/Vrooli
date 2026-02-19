@@ -1,0 +1,71 @@
+{
+  "module": "port-compliance",
+  "description": "Audit scenario service.json files for fixed-port compliance with the route manifest",
+  "prd_refs": ["OT-P0-002"],
+  "requirements": [
+    {
+      "id": "PORT-001",
+      "title": "Scan scenario service.json for port field",
+      "description": "For each route in the manifest, read the corresponding scenario's .vrooli/service.json and check that the UI port entry has a fixed 'port' field (not just a 'range')",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_auditor_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-002",
+      "title": "Port value match verification",
+      "description": "Verify that the fixed port in service.json matches the expected port in the route manifest. Report mismatches with both expected and actual values.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_auditor_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-003",
+      "title": "Missing scenario detection",
+      "description": "Report when a manifest route references a scenario that doesn't exist on disk (scenario directory not found)",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_auditor_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-004",
+      "title": "Audit result reporting",
+      "description": "Return structured audit results per route: compliant, non-compliant (reason), or missing. Include summary counts.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_auditor_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

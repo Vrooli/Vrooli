@@ -485,6 +485,38 @@ func TestGetServiceTemplate_Linux(t *testing.T) {
 	}
 }
 
+func TestGetSystemdTemplateForService_UserServiceOmitsUserDirective(t *testing.T) {
+	plat := &platform.Capabilities{Platform: "linux", SupportsSystemd: true}
+	probe := newFakeProbe()
+	probe.userHomeDirPath = "/home/tester"
+	probe.env["VROOLI_ROOT"] = "/workspace/Vrooli"
+	d := detectorWithProbe(plat, probe)
+
+	template := d.getSystemdTemplateForService(false)
+	if strings.Contains(template, "\nUser=") {
+		t.Fatalf("user service template should not include User= directive:\n%s", template)
+	}
+	if !strings.Contains(template, "WantedBy=default.target") {
+		t.Fatalf("expected user service WantedBy=default.target:\n%s", template)
+	}
+}
+
+func TestGetSystemdTemplateForService_SystemServiceUsesRootAndMultiUserTarget(t *testing.T) {
+	plat := &platform.Capabilities{Platform: "linux", SupportsSystemd: true}
+	probe := newFakeProbe()
+	probe.userHomeDirPath = "/home/tester"
+	probe.env["VROOLI_ROOT"] = "/workspace/Vrooli"
+	d := detectorWithProbe(plat, probe)
+
+	template := d.getSystemdTemplateForService(true)
+	if !strings.Contains(template, "\nUser=root\n") {
+		t.Fatalf("system service template should include User=root:\n%s", template)
+	}
+	if !strings.Contains(template, "WantedBy=multi-user.target") {
+		t.Fatalf("expected system service WantedBy=multi-user.target:\n%s", template)
+	}
+}
+
 func TestGetServiceTemplate_MacOS(t *testing.T) {
 	plat := &platform.Capabilities{Platform: "macos", SupportsLaunchd: true}
 	d := NewDetector(plat)

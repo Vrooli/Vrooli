@@ -11,14 +11,15 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useQueueStatus } from '@/hooks/useQueueStatus';
 import { useResetRateLimit } from '@/hooks/useRateLimits';
-import type { ProcessorSettings } from '@/types/api';
+import type { ProcessorSettings, SettingsConstraints } from '@/types/api';
 
 interface RateLimitsTabProps {
   settings: ProcessorSettings;
   onChange: (updates: Partial<ProcessorSettings>) => void;
+  constraints?: SettingsConstraints;
 }
 
-export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
+export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTabProps) {
   const { data: queueStatus } = useQueueStatus();
   const resetRateLimit = useResetRateLimit();
   const [countdown, setCountdown] = useState(0);
@@ -89,7 +90,9 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
 
   const handleCooldownChange = (value: number) => {
     if (Number.isNaN(value)) return;
-    const clamped = Math.max(5, Math.min(300, value));
+    const minCd = constraints?.cooldown_seconds.min ?? 5;
+    const maxCd = constraints?.cooldown_seconds.max ?? 300;
+    const clamped = Math.max(minCd, Math.min(maxCd, value));
     onChange({ cooldown_seconds: clamped });
   };
 
@@ -253,8 +256,8 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
             </div>
             <Slider
               id="limit-concurrent"
-              min={1}
-              max={5}
+              min={constraints?.slots.min ?? 1}
+              max={constraints?.slots.max ?? 5}
               step={1}
               value={[settings.concurrent_slots]}
               onValueChange={(value) => onChange({ concurrent_slots: value[0] })}
@@ -274,8 +277,8 @@ export function RateLimitsTab({ settings, onChange }: RateLimitsTabProps) {
             <Input
               id="limit-cooldown"
               type="number"
-              min={5}
-              max={300}
+              min={constraints?.cooldown_seconds.min ?? 5}
+              max={constraints?.cooldown_seconds.max ?? 300}
               step={5}
               value={settings.cooldown_seconds}
               onChange={(e) => handleCooldownChange(Number(e.target.value))}

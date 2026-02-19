@@ -1,0 +1,87 @@
+{
+  "module": "web-dashboard",
+  "description": "React UI dashboard for tunnel status and route management",
+  "prd_refs": ["OT-P1-005"],
+  "requirements": [
+    {
+      "id": "UI-001",
+      "title": "Tunnel health overview panel",
+      "description": "Top-level panel showing: tunnel status (healthy/degraded/critical), HA connections gauge, error rate, RTT, uptime, management mode badge",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "complete",
+          "ref": "ui/src/components/TunnelStatus.test.tsx"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "UI-002",
+      "title": "Route status table",
+      "description": "Table/list of all published routes showing: subdomain, scenario name, port, internal probe status, external probe status, last checked timestamp. Color-coded by status (green/yellow/red).",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "complete",
+          "ref": "ui/src/components/RouteTable.test.tsx"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "UI-003",
+      "title": "Recovery event timeline",
+      "description": "Chronological list of recent recovery events showing: timestamp, trigger, action, outcome. Filterable by date range.",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "ref": "ui/src/components/RecoveryTimeline.test.tsx"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "UI-004",
+      "title": "Port compliance audit view",
+      "description": "Panel showing audit results: compliant/non-compliant/missing routes with details. Includes 'Run Audit' button for on-demand checks.",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "complete",
+          "ref": "ui/src/components/AuditView.test.tsx"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "UI-005",
+      "title": "Route management form",
+      "description": "Add/edit/remove routes from the manifest via the UI. Includes validation (no duplicate subdomains/ports) and 'Sync Config' button.",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "planned",
+          "ref": "ui/src/components/RouteForm.test.tsx"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

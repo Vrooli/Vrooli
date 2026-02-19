@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button, ModalContent, ModalOverlay } from "../ui/primitives";
 import { TabTrigger } from "../ui/composites";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   fetchConfig,
   updateConfig,

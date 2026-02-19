@@ -55,6 +55,8 @@ import type {
   QueueStatus,
   RunningProcess,
   Settings,
+  SettingsConstraints,
+  ConstraintRange,
   ExecutionHistory,
   Resource,
   Scenario,
@@ -448,22 +450,70 @@ export function mapProtoActiveTarget(proto: ProtoActiveTarget): ActiveTarget {
   };
 }
 
+// Default constraints matching current API constants.go values
+const DEFAULT_CONSTRAINTS: SettingsConstraints = {
+  slots: { min: 1, max: 5 },
+  cooldown_seconds: { min: 5, max: 300 },
+  max_turns: { min: 5, max: 500 },
+  task_timeout: { min: 5, max: 240 },
+  idle_timeout_cap: { min: 2, max: 240 },
+  recycler: {
+    interval_seconds: { min: 30, max: 1800 },
+    max_retries: { min: 0, max: 10 },
+    retry_delay_seconds: { min: 1, max: 300 },
+    completion_threshold: { min: 1, max: 10 },
+    failure_threshold: { min: 1, max: 10 },
+  },
+};
+
+function parseConstraintRange(raw: unknown, fallback: ConstraintRange): ConstraintRange {
+  if (!raw || typeof raw !== "object") return fallback;
+  const r = raw as Record<string, unknown>;
+  return {
+    min: typeof r.min === "number" ? r.min : fallback.min,
+    max: typeof r.max === "number" ? r.max : fallback.max,
+  };
+}
+
+function parseConstraints(raw: unknown): SettingsConstraints {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_CONSTRAINTS };
+  const r = raw as Record<string, unknown>;
+  const recyclerRaw = r.recycler as Record<string, unknown> | undefined;
+  return {
+    slots: parseConstraintRange(r.slots, DEFAULT_CONSTRAINTS.slots),
+    cooldown_seconds: parseConstraintRange(r.cooldown_seconds, DEFAULT_CONSTRAINTS.cooldown_seconds),
+    max_turns: parseConstraintRange(r.max_turns, DEFAULT_CONSTRAINTS.max_turns),
+    task_timeout: parseConstraintRange(r.task_timeout, DEFAULT_CONSTRAINTS.task_timeout),
+    idle_timeout_cap: parseConstraintRange(r.idle_timeout_cap, DEFAULT_CONSTRAINTS.idle_timeout_cap),
+    recycler: {
+      interval_seconds: parseConstraintRange(recyclerRaw?.interval_seconds, DEFAULT_CONSTRAINTS.recycler.interval_seconds),
+      max_retries: parseConstraintRange(recyclerRaw?.max_retries, DEFAULT_CONSTRAINTS.recycler.max_retries),
+      retry_delay_seconds: parseConstraintRange(recyclerRaw?.retry_delay_seconds, DEFAULT_CONSTRAINTS.recycler.retry_delay_seconds),
+      completion_threshold: parseConstraintRange(recyclerRaw?.completion_threshold, DEFAULT_CONSTRAINTS.recycler.completion_threshold),
+      failure_threshold: parseConstraintRange(recyclerRaw?.failure_threshold, DEFAULT_CONSTRAINTS.recycler.failure_threshold),
+    },
+  };
+}
+
 /**
  * Gracefully parse any raw JSON as a proto Settings, with fallback defaults.
  * Used at the GET /api/settings boundary.
+ * Returns both settings and constraints (if present in the API response).
  */
-export function parseSettingsResponse(raw: unknown): Settings {
+export function parseSettingsResponse(raw: unknown): { settings: Settings; constraints: SettingsConstraints } {
+  const wrapper = raw as Record<string, unknown> | undefined;
+  const constraints = parseConstraints(wrapper?.constraints);
   try {
     // The API wraps settings in { settings: { ... } }
-    const source = (raw as any)?.settings ?? raw;
+    const source = wrapper?.settings ?? raw;
     const result = settingsProtoSchema.safeParse(source);
     if (result.success) {
-      return mapProtoSettings(result.data);
+      return { settings: mapProtoSettings(result.data), constraints };
     }
   } catch {
     // fall through to defaults
   }
-  return { ...DEFAULT_SETTINGS };
+  return { settings: { ...DEFAULT_SETTINGS }, constraints };
 }
 
 /**
@@ -476,7 +526,26 @@ export function parseTaskResponse(raw: unknown): Task {
   }
   const result = taskProtoSchema.safeParse(raw);
   if (result.success) {
-    return mapProtoTask(result.data);
+    const task = mapProtoTask(result.data);
+    // Proto parsing ignores runtime fields (current_process, execution_count, etc.)
+    // that the Go handler injects beyond the proto schema. Merge them from raw data.
+    const r = raw as any;
+    const rawProcess = r.current_process ?? r.currentProcess;
+    if (rawProcess && typeof rawProcess === "object") {
+      task.current_process = {
+        process_id: rawProcess.process_id ?? rawProcess.run_id ?? rawProcess.processId ?? rawProcess.runId ?? "",
+        agent_id: rawProcess.agent_id ?? rawProcess.agent_tag ?? rawProcess.agentId ?? rawProcess.agentTag ?? "",
+        start_time: rawProcess.start_time ?? rawProcess.started_at ?? rawProcess.startTime ?? rawProcess.startedAt ?? "",
+      };
+    }
+    if (r.execution_count != null) task.execution_count = r.execution_count;
+    if (r.steering_queue_index != null) task.steering_queue_index = r.steering_queue_index;
+    if (r.steering_queue_mode != null) task.steering_queue_mode = r.steering_queue_mode;
+    if (r.steering_queue_total != null) task.steering_queue_total = r.steering_queue_total;
+    if (r.steering_queue_exhausted != null) task.steering_queue_exhausted = r.steering_queue_exhausted;
+    if (r.auto_steer_mode != null) task.auto_steer_mode = r.auto_steer_mode;
+    if (r.auto_steer_phase_index != null) task.auto_steer_phase_index = r.auto_steer_phase_index;
+    return task;
   }
   // Fallback: minimal normalization for responses with extra runtime fields
   return fallbackNormalizeTask(raw);
@@ -486,6 +555,15 @@ export function parseTaskResponse(raw: unknown): Task {
  * Minimal fallback normalization when proto parse fails.
  * Handles extra runtime fields the Go handler injects beyond the proto schema.
  */
+function normalizeProcessInfo(raw: any): ProcessInfo | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  return {
+    process_id: raw.process_id ?? raw.run_id ?? raw.processId ?? raw.runId ?? "",
+    agent_id: raw.agent_id ?? raw.agent_tag ?? raw.agentId ?? raw.agentTag ?? "",
+    start_time: raw.start_time ?? raw.started_at ?? raw.startTime ?? raw.startedAt ?? "",
+  };
+}
+
 function fallbackNormalizeTask(raw: any): Task {
   const targets = Array.isArray(raw.targets) ? raw.targets
     : Array.isArray(raw.target) ? raw.target
@@ -512,7 +590,7 @@ function fallbackNormalizeTask(raw: any): Task {
     completion_count: raw.completion_count ?? raw.completionCount ?? 0,
     last_completed_at: raw.last_completed_at ?? raw.lastCompletedAt,
     cooldown_until: raw.cooldown_until ?? raw.cooldownUntil,
-    current_process: raw.current_process ?? raw.currentProcess,
+    current_process: normalizeProcessInfo(raw.current_process ?? raw.currentProcess),
   };
 }
 
@@ -596,16 +674,18 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
   }
   // Fallback: direct field mapping for snake_case responses
   const r = raw as any;
+  const maxSlots = r.max_slots ?? r.max_concurrent ?? 1;
+  const availableSlots = r.available_slots ?? maxSlots;
   return {
-    active: r.is_active ?? r.active ?? false,
-    slots_used: r.slots_used ?? (r.max_slots ?? 1) - (r.available_slots ?? 1),
-    max_concurrent: r.max_slots ?? r.max_concurrent ?? 1,
-    available_slots: r.available_slots ?? 1,
+    active: r.is_active ?? r.active ?? r.processor_active ?? r.settings_active ?? false,
+    slots_used: r.slots_used ?? r.executing_count ?? r.running_count ?? (maxSlots - availableSlots),
+    max_concurrent: maxSlots,
+    available_slots: availableSlots,
     tasks_remaining: r.tasks_remaining ?? (r.pending_count ?? 0) + (r.in_progress_count ?? 0),
     cooldown_seconds: r.cooldown_seconds ?? 30,
-    rate_limited: r.is_rate_limit_paused ?? r.rate_limited ?? false,
-    rate_limit_retry_after: r.rate_limit_retry_after ?? 0,
-    rate_limit_pause_until: r.rate_limit_resume_at ?? r.rate_limit_pause_until,
+    rate_limited: r.is_rate_limit_paused ?? r.rate_limited ?? r.rate_limit_info?.paused ?? false,
+    rate_limit_retry_after: r.rate_limit_retry_after ?? r.rate_limit_info?.remaining_secs ?? 0,
+    rate_limit_pause_until: r.rate_limit_resume_at ?? r.rate_limit_pause_until ?? r.rate_limit_info?.pause_until,
   };
 }
 

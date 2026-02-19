@@ -17,7 +17,7 @@ import { ActionButtons } from "./ActionButtons";
 import { exportCheckHistoryToCSV } from "../../lib/export";
 import { navigateToCheckDocs } from "../../lib/docs";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
-import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { Notice, NoticeTitle, TabTrigger } from "../ui/composites";
 import { Button, ModalContent, ModalOverlay, Switch } from "../ui/primitives";
 

@@ -91,7 +91,7 @@ func run() error {
 	// Restore cooldown/backoff tracker state from persistence.
 	ctxTrackers, cancelTrackers := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := registry.LoadHealTrackers(ctxTrackers); err != nil {
-		log.Printf("warning: could not load heal trackers: %v", err)
+		log.Printf("warning: heal tracker restore failed (continuing with empty in-memory trackers): %v", err)
 	}
 	cancelTrackers()
 

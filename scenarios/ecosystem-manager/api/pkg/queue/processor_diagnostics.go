@@ -244,6 +244,26 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 	}
 
 	return map[string]any{
+		// Proto-compatible field names (match QueueStatus proto schema)
+		"is_active":            processorActive,
+		"is_paused":            isPaused,
+		"is_rate_limit_paused": rateLimitPaused,
+		"rate_limit_resume_at": func() string {
+			if rateLimitPaused {
+				return pauseUntil.Format(time.RFC3339)
+			}
+			return ""
+		}(),
+		"running_processes":    executingCount,
+		"max_slots":            maxConcurrent,
+		"available_slots":      availableSlots,
+		"pending_count":        len(pendingTasks),
+		"in_progress_count":    len(inProgressTasks),
+		"cooldown_seconds":     currentSettings.CooldownSeconds,
+		"task_timeout_minutes": currentSettings.TaskTimeout,
+		"last_processed_at":    lastProcessedAt,
+
+		// Legacy field names (used by internal Go code)
 		"processor_active":          processorActive,
 		"settings_active":           settingsActive,
 		"maintenance_state":         map[bool]string{true: "inactive", false: "active"}[isPaused],
@@ -251,19 +271,14 @@ func (qp *Processor) GetQueueStatus() map[string]any {
 		"max_concurrent":            maxConcurrent,
 		"executing_count":           executingCount,
 		"running_count":             executingCount,
-		"available_slots":           availableSlots,
-		"pending_count":             len(pendingTasks),
-		"in_progress_count":         len(inProgressTasks),
 		"completed_count":           len(completedTasks),
 		"failed_count":              len(failedTasks),
 		"completed_finalized_count": len(completedFinalizedTasks),
 		"failed_blocked_count":      len(failedBlockedTasks),
 		"archived_count":            len(archivedTasks),
 		"ready_in_progress":         readyInProgress,
-		"cooldown_seconds":          currentSettings.CooldownSeconds, // from settings
 		"processor_running":         processorActive,
 		"timestamp":                 time.Now().Unix(),
-		"last_processed_at":         lastProcessedAt,
 	}
 }
 

@@ -78,6 +78,109 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_HealTrackerRoundTrip_WithTextTimestamps(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+
+	lastAttempt := time.Now().UTC().Add(-2 * time.Minute).Round(time.Microsecond)
+	lastSuccess := time.Now().UTC().Add(-1 * time.Minute).Round(time.Microsecond)
+	cooldownUntil := time.Now().UTC().Add(4 * time.Minute).Round(time.Microsecond)
+
+	tracker := &checks.HealTracker{
+		LastAttempt:         lastAttempt,
+		LastSuccess:         lastSuccess,
+		ConsecutiveFailures: 2,
+		TotalAttempts:       7,
+		TotalSuccesses:      5,
+		CooldownUntil:       cooldownUntil,
+	}
+
+	if err := store.SaveHealTracker(context.Background(), "resource-postgres", tracker); err != nil {
+		t.Fatalf("SaveHealTracker() error = %v", err)
+	}
+
+	loaded, err := store.GetAllHealTrackers(context.Background())
+	if err != nil {
+		t.Fatalf("GetAllHealTrackers() error = %v", err)
+	}
+
+	got, ok := loaded["resource-postgres"]
+	if !ok {
+		t.Fatal("expected tracker for resource-postgres")
+	}
+
+	if !got.LastAttempt.Equal(lastAttempt) {
+		t.Fatalf("LastAttempt = %s, want %s", got.LastAttempt, lastAttempt)
+	}
+	if !got.LastSuccess.Equal(lastSuccess) {
+		t.Fatalf("LastSuccess = %s, want %s", got.LastSuccess, lastSuccess)
+	}
+	if !got.CooldownUntil.Equal(cooldownUntil) {
+		t.Fatalf("CooldownUntil = %s, want %s", got.CooldownUntil, cooldownUntil)
+	}
+	if got.ConsecutiveFailures != 2 {
+		t.Fatalf("ConsecutiveFailures = %d, want 2", got.ConsecutiveFailures)
+	}
+	if got.TotalAttempts != 7 {
+		t.Fatalf("TotalAttempts = %d, want 7", got.TotalAttempts)
+	}
+	if got.TotalSuccesses != 5 {
+		t.Fatalf("TotalSuccesses = %d, want 5", got.TotalSuccesses)
+	}
+}
+
+func TestSQLiteStore_GetAllHealTrackers_ToleratesLegacyOrInvalidRows(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+
+	_, err := db.Exec(`
+		INSERT INTO heal_trackers (
+			check_id, last_attempt, last_success, consecutive_failures,
+			total_attempts, total_successes, cooldown_until, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		"legacy-row",
+		"not-a-time",
+		"",
+		3,
+		11,
+		2,
+		"also-not-a-time",
+		time.Now().UTC().Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		t.Fatalf("seed legacy row failed: %v", err)
+	}
+
+	trackers, err := store.GetAllHealTrackers(context.Background())
+	if err != nil {
+		t.Fatalf("GetAllHealTrackers() should tolerate invalid timestamp rows, got error: %v", err)
+	}
+
+	got, ok := trackers["legacy-row"]
+	if !ok {
+		t.Fatal("expected tracker for legacy-row")
+	}
+	if !got.LastAttempt.IsZero() {
+		t.Fatalf("LastAttempt should be zero for invalid timestamp, got %s", got.LastAttempt)
+	}
+	if !got.LastSuccess.IsZero() {
+		t.Fatalf("LastSuccess should be zero for empty timestamp, got %s", got.LastSuccess)
+	}
+	if !got.CooldownUntil.IsZero() {
+		t.Fatalf("CooldownUntil should be zero for invalid timestamp, got %s", got.CooldownUntil)
+	}
+	if got.ConsecutiveFailures != 3 {
+		t.Fatalf("ConsecutiveFailures = %d, want 3", got.ConsecutiveFailures)
+	}
+	if got.TotalAttempts != 11 {
+		t.Fatalf("TotalAttempts = %d, want 11", got.TotalAttempts)
+	}
+	if got.TotalSuccesses != 2 {
+		t.Fatalf("TotalSuccesses = %d, want 2", got.TotalSuccesses)
+	}
+}
+
 func TestSQLiteStore_GetCheckTrends_WithSingleConnection(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

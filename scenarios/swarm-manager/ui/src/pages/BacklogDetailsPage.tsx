@@ -20,6 +20,7 @@ import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, typ
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowRight,
   ArrowRightLeft,
   ChevronDown,
@@ -76,6 +77,7 @@ import {
   parseSuggestionsFile,
 } from "../lib";
 import { backlogService, promptService } from "../services";
+import type { QueueResponse } from "../services";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
@@ -212,6 +214,7 @@ export function BacklogDetailsPage() {
   const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
+  const [queueBlockedResult, setQueueBlockedResult] = useState<QueueResponse | null>(null);
 
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
 
@@ -363,6 +366,7 @@ export function BacklogDetailsPage() {
   }, [queryClient, backlogKind, name]);
 
   const queueMutation = useMutation({
+    onMutate: () => setQueueBlockedResult(null),
     mutationFn: ({ mode, delaySeconds }: { mode: "manual" | "scheduled" | "yolo"; delaySeconds?: number }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.queue(backlogKind, name, {
@@ -374,6 +378,11 @@ export function BacklogDetailsPage() {
     },
     onSuccess: (result) => {
       if (!backlogKind || !name) return;
+      if (result.dryRun && result.blockingReasons.length > 0) {
+        setQueueBlockedResult(result);
+        return;
+      }
+      setQueueBlockedResult(null);
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
       if (result?.item) {
         upsertItem(result.item);
@@ -1348,8 +1357,28 @@ export function BacklogDetailsPage() {
 
   const mobileInfoView = (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-4">
-      {(queueError || deleteError || convertError) && (
+      {(queueError || queueBlockedResult || deleteError || convertError) && (
         <Card padding="sm" className="space-y-2 rounded-lg border-slate-700/60 bg-slate-900/45">
+          {queueBlockedResult && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                {queueBlockedResult.message}
+              </div>
+              {queueBlockedResult.blockingReasons.length > 0 && (
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-6 text-amber-300/90">
+                  {queueBlockedResult.blockingReasons.map((reason, i) => (
+                    <li key={i}>{reason}</li>
+                  ))}
+                </ul>
+              )}
+              {queueBlockedResult.unansweredQuestions > 0 && (
+                <p className="mt-1 text-xs text-amber-300/70">
+                  {queueBlockedResult.unansweredQuestions} unanswered question{queueBlockedResult.unansweredQuestions !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          )}
           {queueError && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
               {queueError}
@@ -1613,8 +1642,28 @@ export function BacklogDetailsPage() {
               </div>
             </div>
 
-            {(queueError || deleteError || convertError) && (
+            {(queueError || queueBlockedResult || deleteError || convertError) && (
               <div className="mt-4 space-y-2">
+                {queueBlockedResult && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                    <div className="flex items-center gap-2 font-medium">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                      {queueBlockedResult.message}
+                    </div>
+                    {queueBlockedResult.blockingReasons.length > 0 && (
+                      <ul className="mt-1.5 list-disc space-y-0.5 pl-6 text-amber-300/90">
+                        {queueBlockedResult.blockingReasons.map((reason, i) => (
+                          <li key={i}>{reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {queueBlockedResult.unansweredQuestions > 0 && (
+                      <p className="mt-1 text-xs text-amber-300/70">
+                        {queueBlockedResult.unansweredQuestions} unanswered question{queueBlockedResult.unansweredQuestions !== 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {queueError && (
                   <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                     {queueError}

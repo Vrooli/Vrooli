@@ -472,7 +472,7 @@ func (d *Detector) calculateProtectionLevel(status *Status) ProtectionLevel {
 func (d *Detector) GetServiceTemplate() (string, error) {
 	switch d.platform.Platform {
 	case "linux":
-		return d.getSystemdTemplate(), nil
+		return d.getSystemdTemplateForService(false), nil
 	case "macos":
 		return d.getLaunchdTemplate(), nil
 	case "windows":
@@ -482,7 +482,7 @@ func (d *Detector) GetServiceTemplate() (string, error) {
 	}
 }
 
-func (d *Detector) getSystemdTemplate() string {
+func (d *Detector) getSystemdTemplateForService(systemService bool) string {
 	// Resolve VROOLI_ROOT at runtime for a working template
 	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -494,10 +494,11 @@ func (d *Detector) getSystemdTemplate() string {
 	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
 	workDir := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal")
 	homeDir, _ := d.probe.userHomeDir()
-	currentUser, _ := d.probe.currentUser()
-	username := "root"
-	if currentUser != nil {
-		username = currentUser.Username
+	userDirective := ""
+	wantedBy := "default.target"
+	if systemService {
+		userDirective = "User=root\n"
+		wantedBy = "multi-user.target"
 	}
 
 	return fmt.Sprintf(`[Unit]
@@ -518,18 +519,17 @@ ExecStart=%s
 Restart=always
 # Wait a bit before restarting to allow dependencies to recover
 RestartSec=15
-User=%s
-Environment=VROOLI_LIFECYCLE_MANAGED=true
+%sEnvironment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=%s
 Environment=VROOLI_ROOT=%s
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
 WorkingDirectory=%s
 # Graceful shutdown timeout
 TimeoutStopSec=30
 
 [Install]
-WantedBy=default.target
-`, loopBinaryPath, username, homeDir, vrooliRoot, homeDir, workDir)
+WantedBy=%s
+`, loopBinaryPath, userDirective, homeDir, vrooliRoot, homeDir, homeDir, workDir, wantedBy)
 }
 
 func (d *Detector) getLaunchdTemplate() string {
@@ -569,7 +569,7 @@ func (d *Detector) getLaunchdTemplate() string {
         <key>HOME</key>
         <string>%s</string>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin</string>
+        <string>/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin</string>
     </dict>
     <key>WorkingDirectory</key>
     <string>%s/scenarios/vrooli-autoheal</string>
@@ -581,7 +581,7 @@ func (d *Detector) getLaunchdTemplate() string {
     <integer>15</integer>
 </dict>
 </plist>
-`, loopBinaryPath, vrooliRoot, homeDir, homeDir, vrooliRoot, logPath, errPath)
+`, loopBinaryPath, vrooliRoot, homeDir, homeDir, homeDir, vrooliRoot, logPath, errPath)
 }
 
 func (d *Detector) getWindowsTaskTemplate() string {

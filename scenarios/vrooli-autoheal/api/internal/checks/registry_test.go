@@ -771,6 +771,44 @@ func TestRunAutoHeal_SelectsFirstSafeAction(t *testing.T) {
 	}
 }
 
+func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "vrooli-orphans",
+		result: Result{CheckID: "vrooli-orphans", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "list", Available: true, Dangerous: false},
+			{ID: "kill-safe", Available: true, Dangerous: false},
+			{ID: "kill", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"vrooli-orphans": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "vrooli-orphans", Status: StatusCritical},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "kill-safe" {
+		t.Errorf("expected kill-safe to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
 // TestRunAutoHeal_ScenarioCriticalAllowsRestart verifies controlled dangerous restart
 // is allowed for scenario checks.
 func TestRunAutoHeal_ScenarioCriticalAllowsRestart(t *testing.T) {

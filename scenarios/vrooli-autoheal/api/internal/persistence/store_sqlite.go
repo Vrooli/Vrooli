@@ -621,12 +621,12 @@ func (s *Store) saveHealTrackerSQLite(ctx context.Context, checkID string, track
 
 	_, err := s.db.ExecContext(ctx, query,
 		checkID,
-		tracker.LastAttempt,
-		tracker.LastSuccess,
+		nullableTimeToDBText(tracker.LastAttempt),
+		nullableTimeToDBText(tracker.LastSuccess),
 		tracker.ConsecutiveFailures,
 		tracker.TotalAttempts,
 		tracker.TotalSuccesses,
-		tracker.CooldownUntil,
+		nullableTimeToDBText(tracker.CooldownUntil),
 		time.Now().UTC().Format(time.RFC3339Nano),
 	)
 	return err
@@ -646,31 +646,34 @@ func (s *Store) getAllHealTrackersSQLite(ctx context.Context) (map[string]*check
 	trackers := make(map[string]*checks.HealTracker)
 	for rows.Next() {
 		var checkID string
-		var lastAttempt sql.NullTime
-		var lastSuccess sql.NullTime
-		var cooldownUntil sql.NullTime
+		var lastAttemptRaw any
+		var lastSuccessRaw any
+		var cooldownUntilRaw any
 		var tracker checks.HealTracker
 
 		if err := rows.Scan(
 			&checkID,
-			&lastAttempt,
-			&lastSuccess,
+			&lastAttemptRaw,
+			&lastSuccessRaw,
 			&tracker.ConsecutiveFailures,
 			&tracker.TotalAttempts,
 			&tracker.TotalSuccesses,
-			&cooldownUntil,
+			&cooldownUntilRaw,
 		); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
-		if lastAttempt.Valid {
-			tracker.LastAttempt = lastAttempt.Time
+		lastAttempt, ok := parseNullableDBTime(lastAttemptRaw)
+		if ok {
+			tracker.LastAttempt = lastAttempt
 		}
-		if lastSuccess.Valid {
-			tracker.LastSuccess = lastSuccess.Time
+		lastSuccess, ok := parseNullableDBTime(lastSuccessRaw)
+		if ok {
+			tracker.LastSuccess = lastSuccess
 		}
-		if cooldownUntil.Valid {
-			tracker.CooldownUntil = cooldownUntil.Time
+		cooldownUntil, ok := parseNullableDBTime(cooldownUntilRaw)
+		if ok {
+			tracker.CooldownUntil = cooldownUntil
 		}
 
 		trackers[checkID] = &tracker
@@ -715,4 +718,49 @@ func parseTimeString(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("failed to parse time %q", s)
+}
+
+func nullableTimeToDBText(ts time.Time) interface{} {
+	if ts.IsZero() {
+		return nil
+	}
+	return ts.UTC().Format(time.RFC3339Nano)
+}
+
+func parseNullableDBTime(raw any) (time.Time, bool) {
+	if raw == nil {
+		return time.Time{}, false
+	}
+	switch v := raw.(type) {
+	case time.Time:
+		if v.IsZero() {
+			return time.Time{}, false
+		}
+		return v, true
+	case string:
+		if v == "" {
+			return time.Time{}, false
+		}
+		ts, err := parseTimeString(v)
+		if err != nil {
+			return time.Time{}, false
+		}
+		return ts, true
+	case []byte:
+		if len(v) == 0 {
+			return time.Time{}, false
+		}
+		ts, err := parseTimeString(string(v))
+		if err != nil {
+			return time.Time{}, false
+		}
+		return ts, true
+	case sql.NullTime:
+		if !v.Valid || v.Time.IsZero() {
+			return time.Time{}, false
+		}
+		return v.Time, true
+	default:
+		return time.Time{}, false
+	}
 }

@@ -1,0 +1,103 @@
+{
+  "module": "liveness-probes",
+  "description": "Internal and external HTTP probes for published route liveness verification",
+  "prd_refs": ["OT-P0-004", "OT-P0-005", "OT-P1-008"],
+  "requirements": [
+    {
+      "id": "PROBE-001",
+      "title": "Internal probe per route",
+      "description": "For each enabled route in the manifest, HTTP GET the local port (e.g., http://127.0.0.1:36238/). Any response with status < 500 counts as alive. Configurable timeout (default 5s).",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/probe_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PROBE-002",
+      "title": "External probe per route",
+      "description": "For each enabled route, HTTP GET the public URL (e.g., https://agent-manager.itsagitime.com/). Any response with status < 500 counts as reachable. Configurable timeout (default 10s).",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/probe_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PROBE-003",
+      "title": "Probe result classification",
+      "description": "Classify each route's status based on probe results: up (both pass), tunnel-issue (internal passes, external fails), scenario-down (internal fails), unknown (both fail). Persist results with timestamps.",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/probe_classifier_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PROBE-004",
+      "title": "Concurrent probe execution",
+      "description": "Run probes concurrently (bounded goroutine pool) to avoid slow routes blocking the entire probe cycle. Configurable concurrency limit (default 5).",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/probe_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PROBE-005",
+      "title": "Periodic probe scheduling",
+      "description": "Run full probe cycle on a configurable interval (default 60s). Store probe history for trend display.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/probe_scheduler_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "PROBE-006",
+      "title": "Custom health endpoint support",
+      "description": "Route manifest entries can specify a custom health path (e.g., '/health' or '/api/health'). If specified, probes use that path instead of '/'. This enables more reliable health detection.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/probe_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

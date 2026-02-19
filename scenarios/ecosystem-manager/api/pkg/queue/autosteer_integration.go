@@ -48,10 +48,26 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 	}
 
 	if existingState != nil {
-		// Already initialized
-		log.Printf("Auto Steer already initialized for task %s (profile: %s, phase: %d/%d)",
-			task.ID, task.AutoSteerProfileID, existingState.CurrentPhaseIndex+1, len(existingState.PhaseHistory)+1)
-		return nil
+		// Check if the profile has changed since the execution was initialized.
+		// If the task's profile ID differs from the persisted state, the user
+		// switched profiles between runs — reset and re-initialize so the new
+		// profile's phases and conditions take effect.
+		if existingState.ProfileID != task.AutoSteerProfileID {
+			log.Printf("Auto Steer: Profile changed for task %s (%s → %s); resetting execution state",
+				task.ID, existingState.ProfileID, task.AutoSteerProfileID)
+			systemlog.Infof("Auto Steer: Resetting task %s execution state due to profile change (%s → %s)",
+				task.ID, existingState.ProfileID, task.AutoSteerProfileID)
+
+			if err := a.executionOrchestrator.DeleteExecutionState(task.ID); err != nil {
+				return fmt.Errorf("failed to delete stale Auto Steer state: %w", err)
+			}
+			// Fall through to create a fresh execution below.
+		} else {
+			// Already initialized with the correct profile.
+			log.Printf("Auto Steer already initialized for task %s (profile: %s, phase: %d/%d)",
+				task.ID, task.AutoSteerProfileID, existingState.CurrentPhaseIndex+1, len(existingState.PhaseHistory)+1)
+			return nil
+		}
 	}
 
 	// Initialize new execution

@@ -1,0 +1,103 @@
+{
+  "module": "tunnel-health",
+  "description": "Monitor cloudflared tunnel health via systemd, Prometheus metrics, and ready endpoint",
+  "prd_refs": ["OT-P0-003", "OT-P1-004", "OT-P1-009"],
+  "requirements": [
+    {
+      "id": "HEALTH-001",
+      "title": "Systemd service status check",
+      "description": "Check cloudflared systemd service status via 'systemctl is-active cloudflared'. Report active/inactive/failed states.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/tunnel_health_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-002",
+      "title": "Ready endpoint check",
+      "description": "Poll cloudflared's /ready endpoint (configurable host:port, default 127.0.0.1:20241). Returns 200 when tunnel has established connections and is ready to serve traffic.",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/tunnel_health_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "HEALTH-003",
+      "title": "Prometheus metrics scraping",
+      "description": "Scrape cloudflared's /metrics endpoint for key gauges: cloudflared_tunnel_ha_connections, cloudflared_tunnel_request_errors, cloudflared_tunnel_active_streams, quic_client_smoothed_rtt",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/metrics_scraper_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "HEALTH-004",
+      "title": "HA connection monitoring",
+      "description": "Track cloudflared_tunnel_ha_connections gauge. Normal is 4. If < 4, report degraded. If 0, report critical.",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/tunnel_health_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "HEALTH-005",
+      "title": "Error rate tracking",
+      "description": "Track cloudflared_tunnel_request_errors counter. Calculate rate over 5-minute windows. Alert if error rate exceeds configurable threshold.",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/metrics_scraper_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "HEALTH-006",
+      "title": "Composite health score",
+      "description": "Calculate overall tunnel health as: healthy (systemd active + ready 200 + HA >= 4), degraded (systemd active + any sub-check warning), critical (systemd inactive or ready non-200)",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/tunnel_health_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

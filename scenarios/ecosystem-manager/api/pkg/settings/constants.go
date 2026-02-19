@@ -12,7 +12,7 @@ const (
 
 	// Max turns constraints
 	MinMaxTurns = 5
-	MaxMaxTurns = 100
+	MaxMaxTurns = 500
 
 	// Task timeout constraints (minutes)
 	MinTaskTimeout = 5

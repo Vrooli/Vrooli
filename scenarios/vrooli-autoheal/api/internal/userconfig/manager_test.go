@@ -31,12 +31,14 @@ func TestGetCheckDefaults(t *testing.T) {
 		checkID          string
 		expectedEnabled  bool
 		expectedAutoHeal bool
+		expectedPolicy   string
 	}{
-		{"infra-network", true, false},
-		{"infra-dns", true, true},
-		{"resource-postgres", true, true},
-		{"infra-display", true, true},
-		{"unknown-check", true, false}, // Generic defaults
+		{"infra-network", true, false, "critical"},
+		{"infra-dns", true, true, "critical"},
+		{"resource-postgres", true, true, "critical"},
+		{"infra-display", true, true, "critical"},
+		{"os-watchdog", true, true, "critical"},
+		{"unknown-check", true, false, "critical"}, // Generic defaults
 	}
 
 	for _, tc := range tests {
@@ -47,6 +49,9 @@ func TestGetCheckDefaults(t *testing.T) {
 			}
 			if defaults.AutoHeal != tc.expectedAutoHeal {
 				t.Errorf("check %s: expected autoHeal=%v, got %v", tc.checkID, tc.expectedAutoHeal, defaults.AutoHeal)
+			}
+			if defaults.AutoHealOn != tc.expectedPolicy {
+				t.Errorf("check %s: expected autoHealOn=%q, got %q", tc.checkID, tc.expectedPolicy, defaults.AutoHealOn)
 			}
 		})
 	}
@@ -236,6 +241,9 @@ func TestManagerGetCheck(t *testing.T) {
 	}
 	if !cfg.AutoHeal {
 		t.Error("postgres should have autoHeal enabled by default")
+	}
+	if cfg.Settings.AutoHealOn != "critical" {
+		t.Errorf("postgres autoHealOn = %q, want critical", cfg.Settings.AutoHealOn)
 	}
 
 	// Override via config

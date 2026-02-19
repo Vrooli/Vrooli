@@ -42,12 +42,12 @@ Unlike many other issues, certificate expiration is **100% predictable** and sho
 
 ### Linux
 - `~/.cloudflared/cert.pem`
-- `/etc/cloudflared/cert.pem`
-- `/etc/ssl/certs/cloudflared.crt`
+- `<cloudflared-system-config>/cert.pem`
+- `<system-cert-store>/cloudflared.crt`
 
 ### macOS
 - `~/.cloudflared/cert.pem`
-- `/usr/local/etc/cloudflared/cert.pem`
+- `<local-system-config>/cloudflared/cert.pem`
 
 ### Windows
 - `%USERPROFILE%\.cloudflared\cert.pem`

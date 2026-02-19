@@ -12,7 +12,7 @@
 
 // Backlog
 export { backlogService, createBacklogService } from "./backlog-service";
-export type { IBacklogService } from "./backlog-service";
+export type { IBacklogService, QueueResponse } from "./backlog-service";
 
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";

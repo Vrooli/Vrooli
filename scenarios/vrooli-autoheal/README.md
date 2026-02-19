@@ -113,7 +113,7 @@ test-genie execute vrooli-autoheal --preset quick
 - [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
 - [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred work
 - [docs/internal/RESEARCH.md](./docs/internal/RESEARCH.md) - Background research and related scenarios
-- [requirements/](./requirements/) - Technical requirements registry
+- [requirements/README.md](./requirements/README.md) - Technical requirements registry
 
 ## Related Scenarios
 

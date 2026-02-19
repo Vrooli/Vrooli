@@ -1,6 +1,7 @@
 package agentmanager
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -65,5 +66,53 @@ func TestBuildProfile(t *testing.T) {
 	}
 	if profile.SkipPermissionPrompt || profile.RequiresSandbox || !profile.RequiresApproval {
 		t.Fatalf("expected permission flags to be preserved")
+	}
+}
+
+func TestTruncateDescription_Short(t *testing.T) {
+	desc := "short description"
+	result := truncateDescription(desc)
+	if result != desc {
+		t.Fatalf("expected unchanged description, got %q", result)
+	}
+}
+
+func TestTruncateDescription_ExactLimit(t *testing.T) {
+	desc := strings.Repeat("a", maxTaskDescriptionLen)
+	result := truncateDescription(desc)
+	if result != desc {
+		t.Fatalf("expected unchanged description at exact limit, got len=%d", len(result))
+	}
+}
+
+func TestTruncateDescription_OverLimit(t *testing.T) {
+	desc := strings.Repeat("x", maxTaskDescriptionLen+1000)
+	result := truncateDescription(desc)
+	if len(result) > maxTaskDescriptionLen {
+		t.Fatalf("truncated description exceeds limit: len=%d, max=%d", len(result), maxTaskDescriptionLen)
+	}
+	if !strings.HasSuffix(result, "[truncated — full prompt provided via run request]") {
+		t.Fatal("expected truncation suffix")
+	}
+}
+
+func TestTruncateDescription_LargePrompt(t *testing.T) {
+	// A 20KB prompt (like swarm-manager-process-idea) fits within the 64KB limit.
+	desc := strings.Repeat("y", 20195)
+	result := truncateDescription(desc)
+	if result != desc {
+		t.Fatalf("20KB prompt should pass through unchanged, got len=%d", len(result))
+	}
+}
+
+func TestTruncateDescription_ExceedsNewLimit(t *testing.T) {
+	// Verify truncation still works for prompts exceeding the 64KB limit.
+	desc := strings.Repeat("z", maxTaskDescriptionLen+500)
+	result := truncateDescription(desc)
+	if len(result) > maxTaskDescriptionLen {
+		t.Fatalf("prompt exceeding 64KB not truncated: len=%d", len(result))
+	}
+	if !strings.HasSuffix(result, "[truncated — full prompt provided via run request]") {
+		t.Fatal("expected truncation suffix")
 	}
 }

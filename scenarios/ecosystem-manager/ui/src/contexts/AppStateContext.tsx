@@ -74,7 +74,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [isFilterPanelOpen, setFilterPanelOpen] = useState(false);
   const [activeModal, setActiveModalState] = useState<string | null>(null);
   const [cachedSettings, setCachedSettings] = useState<Settings | null>(null);
-  const { data: fetchedSettings } = useSettings();
+  const { data: settingsData } = useSettings();
 
   const setFilters = useCallback((newFilters: TaskFilters) => {
     setFiltersState(newFilters);
@@ -114,10 +114,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Keep cached settings in sync with the API response
   useEffect(() => {
-    if (fetchedSettings) {
-      setCachedSettings(fetchedSettings);
+    if (settingsData?.settings) {
+      setCachedSettings(settingsData.settings);
     }
-  }, [fetchedSettings]);
+  }, [settingsData]);
 
   const value: AppState = {
     filters,

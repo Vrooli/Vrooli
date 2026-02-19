@@ -298,6 +298,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, r *http.Re
 		newTask.Targets = []string{target}
 		newTask.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
 		newTask.Status = "pending"
+		newTask.ProcessorAutoRequeue = true
 		newTask.Results = nil
 		timestamp := timeutil.NowRFC3339()
 		newTask.CreatedAt = timestamp
@@ -804,6 +805,7 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	task.UpdatedAt = timeutil.NowRFC3339()
+	task.ProcessorAutoRequeue = true
 
 	// Ensure canonical single-target representation is persisted
 	if len(task.Targets) == 1 {

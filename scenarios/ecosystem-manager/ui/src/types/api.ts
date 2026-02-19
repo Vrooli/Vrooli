@@ -128,6 +128,28 @@ export interface RunningProcess {
   elapsed_seconds: number;
 }
 
+// ==================== Settings Constraints ====================
+
+export interface ConstraintRange {
+  min: number;
+  max: number;
+}
+
+export interface SettingsConstraints {
+  slots: ConstraintRange;
+  cooldown_seconds: ConstraintRange;
+  max_turns: ConstraintRange;
+  task_timeout: ConstraintRange;
+  idle_timeout_cap: ConstraintRange;
+  recycler: {
+    interval_seconds: ConstraintRange;
+    max_retries: ConstraintRange;
+    retry_delay_seconds: ConstraintRange;
+    completion_threshold: ConstraintRange;
+    failure_threshold: ConstraintRange;
+  };
+}
+
 // ==================== Settings Types ====================
 
 export interface Settings {

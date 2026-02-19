@@ -48,13 +48,20 @@ import type { ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, Bac
 
 /**
  * Response from queueing a backlog item for processing.
+ * When `dryRun` is true the queue did not execute — check `blockingReasons`.
  */
 export interface QueueResponse {
-  item: BacklogItem;
+  item?: BacklogItem;
   taskId: string;
   runId: string;
   baseUrl: string;
   created: string;
+  dryRun: boolean;
+  queued: boolean;
+  message: string;
+  blockingReasons: string[];
+  unansweredQuestions: number;
+  pendingSuggestions: number;
 }
 
 export interface BacklogFileOperationResult {
@@ -307,13 +314,18 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         toProtoJson(QueueBacklogItemRequestSchema, msg),
       );
       const parsed = parseProtoResponse(queueBacklogResponseSchema, data, "backlog queue");
-      const item = requireProtoField(parsed.item, "backlog queue");
       return {
-        item: mapProtoBacklogItem(item),
+        item: parsed.item ? mapProtoBacklogItem(parsed.item) : undefined,
         taskId: parsed.taskId ?? "",
         runId: parsed.runId ?? "",
         baseUrl: parsed.baseUrl ?? "",
         created: parsed.created ?? "",
+        dryRun: parsed.dryRun ?? false,
+        queued: parsed.queued ?? false,
+        message: parsed.message ?? "",
+        blockingReasons: parsed.blockingReasons ?? [],
+        unansweredQuestions: parsed.unansweredQuestions ?? 0,
+        pendingSuggestions: parsed.pendingSuggestions ?? 0,
       };
     },
 

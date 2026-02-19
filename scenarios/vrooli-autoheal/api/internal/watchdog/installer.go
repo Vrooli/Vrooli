@@ -162,7 +162,7 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 		}
 	}
 
-	template := d.getSystemdTemplate()
+	template := d.getSystemdTemplateForService(opts.UseSystemService)
 	var servicePath string
 	var isUserService bool
 
@@ -214,12 +214,12 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 	}
 
 	// Reload systemd daemon
-	reloadArgs := []string{"daemon-reload"}
-	enableArgs := []string{"enable", "vrooli-autoheal"}
-	startArgs := []string{"start", "vrooli-autoheal"}
 	reloadCmdName := "systemctl"
 	enableCmdName := "systemctl"
 	startCmdName := "systemctl"
+	var reloadArgs []string
+	var enableArgs []string
+	var startArgs []string
 	if opts.UseSystemService {
 		reloadCmdName = "sudo"
 		enableCmdName = "sudo"

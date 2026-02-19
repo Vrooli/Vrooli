@@ -14,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { AgentSettings } from '@/types/api';
+import type { AgentSettings, SettingsConstraints } from '@/types/api';
 
 interface AgentTabProps {
   settings: AgentSettings;
   onChange: (updates: Partial<AgentSettings>) => void;
+  constraints?: SettingsConstraints;
 }
 
 const runnerOptions = [
@@ -27,7 +28,7 @@ const runnerOptions = [
   { value: 'opencode', label: 'OpenCode', description: 'Open-source multi-model CLI' },
 ] as const;
 
-export function AgentTab({ settings, onChange }: AgentTabProps) {
+export function AgentTab({ settings, onChange, constraints }: AgentTabProps) {
   return (
     <div className="space-y-6">
       {/* AI Runner Type */}
@@ -66,8 +67,8 @@ export function AgentTab({ settings, onChange }: AgentTabProps) {
         </div>
         <Slider
           id="max-turns"
-          min={5}
-          max={100}
+          min={constraints?.max_turns.min ?? 5}
+          max={constraints?.max_turns.max ?? 500}
           step={1}
           value={[settings.max_turns]}
           onValueChange={(value) => onChange({ max_turns: value[0] })}
@@ -88,8 +89,8 @@ export function AgentTab({ settings, onChange }: AgentTabProps) {
         </div>
         <Slider
           id="task-timeout"
-          min={5}
-          max={240}
+          min={constraints?.task_timeout.min ?? 5}
+          max={constraints?.task_timeout.max ?? 240}
           step={5}
           value={[settings.task_timeout_minutes]}
           onValueChange={(value) => onChange({ task_timeout_minutes: value[0] })}
@@ -110,8 +111,8 @@ export function AgentTab({ settings, onChange }: AgentTabProps) {
         </div>
         <Slider
           id="idle-timeout"
-          min={2}
-          max={240}
+          min={constraints?.idle_timeout_cap.min ?? 2}
+          max={constraints?.idle_timeout_cap.max ?? 240}
           step={2}
           value={[settings.idle_timeout_cap_minutes]}
           onValueChange={(value) => onChange({ idle_timeout_cap_minutes: value[0] })}

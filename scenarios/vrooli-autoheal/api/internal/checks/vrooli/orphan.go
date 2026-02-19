@@ -22,6 +22,14 @@ var VrooliProcessPatterns = regexp.MustCompile(
 	`vrooli|/scenarios/[^/]+/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel`,
 )
 
+var protectedScenarioNames = map[string]struct{}{
+	"vrooli-autoheal":   {},
+	"app-monitor":       {},
+	"ecosystem-manager": {},
+	"agent-manager":     {},
+	"swarm-manager":     {},
+}
+
 // DefaultGracePeriodSeconds is the default time to wait before considering a process an orphan.
 // This prevents false positives for processes that are still starting up and haven't registered yet.
 const DefaultGracePeriodSeconds = 30
@@ -342,6 +350,13 @@ func (c *OrphanCheck) RecoveryActions(lastResult *checks.Result) []checks.Recove
 			Available:   true,
 		},
 		{
+			ID:          "kill-safe",
+			Name:        "Kill Safe Orphans",
+			Description: "Terminate only lifecycle-marked orphan processes, excluding protected scenarios",
+			Dangerous:   false,
+			Available:   hasOrphans,
+		},
+		{
 			ID:          "kill",
 			Name:        "Kill Orphans",
 			Description: "Terminate all orphaned Vrooli processes (SIGTERM, then SIGKILL)",
@@ -364,6 +379,8 @@ func (c *OrphanCheck) ExecuteAction(ctx context.Context, actionID string) checks
 	switch actionID {
 	case "list":
 		return c.executeList(ctx, start)
+	case "kill-safe":
+		return c.executeKillSafe(ctx, start)
 	case "kill":
 		return c.executeKill(ctx, start)
 	default:
@@ -606,6 +623,132 @@ func (c *OrphanCheck) executeKill(ctx context.Context, start time.Time) checks.A
 	return result
 }
 
+func (c *OrphanCheck) executeKillSafe(ctx context.Context, start time.Time) checks.ActionResult {
+	_ = ctx
+	result := checks.ActionResult{
+		ActionID:  "kill-safe",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	tracked, err := c.stateReader.ListTrackedProcesses()
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	trackedSet := make(map[int]bool)
+	for _, proc := range tracked {
+		if proc.PID > 0 {
+			trackedSet[proc.PID] = true
+		}
+		if proc.PGID > 0 {
+			trackedSet[proc.PGID] = true
+		}
+	}
+
+	allProcs, err := c.procReader.ListProcesses()
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	var outputBuilder strings.Builder
+	outputBuilder.WriteString("=== Safe Orphan Cleanup ===\n\n")
+	outputBuilder.WriteString(fmt.Sprintf("Grace period: %.0f seconds\n", c.gracePeriodSeconds))
+	outputBuilder.WriteString("Policy: lifecycle-marked only, protected scenarios excluded\n\n")
+
+	killed := 0
+	failed := 0
+	skippedYoung := 0
+	skippedUnmanaged := 0
+	skippedProtected := 0
+
+	for _, proc := range allProcs {
+		if !c.isVrooliProcess(proc) {
+			continue
+		}
+		if c.hasTrackedAncestor(proc.PID, allProcs, trackedSet) {
+			continue
+		}
+
+		age := checks.ProcessAge(proc.StartTime)
+		if age > 0 && age < c.gracePeriodSeconds {
+			outputBuilder.WriteString(fmt.Sprintf("Skipping PID %d (%s): within grace period (%.1fs)\n", proc.PID, proc.Comm, age))
+			skippedYoung++
+			continue
+		}
+
+		env, _ := c.procReader.ReadProcessEnviron(proc.PID)
+		if env["VROOLI_LIFECYCLE_MANAGED"] != "true" {
+			outputBuilder.WriteString(fmt.Sprintf("Skipping PID %d (%s): unmanaged process (no lifecycle marker)\n", proc.PID, proc.Comm))
+			skippedUnmanaged++
+			continue
+		}
+
+		cmdline, _ := c.procReader.ReadProcessCmdline(proc.PID)
+		if c.isProtectedProcess(proc, env, cmdline) {
+			outputBuilder.WriteString(fmt.Sprintf("Skipping PID %d (%s): protected scenario/process\n", proc.PID, proc.Comm))
+			skippedProtected++
+			continue
+		}
+
+		outputBuilder.WriteString(fmt.Sprintf("Killing PID %d (%s, age: %.1fs)... ", proc.PID, proc.Comm, age))
+		if err := syscall.Kill(proc.PID, syscall.SIGTERM); err != nil {
+			outputBuilder.WriteString(fmt.Sprintf("SIGTERM failed: %v, trying SIGKILL... ", err))
+			if err := syscall.Kill(proc.PID, syscall.SIGKILL); err != nil {
+				outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
+				failed++
+				continue
+			}
+		}
+
+		time.Sleep(100 * time.Millisecond)
+		if checks.ProcessExists(proc.PID) {
+			_ = syscall.Kill(proc.PID, syscall.SIGKILL)
+			time.Sleep(100 * time.Millisecond)
+			if checks.ProcessExists(proc.PID) {
+				outputBuilder.WriteString("STILL RUNNING\n")
+				failed++
+				continue
+			}
+		}
+
+		outputBuilder.WriteString("OK\n")
+		killed++
+	}
+
+	if killed == 0 && failed == 0 && skippedYoung == 0 && skippedUnmanaged == 0 && skippedProtected == 0 {
+		outputBuilder.WriteString("No orphan processes matched safe-kill criteria.\n")
+	}
+
+	outputBuilder.WriteString(fmt.Sprintf(
+		"\nSummary: %d killed, %d failed, %d skipped (grace), %d skipped (unmanaged), %d skipped (protected)\n",
+		killed, failed, skippedYoung, skippedUnmanaged, skippedProtected,
+	))
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+
+	if failed > 0 {
+		result.Success = false
+		result.Error = fmt.Sprintf("Failed to kill %d safe orphan processes", failed)
+		result.Message = fmt.Sprintf("Partially killed %d safe orphans (%d failed)", killed, failed)
+		return result
+	}
+
+	result.Success = true
+	result.Message = fmt.Sprintf(
+		"Killed %d safe orphan processes (%d unmanaged skipped, %d protected skipped, %d grace-skipped)",
+		killed, skippedUnmanaged, skippedProtected, skippedYoung,
+	)
+	return result
+}
+
 // GetOrphanPIDs returns a list of orphan PIDs for external use (e.g., diagnose-port)
 // Respects the grace period - only returns PIDs of processes older than the grace period.
 func (c *OrphanCheck) GetOrphanPIDs() ([]int, error) {
@@ -669,6 +812,29 @@ func KillProcess(pid int) error {
 	}
 
 	return nil
+}
+
+func (c *OrphanCheck) isProtectedProcess(proc checks.ProcessInfo, env map[string]string, cmdline string) bool {
+	if scenario := strings.TrimSpace(env["VROOLI_SCENARIO"]); c.isProtectedScenario(scenario) {
+		return true
+	}
+
+	normalizedComm := strings.ToLower(strings.TrimSpace(proc.Comm))
+	if strings.Contains(normalizedComm, "vrooli-autoheal") {
+		return true
+	}
+
+	lowerCmd := strings.ToLower(cmdline)
+	return strings.Contains(lowerCmd, "vrooli-autoheal-loop") ||
+		strings.Contains(lowerCmd, "vrooli-autoheal-api")
+}
+
+func (c *OrphanCheck) isProtectedScenario(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, protected := protectedScenarioNames[name]
+	return protected
 }
 
 // GetProcessOnPort returns the PID of the process listening on a port (exported for diagnose-port)

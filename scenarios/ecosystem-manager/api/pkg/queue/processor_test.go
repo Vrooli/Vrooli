@@ -66,12 +66,27 @@ func TestProcessor_GetQueueStatus(t *testing.T) {
 		t.Fatal("Expected non-nil status")
 	}
 
-	// Check required fields
+	// Check legacy fields (used by internal Go handlers)
 	requiredFields := []string{"processor_active", "pending_count", "executing_count", "completed_count", "failed_count", "available_slots"}
 	for _, field := range requiredFields {
 		if _, ok := status[field]; !ok {
 			t.Errorf("Expected %s field", field)
 		}
+	}
+
+	// Check proto-compatible fields (used by UI via proto schema parsing).
+	// These must match the QueueStatus proto message field names so the UI
+	// can parse the response without falling through to the lossy fallback.
+	protoFields := []string{"is_active", "is_paused", "is_rate_limit_paused", "max_slots", "running_processes"}
+	for _, field := range protoFields {
+		if _, ok := status[field]; !ok {
+			t.Errorf("Expected proto-compatible field %q", field)
+		}
+	}
+
+	// is_active and processor_active must always agree
+	if status["is_active"] != status["processor_active"] {
+		t.Errorf("is_active (%v) must equal processor_active (%v)", status["is_active"], status["processor_active"])
 	}
 }
 

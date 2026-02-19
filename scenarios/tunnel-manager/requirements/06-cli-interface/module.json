@@ -1,0 +1,87 @@
+{
+  "module": "cli-interface",
+  "description": "CLI commands for tunnel management operations",
+  "prd_refs": ["OT-P0-007", "OT-P0-008", "OT-P0-009", "OT-P0-010"],
+  "requirements": [
+    {
+      "id": "CLI-STATUS-001",
+      "title": "Status command shows tunnel health",
+      "description": "tunnel-manager status displays: systemd status, /ready status, HA connections, error rate, management mode (local/remote), last recovery event",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/status_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-STATUS-002",
+      "title": "Status supports JSON output",
+      "description": "--json flag outputs machine-readable health summary for scripting and agent consumption",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/status_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-ROUTES-001",
+      "title": "Routes command lists all published routes",
+      "description": "tunnel-manager routes displays a table: subdomain, scenario, expected port, status (up/down/degraded), last probe time",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/routes_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-PROBE-001",
+      "title": "Probe command runs all probes",
+      "description": "tunnel-manager probe runs internal + external probes on all enabled routes and displays results with classification (up, tunnel-issue, scenario-down)",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/probe_test.go"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "CLI-AUDIT-001",
+      "title": "Audit command checks port compliance",
+      "description": "tunnel-manager audit scans all manifested scenarios and reports: compliant, non-compliant (with expected vs actual), missing. Exit code 1 if any violations found.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "cli",
+          "status": "planned",
+          "ref": "cli/audit_test.go"
+        }
+      ],
+      "status": "pending"
+    }
+  ]
+}

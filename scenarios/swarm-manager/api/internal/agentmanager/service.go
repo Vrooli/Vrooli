@@ -271,7 +271,7 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 
 	task := &domainpb.Task{
 		Title:       title,
-		Description: strings.TrimSpace(req.Description),
+		Description: truncateDescription(strings.TrimSpace(req.Description)),
 		ScopePath:   scopePath,
 		ProjectRoot: projectRoot,
 		CreatedBy:   createdBy,
@@ -336,7 +336,7 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 
 	task := &domainpb.Task{
 		Title:       title,
-		Description: strings.TrimSpace(req.Description),
+		Description: truncateDescription(strings.TrimSpace(req.Description)),
 		ScopePath:   scopePath,
 		ProjectRoot: projectRoot,
 		CreatedBy:   createdBy,
@@ -470,6 +470,20 @@ func capitalizeLabel(value string) string {
 	runes := []rune(value)
 	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
 	return string(runes)
+}
+
+// maxTaskDescriptionLen is the agent-manager limit for task descriptions (64KB).
+const maxTaskDescriptionLen = 65536
+
+// truncateDescription ensures the description fits within agent-manager's
+// limit. The full prompt is still sent via the CreateRunRequest.Prompt field,
+// so the agent receives the complete text regardless of truncation here.
+func truncateDescription(desc string) string {
+	if len(desc) <= maxTaskDescriptionLen {
+		return desc
+	}
+	const suffix = "\n\n[truncated — full prompt provided via run request]"
+	return desc[:maxTaskDescriptionLen-len(suffix)] + suffix
 }
 
 func normalizeRunStatus(status domainpb.RunStatus) string {

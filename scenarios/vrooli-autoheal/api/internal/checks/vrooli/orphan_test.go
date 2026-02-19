@@ -84,8 +84,9 @@ func TestOrphanCheckHealable(t *testing.T) {
 
 	// Verify expected actions exist
 	expectedActions := map[string]bool{
-		"list": false,
-		"kill": false,
+		"list":      false,
+		"kill-safe": false,
+		"kill":      false,
 	}
 	for _, action := range actions {
 		if _, exists := expectedActions[action.ID]; exists {
@@ -306,6 +307,44 @@ func TestOrphanCheckExecuteActionUnknown(t *testing.T) {
 	}
 }
 
+func TestOrphanCheckExecuteActionKillSafe_SkipsProtectedAndUnmanaged(t *testing.T) {
+	mockStateReader := &MockVrooliStateReader{
+		TrackedProcesses: []checks.TrackedProcess{},
+	}
+	mockProcReader := &MockProcReader{
+		Processes: []checks.ProcessInfo{
+			{PID: 2001, PPid: 1, Comm: "vrooli-helper", State: "S"},
+			{PID: 2002, PPid: 1, Comm: "vrooli-autoheal-api", State: "S"},
+		},
+		EnvironData: map[int]map[string]string{
+			2001: {}, // unmanaged
+			2002: {
+				"VROOLI_LIFECYCLE_MANAGED": "true",
+				"VROOLI_SCENARIO":          "vrooli-autoheal", // protected
+			},
+		},
+		CmdlineData: map[int]string{
+			2002: "/home/test/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
+		},
+	}
+
+	check := NewOrphanCheck(
+		WithOrphanStateReader(mockStateReader),
+		WithOrphanProcReader(mockProcReader),
+	)
+	result := check.ExecuteAction(context.Background(), "kill-safe")
+
+	if !result.Success {
+		t.Fatalf("expected kill-safe success when only skipped candidates, got error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "unmanaged") {
+		t.Errorf("expected output to describe unmanaged skip, got: %s", result.Output)
+	}
+	if !strings.Contains(result.Output, "protected") {
+		t.Errorf("expected output to describe protected skip, got: %s", result.Output)
+	}
+}
+
 // TestOrphanCheckRecoveryActionsDangerous tests dangerous action marking
 // [REQ:HEAL-ACTION-001]
 func TestOrphanCheckRecoveryActionsDangerous(t *testing.T) {
@@ -321,6 +360,13 @@ func TestOrphanCheckRecoveryActionsDangerous(t *testing.T) {
 	if action, ok := actionMap["list"]; ok {
 		if action.Dangerous {
 			t.Error("list action should not be dangerous")
+		}
+	}
+
+	// kill-safe should be safe
+	if action, ok := actionMap["kill-safe"]; ok {
+		if action.Dangerous {
+			t.Error("kill-safe action should not be dangerous")
 		}
 	}
 
@@ -346,6 +392,9 @@ func TestOrphanCheckRecoveryActionsAvailability(t *testing.T) {
 		if action.ID == "kill" && action.Available {
 			t.Error("kill action should not be available when no orphans")
 		}
+		if action.ID == "kill-safe" && action.Available {
+			t.Error("kill-safe action should not be available when no orphans")
+		}
 		if action.ID == "list" && !action.Available {
 			t.Error("list action should always be available")
 		}
@@ -359,6 +408,9 @@ func TestOrphanCheckRecoveryActionsAvailability(t *testing.T) {
 	for _, action := range actionsHasOrphans {
 		if action.ID == "kill" && !action.Available {
 			t.Error("kill action should be available when orphans exist")
+		}
+		if action.ID == "kill-safe" && !action.Available {
+			t.Error("kill-safe action should be available when orphans exist")
 		}
 	}
 }

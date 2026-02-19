@@ -61,9 +61,13 @@
     "health": {
       "description": "Autoheal service health checks",
       "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -71,7 +75,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -82,6 +86,28 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-autoheal-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "vrooli-autoheal",
+            "targets": [
+              "vrooli-autoheal"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -91,7 +117,7 @@
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o vrooli-autoheal-api .",
-          "description": "Compile Go API server"
+          "description": "Build the Go API binary (vrooli-autoheal-api) for lifecycle orchestration"
         },
         {
           "name": "build-loop",
@@ -99,14 +125,19 @@
           "description": "Compile cross-platform Go loop binary for watchdog"
         },
         {
-          "name": "install-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm --ignore-workspace run build; else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Vrooli Autoheal initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
+          "description": "Display service access URLs"
         }
       ]
     },
@@ -117,7 +148,10 @@
           "name": "start-api",
           "run": "cd api && ./vrooli-autoheal-api",
           "background": true,
-          "description": "Start Go API server"
+          "description": "Start Go API server",
+          "condition": {
+            "file_exists": "api/vrooli-autoheal-api"
+          }
         },
         {
           "name": "start-ui",
@@ -127,6 +161,11 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Vrooli Autoheal ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
+          "description": "Display service URLs after startup"
         }
       ]
     },

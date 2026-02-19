@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import type { Settings } from '@/types/api';
 
 /**
- * Fetch current settings
+ * Fetch current settings (returns { settings, constraints })
  */
 export function useSettings() {
   return useQuery({
@@ -27,9 +27,12 @@ export function useSaveSettings() {
 
   return useMutation({
     mutationFn: (settings: Settings) => api.updateSettings(settings),
-    onSuccess: (updatedSettings) => {
-      // Update the cache with the new settings
-      queryClient.setQueryData(queryKeys.settings.get(), updatedSettings);
+    onSuccess: (result) => {
+      // Update the cache with the new settings (preserve constraints from last fetch)
+      queryClient.setQueryData(queryKeys.settings.get(), (prev: { settings: Settings; constraints: unknown } | undefined) => ({
+        settings: result.settings,
+        constraints: result.constraints ?? prev?.constraints ?? result.constraints,
+      }));
     },
   });
 }
@@ -42,9 +45,12 @@ export function useResetSettings() {
 
   return useMutation({
     mutationFn: () => api.resetSettings(),
-    onSuccess: (resetSettings) => {
-      // Update the cache with the reset settings
-      queryClient.setQueryData(queryKeys.settings.get(), resetSettings);
+    onSuccess: (result) => {
+      // Update the cache with the reset settings (preserve constraints from last fetch)
+      queryClient.setQueryData(queryKeys.settings.get(), (prev: { settings: Settings; constraints: unknown } | undefined) => ({
+        settings: result.settings,
+        constraints: result.constraints ?? prev?.constraints ?? result.constraints,
+      }));
     },
   });
 }

@@ -47,7 +47,7 @@
 - [ ] OT-P1-008 | Configurable check intervals | Per-check interval configuration with smart scheduling (only run when interval elapsed)
 - [ ] OT-P1-009 | Graceful shutdown | Handle SIGINT/SIGTERM cleanly in loop mode
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | Certificate expiration monitoring | Check SSL certificates and warn before expiration
 - [ ] OT-P2-002 | Display manager health | GDM/lightdm/sddm monitoring for Linux desktops

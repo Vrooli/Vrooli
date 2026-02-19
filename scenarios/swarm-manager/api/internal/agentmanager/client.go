@@ -111,7 +111,7 @@ func (c *HTTPClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfile
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+		return nil, readErrorResponse(resp)
 	}
 
 	var result apipb.EnsureProfileResponse
@@ -136,7 +136,7 @@ func (c *HTTPClient) CreateTask(ctx context.Context, task *domainpb.Task) (*doma
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+		return nil, readErrorResponse(resp)
 	}
 
 	var result apipb.CreateTaskResponse
@@ -163,7 +163,7 @@ func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+		return nil, readErrorResponse(resp)
 	}
 
 	var result apipb.CreateRunResponse
@@ -190,7 +190,7 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+		return nil, readErrorResponse(resp)
 	}
 
 	var result apipb.GetRunResponse
@@ -217,7 +217,7 @@ func (c *HTTPClient) StopRun(ctx context.Context, runID string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
+		return readErrorResponse(resp)
 	}
 
 	return nil
@@ -247,6 +247,25 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body []
 		return nil, fmt.Errorf("%w: %v", ErrNotAvailable, err)
 	}
 	return resp, nil
+}
+
+// maxErrorBodyBytes limits how much of an error response body to read.
+const maxErrorBodyBytes = 1024
+
+// readErrorResponse builds an ErrRequestFailed error that includes the
+// status code and (truncated) response body so callers can diagnose
+// upstream validation failures.
+func readErrorResponse(resp *http.Response) error {
+	detail := ""
+	if resp.Body != nil {
+		limited := io.LimitReader(resp.Body, maxErrorBodyBytes)
+		raw, _ := io.ReadAll(limited)
+		detail = strings.TrimSpace(string(raw))
+	}
+	if detail != "" {
+		return fmt.Errorf("%w: status %d: %s", ErrRequestFailed, resp.StatusCode, detail)
+	}
+	return fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
 }
 
 func decodeProtoResponse(resp *http.Response, msg proto.Message) error {

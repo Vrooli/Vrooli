@@ -419,6 +419,32 @@ func TestValidateAndNormalize(t *testing.T) {
 	}
 }
 
+// TestMaxTurnsAcceptsUIRange ensures the API accepts the full range of max_turns
+// values that the UI slider allows (up to 500).
+func TestMaxTurnsAcceptsUIRange(t *testing.T) {
+	previous := newDefaultSettings()
+
+	for _, turns := range []int{MinMaxTurns, 100, 200, 500, MaxMaxTurns} {
+		input := previous
+		input.MaxTurns = turns
+		result, err := ValidateAndNormalize(input, previous)
+		if err != nil {
+			t.Errorf("expected MaxTurns=%d to be valid, got error: %v", turns, err)
+			continue
+		}
+		if result.MaxTurns != turns {
+			t.Errorf("expected MaxTurns=%d, got %d", turns, result.MaxTurns)
+		}
+	}
+
+	// Values above 500 should still be rejected
+	input := previous
+	input.MaxTurns = 501
+	if _, err := ValidateAndNormalize(input, previous); err == nil {
+		t.Error("expected MaxTurns=501 to be rejected")
+	}
+}
+
 // TestSaveAndLoadToDisk ensures settings persist across calls and never persist Active=true.
 func TestSaveAndLoadToDisk(t *testing.T) {
 	ResetSettings()

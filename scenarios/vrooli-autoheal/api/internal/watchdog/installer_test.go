@@ -4,6 +4,7 @@ package watchdog
 
 import (
 	"context"
+	"os"
 	"os/user"
 	"runtime"
 	"strings"
@@ -362,6 +363,88 @@ func TestInstallLinux_UserService_UsesProbeSideEffectSeam(t *testing.T) {
 	}
 	if _, ok := probe.writtenFiles[servicePath]; !ok {
 		t.Fatalf("expected service file to be written via probe seam at %s", servicePath)
+	}
+	if strings.Contains(string(probe.writtenFiles[servicePath]), "\nUser=") {
+		t.Fatalf("user service file should not contain User directive:\n%s", string(probe.writtenFiles[servicePath]))
+	}
+}
+
+func TestInstallLinux_SystemService_WritesRootUnitAndReinstallIsIdempotent(t *testing.T) {
+	plat := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+	probe := newFakeProbe()
+	probe.goosValue = "linux"
+	probe.userHomeDirPath = "/home/tester"
+	probe.currentUserValue = &user.User{Username: "tester"}
+	probe.env["VROOLI_ROOT"] = "/workspace/Vrooli"
+	probe.stats["/workspace/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"] = nil
+	probe.commandOutputs[commandKey("sudo", "systemctl", "daemon-reload")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("sudo", "systemctl", "enable", "vrooli-autoheal")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("sudo", "systemctl", "start", "vrooli-autoheal")] = fakeCommandResult{}
+
+	d := detectorWithProbe(plat, probe)
+	template := d.getSystemdTemplateForService(true)
+	probe.commandInputs[commandInputKey("sudo", template, "tee", "/etc/systemd/system/vrooli-autoheal.service")] = fakeCommandResult{}
+	opts := InstallOptions{UseSystemService: true}
+
+	first := d.Install(context.Background(), opts)
+	if !first.Success {
+		t.Fatalf("expected initial install success, got error: %s", first.Error)
+	}
+	second := d.Install(context.Background(), opts)
+	if !second.Success {
+		t.Fatalf("expected reinstall success, got error: %s", second.Error)
+	}
+
+	written, ok := probe.commandInputs[commandInputKey("sudo", template, "tee", "/etc/systemd/system/vrooli-autoheal.service")]
+	if !ok {
+		t.Fatal("expected system service to be written via sudo tee")
+	}
+	_ = written // ensure command seam key exists
+
+	if !strings.Contains(template, "\nUser=root\n") {
+		t.Fatalf("expected system template to include User=root:\n%s", template)
+	}
+	if !strings.Contains(template, "WantedBy=multi-user.target") {
+		t.Fatalf("expected system template WantedBy=multi-user.target:\n%s", template)
+	}
+}
+
+func TestInstallLinux_UserService_ReportsIncompleteBootProtectionWithoutLingering(t *testing.T) {
+	plat := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+	probe := newFakeProbe()
+	probe.goosValue = "linux"
+	probe.userHomeDirPath = "/home/tester"
+	probe.currentUserValue = &user.User{Username: "tester"}
+	probe.env["VROOLI_ROOT"] = "/workspace/Vrooli"
+	probe.stats["/workspace/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"] = nil
+	// Linger not enabled.
+	probe.stats["/var/lib/systemd/linger/tester"] = os.ErrNotExist
+	probe.commandOutputs[commandKey("loginctl", "show-user", "tester", "--property=Linger")] = fakeCommandResult{
+		output: []byte("Linger=no\n"),
+	}
+	probe.commandOutputs[commandKey("systemctl", "--user", "daemon-reload")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("systemctl", "--user", "enable", "vrooli-autoheal")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("systemctl", "--user", "start", "vrooli-autoheal")] = fakeCommandResult{}
+
+	d := detectorWithProbe(plat, probe)
+	result := d.Install(context.Background(), InstallOptions{UseSystemService: false})
+	if !result.Success {
+		t.Fatalf("expected install success, got error: %s", result.Error)
+	}
+	if !result.NeedsLinger {
+		t.Fatal("expected NeedsLinger=true when user service lingering is not enabled")
+	}
+	if !strings.Contains(result.Message, "BOOT PROTECTION INCOMPLETE") {
+		t.Fatalf("expected incomplete protection message, got: %s", result.Message)
+	}
+	if !strings.Contains(result.LingerCommand, "enable-linger tester") {
+		t.Fatalf("expected linger command for tester, got: %s", result.LingerCommand)
 	}
 }
 

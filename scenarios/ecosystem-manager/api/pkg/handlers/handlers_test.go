@@ -750,6 +750,77 @@ func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 	}
 }
 
+// TestTaskHandlers_CreateTask_AutoRequeueEnabled verifies that newly created tasks
+// have ProcessorAutoRequeue set to true so the queue processor will pick them up.
+func TestTaskHandlers_CreateTask_AutoRequeueEnabled(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	t.Run("SingleTarget", func(t *testing.T) {
+		taskBody := map[string]any{
+			"type":      "resource",
+			"operation": "generator",
+			"target":    "auto-requeue-test",
+		}
+
+		bodyBytes, _ := json.Marshal(taskBody)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Task tasks.TaskItem `json:"task"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if !resp.Task.ProcessorAutoRequeue {
+			t.Fatalf("expected ProcessorAutoRequeue=true for newly created task, got false")
+		}
+	})
+
+	t.Run("MultiTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "resource",
+			"operation": "generator",
+			"targets":   []string{"requeue-alpha", "requeue-beta"},
+		}
+
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Created []tasks.TaskItem `json:"created"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		for _, task := range resp.Created {
+			if !task.ProcessorAutoRequeue {
+				t.Fatalf("expected ProcessorAutoRequeue=true for multi-target task %s, got false", task.ID)
+			}
+		}
+	})
+}
+
 // TestTaskHandlers_GetTask tests the get single task endpoint
 func TestTaskHandlers_GetTask(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)

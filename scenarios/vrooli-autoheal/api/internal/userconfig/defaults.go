@@ -85,6 +85,7 @@ func DefaultMonitoring() MonitoringConfig {
 type CheckDefaults struct {
 	Enabled         bool
 	AutoHeal        bool
+	AutoHealOn      string
 	IntervalSeconds int
 	Thresholds      *Thresholds
 }
@@ -96,46 +97,55 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"infra-network": {
 		Enabled:         true,
 		AutoHeal:        false, // Can't auto-heal network issues
+		AutoHealOn:      "critical",
 		IntervalSeconds: 30,
 	},
 	"infra-dns": {
 		Enabled:         true,
 		AutoHeal:        true, // Can restart systemd-resolved
+		AutoHealOn:      "critical",
 		IntervalSeconds: 30,
 	},
 	"infra-docker": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"infra-cloudflared": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"infra-ntp": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 300,
 	},
 	"infra-display": {
 		Enabled:         true, // Monitors desktop session and RDP availability
 		AutoHeal:        true, // Can restart GDM to recover desktop session
-		IntervalSeconds: 60,   // Check frequently for RDP availability
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60, // Check frequently for RDP availability
 	},
 	"infra-rdp": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"infra-resolved": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"infra-certificate": {
 		Enabled:         true,
 		AutoHeal:        false, // Can't auto-renew certificates
+		AutoHealOn:      "critical",
 		IntervalSeconds: 3600,
 	},
 
@@ -143,6 +153,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-disk": {
 		Enabled:         true,
 		AutoHeal:        false, // Can't auto-heal disk space
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 		Thresholds: &Thresholds{
 			WarningPercent:  ptr(80.0),
@@ -153,6 +164,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-inode": {
 		Enabled:         true,
 		AutoHeal:        false,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 		Thresholds: &Thresholds{
 			WarningPercent:  ptr(85.0),
@@ -162,6 +174,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-swap": {
 		Enabled:         true,
 		AutoHeal:        false,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 		Thresholds: &Thresholds{
 			WarningPercent:  ptr(50.0),
@@ -171,6 +184,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-zombies": {
 		Enabled:         true,
 		AutoHeal:        true, // Can send SIGCHLD to parents
+		AutoHealOn:      "critical",
 		IntervalSeconds: 300,
 		Thresholds: &Thresholds{
 			WarningCount:  intPtr(5),
@@ -180,6 +194,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-ports": {
 		Enabled:         true,
 		AutoHeal:        false,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 300,
 		Thresholds: &Thresholds{
 			WarningPercent:  ptr(70.0),
@@ -189,6 +204,7 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"system-claude-cache": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 3600,
 	},
 
@@ -196,31 +212,37 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"resource-postgres": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 30,
 	},
 	"resource-redis": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 30,
 	},
 	"resource-ollama": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"resource-qdrant": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"resource-searxng": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 	},
 	"resource-browserless": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 	},
 
@@ -228,18 +250,27 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	"vrooli-api": {
 		Enabled:         true,
 		AutoHeal:        true,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 30,
+	},
+	"os-watchdog": {
+		Enabled:         true,
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 300,
 	},
 
 	// Vrooli lifecycle checks
 	"vrooli-stale-locks": {
 		Enabled:         true,
 		AutoHeal:        true, // Safe - only removes lock files for dead processes
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
 	"vrooli-orphans": {
 		Enabled:         true,
 		AutoHeal:        false, // Dangerous - killing processes requires explicit opt-in
+		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 	},
 }
@@ -267,6 +298,7 @@ func GetCheckDefaults(checkID string) CheckDefaults {
 	return CheckDefaults{
 		Enabled:         true,
 		AutoHeal:        false,
+		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	}
 }
