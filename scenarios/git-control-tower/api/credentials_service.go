@@ -268,10 +268,10 @@ func TestCredential(ctx context.Context, deps CredentialsDeps, req CredentialTes
 		}, nil
 	}
 
-	// Get stored credential if UseStored is true
+	// Get stored credential (or auto-discovered SSH key) if UseStored is true
 	var cred *StoredCredential
 	if req.UseStored {
-		cred, _ = store.GetCredentialByRemote(remote)
+		cred = resolveCredentialForRemote(ctx, deps.Git, store, repoDir, remote)
 	}
 
 	// Test connection using ls-remote

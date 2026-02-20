@@ -36,10 +36,7 @@ func GetSyncStatus(ctx context.Context, deps SyncStatusDeps, req SyncStatusReque
 
 	// DECISION BOUNDARY: Optionally fetch from remote for accurate counts
 	if req.Fetch {
-		var cred *StoredCredential
-		if deps.CredStore != nil {
-			cred, _ = deps.CredStore.GetCredentialByRemote(remote)
-		}
+		cred := resolveCredentialForRemote(ctx, deps.Git, deps.CredStore, repoDir, remote)
 		if err := deps.Git.FetchRemote(ctx, repoDir, remote, cred); err != nil {
 			// Fetch failure is non-fatal - continue with stale data
 			resp.FetchError = err.Error()

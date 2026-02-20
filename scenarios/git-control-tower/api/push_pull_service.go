@@ -14,17 +14,11 @@ type PushPullDeps struct {
 	CredStore *CredentialsStore
 }
 
-// lookupCredential retrieves the stored credential for a remote, or nil if
-// no credential store is configured or no credential is found.
-func lookupCredential(deps PushPullDeps, remote string) *StoredCredential {
-	if deps.CredStore == nil {
-		return nil
-	}
-	if remote == "" {
-		remote = "origin"
-	}
-	cred, _ := deps.CredStore.GetCredentialByRemote(remote)
-	return cred
+// lookupCredential retrieves the best available credential for a remote.
+// It first checks the credential store, then falls back to SSH key
+// auto-discovery when the remote URL uses the SSH protocol.
+func lookupCredential(ctx context.Context, deps PushPullDeps, remote string) *StoredCredential {
+	return resolveCredentialForRemote(ctx, deps.Git, deps.CredStore, deps.RepoDir, remote)
 }
 
 // PushToRemote pushes commits to the remote repository.
@@ -90,7 +84,7 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	}
 	preRemoteOID, preRemoteKnown := resolveRemoteOID(ctx, deps, repoDir, remote, branch)
 
-	cred := lookupCredential(deps, remote)
+	cred := lookupCredential(ctx, deps, remote)
 	err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred)
 	if err != nil {
 		return &PushResponse{
@@ -131,7 +125,7 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 
 	branch := req.Branch
 
-	cred := lookupCredential(deps, remote)
+	cred := lookupCredential(ctx, deps, remote)
 	err := deps.Git.Pull(ctx, repoDir, remote, branch, cred)
 	if err != nil {
 		errStr := err.Error()
@@ -193,7 +187,7 @@ func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActio
 		if resp.Remote == "" {
 			resp.Remote = "origin"
 		}
-		cred := lookupCredential(deps, resp.Remote)
+		cred := lookupCredential(ctx, deps, resp.Remote)
 		if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote, cred); err != nil {
 			resp.Error = err.Error()
 			return resp, nil
@@ -323,7 +317,7 @@ func verifyPushResult(
 		return
 	}
 
-	cred := lookupCredential(deps, remote)
+	cred := lookupCredential(ctx, deps, remote)
 	if err := deps.Git.FetchRemote(ctx, repoDir, remote, cred); err != nil {
 		resp.VerificationError = err.Error()
 		resp.Verified = false
