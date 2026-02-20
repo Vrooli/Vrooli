@@ -1199,7 +1199,7 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 				cleanedRef = cleanedRef[:idx]
 			}
 
-			resolvedRef := resolveSelectorTokens(cleanedRef, manifest)
+			resolvedRef := resolveSelectorTokens(cleanedRef, manifest, manifestRoot)
 			if resolvedRef != cleanedRef {
 				step.Params[paramName] = resolvedRef
 			} else if cleanedRef != selectorRef {
@@ -1215,7 +1215,7 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest); resolved != cleanedRef {
+			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
 				resilience["successSelector"] = resolved
 			} else if cleanedRef != successSelector {
 				resilience["successSelector"] = cleanedRef
@@ -1226,7 +1226,7 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest); resolved != cleanedRef {
+			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
 				resilience["failureSelector"] = resolved
 			} else if cleanedRef != failureSelector {
 				resilience["failureSelector"] = cleanedRef
@@ -1284,7 +1284,7 @@ func resolveSelectorReference(selectorRef string, manifest map[string]interface{
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
-func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}) string {
+func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot string) string {
 	resolved := selectorRef
 	searchStart := 0
 	for {
@@ -1305,7 +1305,15 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}) 
 		replacement := resolveSelectorReference(token, manifest)
 		if replacement == "" {
 			// Selector not found - skip past this token to avoid infinite loop
-			logrus.WithField("token", token).Warn("resolveSelectorTokens: unresolved @selector/ reference")
+			selectorCount := 0
+			if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
+				selectorCount = len(selectors)
+			}
+			logrus.WithFields(logrus.Fields{
+				"token":          token,
+				"manifest_root":  manifestRoot,
+				"selector_count": selectorCount,
+			}).Warn("resolveSelectorTokens: unresolved @selector/ reference")
 			searchStart = end
 			continue
 		}

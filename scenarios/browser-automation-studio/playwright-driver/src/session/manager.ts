@@ -202,6 +202,18 @@ export class SessionManager {
           await this.resetSession(existingSession.id);
         }
 
+        const reusingAcrossExecutions = existingSession.spec.execution_id !== spec.execution_id;
+        if (reusingAcrossExecutions) {
+          // Prevent stale instruction replay outcomes from leaking into a new execution.
+          existingSession.executedInstructions?.clear();
+          existingSession.instructionCount = 0;
+        }
+
+        // Keep session identity aligned with the caller so retries by execution_id are idempotent.
+        existingSession.spec = {
+          ...existingSession.spec,
+          ...spec,
+        };
         existingSession.lastUsedAt = new Date();
         existingSession.phase = 'ready';
         metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());

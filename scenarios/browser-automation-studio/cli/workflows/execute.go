@@ -590,6 +590,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
+	var waitFailed bool
+	var waitTimedOut bool
+	var waitMissingExecution bool
+	var waitLastStatus string
+	var waitFailureMessage string
+
 	if wait {
 		fmt.Println("Waiting for completion...")
 		maxAttempts := 60
@@ -654,6 +660,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				if errorMessage != "" {
 					fmt.Printf("Error: %s\n", errorMessage)
 				}
+				waitFailureMessage = errorMessage
 				failed = true
 				completed = true
 				break
@@ -709,12 +716,33 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				fmt.Println("Seed cleanup already scheduled; no manual cleanup needed.")
 			}
 		}
+
+		waitFailed = failed
+		waitTimedOut = !completed
+		waitMissingExecution = missingExecution
+		waitLastStatus = lastStatus
 	}
 
 	if outputDir != "" {
 		if err := os.MkdirAll(outputDir, 0o755); err == nil {
 			fmt.Printf("Screenshots saved to: %s\n", outputDir)
 		}
+	}
+
+	if waitFailed {
+		if waitMissingExecution {
+			return fmt.Errorf("execution %s failed: execution record unavailable", executionID)
+		}
+		if waitFailureMessage != "" {
+			return fmt.Errorf("execution %s failed: %s", executionID, waitFailureMessage)
+		}
+		return fmt.Errorf("execution %s failed", executionID)
+	}
+	if waitTimedOut {
+		if waitLastStatus == "" {
+			waitLastStatus = "unknown"
+		}
+		return fmt.Errorf("execution %s timed out (last status: %s)", executionID, waitLastStatus)
 	}
 
 	return nil

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
@@ -84,6 +85,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	if strings.EqualFold(strings.TrimSpace(stepType), "workflowcall") {
 		return contracts.StepOutcome{}, session, fmt.Errorf("unsupported step type 'workflowCall'; use 'subflow' instead")
 	}
+	step = e.interpolatePlanStep(step, execState)
 	if isSubflowPlanStep(step) {
 		logrus.WithFields(logrus.Fields{
 			"execution_id": req.Plan.ExecutionID,
@@ -109,8 +111,6 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		}
 		session = newSession
 	}
-
-	step = e.interpolatePlanStep(step, execState)
 
 	if IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_LOOP) && step.Loop != nil {
 		return e.executeLoop(ctx, req, execCtx, eng, spec, session, step, execState, reuseMode)
@@ -462,7 +462,11 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 		"workflow_name":       childWorkflow.GetName(),
 	}).Debug("About to compile subflow")
 
-	childPlan, _, err := BuildContractsPlanWithCompiler(ctx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
+	subflowCompileCtx := ctx
+	if strings.TrimSpace(req.ProjectRoot) != "" {
+		subflowCompileCtx = autocompiler.WithProjectRoot(ctx, req.ProjectRoot)
+	}
+	childPlan, _, err := BuildContractsPlanWithCompiler(subflowCompileCtx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"execution_id":      req.Plan.ExecutionID,

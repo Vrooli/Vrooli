@@ -8,6 +8,8 @@
 package typeconv
 
 import (
+	"strings"
+
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -33,7 +35,9 @@ func StringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 
 // StringToWaitState converts a string to WaitState enum.
 func StringToWaitState(s string) basactions.WaitState {
-	switch s {
+	normalized := strings.TrimSpace(strings.ToLower(s))
+	normalized = strings.TrimPrefix(normalized, "wait_state_")
+	switch normalized {
 	case "attached":
 		return basactions.WaitState_WAIT_STATE_ATTACHED
 	case "detached":

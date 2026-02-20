@@ -152,6 +152,39 @@ describe('SessionManager', () => {
       expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
     });
 
+    it('should clear replay cache and update execution identity when reusing by labels', async () => {
+      const first = await manager.startSession({
+        ...sessionSpec,
+        execution_id: 'exec-original',
+        labels: { suite: 'playbook', scenario: 'web-console' },
+      });
+      const existingSession = manager.getSession(first.sessionId);
+      existingSession.executedInstructions?.set('node-1:0', {
+        key: 'node-1:0',
+        executedAt: new Date(),
+        success: true,
+        cachedOutcome: { success: true, replay: true },
+      });
+      existingSession.instructionCount = 5;
+
+      const second = await manager.startSession({
+        ...sessionSpec,
+        execution_id: 'exec-new',
+        workflow_id: 'workflow-new',
+        reuse_mode: 'reuse',
+        labels: { suite: 'playbook', scenario: 'web-console' },
+      });
+
+      expect(second.sessionId).toBe(first.sessionId);
+      expect(second.reused).toBe(true);
+
+      const reusedSession = manager.getSession(second.sessionId);
+      expect(reusedSession.spec.execution_id).toBe('exec-new');
+      expect(reusedSession.spec.workflow_id).toBe('workflow-new');
+      expect(reusedSession.executedInstructions?.size).toBe(0);
+      expect(reusedSession.instructionCount).toBe(0);
+    });
+
     it('should set creation time on session', async () => {
       const before = Date.now();
       const result = await manager.startSession(sessionSpec);

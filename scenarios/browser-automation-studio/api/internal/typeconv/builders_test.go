@@ -268,6 +268,21 @@ func TestBuildWaitParams_DurationAlias(t *testing.T) {
 	}
 }
 
+func TestBuildWaitParams_StateEnumAlias(t *testing.T) {
+	data := map[string]any{
+		"selector": "#launcher",
+		"state":    "WAIT_STATE_HIDDEN",
+	}
+
+	p := BuildWaitParams(data)
+	if p.State == nil {
+		t.Fatal("expected wait state to be set")
+	}
+	if *p.State != basactions.WaitState_WAIT_STATE_HIDDEN {
+		t.Fatalf("expected WAIT_STATE_HIDDEN, got %v", *p.State)
+	}
+}
+
 func TestBuildExtractParams_Basic(t *testing.T) {
 	data := map[string]any{
 		"selector": "#price",
