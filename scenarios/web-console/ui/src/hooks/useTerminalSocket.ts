@@ -92,6 +92,14 @@ export function useTerminalSocket({
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingInputRef = useRef<string[]>([]);
 
+  // Store event-handler callbacks in refs so they can be updated without
+  // tearing down the WebSocket connection. These are "fire-and-forget"
+  // handlers — the connection effect reads them at call time, not setup time.
+  const onExitRef = useRef(onExit);
+  const onReadyRef = useRef(onReady);
+  onExitRef.current = onExit;
+  onReadyRef.current = onReady;
+
   const enqueueInput = useCallback((data: string) => {
     if (!data) return;
     pendingInputRef.current.push(data);
@@ -163,7 +171,7 @@ export function useTerminalSocket({
         if (wasReconnect) {
           terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
         }
-        onReady?.();
+        onReadyRef.current?.();
       };
 
       ws.onmessage = (event) => {
@@ -188,7 +196,7 @@ export function useTerminalSocket({
               ? `${ANSI.gray}[Session ended]`
               : `${ANSI.red}[Session ended with exit code ${code}]`;
             terminal.write(`\r\n${exitLabel}${ANSI.reset}\r\n`);
-            onExit?.(sessionId);
+            onExitRef.current?.(sessionId);
             break;
           }
           case "error": {
@@ -269,7 +277,7 @@ export function useTerminalSocket({
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [sessionId, terminal, onExit, onReady, sendResize, createSocket, enqueueInput]);
+  }, [sessionId, terminal, sendResize, createSocket, enqueueInput]);
 
   return { sendInput, sendResize };
 }

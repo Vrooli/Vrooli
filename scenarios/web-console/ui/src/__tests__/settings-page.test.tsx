@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import SettingsPage from "../pages/SettingsPage";
+import SettingsModal from "../components/SettingsModal";
 import type { ShortcutProfile } from "../lib/api";
 
 // [REQ:P1-002a] Shortcut Profile Management UI — component rendering & interactions
-// [REQ:P1-003a] AI Provider Configuration UI — SettingsPage integration
+// [REQ:P1-003a] AI Provider Configuration UI — SettingsModal integration
 
 const mockProfile: ShortcutProfile = {
   id: "prof-1",
@@ -36,11 +36,44 @@ vi.mock("../components/ProviderHealthPanel", () => ({
   default: () => <div data-testid="provider-health-panel">ProviderHealthPanel</div>,
 }));
 
-describe("SettingsPage", () => {
-  const onBack = vi.fn();
+// Mock workspace store
+const mockStoreState: Record<string, unknown> = {
+  panes: [],
+  settingsModalOpen: true,
+  movePaneToIndex: vi.fn(),
+  removePane: vi.fn(),
+  setActivePane: vi.fn(),
+  setSettingsModalOpen: vi.fn(),
+  resetLayout: vi.fn(),
+};
 
+vi.mock("../stores/useWorkspaceStore", () => ({
+  useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector(mockStoreState),
+}));
+
+vi.mock("../hooks/useDraggablePosition", () => ({
+  useDraggablePosition: () => ({
+    elementRef: { current: null },
+    floatingStyle: { transform: "translate3d(100px, 100px, 0)" },
+    pointerHandlers: {
+      onPointerDown: vi.fn(),
+      onPointerMove: vi.fn(),
+      onPointerUp: vi.fn(),
+      onPointerCancel: vi.fn(),
+    },
+    handleClickCapture: vi.fn(),
+    resetPosition: vi.fn(),
+    isDragging: false,
+    position: { x: 100, y: 100 },
+  }),
+}));
+
+describe("SettingsModal (shortcut profiles)", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockStoreState.settingsModalOpen = true;
+    mockStoreState.panes = [];
     const api = await import("../lib/api");
     mockListProfiles = api.listShortcutProfiles as ReturnType<typeof vi.fn>;
     mockUpsertProfile = api.upsertShortcutProfile as ReturnType<typeof vi.fn>;
@@ -49,14 +82,13 @@ describe("SettingsPage", () => {
 
   it("renders loading state initially", () => {
     mockListProfiles.mockReturnValue(new Promise(() => {}));
-    render(<SettingsPage onBack={onBack} />);
-
+    render(<SettingsModal />);
     expect(screen.getByText("Loading...")).toBeTruthy();
   });
 
   it("renders empty state when no profiles exist", async () => {
     mockListProfiles.mockResolvedValueOnce([]);
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByText("No shortcut profiles configured")).toBeTruthy();
@@ -65,49 +97,30 @@ describe("SettingsPage", () => {
 
   it("renders profiles after loading", async () => {
     mockListProfiles.mockResolvedValueOnce([mockProfile]);
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
     });
 
-    // Profile name is displayed
     const nameInput = screen.getByTestId("profile-name-prof-1") as HTMLInputElement;
     expect(nameInput.value).toBe("Dev Shortcuts");
-
-    // Shortcut entries are displayed
     expect(screen.getByTestId("entry-label-prof-1-0")).toBeTruthy();
     expect(screen.getByTestId("entry-command-prof-1-0")).toBeTruthy();
   });
 
-  it("calls onBack when back button is clicked", async () => {
-    mockListProfiles.mockResolvedValueOnce([]);
-    render(<SettingsPage onBack={onBack} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("No shortcut profiles configured")).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByTestId("settings-back"));
-    expect(onBack).toHaveBeenCalledOnce();
-  });
-
   it("shows save button when profile name is edited (dirty tracking)", async () => {
     mockListProfiles.mockResolvedValueOnce([mockProfile]);
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
     });
 
-    // Save button should NOT be visible initially (not dirty)
     expect(screen.queryByTestId("profile-save-prof-1")).toBeNull();
 
-    // Edit the profile name
     const nameInput = screen.getByTestId("profile-name-prof-1");
     fireEvent.change(nameInput, { target: { value: "Updated Name" } });
-
-    // Save button should appear
     expect(screen.getByTestId("profile-save-prof-1")).toBeTruthy();
   });
 
@@ -116,17 +129,14 @@ describe("SettingsPage", () => {
     mockListProfiles.mockResolvedValueOnce([mockProfile]);
     mockUpsertProfile.mockResolvedValueOnce(updatedProfile);
 
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
     });
 
-    // Make a change to trigger dirty state
     const nameInput = screen.getByTestId("profile-name-prof-1");
     fireEvent.change(nameInput, { target: { value: "Renamed" } });
-
-    // Click save
     fireEvent.click(screen.getByTestId("profile-save-prof-1"));
 
     await waitFor(() => {
@@ -143,14 +153,13 @@ describe("SettingsPage", () => {
     mockListProfiles.mockResolvedValueOnce([mockProfile]);
     mockDeleteProfile.mockResolvedValueOnce(undefined);
 
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByTestId("profile-delete-prof-1"));
-
     expect(mockDeleteProfile).toHaveBeenCalledWith("prof-1");
 
     await waitFor(() => {
@@ -171,7 +180,7 @@ describe("SettingsPage", () => {
     mockListProfiles.mockResolvedValueOnce([]);
     mockUpsertProfile.mockResolvedValueOnce(newProfile);
 
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByText("No shortcut profiles configured")).toBeTruthy();
@@ -186,7 +195,7 @@ describe("SettingsPage", () => {
 
   it("shows error banner when profile load fails", async () => {
     mockListProfiles.mockRejectedValueOnce(new Error("Network error"));
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("settings-error")).toBeTruthy();
@@ -196,7 +205,7 @@ describe("SettingsPage", () => {
 
   it("renders ProviderHealthPanel in the AI Providers section", async () => {
     mockListProfiles.mockResolvedValueOnce([]);
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
@@ -208,16 +217,15 @@ describe("SettingsPage", () => {
   it("shows error and refetches when save fails", async () => {
     mockListProfiles
       .mockResolvedValueOnce([mockProfile])
-      .mockResolvedValueOnce([mockProfile]); // refetch after error
+      .mockResolvedValueOnce([mockProfile]);
     mockUpsertProfile.mockRejectedValueOnce(new Error("Save failed"));
 
-    render(<SettingsPage onBack={onBack} />);
+    render(<SettingsModal />);
 
     await waitFor(() => {
       expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
     });
 
-    // Make a change and save
     fireEvent.change(screen.getByTestId("profile-name-prof-1"), {
       target: { value: "Changed" },
     });
@@ -228,7 +236,6 @@ describe("SettingsPage", () => {
       expect(screen.getByText("Save failed")).toBeTruthy();
     });
 
-    // Should have refetched profiles
     expect(mockListProfiles).toHaveBeenCalledTimes(2);
   });
 });

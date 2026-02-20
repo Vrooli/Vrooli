@@ -20,19 +20,12 @@ describe("useHashRoute", () => {
   });
 
   it("defines valid route values", async () => {
-    // The module should export the hook that handles workspace, settings, sessions routes
     const mod = await import("../hooks/useHashRoute");
     expect(mod.useHashRoute).toBeDefined();
   });
 });
 
 describe("Page lazy imports", () => {
-  it("SettingsPage module exports default component", async () => {
-    const mod = await import("../pages/SettingsPage");
-    expect(mod.default).toBeDefined();
-    expect(typeof mod.default).toBe("function");
-  });
-
   it("SessionsPage module exports default component", async () => {
     const mod = await import("../pages/SessionsPage");
     expect(mod.default).toBeDefined();
@@ -43,21 +36,6 @@ describe("Page lazy imports", () => {
     const mod = await import("../components/Workspace");
     expect(mod.default).toBeDefined();
     expect(typeof mod.default).toBe("function");
-  });
-});
-
-describe("SettingsPage", () => {
-  it("accepts onBack prop", async () => {
-    const mod = await import("../pages/SettingsPage");
-    // Function component that accepts { onBack } props
-    expect(mod.default.length).toBeLessThanOrEqual(1);
-  });
-
-  it("uses shortcut profile API functions", async () => {
-    const api = await import("../lib/api");
-    expect(api.listShortcutProfiles).toBeDefined();
-    expect(api.upsertShortcutProfile).toBeDefined();
-    expect(api.deleteShortcutProfile).toBeDefined();
   });
 });
 
@@ -81,13 +59,6 @@ describe("Navigation selectors", () => {
     const nav = selectors.nav as unknown as Record<string, string>;
     expect(nav.sessions).toBe("nav-sessions");
     expect(nav.settings).toBe("nav-settings");
-  });
-
-  it("registers settings page selectors", async () => {
-    const { selectors } = await import("../consts/selectors");
-    const settings = selectors.settings as unknown as Record<string, string>;
-    expect(settings.back).toBe("settings-back");
-    expect(settings.createProfile).toBe("create-profile");
   });
 
   it("registers sessions page selectors", async () => {

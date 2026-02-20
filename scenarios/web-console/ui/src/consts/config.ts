@@ -69,3 +69,32 @@ export const HEALTH_RETRY_DELAY_MS = 1000;
 
 /** Duration in milliseconds before auto-dismissing session creation errors. */
 export const ERROR_AUTO_DISMISS_MS = 8000;
+
+// ---------------------------------------------------------------------------
+// Grid Splitter & Resize
+// ---------------------------------------------------------------------------
+
+/** Width/height of the splitter handle between grid tracks. */
+export const SPLITTER_SIZE_PX = 8;
+
+/** Minimum column width in pixels before resize is clamped. */
+export const MIN_COLUMN_PX = 240;
+
+/** Minimum row height in pixels before resize is clamped. */
+export const MIN_ROW_PX = 200;
+
+// ---------------------------------------------------------------------------
+// Terminal Header Colors
+// ---------------------------------------------------------------------------
+
+/** Palette of preset colors for terminal pane headers. */
+export const HEADER_COLORS = [
+  "#7aa0ff",
+  "#ff7a7a",
+  "#7aff9e",
+  "#ffd97a",
+  "#d97aff",
+  "#ff7ad9",
+  "#7affea",
+  "#ffb07a",
+] as const;

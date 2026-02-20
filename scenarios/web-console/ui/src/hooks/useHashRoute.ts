@@ -1,9 +1,9 @@
 // DOC: docs/concepts/ARCHITECTURE.md#file-map
 import { useState, useEffect, useCallback } from "react";
 
-export type Route = "workspace" | "settings" | "sessions";
+export type Route = "workspace" | "sessions";
 
-const VALID_ROUTES: Route[] = ["workspace", "settings", "sessions"];
+const VALID_ROUTES: Route[] = ["workspace", "sessions"];
 
 function parseHash(): Route {
   const raw = window.location.hash.replace("#/", "").split("?")[0];
@@ -13,7 +13,7 @@ function parseHash(): Route {
 
 /**
  * Simple hash-based router for single-page navigation.
- * Routes are defined as `#/workspace`, `#/settings`, `#/sessions`.
+ * Routes are defined as `#/workspace`, `#/sessions`.
  */
 export function useHashRoute() {
   const [route, setRoute] = useState<Route>(parseHash);

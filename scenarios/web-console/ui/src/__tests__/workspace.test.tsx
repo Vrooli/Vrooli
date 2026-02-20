@@ -23,7 +23,6 @@ const mockSession: SessionInfo = {
 let mockLaunchSession: ReturnType<typeof vi.fn>;
 let mockRemovePane: ReturnType<typeof vi.fn>;
 let mockClearError: ReturnType<typeof vi.fn>;
-let mockSetActivePane: ReturnType<typeof vi.fn>;
 let mockSendToActiveTerminal: ReturnType<typeof vi.fn>;
 let mockHandleTerminalReady: ReturnType<typeof vi.fn>;
 let mockHandleExit: ReturnType<typeof vi.fn>;
@@ -32,18 +31,17 @@ let mockRegisterTerminalRef: ReturnType<typeof vi.fn>;
 // Shared mutable state to let tests control the hook's return
 const hookState = {
   panes: [] as Array<{ session: SessionInfo }>,
+  isHydrated: true,
   isCreating: false,
   createError: null as null | { message: string; recovery?: string; retry?: boolean },
-  activePane: null as string | null,
 };
 
 vi.mock("../hooks/useSessionManager", () => ({
   useSessionManager: () => ({
     panes: hookState.panes,
+    isHydrated: hookState.isHydrated,
     isCreating: hookState.isCreating,
     createError: hookState.createError,
-    activePane: hookState.activePane,
-    setActivePane: mockSetActivePane,
     clearError: mockClearError,
     launchSession: mockLaunchSession,
     handleTerminalReady: mockHandleTerminalReady,
@@ -51,6 +49,31 @@ vi.mock("../hooks/useSessionManager", () => ({
     handleExit: mockHandleExit,
     sendToActiveTerminal: mockSendToActiveTerminal,
     registerTerminalRef: mockRegisterTerminalRef,
+  }),
+}));
+
+// Mock workspace store
+const mockStoreState = {
+  panes: [] as Array<{ sessionId: string; name: string; headerColor: string }>,
+  columnFractions: [] as number[],
+  rowFractions: [] as number[],
+  activePane: null as string | null,
+  settingsModalOpen: false,
+};
+
+vi.mock("../stores/useWorkspaceStore", () => ({
+  useWorkspaceStore: () => ({
+    ...mockStoreState,
+    addPane: vi.fn(),
+    removePane: vi.fn(),
+    renamePaneById: vi.fn(),
+    setPaneColor: vi.fn(),
+    movePaneToIndex: vi.fn(),
+    setColumnFractions: vi.fn(),
+    setRowFractions: vi.fn(),
+    setActivePane: vi.fn(),
+    setSettingsModalOpen: vi.fn(),
+    resetLayout: vi.fn(),
   }),
 }));
 
@@ -63,6 +86,22 @@ vi.mock("../components/TerminalPane", () => ({
       </div>
     );
   }),
+}));
+
+vi.mock("../components/TerminalHeader", () => ({
+  default: vi.fn(({ sessionId, name }: { sessionId: string; name: string }) => (
+    <div data-testid={`mock-header-${sessionId}`}>{name}</div>
+  )),
+}));
+
+vi.mock("../components/GridSplitter", () => ({
+  default: vi.fn(({ axis }: { axis: string }) => (
+    <div data-testid={`mock-splitter-${axis}`} />
+  )),
+}));
+
+vi.mock("../components/SettingsModal", () => ({
+  default: vi.fn(() => null),
 }));
 
 vi.mock("../components/TerminalLauncher", () => ({
@@ -106,13 +145,17 @@ describe("Workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hookState.panes = [];
+    hookState.isHydrated = true;
     hookState.isCreating = false;
     hookState.createError = null;
-    hookState.activePane = null;
+    mockStoreState.panes = [];
+    mockStoreState.columnFractions = [];
+    mockStoreState.rowFractions = [];
+    mockStoreState.activePane = null;
+    mockStoreState.settingsModalOpen = false;
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
-    mockSetActivePane = vi.fn();
     mockSendToActiveTerminal = vi.fn();
     mockHandleTerminalReady = vi.fn();
     mockHandleExit = vi.fn();
@@ -159,7 +202,8 @@ describe("Workspace", () => {
 
   it("renders pane grid with terminal when panes exist", () => {
     hookState.panes = [{ session: mockSession }];
-    hookState.activePane = mockSession.id;
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
     render(<Workspace />);
     expect(screen.getByTestId("pane-grid")).toBeTruthy();
     expect(screen.getByTestId(`mock-terminal-${mockSession.id}`)).toBeTruthy();
@@ -169,6 +213,10 @@ describe("Workspace", () => {
   it("renders multiple panes with correct pluralization", () => {
     const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
     hookState.panes = [{ session: mockSession }, { session: session2 }];
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" },
+      { sessionId: session2.id, name: "/bin/bash", headerColor: "transparent" },
+    ];
     render(<Workspace />);
     expect(screen.getByText("2 terminals")).toBeTruthy();
     expect(screen.getByTestId("mock-terminal-sess-test-001")).toBeTruthy();
@@ -177,52 +225,50 @@ describe("Workspace", () => {
 
   it("has drawer toggle button in header", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
     expect(screen.getByTestId("drawer-toggle")).toBeTruthy();
   });
 
   it("toggles session drawer when drawer button is clicked", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
 
-    // Initially drawer not visible
     expect(screen.queryByTestId("mock-session-drawer")).toBeNull();
-
-    // Click drawer toggle
     fireEvent.click(screen.getByTestId("drawer-toggle"));
     expect(screen.getByTestId("mock-session-drawer")).toBeTruthy();
-
-    // Click again to close
     fireEvent.click(screen.getByTestId("drawer-toggle"));
     expect(screen.queryByTestId("mock-session-drawer")).toBeNull();
   });
 
-  it("renders navigation buttons when onNavigate is provided", () => {
+  it("renders sessions nav button when onNavigate is provided", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     const onNavigate = vi.fn();
     render(<Workspace onNavigate={onNavigate} />);
     expect(screen.getByTestId("nav-sessions")).toBeTruthy();
+  });
+
+  it("renders settings button (opens modal) in header", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    render(<Workspace />);
     expect(screen.getByTestId("nav-settings")).toBeTruthy();
   });
 
   it("calls onNavigate with 'sessions' when sessions nav is clicked", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     const onNavigate = vi.fn();
     render(<Workspace onNavigate={onNavigate} />);
     fireEvent.click(screen.getByTestId("nav-sessions"));
     expect(onNavigate).toHaveBeenCalledWith("sessions");
   });
 
-  it("calls onNavigate with 'settings' when settings nav is clicked", () => {
-    hookState.panes = [{ session: mockSession }];
-    const onNavigate = vi.fn();
-    render(<Workspace onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByTestId("nav-settings"));
-    expect(onNavigate).toHaveBeenCalledWith("settings");
-  });
-
   it("shows error banner in pane view when createError exists", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     hookState.createError = { message: "Server error", retry: true };
     render(<Workspace />);
     expect(screen.getByTestId("mock-error-banner")).toBeTruthy();
@@ -231,6 +277,7 @@ describe("Workspace", () => {
 
   it("renders AiInput and MobileToolbar in pane view", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
     expect(screen.getByTestId("mock-ai-input")).toBeTruthy();
     expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
@@ -238,8 +285,16 @@ describe("Workspace", () => {
 
   it("opens launcher from header 'New' button in pane view", () => {
     hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
     fireEvent.click(screen.getByTestId("new-terminal-button"));
     expect(screen.getByTestId("mock-launcher")).toBeTruthy();
+  });
+
+  it("renders terminal headers for panes", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    render(<Workspace />);
+    expect(screen.getByTestId(`mock-header-${mockSession.id}`)).toBeTruthy();
   });
 });

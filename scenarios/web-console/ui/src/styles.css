@@ -37,6 +37,12 @@
   --wc-error-border: 239 68 68 / 0.3;  /* red-500/30 */
   --wc-error-surface: 69 10 10 / 0.5;  /* red-950/50 */
 
+  /* Header surface */
+  --wc-surface-header: var(--wc-surface-raised);
+
+  /* Splitter hover */
+  --wc-splitter-hover: 34 211 238 / 0.2;
+
   /* Overlay */
   --wc-backdrop: 0 0 0 / 0.4;
   --wc-backdrop-heavy: 0 0 0 / 0.6;

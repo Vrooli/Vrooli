@@ -8,7 +8,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { useHashRoute } from "./hooks/useHashRoute";
 
 const Workspace = lazy(() => import("./components/Workspace"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 
 const PageFallback = () => (
@@ -62,9 +61,6 @@ export default function App() {
   return (
     <ErrorBoundary region="app">
       <Suspense fallback={<PageFallback />}>
-        {route === "settings" && (
-          <SettingsPage onBack={() => navigate("workspace")} />
-        )}
         {route === "sessions" && (
           <SessionsPage onBack={() => navigate("workspace")} />
         )}

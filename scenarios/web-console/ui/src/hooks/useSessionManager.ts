@@ -28,7 +28,7 @@ export function useSessionManager() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<ErrorInfo | null>(null);
-  const [activePane, setActivePane] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
   const pendingCommands = useRef<Map<string, string>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,12 +50,14 @@ export function useSessionManager() {
     const hydratePanes = async () => {
       try {
         const sessions = await listSessions();
-        if (canceled || sessions.length === 0) return;
-
-        setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session }))));
-        setActivePane((prev) => prev ?? sessions[sessions.length - 1]?.id ?? null);
+        if (canceled) return;
+        if (sessions.length > 0) {
+          setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session }))));
+        }
       } catch {
         // Best-effort hydration: keep empty-state on API/list failures.
+      } finally {
+        if (!canceled) setIsHydrated(true);
       }
     };
 
@@ -100,7 +102,6 @@ export function useSessionManager() {
         pendingCommands.current.set(session.id, command);
       }
       setPanes((prev) => [...prev, { session }]);
-      setActivePane(session.id);
       return session;
     } catch (err) {
       console.error("Failed to create session:", err);
@@ -127,7 +128,6 @@ export function useSessionManager() {
   const removePane = useCallback(async (sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
     terminalRefs.current.delete(sessionId);
-    setActivePane((prev) => (prev === sessionId ? null : prev));
     try {
       await deleteSession(sessionId);
     } catch {
@@ -140,8 +140,8 @@ export function useSessionManager() {
   }, []);
 
   const sendToActiveTerminal = useCallback(
-    (data: string) => {
-      const target = activePane ?? panes[panes.length - 1]?.session.id;
+    (data: string, targetId?: string) => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
@@ -149,7 +149,7 @@ export function useSessionManager() {
         }
       }
     },
-    [activePane, panes],
+    [panes],
   );
 
   const registerTerminalRef = useCallback(
@@ -168,10 +168,9 @@ export function useSessionManager() {
 
   return {
     panes,
+    isHydrated,
     isCreating,
     createError,
-    activePane,
-    setActivePane,
     clearError,
     launchSession,
     handleTerminalReady,

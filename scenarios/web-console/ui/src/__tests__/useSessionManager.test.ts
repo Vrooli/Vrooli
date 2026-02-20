@@ -38,12 +38,12 @@ describe("useSessionManager", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("starts with empty panes", () => {
+  it("starts with empty panes and not hydrated", () => {
     const { result } = renderHook(() => useSessionManager());
     expect(result.current.panes).toEqual([]);
     expect(result.current.isCreating).toBe(false);
     expect(result.current.createError).toBeNull();
-    expect(result.current.activePane).toBeNull();
+    expect(result.current.isHydrated).toBe(false);
   });
 
   it("hydrates panes from existing sessions on mount", async () => {
@@ -61,7 +61,20 @@ describe("useSessionManager", () => {
 
     expect(result.current.panes).toHaveLength(2);
     expect(result.current.panes[0]?.session.id).toBe("sess-a");
-    expect(result.current.activePane).toBe("sess-b");
+    expect(result.current.isHydrated).toBe(true);
+  });
+
+  it("sets isHydrated even when no sessions exist", async () => {
+    mockListSessions.mockResolvedValueOnce([]);
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.panes).toHaveLength(0);
+    expect(result.current.isHydrated).toBe(true);
   });
 
   it("launches a session and adds a pane", async () => {
@@ -77,7 +90,6 @@ describe("useSessionManager", () => {
 
     expect(result.current.panes).toHaveLength(1);
     expect(result.current.panes[0]?.session.id).toBe("sess-1");
-    expect(result.current.activePane).toBe("sess-1");
     expect(result.current.isCreating).toBe(false);
   });
 
@@ -132,7 +144,7 @@ describe("useSessionManager", () => {
     expect(result.current.createError).toBeNull();
   });
 
-  it("sets activePane on launch", async () => {
+  it("adds multiple panes on successive launches", async () => {
     const sess1 = { id: "s1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     const sess2 = { id: "s2", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(sess1).mockResolvedValueOnce(sess2);
@@ -140,24 +152,10 @@ describe("useSessionManager", () => {
     const { result } = renderHook(() => useSessionManager());
 
     await act(async () => { await result.current.launchSession(); });
-    expect(result.current.activePane).toBe("s1");
+    expect(result.current.panes).toHaveLength(1);
 
     await act(async () => { await result.current.launchSession(); });
-    expect(result.current.activePane).toBe("s2");
-  });
-
-  it("allows manual activePane switching", async () => {
-    const sess1 = { id: "s1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
-    const sess2 = { id: "s2", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
-    mockCreateSession.mockResolvedValueOnce(sess1).mockResolvedValueOnce(sess2);
-
-    const { result } = renderHook(() => useSessionManager());
-
-    await act(async () => { await result.current.launchSession(); });
-    await act(async () => { await result.current.launchSession(); });
-
-    act(() => { result.current.setActivePane("s1"); });
-    expect(result.current.activePane).toBe("s1");
+    expect(result.current.panes).toHaveLength(2);
   });
 
   it("removePane handles already-dead sessions", async () => {
@@ -176,7 +174,7 @@ describe("useSessionManager", () => {
     expect(result.current.panes).toHaveLength(0);
   });
 
-  it("removePane clears activePane if removing active session", async () => {
+  it("removePane removes pane from list", async () => {
     const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
     mockCreateSession.mockResolvedValueOnce(mockSession);
     mockDeleteSession.mockResolvedValueOnce(undefined);
@@ -184,10 +182,10 @@ describe("useSessionManager", () => {
     const { result } = renderHook(() => useSessionManager());
 
     await act(async () => { await result.current.launchSession(); });
-    expect(result.current.activePane).toBe("sess-1");
+    expect(result.current.panes).toHaveLength(1);
 
     await act(async () => { await result.current.removePane("sess-1"); });
-    expect(result.current.activePane).toBeNull();
+    expect(result.current.panes).toHaveLength(0);
   });
 
   it("flushes queued launch command when ref registers after onReady", async () => {
