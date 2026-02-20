@@ -5,7 +5,7 @@ import { X, Trash2, Terminal, Clock, Timer, AlertCircle } from "lucide-react";
 import { type SessionInfo, type PolicyMode, updateSessionPolicy, toErrorInfo } from "../lib/api";
 import { getShellName, formatSessionTime, truncateId } from "../lib/format";
 import { pluralize } from "../lib/pluralize";
-import { POLICY_OPTIONS, policyKey } from "../consts/policy-options";
+import { POLICY_OPTIONS, policyKey, parsePolicySelection } from "../consts/policy-options";
 import { useCountdown } from "../hooks/useCountdown";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
@@ -48,13 +48,9 @@ function SessionPolicyControl({
         className="h-5 rounded border border-wc-default bg-wc-surface px-1 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
         value={currentKey}
         onChange={(e) => {
-          const val = e.target.value;
-          if (val === "never") {
-            onPolicyChange(session.id, "never");
-          } else {
-            const [mode, dur] = val.split(":") as [PolicyMode, string];
-            onPolicyChange(session.id, mode, dur);
-          }
+          const parsed = parsePolicySelection(e.target.value);
+          if (!parsed) return;
+          onPolicyChange(session.id, parsed.mode, parsed.duration);
         }}
       >
         {POLICY_OPTIONS.map((opt) => (

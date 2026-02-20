@@ -5,6 +5,7 @@ import { Activity, Power, PowerOff, RefreshCw, AlertTriangle } from "lucide-reac
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import {
+  type AIProviderConfigResponse,
   type ProviderHealth,
   type ProviderConfig,
   getAIConfig,
@@ -14,9 +15,26 @@ import {
 
 interface ProviderHealthPanelProps {
   open: boolean;
+  api?: ProviderHealthPanelApi;
 }
 
-export default function ProviderHealthPanel({ open }: ProviderHealthPanelProps) {
+export interface ProviderHealthPanelApi {
+  getConfig: () => Promise<AIProviderConfigResponse>;
+  updateConfig: (request: {
+    name: string;
+    enabled?: boolean;
+    priority?: number;
+    timeout_sec?: number;
+    max_retries?: number;
+  }) => Promise<AIProviderConfigResponse>;
+}
+
+const defaultProviderHealthPanelApi: ProviderHealthPanelApi = {
+  getConfig: getAIConfig,
+  updateConfig: updateAIConfig,
+};
+
+export default function ProviderHealthPanel({ open, api = defaultProviderHealthPanelApi }: ProviderHealthPanelProps) {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [health, setHealth] = useState<ProviderHealth[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +44,7 @@ export default function ProviderHealthPanel({ open }: ProviderHealthPanelProps) 
     setLoading(true);
     setError(null);
     try {
-      const data = await getAIConfig();
+      const data = await api.getConfig();
       setProviders(data.providers);
       setHealth(data.health);
     } catch (err) {
@@ -34,7 +52,7 @@ export default function ProviderHealthPanel({ open }: ProviderHealthPanelProps) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (!open) return;
@@ -45,14 +63,14 @@ export default function ProviderHealthPanel({ open }: ProviderHealthPanelProps) 
     async (name: string, currentEnabled: boolean) => {
       setError(null);
       try {
-        const data = await updateAIConfig({ name, enabled: !currentEnabled });
+        const data = await api.updateConfig({ name, enabled: !currentEnabled });
         setProviders(data.providers);
         setHealth(data.health);
       } catch (err) {
         setError(toErrorInfo(err).message);
       }
     },
-    [],
+    [api],
   );
 
   const healthFor = (name: string): ProviderHealth | undefined =>

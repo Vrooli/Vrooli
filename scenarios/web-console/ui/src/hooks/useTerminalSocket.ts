@@ -37,6 +37,23 @@ const WS_ERROR_RECOVERY: Record<string, string> = {
   "Terminal process is not accepting input": "The terminal process has stopped. Close this pane and open a new terminal.",
 };
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 400;
+const RECONNECT_MAX_DELAY_MS = 5000;
+const MAX_OUTPUT_PROBE_CHARS = 12000;
+
+function appendOutputProbe(sessionId: string, data: string): void {
+  if (typeof window === "undefined" || !data) return;
+  const probeWindow = window as Window & {
+    __wc_terminal_output?: Record<string, string>;
+  };
+  const probe = probeWindow.__wc_terminal_output ?? {};
+  const previous = probe[sessionId] ?? "";
+  const next = (previous + data).slice(-MAX_OUTPUT_PROBE_CHARS);
+  probe[sessionId] = next;
+  probeWindow.__wc_terminal_output = probe;
+}
+
 /**
  * WebSocket close codes 1000 (Normal) and 1001 (Going Away) indicate an
  * intentional, expected close — e.g. the user closed the tab or the server
@@ -71,6 +88,7 @@ export function useTerminalSocket({
   createSocket = defaultSocketFactory,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sendMessage = useCallback((msg: TerminalMessage) => {
     const ws = wsRef.current;
@@ -97,75 +115,126 @@ export function useTerminalSocket({
     if (!terminal) return;
 
     const wsUrl = buildSessionWsUrl(sessionId);
-    const ws = createSocket(wsUrl);
-    wsRef.current = ws;
+    let disposed = false;
+    let reconnectAttempts = 0;
+    let connectedAtLeastOnce = false;
 
-    ws.onopen = () => {
-      sendResize(terminal.cols, terminal.rows);
-      onReady?.();
-    };
+    const connect = () => {
+      if (disposed) return;
 
-    ws.onmessage = (event) => {
-      let msg: TerminalMessage;
-      try {
-        msg = JSON.parse(event.data as string) as TerminalMessage;
-      } catch {
-        // Malformed message from server — log but don't crash the handler
-        console.warn("WebSocket: received non-JSON message", event.data);
-        return;
-      }
-      switch (msg.type) {
-        case "stdout":
-          if (msg.data) terminal.write(msg.data);
-          break;
-        case "exit": {
-          const code = msg.code ?? 0;
-          const exitLabel = code === 0
-            ? `${ANSI.gray}[Session ended]`
-            : `${ANSI.red}[Session ended with exit code ${code}]`;
-          terminal.write(`\r\n${exitLabel}${ANSI.reset}\r\n`);
-          onExit?.(sessionId);
-          break;
+      const ws = createSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        const wasReconnect = connectedAtLeastOnce;
+        connectedAtLeastOnce = true;
+        reconnectAttempts = 0;
+        sendResize(terminal.cols, terminal.rows);
+        if (wasReconnect) {
+          terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
         }
-        case "error": {
-          terminal.write(
-            `\r\n${ANSI.red}[Error: ${msg.data}]${ANSI.reset}\r\n`,
-          );
-          // Provide recovery guidance for known error types
-          const recoveryHint = WS_ERROR_RECOVERY[msg.data ?? ""] ?? "";
-          if (recoveryHint) {
-            terminal.write(
-              `${ANSI.gray}  ${recoveryHint}${ANSI.reset}\r\n`,
-            );
+        onReady?.();
+      };
+
+      ws.onmessage = (event) => {
+        let msg: TerminalMessage;
+        try {
+          msg = JSON.parse(event.data as string) as TerminalMessage;
+        } catch {
+          // Malformed message from server — log but don't crash the handler
+          console.warn("WebSocket: received non-JSON message", event.data);
+          return;
+        }
+        switch (msg.type) {
+          case "stdout":
+            if (msg.data) {
+              terminal.write(msg.data);
+              appendOutputProbe(sessionId, msg.data);
+            }
+            break;
+          case "exit": {
+            const code = msg.code ?? 0;
+            const exitLabel = code === 0
+              ? `${ANSI.gray}[Session ended]`
+              : `${ANSI.red}[Session ended with exit code ${code}]`;
+            terminal.write(`\r\n${exitLabel}${ANSI.reset}\r\n`);
+            onExit?.(sessionId);
+            break;
           }
-          break;
+          case "error": {
+            terminal.write(
+              `\r\n${ANSI.red}[Error: ${msg.data}]${ANSI.reset}\r\n`,
+            );
+            // Provide recovery guidance for known error types
+            const recoveryHint = WS_ERROR_RECOVERY[msg.data ?? ""] ?? "";
+            if (recoveryHint) {
+              terminal.write(
+                `${ANSI.gray}  ${recoveryHint}${ANSI.reset}\r\n`,
+              );
+            }
+            break;
+          }
         }
-      }
-    };
+      };
 
-    ws.onclose = (event) => {
-      if (isCleanWsClose(event.code)) {
-        terminal.write(
-          `\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`,
-        );
-      } else {
+      ws.onclose = (event) => {
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
+        if (disposed) {
+          return;
+        }
+
+        const isPageHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+        if (isPageHidden) {
+          return;
+        }
+
+        if (isCleanWsClose(event.code)) {
+          terminal.write(
+            `\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`,
+          );
+          return;
+        }
+
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts += 1;
+          const delay = Math.min(
+            RECONNECT_BASE_DELAY_MS * (2 ** (reconnectAttempts - 1)),
+            RECONNECT_MAX_DELAY_MS,
+          );
+          terminal.write(
+            `\r\n${ANSI.gray}[Connection lost, reconnecting...]${ANSI.reset}\r\n`,
+          );
+          reconnectTimerRef.current = setTimeout(connect, delay);
+          return;
+        }
+
         terminal.write(
           `\r\n${ANSI.red}[Connection lost]${ANSI.reset}\r\n` +
-          `${ANSI.gray}  Close this pane and open a new terminal to reconnect.${ANSI.reset}\r\n`,
+          `${ANSI.gray}  Reconnect attempts exhausted. Open a new terminal if this persists.${ANSI.reset}\r\n`,
         );
-      }
+      };
     };
+
+    connect();
 
     // Terminal input -> WebSocket stdin
     const inputDisposable = terminal.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "stdin", data } satisfies TerminalMessage));
       }
     });
 
     return () => {
+      disposed = true;
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       inputDisposable.dispose();
-      ws.close();
+      wsRef.current?.close();
       wsRef.current = null;
     };
   }, [sessionId, terminal, onExit, onReady, sendResize, createSocket]);

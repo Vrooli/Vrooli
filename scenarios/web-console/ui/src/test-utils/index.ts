@@ -10,3 +10,4 @@ export {
   mockFetchError,
 } from "./mocks";
 export type { MockTerminal } from "./mocks";
+export { createTestQueryClient, renderWithProviders } from "./render";

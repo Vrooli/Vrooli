@@ -33,6 +33,10 @@ vi.mock("../hooks/useCountdown", () => ({
   useCountdown: vi.fn(() => null),
 }));
 
+vi.mock("../components/ProviderHealthPanel", () => ({
+  default: () => <div data-testid="provider-health-panel">ProviderHealthPanel</div>,
+}));
+
 describe("SessionDrawer", () => {
   const onClose = vi.fn();
   const onDeleteSession = vi.fn();
@@ -215,17 +219,13 @@ describe("SessionDrawer", () => {
   });
 
   it("renders ProviderHealthPanel in drawer footer", async () => {
-    mockGetAIConfig.mockResolvedValueOnce({
-      providers: [{ name: "ollama", enabled: true, priority: 1, timeout_sec: 30, max_retries: 2 }],
-      health: [{ name: "ollama", available: true, error_count: 0, success_count: 5, error_rate: 0 }],
-    });
     const sessions = makeSessions("sess-abc123");
     render(
       <SessionDrawer open={true} onClose={onClose} sessions={sessions} onDeleteSession={onDeleteSession} />,
     );
 
     await waitFor(() => {
-      expect(screen.getByText("AI Providers")).toBeTruthy();
+      expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
     });
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
 import type { SessionInfo } from "../lib/api";
 
@@ -55,9 +56,13 @@ vi.mock("../hooks/useSessionManager", () => ({
 
 // Mock child components to isolate Workspace layout logic
 vi.mock("../components/TerminalPane", () => ({
-  default: vi.fn(({ sessionId }: { sessionId: string }) => (
-    <div data-testid={`mock-terminal-${sessionId}`}>Terminal {sessionId}</div>
-  )),
+  default: forwardRef<HTMLDivElement, { sessionId: string }>(function MockTerminalPane({ sessionId }, ref) {
+    return (
+      <div ref={ref} data-testid={`mock-terminal-${sessionId}`}>
+        Terminal {sessionId}
+      </div>
+    );
+  }),
 }));
 
 vi.mock("../components/TerminalLauncher", () => ({

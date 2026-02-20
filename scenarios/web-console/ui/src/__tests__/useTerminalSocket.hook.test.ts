@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTerminalSocket, type TerminalMessage } from "../hooks/useTerminalSocket";
 import { ANSI } from "../lib/ansi";
@@ -23,6 +23,10 @@ describe("useTerminalSocket hook", () => {
     fakeWs = pair.fakeWs;
     createSocket = pair.createSocket;
     terminal = createMockTerminal();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("creates WebSocket with correct URL and sends initial resize on open", () => {
@@ -188,7 +192,9 @@ describe("useTerminalSocket hook", () => {
     expect(writeData).toContain(ANSI.gray);
   });
 
-  it("shows [Connection lost] with reconnect hint for unclean close", () => {
+  it("shows reconnecting hint and retries for unclean close", () => {
+    vi.useFakeTimers();
+
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-1",
@@ -200,9 +206,45 @@ describe("useTerminalSocket hook", () => {
     act(() => fakeWs.triggerOpen());
     act(() => fakeWs.triggerClose(1006));
 
-    const writeData = findWriteCall(terminal.write, "[Connection lost]");
+    const writeData = findWriteCall(terminal.write, "[Connection lost, reconnecting...]");
     expect(writeData).toBeTruthy();
-    expect(writeData).toContain(ANSI.red);
+
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(createSocket).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes [Reconnected] after a successful reconnect", () => {
+    vi.useFakeTimers();
+
+    const first = new FakeWebSocket();
+    const second = new FakeWebSocket();
+    const sockets: FakeWebSocket[] = [first, second];
+    let idx = 0;
+    const reconnectFactory = vi.fn(() => {
+      const ws = sockets[idx] ?? sockets[sockets.length - 1];
+      idx += 1;
+      return ws as unknown as WebSocket;
+    });
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: reconnectFactory,
+      }),
+    );
+
+    act(() => first.triggerOpen());
+    act(() => first.triggerClose(1006));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    act(() => second.triggerOpen());
+
+    const writeData = findWriteCall(terminal.write, "[Reconnected]");
+    expect(writeData).toBeTruthy();
   });
 
   it("forwards terminal input to WebSocket as stdin messages", () => {

@@ -56,7 +56,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { if (window.__bas_ws_tracker_installed) return; window.__bas_ws_tracker_installed = true; window.__bas_ws_instances = []; const NativeWebSocket = window.WebSocket; class TrackingWebSocket extends NativeWebSocket { constructor(...args) { super(...args); window.__bas_ws_instances.push(this); } } window.WebSocket = TrackingWebSocket; })()"
+          "expression": "(() => { if (window.__bas_ws_tracker_installed) return; window.__bas_ws_tracker_installed = true; window.__bas_ws_instances = []; window.__bas_ws_output = {}; const NativeWebSocket = window.WebSocket; const sessionIdFromUrl = (value) => { try { const url = String(value || ''); const match = url.match(/\\/sessions\\/([^/]+)\\/ws/); return match ? match[1] : ''; } catch { return ''; } }; class TrackingWebSocket extends NativeWebSocket { constructor(...args) { super(...args); this.__bas_session_id = sessionIdFromUrl(args[0]); this.addEventListener('message', (event) => { try { const text = typeof event.data === 'string' ? event.data : ''; if (!text) return; const parsed = JSON.parse(text); if (parsed && parsed.type === 'stdout' && typeof parsed.data === 'string' && this.__bas_session_id) { const previous = window.__bas_ws_output[this.__bas_session_id] || ''; window.__bas_ws_output[this.__bas_session_id] = (previous + parsed.data).slice(-12000); } } catch {} }); window.__bas_ws_instances.push(this); } } window.WebSocket = TrackingWebSocket; })()"
         },
         "metadata": {
           "label": "Install WebSocket tracker for reconnect tests"

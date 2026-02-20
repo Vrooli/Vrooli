@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSessionManager } from "../hooks/useSessionManager";
 
@@ -22,14 +22,20 @@ describe("useSessionManager", () => {
   let mockCreateSession: ReturnType<typeof vi.fn>;
   let mockListSessions: ReturnType<typeof vi.fn>;
   let mockDeleteSession: ReturnType<typeof vi.fn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const api = await import("../lib/api");
     mockCreateSession = api.createSession as ReturnType<typeof vi.fn>;
     mockListSessions = api.listSessions as ReturnType<typeof vi.fn>;
     mockDeleteSession = api.deleteSession as ReturnType<typeof vi.fn>;
     mockListSessions.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   it("starts with empty panes", () => {
@@ -182,5 +188,28 @@ describe("useSessionManager", () => {
 
     await act(async () => { await result.current.removePane("sess-1"); });
     expect(result.current.activePane).toBeNull();
+  });
+
+  it("flushes queued launch command when ref registers after onReady", async () => {
+    const mockSession = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
+    mockCreateSession.mockResolvedValueOnce(mockSession);
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await result.current.launchSession("echo from-queued-command");
+    });
+
+    // Simulate race: onReady fires before ref registration
+    act(() => {
+      result.current.handleTerminalReady("sess-1");
+    });
+
+    const handle = { sendInput: vi.fn() };
+    act(() => {
+      result.current.registerTerminalRef("sess-1", handle);
+    });
+
+    expect(handle.sendInput).toHaveBeenCalledWith("echo from-queued-command\n");
   });
 });

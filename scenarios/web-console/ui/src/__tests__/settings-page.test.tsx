@@ -129,11 +129,13 @@ describe("SettingsPage", () => {
     // Click save
     fireEvent.click(screen.getByTestId("profile-save-prof-1"));
 
-    expect(mockUpsertProfile).toHaveBeenCalledWith({
-      id: "prof-1",
-      scope: "workspace",
-      name: "Renamed",
-      shortcuts: mockProfile.shortcuts,
+    await waitFor(() => {
+      expect(mockUpsertProfile).toHaveBeenCalledWith({
+        id: "prof-1",
+        scope: "workspace",
+        name: "Renamed",
+        shortcuts: mockProfile.shortcuts,
+      });
     });
   });
 

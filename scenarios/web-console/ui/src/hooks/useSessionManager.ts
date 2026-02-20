@@ -33,6 +33,15 @@ export function useSessionManager() {
   const pendingCommands = useRef<Map<string, string>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const flushPendingCommand = useCallback((sessionId: string) => {
+    const command = pendingCommands.current.get(sessionId);
+    if (!command) return;
+    const handle = terminalRefs.current.get(sessionId);
+    if (!handle) return;
+    pendingCommands.current.delete(sessionId);
+    handle.sendInput(command + "\n");
+  }, []);
+
   // Hydrate workspace panes from existing sessions so reload reconnects to
   // durable sessions instead of showing the empty-state landing screen.
   useEffect(() => {
@@ -112,15 +121,8 @@ export function useSessionManager() {
   }, []);
 
   const handleTerminalReady = useCallback((sessionId: string) => {
-    const command = pendingCommands.current.get(sessionId);
-    if (command) {
-      pendingCommands.current.delete(sessionId);
-      const handle = terminalRefs.current.get(sessionId);
-      if (handle) {
-        handle.sendInput(command + "\n");
-      }
-    }
-  }, []);
+    flushPendingCommand(sessionId);
+  }, [flushPendingCommand]);
 
   const removePane = useCallback(async (sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
@@ -154,11 +156,14 @@ export function useSessionManager() {
     (sessionId: string, handle: TerminalPaneHandle | null) => {
       if (handle) {
         terminalRefs.current.set(sessionId, handle);
+        // onReady can fire before the ref callback in some mount orders.
+        // Flush here too so queued launch commands are never stranded.
+        flushPendingCommand(sessionId);
       } else {
         terminalRefs.current.delete(sessionId);
       }
     },
-    [],
+    [flushPendingCommand],
   );
 
   return {

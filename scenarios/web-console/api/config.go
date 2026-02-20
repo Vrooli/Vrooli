@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -56,6 +57,12 @@ type Config struct {
 	// values use less memory but may drop frames for slow consumers.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 64 | Range: 8–1024
 	ClientChannelBuffer int
+
+	// DefaultCWD is the working directory used for newly spawned shell sessions.
+	// Fallback chain:
+	//   WC_DEFAULT_CWD -> PROJECT_ROOT -> SCENARIO_DIR -> inferred scenario dir -> current process cwd
+	// Env: WC_DEFAULT_CWD | Default: derived from environment/runtime
+	DefaultCWD string
 }
 
 // DefaultConfig returns the default configuration with all sane defaults.
@@ -69,6 +76,7 @@ func DefaultConfig() Config {
 		DefaultShell:        resolveShell(),
 		MaxSessions:         0,
 		ClientChannelBuffer: 64,
+		DefaultCWD:          resolveWorkingDir(),
 	}
 }
 
@@ -86,6 +94,7 @@ func LoadConfig() Config {
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
 
 	cfg.DefaultShell = resolveShell()
+	cfg.DefaultCWD = resolveWorkingDir()
 
 	return cfg
 }
@@ -104,6 +113,56 @@ func resolveShell() string {
 		return v
 	}
 	return "/bin/sh"
+}
+
+func validDirectory(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func inferScenarioDirFromWD(wd string) string {
+	if wd == "" {
+		return ""
+	}
+
+	cleaned := filepath.Clean(wd)
+	if filepath.Base(cleaned) == "api" {
+		parent := filepath.Dir(cleaned)
+		if validDirectory(parent) {
+			return parent
+		}
+	}
+	return ""
+}
+
+// resolveWorkingDir determines the default PTY working directory.
+// Priority:
+//   1) WC_DEFAULT_CWD (explicit override)
+//   2) PROJECT_ROOT (workspace root for cross-device parity)
+//   3) SCENARIO_DIR (scenario lifecycle hint)
+//   4) parent of cwd when running from scenario/api
+//   5) current process working directory
+func resolveWorkingDir() string {
+	if v := os.Getenv("WC_DEFAULT_CWD"); validDirectory(v) {
+		return v
+	}
+	if v := os.Getenv("PROJECT_ROOT"); validDirectory(v) {
+		return v
+	}
+	if v := os.Getenv("SCENARIO_DIR"); validDirectory(v) {
+		return v
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	if scenarioDir := inferScenarioDirFromWD(wd); scenarioDir != "" {
+		return scenarioDir
+	}
+	return wd
 }
 
 // envInt reads an integer environment variable, clamping it to [min, max].

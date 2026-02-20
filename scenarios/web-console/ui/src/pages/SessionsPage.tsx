@@ -13,7 +13,7 @@ import {
   updateSessionPolicy,
 } from "../lib/api";
 import { getShellName, formatSessionTime, truncateId } from "../lib/format";
-import { POLICY_OPTIONS, policyKey } from "../consts/policy-options";
+import { POLICY_OPTIONS, policyKey, parsePolicySelection } from "../consts/policy-options";
 import { useCountdown } from "../hooks/useCountdown";
 
 interface SessionsPageProps {
@@ -159,13 +159,9 @@ export default function SessionsPage({ onBack }: SessionsPageProps) {
                       className="h-6 rounded border border-wc-default bg-wc-surface px-1.5 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
                       value={policyKey(session.policy.mode, session.policy.duration)}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "never") {
-                          handlePolicyChange(session.id, "never");
-                        } else {
-                          const dur = val.split(":")[1];
-                          handlePolicyChange(session.id, "preset", dur);
-                        }
+                        const parsed = parsePolicySelection(e.target.value);
+                        if (!parsed) return;
+                        handlePolicyChange(session.id, parsed.mode, parsed.duration);
                       }}
                     >
                       {POLICY_OPTIONS.map((opt) => (

@@ -116,7 +116,9 @@ describe("SessionsPage", () => {
 
     // Second click — actually deletes
     fireEvent.click(deleteBtn);
-    expect(mockDeleteSession).toHaveBeenCalledWith("sess-abc123");
+    await waitFor(() => {
+      expect(mockDeleteSession).toHaveBeenCalledWith("sess-abc123");
+    });
   });
 
   it("removes session from list after successful delete", async () => {
@@ -160,9 +162,11 @@ describe("SessionsPage", () => {
 
     fireEvent.change(select, { target: { value: "preset:1h" } });
 
-    expect(mockUpdateSessionPolicy).toHaveBeenCalledWith("sess-abc123", {
-      mode: "preset",
-      duration: "1h",
+    await waitFor(() => {
+      expect(mockUpdateSessionPolicy).toHaveBeenCalledWith("sess-abc123", {
+        mode: "preset",
+        duration: "1h",
+      });
     });
   });
 
@@ -182,8 +186,10 @@ describe("SessionsPage", () => {
 
     fireEvent.change(select, { target: { value: "never" } });
 
-    expect(mockUpdateSessionPolicy).toHaveBeenCalledWith("sess-def456", {
-      mode: "never",
+    await waitFor(() => {
+      expect(mockUpdateSessionPolicy).toHaveBeenCalledWith("sess-def456", {
+        mode: "never",
+      });
     });
   });
 

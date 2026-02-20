@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -133,5 +134,73 @@ func TestMaxSessions_Enforcement(t *testing.T) {
 	_, err = sm.Create("", 0, 0)
 	if err == nil {
 		t.Error("third session should be rejected when MaxSessions=2")
+	}
+}
+
+func TestResolveWorkingDir_PrefersProjectRoot(t *testing.T) {
+	projectRoot := t.TempDir()
+	scenarioDir := t.TempDir()
+	explicit := t.TempDir()
+
+	t.Setenv("WC_DEFAULT_CWD", explicit)
+	t.Setenv("PROJECT_ROOT", projectRoot)
+	t.Setenv("SCENARIO_DIR", scenarioDir)
+
+	got := resolveWorkingDir()
+	if got != explicit {
+		t.Fatalf("expected WC_DEFAULT_CWD %q, got %q", explicit, got)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	got = resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected PROJECT_ROOT %q, got %q", projectRoot, got)
+	}
+
+	t.Setenv("PROJECT_ROOT", "")
+	got = resolveWorkingDir()
+	if got != scenarioDir {
+		t.Fatalf("expected SCENARIO_DIR %q, got %q", scenarioDir, got)
+	}
+}
+
+func TestInferScenarioDirFromWD_ApiSubdir(t *testing.T) {
+	base := t.TempDir()
+	apiDir := filepath.Join(base, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+
+	got := inferScenarioDirFromWD(apiDir)
+	if got != base {
+		t.Fatalf("expected %q, got %q", base, got)
+	}
+}
+
+func TestResolveWorkingDir_FallsBackToCurrentWD(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	scenarioDir := t.TempDir()
+	apiDir := filepath.Join(scenarioDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("chdir api dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", "")
+
+	got := resolveWorkingDir()
+	if got != scenarioDir {
+		t.Fatalf("expected scenario dir %q, got %q", scenarioDir, got)
 	}
 }

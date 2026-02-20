@@ -63,6 +63,7 @@ func (p *realPTY) ExitCode() int {
 func defaultPTYFactory(shell string, cols, rows uint16) (PTY, error) {
 	cmd := exec.Command(shell)
 	cmd.Env = os.Environ()
+	cmd.Dir = resolveWorkingDir()
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: rows, Cols: cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)

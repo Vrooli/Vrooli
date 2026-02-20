@@ -54,14 +54,14 @@
       }
     },
     {
-      "id": "capture-row-count-before-back",
+      "id": "capture-sessions-before-back",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const count = document.querySelectorAll('[data-testid^=\"session-row-\"]').length; document.body.setAttribute('data-sessions-count-before', String(count)); })()"
+          "expression": "(() => { const rows = Array.from(document.querySelectorAll('[data-testid^=\"session-row-\"]')); const ids = rows.map((row) => (row.getAttribute('data-testid') || '').replace('session-row-', '')).filter(Boolean); document.body.setAttribute('data-sessions-count-before', String(ids.length)); document.body.setAttribute('data-sessions-before', ids.join(',')); })()"
         },
         "metadata": {
-          "label": "Capture session row count before leaving page"
+          "label": "Capture session IDs before leaving page"
         }
       }
     },
@@ -122,10 +122,10 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const before = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const after = document.querySelectorAll('[data-testid^=\"session-row-\"]').length; const ok = before > 0 && after >= before; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
+          "expression": "(() => { const beforeCount = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const beforeRaw = document.body.getAttribute('data-sessions-before') || ''; const beforeIds = beforeRaw.split(',').filter(Boolean); const afterRows = Array.from(document.querySelectorAll('[data-testid^=\"session-row-\"]')); const afterIds = afterRows.map((row) => (row.getAttribute('data-testid') || '').replace('session-row-', '')).filter(Boolean); const overlap = beforeIds.filter((id) => afterIds.includes(id)).length; const ok = beforeCount > 0 && overlap >= 1; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
         },
         "metadata": {
-          "label": "Mark persistence result"
+          "label": "Mark persistence result with session identity overlap"
         }
       }
     },
@@ -161,12 +161,12 @@
     {
       "id": "e3",
       "source": "wait-sessions-row",
-      "target": "capture-row-count-before-back",
+      "target": "capture-sessions-before-back",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "capture-row-count-before-back",
+      "source": "capture-sessions-before-back",
       "target": "click-back-to-workspace",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },

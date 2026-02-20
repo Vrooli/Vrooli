@@ -79,6 +79,13 @@
           "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
           "status": "implemented",
           "type": "automation"
+        },
+        {
+          "notes": "BAS case sends keyboard stdin to an empty shell and verifies stdout round-trip marker",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json",
+          "status": "implemented",
+          "type": "automation"
         }
       ]
     },

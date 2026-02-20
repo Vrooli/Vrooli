@@ -1,6 +1,6 @@
 # Web Console — Unit Testing Architecture
 
-Last updated: 2026-02-19
+Last updated: 2026-02-20
 
 ## Test Organization Status
 
@@ -17,6 +17,7 @@ Last updated: 2026-02-19
 - [x] Consistent naming (`*.test.ts`, `*.test.tsx`)
 - [x] Vitest setup file (`test-utils/setup.ts`) with automatic cleanup
 - [x] Shared test utilities (`test-utils/`) with mock factories
+- [x] Shared render helper (`test-utils/render.tsx`) with QueryClient provider defaults
 - [x] `globals: true` in vitest config (no boilerplate imports needed)
 
 ## Mock Organization Status
@@ -39,6 +40,7 @@ Last updated: 2026-02-19
   - `createMockSession()` — single session factory with overrides
   - `mockFetchSuccess()` / `mockFetchError()` — fetch mock installers
 - [x] Per-test module mocking via `vi.mock()` where component-specific
+- [x] Component seam injection available where needed (`ProviderHealthPanelApi`)
 
 ## Testability Status
 
@@ -102,8 +104,26 @@ const { fakeWs, createSocket } = createFakeSocketPair();
 const terminal = createMockTerminal();
 ```
 
+### TypeScript: Render Infrastructure Pattern
+```typescript
+import { renderWithProviders } from "../test-utils";
+renderWithProviders(<ProviderHealthPanel open api={fakeApi} />);
+```
+Provides a consistent QueryClient-backed render path with retries disabled.
+
+## Coverage Snapshot (2026-02-20)
+
+- UI overall coverage (`pnpm vitest run --coverage`):
+  - Statements: `77.22%`
+  - Branches: `85.47%`
+  - Functions: `76.15%`
+  - Lines: `77.22%`
+- New seam-focused coverage:
+  - `consts/policy-options.ts`: `100%` statements/lines/functions
+  - `components/ProviderHealthPanel.tsx`: `98.16%` statements/lines, `100%` functions
+
 ## Remaining Improvements
 
-1. **Testcontainers for PG stores** — `PGShortcutStore` and `PGAIConfigStore` lack dedicated tests; currently validated via interface compliance with in-memory implementations only
-2. **Component test isolation** — Some component tests mock `../lib/api` with `vi.importActual` + overrides; consider standardizing this pattern into a helper
-3. **`act()` warnings** — `SessionDrawer` and `SettingsPage` tests produce React `act()` warnings from async state updates in `ProviderHealthPanel`; cosmetic but worth addressing
+1. **Testcontainers for PG stores** — `PGShortcutStore` and `PGAIConfigStore` still rely on interface-level coverage rather than DB-backed seam tests
+2. **UI test placement** — tests are centralized in `__tests__/`; future refactors can incrementally co-locate tests with source modules
+3. **Low-coverage entry files** — `App.tsx` and `main.tsx` remain unexercised by unit tests

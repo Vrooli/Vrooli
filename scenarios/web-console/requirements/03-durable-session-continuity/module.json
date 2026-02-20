@@ -49,6 +49,13 @@
           "type": "automation"
         },
         {
+          "notes": "BAS case reloads workspace and verifies same session ID and marker output are restored",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/session-persists-across-full-reload.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
           "notes": "Idempotency cache TTL expiry removes stale entries on Get",
           "phase": "unit",
           "ref": "api/session_handlers_test.go:TestIdempotencyCache_TTLExpiry",

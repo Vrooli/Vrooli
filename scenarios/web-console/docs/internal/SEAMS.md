@@ -1,6 +1,6 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-02-19
+Last updated: 2026-02-20
 
 ## Responsibility Zones
 
@@ -100,6 +100,29 @@ Last updated: 2026-02-19
 | `mockFetchSuccess()` / `mockFetchError()` | Repeated `globalThis.fetch = vi.fn(...)` pattern | API client tests |
 
 **Benefits**: New tests can set up realistic test data in one line. Mock behavior is consistent across test files. Changes to data shapes (e.g., adding a field to `SessionInfo`) require updating one factory, not many test files.
+
+### Policy Selection Parse Seam (UI)
+**File**: `ui/src/consts/policy-options.ts`
+**Purpose**: Centralize policy select value parsing to avoid duplicated string-splitting logic and undefined behavior across session UIs.
+
+| Component | Before | After |
+|-----------|--------|-------|
+| `SessionDrawer` | Inline parse (`if val === "never" else split(":")`) | Uses `parsePolicySelection(value)` helper |
+| `SessionsPage` | Inline parse with separate branch/split logic | Uses `parsePolicySelection(value)` helper |
+| Invalid values | Implicitly assumed valid | Explicit `null` return; caller no-ops safely |
+
+**Benefits**: Single source of truth for UI policy parsing decisions, tighter edge-case tests at seam boundaries, and reduced drift risk between pages.
+
+### Provider Health API Injection Seam (UI)
+**File**: `ui/src/components/ProviderHealthPanel.tsx`
+**Purpose**: Decouple ProviderHealthPanel UI behavior from hard-coded API module imports by allowing seam-level dependency injection.
+
+| Component | Production | Test |
+|-----------|------------|------|
+| `ProviderHealthPanel` API dependency | Default `getAIConfig`/`updateAIConfig` adapter | Injected `ProviderHealthPanelApi` fake |
+| Refresh/toggle behavior tests | Required global/module mocking | Uses direct fake API object with deterministic calls |
+
+**Benefits**: Reduced global mocking, lower test setup coupling, and easier behavior-focused tests for loading, refresh, toggle, and error states.
 
 ## Boundary Violations Fixed
 
