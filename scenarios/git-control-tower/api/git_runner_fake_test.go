@@ -414,7 +414,7 @@ func (f *FakeGitRunner) ResolveRepoRoot(_ context.Context) string {
 }
 
 // FetchRemote simulates fetching from a remote.
-func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
+func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
 	f.recordCall("FetchRemote", repoDir, remote)
 
 	if f.FetchError != nil {
@@ -468,7 +468,7 @@ func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 // Push simulates pushing to a remote.
-func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
 	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
 
 	if f.PushError != nil {
@@ -499,7 +499,7 @@ func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string,
 }
 
 // Pull simulates pulling from a remote.
-func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
+func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
 	f.recordCall("Pull", repoDir, remote, branch)
 
 	if f.PullError != nil {
@@ -517,7 +517,7 @@ func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 }
 
 // Clone simulates cloning a repository to a destination.
-func (f *FakeGitRunner) Clone(ctx context.Context, destination string, url string) error {
+func (f *FakeGitRunner) Clone(ctx context.Context, destination string, url string, cred *StoredCredential) error {
 	f.recordCall("Clone", destination, url)
 
 	if f.CloneError != nil {

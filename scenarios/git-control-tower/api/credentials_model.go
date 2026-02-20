@@ -32,6 +32,9 @@ type Credential struct {
 	// TokenMasked is the masked token for display (e.g., "ghp_****...1234").
 	TokenMasked string `json:"token_masked,omitempty"`
 
+	// SSHKeyPath is the path to the SSH private key (for SSH auth).
+	SSHKeyPath string `json:"ssh_key_path,omitempty"`
+
 	// IsConfigured indicates if credentials are fully set up.
 	IsConfigured bool `json:"is_configured"`
 
@@ -59,11 +62,14 @@ type CredentialSaveRequest struct {
 	// URL optionally updates the remote URL.
 	URL string `json:"url,omitempty"`
 
-	// Username is the git username.
-	Username string `json:"username"`
+	// Username is the git username (for HTTPS auth).
+	Username string `json:"username,omitempty"`
 
 	// Token is the personal access token (plaintext, will be encrypted).
-	Token string `json:"token"`
+	Token string `json:"token,omitempty"`
+
+	// SSHKeyPath is the path to the SSH private key (for SSH auth).
+	SSHKeyPath string `json:"ssh_key_path,omitempty"`
 }
 
 // CredentialSaveResponse is the result of saving a credential.

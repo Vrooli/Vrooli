@@ -18,14 +18,15 @@ import (
 
 // StoredCredential is the internal representation with plaintext token.
 type StoredCredential struct {
-	ID        string         `json:"id"`
-	Remote    string         `json:"remote"`
-	URL       string         `json:"url"`
-	Type      CredentialType `json:"type"`
-	Username  string         `json:"username,omitempty"`
-	Token     string         `json:"token,omitempty"` // Plaintext token (encrypted at rest)
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID         string         `json:"id"`
+	Remote     string         `json:"remote"`
+	URL        string         `json:"url"`
+	Type       CredentialType `json:"type"`
+	Username   string         `json:"username,omitempty"`
+	Token      string         `json:"token,omitempty"`        // Plaintext token (encrypted at rest)
+	SSHKeyPath string         `json:"ssh_key_path,omitempty"` // Path to SSH private key
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
 }
 
 // CredentialsStore manages encrypted credential storage.
@@ -60,7 +61,7 @@ func NewCredentialsStore(storePath string) (*CredentialsStore, error) {
 
 	// Ensure directory exists
 	dir := filepath.Dir(storePath)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -153,7 +154,7 @@ func (s *CredentialsStore) saveCredentials(creds []StoredCredential) error {
 
 	// Write atomically using temp file
 	tempPath := s.storePath + ".tmp"
-	if err := os.WriteFile(tempPath, ciphertext, 0600); err != nil {
+	if err := os.WriteFile(tempPath, ciphertext, 0o600); err != nil {
 		return fmt.Errorf("failed to write credentials: %w", err)
 	}
 
@@ -315,6 +316,10 @@ func maskToken(token string) string {
 
 // ToCredential converts a StoredCredential to a Credential (masks token).
 func (sc *StoredCredential) ToCredential() Credential {
+	isConfigured := sc.Token != "" && sc.Username != ""
+	if sc.Type == CredentialTypeSSH {
+		isConfigured = sc.SSHKeyPath != ""
+	}
 	return Credential{
 		ID:           sc.ID,
 		Remote:       sc.Remote,
@@ -322,7 +327,8 @@ func (sc *StoredCredential) ToCredential() Credential {
 		Type:         sc.Type,
 		Username:     sc.Username,
 		TokenMasked:  maskToken(sc.Token),
-		IsConfigured: sc.Token != "" && sc.Username != "",
+		SSHKeyPath:   sc.SSHKeyPath,
+		IsConfigured: isConfigured,
 		CreatedAt:    sc.CreatedAt,
 		UpdatedAt:    sc.UpdatedAt,
 	}

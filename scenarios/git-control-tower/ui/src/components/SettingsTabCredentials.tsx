@@ -27,6 +27,7 @@ import {
   useTestSSHConnection,
   useDeleteSSHKey
 } from "../lib/hooks";
+import { testCredential } from "../lib/api";
 import type { SSHKeyInfo } from "../lib/api";
 
 const EMPTY_SSH_KEYS: SSHKeyInfo[] = [];
@@ -112,6 +113,16 @@ export function SettingsTabCredentials({
     message: string;
   } | null>(null);
 
+  // Live auth status from auto-test on mount
+  const [authStatus, setAuthStatus] = useState<{
+    tested: boolean;
+    loading: boolean;
+    success: boolean;
+    authorized: boolean;
+    reachable: boolean;
+    error?: string;
+  }>({ tested: false, loading: false, success: false, authorized: false, reachable: false });
+
   // SSH key management state
   const [selectedKeyPath, setSelectedKeyPath] = useState<string | null>(null);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
@@ -138,13 +149,22 @@ export function SettingsTabCredentials({
   // Get SSH keys
   const sshKeys = sshKeysQuery.data?.keys ?? EMPTY_SSH_KEYS;
 
-  // Auto-select first key if none selected
+  // Auto-select stored SSH key, or fall back to first key
   useEffect(() => {
+    if (!isSSH) return;
+    // Prefer the stored SSH key path from credential
+    if (originCredential?.ssh_key_path) {
+      const storedKey = sshKeys.find(k => k.path === originCredential.ssh_key_path);
+      if (storedKey && !selectedKeyPath) {
+        setSelectedKeyPath(storedKey.path);
+        return;
+      }
+    }
     const firstKey = sshKeys[0];
-    if (isSSH && firstKey && !selectedKeyPath) {
+    if (firstKey && !selectedKeyPath) {
       setSelectedKeyPath(firstKey.path);
     }
-  }, [isSSH, sshKeys, selectedKeyPath]);
+  }, [isSSH, sshKeys, selectedKeyPath, originCredential?.ssh_key_path]);
 
   // Pre-fill username from stored credential
   useEffect(() => {
@@ -168,6 +188,37 @@ export function SettingsTabCredentials({
       return () => clearTimeout(timer);
     }
   }, [testResult]);
+
+  // Auto-test auth status on mount and when credentials change
+  useEffect(() => {
+    if (!remoteUrl || !repoId) return;
+    let cancelled = false;
+    setAuthStatus(prev => ({ ...prev, loading: true }));
+    testCredential({ remote: "origin", use_stored: true }, repoId)
+      .then(result => {
+        if (cancelled) return;
+        setAuthStatus({
+          tested: true,
+          loading: false,
+          success: result.success,
+          authorized: result.authorized,
+          reachable: result.reachable,
+          error: result.error,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuthStatus({
+          tested: true,
+          loading: false,
+          success: false,
+          authorized: false,
+          reachable: false,
+          error: "Failed to test connection",
+        });
+      });
+    return () => { cancelled = true; };
+  }, [remoteUrl, repoId, credentialsQuery.dataUpdatedAt]);
 
   // Clear SSH test result after 10 seconds
   useEffect(() => {
@@ -215,6 +266,16 @@ export function SettingsTabCredentials({
         ? "Connection successful!"
         : result.error || "Connection failed"
     });
+
+    // Also update the live auth status
+    setAuthStatus({
+      tested: true,
+      loading: false,
+      success: result.success,
+      authorized: result.authorized,
+      reachable: result.reachable,
+      error: result.error,
+    });
   };
 
   const handleSwitchProtocol = async () => {
@@ -228,6 +289,28 @@ export function SettingsTabCredentials({
       remote: "origin",
       url: newUrl
     });
+  };
+
+  const [sshSaveSuccess, setSSHSaveSuccess] = useState(false);
+
+  // Clear SSH save success after 3 seconds
+  useEffect(() => {
+    if (sshSaveSuccess) {
+      const timer = setTimeout(() => setSSHSaveSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [sshSaveSuccess]);
+
+  const handleSaveSSHKey = async () => {
+    if (!selectedKeyPath) return;
+    const result = await saveMutation.mutateAsync({
+      remote: "origin",
+      ssh_key_path: selectedKeyPath
+    });
+    if (result.success) {
+      setSSHSaveSuccess(true);
+      credentialsQuery.refetch();
+    }
   };
 
   // SSH key management handlers
@@ -336,27 +419,62 @@ export function SettingsTabCredentials({
           Authentication Status
         </h3>
         <div className={`flex items-center gap-2 rounded-lg border ${
-          originCredential?.is_configured
-            ? "border-emerald-700/50 bg-emerald-950/20"
-            : "border-amber-700/50 bg-amber-950/20"
+          authStatus.loading
+            ? "border-slate-700 bg-slate-900/40"
+            : authStatus.success
+              ? "border-emerald-700/50 bg-emerald-950/20"
+              : authStatus.tested && authStatus.reachable
+                ? "border-red-700/50 bg-red-950/20"
+                : authStatus.tested
+                  ? "border-amber-700/50 bg-amber-950/20"
+                  : "border-slate-700 bg-slate-900/40"
         } ${isMobile ? "px-4 py-3" : "px-3 py-2"}`}>
-          {originCredential?.is_configured ? (
+          {authStatus.loading ? (
+            <>
+              <RefreshCw className="h-4 w-4 text-slate-400 animate-spin shrink-0" />
+              <span className={`text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`}>
+                Checking authentication...
+              </span>
+            </>
+          ) : authStatus.success ? (
             <>
               <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
               <span className={`text-emerald-200 ${isMobile ? "text-sm" : "text-xs"}`}>
-                Credentials configured
-                {originCredential.token_masked && (
+                Authenticated
+                {originCredential?.type === "ssh" && originCredential.ssh_key_path ? (
+                  <span className="text-emerald-400/70 ml-1">
+                    (SSH key: {originCredential.ssh_key_path.split("/").pop()})
+                  </span>
+                ) : originCredential?.is_configured && originCredential.token_masked ? (
                   <span className="text-emerald-400/70 ml-1">
                     ({originCredential.token_masked})
                   </span>
-                )}
+                ) : isSSH ? (
+                  <span className="text-emerald-400/70 ml-1">
+                    (via system SSH)
+                  </span>
+                ) : null}
+              </span>
+            </>
+          ) : authStatus.tested && authStatus.reachable ? (
+            <>
+              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+              <span className={`text-red-200 ${isMobile ? "text-sm" : "text-xs"}`}>
+                Authentication failed — check credentials
+              </span>
+            </>
+          ) : authStatus.tested ? (
+            <>
+              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+              <span className={`text-amber-200 ${isMobile ? "text-sm" : "text-xs"}`}>
+                {authStatus.error || "Cannot reach remote"}
               </span>
             </>
           ) : (
             <>
-              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
-              <span className={`text-amber-200 ${isMobile ? "text-sm" : "text-xs"}`}>
-                No credentials configured
+              <AlertCircle className="h-4 w-4 text-slate-500 shrink-0" />
+              <span className={`text-slate-400 ${isMobile ? "text-sm" : "text-xs"}`}>
+                Not tested yet
               </span>
             </>
           )}
@@ -438,20 +556,18 @@ export function SettingsTabCredentials({
                 Save Credentials
               </Button>
 
-              {originCredential?.is_configured && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTest}
-                  disabled={testMutation.isPending}
-                  className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
-                >
-                  {testMutation.isPending ? (
-                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
-                  ) : null}
-                  Test Connection
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTest}
+                disabled={testMutation.isPending}
+                className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+              >
+                {testMutation.isPending ? (
+                  <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                ) : null}
+                Test Connection
+              </Button>
             </div>
 
             {/* Feedback Messages */}
@@ -581,46 +697,72 @@ export function SettingsTabCredentials({
 
           {/* Selected Key Actions */}
           {selectedKey && (
-            <div className={`flex gap-2 ${isMobile ? "flex-col" : "flex-row flex-wrap"}`}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCopyPublicKey(selectedKey.path)}
-                disabled={getPublicKeyMutation.isPending || !selectedKey.has_public}
-                className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
-              >
-                {getPublicKeyMutation.isPending ? (
-                  <RefreshCw className="h-3 w-3 animate-spin mr-2" />
-                ) : copySuccess ? (
-                  <CheckCircle className="h-3 w-3 mr-2 text-emerald-400" />
-                ) : (
-                  <Copy className="h-3 w-3 mr-2" />
-                )}
-                {copySuccess ? "Copied!" : "Copy Public Key"}
-              </Button>
+            <div className={isMobile ? "space-y-3" : "space-y-2"}>
+              <div className={`flex gap-2 ${isMobile ? "flex-col" : "flex-row flex-wrap"}`}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveSSHKey}
+                  disabled={saveMutation.isPending}
+                  className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+                >
+                  {saveMutation.isPending ? (
+                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                  ) : (
+                    <Lock className="h-3 w-3 mr-2" />
+                  )}
+                  Save SSH Key
+                </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleTestSSHConnection(selectedKey.path)}
-                disabled={testSSHMutation.isPending}
-                className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
-              >
-                {testSSHMutation.isPending ? (
-                  <RefreshCw className="h-3 w-3 animate-spin mr-2" />
-                ) : null}
-                Test Connection
-              </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCopyPublicKey(selectedKey.path)}
+                  disabled={getPublicKeyMutation.isPending || !selectedKey.has_public}
+                  className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+                >
+                  {getPublicKeyMutation.isPending ? (
+                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                  ) : copySuccess ? (
+                    <CheckCircle className="h-3 w-3 mr-2 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3 w-3 mr-2" />
+                  )}
+                  {copySuccess ? "Copied!" : "Copy Public Key"}
+                </Button>
 
-              <a
-                href="https://github.com/settings/ssh/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center justify-center gap-1 text-blue-400 hover:text-blue-300 border border-slate-700 rounded-md ${buttonHeight} px-3 ${isMobile ? "w-full text-sm" : "text-xs"}`}
-              >
-                <ExternalLink className="h-3 w-3" />
-                Add to GitHub
-              </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestSSHConnection(selectedKey.path)}
+                  disabled={testSSHMutation.isPending}
+                  className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+                >
+                  {testSSHMutation.isPending ? (
+                    <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                  ) : null}
+                  Test Connection
+                </Button>
+
+                <a
+                  href="https://github.com/settings/ssh/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center justify-center gap-1 text-blue-400 hover:text-blue-300 border border-slate-700 rounded-md ${buttonHeight} px-3 ${isMobile ? "w-full text-sm" : "text-xs"}`}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Add to GitHub
+                </a>
+              </div>
+
+              {sshSaveSuccess && (
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className={isMobile ? "text-sm" : "text-xs"}>
+                    SSH key saved for git operations
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

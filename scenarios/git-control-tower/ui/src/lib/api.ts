@@ -547,6 +547,7 @@ export interface Credential {
   type: CredentialType;
   username?: string;
   token_masked?: string;
+  ssh_key_path?: string;
   is_configured: boolean;
   created_at: string;
   updated_at: string;
@@ -560,8 +561,9 @@ export interface CredentialsListResponse {
 export interface CredentialSaveRequest {
   remote: string;
   url?: string;
-  username: string;
-  token: string;
+  username?: string;
+  token?: string;
+  ssh_key_path?: string;
 }
 
 export interface CredentialSaveResponse {

@@ -310,7 +310,7 @@ func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchReques
 		setUpstream = true
 	}
 
-	if err := deps.Git.Push(ctx, repoDir, remote, branch, setUpstream); err != nil {
+	if err := deps.Git.Push(ctx, repoDir, remote, branch, setUpstream, nil); err != nil {
 		resp.Success = false
 		resp.Remote = remote
 		resp.Branch = branch

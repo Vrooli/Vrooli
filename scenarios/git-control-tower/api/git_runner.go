@@ -57,7 +57,8 @@ type GitRunner interface {
 
 	// FetchRemote fetches updates from the remote without merging.
 	// Used to get accurate ahead/behind counts.
-	FetchRemote(ctx context.Context, repoDir string, remote string) error
+	// If cred is provided, uses it for authentication (SSH key or HTTPS token).
+	FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
 
 	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
 	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
@@ -71,16 +72,16 @@ type GitRunner interface {
 	Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error
 
 	// Push pushes commits to the remote repository.
-	// Returns an error if the push fails.
-	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error
+	// If cred is provided, uses it for authentication.
+	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error
 
 	// Pull pulls commits from the remote repository.
-	// Returns an error if the pull fails (e.g., conflicts).
-	Pull(ctx context.Context, repoDir string, remote string, branch string) error
+	// If cred is provided, uses it for authentication.
+	Pull(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error
 
 	// Clone clones a remote repository into the destination directory.
-	// Uses git clone <url> <destination>.
-	Clone(ctx context.Context, destination string, url string) error
+	// If cred is provided, uses it for authentication.
+	Clone(ctx context.Context, destination string, url string, cred *StoredCredential) error
 
 	// LogGraph returns a git log graph for recent commits.
 	// Use a limit to cap the number of log entries.
@@ -167,6 +168,69 @@ type CommitOptions struct {
 	AuthorEmail string
 	Amend       bool
 	NoEdit      bool
+}
+
+// gitCredentialEnv builds environment variables and a cleanup function for
+// authenticated git operations. It supports both SSH and HTTPS credentials.
+//
+//   - nil cred: returns os.Environ() + GIT_TERMINAL_PROMPT=0, noop cleanup
+//   - SSH cred: sets GIT_SSH_COMMAND with -i <key> -o IdentitiesOnly=yes
+//   - HTTPS cred: creates a temp askpass script, returns cleanup that removes it
+func gitCredentialEnv(cred *StoredCredential) (env []string, cleanup func(), err error) {
+	base := os.Environ()
+	noop := func() {}
+
+	if cred == nil {
+		return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
+	}
+
+	switch cred.Type {
+	case CredentialTypeSSH:
+		keyPath := strings.TrimSpace(cred.SSHKeyPath)
+		if keyPath == "" {
+			return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
+		}
+		if _, statErr := os.Stat(keyPath); statErr != nil {
+			return nil, noop, fmt.Errorf("SSH key not found: %s", keyPath)
+		}
+		sshCmd := fmt.Sprintf("ssh -i %s -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new", keyPath)
+		env = append(base,
+			fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd),
+			"GIT_TERMINAL_PROMPT=0",
+		)
+		return env, noop, nil
+
+	case CredentialTypeHTTPS:
+		if cred.Username == "" || cred.Token == "" {
+			return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
+		}
+		env = append(base,
+			fmt.Sprintf("GIT_USERNAME=%s", cred.Username),
+			fmt.Sprintf("GIT_PASSWORD=%s", cred.Token),
+			"GIT_TERMINAL_PROMPT=0",
+		)
+		askpassScript := "#!/bin/sh\ncase \"$1\" in\n  *[Uu]sername*) echo \"$GIT_USERNAME\" ;;\n  *[Pp]assword*) echo \"$GIT_PASSWORD\" ;;\nesac"
+		tmpFile, tmpErr := os.CreateTemp("", "git-askpass-*.sh")
+		if tmpErr != nil {
+			return nil, noop, fmt.Errorf("failed to create askpass script: %w", tmpErr)
+		}
+		tmpPath := tmpFile.Name()
+		if _, wErr := tmpFile.WriteString(askpassScript); wErr != nil {
+			tmpFile.Close()
+			os.Remove(tmpPath)
+			return nil, noop, fmt.Errorf("failed to write askpass script: %w", wErr)
+		}
+		tmpFile.Close()
+		if chErr := os.Chmod(tmpPath, 0o700); chErr != nil {
+			os.Remove(tmpPath)
+			return nil, noop, fmt.Errorf("failed to make askpass script executable: %w", chErr)
+		}
+		env = append(env, fmt.Sprintf("GIT_ASKPASS=%s", tmpPath))
+		return env, func() { os.Remove(tmpPath) }, nil
+
+	default:
+		return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
+	}
 }
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -378,12 +442,19 @@ func (r *ExecGitRunner) ResolveRepoRoot(ctx context.Context) string {
 	return ""
 }
 
-func (r *ExecGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
+func (r *ExecGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
 	if remote == "" {
 		remote = "origin"
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "fetch", remote)
+	env, cleanup, envErr := gitCredentialEnv(cred)
+	if envErr != nil {
+		return fmt.Errorf("git fetch credential setup failed: %w", envErr)
+	}
+	defer cleanup()
+	cmd.Env = env
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -464,7 +535,7 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 	return nil
 }
 
-func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
+func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
 	if remote == "" {
 		remote = "origin"
 	}
@@ -479,6 +550,13 @@ func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string,
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	env, cleanup, envErr := gitCredentialEnv(cred)
+	if envErr != nil {
+		return fmt.Errorf("git push credential setup failed: %w", envErr)
+	}
+	defer cleanup()
+	cmd.Env = env
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -490,7 +568,7 @@ func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string,
 	return nil
 }
 
-func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
+func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
 	if remote == "" {
 		remote = "origin"
 	}
@@ -501,6 +579,13 @@ func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	env, cleanup, envErr := gitCredentialEnv(cred)
+	if envErr != nil {
+		return fmt.Errorf("git pull credential setup failed: %w", envErr)
+	}
+	defer cleanup()
+	cmd.Env = env
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -512,12 +597,19 @@ func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 	return nil
 }
 
-func (r *ExecGitRunner) Clone(ctx context.Context, destination string, url string) error {
+func (r *ExecGitRunner) Clone(ctx context.Context, destination string, url string, cred *StoredCredential) error {
 	args := []string{"clone", url}
 	if strings.TrimSpace(destination) != "" {
 		args = append(args, destination)
 	}
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	env, cleanup, envErr := gitCredentialEnv(cred)
+	if envErr != nil {
+		return fmt.Errorf("git clone credential setup failed: %w", envErr)
+	}
+	defer cleanup()
+	cmd.Env = env
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -897,56 +989,12 @@ func (r *ExecGitRunner) LsRemote(ctx context.Context, repoDir string, remote str
 	args := []string{"-C", repoDir, "ls-remote", "--heads", "--exit-code", remote}
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
 
-	// If credentials are provided, set up GIT_ASKPASS for authentication
-	if cred != nil && cred.Username != "" && cred.Token != "" {
-		// Create environment with credential helper
-		env := os.Environ()
-		// Use GIT_ASKPASS with a simple echo script to provide credentials
-		// This avoids storing credentials in git config
-		env = append(env,
-			fmt.Sprintf("GIT_USERNAME=%s", cred.Username),
-			fmt.Sprintf("GIT_PASSWORD=%s", cred.Token),
-			"GIT_TERMINAL_PROMPT=0",
-		)
-
-		// For HTTPS URLs, we can use credential.helper with the store
-		// But a simpler approach is to embed credentials in the URL temporarily
-		// Actually, the safest approach is to use GIT_ASKPASS
-
-		// Create a temporary askpass script
-		askpassScript := `#!/bin/sh
-case "$1" in
-  *[Uu]sername*) echo "$GIT_USERNAME" ;;
-  *[Pp]assword*) echo "$GIT_PASSWORD" ;;
-esac`
-
-		// Write askpass script to temp file
-		tmpFile, err := os.CreateTemp("", "git-askpass-*.sh")
-		if err != nil {
-			return fmt.Errorf("failed to create askpass script: %w", err)
-		}
-		tmpPath := tmpFile.Name()
-		defer os.Remove(tmpPath)
-
-		if _, err := tmpFile.WriteString(askpassScript); err != nil {
-			tmpFile.Close()
-			return fmt.Errorf("failed to write askpass script: %w", err)
-		}
-		tmpFile.Close()
-
-		// Make executable
-		if err := os.Chmod(tmpPath, 0o700); err != nil {
-			return fmt.Errorf("failed to make askpass script executable: %w", err)
-		}
-
-		env = append(env, fmt.Sprintf("GIT_ASKPASS=%s", tmpPath))
-		cmd.Env = env
-	} else {
-		// Without credentials, disable prompts
-		env := os.Environ()
-		env = append(env, "GIT_TERMINAL_PROMPT=0")
-		cmd.Env = env
+	env, cleanup, envErr := gitCredentialEnv(cred)
+	if envErr != nil {
+		return fmt.Errorf("git ls-remote credential setup failed: %w", envErr)
 	}
+	defer cleanup()
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

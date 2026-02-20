@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -103,21 +104,37 @@ func SaveCredential(ctx context.Context, deps CredentialsDeps, req CredentialSav
 			Timestamp: time.Now().UTC(),
 		}, nil
 	}
+
+	sshKeyPath := strings.TrimSpace(req.SSHKeyPath)
 	username := strings.TrimSpace(req.Username)
-	if username == "" {
-		return &CredentialSaveResponse{
-			Success:   false,
-			Error:     "username is required",
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
 	token := strings.TrimSpace(req.Token)
-	if token == "" {
-		return &CredentialSaveResponse{
-			Success:   false,
-			Error:     "token is required",
-			Timestamp: time.Now().UTC(),
-		}, nil
+
+	// Branch validation: SSH requires key path, HTTPS requires username+token
+	if sshKeyPath != "" {
+		// Validate SSH key file exists
+		if _, err := os.Stat(sshKeyPath); err != nil {
+			return &CredentialSaveResponse{
+				Success:   false,
+				Error:     fmt.Sprintf("SSH key file not found: %s", sshKeyPath),
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+	} else {
+		// HTTPS path: require username and token
+		if username == "" {
+			return &CredentialSaveResponse{
+				Success:   false,
+				Error:     "username is required",
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+		if token == "" {
+			return &CredentialSaveResponse{
+				Success:   false,
+				Error:     "token is required",
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
 	}
 
 	store := deps.Store
@@ -152,13 +169,18 @@ func SaveCredential(ctx context.Context, deps CredentialsDeps, req CredentialSav
 	}
 
 	// Create stored credential
+	credType := detectCredentialType(remoteURL)
+	if sshKeyPath != "" {
+		credType = CredentialTypeSSH
+	}
 	storedCred := StoredCredential{
-		ID:       credentialIDFromRemote(remote),
-		Remote:   remote,
-		URL:      remoteURL,
-		Type:     detectCredentialType(remoteURL),
-		Username: username,
-		Token:    token,
+		ID:         credentialIDFromRemote(remote),
+		Remote:     remote,
+		URL:        remoteURL,
+		Type:       credType,
+		Username:   username,
+		Token:      token,
+		SSHKeyPath: sshKeyPath,
 	}
 
 	// Save to store

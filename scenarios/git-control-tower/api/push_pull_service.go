@@ -9,8 +9,22 @@ import (
 
 // PushPullDeps contains dependencies for push/pull operations.
 type PushPullDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git       GitRunner
+	RepoDir   string
+	CredStore *CredentialsStore
+}
+
+// lookupCredential retrieves the stored credential for a remote, or nil if
+// no credential store is configured or no credential is found.
+func lookupCredential(deps PushPullDeps, remote string) *StoredCredential {
+	if deps.CredStore == nil {
+		return nil
+	}
+	if remote == "" {
+		remote = "origin"
+	}
+	cred, _ := deps.CredStore.GetCredentialByRemote(remote)
+	return cred
 }
 
 // PushToRemote pushes commits to the remote repository.
@@ -76,7 +90,8 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	}
 	preRemoteOID, preRemoteKnown := resolveRemoteOID(ctx, deps, repoDir, remote, branch)
 
-	err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream)
+	cred := lookupCredential(deps, remote)
+	err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred)
 	if err != nil {
 		return &PushResponse{
 			Success:   false,
@@ -116,7 +131,8 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 
 	branch := req.Branch
 
-	err := deps.Git.Pull(ctx, repoDir, remote, branch)
+	cred := lookupCredential(deps, remote)
+	err := deps.Git.Pull(ctx, repoDir, remote, branch, cred)
 	if err != nil {
 		errStr := err.Error()
 		hasConflicts := strings.Contains(errStr, "CONFLICT") || strings.Contains(errStr, "conflict")
@@ -177,7 +193,8 @@ func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActio
 		if resp.Remote == "" {
 			resp.Remote = "origin"
 		}
-		if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote); err != nil {
+		cred := lookupCredential(deps, resp.Remote)
+		if err := deps.Git.FetchRemote(ctx, repoDir, resp.Remote, cred); err != nil {
 			resp.Error = err.Error()
 			return resp, nil
 		}
@@ -306,7 +323,8 @@ func verifyPushResult(
 		return
 	}
 
-	if err := deps.Git.FetchRemote(ctx, repoDir, remote); err != nil {
+	cred := lookupCredential(deps, remote)
+	if err := deps.Git.FetchRemote(ctx, repoDir, remote, cred); err != nil {
 		resp.VerificationError = err.Error()
 		resp.Verified = false
 		return

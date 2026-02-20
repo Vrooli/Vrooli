@@ -40,6 +40,7 @@ type Server struct {
 	sandbox         *WorkspaceSandboxClient
 	sshDeps         ssh.SSHDeps
 	repos           *RepoService
+	credStore       *CredentialsStore
 	storageResolver *storage.Resolver
 }
 
@@ -91,6 +92,13 @@ func NewServer() (*Server, error) {
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
+
+	credStore, err := NewCredentialsStore("")
+	if err != nil {
+		log.Printf("WARNING: credentials store initialization failed: %v (SSH/HTTPS auth for git operations will be unavailable)", err)
+	} else {
+		srv.credStore = credStore
+	}
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
@@ -466,8 +474,9 @@ func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := GetSyncStatus(hctx.Ctx, SyncStatusDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:       hctx.Git,
+		RepoDir:   hctx.RepoDir,
+		CredStore: s.credStore,
 	}, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -604,8 +613,9 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := PushToRemote(hctx.Ctx, PushPullDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:       hctx.Git,
+		RepoDir:   hctx.RepoDir,
+		CredStore: s.credStore,
 	}, req)
 
 	// Audit logging for push operation
@@ -656,8 +666,9 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := PullFromRemote(hctx.Ctx, PushPullDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:       hctx.Git,
+		RepoDir:   hctx.RepoDir,
+		CredStore: s.credStore,
 	}, req)
 
 	// Audit logging for pull operation
@@ -709,8 +720,9 @@ func (s *Server) handleUpstreamAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := RunUpstreamAction(hctx.Ctx, PushPullDeps{
-		Git:     hctx.Git,
-		RepoDir: hctx.RepoDir,
+		Git:       hctx.Git,
+		RepoDir:   hctx.RepoDir,
+		CredStore: s.credStore,
 	}, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -775,6 +787,7 @@ func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
 	result, err := ListCredentials(hctx.Ctx, CredentialsDeps{
 		Git:     hctx.Git,
 		RepoDir: hctx.RepoDir,
+		Store:   s.credStore,
 	})
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -800,6 +813,7 @@ func (s *Server) handleSaveCredential(w http.ResponseWriter, r *http.Request) {
 	result, err := SaveCredential(hctx.Ctx, CredentialsDeps{
 		Git:     hctx.Git,
 		RepoDir: hctx.RepoDir,
+		Store:   s.credStore,
 	}, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -856,6 +870,7 @@ func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
 	result, err := TestCredential(hctx.Ctx, CredentialsDeps{
 		Git:     hctx.Git,
 		RepoDir: hctx.RepoDir,
+		Store:   s.credStore,
 	}, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())

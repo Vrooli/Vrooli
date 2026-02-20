@@ -136,7 +136,7 @@ func (s *RepoService) Clone(ctx context.Context, url string, destination string)
 		return nil, newRepoError(RepoErrorInvalid, "destination path is required", nil)
 	}
 
-	if err := s.git.Clone(ctx, destination, url); err != nil {
+	if err := s.git.Clone(ctx, destination, url, nil); err != nil {
 		return nil, newRepoError(RepoErrorInvalid, "clone failed", err)
 	}
 
