@@ -7,6 +7,60 @@ import (
 	"time"
 )
 
+// --- ensureTermEnv tests ---
+
+func TestEnsureTermEnv_ReplacesExisting(t *testing.T) {
+	env := []string{"HOME=/home/user", "TERM=dumb", "PATH=/usr/bin"}
+	got := ensureTermEnv(env)
+
+	found := false
+	for _, v := range got {
+		if v == "TERM=xterm-256color" {
+			found = true
+		}
+		if v == "TERM=dumb" {
+			t.Error("old TERM=dumb should be replaced")
+		}
+	}
+	if !found {
+		t.Error("TERM=xterm-256color should be present")
+	}
+}
+
+func TestEnsureTermEnv_AddsWhenMissing(t *testing.T) {
+	env := []string{"HOME=/home/user", "PATH=/usr/bin"}
+	got := ensureTermEnv(env)
+
+	found := false
+	for _, v := range got {
+		if v == "TERM=xterm-256color" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("TERM=xterm-256color should be appended when TERM is missing")
+	}
+	if len(got) != 3 {
+		t.Errorf("expected 3 env vars, got %d", len(got))
+	}
+}
+
+func TestEnsureTermEnv_PreservesOtherVars(t *testing.T) {
+	env := []string{"HOME=/home/user", "TERM=linux", "TERMINAL_EMULATOR=foo"}
+	got := ensureTermEnv(env)
+
+	// TERMINAL_EMULATOR should not be affected (it has TERM prefix but not TERM=)
+	foundEmulator := false
+	for _, v := range got {
+		if v == "TERMINAL_EMULATOR=foo" {
+			foundEmulator = true
+		}
+	}
+	if !foundEmulator {
+		t.Error("TERMINAL_EMULATOR should be preserved")
+	}
+}
+
 // fakePTY is a pipe-based PTY substitute for fast, deterministic tests.
 // It satisfies the PTY interface without spawning real shell processes.
 // Use fakePTYWithOutput when you need to simulate PTY stdout.
@@ -181,14 +235,16 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 	_, _ = fake.outW.Write([]byte("offline data"))
 	time.Sleep(50 * time.Millisecond)
 
-	// Subscribe and expect buffered data
+	// Subscribe and expect buffered data (prefixed with SGR reset)
 	ch := sess.Subscribe()
 	defer sess.Unsubscribe(ch)
 
 	select {
 	case data := <-ch:
-		if string(data) != "offline data" {
-			t.Errorf("expected 'offline data', got %q", string(data))
+		// Subscribe prepends SGR reset (\x1b[0m) to replayed history
+		expected := "\x1b[0m" + "offline data"
+		if string(data) != expected {
+			t.Errorf("expected %q, got %q", expected, string(data))
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for offline buffer")

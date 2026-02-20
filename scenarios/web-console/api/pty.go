@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/creack/pty/v2"
 )
@@ -62,11 +63,26 @@ func (p *realPTY) ExitCode() int {
 // defaultPTYFactory starts a real shell process with a PTY.
 func defaultPTYFactory(shell string, cols, rows uint16) (PTY, error) {
 	cmd := exec.Command(shell)
-	cmd.Env = os.Environ()
+	cmd.Env = ensureTermEnv(os.Environ())
 	cmd.Dir = resolveWorkingDir()
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: rows, Cols: cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)
 	}
 	return &realPTY{ptmx: ptmx, cmd: cmd}, nil
+}
+
+// ensureTermEnv guarantees TERM=xterm-256color in the environment slice.
+// The server's own TERM (which may be "dumb" or unset when launched via
+// systemd/lifecycle) is irrelevant — the browser-side xterm.js emulator
+// supports xterm-256color, and shell programs need this to emit colors.
+func ensureTermEnv(env []string) []string {
+	const want = "TERM=xterm-256color"
+	for i, v := range env {
+		if strings.HasPrefix(v, "TERM=") {
+			env[i] = want
+			return env
+		}
+	}
+	return append(env, want)
 }

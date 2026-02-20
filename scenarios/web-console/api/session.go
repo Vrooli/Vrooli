@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +10,12 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// sgrReset is an ANSI SGR reset sequence that clears all text attributes
+// (color, bold, underline, etc.). Prepended to replayed history so that
+// any dangling color state from a trimmed buffer doesn't bleed into the
+// reconnecting client's terminal.
+var sgrReset = []byte("\x1b[0m")
 
 // Sentinel errors for session operations. Handlers use these to select the
 // correct HTTP status code and user-facing message.
@@ -38,12 +45,12 @@ type Session struct {
 	// Output fan-out: the readLoop goroutine reads from the PTY and either
 	// broadcasts to connected WebSocket clients while preserving bounded
 	// output history for reconnect and reload replay.
-	mu               sync.Mutex
-	clients          map[chan []byte]struct{}
-	outputHistory    []byte
-	processExited    bool // set by readLoop when the PTY read returns an error
-	processExitCode  int  // exit code from the PTY process (-1 if unknown)
-	historyTrimmed   bool // set once when history cap is hit (log once)
+	mu              sync.Mutex
+	clients         map[chan []byte]struct{}
+	outputHistory   []byte
+	processExited   bool // set by readLoop when the PTY read returns an error
+	processExitCode int  // exit code from the PTY process (-1 if unknown)
+	historyTrimmed  bool // set once when history cap is hit (log once)
 
 	// Config-driven limits for this session
 	offlineBufferMax    int
@@ -60,14 +67,20 @@ func (s *Session) Write(data []byte) (int, error) {
 }
 
 // Subscribe returns a channel that receives PTY output. Caller must call
-// Unsubscribe when done. Recent output history is replayed immediately.
+// Unsubscribe when done. Recent output history is replayed immediately,
+// prefixed with an SGR reset to clear any dangling color/attribute state
+// that may have been lost when the history buffer was trimmed.
 // [REQ:P0-003b] Reconnect State Restoration
 func (s *Session) Subscribe() chan []byte {
 	ch := make(chan []byte, s.clientChannelBuffer)
 	s.mu.Lock()
 	// Replay recent output history to reconnected clients.
+	// Prepend SGR reset so trimmed color-setting sequences don't
+	// bleed stale attributes into the reconnecting terminal.
 	if len(s.outputHistory) > 0 {
-		snapshot := append([]byte(nil), s.outputHistory...)
+		snapshot := make([]byte, 0, len(sgrReset)+len(s.outputHistory))
+		snapshot = append(snapshot, sgrReset...)
+		snapshot = append(snapshot, s.outputHistory...)
 		ch <- snapshot
 	}
 	s.clients[ch] = struct{}{}
@@ -126,7 +139,8 @@ func (s *Session) appendHistory(data []byte) {
 	}
 
 	if len(data) >= s.offlineBufferMax {
-		s.outputHistory = append([]byte(nil), data[len(data)-s.offlineBufferMax:]...)
+		trimmed := data[len(data)-s.offlineBufferMax:]
+		s.outputHistory = append([]byte(nil), snapToCleanBoundary(trimmed)...)
 		if !s.historyTrimmed {
 			s.historyTrimmed = true
 			log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
@@ -141,11 +155,71 @@ func (s *Session) appendHistory(data []byte) {
 	}
 
 	trim := combinedLen - s.offlineBufferMax
-	s.outputHistory = append(s.outputHistory[trim:], data...)
+	remainder := append(s.outputHistory[trim:], data...)
+	s.outputHistory = snapToCleanBoundary(remainder)
 	if !s.historyTrimmed {
 		s.historyTrimmed = true
 		log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
 	}
+}
+
+// snapToCleanBoundary advances past any partial ANSI escape sequence at the
+// start of buf and, when possible, snaps forward to the first newline so
+// replayed history starts on a line boundary. This prevents reconnecting
+// clients from seeing garbage bytes from a mid-sequence trim.
+func snapToCleanBoundary(buf []byte) []byte {
+	if len(buf) == 0 {
+		return buf
+	}
+
+	// If the first byte is ESC, the sequence is intact (starts fresh).
+	// If it's NOT ESC but looks like mid-CSI-sequence parameter/intermediate/
+	// final bytes, we're inside a truncated sequence.
+	start := 0
+	if buf[0] != 0x1b && looksLikeMidSequence(buf) {
+		// Skip the CSI introducer '[' if present (it follows the truncated ESC).
+		if buf[0] == '[' {
+			start = 1
+		}
+		// Scan past parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
+		// until we hit the final byte (0x40-0x7E) that terminates the sequence.
+		for start < len(buf) {
+			b := buf[start]
+			start++
+			if b >= 0x40 && b <= 0x7E {
+				break
+			}
+		}
+	}
+
+	// Try to advance to the first newline for a clean line boundary,
+	// but only if the newline is within the first 256 bytes to avoid
+	// discarding too much history.
+	const maxNewlineScan = 256
+	scanLimit := start + maxNewlineScan
+	if scanLimit > len(buf) {
+		scanLimit = len(buf)
+	}
+	if nlIdx := bytes.IndexByte(buf[start:scanLimit], '\n'); nlIdx >= 0 {
+		start += nlIdx + 1
+	}
+
+	if start >= len(buf) {
+		return nil
+	}
+	return buf[start:]
+}
+
+// looksLikeMidSequence heuristically detects whether buf starts inside a
+// truncated ANSI CSI escape sequence. CSI parameter bytes are 0x30-0x3F,
+// intermediate bytes are 0x20-0x2F. If the first byte falls in one of
+// these ranges (or is '[' which follows ESC in CSI), we're likely mid-sequence.
+func looksLikeMidSequence(buf []byte) bool {
+	if len(buf) == 0 {
+		return false
+	}
+	b := buf[0]
+	return b == '[' || (b >= 0x20 && b <= 0x3F)
 }
 
 // broadcast fans out PTY output to all connected WebSocket clients while
