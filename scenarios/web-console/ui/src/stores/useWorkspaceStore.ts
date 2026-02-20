@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { clampFontSize } from "../lib/fontSizeUtils";
+import { TERMINAL_FONT_SIZE } from "../consts/config";
 
 export interface PaneMetadata {
   sessionId: string;
@@ -12,8 +14,11 @@ interface WorkspaceState {
   columnFractions: number[];
   rowFractions: number[];
   activePane: string | null;
+  terminalFontSize: number;
+  isMinimapVisible: boolean;
   settingsModalOpen: boolean;
   sessionsModalOpen: boolean;
+  aiModalOpen: boolean;
 }
 
 interface WorkspaceActions {
@@ -25,8 +30,11 @@ interface WorkspaceActions {
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
   setActivePane: (sessionId: string | null) => void;
+  setTerminalFontSize: (size: number) => void;
+  setMinimapVisible: (visible: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
   setSessionsModalOpen: (open: boolean) => void;
+  setAiModalOpen: (open: boolean) => void;
   resetLayout: () => void;
 }
 
@@ -39,8 +47,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       columnFractions: [],
       rowFractions: [],
       activePane: null,
+      terminalFontSize: TERMINAL_FONT_SIZE,
+      isMinimapVisible: true,
       settingsModalOpen: false,
       sessionsModalOpen: false,
+      aiModalOpen: false,
 
       addPane: (sessionId, name) =>
         set((state) => {
@@ -90,8 +101,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setColumnFractions: (fractions) => set({ columnFractions: fractions }),
       setRowFractions: (fractions) => set({ rowFractions: fractions }),
       setActivePane: (sessionId) => set({ activePane: sessionId }),
+      setTerminalFontSize: (size) => set({ terminalFontSize: clampFontSize(size) }),
+      setMinimapVisible: (visible) => set({ isMinimapVisible: visible }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
+      setAiModalOpen: (open) => set({ aiModalOpen: open }),
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),
@@ -102,6 +116,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         panes: state.panes,
         columnFractions: state.columnFractions,
         rowFractions: state.rowFractions,
+        terminalFontSize: state.terminalFontSize,
+        isMinimapVisible: state.isMinimapVisible,
       }),
     },
   ),

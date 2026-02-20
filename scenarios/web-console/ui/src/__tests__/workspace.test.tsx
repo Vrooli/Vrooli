@@ -57,6 +57,8 @@ const mockStoreState = {
   columnFractions: [] as number[],
   rowFractions: [] as number[],
   activePane: null as string | null,
+  terminalFontSize: 14,
+  isMinimapVisible: true,
   settingsModalOpen: false,
   sessionsModalOpen: false,
 };
@@ -72,6 +74,8 @@ vi.mock("../stores/useWorkspaceStore", () => ({
     setColumnFractions: vi.fn(),
     setRowFractions: vi.fn(),
     setActivePane: vi.fn(),
+    setTerminalFontSize: vi.fn(),
+    setMinimapVisible: vi.fn(),
     setSettingsModalOpen: vi.fn(),
     setSessionsModalOpen: vi.fn(),
     resetLayout: vi.fn(),
@@ -103,6 +107,10 @@ vi.mock("../components/GridSplitter", () => ({
 
 vi.mock("../components/SettingsModal", () => ({
   default: vi.fn(() => null),
+}));
+
+vi.mock("../components/WorkspaceMinimap", () => ({
+  default: vi.fn(() => <div data-testid="mock-minimap" />),
 }));
 
 vi.mock("../components/TerminalLauncher", () => ({
@@ -165,6 +173,8 @@ describe("Workspace", () => {
     mockStoreState.columnFractions = [];
     mockStoreState.rowFractions = [];
     mockStoreState.activePane = null;
+    mockStoreState.terminalFontSize = 14;
+    mockStoreState.isMinimapVisible = true;
     mockStoreState.settingsModalOpen = false;
     mockStoreState.sessionsModalOpen = false;
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);

@@ -6,7 +6,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalSocket } from "../hooks/useTerminalSocket";
-import { TERMINAL_THEME, TERMINAL_FONT_SIZE, TERMINAL_FONT_FAMILY } from "../consts/config";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { TERMINAL_THEME, TERMINAL_FONT_FAMILY } from "../consts/config";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -25,6 +26,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
+    const terminalFontSize = useWorkspaceStore((s) => s.terminalFontSize);
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize } = useTerminalSocket({
@@ -44,7 +46,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 
       const term = new Terminal({
         cursorBlink: true,
-        fontSize: TERMINAL_FONT_SIZE,
+        fontSize: terminalFontSize,
         fontFamily: TERMINAL_FONT_FAMILY,
         theme: TERMINAL_THEME,
         allowProposedApi: true,
@@ -67,6 +69,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         setTerminal(null);
       };
     }, []);
+
+    // React to font size changes from store
+    useEffect(() => {
+      if (!terminal || !fitRef.current) return;
+      terminal.options.fontSize = terminalFontSize;
+      fitRef.current.fit();
+      sendResize(terminal.cols, terminal.rows);
+    }, [terminalFontSize, terminal, sendResize]);
 
     // Handle container resize -> fit terminal -> notify server.
     // Throttled via requestAnimationFrame to avoid flooding the WebSocket

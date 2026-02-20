@@ -37,6 +37,7 @@ export default function MobileToolbar({
         <button
           key={key.label}
           data-testid={`toolbar-key-${slugify(key.label)}`}
+          onPointerDown={(e) => e.preventDefault()}
           onClick={() => handleKey(key)}
           className={cn(
             "shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active",

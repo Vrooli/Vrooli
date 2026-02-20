@@ -150,6 +150,15 @@ export const useDraggablePosition = (
     }
   }, []);
 
+  // Track whether we've already initialized position for the current active session.
+  // Use refs for getInitialPosition and clampPosition to avoid re-triggering the effect
+  // when inline callbacks create new references every render.
+  const prevActiveRef = useRef(false);
+  const getInitialPositionRef = useRef(getInitialPosition);
+  getInitialPositionRef.current = getInitialPosition;
+  const clampPositionRef = useRef(clampPosition);
+  clampPositionRef.current = clampPosition;
+
   useEffect(() => {
     if (!isActive) {
       if (dragStateRef.current?.pointerCaptured) {
@@ -158,14 +167,18 @@ export const useDraggablePosition = (
       setIsDragging(false);
       setIsTrackingPointer(false);
       dragStateRef.current = null;
+      prevActiveRef.current = false;
       return;
     }
-    const initialPos = getInitialPosition();
+    if (prevActiveRef.current) return; // already initialized
+    prevActiveRef.current = true;
+
+    const initialPos = getInitialPositionRef.current();
     const element = elementRef.current;
     if (element) {
       const rect = element.getBoundingClientRect();
       setPosition(
-        clampPosition(initialPos.x, initialPos.y, {
+        clampPositionRef.current(initialPos.x, initialPos.y, {
           width: rect.width,
           height: rect.height,
         }),
@@ -173,7 +186,7 @@ export const useDraggablePosition = (
     } else {
       setPosition(initialPos);
     }
-  }, [clampPosition, getInitialPosition, isActive, releasePointerCapture]);
+  }, [isActive, releasePointerCapture]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !isActive) return;

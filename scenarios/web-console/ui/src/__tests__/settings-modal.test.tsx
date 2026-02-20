@@ -7,6 +7,10 @@ import type { ShortcutProfile } from "../lib/api";
 const mockStoreState = {
   settingsModalOpen: true,
   setSettingsModalOpen: vi.fn(),
+  terminalFontSize: 14,
+  setTerminalFontSize: vi.fn(),
+  isMinimapVisible: true,
+  setMinimapVisible: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -64,6 +68,10 @@ describe("SettingsModal", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockStoreState.settingsModalOpen = true;
+    mockStoreState.terminalFontSize = 14;
+    mockStoreState.setTerminalFontSize = vi.fn();
+    mockStoreState.isMinimapVisible = true;
+    mockStoreState.setMinimapVisible = vi.fn();
     const api = await import("../lib/api");
     mockListProfiles = api.listShortcutProfiles as ReturnType<typeof vi.fn>;
     mockListProfiles.mockResolvedValue([]);
@@ -105,5 +113,57 @@ describe("SettingsModal", () => {
   it("renders AI provider section", () => {
     render(<SettingsModal />);
     expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
+  });
+
+  // --- Terminal Appearance section ---
+
+  it("renders font size controls with current value", () => {
+    render(<SettingsModal />);
+    expect(screen.getByTestId("font-size-value").textContent).toBe("14");
+    expect(screen.getByTestId("font-size-decrease")).toBeTruthy();
+    expect(screen.getByTestId("font-size-increase")).toBeTruthy();
+  });
+
+  it("font size increase button calls setTerminalFontSize", () => {
+    render(<SettingsModal />);
+    fireEvent.click(screen.getByTestId("font-size-increase"));
+    expect(mockStoreState.setTerminalFontSize).toHaveBeenCalledWith(15);
+  });
+
+  it("font size decrease button calls setTerminalFontSize", () => {
+    render(<SettingsModal />);
+    fireEvent.click(screen.getByTestId("font-size-decrease"));
+    expect(mockStoreState.setTerminalFontSize).toHaveBeenCalledWith(13);
+  });
+
+  it("decrease button disabled at minimum font size", () => {
+    mockStoreState.terminalFontSize = 8;
+    render(<SettingsModal />);
+    expect(screen.getByTestId("font-size-decrease")).toBeDisabled();
+  });
+
+  it("increase button disabled at maximum font size", () => {
+    mockStoreState.terminalFontSize = 24;
+    render(<SettingsModal />);
+    expect(screen.getByTestId("font-size-increase")).toBeDisabled();
+  });
+
+  it("minimap toggle reflects store value", () => {
+    render(<SettingsModal />);
+    const toggle = screen.getByTestId("minimap-toggle");
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("minimap toggle calls setMinimapVisible", () => {
+    render(<SettingsModal />);
+    fireEvent.click(screen.getByTestId("minimap-toggle"));
+    expect(mockStoreState.setMinimapVisible).toHaveBeenCalledWith(false);
+  });
+
+  it("minimap toggle reflects false state", () => {
+    mockStoreState.isMinimapVisible = false;
+    render(<SettingsModal />);
+    const toggle = screen.getByTestId("minimap-toggle");
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
   });
 });

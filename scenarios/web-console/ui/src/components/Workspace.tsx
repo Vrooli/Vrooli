@@ -24,6 +24,7 @@ import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
 import AiInput from "./AiInput";
 import FloatingToolbar from "./FloatingToolbar";
+import WorkspaceMinimap from "./WorkspaceMinimap";
 import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
 
@@ -66,6 +67,7 @@ export default function Workspace() {
 
   const store = useWorkspaceStore();
   const gridRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   const { keyboardHeight } = useVirtualKeyboard();
 
@@ -426,6 +428,7 @@ export default function Workspace() {
       <FloatingToolbar
         onOpenSessions={() => store.setSessionsModalOpen(true)}
         onOpenSettings={() => store.setSettingsModalOpen(true)}
+        onOpenAi={() => store.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
         isCreating={isCreating}
@@ -441,26 +444,34 @@ export default function Workspace() {
         />
       )}
 
-      {/* Pane grid scroll container */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      {/* Pane grid + minimap wrapper */}
+      <div className="relative flex-1 min-h-0">
         <div
-          ref={gridRef}
-          data-testid="pane-grid"
-          className={cn(
-            "grid gap-0 p-1",
-            isDragging && "select-none cursor-grabbing [&_.xterm]:pointer-events-none",
-          )}
-          style={{
-            gridTemplateColumns: colTemplate,
-            gridTemplateRows: rowTemplate,
-            height: `${minimumGridHeightPx}px`,
-            minHeight: `${minimumGridHeightPx}px`,
-          }}
+          ref={scrollContainerRef}
+          className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
         >
-          {paneCells}
-          {columnSplitters}
-          {rowSplitters}
+          <div
+            ref={gridRef}
+            data-testid="pane-grid"
+            className={cn(
+              "grid gap-0 p-1",
+              isDragging && "select-none cursor-grabbing [&_.xterm]:pointer-events-none",
+            )}
+            style={{
+              gridTemplateColumns: colTemplate,
+              gridTemplateRows: rowTemplate,
+              height: `${minimumGridHeightPx}px`,
+              minHeight: `${minimumGridHeightPx}px`,
+            }}
+          >
+            {paneCells}
+            {columnSplitters}
+            {rowSplitters}
+          </div>
         </div>
+
+        {/* Minimap */}
+        <WorkspaceMinimap scrollRef={scrollContainerRef} rowCount={layout.rows} />
       </div>
 
       {/* Bottom bar — offset for virtual keyboard on mobile */}
@@ -472,12 +483,6 @@ export default function Workspace() {
             : undefined
         }
       >
-        {/* AI Input */}
-        <AiInput
-          onExecute={handleSendToTerminal}
-          hasActiveTerminal={store.activePane !== null}
-        />
-
         {/* Mobile toolbar */}
         <MobileToolbar onInput={handleSendToTerminal} />
       </div>
@@ -498,6 +503,9 @@ export default function Workspace() {
 
       {/* Settings Modal */}
       <SettingsModal />
+
+      {/* AI Modal */}
+      <AiInput onExecute={handleSendToTerminal} />
     </div>
   );
 }

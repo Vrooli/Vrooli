@@ -1,4 +1,4 @@
-import { List, Settings, Plus } from "lucide-react";
+import { List, Settings, Sparkles, Plus } from "lucide-react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
 import { Button } from "./ui/button";
@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 interface FloatingToolbarProps {
   onOpenSessions: () => void;
   onOpenSettings: () => void;
+  onOpenAi: () => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   isCreating: boolean;
@@ -14,6 +15,7 @@ interface FloatingToolbarProps {
 export default function FloatingToolbar({
   onOpenSessions,
   onOpenSettings,
+  onOpenAi,
   onNewTerminal,
   onOpenLauncher,
   isCreating,
@@ -64,6 +66,16 @@ export default function FloatingToolbar({
         title="Settings"
       >
         <Settings className="h-4 w-4" />
+      </Button>
+      <Button
+        data-testid="toolbar-ai"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={onOpenAi}
+        title="AI Command"
+      >
+        <Sparkles className="h-4 w-4" />
       </Button>
       <Button
         data-testid="toolbar-new"

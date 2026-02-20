@@ -62,3 +62,65 @@ body {
   pointer-events: none;
   z-index: 8;
 }
+
+/* Hide native scrollbar when minimap is active */
+.wc-hide-scrollbar {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge */
+}
+.wc-hide-scrollbar::-webkit-scrollbar {
+  display: none;                  /* Chrome/Safari/Opera */
+}
+
+/* ── Minimap ── */
+.wc-minimap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  border: 1px solid rgb(var(--wc-accent-border));
+  background: rgb(var(--wc-surface-base) / 0.94);
+  z-index: 20;
+}
+
+.wc-minimap-rail {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  outline: none;
+}
+
+.wc-minimap-rail:focus-visible {
+  outline: 2px solid rgb(var(--wc-accent));
+  outline-offset: -2px;
+}
+
+.wc-minimap-markers {
+  position: absolute;
+  inset: 0;
+}
+
+.wc-minimap-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid rgb(var(--wc-accent) / 0.32);
+  background: transparent;
+}
+
+.wc-minimap-marker--active {
+  background: rgb(var(--wc-accent) / 0.26);
+  border-top-color: rgb(var(--wc-text-secondary) / 0.82);
+  box-shadow: inset 0 0 0 1px rgb(var(--wc-text-secondary) / 0.54);
+}
+
+.wc-minimap-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 1px solid rgb(var(--wc-text-secondary) / 0.9);
+  background: rgb(var(--wc-accent) / 0.08);
+  pointer-events: none;
+}
