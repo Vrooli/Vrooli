@@ -186,6 +186,35 @@ func TestTick(t *testing.T) {
 	}
 }
 
+func TestTick_CompactResponseOmitsVerboseFields(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("POST", "/api/v1/tick?force=true&compact=true", nil)
+	w := httptest.NewRecorder()
+
+	h.Tick(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Tick() status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if _, exists := resp["results"]; exists {
+		t.Fatal("compact tick response should omit results")
+	}
+	if _, exists := resp["autoHeal"]; exists {
+		t.Fatal("compact tick response should omit autoHeal")
+	}
+	if _, exists := resp["summary"]; !exists {
+		t.Fatal("compact tick response should include summary")
+	}
+}
+
 func TestTick_WithPersistenceErrors(t *testing.T) {
 	// Store that fails to save
 	store := &mockStore{saveErr: context.DeadlineExceeded}

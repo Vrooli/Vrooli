@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -27,19 +28,19 @@ import (
 
 // Config holds loop configuration
 type Config struct {
-	APIPort              string
-	TickInterval         time.Duration
-	MaxFailures          int
-	StartupGrace         time.Duration
-	StartupTimeout       time.Duration
-	HealthCheckInterval  time.Duration
-	VrooliRoot           string
-	ScenarioName         string
-	HealthEndpoint       string
-	TickEndpoint         string
-	ManageAPILifecycle   bool
-	LastKnownPort        string
-	VrooliCmdPath        string
+	APIPort             string
+	TickInterval        time.Duration
+	MaxFailures         int
+	StartupGrace        time.Duration
+	StartupTimeout      time.Duration
+	HealthCheckInterval time.Duration
+	VrooliRoot          string
+	ScenarioName        string
+	HealthEndpoint      string
+	TickEndpoint        string
+	ManageAPILifecycle  bool
+	LastKnownPort       string
+	VrooliCmdPath       string
 }
 
 // TickResponse represents the API response from /tick
@@ -63,13 +64,13 @@ func main() {
 	flag.Parse()
 
 	config := &Config{
-		TickInterval:         time.Duration(*interval) * time.Second,
-		MaxFailures:          *maxFailures,
-		StartupGrace:         30 * time.Second,
-		StartupTimeout:       120 * time.Second,
-		HealthCheckInterval:  5 * time.Second,
-		ScenarioName:         "vrooli-autoheal",
-		ManageAPILifecycle:   !*noManageAPI,
+		TickInterval:        time.Duration(*interval) * time.Second,
+		MaxFailures:         *maxFailures,
+		StartupGrace:        30 * time.Second,
+		StartupTimeout:      120 * time.Second,
+		HealthCheckInterval: 5 * time.Second,
+		ScenarioName:        "vrooli-autoheal",
+		ManageAPILifecycle:  !*noManageAPI,
 	}
 
 	// Detect VROOLI_ROOT
@@ -299,9 +300,9 @@ func detectAPIPort(config *Config) string {
 	for _, metaFile := range metadataPaths {
 		if data, err := os.ReadFile(metaFile); err == nil {
 			var meta struct {
-				APIPort    string `json:"api_port"`
-				Port       string `json:"port"`
-				Ports      map[string]string `json:"ports"`
+				APIPort string            `json:"api_port"`
+				Port    string            `json:"port"`
+				Ports   map[string]string `json:"ports"`
 			}
 			if json.Unmarshal(data, &meta) == nil {
 				if meta.APIPort != "" {
@@ -566,7 +567,15 @@ func runTick(config *Config) (*TickResponse, error) {
 
 	client := &http.Client{Timeout: 5 * time.Minute}
 
-	req, err := http.NewRequest("POST", config.TickEndpoint, bytes.NewReader([]byte{}))
+	requestURL, err := url.Parse(config.TickEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tick endpoint URL: %w", err)
+	}
+	query := requestURL.Query()
+	query.Set("compact", "true")
+	requestURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequest("POST", requestURL.String(), bytes.NewReader([]byte{}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

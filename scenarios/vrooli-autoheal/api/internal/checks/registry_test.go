@@ -771,6 +771,44 @@ func TestRunAutoHeal_SelectsFirstSafeAction(t *testing.T) {
 	}
 }
 
+func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-example",
+		result: Result{CheckID: "scenario-example", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "setup-restart", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-example": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{
+			CheckID: "scenario-example",
+			Status:  StatusCritical,
+			Details: map[string]interface{}{
+				"rootCause": "shared-package-drift",
+			},
+		},
+	}
+
+	reg.RunAutoHeal(context.Background(), results)
+
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "setup-restart" {
+		t.Fatalf("expected setup-restart to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
 func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
 	reg := newTestRegistry()
 

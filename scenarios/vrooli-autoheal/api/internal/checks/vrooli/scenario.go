@@ -32,6 +32,10 @@ type ScenarioCheck struct {
 	recoveryPoll scenarioRecoveryPollConfig
 }
 
+const (
+	rootCauseSharedPackageDrift = "shared-package-drift"
+)
+
 type scenarioRecoveryPollConfig struct {
 	timeout      time.Duration
 	interval     time.Duration
@@ -186,6 +190,10 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	healthStatus := strings.ToLower(parsed.ScenarioData.HealthStatus)
 	result.Details["scenarioStatus"] = scenarioStatus
 	result.Details["healthStatus"] = healthStatus
+	if hasSharedPackageDriftSignature(outputText) {
+		result.Details["rootCause"] = rootCauseSharedPackageDrift
+		result.Details["recommendedAction"] = "setup-restart"
+	}
 
 	if !parsed.Success {
 		result.Status = CLIStatusToCheckStatus(CLIStatusUnclear, c.critical)
@@ -242,6 +250,21 @@ func shouldFallbackToDirectHealthCheck(output string, err error) bool {
 	lowerErr := strings.ToLower(err.Error())
 	return strings.Contains(lowerErr, "connection refused") ||
 		strings.Contains(lowerErr, "api is not accessible")
+}
+
+func hasSharedPackageDriftSignature(output string) bool {
+	if output == "" {
+		return false
+	}
+
+	lower := strings.ToLower(output)
+	if !strings.Contains(lower, "err_module_not_found") && !strings.Contains(lower, "cannot find module") {
+		return false
+	}
+
+	return strings.Contains(lower, "/packages/") ||
+		strings.Contains(lower, "@vrooli/api-base/dist/") ||
+		strings.Contains(lower, "@vrooli/iframe-bridge")
 }
 
 // RecoveryActions returns available recovery actions for this scenario check
@@ -336,6 +359,13 @@ func (c *ScenarioCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true,
 		},
 		{
+			ID:          "setup-restart",
+			Name:        "Setup + Restart",
+			Description: "Run setup to refresh dependencies/build outputs, then restart the scenario",
+			Dangerous:   true,
+			Available:   true,
+		},
+		{
 			ID:          "cleanup-ports",
 			Name:        "Cleanup Ports",
 			Description: "Kill any processes holding scenario ports and clean stale state",
@@ -418,6 +448,9 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 
 	case "restart-clean":
 		return c.executeCleanRestart(ctx, start)
+
+	case "setup-restart":
+		return c.executeSetupRestart(ctx, start)
 
 	case "cleanup-ports":
 		return c.executePortCleanup(ctx, start)
@@ -642,6 +675,53 @@ func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time
 
 	// Verify the scenario is actually running after clean restart
 	return c.verifyRecovery(ctx, result, "restart-clean", start)
+}
+
+// executeSetupRestart performs a setup pass before restarting the scenario.
+// This is intended for dependency/build drift issues where plain restart loops.
+func (c *ScenarioCheck) executeSetupRestart(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "setup-restart",
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	var outputBuilder strings.Builder
+
+	// Step 1: Stop the scenario. Best effort - setup/start may still recover.
+	outputBuilder.WriteString("=== Stopping scenario ===\n")
+	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
+	outputBuilder.Write(stopOutput)
+	outputBuilder.WriteString("\n")
+
+	// Step 2: Run setup to refresh local file dependencies and rebuild bundles.
+	outputBuilder.WriteString("=== Running setup ===\n")
+	setupOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "setup", c.scenarioName)
+	outputBuilder.Write(setupOutput)
+	outputBuilder.WriteString("\n")
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Output = outputBuilder.String()
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Setup failed for " + c.scenarioName
+		return result
+	}
+
+	// Step 3: Start with --best-effort to avoid blocking on unrelated dependencies.
+	outputBuilder.WriteString("=== Starting scenario ===\n")
+	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
+	outputBuilder.Write(startOutput)
+	result.Output = outputBuilder.String()
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Setup + restart failed for " + c.scenarioName
+		return result
+	}
+
+	return c.verifyRecovery(ctx, result, "setup-restart", start)
 }
 
 // executePortCleanup kills processes holding scenario ports

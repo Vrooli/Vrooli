@@ -588,10 +588,10 @@ func TestPortCheck_ExecuteAction_WithMock(t *testing.T) {
 // TestZombieCheck_WithMock tests zombie check with mock executor
 func TestZombieCheck_WithMock(t *testing.T) {
 	t.Run("no zombies", func(t *testing.T) {
-		exec := &mockExecutor{
-			combinedOutput: []byte(""),
+		reader := &mockProcReader{
+			processes: []checks.ProcessInfo{},
 		}
-		c := NewZombieCheck(WithZombieExecutor(exec))
+		c := NewZombieCheck(WithZombieProcReader(reader))
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusOK {

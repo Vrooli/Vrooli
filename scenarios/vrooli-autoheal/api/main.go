@@ -117,8 +117,9 @@ func run() error {
 
 	// Start server with graceful shutdown
 	return server.Run(server.Config{
-		Handler: handlers.RecoveryHandler()(router),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handlers.RecoveryHandler()(router),
+		WriteTimeout: 6 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	})
 }
 

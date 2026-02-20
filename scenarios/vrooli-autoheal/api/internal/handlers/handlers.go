@@ -151,6 +151,7 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 // returns immediately with a 409 Conflict status.
 func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	const maxTickRuntime = 6 * time.Minute
+	compactResponse := r.URL.Query().Get("compact") == "true"
 
 	// Try to acquire the tick lock
 	h.tickLock.Lock()
@@ -260,9 +261,11 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			"warning":  summary.WarnCount,
 			"critical": summary.CritCount,
 		},
-		"results":   results,
-		"autoHeal":  autoHealResults,
 		"timestamp": time.Now().UTC(),
+	}
+	if !compactResponse {
+		response["results"] = results
+		response["autoHeal"] = autoHealResults
 	}
 
 	// Include warning about persistence issues without failing the request

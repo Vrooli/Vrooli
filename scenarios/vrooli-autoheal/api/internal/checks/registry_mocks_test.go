@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"vrooli-autoheal/internal/platform"
@@ -34,6 +35,7 @@ type mockHealableCheck struct {
 	actions         []RecoveryAction
 	executeResult   ActionResult
 	executedActions []string
+	mu              sync.Mutex
 }
 
 func (m *mockHealableCheck) ID() string                 { return m.id }
@@ -52,6 +54,8 @@ func (m *mockHealableCheck) RecoveryActions(lastResult *Result) []RecoveryAction
 }
 
 func (m *mockHealableCheck) ExecuteAction(ctx context.Context, actionID string) ActionResult {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.executedActions = append(m.executedActions, actionID)
 	m.executeResult.ActionID = actionID
 	m.executeResult.CheckID = m.id

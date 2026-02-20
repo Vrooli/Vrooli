@@ -547,8 +547,9 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			continue
 		}
 
-		// Check cooldown before attempting heal
-		tracker := r.getOrCreateHealTracker(result.CheckID)
+		// Check cooldown before attempting heal.
+		// Use a snapshot to avoid races with concurrent tracker updates.
+		tracker := r.getHealTrackerSnapshot(result.CheckID)
 		if tracker.IsInCooldownAt(now) {
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             result.CheckID,
@@ -574,7 +575,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Get available recovery actions
 		actions := healable.RecoveryActions(&result)
 
-		selectedAction := selectAutoHealAction(result.CheckID, actions)
+		selectedAction := selectAutoHealAction(result, actions)
 
 		if selectedAction == nil {
 			autoHealResults = append(autoHealResults, AutoHealResult{
@@ -636,7 +637,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				Message:   "Heal action cancelled due to timeout",
 			}
 			r.updateHealTracker(c.result.CheckID, false)
-			updatedTracker := r.getOrCreateHealTracker(c.result.CheckID)
+			updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             c.result.CheckID,
 				Attempted:           true,
@@ -656,7 +657,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		r.updateHealTracker(c.result.CheckID, actionResult.Success)
 
 		// Get updated tracker for result
-		updatedTracker := r.getOrCreateHealTracker(c.result.CheckID)
+		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
 
 		autoHealResults = append(autoHealResults, AutoHealResult{
 			CheckID:             c.result.CheckID,
@@ -719,12 +720,28 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 	}
 }
 
-func selectAutoHealAction(checkID string, actions []RecoveryAction) *RecoveryAction {
+func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryAction {
+	checkID := result.CheckID
+
 	// Policy: orphan cleanup may auto-run a restricted safe kill action.
 	if checkID == "vrooli-orphans" {
 		for _, action := range actions {
 			if action.Available && action.ID == "kill-safe" && !action.Dangerous {
 				return &action
+			}
+		}
+	}
+
+	// Specialized scenario policy: when shared package drift is detected,
+	// run setup before restart to avoid repeating restart-only loops.
+	if strings.HasPrefix(checkID, "scenario-") {
+		if result.Details != nil {
+			if cause, ok := result.Details["rootCause"].(string); ok && cause == "shared-package-drift" {
+				for _, action := range actions {
+					if action.Available && action.ID == "setup-restart" {
+						return &action
+					}
+				}
 			}
 		}
 	}
@@ -749,8 +766,9 @@ func selectAutoHealAction(checkID string, actions []RecoveryAction) *RecoveryAct
 	return nil
 }
 
-// getOrCreateHealTracker returns the heal tracker for a check, creating one if needed
-func (r *Registry) getOrCreateHealTracker(checkID string) *HealTracker {
+// getHealTrackerSnapshot returns a copy of tracker state for safe concurrent reads.
+// It creates the tracker entry if missing.
+func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -759,7 +777,8 @@ func (r *Registry) getOrCreateHealTracker(checkID string) *HealTracker {
 		tracker = &HealTracker{}
 		r.healTrackers[checkID] = tracker
 	}
-	return tracker
+
+	return *tracker
 }
 
 // updateHealTracker updates the heal tracker after a heal attempt and persists to store

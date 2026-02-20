@@ -200,6 +200,7 @@ func TestScenarioCheckHealable(t *testing.T) {
 		"stop":          false,
 		"restart":       false,
 		"restart-clean": false,
+		"setup-restart": false,
 		"cleanup-ports": false,
 		"logs":          false,
 		"diagnose":      false,
@@ -1117,6 +1118,12 @@ func TestScenarioCheckRecoveryActionsDangerous(t *testing.T) {
 		}
 	}
 
+	if action, ok := actionMap["setup-restart"]; ok {
+		if !action.Dangerous {
+			t.Error("setup-restart action should be dangerous")
+		}
+	}
+
 	// logs and diagnose should be safe
 	safeActions := []string{"logs", "diagnose"}
 	for _, id := range safeActions {
@@ -1125,6 +1132,102 @@ func TestScenarioCheckRecoveryActionsDangerous(t *testing.T) {
 				t.Errorf("%s action should not be dangerous", id)
 			}
 		}
+	}
+}
+
+func TestScenarioCheckRun_DetectsSharedPackageDriftRootCause(t *testing.T) {
+	mockExecutor := checks.NewMockExecutor()
+	mockExecutor.Responses["vrooli scenario status test-scenario --json"] = checks.MockResponse{
+		Output: []byte(`{
+			"success": true,
+			"scenario_data": {
+				"status": "running",
+				"health_status": "degraded"
+			},
+			"diagnostics": {
+				"log_analysis": {
+					"recent_events": {
+						"ui": {
+							"message": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/repo/packages/api-base/dist/server/perf.js'"
+						}
+					}
+				}
+			}
+		}`),
+		Error: nil,
+	}
+
+	check := NewScenarioCheck("test-scenario", true, WithScenarioExecutor(mockExecutor))
+	result := check.Run(context.Background())
+
+	if got, _ := result.Details["rootCause"].(string); got != "shared-package-drift" {
+		t.Fatalf("rootCause = %q, want shared-package-drift", got)
+	}
+	if got, _ := result.Details["recommendedAction"].(string); got != "setup-restart" {
+		t.Fatalf("recommendedAction = %q, want setup-restart", got)
+	}
+}
+
+func TestScenarioCheckExecuteAction_SetupRestart(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupError    error
+		startError    error
+		expectSuccess bool
+	}{
+		{
+			name:          "success",
+			expectSuccess: true,
+		},
+		{
+			name:          "setup fails",
+			setupError:    checks.ErrCommandNotFound,
+			expectSuccess: false,
+		},
+		{
+			name:          "start fails",
+			startError:    checks.ErrConnectionRefused,
+			expectSuccess: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExecutor := checks.NewMockExecutor()
+			mockExecutor.Responses["vrooli scenario stop test-scenario"] = checks.MockResponse{
+				Output: []byte("Stopped"),
+				Error:  nil,
+			}
+			mockExecutor.Responses["vrooli scenario setup test-scenario"] = checks.MockResponse{
+				Output: []byte("Setup complete"),
+				Error:  tt.setupError,
+			}
+			mockExecutor.Responses["vrooli scenario start test-scenario --best-effort"] = checks.MockResponse{
+				Output: []byte("Started"),
+				Error:  tt.startError,
+			}
+
+			check := NewScenarioCheck(
+				"test-scenario",
+				true,
+				WithScenarioExecutor(mockExecutor),
+				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
+				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
+					if tt.setupError == nil && tt.startError == nil {
+						return true, ""
+					}
+					return false, "mock direct health check failed"
+				}),
+			)
+
+			result := check.ExecuteAction(context.Background(), "setup-restart")
+			if result.Success != tt.expectSuccess {
+				t.Fatalf("Success = %v, want %v (err=%s)", result.Success, tt.expectSuccess, result.Error)
+			}
+			if result.ActionID != "setup-restart" {
+				t.Fatalf("ActionID = %q, want setup-restart", result.ActionID)
+			}
+		})
 	}
 }
 
