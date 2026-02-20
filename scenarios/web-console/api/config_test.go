@@ -204,3 +204,48 @@ func TestResolveWorkingDir_FallsBackToCurrentWD(t *testing.T) {
 		t.Fatalf("expected scenario dir %q, got %q", scenarioDir, got)
 	}
 }
+
+func TestResolveWorkingDir_InfersProjectRootFromScenarioDir(t *testing.T) {
+	projectRoot := t.TempDir()
+	scenarioDir := filepath.Join(projectRoot, "scenarios", "web-console")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir scenario dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", scenarioDir)
+
+	got := resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected inferred project root %q, got %q", projectRoot, got)
+	}
+}
+
+func TestResolveWorkingDir_InfersProjectRootFromWD(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	projectRoot := t.TempDir()
+	apiDir := filepath.Join(projectRoot, "scenarios", "web-console", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("chdir api dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", "")
+
+	got := resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected inferred project root %q, got %q", projectRoot, got)
+	}
+}

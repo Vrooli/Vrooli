@@ -13,6 +13,22 @@
   },
   "nodes": [
     {
+      "id": "navigate-workspace-root",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-console",
+          "scenario_path": "/#/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open workspace route"
+        }
+      }
+    },
+    {
       "id": "open-workspace",
       "action": {
         "type": "ACTION_TYPE_SUBFLOW",
@@ -21,6 +37,18 @@
         },
         "metadata": {
           "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "reset-sessions",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/reset-sessions-best-effort.json"
+        },
+        "metadata": {
+          "label": "Reset sessions (best effort)"
         }
       }
     },
@@ -134,7 +162,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const text = pane ? (pane.textContent || '') : ''; if (sessionId) localStorage.setItem('bas.reload.sessionId', sessionId); document.body.setAttribute('data-reload-session-id', sessionId); document.body.setAttribute('data-reload-marker-before', text.includes('basstdinliveok') ? 'true' : 'false'); })()"
+          "expression": "(() => { const activePane = document.querySelector('[data-testid=\"terminal-pane-container\"].border-wc-accent [data-testid=\"terminal-pane\"][data-session-id]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const text = pane ? (pane.textContent || '') : ''; if (sessionId) localStorage.setItem('bas.reload.sessionId', sessionId); document.body.setAttribute('data-reload-session-id', sessionId); document.body.setAttribute('data-reload-marker-before', text.includes('basstdinliveok') ? 'true' : 'false'); })()"
         },
         "metadata": {
           "label": "Capture session id and marker before reload"
@@ -226,20 +254,22 @@
     }
   ],
   "edges": [
-    {"id":"e1","source":"open-workspace","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e2","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e3","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e4","source":"launch-empty-shell","target":"wait-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e5","source":"wait-terminal-pane","target":"click-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e6","source":"click-terminal-pane","target":"focus-xterm-textarea","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e7","source":"focus-xterm-textarea","target":"send-marker-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e8","source":"send-marker-command","target":"wait-marker-output","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e9","source":"wait-marker-output","target":"capture-session-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e10","source":"capture-session-before-reload","target":"assert-marker-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e11","source":"assert-marker-before-reload","target":"trigger-full-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e12","source":"trigger-full-reload","target":"wait-workspace-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e13","source":"wait-workspace-after-reload","target":"evaluate-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e14","source":"evaluate-session-after-reload","target":"assert-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e15","source":"assert-session-after-reload","target":"assert-marker-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {"id":"e1","source":"navigate-workspace-root","target":"open-workspace","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e2","source":"open-workspace","target":"reset-sessions","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e3","source":"reset-sessions","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e4","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e5","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e6","source":"launch-empty-shell","target":"wait-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e7","source":"wait-terminal-pane","target":"click-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e8","source":"click-terminal-pane","target":"focus-xterm-textarea","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e9","source":"focus-xterm-textarea","target":"send-marker-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e10","source":"send-marker-command","target":"wait-marker-output","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e11","source":"wait-marker-output","target":"capture-session-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e12","source":"capture-session-before-reload","target":"assert-marker-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e13","source":"assert-marker-before-reload","target":"trigger-full-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e14","source":"trigger-full-reload","target":"wait-workspace-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e15","source":"wait-workspace-after-reload","target":"evaluate-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e16","source":"evaluate-session-after-reload","target":"assert-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e17","source":"assert-session-after-reload","target":"assert-marker-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
   ]
 }

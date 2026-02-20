@@ -13,17 +13,43 @@
   },
   "nodes": [
     {"id":"open-workspace","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/open-workspace.json"},"metadata":{"label":"Open workspace"}}},
+    {"id":"reset-sessions","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/reset-sessions-best-effort.json"},"metadata":{"label":"Reset sessions (best effort)"}}},
+    {
+      "id": "capture-baseline-session-ids",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const ids = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); localStorage.setItem('bas.multipane.baselineSessionIds', JSON.stringify(ids)); })()"
+        },
+        "metadata": {
+          "label": "Capture baseline session IDs"
+        }
+      }
+    },
     {"id":"launch-pane-one","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json"},"metadata":{"label":"Seed first interactive pane"}}},
     {"id":"click-new-terminal","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/workspace.newTerminalButton"},"metadata":{"label":"Open launcher for second pane"}}},
     {"id":"wait-launcher","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/launcher.dialog","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for launcher"}}},
     {"id":"launch-empty-shell","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/launcher.emptyShell"},"metadata":{"label":"Launch second empty shell"}}},
     {"id":"wait-second-pane","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":1000},"metadata":{"label":"Wait for second pane render"}}},
     {
+      "id": "capture-new-session-ids",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const baseline = new Set(JSON.parse(localStorage.getItem('bas.multipane.baselineSessionIds') || '[]')); const currentIds = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); const newIds = currentIds.filter((id) => !baseline.has(id)); localStorage.setItem('bas.multipane.newSessionIds', JSON.stringify(newIds)); document.body.setAttribute('data-multipane-new-count-ok', newIds.length >= 2 ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Capture newly-created session IDs"
+        }
+      }
+    },
+    {"id":"assert-new-session-count","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-multipane-new-count-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected at least two new sessions for this test"},"metadata":{"label":"Verify isolated session set"}}},
+    {
       "id": "focus-second-pane",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const panes = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane-container\"][data-session-id]')); const second = panes[1]; if (second instanceof HTMLElement) second.click(); })()"
+          "expression": "(() => { const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const secondId = newIds[1] || newIds[newIds.length - 1] || ''; if (!secondId) return; const pane = document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${secondId}\"]`); if (pane instanceof HTMLElement) pane.click(); })()"
         },
         "metadata": {
           "label": "Activate second pane"
@@ -49,7 +75,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async () => { let countOk = false; let isolated = false; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const panes = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')); const texts = panes.map((pane) => (pane.textContent || '').toLowerCase()); countOk = panes.length >= 2; const pane1Hits = texts.filter((t) => t.includes('basstdinliveok')).length; const pane2Hits = texts.filter((t) => t.includes('pane2ok')).length; isolated = pane1Hits === 1 && pane2Hits === 1; if (countOk && isolated) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-multipane-count-ok', countOk ? 'true' : 'false'); document.body.setAttribute('data-multipane-isolation-ok', isolated ? 'true' : 'false'); })()"
+          "expression": "(async () => { let countOk = false; let isolated = false; const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const deadline = Date.now() + 8000; while (Date.now() < deadline) { const texts = newIds.map((id) => { const pane = document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${id}\"]`); return (pane?.textContent || '').toLowerCase(); }); countOk = newIds.length >= 2; const pane1Hits = texts.filter((t) => t.includes('basstdinliveok')).length; const pane2Hits = texts.filter((t) => t.includes('pane2ok')).length; isolated = pane1Hits === 1 && pane2Hits === 1; if (countOk && isolated) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-multipane-count-ok', countOk ? 'true' : 'false'); document.body.setAttribute('data-multipane-isolation-ok', isolated ? 'true' : 'false'); })()"
         },
         "metadata": {
           "label": "Check per-pane output isolation"
@@ -60,17 +86,21 @@
     {"id":"assert-pane-isolation","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-multipane-isolation-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected each marker in exactly one pane"},"metadata":{"label":"Verify I/O isolation"}}}
   ],
   "edges": [
-    {"id":"e1","source":"open-workspace","target":"launch-pane-one","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e2","source":"launch-pane-one","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e3","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e4","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e5","source":"launch-empty-shell","target":"wait-second-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e6","source":"wait-second-pane","target":"focus-second-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e7","source":"focus-second-pane","target":"focus-xterm-second","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e8","source":"focus-xterm-second","target":"send-second-pane-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e9","source":"send-second-pane-command","target":"wait-markers","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e10","source":"wait-markers","target":"evaluate-pane-isolation","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e11","source":"evaluate-pane-isolation","target":"assert-pane-count","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e12","source":"assert-pane-count","target":"assert-pane-isolation","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {"id":"e1","source":"open-workspace","target":"reset-sessions","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e2","source":"reset-sessions","target":"capture-baseline-session-ids","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e3","source":"capture-baseline-session-ids","target":"launch-pane-one","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e4","source":"launch-pane-one","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e5","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e6","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e7","source":"launch-empty-shell","target":"wait-second-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e8","source":"wait-second-pane","target":"capture-new-session-ids","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e9","source":"capture-new-session-ids","target":"assert-new-session-count","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e10","source":"assert-new-session-count","target":"focus-second-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e11","source":"focus-second-pane","target":"focus-xterm-second","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e12","source":"focus-xterm-second","target":"send-second-pane-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e13","source":"send-second-pane-command","target":"wait-markers","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e14","source":"wait-markers","target":"evaluate-pane-isolation","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e15","source":"evaluate-pane-isolation","target":"assert-pane-count","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e16","source":"assert-pane-count","target":"assert-pane-isolation","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
   ]
 }

@@ -36,13 +36,14 @@ type Session struct {
 	policy ExpirationPolicy // [REQ:P1-001a] per-session expiration policy
 
 	// Output fan-out: the readLoop goroutine reads from the PTY and either
-	// broadcasts to connected WebSocket clients or buffers for reconnect.
+	// broadcasts to connected WebSocket clients while preserving bounded
+	// output history for reconnect and reload replay.
 	mu               sync.Mutex
 	clients          map[chan []byte]struct{}
-	offlineBuf       []byte
+	outputHistory    []byte
 	processExited    bool // set by readLoop when the PTY read returns an error
 	processExitCode  int  // exit code from the PTY process (-1 if unknown)
-	bufferOverflowed bool // set once when offline buffer cap is hit (log once)
+	historyTrimmed   bool // set once when history cap is hit (log once)
 
 	// Config-driven limits for this session
 	offlineBufferMax    int
@@ -59,15 +60,15 @@ func (s *Session) Write(data []byte) (int, error) {
 }
 
 // Subscribe returns a channel that receives PTY output. Caller must call
-// Unsubscribe when done. Any buffered offline output is sent immediately.
+// Unsubscribe when done. Recent output history is replayed immediately.
 // [REQ:P0-003b] Reconnect State Restoration
 func (s *Session) Subscribe() chan []byte {
 	ch := make(chan []byte, s.clientChannelBuffer)
 	s.mu.Lock()
-	// Send buffered offline output
-	if len(s.offlineBuf) > 0 {
-		ch <- s.offlineBuf
-		s.offlineBuf = nil
+	// Replay recent output history to reconnected clients.
+	if len(s.outputHistory) > 0 {
+		snapshot := append([]byte(nil), s.outputHistory...)
+		ch <- snapshot
 	}
 	s.clients[ch] = struct{}{}
 	s.mu.Unlock()
@@ -119,20 +120,41 @@ func (s *Session) ExitCode() int {
 	return s.processExitCode
 }
 
-// broadcast fans out PTY output to all connected WebSocket clients. When no
-// clients are connected, output is buffered (up to offlineBufferMax) so it
-// can be replayed on the next Subscribe call, enabling reconnect fidelity.
+func (s *Session) appendHistory(data []byte) {
+	if s.offlineBufferMax <= 0 || len(data) == 0 {
+		return
+	}
+
+	if len(data) >= s.offlineBufferMax {
+		s.outputHistory = append([]byte(nil), data[len(data)-s.offlineBufferMax:]...)
+		if !s.historyTrimmed {
+			s.historyTrimmed = true
+			log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
+		}
+		return
+	}
+
+	combinedLen := len(s.outputHistory) + len(data)
+	if combinedLen <= s.offlineBufferMax {
+		s.outputHistory = append(s.outputHistory, data...)
+		return
+	}
+
+	trim := combinedLen - s.offlineBufferMax
+	s.outputHistory = append(s.outputHistory[trim:], data...)
+	if !s.historyTrimmed {
+		s.historyTrimmed = true
+		log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
+	}
+}
+
+// broadcast fans out PTY output to all connected WebSocket clients while
+// preserving bounded output history for reconnect/reload replay.
 func (s *Session) broadcast(data []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.appendHistory(data)
 	if len(s.clients) == 0 {
-		// Buffer offline output up to configured limit
-		if len(s.offlineBuf)+len(data) <= s.offlineBufferMax {
-			s.offlineBuf = append(s.offlineBuf, data...)
-		} else if !s.bufferOverflowed {
-			s.bufferOverflowed = true
-			log.Printf("session %s: offline buffer full (%d bytes), dropping output", s.ID, s.offlineBufferMax)
-		}
 		return
 	}
 	// Copy to avoid data races since buf is reused

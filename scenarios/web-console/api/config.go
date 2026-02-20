@@ -138,13 +138,38 @@ func inferScenarioDirFromWD(wd string) string {
 	return ""
 }
 
+func inferProjectRootFromScenarioPath(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	current := filepath.Clean(path)
+	for {
+		if filepath.Base(current) == "scenarios" {
+			root := filepath.Dir(current)
+			if validDirectory(root) {
+				return root
+			}
+			return ""
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return ""
+		}
+		current = parent
+	}
+}
+
 // resolveWorkingDir determines the default PTY working directory.
 // Priority:
 //   1) WC_DEFAULT_CWD (explicit override)
 //   2) PROJECT_ROOT (workspace root for cross-device parity)
-//   3) SCENARIO_DIR (scenario lifecycle hint)
-//   4) parent of cwd when running from scenario/api
-//   5) current process working directory
+//   3) project root inferred from SCENARIO_DIR path
+//   4) SCENARIO_DIR (scenario lifecycle hint)
+//   5) project root inferred from current working directory path
+//   6) parent of cwd when running from scenario/api
+//   7) current process working directory
 func resolveWorkingDir() string {
 	if v := os.Getenv("WC_DEFAULT_CWD"); validDirectory(v) {
 		return v
@@ -153,11 +178,17 @@ func resolveWorkingDir() string {
 		return v
 	}
 	if v := os.Getenv("SCENARIO_DIR"); validDirectory(v) {
+		if inferred := inferProjectRootFromScenarioPath(v); inferred != "" {
+			return inferred
+		}
 		return v
 	}
 	wd, err := os.Getwd()
 	if err != nil {
 		return "."
+	}
+	if inferred := inferProjectRootFromScenarioPath(wd); inferred != "" {
+		return inferred
 	}
 	if scenarioDir := inferScenarioDirFromWD(wd); scenarioDir != "" {
 		return scenarioDir

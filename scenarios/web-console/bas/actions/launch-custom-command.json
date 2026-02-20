@@ -22,16 +22,14 @@
       }
     },
     {
-      "id": "wait-launcher",
+      "id": "ensure-launcher-open",
       "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/launcher.dialog",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 10000
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const deadline = Date.now() + 10000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-launcher\"]')) return; const button = document.querySelector('[data-testid=\"new-terminal-button\"]'); if (button instanceof HTMLElement) button.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('Terminal launcher did not appear'); })()"
         },
         "metadata": {
-          "label": "Wait for launcher dialog"
+          "label": "Ensure launcher dialog is open"
         }
       }
     },
@@ -52,9 +50,9 @@
     {
       "id": "click-launch",
       "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/launcher.customLaunch"
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const launch = document.querySelector('[data-testid=\"launcher-custom-launch\"]'); if (!(launch instanceof HTMLButtonElement)) throw new Error('launcher custom launch button not found'); launch.click(); })()"
         },
         "metadata": {
           "label": "Launch terminal session"
@@ -83,12 +81,12 @@
     {
       "id": "e1",
       "source": "click-new-terminal",
-      "target": "wait-launcher",
+      "target": "ensure-launcher-open",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
-      "source": "wait-launcher",
+      "source": "ensure-launcher-open",
       "target": "input-command",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
