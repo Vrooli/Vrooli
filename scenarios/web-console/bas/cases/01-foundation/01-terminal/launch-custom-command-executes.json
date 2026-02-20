@@ -92,6 +92,21 @@
           "label": "Extract command marker from tracked terminal stdout"
         }
       }
+    },
+    {
+      "id": "assert-terminal-output",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-terminal-output-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected custom command marker in terminal output after launch"
+        },
+        "metadata": {
+          "label": "Verify command marker output"
+        }
+      }
     }
   ],
   "edges": [
@@ -123,6 +138,12 @@
       "id": "e5",
       "source": "assert-terminal-traffic",
       "target": "evaluate-terminal-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "evaluate-terminal-output",
+      "target": "assert-terminal-output",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

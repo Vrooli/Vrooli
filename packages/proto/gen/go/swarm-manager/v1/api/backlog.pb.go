@@ -990,8 +990,16 @@ type ExportBacklogRequest struct {
 	IncludePrd *bool `protobuf:"varint,6,opt,name=include_prd,json=includePrd,proto3,oneof" json:"include_prd,omitempty"`
 	// Whether to include requirements in the export (default false).
 	IncludeRequirements *bool `protobuf:"varint,7,opt,name=include_requirements,json=includeRequirements,proto3,oneof" json:"include_requirements,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Whether to include clarify questions in the export (default true).
+	IncludeClarifyQuestions *bool `protobuf:"varint,8,opt,name=include_clarify_questions,json=includeClarifyQuestions,proto3,oneof" json:"include_clarify_questions,omitempty"`
+	// Whether to include suggestions in the export (default true).
+	IncludeSuggestions *bool `protobuf:"varint,9,opt,name=include_suggestions,json=includeSuggestions,proto3,oneof" json:"include_suggestions,omitempty"`
+	// Whether to include notes in the export (default true).
+	IncludeNotes *bool `protobuf:"varint,10,opt,name=include_notes,json=includeNotes,proto3,oneof" json:"include_notes,omitempty"`
+	// Whether to include the new-item template in the export (default true).
+	IncludeTemplate *bool `protobuf:"varint,11,opt,name=include_template,json=includeTemplate,proto3,oneof" json:"include_template,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExportBacklogRequest) Reset() {
@@ -1069,6 +1077,34 @@ func (x *ExportBacklogRequest) GetIncludePrd() bool {
 func (x *ExportBacklogRequest) GetIncludeRequirements() bool {
 	if x != nil && x.IncludeRequirements != nil {
 		return *x.IncludeRequirements
+	}
+	return false
+}
+
+func (x *ExportBacklogRequest) GetIncludeClarifyQuestions() bool {
+	if x != nil && x.IncludeClarifyQuestions != nil {
+		return *x.IncludeClarifyQuestions
+	}
+	return false
+}
+
+func (x *ExportBacklogRequest) GetIncludeSuggestions() bool {
+	if x != nil && x.IncludeSuggestions != nil {
+		return *x.IncludeSuggestions
+	}
+	return false
+}
+
+func (x *ExportBacklogRequest) GetIncludeNotes() bool {
+	if x != nil && x.IncludeNotes != nil {
+		return *x.IncludeNotes
+	}
+	return false
+}
+
+func (x *ExportBacklogRequest) GetIncludeTemplate() bool {
+	if x != nil && x.IncludeTemplate != nil {
+		return *x.IncludeTemplate
 	}
 	return false
 }
@@ -1310,7 +1346,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"targetKind\x12$\n" +
 	"\vtarget_name\x18\x02 \x01(\tH\x00R\n" +
 	"targetName\x88\x01\x01B\x0e\n" +
-	"\f_target_name\"\xbd\x02\n" +
+	"\f_target_name\"\xeb\x04\n" +
 	"\x14ExportBacklogRequest\x12\x14\n" +
 	"\x05kinds\x18\x01 \x03(\tR\x05kinds\x12\x1a\n" +
 	"\bstatuses\x18\x02 \x03(\tR\bstatuses\x12\x14\n" +
@@ -1320,10 +1356,19 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x04tags\x18\x05 \x03(\tR\x04tags\x12$\n" +
 	"\vinclude_prd\x18\x06 \x01(\bH\x01R\n" +
 	"includePrd\x88\x01\x01\x126\n" +
-	"\x14include_requirements\x18\a \x01(\bH\x02R\x13includeRequirements\x88\x01\x01B\x0f\n" +
+	"\x14include_requirements\x18\a \x01(\bH\x02R\x13includeRequirements\x88\x01\x01\x12?\n" +
+	"\x19include_clarify_questions\x18\b \x01(\bH\x03R\x17includeClarifyQuestions\x88\x01\x01\x124\n" +
+	"\x13include_suggestions\x18\t \x01(\bH\x04R\x12includeSuggestions\x88\x01\x01\x12(\n" +
+	"\rinclude_notes\x18\n" +
+	" \x01(\bH\x05R\fincludeNotes\x88\x01\x01\x12.\n" +
+	"\x10include_template\x18\v \x01(\bH\x06R\x0fincludeTemplate\x88\x01\x01B\x0f\n" +
 	"\r_priority_maxB\x0e\n" +
 	"\f_include_prdB\x17\n" +
-	"\x15_include_requirements\"\x9c\x01\n" +
+	"\x15_include_requirementsB\x1c\n" +
+	"\x1a_include_clarify_questionsB\x16\n" +
+	"\x14_include_suggestionsB\x10\n" +
+	"\x0e_include_notesB\x13\n" +
+	"\x11_include_template\"\x9c\x01\n" +
 	"\x15ImportBacklogResponse\x12\x17\n" +
 	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x128\n" +
 	"\achanges\x18\x02 \x03(\v2\x1e.swarm_manager.v1.ImportChangeR\achanges\x12\x16\n" +

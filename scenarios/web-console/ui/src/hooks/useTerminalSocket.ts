@@ -41,6 +41,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 400;
 const RECONNECT_MAX_DELAY_MS = 5000;
 const MAX_OUTPUT_PROBE_CHARS = 12000;
+const MAX_PENDING_INPUT_MESSAGES = 64;
 
 function appendOutputProbe(sessionId: string, data: string): void {
   if (typeof window === "undefined" || !data) return;
@@ -89,19 +90,37 @@ export function useTerminalSocket({
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingInputRef = useRef<string[]>([]);
+
+  const enqueueInput = useCallback((data: string) => {
+    if (!data) return;
+    pendingInputRef.current.push(data);
+    if (pendingInputRef.current.length > MAX_PENDING_INPUT_MESSAGES) {
+      pendingInputRef.current.splice(
+        0,
+        pendingInputRef.current.length - MAX_PENDING_INPUT_MESSAGES,
+      );
+    }
+  }, []);
 
   const sendMessage = useCallback((msg: TerminalMessage) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
+      return true;
     }
+    return false;
   }, []);
 
   const sendInput = useCallback(
     (data: string) => {
-      sendMessage({ type: "stdin", data });
+      if (!sendMessage({ type: "stdin", data })) {
+        // Inputs can be triggered before socket open (launcher shortcuts,
+        // restored-session command replay). Queue and flush on connect.
+        enqueueInput(data);
+      }
     },
-    [sendMessage],
+    [enqueueInput, sendMessage],
   );
 
   const sendResize = useCallback(
@@ -119,6 +138,16 @@ export function useTerminalSocket({
     let reconnectAttempts = 0;
     let connectedAtLeastOnce = false;
 
+    const flushPendingInput = () => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      while (pendingInputRef.current.length > 0) {
+        const next = pendingInputRef.current.shift();
+        if (!next) continue;
+        ws.send(JSON.stringify({ type: "stdin", data: next } satisfies TerminalMessage));
+      }
+    };
+
     const connect = () => {
       if (disposed) return;
 
@@ -130,6 +159,7 @@ export function useTerminalSocket({
         connectedAtLeastOnce = true;
         reconnectAttempts = 0;
         sendResize(terminal.cols, terminal.rows);
+        flushPendingInput();
         if (wasReconnect) {
           terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
         }
@@ -224,6 +254,8 @@ export function useTerminalSocket({
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "stdin", data } satisfies TerminalMessage));
+      } else {
+        enqueueInput(data);
       }
     });
 
@@ -237,7 +269,7 @@ export function useTerminalSocket({
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [sessionId, terminal, onExit, onReady, sendResize, createSocket]);
+  }, [sessionId, terminal, onExit, onReady, sendResize, createSocket, enqueueInput]);
 
   return { sendInput, sendResize };
 }

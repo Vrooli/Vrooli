@@ -44,8 +44,10 @@ export function apiBaseMock() {
  * triggerOpen / triggerMessage / triggerClose.
  */
 export class FakeWebSocket {
+  static CONNECTING = 0;
   static OPEN = 1;
-  readyState = FakeWebSocket.OPEN;
+  static CLOSED = 3;
+  readyState = FakeWebSocket.CONNECTING;
   onopen: ((ev: Event) => void) | null = null;
   onmessage: ((ev: MessageEvent) => void) | null = null;
   onclose: ((ev: CloseEvent) => void) | null = null;
@@ -62,6 +64,7 @@ export class FakeWebSocket {
   }
 
   triggerOpen() {
+    this.readyState = FakeWebSocket.OPEN;
     this.onopen?.(new Event("open"));
   }
 
@@ -72,6 +75,7 @@ export class FakeWebSocket {
   }
 
   triggerClose(code: number) {
+    this.readyState = FakeWebSocket.CLOSED;
     this.onclose?.(new CloseEvent("close", { code }));
   }
 }

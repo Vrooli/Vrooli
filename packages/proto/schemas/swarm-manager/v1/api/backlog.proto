@@ -243,6 +243,18 @@ message ExportBacklogRequest {
 
   // Whether to include requirements in the export (default false).
   optional bool include_requirements = 7;
+
+  // Whether to include clarify questions in the export (default true).
+  optional bool include_clarify_questions = 8;
+
+  // Whether to include suggestions in the export (default true).
+  optional bool include_suggestions = 9;
+
+  // Whether to include notes in the export (default true).
+  optional bool include_notes = 10;
+
+  // Whether to include the new-item template in the export (default true).
+  optional bool include_template = 11;
 }
 
 // ImportBacklogResponse reports the results of importing an edited markdown export.

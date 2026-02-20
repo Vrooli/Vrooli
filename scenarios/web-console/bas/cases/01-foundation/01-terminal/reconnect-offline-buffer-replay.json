@@ -83,11 +83,50 @@
     {"id":"reload-workspace-to-reconnect","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => { window.location.reload(); })()"},"metadata":{"label":"Reload workspace"}}},
     {"id":"wait-workspace-after-reload","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/workspace.newTerminalButton","state":"WAIT_STATE_VISIBLE","timeout_ms":20000},"metadata":{"label":"Wait for workspace after reload"}}},
     {
+      "id": "activate-restored-pane",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; const bySession = sessionId ? document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${sessionId}\"]`) : null; const fallback = document.querySelector('[data-testid=\"terminal-pane-container\"][data-session-id]'); const pane = bySession || fallback; if (pane instanceof HTMLElement) pane.click(); })()"
+        },
+        "metadata": {
+          "label": "Activate restored terminal pane"
+        }
+      }
+    },
+    {
+      "id": "focus-xterm-after-reconnect",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": {
+          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Focus xterm after reconnect"
+        }
+      }
+    },
+    {
+      "id": "send-post-reconnect-command",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "keys": [
+            "e","c","h","o","Space","b","a","s","r","e","p","l","a","y","p","o","s","t","o","k","Enter"
+          ]
+        },
+        "metadata": {
+          "label": "Send stdin after reconnect"
+        }
+      }
+    },
+    {
       "id": "evaluate-replay-after-reconnect",
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async () => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; let paneSeen = false; let armed = false; let ok = false; const deadline = Date.now() + 10000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const text = pane ? (pane.textContent || '') : ''; if (pane) paneSeen = true; if (text.includes('basreplayarmed')) armed = true; if (text.includes('basreplayok')) { ok = true; break; } await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-replay-pane-present', paneSeen ? 'true' : 'false'); document.body.setAttribute('data-replay-armed-after', armed ? 'true' : 'false'); document.body.setAttribute('data-replay-ok', ok ? 'true' : 'false'); })()"
+          "expression": "(async () => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; let paneSeen = false; let armed = false; let replayOk = false; let postReconnectOk = false; const deadline = Date.now() + 10000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const text = pane ? (pane.textContent || '') : ''; if (pane) paneSeen = true; if (text.includes('basreplayarmed')) armed = true; if (text.includes('basreplayok')) replayOk = true; if (text.includes('basreplaypostok')) postReconnectOk = true; if (replayOk && postReconnectOk) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-replay-pane-present', paneSeen ? 'true' : 'false'); document.body.setAttribute('data-replay-armed-after', armed ? 'true' : 'false'); document.body.setAttribute('data-replay-ok', replayOk ? 'true' : 'false'); document.body.setAttribute('data-replay-post-reconnect-ok', postReconnectOk ? 'true' : 'false'); })()"
         },
         "metadata": {
           "label": "Check replay markers after reconnect"
@@ -96,7 +135,8 @@
     },
     {"id":"assert-session-pane-restored","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-pane-present='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected original terminal session pane after reconnect"},"metadata":{"label":"Verify pane restored"}}},
     {"id":"assert-replay-armed-seen","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-armed-after='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected first marker after reconnect"},"metadata":{"label":"Verify first marker"}}},
-    {"id":"assert-replay-success","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected delayed marker replay after reconnect"},"metadata":{"label":"Verify replay success"}}}
+    {"id":"assert-replay-success","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected delayed marker replay after reconnect"},"metadata":{"label":"Verify replay success"}}},
+    {"id":"assert-post-reconnect-stdin","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-post-reconnect-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected post-reconnect stdin command marker to confirm interactive terminal"},"metadata":{"label":"Verify post-reconnect stdin"}}}
   ],
   "edges": [
     {"id":"e1","source":"navigate-workspace-root","target":"open-workspace","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
@@ -113,9 +153,13 @@
     {"id":"e12","source":"disconnect-tracked-sockets","target":"wait-output-while-offline","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
     {"id":"e13","source":"wait-output-while-offline","target":"reload-workspace-to-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
     {"id":"e14","source":"reload-workspace-to-reconnect","target":"wait-workspace-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e15","source":"wait-workspace-after-reload","target":"evaluate-replay-after-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e16","source":"evaluate-replay-after-reconnect","target":"assert-session-pane-restored","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e17","source":"assert-session-pane-restored","target":"assert-replay-armed-seen","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e18","source":"assert-replay-armed-seen","target":"assert-replay-success","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {"id":"e15","source":"wait-workspace-after-reload","target":"activate-restored-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e16","source":"activate-restored-pane","target":"focus-xterm-after-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e17","source":"focus-xterm-after-reconnect","target":"send-post-reconnect-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e18","source":"send-post-reconnect-command","target":"evaluate-replay-after-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e19","source":"evaluate-replay-after-reconnect","target":"assert-session-pane-restored","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e20","source":"assert-session-pane-restored","target":"assert-replay-armed-seen","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e21","source":"assert-replay-armed-seen","target":"assert-replay-success","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e22","source":"assert-replay-success","target":"assert-post-reconnect-stdin","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
   ]
 }

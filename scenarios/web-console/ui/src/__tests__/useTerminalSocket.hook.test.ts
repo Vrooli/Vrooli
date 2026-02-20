@@ -341,4 +341,23 @@ describe("useTerminalSocket hook", () => {
     expect(fakeWs.sent).toHaveLength(1);
     expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "resize", cols: 120, rows: 40 });
   });
+
+  it("queues sendInput before socket opens and flushes on open", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => result.current.sendInput("echo queued"));
+    expect(fakeWs.sent).toHaveLength(0);
+
+    act(() => fakeWs.triggerOpen());
+
+    expect(fakeWs.sent).toHaveLength(2);
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "resize", cols: 80, rows: 24 });
+    expect(JSON.parse(fakeWs.sent[1] ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
+  });
 });

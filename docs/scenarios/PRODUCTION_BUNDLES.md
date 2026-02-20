@@ -120,7 +120,7 @@ Add `@vrooli/api-base` to `ui/package.json`:
 ```json
 {
   "dependencies": {
-    "@vrooli/api-base": "workspace:*",
+    "@vrooli/api-base": "file:../../../packages/api-base",
     ...other dependencies
   }
 }
@@ -234,7 +234,7 @@ vrooli scenario start my-app
 
 ### Issue: "Cannot find module '@vrooli/api-base/server'"
 **Cause:** @vrooli/api-base not installed in ui/package.json
-**Fix:** Add `"@vrooli/api-base": "workspace:*"` to dependencies and run `pnpm install` from ui/
+**Fix:** Add `"@vrooli/api-base": "file:../../../packages/api-base"` to dependencies and run `pnpm install` from ui/
 
 ### Issue: "ReferenceError: require is not defined in ES module scope"
 **Cause:** package.json has `"type": "module"` but server.js uses CommonJS syntax
