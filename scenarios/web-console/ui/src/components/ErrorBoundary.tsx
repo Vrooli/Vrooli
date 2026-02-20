@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
+// DOC: docs/internal/ERROR-SEMANTICS.md
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";

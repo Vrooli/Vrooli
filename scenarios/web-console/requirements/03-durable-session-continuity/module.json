@@ -42,6 +42,13 @@
           "type": "test"
         },
         {
+          "notes": "BAS case verifies sessions remain listed by API after workspace/sessions route transitions",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/session-metadata-persists-across-route-navigation.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
           "notes": "Idempotency cache TTL expiry removes stale entries on Get",
           "phase": "unit",
           "ref": "api/session_handlers_test.go:TestIdempotencyCache_TTLExpiry",
@@ -79,6 +86,13 @@
           "ref": "api/pty_test.go:TestFakePTY_OfflineBuffer",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "BAS case disconnects terminal websocket and verifies delayed output replay on reconnect",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/reconnect-offline-buffer-replay.json",
+          "status": "implemented",
+          "type": "automation"
         }
       ]
     },

@@ -5,6 +5,7 @@ import { useSessionManager } from "../hooks/useSessionManager";
 // Mock the API module
 vi.mock("../lib/api", () => ({
   createSession: vi.fn(),
+  listSessions: vi.fn(),
   deleteSession: vi.fn(),
   toErrorInfo: vi.fn((err: unknown) => ({
     code: "test_error",
@@ -19,13 +20,16 @@ vi.mock("../lib/api", () => ({
 // [REQ:P0-006a] Terminal Launch Flow UI
 describe("useSessionManager", () => {
   let mockCreateSession: ReturnType<typeof vi.fn>;
+  let mockListSessions: ReturnType<typeof vi.fn>;
   let mockDeleteSession: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     const api = await import("../lib/api");
     mockCreateSession = api.createSession as ReturnType<typeof vi.fn>;
+    mockListSessions = api.listSessions as ReturnType<typeof vi.fn>;
     mockDeleteSession = api.deleteSession as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValue([]);
   });
 
   it("starts with empty panes", () => {
@@ -34,6 +38,24 @@ describe("useSessionManager", () => {
     expect(result.current.isCreating).toBe(false);
     expect(result.current.createError).toBeNull();
     expect(result.current.activePane).toBeNull();
+  });
+
+  it("hydrates panes from existing sessions on mount", async () => {
+    const existing = [
+      { id: "sess-a", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} },
+      { id: "sess-b", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} },
+    ];
+    mockListSessions.mockResolvedValueOnce(existing);
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.panes).toHaveLength(2);
+    expect(result.current.panes[0]?.session.id).toBe("sess-a");
+    expect(result.current.activePane).toBe("sess-b");
   });
 
   it("launches a session and adds a pane", async () => {

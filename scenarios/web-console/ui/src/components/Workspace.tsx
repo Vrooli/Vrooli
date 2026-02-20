@@ -183,10 +183,13 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
         {panes.map((pane) => (
           <div
             key={pane.session.id}
+            data-testid="terminal-pane-container"
+            data-session-id={pane.session.id}
             className={cn("relative rounded border overflow-hidden", activePane === pane.session.id ? "border-wc-accent" : "border-wc-default")}
             onClick={() => setActivePane(pane.session.id)}
           >
             <Button
+              data-testid={`terminal-close-${pane.session.id}`}
               variant="ghost"
               size="icon"
               className="absolute right-1 top-1 z-10 h-6 w-6 text-wc-text-faint"

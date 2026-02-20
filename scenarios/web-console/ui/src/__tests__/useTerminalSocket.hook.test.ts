@@ -1,73 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useTerminalSocket, type SocketFactory, type TerminalMessage } from "../hooks/useTerminalSocket";
+import { useTerminalSocket, type TerminalMessage } from "../hooks/useTerminalSocket";
 import { ANSI } from "../lib/ansi";
+import { FakeWebSocket, createFakeSocketPair, createMockTerminal, findWriteCall } from "../test-utils";
+import type { MockTerminal } from "../test-utils";
 
 // [REQ:P0-002b] WebSocket I/O Streaming — hook behavioral tests
 // [REQ:P0-004b] api-base WebSocket Integration — socket factory seam
-
-/**
- * Minimal fake WebSocket that mirrors the subset of the real API
- * used by useTerminalSocket. The test controls the lifecycle via
- * triggerOpen / triggerMessage / triggerClose.
- */
-class FakeWebSocket {
-  static OPEN = 1;
-  readyState = FakeWebSocket.OPEN;
-  onopen: ((ev: Event) => void) | null = null;
-  onmessage: ((ev: MessageEvent) => void) | null = null;
-  onclose: ((ev: CloseEvent) => void) | null = null;
-
-  sent: string[] = [];
-  closed = false;
-
-  send(data: string) {
-    this.sent.push(data);
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  triggerOpen() {
-    this.onopen?.(new Event("open"));
-  }
-
-  triggerMessage(msg: TerminalMessage) {
-    this.onmessage?.(new MessageEvent("message", { data: JSON.stringify(msg) }));
-  }
-
-  triggerClose(code: number) {
-    this.onclose?.(new CloseEvent("close", { code }));
-  }
-}
-
-// Minimal xterm Terminal mock — we only use write() and onData()
-function createMockTerminal() {
-  const written: string[] = [];
-  const dataCallbacks: ((data: string) => void)[] = [];
-  return {
-    cols: 80,
-    rows: 24,
-    write: vi.fn((data: string) => written.push(data)),
-    onData: vi.fn((cb: (data: string) => void) => {
-      dataCallbacks.push(cb);
-      return { dispose: vi.fn() };
-    }),
-    written,
-    /** Simulate user typing in the terminal */
-    simulateInput(data: string) {
-      for (const cb of dataCallbacks) cb(data);
-    },
-  };
-}
-
-/** Find a write() call containing `needle` in the first argument. */
-function findWriteCall(mock: ReturnType<typeof vi.fn>, needle: string): string | undefined {
-  const calls = mock.mock.calls as string[][];
-  const match = calls.find((c) => typeof c[0] === "string" && c[0].includes(needle));
-  return match ? match[0] : undefined;
-}
 
 vi.mock("../lib/api", () => ({
   buildSessionWsUrl: vi.fn((id: string) => `ws://test/sessions/${id}/ws`),
@@ -75,13 +14,14 @@ vi.mock("../lib/api", () => ({
 
 describe("useTerminalSocket hook", () => {
   let fakeWs: FakeWebSocket;
-  let createSocket: SocketFactory;
-  let terminal: ReturnType<typeof createMockTerminal>;
+  let createSocket: ReturnType<typeof createFakeSocketPair>["createSocket"];
+  let terminal: MockTerminal;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    fakeWs = new FakeWebSocket();
-    createSocket = vi.fn(() => fakeWs as unknown as WebSocket);
+    const pair = createFakeSocketPair();
+    fakeWs = pair.fakeWs;
+    createSocket = pair.createSocket;
     terminal = createMockTerminal();
   });
 

@@ -1,4 +1,4 @@
-// DOC: docs/internal/ERROR_SEMANTICS.md#client-side-failure-handling
+// DOC: docs/internal/ERROR-SEMANTICS.md#client-side-failure-handling
 // DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
 import { AlertTriangle, X } from "lucide-react";
 import type { ErrorInfo } from "../lib/api";

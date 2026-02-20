@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
 import { useState, useEffect, useCallback } from "react";
 
 export type Route = "workspace" | "settings" | "sessions";

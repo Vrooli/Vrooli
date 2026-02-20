@@ -1,0 +1,188 @@
+{
+  "metadata": {
+    "name": "session-persists-across-full-reload",
+    "description": "Reload workspace after running a command and verify same session and output are restored",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"REQ-P0-003a\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "run-terminal-command-flow",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "flows/terminal-command-smoke.json",
+          "args": {
+            "command": "printf 'BAS_RELOAD_PERSIST_OK\\n'"
+          }
+        },
+        "metadata": {
+          "label": "Launch session and emit marker"
+        }
+      }
+    },
+    {
+      "id": "wait-initial-output",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        },
+        "metadata": {
+          "label": "Wait for initial output"
+        }
+      }
+    },
+    {
+      "id": "capture-session-before-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const text = pane ? (pane.textContent || '') : ''; document.body.setAttribute('data-reload-session-id', sessionId); document.body.setAttribute('data-reload-marker-before', text.includes('BAS_RELOAD_PERSIST_OK') ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Capture session id and marker before reload"
+        }
+      }
+    },
+    {
+      "id": "assert-marker-before-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-marker-before='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 3000,
+          "failure_message": "Expected pre-reload terminal output marker"
+        },
+        "metadata": {
+          "label": "Verify marker exists before reload"
+        }
+      }
+    },
+    {
+      "id": "trigger-full-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { window.location.reload(); })()"
+        },
+        "metadata": {
+          "label": "Reload workspace route"
+        }
+      }
+    },
+    {
+      "id": "wait-workspace-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.newTerminalButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for workspace after reload"
+        }
+      }
+    },
+    {
+      "id": "evaluate-session-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const sessionId = document.body.getAttribute('data-reload-session-id') || ''; const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : null; const text = pane ? (pane.textContent || '') : ''; document.body.setAttribute('data-reload-session-present', pane ? 'true' : 'false'); document.body.setAttribute('data-reload-marker-after', text.includes('BAS_RELOAD_PERSIST_OK') ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Check same session and output after reload"
+        }
+      }
+    },
+    {
+      "id": "assert-session-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-session-present='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected same terminal session to remain after reload"
+        },
+        "metadata": {
+          "label": "Verify session continuity"
+        }
+      }
+    },
+    {
+      "id": "assert-marker-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-marker-after='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected marker output to remain visible after reload"
+        },
+        "metadata": {
+          "label": "Verify output continuity"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "run-terminal-command-flow",
+      "target": "wait-initial-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-initial-output",
+      "target": "capture-session-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "capture-session-before-reload",
+      "target": "assert-marker-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-marker-before-reload",
+      "target": "trigger-full-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "trigger-full-reload",
+      "target": "wait-workspace-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-workspace-after-reload",
+      "target": "evaluate-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "evaluate-session-after-reload",
+      "target": "assert-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-session-after-reload",
+      "target": "assert-marker-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

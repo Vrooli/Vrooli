@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -18,6 +20,31 @@ import (
 	"github.com/vrooli/api-core/server"
 )
 
+// initSchema runs the idempotent schema and seed SQL against the database.
+// SQL files are read from the initialization directory relative to the binary.
+func initSchema(db *sql.DB) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable path: %w", err)
+	}
+	base := filepath.Dir(exe)
+
+	for _, file := range []string{
+		filepath.Join(base, "..", "initialization", "postgres", "schema.sql"),
+		filepath.Join(base, "..", "initialization", "postgres", "seed.sql"),
+	} {
+		sql, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", filepath.Base(file), err)
+		}
+		if _, err := db.Exec(string(sql)); err != nil {
+			return fmt.Errorf("exec %s: %w", filepath.Base(file), err)
+		}
+	}
+	log.Println("Schema initialized successfully")
+	return nil
+}
+
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
@@ -27,14 +54,20 @@ type Server struct {
 	events      *EventLogger
 	metrics     *Metrics
 	aiChain     *AIProviderChain
-	shortcuts   *ShortcutProfileStore
-	aiConfig    *AIProviderConfigStore
+	shortcuts   ShortcutStore
+	aiConfig    AIConfigStore
 	sweeper     *ExpirationSweeper
 	idempotency *idempotencyCache // replay-safe session creation
 }
 
 // NewServer initializes database, session manager, and routes.
+// It runs the schema initialization against the database and creates
+// PostgreSQL-backed stores for shortcuts and AI config.
 func NewServer(db *sql.DB) *Server {
+	if err := initSchema(db); err != nil {
+		log.Fatalf("Schema initialization failed: %v", err)
+	}
+
 	events := NewEventLogger(1000)
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
@@ -45,8 +78,8 @@ func NewServer(db *sql.DB) *Server {
 		events:      events,
 		metrics:     metrics,
 		aiChain:     NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
-		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
+		shortcuts:   NewPGShortcutStore(db),
+		aiConfig:    NewPGAIConfigStore(db),
 		sweeper:     NewExpirationSweeper(sessions, events, metrics),
 		idempotency: newIdempotencyCache(),
 	}

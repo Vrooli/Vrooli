@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionDrawer from "../components/SessionDrawer";
 import type { SessionInfo } from "../lib/api";
+import { makeSessions } from "../test-utils";
 
 // [REQ:P0-008a] Drawer Layout Component — rendering and open/close
 // [REQ:P0-008b] Session Status and Controls — session list display
@@ -31,18 +32,6 @@ vi.mock("../lib/format", () => ({
 vi.mock("../hooks/useCountdown", () => ({
   useCountdown: vi.fn(() => null),
 }));
-
-const makeSessions = (...ids: string[]): Array<{ session: SessionInfo }> =>
-  ids.map((id) => ({
-    session: {
-      id,
-      shell: "/bin/bash",
-      created_at: "2026-01-15T14:30:00Z",
-      cols: 80,
-      rows: 24,
-      policy: { mode: "never" as const },
-    },
-  }));
 
 describe("SessionDrawer", () => {
   const onClose = vi.fn();

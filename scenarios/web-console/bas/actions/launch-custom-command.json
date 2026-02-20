@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "name": "launch-custom-command",
+    "description": "Open launcher and create a terminal session with a custom command",
+    "labels": {
+      "reset": "none",
+      "parameters_json": "[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Shell command to execute immediately after session launch\"}]"
+    }
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "click-new-terminal",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.newTerminalButton"
+        },
+        "metadata": {
+          "label": "Open terminal launcher"
+        }
+      }
+    },
+    {
+      "id": "wait-launcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/launcher.dialog",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for launcher dialog"
+        }
+      }
+    },
+    {
+      "id": "input-command",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/launcher.customInput",
+          "value": "${@params/command}",
+          "clearFirst": true
+        },
+        "metadata": {
+          "label": "Enter custom command"
+        }
+      }
+    },
+    {
+      "id": "click-launch",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/launcher.customLaunch"
+        },
+        "metadata": {
+          "label": "Launch terminal session"
+        }
+      }
+    },
+    {
+      "id": "wait-terminal-pane",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/terminal.pane",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for terminal pane mount"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "click-new-terminal",
+      "target": "wait-launcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-launcher",
+      "target": "input-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "input-command",
+      "target": "click-launch",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "click-launch",
+      "target": "wait-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

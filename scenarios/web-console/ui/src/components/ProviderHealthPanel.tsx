@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
 // [REQ:P1-003b] Provider Health Dashboard
 import { useState, useEffect, useCallback } from "react";
 import { Activity, Power, PowerOff, RefreshCw, AlertTriangle } from "lucide-react";

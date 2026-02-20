@@ -1,0 +1,168 @@
+{
+  "metadata": {
+    "name": "multi-pane-independent-io",
+    "description": "Launch two panes with distinct command markers and verify output isolation per pane",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-workspace.json"
+        },
+        "metadata": {
+          "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "launch-pane-one",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/launch-custom-command.json",
+          "args": {
+            "command": "printf 'PANE_ONE_READY\\n'"
+          }
+        },
+        "metadata": {
+          "label": "Launch first pane"
+        }
+      }
+    },
+    {
+      "id": "launch-pane-two",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/launch-custom-command.json",
+          "args": {
+            "command": "printf 'PANE_TWO_READY\\n'"
+          }
+        },
+        "metadata": {
+          "label": "Launch second pane"
+        }
+      }
+    },
+    {
+      "id": "wait-output-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1200
+        },
+        "metadata": {
+          "label": "Wait for both outputs to render"
+        }
+      }
+    },
+    {
+      "id": "evaluate-pane-count",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const panes = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')); document.body.setAttribute('data-multipane-count-ok', panes.length >= 2 ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Mark pane count check"
+        }
+      }
+    },
+    {
+      "id": "assert-pane-count",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-multipane-count-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 3000,
+          "failure_message": "Expected at least two terminal panes"
+        },
+        "metadata": {
+          "label": "Verify two panes exist"
+        }
+      }
+    },
+    {
+      "id": "evaluate-pane-isolation",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const panes = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')); const texts = panes.map((p) => p.textContent || ''); const paneOneHits = texts.filter((t) => t.includes('PANE_ONE_READY')).length; const paneTwoHits = texts.filter((t) => t.includes('PANE_TWO_READY')).length; const isolated = paneOneHits === 1 && paneTwoHits === 1; document.body.setAttribute('data-multipane-isolation-ok', isolated ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Check per-pane output isolation"
+        }
+      }
+    },
+    {
+      "id": "assert-pane-isolation",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-multipane-isolation-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 3000,
+          "failure_message": "Expected each command marker to appear in exactly one pane"
+        },
+        "metadata": {
+          "label": "Verify independent pane I/O"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-workspace",
+      "target": "launch-pane-one",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "launch-pane-one",
+      "target": "launch-pane-two",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "launch-pane-two",
+      "target": "wait-output-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-output-render",
+      "target": "evaluate-pane-count",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "evaluate-pane-count",
+      "target": "assert-pane-count",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-pane-count",
+      "target": "evaluate-pane-isolation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "evaluate-pane-isolation",
+      "target": "assert-pane-isolation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

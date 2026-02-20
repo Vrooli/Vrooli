@@ -63,7 +63,7 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
 
 ### Error Handling
 
-All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR_SEMANTICS.md) for the full contract.
+All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR-SEMANTICS.md) for the full contract.
 
 Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. The [CODE: ui/src/components/ErrorBanner.tsx] component renders recovery hints and retry buttons based on error metadata.
 
@@ -71,17 +71,20 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 
 | Decision | Rationale |
 |----------|-----------|
-| In-memory sessions (no SQLite yet) | Simplifies MVP; persistence is a P1 target |
+| Repository interfaces (`ShortcutStore`, `AIConfigStore`) | Decouples handlers from storage backend; in-memory for tests, PostgreSQL for production |
+| PostgreSQL for shortcuts and AI config | User configuration survives restarts; health metrics stay in-memory (ephemeral, high-frequency) |
+| In-memory sessions (PTY process-bound) | PTY state cannot persist across restarts; session metadata persistence is a future target |
 | PTY interface + factory pattern | Enables testing without real shell processes |
 | Single `exitCh` channel per session | Session signals exit; SessionManager owns cleanup |
 | `@vrooli/api-base` for networking | Proxy-correct HTTP/WS routing under parent iframe |
 | Config via env vars with clamping | Safe defaults, graceful degradation on bad input |
+| Schema initialization on startup | `initSchema()` runs idempotent schema.sql + seed.sql on every boot |
 
 ## Integration Points
 
 - **Parent scenarios** embed web-console via iframe; `@vrooli/iframe-bridge` handles `postMessage` coordination
 - **`@vrooli/api-base`** resolves API/WS URLs for proxy-correct networking
-- **Postgres** is the configured resource dependency (for future session persistence)
+- **PostgreSQL** persists shortcut profiles and AI provider configuration via `PGShortcutStore` and `PGAIConfigStore`
 
 ## Code Organization Pattern
 
@@ -108,8 +111,11 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `api/terminal_ws.go` | WebSocket upgrade + bidirectional I/O bridge |
 | `api/config.go` | Environment-based configuration with validation |
 | `api/ai_generate.go` | AI command generation: provider chain, prompt building, extraction, config-aware orchestration |
-| `api/ai_provider_config.go` | AI provider config store, health tracking, config HTTP handlers |
-| `api/shortcut_profiles.go` | Shortcut profile store, validation, profile HTTP handlers |
+| `api/repository.go` | Storage interfaces: `ShortcutStore`, `AIConfigStore` |
+| `api/ai_provider_config.go` | In-memory AI provider config store + health tracking |
+| `api/ai_provider_config_pg.go` | PostgreSQL AI provider config store (hybrid: config in PG, health in-memory) |
+| `api/shortcut_profiles.go` | In-memory shortcut profile store + domain types |
+| `api/shortcut_profiles_pg.go` | PostgreSQL shortcut profile store |
 | `api/events.go` | Structured event logging (session lifecycle, AI) |
 | `api/metrics.go` | Operational metrics collection + metrics HTTP handler |
 | `ui/src/App.tsx` | Entry point — health check gate + hash routing |
@@ -136,3 +142,36 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/consts/toolbar-keys.ts` | Mobile toolbar key definitions |
 | `ui/src/consts/policy-options.ts` | Expiration policy option definitions (shared by SessionDrawer + SessionsPage) |
 | `ui/src/consts/selectors.ts` | Test automation selector registry |
+
+## Operational Target Implementation Map
+
+This section maps each PRD operational target to its implementing code and documentation, ensuring bidirectional traceability.
+
+### P0 – Must Ship
+
+| Target | Description | Implementation | Docs |
+|--------|-------------|----------------|------|
+| OT-P0-001 | Pane-Based Terminal Workspace | [CODE: ui/src/components/Workspace.tsx], [CODE: ui/src/hooks/useSessionManager.ts], [CODE: ui/src/components/TerminalPane.tsx] | [DOC: docs/internal/SEAMS.md#1-entry--presentation] |
+| OT-P0-002 | Production-Grade Web Terminal Fidelity | [CODE: api/pty.go], [CODE: api/terminal_ws.go], [CODE: ui/src/hooks/useTerminalSocket.ts] | [DOC: docs/internal/TEMPORAL-FLOWS.md] |
+| OT-P0-003 | Durable Session Continuity | [CODE: api/session.go] (offline buffer, reconnect), [CODE: api/session_handlers.go] | [DOC: docs/internal/INVARIANTS.md] |
+| OT-P0-004 | Proxy-Correct Networking via api-base | [CODE: ui/src/lib/api.ts], `@vrooli/api-base` integration | [DOC: docs/reference/configuration.md] |
+| OT-P0-005 | AI Input with Provider Fallback | [CODE: api/ai_generate.go] (provider chain, fallback), [CODE: ui/src/components/AiInput.tsx] | [DOC: docs/internal/ASSUMPTIONS.md#behavioral-assumptions] |
+| OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | [CODE: ui/src/components/TerminalLauncher.tsx], [CODE: ui/src/consts/shortcuts.ts], [CODE: api/shortcut_profiles.go] | [DOC: docs/concepts/GLOSSARY.md#shortcut] |
+| OT-P0-007 | Mobile Terminal Usability Toolbar | [CODE: ui/src/components/MobileToolbar.tsx], [CODE: ui/src/consts/toolbar-keys.ts] | [DOC: docs/internal/EXPERIENCE-AUDIT.md] |
+| OT-P0-008 | Sidebar/Drawer Controls Surface | [CODE: ui/src/components/SessionDrawer.tsx] | [DOC: docs/internal/SEAMS.md#1-entry--presentation] |
+
+### P1 – Should Have
+
+| Target | Description | Implementation | Docs |
+|--------|-------------|----------------|------|
+| OT-P1-001 | Session Policy Controls | [CODE: api/session_policy.go], [CODE: ui/src/consts/policy-options.ts], [CODE: ui/src/hooks/useCountdown.ts] | [DOC: docs/concepts/GLOSSARY.md#policy] |
+| OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_pg.go], [CODE: ui/src/pages/SettingsPage.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
+| OT-P1-003 | AI Provider Policy Controls | [CODE: api/ai_provider_config.go], [CODE: api/ai_provider_config_pg.go], [CODE: ui/src/components/ProviderHealthPanel.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
+| OT-P1-004 | Operational Observability Coverage | [CODE: api/metrics.go], [CODE: api/events.go] | [DOC: docs/internal/SEAMS.md#6-cross-cutting] |
+
+### P2 – Future
+
+| Target | Description | Implementation | Docs |
+|--------|-------------|----------------|------|
+| OT-P2-001 | Collaborative Session Modes | Not yet implemented — requires multi-subscriber session model and auth | [DOC: docs/internal/PROBLEMS.md] |
+| OT-P2-002 | Persisted Workspace Presets | Not yet implemented — requires workspace state serialization | [DOC: docs/internal/PROBLEMS.md] |

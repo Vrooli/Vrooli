@@ -33,6 +33,13 @@
           "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "BAS case executes custom-command launcher path to create terminal session and run command",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
+          "status": "implemented",
+          "type": "automation"
         }
       ]
     },

@@ -1,3 +1,4 @@
+// DOC: docs/internal/SEAMS.md
 /**
  * Vrooli Ascension selector registry
  *
@@ -279,6 +280,7 @@ const literalSelectors: LiteralSelectorTree = {
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
     drawerToggle: 'drawer-toggle',
+    paneContainer: 'terminal-pane-container',
   },
   terminal: {
     pane: 'terminal-pane',
@@ -433,6 +435,25 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: 'Shortcut entry command input',
       testIdPattern: 'entry-command-${profileId}-${entryIdx}',
       params: { profileId: { type: 'string' }, entryIdx: { type: 'number' } },
+    }),
+  },
+  workspace: {
+    paneContainerBySession: defineDynamicSelector({
+      description: 'Pane container by session ID',
+      selectorPattern: '[data-testid="terminal-pane-container"][data-session-id="${sessionId}"]',
+      params: { sessionId: { type: 'string' } },
+    }),
+    closeButtonBySession: defineDynamicSelector({
+      description: 'Close button for a specific session pane',
+      testIdPattern: 'terminal-close-${sessionId}',
+      params: { sessionId: { type: 'string' } },
+    }),
+  },
+  terminal: {
+    paneBySession: defineDynamicSelector({
+      description: 'Terminal host element by session ID',
+      selectorPattern: '[data-testid="terminal-pane"][data-session-id="${sessionId}"]',
+      params: { sessionId: { type: 'string' } },
     }),
   },
 };

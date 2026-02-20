@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
-// DOC: docs/internal/ERROR_SEMANTICS.md#structured-error-type-typescript
-import { resolveApiBase, buildApiUrl, resolveWsBase, buildWsUrl } from "@vrooli/api-base";
+// DOC: docs/internal/ERROR-SEMANTICS.md#structured-error-type-typescript
+import { resolveApiBase, buildApiUrl, buildWsUrl } from "@vrooli/api-base";
 import type { ShortcutEntry } from "../consts/shortcuts";
 
 // [REQ:P0-004a] api-base HTTP Integration
@@ -327,8 +327,14 @@ export async function getAIHealth(): Promise<ProviderHealth[]> {
   return (await res.json()) as ProviderHealth[];
 }
 
+function apiBaseToWsBase(apiBase: string): string {
+  if (apiBase.startsWith("https://")) return `wss://${apiBase.slice("https://".length)}`;
+  if (apiBase.startsWith("http://")) return `ws://${apiBase.slice("http://".length)}`;
+  return apiBase;
+}
+
 // [REQ:P0-004b] api-base WebSocket Integration
 export function buildSessionWsUrl(sessionId: string): string {
-  const wsBase = resolveWsBase({ appendSuffix: true });
+  const wsBase = apiBaseToWsBase(API_BASE);
   return buildWsUrl(`/sessions/${sessionId}/ws`, { baseUrl: wsBase });
 }

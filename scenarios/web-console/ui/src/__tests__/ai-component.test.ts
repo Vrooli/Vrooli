@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { apiBaseMock } from "../test-utils";
 
 // Mock api-base before importing
-vi.mock("@vrooli/api-base", () => ({
-  resolveApiBase: () => "http://localhost:17085/api/v1",
-  buildApiUrl: (path: string, opts: { baseUrl: string }) =>
-    `${opts.baseUrl}${path}`,
-  resolveWsBase: () => "ws://localhost:29349/api/v1",
-  buildWsUrl: (path: string, opts: { baseUrl: string }) =>
-    `${opts.baseUrl}${path}`,
-}));
+vi.mock("@vrooli/api-base", () => apiBaseMock());
 
 // [REQ:P0-005b] AI Input UI Component - component tests
 describe("AiInput component", () => {

@@ -1,3 +1,5 @@
+// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/reference/configuration.md
 import type { PolicyMode } from "../lib/api";
 
 // [REQ:P1-001b] Policy Configuration UI

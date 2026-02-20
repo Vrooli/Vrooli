@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
 // [REQ:P0-005b] AI Input UI Component
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Send, Copy, Play, Loader2, AlertCircle } from "lucide-react";

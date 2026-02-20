@@ -75,6 +75,32 @@ Last updated: 2026-02-19
 
 **Benefits**: Hook can be tested with a mock WebSocket (no real connections needed), message handling logic (stdout/exit/error/ping) can be exercised in isolation.
 
+### API-Base Mock Seam (UI)
+**File**: `ui/src/test-utils/mocks.ts`
+**Purpose**: Centralize `@vrooli/api-base` mock so all test files that depend on API URL resolution use a single, consistent factory.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `@vrooli/api-base` module | `resolveApiBase()` reads env/window config | `apiBaseMock()` returns deterministic localhost URLs |
+| `buildApiUrl` / `buildWsUrl` | Constructs URLs from runtime base | Pass-through concatenation for predictable assertions |
+
+**Benefits**: Eliminates 5-file mock duplication (previously each test file copied 7 lines of mock config with inconsistent port numbers). Single change point when the api-base interface evolves.
+
+### Shared Test Doubles Seam (UI)
+**File**: `ui/src/test-utils/mocks.ts`
+**Purpose**: Provide reusable test doubles for WebSocket, terminal, and session data so tests focus on behavior, not boilerplate setup.
+
+| Double | What It Replaces | Used By |
+|--------|-----------------|---------|
+| `FakeWebSocket` | Real `WebSocket` via `SocketFactory` seam | `useTerminalSocket.hook.test.ts` |
+| `createMockTerminal()` | xterm.js `Terminal` instance | WebSocket hook tests |
+| `findWriteCall()` | Inline assertion search across terminal writes | WebSocket hook tests |
+| `makeSessions()` | Inline session data construction | Component tests (SessionDrawer, etc.) |
+| `createMockSession()` | Inline `SessionInfo` object literals | Any test needing session data |
+| `mockFetchSuccess()` / `mockFetchError()` | Repeated `globalThis.fetch = vi.fn(...)` pattern | API client tests |
+
+**Benefits**: New tests can set up realistic test data in one line. Mock behavior is consistent across test files. Changes to data shapes (e.g., adding a field to `SessionInfo`) require updating one factory, not many test files.
+
 ## Boundary Violations Fixed
 
 ### Phase 2 (2026-02-19) — Responsibility Boundaries

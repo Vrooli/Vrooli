@@ -1,0 +1,364 @@
+{
+  "selectors": {
+    "workspace.paneGrid": {
+      "testId": "pane-grid",
+      "selector": "[data-testid=\"pane-grid\"]"
+    },
+    "workspace.newTerminalButton": {
+      "testId": "new-terminal-button",
+      "selector": "[data-testid=\"new-terminal-button\"]"
+    },
+    "workspace.drawerToggle": {
+      "testId": "drawer-toggle",
+      "selector": "[data-testid=\"drawer-toggle\"]"
+    },
+    "workspace.paneContainer": {
+      "testId": "terminal-pane-container",
+      "selector": "[data-testid=\"terminal-pane-container\"]"
+    },
+    "terminal.pane": {
+      "testId": "terminal-pane",
+      "selector": "[data-testid=\"terminal-pane\"]"
+    },
+    "launcher.dialog": {
+      "testId": "terminal-launcher",
+      "selector": "[data-testid=\"terminal-launcher\"]"
+    },
+    "launcher.emptyShell": {
+      "testId": "launcher-empty-shell",
+      "selector": "[data-testid=\"launcher-empty-shell\"]"
+    },
+    "launcher.customInput": {
+      "testId": "launcher-custom-input",
+      "selector": "[data-testid=\"launcher-custom-input\"]"
+    },
+    "launcher.customLaunch": {
+      "testId": "launcher-custom-launch",
+      "selector": "[data-testid=\"launcher-custom-launch\"]"
+    },
+    "drawer.panel": {
+      "testId": "session-drawer",
+      "selector": "[data-testid=\"session-drawer\"]"
+    },
+    "drawer.backdrop": {
+      "testId": "drawer-backdrop",
+      "selector": "[data-testid=\"drawer-backdrop\"]"
+    },
+    "drawer.close": {
+      "testId": "drawer-close",
+      "selector": "[data-testid=\"drawer-close\"]"
+    },
+    "nav.sessions": {
+      "testId": "nav-sessions",
+      "selector": "[data-testid=\"nav-sessions\"]"
+    },
+    "nav.settings": {
+      "testId": "nav-settings",
+      "selector": "[data-testid=\"nav-settings\"]"
+    },
+    "settings.back": {
+      "testId": "settings-back",
+      "selector": "[data-testid=\"settings-back\"]"
+    },
+    "settings.error": {
+      "testId": "settings-error",
+      "selector": "[data-testid=\"settings-error\"]"
+    },
+    "settings.createProfile": {
+      "testId": "create-profile",
+      "selector": "[data-testid=\"create-profile\"]"
+    },
+    "sessions.back": {
+      "testId": "sessions-back",
+      "selector": "[data-testid=\"sessions-back\"]"
+    },
+    "sessions.refresh": {
+      "testId": "sessions-refresh",
+      "selector": "[data-testid=\"sessions-refresh\"]"
+    },
+    "toolbar.container": {
+      "testId": "mobile-toolbar",
+      "selector": "[data-testid=\"mobile-toolbar\"]"
+    },
+    "ai.input": {
+      "testId": "ai-input",
+      "selector": "[data-testid=\"ai-input\"]"
+    },
+    "ai.prompt": {
+      "testId": "ai-input-prompt",
+      "selector": "[data-testid=\"ai-input-prompt\"]"
+    },
+    "ai.generate": {
+      "testId": "ai-input-generate",
+      "selector": "[data-testid=\"ai-input-generate\"]"
+    },
+    "ai.result": {
+      "testId": "ai-input-result",
+      "selector": "[data-testid=\"ai-input-result\"]"
+    },
+    "ai.execute": {
+      "testId": "ai-input-execute",
+      "selector": "[data-testid=\"ai-input-execute\"]"
+    },
+    "ai.copy": {
+      "testId": "ai-input-copy",
+      "selector": "[data-testid=\"ai-input-copy\"]"
+    },
+    "ai.error": {
+      "testId": "ai-input-error",
+      "selector": "[data-testid=\"ai-input-error\"]"
+    },
+    "provider.refresh": {
+      "testId": "provider-refresh",
+      "selector": "[data-testid=\"provider-refresh\"]"
+    },
+    "provider.error": {
+      "testId": "provider-error",
+      "selector": "[data-testid=\"provider-error\"]"
+    },
+    "error.banner": {
+      "testId": "create-error-banner",
+      "selector": "[data-testid=\"create-error-banner\"]"
+    },
+    "error.retryButton": {
+      "testId": "error-retry-button",
+      "selector": "[data-testid=\"error-retry-button\"]"
+    },
+    "error.recoveryHint": {
+      "testId": "error-recovery-hint",
+      "selector": "[data-testid=\"error-recovery-hint\"]"
+    },
+    "policy.error": {
+      "testId": "policy-error",
+      "selector": "[data-testid=\"policy-error\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "provider.card": {
+      "description": "Provider health card",
+      "selectorPattern": "[data-testid=\"provider-card-${providerName}\"]",
+      "testIdPattern": "provider-card-${providerName}",
+      "params": [
+        {
+          "name": "providerName",
+          "type": "string"
+        }
+      ]
+    },
+    "provider.toggle": {
+      "description": "Provider enable/disable toggle",
+      "selectorPattern": "[data-testid=\"provider-toggle-${providerName}\"]",
+      "testIdPattern": "provider-toggle-${providerName}",
+      "params": [
+        {
+          "name": "providerName",
+          "type": "string"
+        }
+      ]
+    },
+    "policy.select": {
+      "description": "Policy select dropdown for a session",
+      "selectorPattern": "[data-testid=\"policy-select-${sessionId}\"]",
+      "testIdPattern": "policy-select-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "policy.countdown": {
+      "description": "Policy countdown timer for a session",
+      "selectorPattern": "[data-testid=\"policy-countdown-${sessionId}\"]",
+      "testIdPattern": "policy-countdown-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "error.boundary": {
+      "description": "Error boundary wrapper for a region",
+      "selectorPattern": "[data-testid=\"error-boundary-${region}\"]",
+      "testIdPattern": "error-boundary-${region}",
+      "params": [
+        {
+          "name": "region",
+          "type": "string"
+        }
+      ]
+    },
+    "drawer.session": {
+      "description": "Session row in drawer",
+      "selectorPattern": "[data-testid=\"drawer-session-${sessionId}\"]",
+      "testIdPattern": "drawer-session-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "launcher.shortcut": {
+      "description": "Launcher shortcut button",
+      "selectorPattern": "[data-testid=\"launcher-shortcut-${label}\"]",
+      "testIdPattern": "launcher-shortcut-${label}",
+      "params": [
+        {
+          "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "toolbar.key": {
+      "description": "Mobile toolbar key button",
+      "selectorPattern": "[data-testid=\"toolbar-key-${label}\"]",
+      "testIdPattern": "toolbar-key-${label}",
+      "params": [
+        {
+          "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "sessions.row": {
+      "description": "Session row in sessions page",
+      "selectorPattern": "[data-testid=\"session-row-${sessionId}\"]",
+      "testIdPattern": "session-row-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "sessions.policy": {
+      "description": "Policy select for session in sessions page",
+      "selectorPattern": "[data-testid=\"session-policy-${sessionId}\"]",
+      "testIdPattern": "session-policy-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "sessions.deleteButton": {
+      "description": "Delete button for session in sessions page",
+      "selectorPattern": "[data-testid=\"session-delete-${sessionId}\"]",
+      "testIdPattern": "session-delete-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "settings.profile": {
+      "description": "Shortcut profile editor card",
+      "selectorPattern": "[data-testid=\"shortcut-profile-${profileId}\"]",
+      "testIdPattern": "shortcut-profile-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "settings.profileName": {
+      "description": "Profile name input",
+      "selectorPattern": "[data-testid=\"profile-name-${profileId}\"]",
+      "testIdPattern": "profile-name-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "settings.profileSave": {
+      "description": "Profile save button",
+      "selectorPattern": "[data-testid=\"profile-save-${profileId}\"]",
+      "testIdPattern": "profile-save-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "settings.profileDelete": {
+      "description": "Profile delete button",
+      "selectorPattern": "[data-testid=\"profile-delete-${profileId}\"]",
+      "testIdPattern": "profile-delete-${profileId}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        }
+      ]
+    },
+    "settings.entryLabel": {
+      "description": "Shortcut entry label input",
+      "selectorPattern": "[data-testid=\"entry-label-${profileId}-${entryIdx}\"]",
+      "testIdPattern": "entry-label-${profileId}-${entryIdx}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        },
+        {
+          "name": "entryIdx",
+          "type": "number"
+        }
+      ]
+    },
+    "settings.entryCommand": {
+      "description": "Shortcut entry command input",
+      "selectorPattern": "[data-testid=\"entry-command-${profileId}-${entryIdx}\"]",
+      "testIdPattern": "entry-command-${profileId}-${entryIdx}",
+      "params": [
+        {
+          "name": "profileId",
+          "type": "string"
+        },
+        {
+          "name": "entryIdx",
+          "type": "number"
+        }
+      ]
+    },
+    "workspace.paneContainerBySession": {
+      "description": "Pane container by session ID",
+      "selectorPattern": "[data-testid=\"terminal-pane-container\"][data-session-id=\"${sessionId}\"]",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.closeButtonBySession": {
+      "description": "Close button for a specific session pane",
+      "selectorPattern": "[data-testid=\"terminal-close-${sessionId}\"]",
+      "testIdPattern": "terminal-close-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "terminal.paneBySession": {
+      "description": "Terminal host element by session ID",
+      "selectorPattern": "[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

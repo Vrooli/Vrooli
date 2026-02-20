@@ -1,0 +1,129 @@
+{
+  "metadata": {
+    "name": "launch-custom-command-executes",
+    "description": "Launch a terminal with a custom command and verify command execution signal paths",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "run-terminal-command-flow",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "flows/terminal-command-smoke.json",
+          "args": {
+            "command": "printf 'BAS_E2E_TERMINAL_OK\\n'"
+          }
+        },
+        "metadata": {
+          "label": "Launch terminal and execute command"
+        }
+      }
+    },
+    {
+      "id": "wait-command-output",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        },
+        "metadata": {
+          "label": "Allow command output to render"
+        }
+      }
+    },
+    {
+      "id": "evaluate-terminal-traffic",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const instances = Array.isArray(window.__bas_ws_instances) ? window.__bas_ws_instances : []; const live = instances.filter((ws) => ws && ws.readyState === 1).length; document.body.setAttribute('data-terminal-traffic-ok', live >= 1 ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Mark websocket traffic via tracked sockets"
+        }
+      }
+    },
+    {
+      "id": "assert-terminal-traffic",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-terminal-traffic-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected terminal websocket traffic after running a command"
+        },
+        "metadata": {
+          "label": "Verify websocket message traffic"
+        }
+      }
+    },
+    {
+      "id": "evaluate-terminal-output",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const activePane = document.querySelector('[data-testid=\"terminal-pane-container\"].border-wc-accent [data-testid=\"terminal-pane\"]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"]'); const pane = activePane || fallbackPane; const text = pane ? (pane.textContent || '') : ''; const seen = text.includes('BAS_E2E_TERMINAL_OK'); document.body.setAttribute('data-terminal-output-ok', seen ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Extract command marker from terminal DOM"
+        }
+      }
+    },
+    {
+      "id": "assert-terminal-output",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-terminal-output-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected terminal output to include BAS_E2E_TERMINAL_OK"
+        },
+        "metadata": {
+          "label": "Verify command marker rendered in terminal"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "run-terminal-command-flow",
+      "target": "wait-command-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-command-output",
+      "target": "evaluate-terminal-traffic",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "evaluate-terminal-traffic",
+      "target": "assert-terminal-traffic",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-terminal-traffic",
+      "target": "evaluate-terminal-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "evaluate-terminal-output",
+      "target": "assert-terminal-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

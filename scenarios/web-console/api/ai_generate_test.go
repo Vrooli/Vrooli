@@ -12,10 +12,10 @@ import (
 
 // fakeAIProvider is a test double for AIProvider.
 type fakeAIProvider struct {
-	name    string
-	result  string
-	err     error
-	called  bool
+	name   string
+	result string
+	err    error
+	called bool
 }
 
 func (f *fakeAIProvider) Name() string { return f.name }
@@ -57,7 +57,6 @@ func TestAIProviderChainFailover(t *testing.T) {
 
 	chain := NewAIProviderChain(primary, fallback)
 	cmd, provider, err := chain.Generate(context.Background(), "list files")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,7 +81,6 @@ func TestAIProviderChainPrimarySuccess(t *testing.T) {
 
 	chain := NewAIProviderChain(primary, fallback)
 	cmd, provider, err := chain.Generate(context.Background(), "list containers")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -72,6 +72,13 @@
           "ref": "ui/src/__tests__/workspace.test.tsx",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "BAS case launches two panes with distinct command markers and verifies output isolation",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/multi-pane-independent-io.json",
+          "status": "implemented",
+          "type": "automation"
         }
       ]
     },

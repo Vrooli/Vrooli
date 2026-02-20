@@ -31,3 +31,17 @@ Ollama timeout before OpenRouter fallback needs empirical tuning. Too short = un
 ## 8. Offline Output Buffer Growth
 
 Sessions with default never-expire policy could accumulate unbounded transcript data in SQLite. May need eventual transcript rotation or archival strategy (deferred — not MVP).
+
+## 9. E2E Issues
+
+**PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:
+- `bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json`
+- `bas/cases/01-foundation/01-terminal/session-metadata-persists-across-route-navigation.json`
+- `bas/cases/01-foundation/01-terminal/reconnect-offline-buffer-replay.json`
+- `bas/cases/01-foundation/01-terminal/multi-pane-independent-io.json`
+- `bas/cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json`
+- `bas/cases/01-foundation/01-terminal/session-persists-across-full-reload.json`
+
+**Remaining gaps:**
+- No BAS mobile viewport workflow yet for floating toolbar key/chord behavior.
+- Playbooks phase currently blocks on BAS startup when browser-automation-studio dependencies are unavailable (e2e workflows present but cannot execute).

@@ -1,3 +1,4 @@
+// DOC: docs/reference/configuration.md
 /**
  * ANSI escape sequences for rendering colored status messages
  * inside xterm.js terminal instances.

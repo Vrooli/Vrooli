@@ -26,6 +26,11 @@
           "path": "concepts/ARCHITECTURE.md",
           "title": "Architecture",
           "description": "High-level system design: API, UI, WebSocket protocol, and integration layers"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain vocabulary and term definitions used across the scenario"
         }
       ]
     },
@@ -66,7 +71,7 @@
           "internal": true
         },
         {
-          "path": "internal/ERROR_SEMANTICS.md",
+          "path": "internal/ERROR-SEMANTICS.md",
           "title": "Error Semantics",
           "description": "Error categories, recovery paths, and the error response contract",
           "internal": true
@@ -87,6 +92,48 @@
           "path": "internal/INVARIANTS.md",
           "title": "Replay & Idempotency Invariants",
           "description": "State-mutating operations, idempotency status, safe/unsafe retry patterns, and event emission guards",
+          "internal": true
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Audit",
+          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Patterns and decisions from consolidating utility functions",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Implicit beliefs and assumptions not yet validated in code",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "React Coherence Notes",
+          "description": "React state patterns, styling consistency, and component organization audit",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "Persona mapping, UX friction analysis, and navigation assessment",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Security hardening status by category and trust boundaries",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test organization, mock infrastructure, and testability patterns",
           "internal": true
         }
       ]

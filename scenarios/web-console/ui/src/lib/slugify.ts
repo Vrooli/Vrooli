@@ -1,3 +1,4 @@
+// DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
 /**
  * Convert a display label into a URL/testId-safe slug.
  *

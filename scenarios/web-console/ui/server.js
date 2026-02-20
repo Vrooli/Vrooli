@@ -6,4 +6,6 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'web-console',
   corsOrigins: '*',
+  wsPathPrefix: '/api/v1',
+  wsPathTransform: (path) => path,
 })

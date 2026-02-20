@@ -1,0 +1,204 @@
+{
+  "metadata": {
+    "name": "session-metadata-persists-across-route-navigation",
+    "description": "Verify server-side session persistence after leaving and returning from workspace route",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"REQ-P0-003a\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "run-terminal-command-flow",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "flows/terminal-command-smoke.json",
+          "args": {
+            "command": "printf 'BAS_E2E_PERSIST_OK\\n'"
+          }
+        },
+        "metadata": {
+          "label": "Launch initial terminal session"
+        }
+      }
+    },
+    {
+      "id": "open-sessions-page",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/nav.sessions"
+        },
+        "metadata": {
+          "label": "Open Sessions page"
+        }
+      }
+    },
+    {
+      "id": "wait-sessions-row",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid^='session-row-']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for at least one session row"
+        }
+      }
+    },
+    {
+      "id": "capture-row-count-before-back",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const count = document.querySelectorAll('[data-testid^=\"session-row-\"]').length; document.body.setAttribute('data-sessions-count-before', String(count)); })()"
+        },
+        "metadata": {
+          "label": "Capture session row count before leaving page"
+        }
+      }
+    },
+    {
+      "id": "click-back-to-workspace",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sessions.back"
+        },
+        "metadata": {
+          "label": "Return to workspace route"
+        }
+      }
+    },
+    {
+      "id": "wait-workspace-control",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.newTerminalButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for workspace controls"
+        }
+      }
+    },
+    {
+      "id": "open-sessions-page-again",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/nav.sessions"
+        },
+        "metadata": {
+          "label": "Open Sessions page again"
+        }
+      }
+    },
+    {
+      "id": "wait-sessions-row-again",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid^='session-row-']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for sessions rows after returning"
+        }
+      }
+    },
+    {
+      "id": "evaluate-session-persistence",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const before = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const after = document.querySelectorAll('[data-testid^=\"session-row-\"]').length; const ok = before > 0 && after >= before; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Mark persistence result"
+        }
+      }
+    },
+    {
+      "id": "assert-session-persistence",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-session-persistence-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected session metadata to remain available after route navigation"
+        },
+        "metadata": {
+          "label": "Verify session persistence"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "run-terminal-command-flow",
+      "target": "open-sessions-page",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "open-sessions-page",
+      "target": "wait-sessions-row",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-sessions-row",
+      "target": "capture-row-count-before-back",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "capture-row-count-before-back",
+      "target": "click-back-to-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-back-to-workspace",
+      "target": "wait-workspace-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-workspace-control",
+      "target": "open-sessions-page-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "open-sessions-page-again",
+      "target": "wait-sessions-row-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "wait-sessions-row-again",
+      "target": "evaluate-session-persistence",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "evaluate-session-persistence",
+      "target": "assert-session-persistence",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

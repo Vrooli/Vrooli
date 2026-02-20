@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
 // [REQ:P1-002a] Shortcut Profile Management UI
 // [REQ:P1-003a] AI Provider Configuration UI
 import { useState, useEffect, useCallback } from "react";

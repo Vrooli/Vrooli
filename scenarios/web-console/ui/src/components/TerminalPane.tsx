@@ -97,6 +97,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       <div
         ref={containerRef}
         data-testid="terminal-pane"
+        data-session-id={sessionId}
         className="h-full w-full min-h-[200px]"
       />
     );

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createSession, deleteSession, toErrorInfo, type SessionInfo, type ErrorInfo } from "../lib/api";
+import { createSession, deleteSession, listSessions, toErrorInfo, type SessionInfo, type ErrorInfo } from "../lib/api";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 
@@ -32,6 +32,29 @@ export function useSessionManager() {
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
   const pendingCommands = useRef<Map<string, string>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hydrate workspace panes from existing sessions so reload reconnects to
+  // durable sessions instead of showing the empty-state landing screen.
+  useEffect(() => {
+    let canceled = false;
+
+    const hydratePanes = async () => {
+      try {
+        const sessions = await listSessions();
+        if (canceled || sessions.length === 0) return;
+
+        setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session }))));
+        setActivePane((prev) => prev ?? sessions[sessions.length - 1]?.id ?? null);
+      } catch {
+        // Best-effort hydration: keep empty-state on API/list failures.
+      }
+    };
+
+    void hydratePanes();
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   // Clear the auto-dismiss timer on unmount to prevent setState on dead component
   useEffect(() => {

@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "name": "terminal-command-smoke",
+    "description": "Open workspace and run a command in a newly launched terminal",
+    "labels": {
+      "reset": "none",
+      "parameters_json": "[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Command to execute in the launched terminal\"}]"
+    }
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-workspace.json"
+        },
+        "metadata": {
+          "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "launch-command",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/launch-custom-command.json",
+          "args": {
+            "command": "${@params/command}"
+          }
+        },
+        "metadata": {
+          "label": "Launch custom command"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-workspace",
+      "target": "launch-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

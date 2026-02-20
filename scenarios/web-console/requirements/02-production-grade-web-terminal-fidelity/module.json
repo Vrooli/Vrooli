@@ -72,6 +72,13 @@
           "ref": "ui/src/__tests__/useTerminalSocket.hook.test.ts",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "BAS case launches terminal command and verifies websocket traffic plus rendered command marker",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
+          "status": "implemented",
+          "type": "automation"
         }
       ]
     },

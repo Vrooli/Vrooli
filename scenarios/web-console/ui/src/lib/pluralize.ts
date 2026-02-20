@@ -1,3 +1,4 @@
+// DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
 /**
  * Append "s" to a word when count !== 1.
  *

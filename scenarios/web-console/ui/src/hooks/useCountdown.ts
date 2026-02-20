@@ -1,3 +1,4 @@
+// DOC: docs/concepts/GLOSSARY.md#policy
 import { useState, useEffect } from "react";
 import type { PolicyMode } from "../lib/api";
 import { parseDurationMs, formatCountdown } from "../lib/format";

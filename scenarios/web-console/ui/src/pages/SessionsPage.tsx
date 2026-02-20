@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#file-map
 // [REQ:P0-003a] Session List Management
 // [REQ:P1-001a] Session Policy Overview
 import { useState, useEffect, useCallback, useRef } from "react";
