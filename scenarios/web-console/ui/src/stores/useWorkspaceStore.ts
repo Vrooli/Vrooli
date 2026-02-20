@@ -13,6 +13,7 @@ interface WorkspaceState {
   rowFractions: number[];
   activePane: string | null;
   settingsModalOpen: boolean;
+  sessionsModalOpen: boolean;
 }
 
 interface WorkspaceActions {
@@ -25,6 +26,7 @@ interface WorkspaceActions {
   setRowFractions: (fractions: number[]) => void;
   setActivePane: (sessionId: string | null) => void;
   setSettingsModalOpen: (open: boolean) => void;
+  setSessionsModalOpen: (open: boolean) => void;
   resetLayout: () => void;
 }
 
@@ -38,6 +40,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       rowFractions: [],
       activePane: null,
       settingsModalOpen: false,
+      sessionsModalOpen: false,
 
       addPane: (sessionId, name) =>
         set((state) => {
@@ -88,6 +91,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setRowFractions: (fractions) => set({ rowFractions: fractions }),
       setActivePane: (sessionId) => set({ activePane: sessionId }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
+      setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),

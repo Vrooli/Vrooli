@@ -5,10 +5,8 @@ import { fetchHealth } from "./lib/api";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { useHashRoute } from "./hooks/useHashRoute";
 
 const Workspace = lazy(() => import("./components/Workspace"));
-const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 
 const PageFallback = () => (
   <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-muted">
@@ -18,7 +16,6 @@ const PageFallback = () => (
 
 export default function App() {
   const queryClient = useQueryClient();
-  const { route, navigate } = useHashRoute();
   const { isLoading, error, isFetching } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
@@ -61,12 +58,7 @@ export default function App() {
   return (
     <ErrorBoundary region="app">
       <Suspense fallback={<PageFallback />}>
-        {route === "sessions" && (
-          <SessionsPage onBack={() => navigate("workspace")} />
-        )}
-        {route === "workspace" && (
-          <Workspace onNavigate={navigate} />
-        )}
+        <Workspace />
       </Suspense>
     </ErrorBoundary>
   );

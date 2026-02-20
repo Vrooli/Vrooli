@@ -137,9 +137,9 @@ describe("Policy types", () => {
   });
 });
 
-describe("SessionDrawer policy controls", () => {
-  it("drawer module exports default component", async () => {
-    const mod = await import("../components/SessionDrawer");
+describe("SessionsModal policy controls", () => {
+  it("sessions modal module exports default component", async () => {
+    const mod = await import("../components/SessionsModal");
     expect(typeof mod.default).toBe("function");
   });
 });

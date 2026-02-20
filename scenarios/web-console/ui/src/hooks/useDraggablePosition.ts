@@ -20,6 +20,7 @@ type DragState = {
   height: number;
   pointerCaptured: boolean;
   dragging: boolean;
+  lastPosition: { x: number; y: number } | null;
 };
 
 interface StoredPosition {
@@ -215,6 +216,7 @@ export const useDraggablePosition = (
         height: rect.height,
         pointerCaptured: false,
         dragging: false,
+        lastPosition: null,
       };
       setIsDragging(false);
       setIsTrackingPointer(true);
@@ -252,9 +254,10 @@ export const useDraggablePosition = (
         event.clientY - state.offsetY,
         { width: state.width, height: state.height },
       );
-      setPosition((prev) =>
-        prev.x === next.x && prev.y === next.y ? prev : next,
-      );
+      // Write transform directly to the DOM for immediate visual feedback,
+      // bypassing React's async render cycle that causes 1+ frame lag (jitter).
+      element.style.transform = `translate3d(${Math.round(next.x)}px, ${Math.round(next.y)}px, 0)`;
+      state.lastPosition = next;
     },
     [clampPosition, dragThreshold, onDragStart],
   );
@@ -274,6 +277,10 @@ export const useDraggablePosition = (
       if (state.dragging) {
         event.preventDefault?.();
         suppressClickRef.current = true;
+        // Sync final drag position to React state (for floatingStyle + localStorage persistence)
+        if (state.lastPosition) {
+          setPosition(state.lastPosition);
+        }
         onDragEnd?.();
         window.setTimeout(() => {
           suppressClickRef.current = false;

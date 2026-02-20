@@ -26,30 +26,10 @@ describe("useHashRoute", () => {
 });
 
 describe("Page lazy imports", () => {
-  it("SessionsPage module exports default component", async () => {
-    const mod = await import("../pages/SessionsPage");
-    expect(mod.default).toBeDefined();
-    expect(typeof mod.default).toBe("function");
-  });
-
   it("Workspace module exports default component", async () => {
     const mod = await import("../components/Workspace");
     expect(mod.default).toBeDefined();
     expect(typeof mod.default).toBe("function");
-  });
-});
-
-describe("SessionsPage", () => {
-  it("accepts onBack prop", async () => {
-    const mod = await import("../pages/SessionsPage");
-    expect(mod.default.length).toBeLessThanOrEqual(1);
-  });
-
-  it("uses session API functions", async () => {
-    const api = await import("../lib/api");
-    expect(api.listSessions).toBeDefined();
-    expect(api.deleteSession).toBeDefined();
-    expect(api.updateSessionPolicy).toBeDefined();
   });
 });
 

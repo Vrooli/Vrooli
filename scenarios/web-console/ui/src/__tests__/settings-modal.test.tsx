@@ -5,13 +5,8 @@ import type { ShortcutProfile } from "../lib/api";
 
 // Mock workspace store
 const mockStoreState = {
-  panes: [] as Array<{ sessionId: string; name: string; headerColor: string }>,
   settingsModalOpen: true,
-  movePaneToIndex: vi.fn(),
-  removePane: vi.fn(),
-  setActivePane: vi.fn(),
   setSettingsModalOpen: vi.fn(),
-  resetLayout: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -68,7 +63,6 @@ const mockProfile: ShortcutProfile = {
 describe("SettingsModal", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockStoreState.panes = [];
     mockStoreState.settingsModalOpen = true;
     const api = await import("../lib/api");
     mockListProfiles = api.listShortcutProfiles as ReturnType<typeof vi.fn>;
@@ -99,69 +93,6 @@ describe("SettingsModal", () => {
     expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
   });
 
-  it("shows empty workspace message when no panes", () => {
-    render(<SettingsModal />);
-    expect(screen.getByText("No terminals open")).toBeTruthy();
-  });
-
-  it("renders pane list when panes exist", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-      { sessionId: "s2", name: "zsh", headerColor: "#ff7a7a" },
-    ];
-    render(<SettingsModal />);
-    expect(screen.getByTestId("settings-pane-s1")).toBeTruthy();
-    expect(screen.getByTestId("settings-pane-s2")).toBeTruthy();
-    expect(screen.getByText("bash")).toBeTruthy();
-    expect(screen.getByText("zsh")).toBeTruthy();
-  });
-
-  it("disables up button for first pane", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-      { sessionId: "s2", name: "zsh", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    const upBtn = screen.getByTestId("settings-pane-up-s1");
-    expect(upBtn).toHaveProperty("disabled", true);
-  });
-
-  it("disables down button for last pane", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-      { sessionId: "s2", name: "zsh", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    const downBtn = screen.getByTestId("settings-pane-down-s2");
-    expect(downBtn).toHaveProperty("disabled", true);
-  });
-
-  it("calls movePaneToIndex on up button click", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-      { sessionId: "s2", name: "zsh", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("settings-pane-up-s2"));
-    expect(mockStoreState.movePaneToIndex).toHaveBeenCalledWith("s2", 0);
-  });
-
-  it("calls movePaneToIndex on down button click", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-      { sessionId: "s2", name: "zsh", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("settings-pane-down-s1"));
-    expect(mockStoreState.movePaneToIndex).toHaveBeenCalledWith("s1", 1);
-  });
-
-  it("calls resetLayout on reset button click", () => {
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("reset-layout"));
-    expect(mockStoreState.resetLayout).toHaveBeenCalledOnce();
-  });
-
   it("renders shortcut profiles section", async () => {
     mockListProfiles.mockResolvedValueOnce([mockProfile]);
     render(<SettingsModal />);
@@ -174,24 +105,5 @@ describe("SettingsModal", () => {
   it("renders AI provider section", () => {
     render(<SettingsModal />);
     expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
-  });
-
-  it("calls removePane on pane remove button click", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("settings-pane-remove-s1"));
-    expect(mockStoreState.removePane).toHaveBeenCalledWith("s1");
-  });
-
-  it("focuses pane and closes modal on focus button click", () => {
-    mockStoreState.panes = [
-      { sessionId: "s1", name: "bash", headerColor: "transparent" },
-    ];
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("settings-pane-focus-s1"));
-    expect(mockStoreState.setActivePane).toHaveBeenCalledWith("s1");
-    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
   });
 });

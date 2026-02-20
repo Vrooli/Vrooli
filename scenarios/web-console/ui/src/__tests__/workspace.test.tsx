@@ -8,7 +8,6 @@ import type { SessionInfo } from "../lib/api";
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
 // [REQ:P0-001c] Pane Management Controls — header controls
 // [REQ:P0-006a] Terminal Launch Flow UI — launcher integration
-// [REQ:P0-008a] Drawer Layout Component — drawer toggle
 
 const mockSession: SessionInfo = {
   id: "sess-test-001",
@@ -59,6 +58,7 @@ const mockStoreState = {
   rowFractions: [] as number[],
   activePane: null as string | null,
   settingsModalOpen: false,
+  sessionsModalOpen: false,
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -73,6 +73,7 @@ vi.mock("../stores/useWorkspaceStore", () => ({
     setRowFractions: vi.fn(),
     setActivePane: vi.fn(),
     setSettingsModalOpen: vi.fn(),
+    setSessionsModalOpen: vi.fn(),
     resetLayout: vi.fn(),
   }),
 }));
@@ -126,10 +127,22 @@ vi.mock("../components/AiInput", () => ({
   default: vi.fn(() => <div data-testid="mock-ai-input" />),
 }));
 
-vi.mock("../components/SessionDrawer", () => ({
-  default: vi.fn(({ open }: { open: boolean }) =>
-    open ? <div data-testid="mock-session-drawer">Drawer Open</div> : null,
-  ),
+vi.mock("../components/FloatingToolbar", () => ({
+  default: vi.fn(({ onOpenSessions, onOpenSettings, onNewTerminal, onOpenLauncher, isCreating: creating }: {
+    onOpenSessions: () => void; onOpenSettings: () => void;
+    onNewTerminal: () => void; onOpenLauncher: () => void; isCreating: boolean;
+  }) => (
+    <div data-testid="floating-toolbar">
+      <button data-testid="toolbar-sessions" onClick={onOpenSessions}>Sessions</button>
+      <button data-testid="toolbar-settings" onClick={onOpenSettings}>Settings</button>
+      <button data-testid="toolbar-new" onClick={onNewTerminal} disabled={creating}>New</button>
+      <button data-testid="toolbar-launcher" onClick={onOpenLauncher}>Launcher</button>
+    </div>
+  )),
+}));
+
+vi.mock("../components/SessionsModal", () => ({
+  default: vi.fn(() => null),
 }));
 
 vi.mock("../components/ErrorBanner", () => ({
@@ -153,6 +166,7 @@ describe("Workspace", () => {
     mockStoreState.rowFractions = [];
     mockStoreState.activePane = null;
     mockStoreState.settingsModalOpen = false;
+    mockStoreState.sessionsModalOpen = false;
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
@@ -207,63 +221,34 @@ describe("Workspace", () => {
     render(<Workspace />);
     expect(screen.getByTestId("pane-grid")).toBeTruthy();
     expect(screen.getByTestId(`mock-terminal-${mockSession.id}`)).toBeTruthy();
-    expect(screen.getByText("1 terminal")).toBeTruthy();
   });
 
-  it("renders multiple panes with correct pluralization", () => {
-    const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
-    hookState.panes = [{ session: mockSession }, { session: session2 }];
-    mockStoreState.panes = [
-      { sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" },
-      { sessionId: session2.id, name: "/bin/bash", headerColor: "transparent" },
-    ];
-    render(<Workspace />);
-    expect(screen.getByText("2 terminals")).toBeTruthy();
-    expect(screen.getByTestId("mock-terminal-sess-test-001")).toBeTruthy();
-    expect(screen.getByTestId("mock-terminal-sess-test-002")).toBeTruthy();
-  });
-
-  it("has drawer toggle button in header", () => {
+  it("renders floating toolbar when panes exist", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
-    expect(screen.getByTestId("drawer-toggle")).toBeTruthy();
+    expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
   });
 
-  it("toggles session drawer when drawer button is clicked", () => {
+  it("does not render floating toolbar in empty state", () => {
+    render(<Workspace />);
+    expect(screen.queryByTestId("floating-toolbar")).toBeNull();
+  });
+
+  it("toolbar new button launches empty shell", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
-
-    expect(screen.queryByTestId("mock-session-drawer")).toBeNull();
-    fireEvent.click(screen.getByTestId("drawer-toggle"));
-    expect(screen.getByTestId("mock-session-drawer")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("drawer-toggle"));
-    expect(screen.queryByTestId("mock-session-drawer")).toBeNull();
+    fireEvent.click(screen.getByTestId("toolbar-new"));
+    expect(mockLaunchSession).toHaveBeenCalledOnce();
   });
 
-  it("renders sessions nav button when onNavigate is provided", () => {
-    hookState.panes = [{ session: mockSession }];
-    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
-    const onNavigate = vi.fn();
-    render(<Workspace onNavigate={onNavigate} />);
-    expect(screen.getByTestId("nav-sessions")).toBeTruthy();
-  });
-
-  it("renders settings button (opens modal) in header", () => {
+  it("toolbar launcher button opens launcher dialog", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
-    expect(screen.getByTestId("nav-settings")).toBeTruthy();
-  });
-
-  it("calls onNavigate with 'sessions' when sessions nav is clicked", () => {
-    hookState.panes = [{ session: mockSession }];
-    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
-    const onNavigate = vi.fn();
-    render(<Workspace onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByTestId("nav-sessions"));
-    expect(onNavigate).toHaveBeenCalledWith("sessions");
+    fireEvent.click(screen.getByTestId("toolbar-launcher"));
+    expect(screen.getByTestId("mock-launcher")).toBeTruthy();
   });
 
   it("shows error banner in pane view when createError exists", () => {
@@ -283,18 +268,22 @@ describe("Workspace", () => {
     expect(screen.getByTestId("mock-mobile-toolbar")).toBeTruthy();
   });
 
-  it("opens launcher from header 'New' button in pane view", () => {
-    hookState.panes = [{ session: mockSession }];
-    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
-    render(<Workspace />);
-    fireEvent.click(screen.getByTestId("new-terminal-button"));
-    expect(screen.getByTestId("mock-launcher")).toBeTruthy();
-  });
-
   it("renders terminal headers for panes", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
     expect(screen.getByTestId(`mock-header-${mockSession.id}`)).toBeTruthy();
+  });
+
+  it("renders multiple panes", () => {
+    const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
+    hookState.panes = [{ session: mockSession }, { session: session2 }];
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" },
+      { sessionId: session2.id, name: "/bin/bash", headerColor: "transparent" },
+    ];
+    render(<Workspace />);
+    expect(screen.getByTestId("mock-terminal-sess-test-001")).toBeTruthy();
+    expect(screen.getByTestId("mock-terminal-sess-test-002")).toBeTruthy();
   });
 });

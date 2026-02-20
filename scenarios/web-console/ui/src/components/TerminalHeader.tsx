@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { GripVertical, PaintBucket, X } from "lucide-react";
 import { HEADER_COLORS } from "../consts/config";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -12,6 +13,7 @@ interface TerminalHeaderProps {
   isActive: boolean;
   onClose: () => void;
   onFocus: () => void;
+  onDragStart?: (sessionId: string, e: ReactPointerEvent) => void;
 }
 
 export default function TerminalHeader({
@@ -21,9 +23,12 @@ export default function TerminalHeader({
   isActive,
   onClose,
   onFocus,
+  onDragStart,
 }: TerminalHeaderProps) {
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setPaneColor = useWorkspaceStore((s) => s.setPaneColor);
+  const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
+  const panes = useWorkspaceStore((s) => s.panes);
 
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(name);
@@ -59,8 +64,28 @@ export default function TerminalHeader({
       style={bgStyle ?? { backgroundColor: "rgb(var(--wc-surface-header))" }}
       onClick={onFocus}
     >
-      {/* Drag indicator */}
-      <GripVertical className="h-3 w-3 shrink-0 text-wc-text-faint" />
+      {/* Drag handle */}
+      <button
+        type="button"
+        data-testid={`terminal-drag-handle-${sessionId}`}
+        className="flex h-5 w-5 items-center justify-center shrink-0 text-wc-text-faint hover:text-wc-text-secondary cursor-grab active:cursor-grabbing touch-none"
+        onPointerDown={(e) => onDragStart?.(sessionId, e)}
+        onKeyDown={(e: ReactKeyboardEvent) => {
+          const idx = panes.findIndex((p) => p.sessionId === sessionId);
+          if (idx === -1) return;
+          if (e.key === "ArrowUp" && idx > 0) {
+            e.preventDefault();
+            movePaneToIndex(sessionId, idx - 1);
+          } else if (e.key === "ArrowDown" && idx < panes.length - 1) {
+            e.preventDefault();
+            movePaneToIndex(sessionId, idx + 1);
+          }
+        }}
+        aria-label={`Reorder ${name}`}
+        aria-roledescription="drag handle"
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
 
       {/* Editable name */}
       {editing ? (

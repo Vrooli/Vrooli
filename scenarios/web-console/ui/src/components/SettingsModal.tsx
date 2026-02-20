@@ -2,14 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   X,
   GripHorizontal,
-  ChevronUp,
-  ChevronDown,
   Plus,
   Trash2,
   Save,
   AlertCircle,
-  RotateCcw,
-  Focus,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -144,13 +140,8 @@ function ShortcutEditor({
 }
 
 export default function SettingsModal() {
-  const panes = useWorkspaceStore((s) => s.panes);
   const settingsModalOpen = useWorkspaceStore((s) => s.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((s) => s.setSettingsModalOpen);
-  const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
-  const removePane = useWorkspaceStore((s) => s.removePane);
-  const setActivePane = useWorkspaceStore((s) => s.setActivePane);
-  const resetLayout = useWorkspaceStore((s) => s.resetLayout);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -279,7 +270,7 @@ export default function SettingsModal() {
         {/* Drag handle header */}
         <div
           data-drag-handle
-          className="flex items-center justify-between px-4 py-2 border-b border-wc-default cursor-grab active:cursor-grabbing select-none"
+          className="flex items-center justify-between px-4 py-2 border-b border-wc-default cursor-grab active:cursor-grabbing select-none touch-none"
         >
           <div className="flex items-center gap-2">
             <GripHorizontal className="h-4 w-4 text-wc-text-faint" />
@@ -300,107 +291,7 @@ export default function SettingsModal() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {/* Section 1: Workspace Management */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
-                Workspace
-              </h3>
-              <Button
-                data-testid="reset-layout"
-                variant="ghost"
-                size="sm"
-                className="text-xs text-wc-text-faint"
-                onClick={resetLayout}
-                title="Reset grid layout"
-              >
-                <RotateCcw className="mr-1 h-3 w-3" /> Reset Layout
-              </Button>
-            </div>
-
-            {panes.length === 0 ? (
-              <div className="text-center text-xs text-wc-text-faint py-2">
-                No terminals open
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {panes.map((pane, idx) => (
-                  <div
-                    key={pane.sessionId}
-                    data-testid={`settings-pane-${pane.sessionId}`}
-                    className="flex items-center gap-1.5 rounded border border-wc-default bg-wc-surface-input px-2 py-1"
-                  >
-                    {/* Color indicator */}
-                    <div
-                      className="h-3 w-3 rounded-full shrink-0 border border-wc-default"
-                      style={{
-                        backgroundColor:
-                          pane.headerColor !== "transparent"
-                            ? pane.headerColor
-                            : "rgb(var(--wc-surface-input))",
-                      }}
-                    />
-                    <span className="flex-1 text-xs text-wc-text-secondary truncate">
-                      {pane.name}
-                    </span>
-
-                    {/* Reorder buttons */}
-                    <Button
-                      data-testid={`settings-pane-up-${pane.sessionId}`}
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      disabled={idx === 0}
-                      onClick={() =>
-                        movePaneToIndex(pane.sessionId, idx - 1)
-                      }
-                      title="Move up"
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      data-testid={`settings-pane-down-${pane.sessionId}`}
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      disabled={idx === panes.length - 1}
-                      onClick={() =>
-                        movePaneToIndex(pane.sessionId, idx + 1)
-                      }
-                      title="Move down"
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      data-testid={`settings-pane-focus-${pane.sessionId}`}
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => {
-                        setActivePane(pane.sessionId);
-                        close();
-                      }}
-                      title="Focus terminal"
-                    >
-                      <Focus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      data-testid={`settings-pane-remove-${pane.sessionId}`}
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => removePane(pane.sessionId)}
-                      title="Close terminal"
-                    >
-                      <X className="h-3 w-3 text-wc-text-faint" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Section 2: Shortcut Profiles */}
+          {/* Section 1: Shortcut Profiles */}
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
@@ -449,7 +340,7 @@ export default function SettingsModal() {
             )}
           </section>
 
-          {/* Section 3: AI Providers */}
+          {/* Section 2: AI Providers */}
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
               AI Providers

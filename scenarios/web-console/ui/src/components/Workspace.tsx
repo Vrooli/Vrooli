@@ -2,10 +2,10 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Plus, Menu, Settings, List } from "lucide-react";
-import type { Route } from "../hooks/useHashRoute";
+import { Plus } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
+import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
@@ -14,7 +14,6 @@ import {
   updateAdjacentFractions,
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
-import { pluralize } from "../lib/pluralize";
 import { Button } from "./ui/button";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
@@ -24,7 +23,8 @@ import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
 import AiInput from "./AiInput";
-import SessionDrawer from "./SessionDrawer";
+import FloatingToolbar from "./FloatingToolbar";
+import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
 
 type ActiveResize = {
@@ -34,6 +34,8 @@ type ActiveResize = {
   containerSize: number;
   startValues: number[];
 };
+
+type ActiveArrangeDrag = { paneId: string; dropIndex: number };
 
 /**
  * ── STABLE CORE: Pane layout and control wiring. ──
@@ -47,7 +49,7 @@ type ActiveResize = {
  * [REQ:P0-001a] Responsive Pane Grid Layout
  * [REQ:P0-001b] Independent Pane Session Lifecycle
  */
-export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => void }) {
+export default function Workspace() {
   const {
     panes: sessionPanes,
     isHydrated,
@@ -65,9 +67,68 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
   const store = useWorkspaceStore();
   const gridRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
+  const { keyboardHeight } = useVirtualKeyboard();
 
   const [launcherOpen, setLauncherOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // --- Mobile single-column layout ---
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768,
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // --- Pane drag-and-drop reordering ---
+  const [activeArrangeDrag, setActiveArrangeDrag] =
+    useState<ActiveArrangeDrag | null>(null);
+
+  const startArrangeDrag = useCallback(
+    (paneId: string, e: ReactPointerEvent) => {
+      const idx = store.panes.findIndex((p) => p.sessionId === paneId);
+      if (idx === -1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      setActiveArrangeDrag({ paneId, dropIndex: idx });
+    },
+    [store.panes],
+  );
+
+  useEffect(() => {
+    if (activeArrangeDrag === null) return;
+
+    const handleMove = (e: PointerEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const paneEl = el?.closest("[data-pane-index]");
+      if (paneEl) {
+        const idx = Number(paneEl.getAttribute("data-pane-index"));
+        if (Number.isFinite(idx)) {
+          setActiveArrangeDrag((prev) =>
+            prev ? { ...prev, dropIndex: idx } : null,
+          );
+        }
+      }
+    };
+
+    const handleUp = () => {
+      setActiveArrangeDrag((prev) => {
+        if (prev) store.movePaneToIndex(prev.paneId, prev.dropIndex);
+        return null;
+      });
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+  }, [activeArrangeDrag, store]);
 
   // Reconcile session manager panes with workspace store.
   // Only remove stale store panes after session hydration completes —
@@ -191,7 +252,8 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
 
   // Compute layout
   const orderedPanes = store.panes;
-  const layout = resolveWorkspaceLayout(orderedPanes.length);
+  const maxColumns = isMobile ? 1 : 2;
+  const layout = resolveWorkspaceLayout(orderedPanes.length, maxColumns);
   const colFractions = reconcileTrackFractions(
     store.columnFractions,
     layout.columns,
@@ -301,6 +363,7 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
   }
 
   // Map panes into grid cells
+  const isDragging = activeArrangeDrag !== null;
   const paneCells = orderedPanes.map((paneMeta, idx) => {
     const col = idx % layout.columns;
     const row = Math.floor(idx / layout.columns);
@@ -308,16 +371,26 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
     const gridColumn = `${1 + col * 2}`;
     const gridRow = `${1 + row * 2}`;
 
+    const isBeingDragged = activeArrangeDrag?.paneId === paneMeta.sessionId;
+    const isDropTarget =
+      isDragging &&
+      !isBeingDragged &&
+      activeArrangeDrag?.dropIndex === idx;
+
     return (
       <div
         key={paneMeta.sessionId}
         data-testid="terminal-pane-container"
         data-session-id={paneMeta.sessionId}
+        data-pane-index={idx}
+        {...(isDropTarget ? { "data-drop-target": "" } : {})}
         className={cn(
           "relative flex flex-col rounded border overflow-hidden min-w-0 min-h-0",
           store.activePane === paneMeta.sessionId
             ? "border-wc-accent"
             : "border-wc-default",
+          isBeingDragged && "opacity-40",
+          isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
         )}
         style={{ gridColumn, gridRow }}
         onClick={() => store.setActivePane(paneMeta.sessionId)}
@@ -329,6 +402,7 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
           isActive={store.activePane === paneMeta.sessionId}
           onClose={() => handleRemovePane(paneMeta.sessionId)}
           onFocus={() => store.setActivePane(paneMeta.sessionId)}
+          onDragStart={startArrangeDrag}
         />
         <div className="flex-1 min-h-0">
           <ErrorBoundary region="terminal">
@@ -348,57 +422,14 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
 
   return (
     <div className="flex h-screen flex-col bg-wc-surface-base text-wc-text-primary">
-      {/* Header bar */}
-      <div className="flex items-center justify-between border-b border-wc-default px-4 py-2">
-        <div className="flex items-center gap-2">
-          <Button
-            data-testid="drawer-toggle"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setDrawerOpen((prev) => !prev)}
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-wc-text-muted">
-            {orderedPanes.length} {pluralize(orderedPanes.length, "terminal")}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          {onNavigate && (
-            <Button
-              data-testid="nav-sessions"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onNavigate("sessions")}
-              title="Sessions"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            data-testid="nav-settings"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => store.setSettingsModalOpen(true)}
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button
-            data-testid="new-terminal-button"
-            variant="ghost"
-            size="sm"
-            onClick={openLauncher}
-            disabled={isCreating}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            New
-          </Button>
-        </div>
-      </div>
+      {/* Floating toolbar */}
+      <FloatingToolbar
+        onOpenSessions={() => store.setSessionsModalOpen(true)}
+        onOpenSettings={() => store.setSettingsModalOpen(true)}
+        onNewTerminal={() => handleLaunch()}
+        onOpenLauncher={openLauncher}
+        isCreating={isCreating}
+      />
 
       {/* Error banner */}
       {createError && (
@@ -415,7 +446,10 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
         <div
           ref={gridRef}
           data-testid="pane-grid"
-          className="grid gap-0 p-1"
+          className={cn(
+            "grid gap-0 p-1",
+            isDragging && "select-none cursor-grabbing [&_.xterm]:pointer-events-none",
+          )}
           style={{
             gridTemplateColumns: colTemplate,
             gridTemplateRows: rowTemplate,
@@ -429,14 +463,24 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
         </div>
       </div>
 
-      {/* AI Input */}
-      <AiInput
-        onExecute={handleSendToTerminal}
-        hasActiveTerminal={store.activePane !== null}
-      />
+      {/* Bottom bar — offset for virtual keyboard on mobile */}
+      <div
+        className="shrink-0 transition-transform duration-150"
+        style={
+          keyboardHeight > 0
+            ? { transform: `translateY(-${keyboardHeight}px)` }
+            : undefined
+        }
+      >
+        {/* AI Input */}
+        <AiInput
+          onExecute={handleSendToTerminal}
+          hasActiveTerminal={store.activePane !== null}
+        />
 
-      {/* Mobile toolbar */}
-      <MobileToolbar onInput={handleSendToTerminal} />
+        {/* Mobile toolbar */}
+        <MobileToolbar onInput={handleSendToTerminal} />
+      </div>
 
       {/* Terminal Launcher */}
       <TerminalLauncher
@@ -446,16 +490,10 @@ export default function Workspace({ onNavigate }: { onNavigate?: (to: Route) => 
         isCreating={isCreating}
       />
 
-      {/* Session Drawer */}
-      <SessionDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      {/* Sessions Modal */}
+      <SessionsModal
         sessions={sessionPanes}
         onDeleteSession={handleRemovePane}
-        onSelectSession={(id) => {
-          store.setActivePane(id);
-          setDrawerOpen(false);
-        }}
       />
 
       {/* Settings Modal */}
