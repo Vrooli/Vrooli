@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../lib/api";
 import { ANSI } from "../lib/ansi";
+import { LocalEchoController } from "../lib/localEcho";
 
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#websocket-factory-seam-ui
@@ -142,6 +143,7 @@ export function useTerminalSocket({
     if (!terminal) return;
 
     const wsUrl = buildSessionWsUrl(sessionId);
+    const localEcho = new LocalEchoController();
     let disposed = false;
     let reconnectAttempts = 0;
     let connectedAtLeastOnce = false;
@@ -166,6 +168,7 @@ export function useTerminalSocket({
         const wasReconnect = connectedAtLeastOnce;
         connectedAtLeastOnce = true;
         reconnectAttempts = 0;
+        localEcho.reset();
         sendResize(terminal.cols, terminal.rows);
         flushPendingInput();
         if (wasReconnect) {
@@ -186,7 +189,8 @@ export function useTerminalSocket({
         switch (msg.type) {
           case "stdout":
             if (msg.data) {
-              terminal.write(msg.data);
+              const processed = localEcho.processOutput(msg.data);
+              if (processed) terminal.write(processed);
               appendOutputProbe(sessionId, msg.data);
             }
             break;
@@ -216,6 +220,7 @@ export function useTerminalSocket({
       };
 
       ws.onclose = (event) => {
+        localEcho.reset();
         if (wsRef.current === ws) {
           wsRef.current = null;
         }
@@ -257,8 +262,10 @@ export function useTerminalSocket({
 
     connect();
 
-    // Terminal input -> WebSocket stdin
+    // Terminal input -> WebSocket stdin (with local echo for printable chars)
     const inputDisposable = terminal.onData((data) => {
+      const echo = localEcho.handleInput(data);
+      if (echo) terminal.write(echo);
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "stdin", data } satisfies TerminalMessage));

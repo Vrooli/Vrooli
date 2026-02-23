@@ -13,7 +13,7 @@ vi.mock("../lib/api", () => ({
  */
 function createMockSocket() {
   const socket = {
-    readyState: WebSocket.CONNECTING,
+    readyState: WebSocket.CONNECTING as number,
     send: vi.fn(),
     close: vi.fn(),
     onopen: null as ((ev: Event) => void) | null,
@@ -142,8 +142,9 @@ describe("useTerminalSocket — callback stability", () => {
 
     // Initial mount: exactly one socket created
     expect(socketFactory).toHaveBeenCalledTimes(1);
-    const firstSocket = sockets[0]!;
-    firstSocket.simulateOpen();
+    const firstSocket = sockets[0];
+    expect(firstSocket).toBeDefined();
+    firstSocket?.simulateOpen();
     expect(onReady1).toHaveBeenCalledTimes(1);
 
     // Simulate parent re-render with new callback references
@@ -154,7 +155,7 @@ describe("useTerminalSocket — callback stability", () => {
 
     // WebSocket must NOT have been torn down and recreated
     expect(socketFactory).toHaveBeenCalledTimes(1);
-    expect(firstSocket.close).not.toHaveBeenCalled();
+    expect(firstSocket?.close).not.toHaveBeenCalled();
   });
 
   it("uses the latest callback refs for events after re-render", () => {
@@ -174,14 +175,16 @@ describe("useTerminalSocket — callback stability", () => {
       { initialProps: { onReady: onReady1, onExit: onExit1 } },
     );
 
-    sockets[0]!.simulateOpen();
+    const socket = sockets[0];
+    expect(socket).toBeDefined();
+    socket?.simulateOpen();
 
     // Replace callbacks (simulates parent re-render)
     const onExit2 = vi.fn();
     rerender({ onReady: vi.fn(), onExit: onExit2 });
 
     // Server sends exit — the NEW onExit should be called
-    sockets[0]!.simulateMessage({ type: "exit", code: 0 });
+    socket?.simulateMessage({ type: "exit", code: 0 });
     expect(onExit1).not.toHaveBeenCalled();
     expect(onExit2).toHaveBeenCalledWith("sess-1");
   });
@@ -197,8 +200,10 @@ describe("useTerminalSocket — callback stability", () => {
       }),
     );
 
-    sockets[0]!.simulateOpen();
-    sockets[0]!.simulateMessage({ type: "stdout", data: "hello world" });
+    const socket = sockets[0];
+    expect(socket).toBeDefined();
+    socket?.simulateOpen();
+    socket?.simulateMessage({ type: "stdout", data: "hello world" });
     expect(terminal.write).toHaveBeenCalledWith("hello world");
   });
 
@@ -213,8 +218,10 @@ describe("useTerminalSocket — callback stability", () => {
       }),
     );
 
-    sockets[0]!.simulateOpen();
+    const socket = sockets[0];
+    expect(socket).toBeDefined();
+    socket?.simulateOpen();
     unmount();
-    expect(sockets[0]!.close).toHaveBeenCalled();
+    expect(socket?.close).toHaveBeenCalled();
   });
 });

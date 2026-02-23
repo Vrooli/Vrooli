@@ -68,6 +68,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         fitRef.current = null;
         setTerminal(null);
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- Initial font size only; font updates handled by separate effect
     }, []);
 
     // React to font size changes from store

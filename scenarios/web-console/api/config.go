@@ -163,13 +163,13 @@ func inferProjectRootFromScenarioPath(path string) string {
 
 // resolveWorkingDir determines the default PTY working directory.
 // Priority:
-//   1) WC_DEFAULT_CWD (explicit override)
-//   2) PROJECT_ROOT (workspace root for cross-device parity)
-//   3) project root inferred from SCENARIO_DIR path
-//   4) SCENARIO_DIR (scenario lifecycle hint)
-//   5) project root inferred from current working directory path
-//   6) parent of cwd when running from scenario/api
-//   7) current process working directory
+//  1. WC_DEFAULT_CWD (explicit override)
+//  2. PROJECT_ROOT (workspace root for cross-device parity)
+//  3. project root inferred from SCENARIO_DIR path
+//  4. SCENARIO_DIR (scenario lifecycle hint)
+//  5. project root inferred from current working directory path
+//  6. parent of cwd when running from scenario/api
+//  7. current process working directory
 func resolveWorkingDir() string {
 	if v := os.Getenv("WC_DEFAULT_CWD"); validDirectory(v) {
 		return v

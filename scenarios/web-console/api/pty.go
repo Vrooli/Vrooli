@@ -63,7 +63,10 @@ func (p *realPTY) ExitCode() int {
 // defaultPTYFactory starts a real shell process with a PTY.
 func defaultPTYFactory(shell string, cols, rows uint16) (PTY, error) {
 	cmd := exec.Command(shell)
-	cmd.Env = ensureTermEnv(os.Environ())
+	// Filter Claude Code env vars first, then ensure TERM is set.
+	// This prevents nested session detection when users run `claude` in
+	// web-console terminals, even if the server was started from Claude Code.
+	cmd.Env = ensureTermEnv(filterClaudeEnv(os.Environ()))
 	cmd.Dir = resolveWorkingDir()
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: rows, Cols: cols})
 	if err != nil {
@@ -85,4 +88,33 @@ func ensureTermEnv(env []string) []string {
 		}
 	}
 	return append(env, want)
+}
+
+// filterClaudeEnv removes Claude Code-specific environment variables from
+// the environment slice. This prevents nested session detection when users
+// run `claude` in a web-console terminal, even if the web-console server
+// was started from within a Claude Code session.
+//
+// Filtered patterns:
+//   - CLAUDECODE (nested session detection marker)
+//   - CLAUDE_* (session IDs, config paths, internal state)
+//   - BASH_FUNC_claude_code::* (exported shell functions)
+func filterClaudeEnv(env []string) []string {
+	result := make([]string, 0, len(env))
+	for _, v := range env {
+		// Filter CLAUDECODE exactly
+		if strings.HasPrefix(v, "CLAUDECODE=") {
+			continue
+		}
+		// Filter all CLAUDE_* variables
+		if strings.HasPrefix(v, "CLAUDE_") {
+			continue
+		}
+		// Filter exported bash functions for claude_code::
+		if strings.HasPrefix(v, "BASH_FUNC_claude_code::") {
+			continue
+		}
+		result = append(result, v)
+	}
+	return result
 }

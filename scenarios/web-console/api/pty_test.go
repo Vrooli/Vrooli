@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -58,6 +59,107 @@ func TestEnsureTermEnv_PreservesOtherVars(t *testing.T) {
 	}
 	if !foundEmulator {
 		t.Error("TERMINAL_EMULATOR should be preserved")
+	}
+}
+
+// --- filterClaudeEnv tests ---
+
+func TestFilterClaudeEnv_RemovesCLAUDECODE(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"CLAUDECODE=1",
+		"PATH=/usr/bin",
+	}
+	got := filterClaudeEnv(env)
+
+	for _, v := range got {
+		if v == "CLAUDECODE=1" {
+			t.Error("CLAUDECODE should be filtered out")
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 env vars after filtering, got %d", len(got))
+	}
+}
+
+func TestFilterClaudeEnv_RemovesAllClaudeVars(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"CLAUDECODE=1",
+		"CLAUDE_SESSION_ID=abc123",
+		"CLAUDE_CONFIG_DIR=/home/user/.claude",
+		"CLAUDE_NON_INTERACTIVE=true",
+		"CLAUDE_CODE_ENTRYPOINT=sdk-cli",
+		"PATH=/usr/bin",
+	}
+	got := filterClaudeEnv(env)
+
+	for _, v := range got {
+		if strings.HasPrefix(v, "CLAUDE") {
+			t.Errorf("Claude env var should be filtered out: %s", v)
+		}
+	}
+	// Only HOME and PATH should remain
+	if len(got) != 2 {
+		t.Errorf("expected 2 env vars after filtering, got %d: %v", len(got), got)
+	}
+}
+
+func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"CLAUDECODE=1",
+		"TERM=xterm-256color",
+		"SHELL=/bin/bash",
+		"LANGUAGE=en_US",
+	}
+	got := filterClaudeEnv(env)
+
+	expected := map[string]bool{
+		"HOME=/home/user":       true,
+		"TERM=xterm-256color":   true,
+		"SHELL=/bin/bash":       true,
+		"LANGUAGE=en_US":        true,
+	}
+
+	for _, v := range got {
+		if !expected[v] {
+			t.Errorf("unexpected var in output: %s", v)
+		}
+		delete(expected, v)
+	}
+	if len(expected) > 0 {
+		t.Errorf("missing expected vars: %v", expected)
+	}
+}
+
+func TestFilterClaudeEnv_HandlesEmptyEnv(t *testing.T) {
+	env := []string{}
+	got := filterClaudeEnv(env)
+
+	if len(got) != 0 {
+		t.Errorf("expected empty result, got %v", got)
+	}
+}
+
+func TestFilterClaudeEnv_RemovesBashFuncClaudeCode(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"BASH_FUNC_claude_code::run%%=() { echo test; }",
+		"BASH_FUNC_claude_code::session%%=() { echo test; }",
+		"BASH_FUNC_normal_func%%=() { echo test; }",
+		"PATH=/usr/bin",
+	}
+	got := filterClaudeEnv(env)
+
+	for _, v := range got {
+		if strings.Contains(v, "claude_code::") {
+			t.Errorf("BASH_FUNC claude_code:: should be filtered out: %s", v)
+		}
+	}
+	// HOME, PATH, and normal_func should remain
+	if len(got) != 3 {
+		t.Errorf("expected 3 env vars after filtering, got %d: %v", len(got), got)
 	}
 }
 

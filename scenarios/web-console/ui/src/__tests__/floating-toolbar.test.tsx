@@ -34,6 +34,7 @@ vi.mock("../hooks/useLongPress", () => ({
 describe("FloatingToolbar", () => {
   const onOpenSessions = vi.fn();
   const onOpenSettings = vi.fn();
+  const onOpenAi = vi.fn();
   const onNewTerminal = vi.fn();
   const onOpenLauncher = vi.fn();
 
@@ -46,6 +47,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={false}
@@ -62,6 +64,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={false}
@@ -76,6 +79,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={false}
@@ -90,6 +94,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={false}
@@ -105,6 +110,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={false}
@@ -119,6 +125,7 @@ describe("FloatingToolbar", () => {
       <FloatingToolbar
         onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
+        onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
         isCreating={true}
