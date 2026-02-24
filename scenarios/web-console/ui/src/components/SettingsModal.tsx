@@ -7,6 +7,8 @@ import {
   Trash2,
   Save,
   AlertCircle,
+  LayoutGrid,
+  LayoutList,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -148,6 +150,8 @@ export default function SettingsModal() {
   const setTerminalFontSize = useWorkspaceStore((s) => s.setTerminalFontSize);
   const isMinimapVisible = useWorkspaceStore((s) => s.isMinimapVisible);
   const setMinimapVisible = useWorkspaceStore((s) => s.setMinimapVisible);
+  const displayMode = useWorkspaceStore((s) => s.displayMode);
+  const setDisplayMode = useWorkspaceStore((s) => s.setDisplayMode);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -385,25 +389,54 @@ export default function SettingsModal() {
                 </div>
               </div>
 
-              {/* Minimap Toggle */}
+              {/* Display Mode */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-wc-text-secondary">Minimap</span>
-                <button
-                  data-testid="minimap-toggle"
-                  role="switch"
-                  aria-checked={isMinimapVisible}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    isMinimapVisible ? "bg-wc-accent" : "bg-wc-surface-base"
-                  }`}
-                  onClick={() => setMinimapVisible(!isMinimapVisible)}
-                >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                      isMinimapVisible ? "translate-x-[18px]" : "translate-x-[3px]"
-                    }`}
-                  />
-                </button>
+                <span className="text-sm text-wc-text-secondary">Layout</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    data-testid="display-mode-grid"
+                    variant={displayMode === "grid" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setDisplayMode("grid")}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5 mr-1" />
+                    Grid
+                  </Button>
+                  <Button
+                    data-testid="display-mode-tabs"
+                    variant={displayMode === "tabs" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setDisplayMode("tabs")}
+                  >
+                    <LayoutList className="h-3.5 w-3.5 mr-1" />
+                    Tabs
+                  </Button>
+                </div>
               </div>
+
+              {/* Minimap Toggle (only relevant in grid mode) */}
+              {displayMode === "grid" && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-wc-text-secondary">Minimap</span>
+                  <button
+                    data-testid="minimap-toggle"
+                    role="switch"
+                    aria-checked={isMinimapVisible}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      isMinimapVisible ? "bg-wc-accent" : "bg-wc-surface-base"
+                    }`}
+                    onClick={() => setMinimapVisible(!isMinimapVisible)}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                        isMinimapVisible ? "translate-x-[18px]" : "translate-x-[3px]"
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 

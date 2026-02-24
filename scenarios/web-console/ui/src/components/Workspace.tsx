@@ -27,6 +27,7 @@ import FloatingToolbar from "./FloatingToolbar";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
+import TabBar from "./TabBar";
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -169,9 +170,15 @@ export default function Workspace() {
   const handleLaunch = useCallback(
     async (command?: string) => {
       const session = await launchSession(command);
-      if (session) setLauncherOpen(false);
+      if (session) {
+        setLauncherOpen(false);
+        // In tab mode, auto-activate the newly created session
+        if (store.displayMode === "tabs") {
+          store.setActivePane(session.id);
+        }
+      }
     },
-    [launchSession],
+    [launchSession, store],
   );
 
   const handleRetry = useCallback(() => {
@@ -444,35 +451,76 @@ export default function Workspace() {
         />
       )}
 
-      {/* Pane grid + minimap wrapper */}
-      <div className="relative flex-1 min-h-0">
-        <div
-          ref={scrollContainerRef}
-          className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
-        >
-          <div
-            ref={gridRef}
-            data-testid="pane-grid"
-            className={cn(
-              "grid gap-0 p-1",
-              isDragging && "select-none cursor-grabbing [&_.xterm]:pointer-events-none",
-            )}
-            style={{
-              gridTemplateColumns: colTemplate,
-              gridTemplateRows: rowTemplate,
-              height: `${minimumGridHeightPx}px`,
-              minHeight: `${minimumGridHeightPx}px`,
-            }}
-          >
-            {paneCells}
-            {columnSplitters}
-            {rowSplitters}
-          </div>
-        </div>
+      {/* Tab bar (only in tabs mode) */}
+      {store.displayMode === "tabs" && (
+        <TabBar
+          panes={orderedPanes}
+          activePane={store.activePane}
+          onNewTerminal={() => handleLaunch()}
+          onClosePane={handleRemovePane}
+        />
+      )}
 
-        {/* Minimap */}
-        <WorkspaceMinimap scrollRef={scrollContainerRef} rowCount={layout.rows} />
-      </div>
+      {/* Main content area */}
+      {store.displayMode === "tabs" ? (
+        /* Tab mode: stacked panes with display:none for inactive */
+        <div className="relative flex-1 min-h-0">
+          {orderedPanes.map((paneMeta) => {
+            const isActive = paneMeta.sessionId === store.activePane;
+            return (
+              <div
+                key={paneMeta.sessionId}
+                data-testid={`tab-pane-${paneMeta.sessionId}`}
+                className="absolute inset-0 flex flex-col"
+                style={{ display: isActive ? "flex" : "none" }}
+              >
+                <div className="flex-1 min-h-0">
+                  <ErrorBoundary region="terminal">
+                    <TerminalPane
+                      sessionId={paneMeta.sessionId}
+                      onExit={handleExit}
+                      onReady={() => handleTerminalReady(paneMeta.sessionId)}
+                      ref={(handle) =>
+                        registerTerminalRef(paneMeta.sessionId, handle)
+                      }
+                    />
+                  </ErrorBoundary>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Grid mode: original grid layout with minimap */
+        <div className="relative flex-1 min-h-0">
+          <div
+            ref={scrollContainerRef}
+            className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
+          >
+            <div
+              ref={gridRef}
+              data-testid="pane-grid"
+              className={cn(
+                "grid gap-0 p-1",
+                isDragging && "select-none cursor-grabbing [&_.xterm]:pointer-events-none",
+              )}
+              style={{
+                gridTemplateColumns: colTemplate,
+                gridTemplateRows: rowTemplate,
+                height: `${minimumGridHeightPx}px`,
+                minHeight: `${minimumGridHeightPx}px`,
+              }}
+            >
+              {paneCells}
+              {columnSplitters}
+              {rowSplitters}
+            </div>
+          </div>
+
+          {/* Minimap (only in grid mode) */}
+          <WorkspaceMinimap scrollRef={scrollContainerRef} rowCount={layout.rows} />
+        </div>
+      )}
 
       {/* Bottom bar — offset for virtual keyboard on mobile */}
       <div
