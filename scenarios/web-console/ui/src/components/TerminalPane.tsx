@@ -39,6 +39,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // Expose sendInput for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({ sendInput }), [sendInput]);
 
+    const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
+
     // Initialize xterm.js terminal (rendering only)
     useEffect(() => {
       const container = containerRef.current;
@@ -60,10 +62,16 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       term.open(container);
       fitAddon.fit();
 
+      // Listen for title changes from OSC escape sequences (e.g., from Claude Code, vim, ssh)
+      const titleDisposable = term.onTitleChange((title) => {
+        renamePaneById(sessionId, title);
+      });
+
       fitRef.current = fitAddon;
       setTerminal(term);
 
       return () => {
+        titleDisposable.dispose();
         term.dispose();
         fitRef.current = null;
         setTerminal(null);
