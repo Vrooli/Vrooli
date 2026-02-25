@@ -102,7 +102,7 @@ export function useChats(options: UseChatsOptions = {}) {
         starred: currentView === "starred",
       }),
     staleTime: 5000, // 5 seconds - data considered fresh
-    refetchInterval: 10000,
+    refetchInterval: selectedChatId ? 30000 : 10000,
     refetchOnMount: false, // Don't refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });

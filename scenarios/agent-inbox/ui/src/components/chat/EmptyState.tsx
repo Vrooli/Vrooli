@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { MessageSquare, Sparkles, Zap, Shield } from "lucide-react";
+import { MessageSquare, Sparkles, Zap, Shield, Menu } from "lucide-react";
 import { MessageInput, type MessagePayload } from "./MessageInput";
 import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
 import { AttachRunModal } from "./AttachRunModal";
 import { useAgentSettings } from "../../hooks/useAgentSettings";
 import { selectorsManifest } from "../../consts/selectors";
+import { Button } from "../ui/button";
 import type { Model, AgentRunSummary } from "../../lib/api";
 
 interface EmptyStateProps {
@@ -16,6 +17,10 @@ interface EmptyStateProps {
   onOpenAgentSettings?: () => void;
   isCreating: boolean;
   models: Model[];
+  /** Whether the viewport is mobile-sized */
+  isMobile?: boolean;
+  /** Mobile: open the sidebar */
+  onOpenSidebar?: () => void;
 }
 
 export function EmptyState({
@@ -25,6 +30,8 @@ export function EmptyState({
   onOpenAgentSettings,
   isCreating,
   models,
+  isMobile,
+  onOpenSidebar,
 }: EmptyStateProps) {
   const emptyStateTestIds = {
     container: selectorsManifest.selectors["emptyState.container"]?.testId ?? "empty-state",
@@ -103,7 +110,17 @@ export function EmptyState({
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid={emptyStateTestIds.container}>
+    <div className="relative flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid={emptyStateTestIds.container}>
+      {isMobile && onOpenSidebar && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenSidebar}
+          className="absolute top-2 left-2 h-10 w-10 lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">

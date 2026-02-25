@@ -835,6 +835,11 @@ type claudeStreamState struct {
 	sessionID      string // Captured from stream for conversation continuation
 	gotResult      bool   // True when the final "result" event has been received
 	resultIsError  bool   // True if the result event indicated an error
+
+	// Compaction tracking
+	pendingCompact bool   // True if we just saw a /compact command
+	compactCommand string // The full /compact command text
+	compactFocus   string // Extracted focus instruction
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -1055,6 +1060,51 @@ func (r *ClaudeCodeRunner) toolCallFromState(runID uuid.UUID, state *claudeStrea
 	return domain.NewToolCallEvent(runID, state.toolUseName, state.toolUseID, input)
 }
 
+// =============================================================================
+// Compaction Detection Helpers
+// =============================================================================
+
+// parseCompactCommand extracts focus from "/compact focus on auth" -> "auth".
+func parseCompactCommand(content string) (isCompact bool, focus string) {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "/compact") {
+		return false, ""
+	}
+	// Ensure it's actually "/compact" and not "/compacting" etc.
+	rest := strings.TrimPrefix(content, "/compact")
+	if rest != "" && rest[0] != ' ' && rest[0] != '\t' && rest[0] != '\n' {
+		return false, ""
+	}
+
+	remainder := strings.TrimSpace(rest)
+	if strings.HasPrefix(remainder, "focus on ") {
+		focus = strings.TrimPrefix(remainder, "focus on ")
+	} else if remainder != "" {
+		focus = remainder
+	}
+
+	return true, strings.TrimSpace(focus)
+}
+
+// isCompactionSummary checks if content looks like a compaction summary.
+func isCompactionSummary(content string) bool {
+	return strings.Contains(content, "<summary>") ||
+		strings.HasPrefix(strings.TrimSpace(content), "Summary of")
+}
+
+// extractSummaryContent extracts content from <summary>...</summary> tags.
+func extractSummaryContent(content string) string {
+	start := strings.Index(content, "<summary>")
+	end := strings.Index(content, "</summary>")
+
+	if start != -1 && end != -1 && end > start {
+		return strings.TrimSpace(content[start+len("<summary>") : end])
+	}
+
+	// No tags, return as-is (some runners don't use tags)
+	return content
+}
+
 // parseStreamEvents parses a single line from Claude's stream-json output.
 // Returns multiple events to preserve tool calls/results emitted in one message.
 func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
@@ -1104,6 +1154,39 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			// Extract text content (handles both string and array formats)
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
+				// Check for /compact command in user messages
+				if streamEvent.Message.Role == "user" {
+					if isCompact, focus := parseCompactCommand(textContent); isCompact {
+						state.pendingCompact = true
+						state.compactCommand = textContent
+						state.compactFocus = focus
+						// Don't emit the /compact as a regular message
+						return nil, nil
+					}
+				}
+
+				// Check for compaction summary in assistant response
+				if state.pendingCompact && streamEvent.Message.Role == "assistant" {
+					if isCompactionSummary(textContent) {
+						state.pendingCompact = false
+						summary := extractSummaryContent(textContent)
+						return []*domain.RunEvent{
+							domain.NewCompactionEvent(
+								runID,
+								summary,
+								"manual",
+								state.compactFocus,
+								0, // messagesCompacted (not available from stream)
+								0, // tokensBefore
+								0, // tokensAfter
+								state.compactCommand,
+							),
+						}, nil
+					}
+					// Not a summary, reset state and fall through to normal handling
+					state.pendingCompact = false
+				}
+
 				if streamEvent.Message.Role == "assistant" {
 					state.lastAssistant = textContent
 				}
@@ -1131,6 +1214,25 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			var events []*domain.RunEvent
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
+				// Check for compaction summary if we're expecting one
+				if state.pendingCompact && isCompactionSummary(textContent) {
+					state.pendingCompact = false
+					summary := extractSummaryContent(textContent)
+					return []*domain.RunEvent{
+						domain.NewCompactionEvent(
+							runID,
+							summary,
+							"manual",
+							state.compactFocus,
+							0, 0, 0,
+							state.compactCommand,
+						),
+					}, nil
+				}
+				if state.pendingCompact {
+					state.pendingCompact = false
+				}
+
 				state.lastAssistant = textContent
 				events = append(events, domain.NewMessageEvent(
 					runID,
@@ -1178,7 +1280,15 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				events = append(events, domain.NewMessageEvent(runID, "user", textContent))
+				// Check for /compact command
+				if isCompact, focus := parseCompactCommand(textContent); isCompact {
+					state.pendingCompact = true
+					state.compactCommand = textContent
+					state.compactFocus = focus
+					// Don't emit the /compact as a regular message
+				} else {
+					events = append(events, domain.NewMessageEvent(runID, "user", textContent))
+				}
 			}
 			if len(events) > 0 {
 				return events, nil

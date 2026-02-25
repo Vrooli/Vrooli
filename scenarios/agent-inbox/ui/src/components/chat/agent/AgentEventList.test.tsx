@@ -43,6 +43,15 @@ vi.mock("./AgentRawEventCard", () => ({
   ),
 }));
 
+vi.mock("./AgentCompactionCard", () => ({
+  default: ({ event }: { event: AgentEvent }) => (
+    <div data-testid={`compaction-${event.id}`}>Compaction: {event.content}</div>
+  ),
+  AgentCompactionCard: ({ event }: { event: AgentEvent }) => (
+    <div data-testid={`compaction-${event.id}`}>Compaction: {event.content}</div>
+  ),
+}));
+
 vi.mock("./tools", () => ({
   getToolComponent: (_toolName?: string, _runnerType?: string) => {
     // Return a simple component that renders with a data-testid
@@ -369,6 +378,41 @@ describe("AgentEventList", () => {
       expect(screen.getByText("Something failed")).toBeInTheDocument();
       // Log and metric NOT rendered
       expect(screen.queryByText("debug log")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("compaction events", () => {
+    it("renders compaction events with AgentCompactionCard", () => {
+      const events: AgentEvent[] = [
+        makeEvent({
+          id: "evt-msg",
+          type: "message",
+          role: "user",
+          content: "Help me fix the auth bug",
+        }),
+        makeEvent({
+          id: "evt-compact",
+          type: "compaction",
+          role: "system",
+          content: "Summary of auth work...",
+          sequence: 2,
+          compaction_trigger: "manual",
+          compaction_focus: "auth",
+        }),
+        makeEvent({
+          id: "evt-msg-2",
+          type: "message",
+          role: "user",
+          content: "Now add rate limiting",
+          sequence: 3,
+        }),
+      ];
+
+      render(<AgentEventList events={events} />);
+
+      expect(screen.getByTestId("message-evt-msg")).toBeInTheDocument();
+      expect(screen.getByTestId("compaction-evt-compact")).toBeInTheDocument();
+      expect(screen.getByTestId("message-evt-msg-2")).toBeInTheDocument();
     });
   });
 });

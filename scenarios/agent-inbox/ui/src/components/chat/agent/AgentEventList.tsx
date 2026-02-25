@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from "react";
 import type { AgentEvent, Message } from "../../../lib/api";
 import type { ViewMode } from "../../settings/Settings";
 import AgentMessageBubble from "./AgentMessageBubble";
+import AgentCompactionCard from "./AgentCompactionCard";
 import AgentRawEventCard from "./AgentRawEventCard";
 import { getToolComponent } from "./tools";
 import { MarkdownRenderer } from "../../markdown/MarkdownRenderer";
@@ -140,7 +141,7 @@ export function AgentEventList({
 
     // Second pass: create grouped items
     const grouped: Array<{
-      type: "message" | "tool" | "status" | "error" | "raw";
+      type: "message" | "tool" | "status" | "error" | "compaction" | "raw";
       event: AgentEvent;
       result?: AgentEvent;
     }> = [];
@@ -164,6 +165,8 @@ export function AgentEventList({
           // Orphan result - render as standalone
           grouped.push({ type: "tool", event, result: event });
         }
+      } else if (event.type === "compaction") {
+        grouped.push({ type: "compaction", event });
       } else if (event.type === "status") {
         // Status events are shown in the header, skip inline
         grouped.push({ type: "status", event });
@@ -266,6 +269,15 @@ export function AgentEventList({
               />
             );
           }
+
+          case "compaction":
+            return (
+              <AgentCompactionCard
+                key={item.event.id || index}
+                event={item.event}
+                viewMode={viewMode}
+              />
+            );
 
           case "status":
             // Status events are typically shown in the header, skip inline

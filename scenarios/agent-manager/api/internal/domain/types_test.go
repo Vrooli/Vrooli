@@ -1032,6 +1032,7 @@ func TestEventPayload_Interface(t *testing.T) {
 		&RateLimitEventData{LimitType: "5_hour"},
 		&CostEventData{InputTokens: 100, OutputTokens: 50},
 		&ProgressEventData{Phase: RunPhaseExecuting},
+		&CompactionEventData{Summary: "test", Trigger: "manual"},
 		RunEventData{Level: "info"}, // Legacy type
 	}
 
@@ -1044,16 +1045,81 @@ func TestEventPayload_Interface(t *testing.T) {
 		EventTypeMetric,
 		EventTypeArtifact,
 		EventTypeError,
-		EventTypeError,  // RateLimitEventData returns EventTypeError
-		EventTypeMetric, // CostEventData returns EventTypeMetric
-		EventTypeStatus, // ProgressEventData returns EventTypeStatus
-		EventTypeLog,    // Legacy defaults
+		EventTypeError,      // RateLimitEventData returns EventTypeError
+		EventTypeMetric,     // CostEventData returns EventTypeMetric
+		EventTypeStatus,     // ProgressEventData returns EventTypeStatus
+		EventTypeCompaction, // CompactionEventData
+		EventTypeLog,        // Legacy defaults
 	}
 
 	for i, payload := range payloads {
 		if payload.EventType() != expectedTypes[i] {
 			t.Errorf("payload %d: EventType() = %s, want %s", i, payload.EventType(), expectedTypes[i])
 		}
+	}
+}
+
+// =============================================================================
+// COMPACTION EVENT TESTS
+// =============================================================================
+
+func TestNewCompactionEvent(t *testing.T) {
+	runID := uuid.New()
+	event := NewCompactionEvent(
+		runID,
+		"Summary of authentication work...",
+		"manual",
+		"auth",
+		47,
+		89432,
+		3201,
+		"/compact focus on auth",
+	)
+
+	if event.ID == uuid.Nil {
+		t.Error("event ID should be set")
+	}
+	if event.RunID != runID {
+		t.Errorf("RunID = %s, want %s", event.RunID, runID)
+	}
+	if event.EventType != EventTypeCompaction {
+		t.Errorf("EventType = %s, want %s", event.EventType, EventTypeCompaction)
+	}
+	if event.Timestamp.IsZero() {
+		t.Error("Timestamp should be set")
+	}
+
+	data, ok := event.Data.(*CompactionEventData)
+	if !ok {
+		t.Fatalf("Data type = %T, want *CompactionEventData", event.Data)
+	}
+	if data.Summary != "Summary of authentication work..." {
+		t.Errorf("Summary = %s, want 'Summary of authentication work...'", data.Summary)
+	}
+	if data.Trigger != "manual" {
+		t.Errorf("Trigger = %s, want manual", data.Trigger)
+	}
+	if data.Focus != "auth" {
+		t.Errorf("Focus = %s, want auth", data.Focus)
+	}
+	if data.MessagesCompacted != 47 {
+		t.Errorf("MessagesCompacted = %d, want 47", data.MessagesCompacted)
+	}
+	if data.TokensBefore != 89432 {
+		t.Errorf("TokensBefore = %d, want 89432", data.TokensBefore)
+	}
+	if data.TokensAfter != 3201 {
+		t.Errorf("TokensAfter = %d, want 3201", data.TokensAfter)
+	}
+	if data.OriginalCommand != "/compact focus on auth" {
+		t.Errorf("OriginalCommand = %s, want '/compact focus on auth'", data.OriginalCommand)
+	}
+}
+
+func TestCompactionEventData_EventType(t *testing.T) {
+	data := &CompactionEventData{}
+	if data.EventType() != EventTypeCompaction {
+		t.Errorf("EventType() = %s, want %s", data.EventType(), EventTypeCompaction)
 	}
 }
 

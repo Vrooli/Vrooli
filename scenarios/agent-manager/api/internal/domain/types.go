@@ -541,6 +541,7 @@ const (
 	EventTypeMetric         RunEventType = "metric"
 	EventTypeArtifact       RunEventType = "artifact"
 	EventTypeError          RunEventType = "error"
+	EventTypeCompaction     RunEventType = "compaction"
 )
 
 // =============================================================================
@@ -929,6 +930,54 @@ func NewErrorEventFromDomainError(runID uuid.UUID, err DomainError) *RunEvent {
 			Retryable: err.Retryable(),
 			Recovery:  err.Recovery(),
 			Details:   err.Details(),
+		},
+	}
+}
+
+// =============================================================================
+// COMPACTION EVENT
+// =============================================================================
+
+// CompactionEventData represents a context compaction/summarization event.
+type CompactionEventData struct {
+	Summary           string `json:"summary"`
+	Trigger           string `json:"trigger"`         // "manual" or "auto"
+	Focus             string `json:"focus,omitempty"` // Optional focus instruction
+	MessagesCompacted int64  `json:"messagesCompacted"`
+	TokensBefore      int64  `json:"tokensBefore"`
+	TokensAfter       int64  `json:"tokensAfter"`
+	OriginalCommand   string `json:"originalCommand,omitempty"`
+}
+
+func (d *CompactionEventData) EventType() RunEventType { return EventTypeCompaction }
+func (d *CompactionEventData) isEventPayload()         {}
+
+// NewCompactionEvent creates a new compaction event.
+// trigger should be "manual" or "auto".
+// focus is optional (empty string if not specified).
+func NewCompactionEvent(
+	runID uuid.UUID,
+	summary string,
+	trigger string,
+	focus string,
+	messagesCompacted int64,
+	tokensBefore int64,
+	tokensAfter int64,
+	originalCommand string,
+) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeCompaction,
+		Timestamp: time.Now(),
+		Data: &CompactionEventData{
+			Summary:           summary,
+			Trigger:           trigger,
+			Focus:             focus,
+			MessagesCompacted: messagesCompacted,
+			TokensBefore:      tokensBefore,
+			TokensAfter:       tokensAfter,
+			OriginalCommand:   originalCommand,
 		},
 	}
 }

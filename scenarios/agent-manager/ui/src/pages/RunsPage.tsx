@@ -233,6 +233,12 @@ export function RunsPage({
                 return { ...prev, [runId]: { ...existing, ...statusUpdate } as Run };
               });
             }
+            // Unsubscribe once run reaches terminal state
+            const isTerminal = statusUpdate.status !== undefined &&
+              [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
+            if (isTerminal && selectedRunId) {
+              wsUnsubscribe(selectedRunId);
+            }
             break;
           }
         }
@@ -243,6 +249,12 @@ export function RunsPage({
         if (message.type === "run_status") {
           const statusUpdate = message.payload as Partial<Run>;
           setApplyInvestigationRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+          // Unsubscribe once investigation run reaches terminal state
+          const isTerminal = statusUpdate.status !== undefined &&
+            [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
+          if (isTerminal) {
+            wsUnsubscribe(applyInvestigationRunId);
+          }
         }
       }
     };
@@ -251,7 +263,7 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler]);
+  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {

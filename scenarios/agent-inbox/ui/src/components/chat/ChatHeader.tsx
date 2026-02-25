@@ -6,24 +6,25 @@ import {
   Archive,
   Trash2,
   Edit3,
-  Tag,
   MoreVertical,
   Download,
   FileText,
   FileJson,
   File,
+  ChevronLeft,
+  Menu,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { Dropdown, DropdownItem, DropdownSeparator } from "../ui/dropdown";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Badge } from "../ui/badge";
-import { ModelSelector } from "../settings/ModelSelector";
-import { ChatToolsSelector } from "./ChatToolsSelector";
+import { ChatStatusIcon } from "./ChatStatusIcon";
+import { ModeSelector, type ChatMode } from "./ModeSelector";
 import { selectorsManifest } from "../../consts/selectors";
 import { exportChat } from "../../lib/api";
-import type { Chat, Model, Label, ExportFormat } from "../../lib/api";
+import type { Chat, Model, Label, ExportFormat, AgentModeStatus } from "../../lib/api";
+import type { AgentMetric } from "./agent/AgentEventList";
 
 interface ChatHeaderProps {
   chat: Chat;
@@ -38,6 +39,28 @@ interface ChatHeaderProps {
   onDelete: () => void;
   onAssignLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
+  /** Whether agent is currently running */
+  isAgentActive?: boolean;
+  /** Live agent status from WebSocket */
+  agentStatus?: AgentModeStatus | null;
+  /** Aggregated agent metrics */
+  agentMetrics?: AgentMetric[];
+  /** Agent API error (start/stop failures) */
+  agentError?: { message: string; recovery?: string } | null;
+  /** Stop the running agent */
+  onStopAgent?: () => void;
+  /** Mobile: go back to chat list */
+  onBackToList?: () => void;
+  /** Whether the viewport is mobile-sized */
+  isMobile?: boolean;
+  /** Mobile: open the sidebar */
+  onOpenSidebar?: () => void;
+  /** Whether the chat has any messages yet */
+  hasMessages?: boolean;
+  /** Callback when chat mode changes (only used when hasMessages is false) */
+  onModeChange?: (mode: ChatMode) => void;
+  /** Open settings focused on agent tab */
+  onOpenAgentSettings?: () => void;
 }
 
 export function ChatHeader({
@@ -52,11 +75,21 @@ export function ChatHeader({
   onDelete,
   onAssignLabel,
   onRemoveLabel,
+  isAgentActive = false,
+  agentStatus,
+  agentMetrics,
+  agentError,
+  onStopAgent,
+  onBackToList,
+  isMobile,
+  onOpenSidebar,
+  hasMessages = true,
+  onModeChange,
+  onOpenAgentSettings,
 }: ChatHeaderProps) {
   const chatHeaderTestIds = {
     container: selectorsManifest.selectors["chatView.header"]?.testId ?? "chat-header",
     renameChatButton: selectorsManifest.selectors["chatHeader.renameChatButton"]?.testId ?? "rename-chat-button",
-    addLabelButton: selectorsManifest.selectors["chatHeader.addLabelButton"]?.testId ?? "add-label-button",
     toggleReadButton: selectorsManifest.selectors["chatHeader.toggleReadButton"]?.testId ?? "toggle-read-button",
     toggleStarButton: selectorsManifest.selectors["chatHeader.toggleStarButton"]?.testId ?? "toggle-star-button",
     toggleArchiveButton: selectorsManifest.selectors["chatHeader.toggleArchiveButton"]?.testId ?? "toggle-archive-button",
@@ -100,166 +133,159 @@ export function ChatHeader({
 
   return (
     <>
-      <header className="p-3 sm:p-4 border-b border-white/10 bg-slate-950/50" data-testid={chatHeaderTestIds.container}>
-        <div className="flex items-start justify-between gap-3 sm:gap-4">
-          {/* Left Section - Title & Info */}
-          <div className="min-w-0 flex-1">
-            <div className="hidden sm:flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-semibold text-white truncate">{chat.name}</h2>
-              <Tooltip content="Rename chat">
-                <button
-                  onClick={() => {
-                    setNewName(chat.name);
-                    setShowRenameDialog(true);
-                  }}
-                  className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
-                  data-testid={chatHeaderTestIds.renameChatButton}
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                </button>
-              </Tooltip>
-            </div>
-
-            {/* Model Selector, Tools & Mode — hidden in agent mode */}
-            {chatMode !== "agent" && (
-              <div className="flex items-center gap-2 mt-0 sm:mt-1.5 overflow-x-auto pb-1 sm:pb-0">
-                <ModelSelector
-                  models={models}
-                  selectedModel={chat.model}
-                  onSelectModel={(modelId) => onUpdateChat({ model: modelId })}
-                  compact
+      <header className="pl-2 lg:pl-4 pr-3 lg:pr-4 h-14 border-b border-white/10 bg-slate-950/50 flex items-center" data-testid={chatHeaderTestIds.container}>
+        {/* Mobile toggle button - inline in header */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBackToList ?? onOpenSidebar}
+            className="h-9 w-9 shrink-0 mr-1 lg:hidden"
+          >
+            {onBackToList ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        )}
+        {/* Left Section - Title */}
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <h2 className="text-sm sm:text-base font-semibold text-white truncate">{chat.name}</h2>
+          {/* Assigned labels - inline badges */}
+          {assignedLabels.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1 overflow-hidden">
+              {assignedLabels.slice(0, 2).map((label) => (
+                <span
+                  key={label.id}
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: label.color }}
+                  title={label.name}
                 />
+              ))}
+              {assignedLabels.length > 2 && (
+                <span className="text-xs text-slate-500">+{assignedLabels.length - 2}</span>
+              )}
+            </div>
+          )}
+        </div>
 
-                <span className="text-xs text-slate-600">•</span>
+        {/* Right Section - Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Mode selector (empty chat) or status icon (chat with messages) */}
+          {!hasMessages && onModeChange ? (
+            <ModeSelector
+              mode={chatMode ?? "llm"}
+              onModeChange={onModeChange}
+              isAgentActive={isAgentActive}
+              onOpenAgentSettings={onOpenAgentSettings}
+            />
+          ) : (
+            <ChatStatusIcon
+              chatMode={chatMode ?? "llm"}
+              model={chat.model}
+              models={models}
+              isAgentActive={isAgentActive}
+              agentStatus={agentStatus}
+              agentMetrics={agentMetrics}
+              agentError={agentError}
+              onStopAgent={onStopAgent}
+            />
+          )}
 
-                <ChatToolsSelector chatId={chat.id} toolsEnabled={chat.tools_enabled} />
-              </div>
-            )}
-
-            {/* Labels */}
-            {assignedLabels.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-1.5 sm:mt-2 flex-nowrap sm:flex-wrap overflow-x-auto">
-                {assignedLabels.map((label) => (
-                  <Badge key={label.id} color={label.color} onRemove={() => onRemoveLabel(label.id)}>
-                    {label.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Right Section - Actions */}
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Label Dropdown */}
-            <Dropdown
-              trigger={
-                <Tooltip content="Add label">
-                  <Button variant="ghost" size="icon" data-testid={chatHeaderTestIds.addLabelButton}>
-                    <Tag className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              }
-              align="right"
-            >
-              <div className="p-2">
-                {availableLabels.length > 0 ? (
-                  <>
-                    <p className="text-xs text-slate-500 px-2 mb-1">Add a label</p>
-                    {availableLabels.map((label) => (
-                      <DropdownItem key={label.id} onClick={() => onAssignLabel(label.id)}>
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: label.color }}
-                        />
-                        {label.name}
-                      </DropdownItem>
-                    ))}
-                  </>
-                ) : labels.length === 0 ? (
-                  <p className="text-xs text-slate-500 px-2 py-2">
-                    No labels yet. Create labels from the sidebar.
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-500 px-2 py-2">All labels assigned</p>
-                )}
-              </div>
-            </Dropdown>
-
-            <div className="hidden sm:flex items-center gap-1">
-              <Tooltip content={chat.is_read ? "Mark as unread" : "Mark as read"}>
-                <Button variant="ghost" size="icon" onClick={onToggleRead} data-testid={chatHeaderTestIds.toggleReadButton}>
-                  {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+          {/* Ellipsis menu - all actions consolidated here */}
+          <Dropdown
+            trigger={
+              <Tooltip content="More actions">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid={chatHeaderTestIds.moreActionsButton}
+                  aria-label="Open more chat actions"
+                >
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </Tooltip>
-
-              <Tooltip content={chat.is_starred ? "Remove star" : "Star chat"}>
-                <Button variant="ghost" size="icon" onClick={onToggleStar} data-testid={chatHeaderTestIds.toggleStarButton}>
-                  <Star
-                    className={`h-4 w-4 ${
-                      chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""
-                    }`}
-                  />
-                </Button>
-              </Tooltip>
-
-              <Tooltip content={chat.is_archived ? "Unarchive" : "Archive"}>
-                <Button variant="ghost" size="icon" onClick={onToggleArchive} data-testid={chatHeaderTestIds.toggleArchiveButton}>
-                  <Archive className="h-4 w-4" />
-                </Button>
-              </Tooltip>
+            }
+            align="right"
+          >
+            {/* Labels section */}
+            <div className="px-3 py-2 border-b border-white/10">
+              <p className="text-xs text-slate-500 mb-2">Labels</p>
+              {assignedLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {assignedLabels.map((label) => (
+                    <button
+                      key={label.id}
+                      onClick={() => onRemoveLabel(label.id)}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs hover:bg-white/10 transition-colors"
+                      title={`Remove ${label.name}`}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: label.color }}
+                      />
+                      <span className="text-slate-300">{label.name}</span>
+                      <span className="text-slate-500 ml-0.5">×</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {availableLabels.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {availableLabels.map((label) => (
+                    <button
+                      key={label.id}
+                      onClick={() => onAssignLabel(label.id)}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                      title={`Add ${label.name}`}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full opacity-50"
+                        style={{ backgroundColor: label.color }}
+                      />
+                      <span>{label.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : labels.length === 0 ? (
+                <p className="text-xs text-slate-500">No labels yet</p>
+              ) : (
+                <p className="text-xs text-slate-500">All labels assigned</p>
+              )}
             </div>
 
-            <Dropdown
-              trigger={
-                <Tooltip content="More actions">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    data-testid={chatHeaderTestIds.moreActionsButton}
-                    aria-label="Open more chat actions"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              }
-              align="right"
+            {/* Actions */}
+            <DropdownItem onClick={onToggleRead} testId={chatHeaderTestIds.toggleReadButton}>
+              {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+              {chat.is_read ? "Mark as unread" : "Mark as read"}
+            </DropdownItem>
+            <DropdownItem onClick={onToggleStar} testId={chatHeaderTestIds.toggleStarButton}>
+              <Star className={`h-4 w-4 ${chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""}`} />
+              {chat.is_starred ? "Remove star" : "Star chat"}
+            </DropdownItem>
+            <DropdownItem onClick={onToggleArchive} testId={chatHeaderTestIds.toggleArchiveButton}>
+              <Archive className="h-4 w-4" />
+              {chat.is_archived ? "Unarchive" : "Archive"}
+            </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem
+              onClick={() => {
+                setNewName(chat.name);
+                setShowRenameDialog(true);
+              }}
+              testId={chatHeaderTestIds.renameChatButton}
             >
-              <div className="sm:hidden">
-                <DropdownItem onClick={onToggleRead} testId={chatHeaderTestIds.mobileActionsButton}>
-                  {chat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
-                  {chat.is_read ? "Mark as unread" : "Mark as read"}
-                </DropdownItem>
-                <DropdownItem onClick={onToggleStar}>
-                  <Star className={`h-4 w-4 ${chat.is_starred ? "text-yellow-500 fill-yellow-500" : ""}`} />
-                  {chat.is_starred ? "Remove star" : "Star chat"}
-                </DropdownItem>
-                <DropdownItem onClick={onToggleArchive}>
-                  <Archive className="h-4 w-4" />
-                  {chat.is_archived ? "Unarchive" : "Archive"}
-                </DropdownItem>
-                <DropdownSeparator />
-              </div>
-              <DropdownItem
-                onClick={() => {
-                  setNewName(chat.name);
-                  setShowRenameDialog(true);
-                }}
-              >
-                <Edit3 className="h-4 w-4" />
-                Rename chat
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem onClick={() => setShowExportDialog(true)} testId="export-chat-button">
-                <Download className="h-4 w-4" />
-                Export chat
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem destructive onClick={() => setShowDeleteDialog(true)}>
-                <Trash2 className="h-4 w-4" />
-                Delete chat
-              </DropdownItem>
-            </Dropdown>
-          </div>
+              <Edit3 className="h-4 w-4" />
+              Rename chat
+            </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem onClick={() => setShowExportDialog(true)} testId="export-chat-button">
+              <Download className="h-4 w-4" />
+              Export chat
+            </DropdownItem>
+            <DropdownSeparator />
+            <DropdownItem destructive onClick={() => setShowDeleteDialog(true)}>
+              <Trash2 className="h-4 w-4" />
+              Delete chat
+            </DropdownItem>
+          </Dropdown>
         </div>
       </header>
 

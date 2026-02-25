@@ -618,3 +618,68 @@ func TestProtoRunStatusToLocal_Unspecified(t *testing.T) {
 		t.Error("expected non-empty status for unspecified")
 	}
 }
+
+// =============================================================================
+// Compaction Event Tests
+// =============================================================================
+
+func TestTranslateProtoEvent_Compaction(t *testing.T) {
+	ts := timestamppb.New(time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC))
+	ev := &domainpb.RunEvent{
+		Id:        "evt-compaction-1",
+		Sequence:  42,
+		EventType: domainpb.RunEventType_RUN_EVENT_TYPE_COMPACTION,
+		Timestamp: ts,
+		Data: &domainpb.RunEvent_Compaction{
+			Compaction: &domainpb.CompactionEventData{
+				Summary:           "We fixed the authentication bug by...",
+				Trigger:           "manual",
+				Focus:             "auth",
+				MessagesCompacted: 47,
+				TokensBefore:      89432,
+				TokensAfter:       3201,
+				OriginalCommand:   "/compact focus on auth",
+			},
+		},
+	}
+
+	result := TranslateProtoEvent(ev)
+
+	if result.ID != "evt-compaction-1" {
+		t.Errorf("ID = %s, want evt-compaction-1", result.ID)
+	}
+	if result.Type != "compaction" {
+		t.Errorf("Type = %s, want compaction", result.Type)
+	}
+	if result.Role != "system" {
+		t.Errorf("Role = %s, want system", result.Role)
+	}
+	if result.Content != "We fixed the authentication bug by..." {
+		t.Errorf("Content = %s, want 'We fixed the authentication bug by...'", result.Content)
+	}
+	if result.CompactionTrigger != "manual" {
+		t.Errorf("CompactionTrigger = %s, want manual", result.CompactionTrigger)
+	}
+	if result.CompactionFocus != "auth" {
+		t.Errorf("CompactionFocus = %s, want auth", result.CompactionFocus)
+	}
+	if result.CompactionMessagesCompacted != 47 {
+		t.Errorf("CompactionMessagesCompacted = %d, want 47", result.CompactionMessagesCompacted)
+	}
+	if result.CompactionTokensBefore != 89432 {
+		t.Errorf("CompactionTokensBefore = %d, want 89432", result.CompactionTokensBefore)
+	}
+	if result.CompactionTokensAfter != 3201 {
+		t.Errorf("CompactionTokensAfter = %d, want 3201", result.CompactionTokensAfter)
+	}
+	if result.CompactionOriginalCommand != "/compact focus on auth" {
+		t.Errorf("CompactionOriginalCommand = %s, want '/compact focus on auth'", result.CompactionOriginalCommand)
+	}
+}
+
+func TestProtoEventTypeToString_Compaction(t *testing.T) {
+	result := protoEventTypeToString(domainpb.RunEventType_RUN_EVENT_TYPE_COMPACTION)
+	if result != "compaction" {
+		t.Errorf("protoEventTypeToString(COMPACTION) = %s, want compaction", result)
+	}
+}

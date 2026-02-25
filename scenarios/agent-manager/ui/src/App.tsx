@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
+import { RunStatus } from "./types";
+import type { Run } from "./types";
 import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
@@ -47,19 +49,41 @@ export default function App() {
   // Use a ref to break the circular dependency: handleWebSocketMessage → ws → handleWebSocketMessage
   const subscribeAllRef = useRef<() => void>(() => {});
 
+  // Track runs that reached terminal state to skip redundant refetches
+  const terminalRunIdsRef = useRef<Set<string>>(new Set());
+
+  const TERMINAL_STATUSES = [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED];
+
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
-      console.log("[WS] Received:", message.type);
+      if (import.meta.env.DEV) {
+        console.log("[WS] Received:", message.type);
+      }
 
       switch (message.type) {
+        case "run_status": {
+          const statusUpdate = message.payload as Partial<Run>;
+          const isTerminal = statusUpdate.status !== undefined &&
+            TERMINAL_STATUSES.includes(statusUpdate.status);
+          if (isTerminal && message.runId) {
+            terminalRunIdsRef.current.add(message.runId);
+          }
+          runs.refetch();
+          break;
+        }
         case "run_event":
-        case "run_status":
+          // Skip refetch if run already reached terminal state
+          if (message.runId && terminalRunIdsRef.current.has(message.runId)) {
+            break;
+          }
           runs.refetch();
           break;
         case "task_status":
           tasks.refetch();
           break;
         case "connected":
+          // Clear terminal cache on reconnect (state may have changed)
+          terminalRunIdsRef.current.clear();
           subscribeAllRef.current();
           break;
       }

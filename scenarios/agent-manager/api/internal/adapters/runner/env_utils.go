@@ -11,6 +11,8 @@ var inheritedEnvDenylist = map[string]struct{}{
 	"VROOLI_SCENARIO":   {},
 	"VROOLI_PROCESS_ID": {},
 	"VROOLI_STEP":       {},
+	// Prevent nested Claude CLI sessions when agent-manager itself runs inside Claude Code.
+	"CLAUDECODE": {},
 }
 
 func sanitizedBaseEnv() []string {

@@ -2367,7 +2367,7 @@ export interface AgentModeStatus {
 /** Translated event from agent-manager */
 export interface AgentEvent {
   id: string;
-  /** Known types: message, tool_call, tool_result, status, error, log, metric, artifact, message_deleted.
+  /** Known types: message, tool_call, tool_result, status, error, log, metric, artifact, message_deleted, compaction.
    *  Unknown types from agent-manager are also passed through. */
   type: string;
   role: "user" | "assistant" | "system" | "tool";
@@ -2385,8 +2385,30 @@ export interface AgentEvent {
   run_status?: AgentRunStatus;
   phase?: string;
   progress?: number;
+  // Compaction fields
+  compaction_trigger?: "manual" | "auto";
+  compaction_focus?: string;
+  compaction_messages_compacted?: number;
+  compaction_tokens_before?: number;
+  compaction_tokens_after?: number;
+  compaction_original_command?: string;
   // Raw data for generic display of unrecognized or rich event types
   raw_data?: string;
+}
+
+/** Type guard for compaction events */
+export function isCompactionEvent(event: AgentEvent): boolean {
+  return event.type === "compaction";
+}
+
+/** Calculate token reduction percentage */
+export function getCompactionReduction(event: AgentEvent): number | null {
+  if (!isCompactionEvent(event)) return null;
+  if (!event.compaction_tokens_before || event.compaction_tokens_before === 0) return null;
+
+  const before = event.compaction_tokens_before;
+  const after = event.compaction_tokens_after ?? 0;
+  return Math.round(((before - after) / before) * 100);
 }
 
 /** Response from getting agent events */
@@ -2454,7 +2476,8 @@ export async function sendAgentMessage(
  */
 export async function getAgentEvents(
   chatId: string,
-  afterSequence: number = 0
+  afterSequence: number = 0,
+  signal?: AbortSignal
 ): Promise<AgentEventsResponse> {
   const url = buildApiUrl(`/chats/${chatId}/agent-mode/events?after_sequence=${afterSequence}`, {
     baseUrl: API_BASE
@@ -2462,7 +2485,8 @@ export async function getAgentEvents(
 
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+    cache: "no-store",
+    signal
   });
 
   if (!res.ok) {
@@ -2475,12 +2499,13 @@ export async function getAgentEvents(
 /**
  * Get the current status of an agent chat.
  */
-export async function getAgentStatus(chatId: string): Promise<AgentModeStatus> {
+export async function getAgentStatus(chatId: string, signal?: AbortSignal): Promise<AgentModeStatus> {
   const url = buildApiUrl(`/chats/${chatId}/agent-mode/status`, { baseUrl: API_BASE });
 
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+    cache: "no-store",
+    signal
   });
 
   if (!res.ok) {

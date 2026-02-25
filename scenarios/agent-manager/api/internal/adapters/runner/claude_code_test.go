@@ -657,3 +657,143 @@ func TestExecuteRequest_NilSafety(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// COMPACTION DETECTION TESTS
+// =============================================================================
+
+func TestParseCompactCommand(t *testing.T) {
+	tests := []struct {
+		input     string
+		isCompact bool
+		focus     string
+	}{
+		{"/compact", true, ""},
+		{"/compact focus on auth", true, "auth"},
+		{"/compact focus on API changes", true, "API changes"},
+		{"/compact authentication flow", true, "authentication flow"},
+		{"  /compact  ", true, ""},
+		{"regular message", false, ""},
+		{"/compacting", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			isCompact, focus := runner.ParseCompactCommandForTest(tt.input)
+			if isCompact != tt.isCompact {
+				t.Errorf("isCompact = %v, want %v", isCompact, tt.isCompact)
+			}
+			if focus != tt.focus {
+				t.Errorf("focus = %q, want %q", focus, tt.focus)
+			}
+		})
+	}
+}
+
+func TestIsCompactionSummary(t *testing.T) {
+	tests := []struct {
+		content  string
+		expected bool
+	}{
+		{"<summary>We worked on auth...</summary>", true},
+		{"Summary of the conversation so far...", true},
+		{"Here is what we did...", false},
+	}
+
+	for _, tt := range tests {
+		name := tt.content
+		if len(name) > 30 {
+			name = name[:30]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := runner.IsCompactionSummaryForTest(tt.content)
+			if result != tt.expected {
+				t.Errorf("isCompactionSummary = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractSummaryContent(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"<summary>Auth bug was fixed by updating token validation</summary>",
+			"Auth bug was fixed by updating token validation",
+		},
+		{
+			"Some preamble\n<summary>The actual summary</summary>\nSome epilogue",
+			"The actual summary",
+		},
+		{
+			"No tags here, just plain text",
+			"No tags here, just plain text",
+		},
+	}
+
+	for _, tt := range tests {
+		name := tt.expected
+		if len(name) > 20 {
+			name = name[:20]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := runner.ExtractSummaryContentForTest(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractSummaryContent = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseStreamEvents_CompactionFlow(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	runID := uuid.New()
+
+	// Step 1: User sends /compact command via "message" event type
+	events1, err := r.ParseStreamEventsForTest(
+		runID,
+		`{"type":"message","message":{"role":"user","content":"/compact focus on auth"}}`,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events1) != 0 {
+		t.Errorf("expected 0 events for /compact command, got %d", len(events1))
+	}
+
+	// Step 2: Assistant responds with summary
+	events2, err := r.ParseStreamEventsForTest(
+		runID,
+		`{"type":"message","message":{"role":"assistant","content":"<summary>We fixed the auth bug...</summary>"}}`,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events2) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events2))
+	}
+
+	event := events2[0]
+	if event.EventType != domain.EventTypeCompaction {
+		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeCompaction)
+	}
+
+	data, ok := event.Data.(*domain.CompactionEventData)
+	if !ok {
+		t.Fatalf("Data type = %T, want *CompactionEventData", event.Data)
+	}
+	if data.Summary != "We fixed the auth bug..." {
+		t.Errorf("Summary = %q, want %q", data.Summary, "We fixed the auth bug...")
+	}
+	if data.Trigger != "manual" {
+		t.Errorf("Trigger = %s, want manual", data.Trigger)
+	}
+	if data.Focus != "auth" {
+		t.Errorf("Focus = %s, want auth", data.Focus)
+	}
+	if data.OriginalCommand != "/compact focus on auth" {
+		t.Errorf("OriginalCommand = %s, want '/compact focus on auth'", data.OriginalCommand)
+	}
+}

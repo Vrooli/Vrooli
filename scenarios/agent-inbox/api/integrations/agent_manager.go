@@ -283,6 +283,8 @@ func protoEventTypeToString(et domainpb.RunEventType) string {
 		return "artifact"
 	case domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED:
 		return "message_deleted"
+	case domainpb.RunEventType_RUN_EVENT_TYPE_COMPACTION:
+		return "compaction"
 	default:
 		return et.String()
 	}
@@ -431,6 +433,14 @@ type TranslatedEvent struct {
 	RunStatus string `json:"run_status,omitempty"`
 	Phase     string `json:"phase,omitempty"`
 	Progress  int    `json:"progress,omitempty"`
+
+	// Compaction fields (for compaction type)
+	CompactionTrigger           string `json:"compaction_trigger,omitempty"`
+	CompactionFocus             string `json:"compaction_focus,omitempty"`
+	CompactionMessagesCompacted int64  `json:"compaction_messages_compacted,omitempty"`
+	CompactionTokensBefore      int64  `json:"compaction_tokens_before,omitempty"`
+	CompactionTokensAfter       int64  `json:"compaction_tokens_after,omitempty"`
+	CompactionOriginalCommand   string `json:"compaction_original_command,omitempty"`
 
 	// RawData holds the original event data as JSON for event types that
 	// don't have dedicated fields. The UI can display this in a generic card.
@@ -674,6 +684,17 @@ func TranslateProtoEvent(ev *domainpb.RunEvent) *TranslatedEvent {
 		event.Content = mdData.GetTargetEventId()
 		rawBytes, _ := protoMarshalOpts.Marshal(mdData)
 		event.RawData = string(rawBytes)
+
+	case *domainpb.RunEvent_Compaction:
+		compaction := d.Compaction
+		event.Role = "system"
+		event.Content = compaction.GetSummary()
+		event.CompactionTrigger = compaction.GetTrigger()
+		event.CompactionFocus = compaction.GetFocus()
+		event.CompactionMessagesCompacted = compaction.GetMessagesCompacted()
+		event.CompactionTokensBefore = compaction.GetTokensBefore()
+		event.CompactionTokensAfter = compaction.GetTokensAfter()
+		event.CompactionOriginalCommand = compaction.GetOriginalCommand()
 
 	default:
 		// Unknown/unhandled oneof variant (progress, cost, rate_limit, etc.)

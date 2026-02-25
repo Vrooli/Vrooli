@@ -6,11 +6,10 @@ import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
 import { AsyncStatusBar } from "./AsyncStatusBar";
 import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
-import { ModeSelector, type ChatMode } from "./ModeSelector";
+import type { ChatMode } from "./ModeSelector";
 import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
 import { AttachRunModal } from "./AttachRunModal";
 import { AgentEventList, type AgentMetric } from "./agent/AgentEventList";
-import { AgentStatusIndicator } from "./agent/AgentStatusIndicator";
 import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
 import { startAgentMode, sendAgentMessage, stopAgentMode, attachAgentRun, AgentModeError } from "../../lib/api";
@@ -85,6 +84,12 @@ interface ChatViewProps {
   onRefreshChat?: () => void;
   /** Open settings focused on agent tab */
   onOpenAgentSettings?: () => void;
+  /** Mobile: go back to chat list */
+  onBackToList?: () => void;
+  /** Whether the viewport is mobile-sized */
+  isMobile?: boolean;
+  /** Mobile: open the sidebar */
+  onOpenSidebar?: () => void;
 }
 
 // Stable empty array for async references
@@ -133,7 +138,10 @@ export function ChatView({
   activeTemplateId,
   onTemplateDeactivate,
   onRefreshChat,
-  onOpenAgentSettings,
+  onOpenAgentSettings: _onOpenAgentSettings,
+  onBackToList,
+  isMobile,
+  onOpenSidebar,
 }: ChatViewProps) {
   // Async operations drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -178,7 +186,7 @@ export function ChatView({
     events: agentEvents,
     status: agentStatus,
     isConnected: _isAgentConnected,
-    error: agentWsError,
+    error: _agentWsError,
     refresh: refreshAgentEvents
   } = useAgentWebSocket({
     chatId: chatData?.chat?.id || null,
@@ -213,11 +221,6 @@ export function ChatView({
     }
     return metrics;
   }, [agentEvents]);
-
-  // Handle mode change
-  const handleModeChange = useCallback((newMode: ChatMode) => {
-    setChatMode(newMode);
-  }, []);
 
   // Handle starting agent mode
   const handleStartAgent = useCallback(async (config: AgentStartConfig) => {
@@ -431,55 +434,32 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-950" data-testid="chat-view">
-      <div className="hidden lg:block">
-        <ErrorBoundary name="ChatHeader">
-          <ChatHeader
-            chat={chatData.chat}
-            models={models}
-            labels={labels}
-            chatMode={chatMode}
-            onUpdateChat={onUpdateChat}
-            onToggleRead={onToggleRead}
-            onToggleStar={onToggleStar}
-            onToggleArchive={onToggleArchive}
-            onDelete={onDeleteChat}
-            onAssignLabel={onAssignLabel}
-            onRemoveLabel={onRemoveLabel}
-          />
-        </ErrorBoundary>
-      </div>
-
-      {/* Mode selector and agent status */}
-      <div className="flex items-center gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-zinc-800 overflow-x-auto">
-        <ModeSelector
-          mode={chatMode}
-          onModeChange={handleModeChange}
-          disabled={isStartingAgent}
+      <ErrorBoundary name="ChatHeader">
+        <ChatHeader
+          chat={chatData.chat}
+          models={models}
+          labels={labels}
+          chatMode={chatMode}
+          onUpdateChat={onUpdateChat}
+          onToggleRead={onToggleRead}
+          onToggleStar={onToggleStar}
+          onToggleArchive={onToggleArchive}
+          onDelete={onDeleteChat}
+          onAssignLabel={onAssignLabel}
+          onRemoveLabel={onRemoveLabel}
           isAgentActive={isAgentActive}
-          onOpenAgentSettings={onOpenAgentSettings}
-          onOpenAttachModal={() => setShowAttachModal(true)}
+          agentStatus={agentStatus}
+          agentMetrics={agentMetrics}
+          agentError={agentError}
+          onStopAgent={handleStopAgent}
+          onBackToList={onBackToList}
+          isMobile={isMobile}
+          onOpenSidebar={onOpenSidebar}
+          hasMessages={visibleMessages.length > 0}
+          onModeChange={setChatMode}
+          onOpenAgentSettings={_onOpenAgentSettings}
         />
-        {agentError && (
-          <span className="text-xs text-red-400 truncate">
-            {agentError.message}
-            {agentError.recovery && <span className="text-zinc-400 ml-1">— {agentError.recovery}</span>}
-          </span>
-        )}
-        {agentWsError && isAgentActive && (
-          <span className="text-xs text-yellow-400 truncate">Connection issue: {agentWsError}</span>
-        )}
-        {isAgentActive && agentStatus && (
-          <AgentStatusIndicator
-            status={agentStatus.status}
-            phase={agentStatus.phase}
-            progress={agentStatus.progress_percent}
-            errorMsg={agentStatus.error_msg}
-            metrics={agentMetrics}
-            onStop={handleStopAgent}
-            inline
-          />
-        )}
-      </div>
+      </ErrorBoundary>
 
       {/* Async Status Bar - compact view of active/recent operations (only in LLM mode) */}
       {!isAgentActive && (activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (

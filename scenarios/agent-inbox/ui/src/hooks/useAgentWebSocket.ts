@@ -32,6 +32,8 @@ interface UseAgentWebSocketResult {
   clearEvents: () => void;
 }
 
+const TERMINAL_STATUSES = ["complete", "failed", "cancelled"];
+
 /**
  * Hook for real-time agent event streaming.
  *
@@ -61,6 +63,9 @@ export function useAgentWebSocket({
   const lastSequenceRef = useRef<number>(0);
   const isMountedRef = useRef(true);
 
+  // Track whether the run has reached a terminal state
+  const terminalRef = useRef(false);
+
   // Store callbacks in refs to keep useCallback deps stable.
   // This prevents the infinite re-render loop described above.
   const onEventRef = useRef(onEvent);
@@ -69,11 +74,11 @@ export function useAgentWebSocket({
   onStatusChangeRef.current = onStatusChange;
 
   // Fetch events since last sequence
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (signal?: AbortSignal) => {
     if (!chatId || !enabled) return;
 
     try {
-      const response = await getAgentEvents(chatId, lastSequenceRef.current);
+      const response = await getAgentEvents(chatId, lastSequenceRef.current, signal);
 
       if (!isMountedRef.current) return;
 
@@ -82,23 +87,19 @@ export function useAgentWebSocket({
         const maxSequence = Math.max(...response.events.map(e => e.sequence));
         lastSequenceRef.current = maxSequence;
 
-        // Add new events
+        // Add new events (server-side after_sequence dedup ensures no duplicates)
         setEvents(prev => {
-          const existingIds = new Set(prev.map(e => e.id));
-          const newEvents = response.events.filter(e => !existingIds.has(e.id));
-
-          // Call onEvent for each new event
-          newEvents.forEach(event => {
+          response.events.forEach(event => {
             onEventRef.current?.(event);
           });
-
-          return newEvents.length > 0 ? [...prev, ...newEvents] : prev;
+          return [...prev, ...response.events];
         });
       }
 
       setIsConnected(true);
       setError(null);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       if (!isMountedRef.current) return;
       setError(e instanceof Error ? e.message : "Failed to fetch events");
       setIsConnected(false);
@@ -106,11 +107,11 @@ export function useAgentWebSocket({
   }, [chatId, enabled]);
 
   // Fetch status
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (signal?: AbortSignal) => {
     if (!chatId || !enabled) return;
 
     try {
-      const newStatus = await getAgentStatus(chatId);
+      const newStatus = await getAgentStatus(chatId, signal);
 
       if (!isMountedRef.current) return;
 
@@ -119,18 +120,30 @@ export function useAgentWebSocket({
         if (prev?.status !== newStatus.status) {
           onStatusChangeRef.current?.(newStatus);
         }
+        // Detect terminal status and do one final event fetch
+        if (newStatus.status && TERMINAL_STATUSES.includes(newStatus.status) && !terminalRef.current) {
+          terminalRef.current = true;
+          // Final fetch to pick up any remaining events
+          fetchEvents(signal);
+        }
         return newStatus;
       });
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       // Status errors are less critical, just log
       console.error("Failed to fetch agent status:", e);
     }
-  }, [chatId, enabled]);
+  }, [chatId, enabled, fetchEvents]);
 
   // Combined refresh
-  const refresh = useCallback(async () => {
-    await Promise.all([fetchEvents(), fetchStatus()]);
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    await Promise.all([fetchEvents(signal), fetchStatus(signal)]);
   }, [fetchEvents, fetchStatus]);
+
+  // Expose a stable refresh without signal for external callers
+  const publicRefresh = useCallback(async () => {
+    await refresh();
+  }, [refresh]);
 
   // Clear events
   const clearEvents = useCallback(() => {
@@ -138,9 +151,10 @@ export function useAgentWebSocket({
     lastSequenceRef.current = 0;
   }, []);
 
-  // Set up polling
+  // Set up polling with self-scheduling setTimeout
   useEffect(() => {
     isMountedRef.current = true;
+    terminalRef.current = false;
 
     if (!chatId || !runId || !enabled) {
       setIsConnected(false);
@@ -152,32 +166,36 @@ export function useAgentWebSocket({
     lastSequenceRef.current = 0;
     setError(null);
 
-    // Initial fetch
-    refresh();
+    const abortController = new AbortController();
+    const { signal } = abortController;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
-    // Set up polling interval
-    const intervalId = setInterval(refresh, pollInterval);
+    const poll = async () => {
+      await refresh(signal);
+      // Only schedule next poll if not cancelled and run hasn't terminated
+      if (!cancelled && !terminalRef.current) {
+        timeoutId = setTimeout(poll, pollInterval);
+      }
+    };
+
+    // Initial fetch + start loop
+    poll();
 
     return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      abortController.abort();
       isMountedRef.current = false;
-      clearInterval(intervalId);
     };
   }, [chatId, runId, enabled, pollInterval, refresh]);
-
-  // Stop polling when run completes
-  useEffect(() => {
-    if (status?.status && ["complete", "failed", "cancelled"].includes(status.status)) {
-      // Do one final fetch to get any remaining events
-      fetchEvents();
-    }
-  }, [status?.status, fetchEvents]);
 
   return {
     events,
     status,
     isConnected,
     error,
-    refresh,
+    refresh: publicRefresh,
     clearEvents
   };
 }

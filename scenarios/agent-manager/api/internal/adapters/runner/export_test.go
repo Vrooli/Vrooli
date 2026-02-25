@@ -3,6 +3,8 @@ package runner
 import (
 	"os/exec"
 
+	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -21,4 +23,24 @@ func NewTestClaudeCodeRunner() *ClaudeCodeRunner {
 		runs:        make(map[uuid.UUID]*exec.Cmd),
 		streamState: make(map[uuid.UUID]*claudeStreamState),
 	}
+}
+
+// ParseCompactCommandForTest exposes parseCompactCommand for external testing.
+func ParseCompactCommandForTest(content string) (bool, string) {
+	return parseCompactCommand(content)
+}
+
+// IsCompactionSummaryForTest exposes isCompactionSummary for external testing.
+func IsCompactionSummaryForTest(content string) bool {
+	return isCompactionSummary(content)
+}
+
+// ExtractSummaryContentForTest exposes extractSummaryContent for external testing.
+func ExtractSummaryContentForTest(content string) string {
+	return extractSummaryContent(content)
+}
+
+// ParseStreamEventsForTest exposes parseStreamEvents for external testing.
+func (r *ClaudeCodeRunner) ParseStreamEventsForTest(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
+	return r.parseStreamEvents(runID, line)
 }

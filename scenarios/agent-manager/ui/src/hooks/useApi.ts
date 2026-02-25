@@ -438,10 +438,21 @@ export function useHealth() {
   }, [setData, setLoading, setError]);
 
   useEffect(() => {
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 30000);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const poll = async () => {
+      await fetchHealth();
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, 30000);
+      }
+    };
+
+    poll();
+
     return () => {
-      clearInterval(interval);
+      cancelled = true;
+      clearTimeout(timeoutId);
       abortRef.current?.abort();
     };
   }, [fetchHealth]);

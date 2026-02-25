@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Bot, MessageSquare, ChevronDown, Settings, Link2 } from "lucide-react";
+import { Bot, MessageSquare, ChevronDown, Settings } from "lucide-react";
 
 export type ChatMode = "llm" | "agent";
 
@@ -50,7 +50,7 @@ export function ModeSelector({
   disabled = false,
   isAgentActive = false,
   onOpenAgentSettings,
-  onOpenAttachModal,
+  onOpenAttachModal: _onOpenAttachModal,
 }: ModeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -117,9 +117,6 @@ export function ModeSelector({
 
   const currentMode = MODES.find((m) => m.value === mode) ?? DEFAULT_MODE;
 
-  const showAttach = mode === "agent" && !isAgentActive && !!onOpenAttachModal;
-  const showSettings = mode === "agent" && !!onOpenAgentSettings;
-
   // Determine if dropdown opens upward or downward based on position
   const opensUpward = dropdownPos
     ? dropdownPos.top < (toggleRef.current?.getBoundingClientRect().bottom ?? 0)
@@ -147,40 +144,6 @@ export function ModeSelector({
         <span className="hidden sm:inline">{currentMode.label}</span>
         {!isAgentActive && <ChevronDown className="h-3 w-3 opacity-50" />}
       </button>
-
-      {/* Action buttons — stable wrapper so they don't interfere with the dropdown. */}
-      {(showAttach || showSettings) && (
-        <div className="flex items-center gap-1">
-          {showAttach && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenAttachModal!();
-              }}
-              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              title="Attach to existing run"
-              aria-label="Attach to existing run"
-            >
-              <Link2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {showSettings && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenAgentSettings!();
-              }}
-              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              title="Open Agent settings"
-              aria-label="Open Agent settings"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Portal the dropdown so it escapes overflow-hidden/auto ancestors */}
       {isOpen && dropdownPos && createPortal(

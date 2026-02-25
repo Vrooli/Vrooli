@@ -1,20 +1,7 @@
 import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Menu,
   X,
-  ChevronLeft,
-  Tag,
-  MoreVertical,
-  Mail,
-  MailOpen,
-  Star,
-  Archive,
-  Edit3,
-  FileText,
-  FileJson,
-  File,
-  Trash2,
 } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { useChats } from "./hooks/useChats";
@@ -34,9 +21,7 @@ import { UsageStats } from "./components/settings/UsageStats";
 import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
 import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/ScenarioViewer";
 import { Button } from "./components/ui/button";
-import { Dropdown, DropdownItem, DropdownSeparator } from "./components/ui/dropdown";
-import { Dialog, DialogBody, DialogFooter, DialogHeader } from "./components/ui/dialog";
-import { Input } from "./components/ui/input";
+
 import { ToastProvider, useToast } from "./components/ui/toast";
 import { selectorsManifest } from "./consts/selectors";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
@@ -48,7 +33,6 @@ import {
   deleteChat as deleteChatAPI,
   AgentModeError,
   createChat as createChatAPI,
-  exportChat,
 } from "./lib/api";
 import type { AgentRunSummary } from "./lib/api";
 import type { AgentStartConfig } from "./components/chat/AgentStartModal";
@@ -129,8 +113,6 @@ function AppContent() {
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
   const [settingsAllTemplates, setSettingsAllTemplates] = useState<TemplateWithSource[]>([]);
-  const [showMobileRenameDialog, setShowMobileRenameDialog] = useState(false);
-  const [mobileChatName, setMobileChatName] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatListOpen, setChatListOpenState] = useState(getChatListOpen);
 
@@ -660,16 +642,6 @@ function AppContent() {
     }
   }, [selectedChatId, queryClient]);
 
-  const handleMobileExport = useCallback(async (format: "markdown" | "json" | "txt") => {
-    if (!selectedChatId) return;
-    try {
-      await exportChat(selectedChatId, format);
-    } catch (error) {
-      console.error("Export failed:", error);
-      addToast("Failed to export chat", "error");
-    }
-  }, [selectedChatId, addToast]);
-
   // Keyboard shortcuts
   const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats || !!settingsEditingTemplate;
 
@@ -871,143 +843,8 @@ function AppContent() {
     onUnhandledShortcut: handleUnhandledShortcut,
   });
 
-  const currentMobileChat = selectedChatId && !chatListOpen && chatData?.chat?.id === selectedChatId
-    ? chatData.chat
-    : null;
-  const currentMobileLabelIds = currentMobileChat?.label_ids || [];
-  const mobileAvailableLabels = labels.filter((label) => !currentMobileLabelIds.includes(label.id));
-
   return (
     <div ref={sidebarContainerRef as RefObject<HTMLDivElement>} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-950 border-b border-white/10 px-2 py-1.5 flex items-center justify-between safe-top">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
-          {selectedChatId && !chatListOpen ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBackToList}
-              className="h-10 w-10 shrink-0"
-              data-testid={appTestIds.mobileBackButton}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(true)}
-              className="h-10 w-10 shrink-0"
-              data-testid={appTestIds.mobileMenuButton}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
-          <span className="text-sm font-medium truncate">
-            {selectedChatId && !chatListOpen
-              ? chatData?.chat.name || "Chat"
-              : "Agent Inbox"}
-          </span>
-          {currentMobileChat && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setMobileChatName(currentMobileChat.name || "");
-                setShowMobileRenameDialog(true);
-              }}
-              className="h-8 w-8 shrink-0"
-              aria-label="Rename chat"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-        {currentMobileChat && (
-          <div className="flex items-center gap-1 shrink-0">
-            <Dropdown
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Manage labels">
-                  <Tag className="h-4 w-4" />
-                </Button>
-              }
-              align="right"
-            >
-              <div className="p-2">
-                {mobileAvailableLabels.length > 0 ? (
-                  <>
-                    <p className="text-xs text-slate-500 px-2 mb-1">Add a label</p>
-                    {mobileAvailableLabels.map((label) => (
-                      <DropdownItem key={label.id} onClick={() => handleAssignLabelFromView(label.id)}>
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: label.color }}
-                        />
-                        {label.name}
-                      </DropdownItem>
-                    ))}
-                  </>
-                ) : labels.length === 0 ? (
-                  <p className="text-xs text-slate-500 px-2 py-2">No labels yet. Create labels from the sidebar.</p>
-                ) : (
-                  <p className="text-xs text-slate-500 px-2 py-2">All labels assigned</p>
-                )}
-              </div>
-            </Dropdown>
-
-            <Dropdown
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Chat actions">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              }
-              align="right"
-            >
-              <DropdownItem onClick={handleToggleReadFromView}>
-                {currentMobileChat.is_read ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
-                {currentMobileChat.is_read ? "Mark as unread" : "Mark as read"}
-              </DropdownItem>
-              <DropdownItem onClick={handleToggleStarFromView}>
-                <Star className={`h-4 w-4 ${currentMobileChat.is_starred ? "text-yellow-500 fill-yellow-500" : ""}`} />
-                {currentMobileChat.is_starred ? "Remove star" : "Star chat"}
-              </DropdownItem>
-              <DropdownItem onClick={handleToggleArchiveFromView}>
-                <Archive className="h-4 w-4" />
-                {currentMobileChat.is_archived ? "Unarchive" : "Archive"}
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem
-                onClick={() => {
-                  setMobileChatName(currentMobileChat.name || "");
-                  setShowMobileRenameDialog(true);
-                }}
-              >
-                <Edit3 className="h-4 w-4" />
-                Rename chat
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem onClick={() => handleMobileExport("markdown")}>
-                <FileText className="h-4 w-4 text-indigo-400" />
-                Export as Markdown
-              </DropdownItem>
-              <DropdownItem onClick={() => handleMobileExport("json")}>
-                <FileJson className="h-4 w-4 text-emerald-400" />
-                Export as JSON
-              </DropdownItem>
-              <DropdownItem onClick={() => handleMobileExport("txt")}>
-                <File className="h-4 w-4 text-slate-400" />
-                Export as Text
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem destructive onClick={handleDeleteChatFromView}>
-                <Trash2 className="h-4 w-4" />
-                Delete chat
-              </DropdownItem>
-            </Dropdown>
-          </div>
-        )}
-      </div>
-
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -1021,7 +858,7 @@ function AppContent() {
       <div
         className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
           sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } pt-14 lg:pt-0`}
+        } w-[85vw] max-w-[320px] lg:w-auto lg:max-w-none`}
         style={
           !isMobile && !(sidebarCollapsed && !isMobile)
             ? { width: sidebarWidth }
@@ -1097,7 +934,7 @@ function AppContent() {
 
       {/* Main Content - Chat View or Empty State */}
       <div
-        className={`flex-1 flex flex-col min-h-0 min-w-0 pt-14 lg:pt-0 ${
+        className={`flex-1 flex flex-col min-h-0 min-w-0 ${
           chatListOpen && selectedChatId ? "hidden lg:flex" : "flex"
         }`}
       >
@@ -1154,6 +991,9 @@ function AppContent() {
               onTemplateDeactivate={activeTemplate.deactivate}
               onRefreshChat={handleRefreshChat}
               onOpenAgentSettings={handleOpenAgentSettings}
+              onBackToList={handleBackToList}
+              isMobile={isMobile}
+              onOpenSidebar={() => setSidebarOpen(true)}
             />
             </Suspense>
           ) : (
@@ -1164,6 +1004,8 @@ function AppContent() {
               onOpenAgentSettings={handleOpenAgentSettings}
               isCreating={isCreatingChat}
               models={models}
+              isMobile={isMobile}
+              onOpenSidebar={() => setSidebarOpen(true)}
             />
           )}
         </ErrorBoundary>
@@ -1179,39 +1021,6 @@ function AppContent() {
           onDeleteLabel={deleteLabel}
         />
       </ErrorBoundary>
-
-      <Dialog open={showMobileRenameDialog} onClose={() => setShowMobileRenameDialog(false)}>
-        <DialogHeader onClose={() => setShowMobileRenameDialog(false)}>Rename Chat</DialogHeader>
-        <DialogBody>
-          <Input
-            value={mobileChatName}
-            onChange={(e) => setMobileChatName(e.target.value)}
-            placeholder="Enter chat name..."
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && selectedChatId && mobileChatName.trim()) {
-                updateChat({ chatId: selectedChatId, data: { name: mobileChatName.trim() } });
-                setShowMobileRenameDialog(false);
-              }
-            }}
-          />
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setShowMobileRenameDialog(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              if (!selectedChatId || !mobileChatName.trim()) return;
-              updateChat({ chatId: selectedChatId, data: { name: mobileChatName.trim() } });
-              setShowMobileRenameDialog(false);
-            }}
-            disabled={!mobileChatName.trim() || !selectedChatId}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </Dialog>
 
       {/* Settings Dialog */}
       <ErrorBoundary name="Settings">
