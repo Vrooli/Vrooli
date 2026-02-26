@@ -6,6 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalSocket } from "../hooks/useTerminalSocket";
+import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { TERMINAL_THEME, TERMINAL_FONT_FAMILY } from "../consts/config";
 
@@ -38,6 +39,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 
     // Expose sendInput for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({ sendInput }), [sendInput]);
+
+    const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
+      terminal,
+      containerRef,
+    });
 
     const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
 
@@ -117,8 +123,22 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ref={containerRef}
         data-testid="terminal-pane"
         data-session-id={sessionId}
-        className="h-full w-full min-h-[200px]"
-      />
+        className="h-full w-full min-h-[200px] relative"
+      >
+        {hasSelection && (
+          <button
+            data-testid="touch-copy-btn"
+            className="absolute top-2 right-2 z-10 rounded bg-[rgb(var(--wc-accent))] px-3 py-1.5 text-xs font-medium text-slate-900 shadow-lg active:opacity-80"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              copySelection();
+              clearSelection();
+            }}
+          >
+            Copy
+          </button>
+        )}
+      </div>
     );
   },
 );

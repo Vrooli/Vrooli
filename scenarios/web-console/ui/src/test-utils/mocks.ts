@@ -99,6 +99,10 @@ export function createFakeSocketPair(): {
 // Mock xterm Terminal
 // ---------------------------------------------------------------------------
 
+export interface MockTerminalLine {
+  translateToString: ReturnType<typeof vi.fn>;
+}
+
 export interface MockTerminal {
   cols: number;
   rows: number;
@@ -107,16 +111,40 @@ export interface MockTerminal {
   written: string[];
   /** Simulate user typing in the terminal. */
   simulateInput(data: string): void;
+  // Scroll APIs
+  scrollLines: ReturnType<typeof vi.fn>;
+  scrollToBottom: ReturnType<typeof vi.fn>;
+  // Selection APIs
+  select: ReturnType<typeof vi.fn>;
+  selectAll: ReturnType<typeof vi.fn>;
+  getSelection: ReturnType<typeof vi.fn>;
+  getSelectionPosition: ReturnType<typeof vi.fn>;
+  clearSelection: ReturnType<typeof vi.fn>;
+  // Focus
+  focus: ReturnType<typeof vi.fn>;
+  // Buffer
+  buffer: {
+    active: {
+      viewportY: number;
+      baseY: number;
+      length: number;
+      getLine: ReturnType<typeof vi.fn>;
+    };
+  };
 }
 
 /**
  * Creates a minimal xterm Terminal mock with controllable I/O.
  * Captures all write() calls and exposes simulateInput() to fire
- * onData callbacks.
+ * onData callbacks. Includes scroll, selection, and buffer APIs
+ * needed by useTerminalTouch.
  */
 export function createMockTerminal(): MockTerminal {
   const written: string[] = [];
   const dataCallbacks: ((data: string) => void)[] = [];
+  const mockLine: MockTerminalLine = {
+    translateToString: vi.fn().mockReturnValue("hello world test line"),
+  };
   return {
     cols: 80,
     rows: 24,
@@ -128,6 +156,22 @@ export function createMockTerminal(): MockTerminal {
     written,
     simulateInput(data: string) {
       for (const cb of dataCallbacks) cb(data);
+    },
+    scrollLines: vi.fn(),
+    scrollToBottom: vi.fn(),
+    select: vi.fn(),
+    selectAll: vi.fn(),
+    getSelection: vi.fn().mockReturnValue(""),
+    getSelectionPosition: vi.fn().mockReturnValue(undefined),
+    clearSelection: vi.fn(),
+    focus: vi.fn(),
+    buffer: {
+      active: {
+        viewportY: 0,
+        baseY: 0,
+        length: 24,
+        getLine: vi.fn().mockReturnValue(mockLine),
+      },
     },
   };
 }

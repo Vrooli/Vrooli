@@ -84,6 +84,28 @@ export const MIN_COLUMN_PX = 240;
 export const MIN_ROW_PX = 200;
 
 // ---------------------------------------------------------------------------
+// Touch Gestures
+// ---------------------------------------------------------------------------
+
+/** Pixels of movement before a touch is classified as drag vs tap. */
+export const TOUCH_MOVE_THRESHOLD_PX = 8;
+
+/** Milliseconds to hold before entering text-selection mode. */
+export const TOUCH_LONG_PRESS_MS = 500;
+
+/** Maximum touch duration (ms) that still counts as a tap. */
+export const TOUCH_TAP_MAX_MS = 300;
+
+/** Maximum gap (ms) between taps for a double-tap. */
+export const TOUCH_DOUBLE_TAP_MS = 300;
+
+/** Per-frame velocity multiplier for momentum scroll (0–1). */
+export const TOUCH_SCROLL_DECEL = 0.95;
+
+/** Minimum velocity (px/frame) below which momentum scroll stops. */
+export const TOUCH_SCROLL_MIN_VELOCITY = 0.5;
+
+// ---------------------------------------------------------------------------
 // Terminal Header Colors
 // ---------------------------------------------------------------------------
 
