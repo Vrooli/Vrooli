@@ -1,0 +1,43 @@
+{
+  "archiveReason": "scenario deleted with archive=true",
+  "archivedAt": "2026-02-20T13:44:16Z",
+  "archivedBy": "matthalloran8",
+  "created": "2026-02-20T13:44:16Z",
+  "description": "Central UI for designing, previewing, editing, and tracking shared React UI components with AI-powered live editing and multi-viewport emulation",
+  "name": "react-component-library-archived",
+  "preservePresetOrCustom": "custom",
+  "preservedFiles": [
+    "PRD.md",
+    "README.md",
+    "docs/PROBLEMS.md",
+    "docs/PROGRESS.md",
+    "docs/RESEARCH.md",
+    "requirements/01-component-registry/module.json",
+    "requirements/02-code-editor-preview/module.json",
+    "requirements/03-multi-viewport-emulator/module.json",
+    "requirements/04-element-selection/module.json",
+    "requirements/05-ai-editing/module.json",
+    "requirements/06-search-filtering/module.json",
+    "requirements/07-adoption-workflow/module.json",
+    "requirements/08-version-tracking/module.json",
+    "requirements/README.md",
+    "requirements/index.json"
+  ],
+  "priority": 5,
+  "sourceScenarioName": "react-component-library",
+  "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library",
+  "status": "archived",
+  "tags": [
+    "react-ui",
+    "go-api",
+    "component-library",
+    "ui-designer",
+    "preview-emulator",
+    "ai-editing",
+    "iframe-bridge",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] react-component-library",
+  "updated": "2026-02-20T13:44:16Z"
+}

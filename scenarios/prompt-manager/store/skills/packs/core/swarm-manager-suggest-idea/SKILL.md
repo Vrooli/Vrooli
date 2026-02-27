@@ -25,9 +25,11 @@ Propose thoughtful improvements, alternative approaches, and enhancements that c
 
 **Primary output**: `suggest/suggestions.json` (see `swarm-manager-backlog-tools` for full schema)
 
-Write output via CLI:
+Write output via CLI using `--stdin` with a heredoc (avoids shell quoting issues with apostrophes):
 ```bash
-swarm-manager backlog file-upload --kind <kind> --name <name> --path suggest/suggestions.json --content '<content>'
+swarm-manager backlog file-upload --kind <kind> --name <name> --path suggest/suggestions.json --stdin <<'EOF'
+<json content>
+EOF
 ```
 
 ### Categories
@@ -134,9 +136,12 @@ You are suggesting improvements for a Swarm Manager backlog item. Your goal is t
 
 6. **Write output**
 
-   Write the suggestions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
+   Write the suggestions file via CLI (see `swarm-manager-backlog-tools` for the full schema).
+   **IMPORTANT:** Use `--stdin` with a heredoc to avoid shell quoting issues (apostrophes in text break `--content '...'`):
    ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path suggest/suggestions.json --content '<json content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path suggest/suggestions.json --stdin <<'EOF'
+   <json content>
+   EOF
    ```
 
 7. **Verify**

@@ -226,9 +226,15 @@ swarm-manager backlog file-get --kind <kind> --name <name> --path <relative-path
 ```
 
 ### Upload a file
+Use `--stdin` with a heredoc to avoid shell quoting issues (apostrophes in text break `--content '...'`):
 ```bash
-swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --content '<content>'
-# Example: swarm-manager backlog file-upload --kind idea --name my-feature --path clarify/questions.json --content '{"questions":[]}'
+swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --stdin <<'EOF'
+<content>
+EOF
+# Example:
+swarm-manager backlog file-upload --kind idea --name my-feature --path clarify/questions.json --stdin <<'EOF'
+{"questions":[]}
+EOF
 ```
 
 ## Mutation Rules

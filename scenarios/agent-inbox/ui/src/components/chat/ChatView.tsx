@@ -563,10 +563,12 @@ export function ChatView({
         onClose={() => {
           setShowAgentStartModal(false);
           setPendingAgentMessage("");
+          setAgentError(null);
         }}
         onStart={handleStartAgent}
         defaultSettings={agentSettings}
         isLoading={isStartingAgent}
+        error={agentError}
       />
 
       {/* Attach run modal */}

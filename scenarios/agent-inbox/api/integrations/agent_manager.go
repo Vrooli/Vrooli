@@ -106,12 +106,44 @@ func getAgentManagerURL() (string, error) {
 	// Fall back to port discovery via CLI
 	cmd := exec.Command("vrooli", "scenario", "port", "agent-manager", "API_PORT")
 	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("agent-manager not available: %w", err)
+	if err == nil {
+		port := strings.TrimSpace(string(output))
+		if port != "" {
+			return fmt.Sprintf("http://localhost:%s", port), nil
+		}
 	}
 
-	port := strings.TrimSpace(string(output))
-	return fmt.Sprintf("http://localhost:%s", port), nil
+	// Fall back to reading agent-manager's service.json for a static port
+	port, jsonErr := readAgentManagerPortFromServiceJSON()
+	if jsonErr == nil && port != "" {
+		return fmt.Sprintf("http://localhost:%s", port), nil
+	}
+
+	return "", fmt.Errorf("agent-manager not available: CLI discovery failed (%w), service.json fallback failed (%v)", err, jsonErr)
+}
+
+// readAgentManagerPortFromServiceJSON reads the API port from agent-manager's service.json.
+func readAgentManagerPortFromServiceJSON() (string, error) {
+	root := os.Getenv("VROOLI_ROOT")
+	if root == "" {
+		return "", fmt.Errorf("VROOLI_ROOT not set")
+	}
+	data, err := os.ReadFile(root + "/scenarios/agent-manager/.vrooli/service.json")
+	if err != nil {
+		return "", fmt.Errorf("read service.json: %w", err)
+	}
+	var svc struct {
+		Ports map[string]struct {
+			Port int `json:"port"`
+		} `json:"ports"`
+	}
+	if err := json.Unmarshal(data, &svc); err != nil {
+		return "", fmt.Errorf("parse service.json: %w", err)
+	}
+	if api, ok := svc.Ports["api"]; ok && api.Port > 0 {
+		return fmt.Sprintf("%d", api.Port), nil
+	}
+	return "", fmt.Errorf("no api port in service.json")
 }
 
 // reResolveURL attempts to re-discover the agent-manager URL.

@@ -794,6 +794,91 @@ export async function getRunEvents(runId: string, opts?: {
 }
 
 // ============================================================================
+// Task & Run Creation (Chat)
+// ============================================================================
+
+export interface TaskDetails {
+  id: string
+  title: string
+  description: string
+  scopePath: string
+  projectRoot?: string
+}
+
+/**
+ * Create a task for agent execution.
+ */
+export async function createTask(opts: {
+  title: string
+  description: string
+  scopePath: string
+  projectRoot?: string
+}): Promise<TaskDetails> {
+  const raw = await apiRequest<{ task: { id: string; title: string; description: string; scope_path: string; project_root?: string } }>(
+    '/tasks',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        task: {
+          title: opts.title,
+          description: opts.description,
+          scope_path: opts.scopePath,
+          project_root: opts.projectRoot,
+        },
+      }),
+    }
+  )
+  const t = raw.task
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    scopePath: t.scope_path,
+    projectRoot: t.project_root,
+  }
+}
+
+/**
+ * Create a run for a task.
+ */
+export async function createRun(opts: {
+  taskId: string
+  profileKey?: string
+}): Promise<RunDetails> {
+  const body: Record<string, unknown> = { task_id: opts.taskId }
+  if (opts.profileKey) {
+    body.profile_ref = { profile_key: opts.profileKey }
+  }
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } } }>(
+    '/runs',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  )
+  const r = raw.run
+  return {
+    id: r.id,
+    taskId: r.task_id,
+    profileId: r.agent_profile_id,
+    status: normalizeRunStatus(r.status),
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    error: r.error_msg,
+    tag: r.tag,
+    sessionId: r.session_id,
+    actions: r.actions ? {
+      canInvestigate: r.actions.can_investigate ?? false,
+      canApplyInvestigation: r.actions.can_apply_investigation ?? false,
+      canDelete: r.actions.can_delete ?? false,
+      canStop: r.actions.can_stop ?? false,
+      canRetry: r.actions.can_retry ?? false,
+      canContinue: r.actions.can_continue ?? false,
+    } : undefined,
+  }
+}
+
+// ============================================================================
 // Schedule Presets
 // ============================================================================
 

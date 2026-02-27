@@ -1308,6 +1308,52 @@ func (h *Handlers) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Re
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
 }
 
+// CreateTask handles POST /tasks - creates a task via agent-manager.
+func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req CreateTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	task, err := h.agentClient.CreateTask(r.Context(), req.Task)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"task": task})
+}
+
+// CreateRun handles POST /runs - creates a run via agent-manager.
+func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
+	if h.agentClient == nil {
+		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req CreateRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	run, err := h.agentClient.CreateRun(r.Context(), &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+}
+
 // GetTeamExecutionStatus handles GET /teams/{id}/execution-status - returns team execution queue state.
 func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

@@ -136,7 +136,7 @@ export function OperationalTargetsPanel({
   return (
     <div className="space-y-4">
       {hasTargets && (
-        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+        <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
           <div className="space-y-4">
             <button
               type="button"
@@ -215,7 +215,7 @@ export function OperationalTargetsPanel({
       )}
 
       {hasRequirements && (
-        <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+        <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
           <div className="space-y-3">
             <button
               type="button"

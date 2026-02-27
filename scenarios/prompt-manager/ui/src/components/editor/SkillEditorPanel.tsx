@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -44,6 +44,7 @@ import { DraftToggle } from '../shared/DraftToggle'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
+import { StartChatDialog } from '../chat/StartChatDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
 import { useIsCompactHeader } from '@/hooks/useMediaQuery'
@@ -137,6 +138,7 @@ export function SkillEditorPanel({
   className,
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+  const [showChatDialog, setShowChatDialog] = useState(false)
   const isCompactHeader = useIsCompactHeader()
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
@@ -349,6 +351,17 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
 
+            {/* Start agent chat */}
+            <button
+              type="button"
+              onClick={() => setShowChatDialog(true)}
+              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label="Start agent chat"
+              title="Start agent chat with this skill"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </button>
+
             {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
             <FilePathMenu
               file={formState.file}
@@ -387,6 +400,16 @@ export function SkillEditorPanel({
             className="h-full"
           />
         </div>
+
+        {/* Agent chat dialog */}
+        {currentSkill && (
+          <StartChatDialog
+            isOpen={showChatDialog}
+            onClose={() => setShowChatDialog(false)}
+            initialSkill={currentSkill}
+            allSkills={allSkills}
+          />
+        )}
       </div>
     </div>
   )

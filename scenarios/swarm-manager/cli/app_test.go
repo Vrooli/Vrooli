@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -955,5 +957,110 @@ func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
 	}
 	if !policyRequested {
 		t.Fatal("expected execution policy endpoint to be requested when --mode is unset")
+	}
+}
+
+// Regression test: content with apostrophes must survive --stdin upload.
+// Previously, agents used --content '...' which broke on apostrophes because
+// bash interpreted them as end-of-string. The --stdin flag reads from stdin
+// to avoid shell quoting entirely.
+func TestCmdBacklogFileUploadStdinPreservesApostrophes(t *testing.T) {
+	// Content that would be truncated by --content '...' due to the apostrophe
+	content := `{"title":"Design the registry as a reusable capability for any scenario's UI components","status":"pending"}`
+
+	var received string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/backlog/idea/test-item/files" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+
+		// Parse multipart to extract uploaded content
+		contentType := r.Header.Get("Content-Type")
+		_, params, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			t.Fatalf("parse content-type: %v", err)
+		}
+		mr := multipart.NewReader(r.Body, params["boundary"])
+		for {
+			part, err := mr.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read multipart part: %v", err)
+			}
+			if part.FormName() == "file" {
+				data, err := io.ReadAll(part)
+				if err != nil {
+					t.Fatalf("read file part: %v", err)
+				}
+				received = string(data)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		// Size field uses json:",string" tag so must be quoted in JSON
+		_, _ = w.Write([]byte(`{"file":{"path":"suggest/suggestions.json","name":"suggestions.json","size":"104"}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
+
+	// Replace stdin with a pipe containing our content
+	origStdin := os.Stdin
+	defer func() { os.Stdin = origStdin }()
+
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	go func() {
+		_, _ = pw.WriteString(content)
+		pw.Close()
+	}()
+	os.Stdin = pr
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogFileUpload([]string{
+		"--kind", "idea",
+		"--name", "test-item",
+		"--path", "suggest/suggestions.json",
+		"--stdin",
+	})
+	if err != nil {
+		t.Fatalf("cmdBacklogFileUpload --stdin returned error: %v", err)
+	}
+
+	if received != content {
+		t.Fatalf("apostrophe lost in upload!\n  expected: %s\n  received: %s", content, received)
+	}
+}
+
+func TestCmdBacklogFileUploadStdinConflictsWithContent(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogFileUpload([]string{
+		"--kind", "idea",
+		"--name", "test-item",
+		"--path", "test.json",
+		"--stdin",
+		"--content", "hello",
+	})
+	if err == nil {
+		t.Fatal("expected error when --stdin combined with --content")
+	}
+	if !strings.Contains(err.Error(), "--stdin cannot be combined") {
+		t.Fatalf("unexpected error message: %v", err)
 	}
 }

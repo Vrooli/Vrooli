@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Bot, FolderOpen, Cpu, Zap, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { X, Bot, FolderOpen, Cpu, Zap, CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react";
 import type { RunnerType } from "../../lib/api";
 import type { AgentModeSettings } from "../../hooks/useAgentSettings";
 import { usePathValidation } from "../../hooks/usePathValidation";
@@ -15,6 +15,8 @@ interface AgentStartModalProps {
   defaultSettings: AgentModeSettings;
   /** Whether the start action is in progress */
   isLoading?: boolean;
+  /** Error from a failed start attempt */
+  error?: { message: string; recovery?: string } | null;
 }
 
 export interface AgentStartConfig {
@@ -51,7 +53,8 @@ export function AgentStartModal({
   onClose,
   onStart,
   defaultSettings,
-  isLoading = false
+  isLoading = false,
+  error = null
 }: AgentStartModalProps) {
   const [runnerType, setRunnerType] = useState<RunnerType>(defaultSettings.defaultRunner);
   const [projectPath, setProjectPath] = useState(defaultSettings.defaultProjectPath);
@@ -244,6 +247,19 @@ export function AgentStartModal({
             </div>
           </details>
         </form>
+
+        {/* Error display */}
+        {error && (
+          <div className="mx-6 mb-2 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+            <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="text-red-400">{error.message}</p>
+              {error.recovery && (
+                <p className="text-zinc-400 mt-1 text-xs">{error.recovery}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-zinc-700">

@@ -232,6 +232,7 @@ export function BacklogDetailsPage() {
   const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
+  const [agentRunExpanded, setAgentRunExpanded] = useState(true);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [queueBlockedResult, setQueueBlockedResult] = useState<QueueResponse | null>(null);
@@ -1119,7 +1120,7 @@ export function BacklogDetailsPage() {
   }, []);
 
   const detailsPanel = item ? (
-    <Card className="rounded-lg border-slate-700/60 bg-slate-900/45">
+    <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
       <div className="space-y-4">
         <button
           type="button"
@@ -1433,52 +1434,55 @@ export function BacklogDetailsPage() {
           )}
         </Card>
       )}
-      <Card padding="sm" className="space-y-3 rounded-lg border-slate-700/60 bg-slate-900/45">
-        <div className="space-y-1 border-b border-slate-800 pb-2">
-          <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-            <Sparkles className="h-4 w-4 text-slate-400" />
-            Actions
-          </p>
-          <p className="text-sm text-slate-400">Run agents, queue work, and manage this backlog item.</p>
-        </div>
-        {renderActionButtons(false)}
-      </Card>
       {latestAgentRun && (
-        <Card padding="sm" className="space-y-2 rounded-lg border-cyan-500/30 bg-cyan-500/10">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-slate-100">Last Agent Run</p>
+        <Card padding="sm" className="rounded-lg border-cyan-500/30 bg-cyan-500/10">
+          <button
+            type="button"
+            onClick={() => setAgentRunExpanded(!agentRunExpanded)}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            {agentRunExpanded ? (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            )}
+            <span className="flex-1 text-sm font-semibold text-slate-100">Last Agent Run</span>
             <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-xs text-cyan-200">
               {latestAgentRun.status.replace("_", " ")}
             </span>
-          </div>
-          <p className="font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
-          <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
-          <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
-          {latestAgentRun.errorMessage ? (
-            <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
-              {latestAgentRun.errorMessage}
-            </p>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void refreshRun(latestAgentRun.runId)}
-            >
-              Refresh
-            </Button>
-            {latestAgentRun.active && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void stopRun(latestAgentRun.runId)}
-                disabled={latestAgentRun.isStopping}
-              >
-                <Square className="mr-2 h-3.5 w-3.5" />
-                {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
-              </Button>
-            )}
-          </div>
+          </button>
+          {agentRunExpanded && (
+            <div className="mt-2 space-y-2">
+              <p className="font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
+              <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
+              <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
+              {latestAgentRun.errorMessage ? (
+                <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+                  {latestAgentRun.errorMessage}
+                </p>
+              ) : null}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshRun(latestAgentRun.runId)}
+                >
+                  Refresh
+                </Button>
+                {latestAgentRun.active && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void stopRun(latestAgentRun.runId)}
+                    disabled={latestAgentRun.isStopping}
+                  >
+                    <Square className="mr-2 h-3.5 w-3.5" />
+                    {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </Card>
       )}
       {detailsPanel}
@@ -1561,17 +1565,15 @@ export function BacklogDetailsPage() {
                   </>
                 )}
               </Button>
-              {mobileView === "files" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
-                  onClick={() => setShowActionsSheet(true)}
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
+                onClick={() => setShowActionsSheet(true)}
+                aria-label="More actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
             </div>
             {mobileView === "info" ? mobileInfoView : fileWorkspace}
           </div>

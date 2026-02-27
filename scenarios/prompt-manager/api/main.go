@@ -450,6 +450,8 @@ func main() {
 	}()
 
 	// Heartbeat routes - static paths before parameterized
+	v1.HandleFunc("/tasks", heartbeatHandlers.CreateTask).Methods("POST")
+	v1.HandleFunc("/runs", heartbeatHandlers.CreateRun).Methods("POST")
 	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
 	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
 	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")

@@ -1,6 +1,6 @@
 // DOC: docs/guides/idea-agent-workflow.md#phase-1-clarify
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquareText } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquareText } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { ClarifyQuestionList } from "./clarify-question-list";
@@ -46,6 +46,7 @@ export function IdeaClarifyPanel({
 }: IdeaClarifyPanelProps) {
   const [localQuestions, setLocalQuestions] = useState<IdeaClarificationQuestion[]>(questions);
   const [nextMode, setNextMode] = useState<NextAction>("none");
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
     setLocalQuestions(questions);
@@ -58,9 +59,10 @@ export function IdeaClarifyPanel({
     [nextMode],
   );
 
-  if (parseError) {
+  // If parsing failed completely with no recovered items, show error-only card
+  if (parseError && !hasQuestions) {
     return (
-      <Card padding="lg" data-testid={selectors.backlogDetails.clarifyPanel}>
+      <Card padding="sm" data-testid={selectors.backlogDetails.clarifyPanel}>
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <MessageSquareText className="h-4 w-4 text-cyan-400" />
           Clarify Questions
@@ -78,83 +80,99 @@ export function IdeaClarifyPanel({
       : `Save Answers & Run ${nextMode === "suggest" ? "Suggest" : "Enhance"}`;
 
   return (
-    <Card padding="lg" data-testid={selectors.backlogDetails.clarifyPanel}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-            <MessageSquareText className="h-4 w-4 text-cyan-400" />
-            Clarify Questions
-          </div>
-          <p className="mt-2 text-sm text-slate-400">
-            Answer the agent's questions below. Your responses will be saved back into {filePath}.
-          </p>
-        </div>
+    <Card padding="sm" data-testid={selectors.backlogDetails.clarifyPanel}>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 border-b border-slate-800 pb-2 text-left"
+      >
+        {expanded ? (
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-slate-400" />
+        )}
+        <MessageSquareText className="h-4 w-4 text-cyan-400" />
+        <span className="flex-1 text-sm font-medium text-slate-200">Clarify Questions</span>
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
           {localQuestions.length} question{localQuestions.length === 1 ? "" : "s"}
         </span>
-      </div>
+      </button>
 
-      {!hasQuestions && (
-        <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/40 p-4 text-sm text-slate-400">
-          No questions found yet. If the agent is still running, refresh the file list once it finishes.
-        </div>
-      )}
+      {expanded && (
+        <>
+          <p className="mt-3 text-sm text-slate-400">
+            Answer the agent's questions below. Your responses will be saved back into {filePath}.
+          </p>
 
-      {hasQuestions && (
-        <div className="mt-4">
-          <ClarifyQuestionList
-            questions={localQuestions}
-            onChange={setLocalQuestions}
-            testIdPrefix="clarify"
-          />
-        </div>
-      )}
+          {parseError && (
+            <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-300">
+              {parseError}
+            </div>
+          )}
 
-      <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/50 p-4">
-        <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
-          What happens next?
-        </label>
-        <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
-          {NEXT_ACTION_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setNextMode(option.value)}
-              data-testid={option.value === "none" ? selectors.backlogDetails.clarifyNextModeNone : undefined}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                nextMode === option.value
-                  ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/50"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }`}
+          {!hasQuestions && (
+            <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/40 p-4 text-sm text-slate-400">
+              No questions found yet. If the agent is still running, refresh the file list once it finishes.
+            </div>
+          )}
+
+          {hasQuestions && (
+            <div className="mt-4">
+              <ClarifyQuestionList
+                questions={localQuestions}
+                onChange={setLocalQuestions}
+                testIdPrefix="clarify"
+              />
+            </div>
+          )}
+
+          <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/50 p-4">
+            <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
+              What happens next?
+            </label>
+            <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
+              {NEXT_ACTION_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setNextMode(option.value)}
+                  data-testid={option.value === "none" ? selectors.backlogDetails.clarifyNextModeNone : undefined}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    nextMode === option.value
+                      ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/50"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {selectionHelper && <p className="mt-2 text-xs text-slate-400">{selectionHelper}</p>}
+          </div>
+
+          {hasUnanswered && hasQuestions && nextMode !== "none" && (
+            <div className="mt-3 text-xs text-slate-400">
+              Answer each question before running an agent.
+            </div>
+          )}
+
+          {submitError && (
+            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {submitError}
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={() => onSubmit({ questions: localQuestions, nextMode })}
+              disabled={isSubmitting || !hasQuestions || (hasUnanswered && nextMode !== "none")}
+              data-testid={selectors.backlogDetails.clarifySubmit}
             >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        {selectionHelper && <p className="mt-2 text-xs text-slate-400">{selectionHelper}</p>}
-      </div>
-
-      {hasUnanswered && hasQuestions && nextMode !== "none" && (
-        <div className="mt-3 text-xs text-slate-400">
-          Answer each question before running an agent.
-        </div>
+              {submitLabel}
+            </Button>
+          </div>
+        </>
       )}
-
-      {submitError && (
-        <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {submitError}
-        </div>
-      )}
-
-      <div className="mt-4 flex justify-end">
-        <Button
-          onClick={() => onSubmit({ questions: localQuestions, nextMode })}
-          disabled={isSubmitting || !hasQuestions || (hasUnanswered && nextMode !== "none")}
-          data-testid={selectors.backlogDetails.clarifySubmit}
-        >
-          {submitLabel}
-        </Button>
-      </div>
     </Card>
   );
 }

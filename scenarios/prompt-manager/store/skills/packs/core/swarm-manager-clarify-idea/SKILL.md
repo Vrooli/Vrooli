@@ -25,9 +25,11 @@ Generate targeted clarifying questions to reduce ambiguity, uncover hidden requi
 
 **Primary output**: `clarify/questions.json` (see `swarm-manager-backlog-tools` for full schema)
 
-Write output via CLI:
+Write output via CLI using `--stdin` with a heredoc (avoids shell quoting issues with apostrophes):
 ```bash
-swarm-manager backlog file-upload --kind <kind> --name <name> --path clarify/questions.json --content '<content>'
+swarm-manager backlog file-upload --kind <kind> --name <name> --path clarify/questions.json --stdin <<'EOF'
+<json content>
+EOF
 ```
 
 ### Categories
@@ -118,9 +120,12 @@ You are generating clarifying questions for a Swarm Manager backlog item. Your g
 
 5. **Write output**
 
-   Write the questions file via CLI (see `swarm-manager-backlog-tools` for the full schema):
+   Write the questions file via CLI (see `swarm-manager-backlog-tools` for the full schema).
+   **IMPORTANT:** Use `--stdin` with a heredoc to avoid shell quoting issues:
    ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path clarify/questions.json --content '<json content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path clarify/questions.json --stdin <<'EOF'
+   <json content>
+   EOF
    ```
 
 6. **Verify**

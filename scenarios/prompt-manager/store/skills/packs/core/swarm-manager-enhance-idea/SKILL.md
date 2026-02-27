@@ -35,9 +35,11 @@ Synthesize clarifications, accepted suggestions, research findings, and archive 
 **Conditional outputs** (when relevant materials exist in archive or research):
 5. `enhance/doc-outlines.md` — Outlines for scenario documentation (README sections, RESEARCH findings, PROBLEMS entries)
 
-Write all outputs via CLI:
+Write all outputs via CLI using `--stdin` with a heredoc (avoids shell quoting issues with apostrophes):
 ```bash
-swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --content '<content>'
+swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --stdin <<'EOF'
+<content>
+EOF
 ```
 
 ### The Staging Role of `enhance/`
@@ -178,14 +180,23 @@ You are creating the enhanced specification for a Swarm Manager backlog item. Yo
 
 6. **Write all outputs**
 
+   **IMPORTANT:** Use `--stdin` with a heredoc to avoid shell quoting issues:
    ```bash
    # Primary plan
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/summary.md --content '<content>'
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/summary.md --stdin <<'EOF'
+   <content>
+   EOF
 
    # Staging artifacts
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md --content '<content>'
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/requirements-context.md --content '<content>'  # if applicable
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/doc-outlines.md --content '<content>'  # if applicable
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md --stdin <<'EOF'
+   <content>
+   EOF
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/requirements-context.md --stdin <<'EOF'
+   <content>
+   EOF
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/doc-outlines.md --stdin <<'EOF'
+   <content>
+   EOF
 
    # Update spec.json if enhanced description differs significantly
    swarm-manager backlog update --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --data '{"enhanced_description": "...", "enhanced_at": "ISO-8601"}'

@@ -688,24 +688,37 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 	nameFlag := fs.String("name", "", "Backlog item name")
 	serverPath := fs.String("path", "", "Full server-side destination path (e.g. clarify/questions.json)")
 	localFile := fs.String("file", "", "Local file path to upload")
-	contentStr := fs.String("content", "", "Inline content string to upload")
+	contentStr := fs.String("content", "", "Inline content string to upload (⚠️  prefer --stdin to avoid shell quoting issues)")
+	stdinFlag := fs.Bool("stdin", false, "Read content from stdin (safest for content with special characters)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH (--stdin|--file FILE|--content CONTENT) [--json]\n\n%s", err)
 	}
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 	fileStr := strings.TrimSpace(*localFile)
 	contentVal := *contentStr
 
+	// Read from stdin if --stdin is set
+	if *stdinFlag {
+		if fileStr != "" || contentVal != "" {
+			return fmt.Errorf("--stdin cannot be combined with --file or --content")
+		}
+		stdinBytes, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("read stdin: %w", err)
+		}
+		contentVal = string(stdinBytes)
+	}
+
 	if fileStr == "" && contentVal == "" {
-		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\neither --file or --content is required")
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH (--stdin|--file FILE|--content CONTENT) [--json]\n\neither --stdin, --file, or --content is required")
 	}
 	if fileStr != "" && contentVal != "" {
-		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH --file FILE|--content CONTENT [--json]\n\n--file and --content are mutually exclusive")
+		return fmt.Errorf("usage: backlog file-upload --kind KIND --name NAME --path PATH (--stdin|--file FILE|--content CONTENT) [--json]\n\n--file and --content are mutually exclusive")
 	}
 
 	sp := strings.TrimSpace(*serverPath)
