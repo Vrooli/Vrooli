@@ -284,6 +284,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements", h.CreateModuleHandler).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}", h.UpdateModuleRequirementsHandler).Methods("PUT")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}/meta", h.UpdateModuleMetaHandler).Methods("PUT")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}", h.DeleteModuleHandler).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
 }
@@ -1235,10 +1239,9 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		httputil.InternalError(w, "[backlog] queue", "failed to evaluate process preflight")
 		return
 	}
-	if !preflight.Ready {
-		// Keep evaluating feedback gates and force overrides below so callers
-		// receive one canonical queue response shape with clear next actions.
-	}
+	// When !preflight.Ready we keep evaluating feedback gates and force
+	// overrides below so callers receive one canonical queue response
+	// shape with clear next actions.
 
 	unansweredQuestions := countUnansweredQuestions(filepath.Join(h.itemDir(kind, item.Name), "clarify", "questions.json"))
 	pendingSuggestions := countPendingSuggestions(filepath.Join(h.itemDir(kind, item.Name), "suggest", "suggestions.json"))
@@ -1887,6 +1890,122 @@ func (h *Handler) GetArchiveTargets(w http.ResponseWriter, r *http.Request) {
 		"requirements": requirements,
 		"has_archive":  true,
 	})
+}
+
+// UpdateModuleRequirementsHandler replaces the requirements array in a module.
+func (h *Handler) UpdateModuleRequirementsHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "update module requirements")
+	if !ok {
+		return
+	}
+	moduleID := mux.Vars(r)["moduleId"]
+	if moduleID == "" {
+		httputil.BadRequest(w, "[backlog] update module requirements", "moduleId is required")
+		return
+	}
+
+	var body struct {
+		Requirements []json.RawMessage `json:"requirements"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] update module requirements", "invalid JSON body")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := WriteModuleRequirements(dir, moduleID, body.Requirements); err != nil {
+		httputil.InternalError(w, "[backlog] update module requirements", err.Error())
+		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
+}
+
+// CreateModuleHandler creates a new requirements module.
+func (h *Handler) CreateModuleHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "create module")
+	if !ok {
+		return
+	}
+
+	var body struct {
+		ID          string `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Position    int    `json:"position"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] create module", "invalid JSON body")
+		return
+	}
+	if body.ID == "" {
+		httputil.BadRequest(w, "[backlog] create module", "id is required")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	input := CreateModuleInput{
+		ID:          body.ID,
+		Title:       body.Title,
+		Description: body.Description,
+	}
+	if err := CreateModule(dir, input, body.Position); err != nil {
+		httputil.InternalError(w, "[backlog] create module", err.Error())
+		return
+	}
+
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{"ok": true, "id": body.ID})
+}
+
+// UpdateModuleMetaHandler updates a module's title and description.
+func (h *Handler) UpdateModuleMetaHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "update module meta")
+	if !ok {
+		return
+	}
+	moduleID := mux.Vars(r)["moduleId"]
+	if moduleID == "" {
+		httputil.BadRequest(w, "[backlog] update module meta", "moduleId is required")
+		return
+	}
+
+	var body struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] update module meta", "invalid JSON body")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := UpdateModuleMeta(dir, moduleID, body.Title, body.Description); err != nil {
+		httputil.InternalError(w, "[backlog] update module meta", err.Error())
+		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
+}
+
+// DeleteModuleHandler removes a requirements module.
+func (h *Handler) DeleteModuleHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "delete module")
+	if !ok {
+		return
+	}
+	moduleID := mux.Vars(r)["moduleId"]
+	if moduleID == "" {
+		httputil.BadRequest(w, "[backlog] delete module", "moduleId is required")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := DeleteModule(dir, moduleID); err != nil {
+		httputil.InternalError(w, "[backlog] delete module", err.Error())
+		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
 }
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.

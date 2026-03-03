@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, IdeaAgentMode, ResearchResponse } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, IdeaAgentMode, ModuleFormValues, ResearchResponse } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -129,6 +129,10 @@ export interface IBacklogService {
     payload: { targetKind: BacklogKind; targetName?: string }
   ): Promise<BacklogItem>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse>;
+  updateModuleRequirements(kind: string, name: string, moduleId: string, requirements: ArchiveRequirementRecord[]): Promise<void>;
+  createModule(kind: string, name: string, payload: ModuleFormValues & { position?: number }): Promise<void>;
+  updateModuleMeta(kind: string, name: string, moduleId: string, payload: { title: string; description: string }): Promise<void>;
+  deleteModule(kind: string, name: string, moduleId: string): Promise<void>;
   exportItems(params?: {
     kinds?: string[];
     statuses?: string[];
@@ -380,6 +384,22 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse> {
       return apiClient.get<ArchiveTargetsResponse>(API_ENDPOINTS.backlogArchiveTargets(kind, name));
+    },
+
+    async updateModuleRequirements(kind: string, name: string, moduleId: string, requirements: ArchiveRequirementRecord[]): Promise<void> {
+      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId), { requirements });
+    },
+
+    async createModule(kind: string, name: string, payload: ModuleFormValues & { position?: number }): Promise<void> {
+      await apiClient.post<void>(API_ENDPOINTS.backlogArchiveRequirements(kind, name), payload);
+    },
+
+    async updateModuleMeta(kind: string, name: string, moduleId: string, payload: { title: string; description: string }): Promise<void> {
+      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveRequirementsModuleMeta(kind, name, moduleId), payload);
+    },
+
+    async deleteModule(kind: string, name: string, moduleId: string): Promise<void> {
+      await apiClient.delete<void>(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId));
     },
 
     async exportItems(params?: {

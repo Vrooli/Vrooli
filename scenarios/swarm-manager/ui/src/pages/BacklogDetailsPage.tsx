@@ -64,6 +64,8 @@ import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { IdeaClarifyPanel } from "../components/backlog/idea-clarify-panel";
 import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-panel";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
+import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
+import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import {
   buildClarifyQuestionsContent,
   buildSuggestionsContent,
@@ -88,6 +90,8 @@ import {
   formatBacklogStatus,
 } from "../types";
 import type {
+  ArchiveRequirement,
+  ArchiveRequirementRecord,
   ArchiveTargetsResponse,
   BacklogFile,
   BacklogKind,
@@ -96,6 +100,7 @@ import type {
   IdeaAgentMode,
   IdeaClarificationQuestion,
   IdeaSuggestion,
+  ModuleFormValues,
   ResearchResponse,
 } from "../types";
 import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
@@ -236,6 +241,12 @@ export function BacklogDetailsPage() {
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [queueBlockedResult, setQueueBlockedResult] = useState<QueueResponse | null>(null);
+  const [reqDialogOpen, setReqDialogOpen] = useState(false);
+  const [reqDialogMode, setReqDialogMode] = useState<"create" | "edit">("create");
+  const [editingReq, setEditingReq] = useState<{ groupId: string; req?: ArchiveRequirementRecord } | null>(null);
+  const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
+  const [moduleDialogMode, setModuleDialogMode] = useState<"create" | "edit">("create");
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
 
   const {
     data: item,
@@ -564,6 +575,148 @@ export function BacklogDetailsPage() {
       navigate(`/backlog/${convertedItem.kind}/${convertedItem.name}`);
     },
   });
+
+  const archiveTargetsQueryKey = ["backlog", backlogKind, name, "archive-targets"];
+
+  const updateReqsMutation = useMutation({
+    mutationFn: ({ moduleId, requirements }: { moduleId: string; requirements: ArchiveRequirementRecord[] }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.updateModuleRequirements(backlogKind, name, moduleId, requirements);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const createModuleMutation = useMutation({
+    mutationFn: (payload: ModuleFormValues & { position?: number }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.createModule(backlogKind, name, payload);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const updateModuleMetaMutation = useMutation({
+    mutationFn: ({ moduleId, payload }: { moduleId: string; payload: { title: string; description: string } }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.updateModuleMeta(backlogKind, name, moduleId, payload);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const deleteModuleMutation = useMutation({
+    mutationFn: (moduleId: string) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.deleteModule(backlogKind, name, moduleId);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const handleCreateRequirement = useCallback((groupId: string) => {
+    setEditingReq({ groupId });
+    setReqDialogMode("create");
+    setReqDialogOpen(true);
+  }, []);
+
+  const handleEditRequirement = useCallback((groupId: string, requirement: ArchiveRequirement) => {
+    setEditingReq({ groupId, req: requirement as ArchiveRequirementRecord });
+    setReqDialogMode("edit");
+    setReqDialogOpen(true);
+  }, []);
+
+  const handleDeleteRequirement = useCallback((groupId: string, requirementId: string) => {
+    if (!window.confirm(`Delete requirement "${requirementId}"?`)) return;
+    if (!archiveTargets) return;
+    const findGroup = (groups: typeof archiveTargets.requirements): typeof archiveTargets.requirements[0] | undefined => {
+      for (const g of groups) {
+        if (g.id === groupId) return g;
+        const found = findGroup(g.children);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    const group = findGroup(archiveTargets.requirements);
+    if (!group) return;
+    const updated = group.requirements.filter((r) => r.id !== requirementId) as ArchiveRequirementRecord[];
+    updateReqsMutation.mutate({ moduleId: groupId, requirements: updated });
+  }, [archiveTargets, updateReqsMutation]);
+
+  const handleReorderRequirement = useCallback((groupId: string, requirementId: string, direction: "up" | "down") => {
+    if (!archiveTargets) return;
+    const findGroup = (groups: typeof archiveTargets.requirements): typeof archiveTargets.requirements[0] | undefined => {
+      for (const g of groups) {
+        if (g.id === groupId) return g;
+        const found = findGroup(g.children);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    const group = findGroup(archiveTargets.requirements);
+    if (!group) return;
+    const reqs = [...group.requirements] as ArchiveRequirementRecord[];
+    const idx = reqs.findIndex((r) => r.id === requirementId);
+    if (idx < 0) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= reqs.length) return;
+    const tmp = reqs[idx]!;
+    reqs[idx] = reqs[swapIdx]!;
+    reqs[swapIdx] = tmp;
+    updateReqsMutation.mutate({ moduleId: groupId, requirements: reqs });
+  }, [archiveTargets, updateReqsMutation]);
+
+  const handleCreateModule = useCallback(() => {
+    setEditingModuleId(null);
+    setModuleDialogMode("create");
+    setModuleDialogOpen(true);
+  }, []);
+
+  const handleEditModule = useCallback((groupId: string) => {
+    setEditingModuleId(groupId);
+    setModuleDialogMode("edit");
+    setModuleDialogOpen(true);
+  }, []);
+
+  const handleDeleteModule = useCallback((groupId: string) => {
+    if (!window.confirm(`Delete module "${groupId}" and all its requirements?`)) return;
+    deleteModuleMutation.mutate(groupId);
+  }, [deleteModuleMutation]);
+
+  const handleReqDialogSubmit = useCallback((values: ArchiveRequirementRecord) => {
+    if (!editingReq || !archiveTargets) return;
+    const { groupId } = editingReq;
+    const findGroup = (groups: typeof archiveTargets.requirements): typeof archiveTargets.requirements[0] | undefined => {
+      for (const g of groups) {
+        if (g.id === groupId) return g;
+        const found = findGroup(g.children);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    const group = findGroup(archiveTargets.requirements);
+    if (!group) return;
+    let updated: ArchiveRequirementRecord[];
+    if (reqDialogMode === "edit") {
+      updated = group.requirements.map((r) => r.id === values.id ? values : r) as ArchiveRequirementRecord[];
+    } else {
+      updated = [...group.requirements as ArchiveRequirementRecord[], values];
+    }
+    updateReqsMutation.mutate({ moduleId: groupId, requirements: updated }, {
+      onSuccess: () => { setReqDialogOpen(false); setEditingReq(null); },
+    });
+  }, [editingReq, archiveTargets, reqDialogMode, updateReqsMutation]);
+
+  const handleModuleDialogSubmit = useCallback((values: ModuleFormValues) => {
+    if (moduleDialogMode === "create") {
+      createModuleMutation.mutate(values, {
+        onSuccess: () => { setModuleDialogOpen(false); },
+      });
+    } else if (editingModuleId) {
+      updateModuleMetaMutation.mutate({
+        moduleId: editingModuleId,
+        payload: { title: values.title, description: values.description },
+      }, {
+        onSuccess: () => { setModuleDialogOpen(false); setEditingModuleId(null); },
+      });
+    }
+  }, [moduleDialogMode, editingModuleId, createModuleMutation, updateModuleMetaMutation]);
 
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
@@ -1495,6 +1648,14 @@ export function BacklogDetailsPage() {
           selectedRequirementIds={selectedRequirementIds}
           onTargetToggle={handleTargetToggle}
           onRequirementToggle={handleRequirementToggle}
+          editable
+          onCreateRequirement={handleCreateRequirement}
+          onEditRequirement={handleEditRequirement}
+          onDeleteRequirement={handleDeleteRequirement}
+          onReorderRequirement={handleReorderRequirement}
+          onCreateModule={handleCreateModule}
+          onEditModule={handleEditModule}
+          onDeleteModule={handleDeleteModule}
         />
       )}
     </div>
@@ -1795,6 +1956,14 @@ export function BacklogDetailsPage() {
               <OperationalTargetsPanel
                 targets={archiveTargets.targets}
                 requirements={archiveTargets.requirements}
+                editable
+                onCreateRequirement={handleCreateRequirement}
+                onEditRequirement={handleEditRequirement}
+                onDeleteRequirement={handleDeleteRequirement}
+                onReorderRequirement={handleReorderRequirement}
+                onCreateModule={handleCreateModule}
+                onEditModule={handleEditModule}
+                onDeleteModule={handleDeleteModule}
               />
             )}
             {fileWorkspace}
@@ -1957,6 +2126,44 @@ export function BacklogDetailsPage() {
           agentMutation.reset();
         }}
         onSubmit={(payload) => agentMutation.mutate(payload)}
+      />
+
+      <RequirementFormDialog
+        isOpen={reqDialogOpen}
+        mode={reqDialogMode}
+        initialValues={editingReq?.req}
+        isSubmitting={updateReqsMutation.isPending}
+        submitError={updateReqsMutation.error instanceof Error ? updateReqsMutation.error.message : null}
+        onClose={() => { setReqDialogOpen(false); setEditingReq(null); updateReqsMutation.reset(); }}
+        onSubmit={handleReqDialogSubmit}
+      />
+
+      <ModuleFormDialog
+        isOpen={moduleDialogOpen}
+        mode={moduleDialogMode}
+        initialValues={
+          editingModuleId && archiveTargets
+            ? (() => {
+                const findGroup = (groups: typeof archiveTargets.requirements): typeof archiveTargets.requirements[0] | undefined => {
+                  for (const g of groups) {
+                    if (g.id === editingModuleId) return g;
+                    const found = findGroup(g.children);
+                    if (found) return found;
+                  }
+                  return undefined;
+                };
+                const g = findGroup(archiveTargets.requirements);
+                return g ? { id: g.id, title: g.name, description: "" } : undefined;
+              })()
+            : undefined
+        }
+        isSubmitting={createModuleMutation.isPending || updateModuleMetaMutation.isPending}
+        submitError={
+          (createModuleMutation.error instanceof Error ? createModuleMutation.error.message : null)
+          ?? (updateModuleMetaMutation.error instanceof Error ? updateModuleMetaMutation.error.message : null)
+        }
+        onClose={() => { setModuleDialogOpen(false); setEditingModuleId(null); createModuleMutation.reset(); updateModuleMetaMutation.reset(); }}
+        onSubmit={handleModuleDialogSubmit}
       />
     </div>
   );

@@ -201,6 +201,25 @@ export interface ArchiveRequirementGroup {
   children: ArchiveRequirementGroup[];
 }
 
+export interface ArchiveRequirementRecord {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  category: string;
+  prd_ref: string;
+  criticality?: string;
+  validation?: Array<{ type: string; phase: string; status: string; ref: string }>;
+  dependencies?: string[];
+  notes?: string;
+}
+
+export interface ModuleFormValues {
+  id: string;
+  title: string;
+  description: string;
+}
+
 export interface ArchiveTargetsResponse {
   targets: ArchiveTarget[];
   requirements: ArchiveRequirementGroup[];

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Target, FileCheck, CheckCircle2, Circle } from "lucide-react";
+import { ChevronDown, ChevronRight, Target, FileCheck, CheckCircle2, Circle, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { Card } from "../ui/card";
 import type { ArchiveTarget, ArchiveRequirement, ArchiveRequirementGroup } from "../../types";
 
@@ -10,6 +10,14 @@ interface OperationalTargetsPanelProps {
   selectedRequirementIds?: Set<string>;
   onTargetToggle?: (id: string) => void;
   onRequirementToggle?: (id: string) => void;
+  editable?: boolean;
+  onCreateRequirement?: (groupId: string) => void;
+  onEditRequirement?: (groupId: string, requirement: ArchiveRequirement) => void;
+  onDeleteRequirement?: (groupId: string, requirementId: string) => void;
+  onReorderRequirement?: (groupId: string, requirementId: string, direction: "up" | "down") => void;
+  onCreateModule?: () => void;
+  onEditModule?: (groupId: string) => void;
+  onDeleteModule?: (groupId: string) => void;
 }
 
 const CRITICALITY_ORDER = ["P0", "P1", "P2"] as const;
@@ -36,40 +44,90 @@ function RequirementGroupNode({
   depth = 0,
   selectedIds,
   onToggle,
+  editable,
+  onCreateRequirement,
+  onEditRequirement,
+  onDeleteRequirement,
+  onReorderRequirement,
+  onEditModule,
+  onDeleteModule,
 }: {
   group: ArchiveRequirementGroup;
   depth?: number;
   selectedIds?: Set<string>;
   onToggle?: (id: string) => void;
+  editable?: boolean;
+  onCreateRequirement?: (groupId: string) => void;
+  onEditRequirement?: (groupId: string, requirement: ArchiveRequirement) => void;
+  onDeleteRequirement?: (groupId: string, requirementId: string) => void;
+  onReorderRequirement?: (groupId: string, requirementId: string, direction: "up" | "down") => void;
+  onEditModule?: (groupId: string) => void;
+  onDeleteModule?: (groupId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(depth === 0);
   const hasContent = group.requirements.length > 0 || group.children.length > 0;
 
-  if (!hasContent) return null;
+  if (!hasContent && !editable) return null;
 
   return (
     <div className={depth > 0 ? "ml-4 border-l border-slate-700/50 pl-3" : ""}>
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-200 hover:bg-slate-800/50"
-      >
-        {expanded ? (
-          <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-200 hover:bg-slate-800/50"
+        >
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+          )}
+          <span>{group.name}</span>
+          <span className="text-xs text-slate-500">({group.requirements.length})</span>
+        </button>
+        {editable && (
+          <div className="flex items-center gap-0.5">
+            {onCreateRequirement && (
+              <button
+                type="button"
+                onClick={() => onCreateRequirement(group.id)}
+                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
+                title="Add requirement"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onEditModule && (
+              <button
+                type="button"
+                onClick={() => onEditModule(group.id)}
+                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
+                title="Edit module"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onDeleteModule && (
+              <button
+                type="button"
+                onClick={() => onDeleteModule(group.id)}
+                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-red-400"
+                title="Delete module"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         )}
-        <span>{group.name}</span>
-        <span className="text-xs text-slate-500">({group.requirements.length})</span>
-      </button>
+      </div>
       {expanded && (
         <div className="mt-1 space-y-1">
-          {group.requirements.map((req) => {
+          {group.requirements.map((req, idx) => {
             const Wrapper = onToggle ? "label" : "div";
             return (
               <Wrapper
                 key={req.id}
-                className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30${onToggle ? " cursor-pointer" : ""}`}
+                className={`group/req flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30${onToggle ? " cursor-pointer" : ""}`}
               >
                 {onToggle ? (
                   <input
@@ -93,11 +151,68 @@ function RequirementGroupNode({
                     <p className="mt-0.5 text-xs text-slate-500">{req.description}</p>
                   )}
                 </div>
+                {editable && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover/req:opacity-100">
+                    {onEditRequirement && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); onEditRequirement(group.id, req); }}
+                        className="rounded p-1 text-slate-500 hover:text-slate-300"
+                        title="Edit requirement"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {onDeleteRequirement && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); onDeleteRequirement(group.id, req.id); }}
+                        className="rounded p-1 text-slate-500 hover:text-red-400"
+                        title="Delete requirement"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {onReorderRequirement && idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); onReorderRequirement(group.id, req.id, "up"); }}
+                        className="rounded p-1 text-slate-500 hover:text-slate-300"
+                        title="Move up"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {onReorderRequirement && idx < group.requirements.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); onReorderRequirement(group.id, req.id, "down"); }}
+                        className="rounded p-1 text-slate-500 hover:text-slate-300"
+                        title="Move down"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </Wrapper>
             );
           })}
           {group.children.map((child) => (
-            <RequirementGroupNode key={child.id} group={child} depth={depth + 1} selectedIds={selectedIds} onToggle={onToggle} />
+            <RequirementGroupNode
+              key={child.id}
+              group={child}
+              depth={depth + 1}
+              selectedIds={selectedIds}
+              onToggle={onToggle}
+              editable={editable}
+              onCreateRequirement={onCreateRequirement}
+              onEditRequirement={onEditRequirement}
+              onDeleteRequirement={onDeleteRequirement}
+              onReorderRequirement={onReorderRequirement}
+              onEditModule={onEditModule}
+              onDeleteModule={onDeleteModule}
+            />
           ))}
         </div>
       )}
@@ -112,6 +227,14 @@ export function OperationalTargetsPanel({
   selectedRequirementIds,
   onTargetToggle,
   onRequirementToggle,
+  editable = false,
+  onCreateRequirement,
+  onEditRequirement,
+  onDeleteRequirement,
+  onReorderRequirement,
+  onCreateModule,
+  onEditModule,
+  onDeleteModule,
 }: OperationalTargetsPanelProps) {
   const [targetsExpanded, setTargetsExpanded] = useState(true);
   const [requirementsExpanded, setRequirementsExpanded] = useState(true);
@@ -217,19 +340,32 @@ export function OperationalTargetsPanel({
       {hasRequirements && (
         <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
           <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setRequirementsExpanded(!requirementsExpanded)}
-              className="flex w-full items-center gap-2 border-b border-slate-800 pb-2 text-left"
-            >
-              {requirementsExpanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center border-b border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setRequirementsExpanded(!requirementsExpanded)}
+                className="flex flex-1 items-center gap-2 text-left"
+              >
+                {requirementsExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                )}
+                <FileCheck className="h-4 w-4 text-slate-400" />
+                <h2 className="text-base font-semibold text-slate-100">Requirements</h2>
+              </button>
+              {editable && onCreateModule && (
+                <button
+                  type="button"
+                  onClick={onCreateModule}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                  title="Add module"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Module</span>
+                </button>
               )}
-              <FileCheck className="h-4 w-4 text-slate-400" />
-              <h2 className="text-base font-semibold text-slate-100">Requirements</h2>
-            </button>
+            </div>
             {requirementsExpanded && (
               <div className="space-y-1">
                 {requirements.map((group) => (
@@ -238,6 +374,13 @@ export function OperationalTargetsPanel({
                     group={group}
                     selectedIds={selectedRequirementIds}
                     onToggle={onRequirementToggle}
+                    editable={editable}
+                    onCreateRequirement={onCreateRequirement}
+                    onEditRequirement={onEditRequirement}
+                    onDeleteRequirement={onDeleteRequirement}
+                    onReorderRequirement={onReorderRequirement}
+                    onEditModule={onEditModule}
+                    onDeleteModule={onDeleteModule}
                   />
                 ))}
               </div>

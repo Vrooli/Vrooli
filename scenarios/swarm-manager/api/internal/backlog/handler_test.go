@@ -48,11 +48,6 @@ type backlogQueueResponse struct {
 	PendingSuggestions  int         `json:"pending_suggestions"`
 }
 
-type backlogFileOperationResponse struct {
-	File        *BacklogFile `json:"file,omitempty"`
-	DeletedPath *string      `json:"deleted_path,omitempty"`
-}
-
 type processPreflightEnvelope struct {
 	Item      BacklogItem    `json:"item"`
 	Preflight map[string]any `json:"preflight"`
@@ -1055,7 +1050,7 @@ func TestUploadFile_ConflictWithDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
-	part.Write([]byte(`{"test":true}`))
+	_, _ = part.Write([]byte(`{"test":true}`))
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/upload-dir-test/files", &body)
