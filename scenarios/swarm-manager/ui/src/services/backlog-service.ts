@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, IdeaAgentMode, ModuleFormValues, ResearchResponse } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, IdeaAgentMode, ModuleFormValues, ResearchResponse } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -129,6 +129,9 @@ export interface IBacklogService {
     payload: { targetKind: BacklogKind; targetName?: string }
   ): Promise<BacklogItem>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse>;
+  createArchiveTarget(kind: string, name: string, target: ArchiveTargetFormValues): Promise<void>;
+  updateArchiveTarget(kind: string, name: string, targetId: string, target: ArchiveTargetFormValues): Promise<void>;
+  deleteArchiveTarget(kind: string, name: string, targetId: string): Promise<void>;
   updateModuleRequirements(kind: string, name: string, moduleId: string, requirements: ArchiveRequirementRecord[]): Promise<void>;
   createModule(kind: string, name: string, payload: ModuleFormValues & { position?: number }): Promise<void>;
   updateModuleMeta(kind: string, name: string, moduleId: string, payload: { title: string; description: string }): Promise<void>;
@@ -384,6 +387,18 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async getArchiveTargets(kind: BacklogKind, name: string): Promise<ArchiveTargetsResponse> {
       return apiClient.get<ArchiveTargetsResponse>(API_ENDPOINTS.backlogArchiveTargets(kind, name));
+    },
+
+    async createArchiveTarget(kind: string, name: string, target: ArchiveTargetFormValues): Promise<void> {
+      await apiClient.post<void>(API_ENDPOINTS.backlogArchiveTargets(kind, name), target);
+    },
+
+    async updateArchiveTarget(kind: string, name: string, targetId: string, target: ArchiveTargetFormValues): Promise<void> {
+      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId), target);
+    },
+
+    async deleteArchiveTarget(kind: string, name: string, targetId: string): Promise<void> {
+      await apiClient.delete<void>(API_ENDPOINTS.backlogArchiveTarget(kind, name, targetId));
     },
 
     async updateModuleRequirements(kind: string, name: string, moduleId: string, requirements: ArchiveRequirementRecord[]): Promise<void> {

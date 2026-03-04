@@ -284,6 +284,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.UpdateTargetHandler).Methods("PUT")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.DeleteTargetHandler).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements", h.CreateModuleHandler).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}", h.UpdateModuleRequirementsHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}/meta", h.UpdateModuleMetaHandler).Methods("PUT")
@@ -1890,6 +1893,92 @@ func (h *Handler) GetArchiveTargets(w http.ResponseWriter, r *http.Request) {
 		"requirements": requirements,
 		"has_archive":  true,
 	})
+}
+
+// CreateTargetHandler creates a new operational target in PRD.md.
+func (h *Handler) CreateTargetHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "create target")
+	if !ok {
+		return
+	}
+
+	var body ArchiveTarget
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] create target", "invalid JSON body")
+		return
+	}
+	if body.Title == "" {
+		httputil.BadRequest(w, "[backlog] create target", "title is required")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := CreateTarget(dir, body); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			httputil.BadRequest(w, "[backlog] create target", err.Error())
+			return
+		}
+		httputil.InternalError(w, "[backlog] create target", err.Error())
+		return
+	}
+
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{"ok": true})
+}
+
+// UpdateTargetHandler updates an existing operational target in PRD.md.
+func (h *Handler) UpdateTargetHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "update target")
+	if !ok {
+		return
+	}
+	targetID := mux.Vars(r)["targetId"]
+	if targetID == "" {
+		httputil.BadRequest(w, "[backlog] update target", "targetId is required")
+		return
+	}
+
+	var body ArchiveTarget
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] update target", "invalid JSON body")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := UpdateTarget(dir, targetID, body); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httputil.NotFound(w, "[backlog] update target", err.Error())
+			return
+		}
+		httputil.InternalError(w, "[backlog] update target", err.Error())
+		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
+}
+
+// DeleteTargetHandler removes an operational target from PRD.md.
+func (h *Handler) DeleteTargetHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "delete target")
+	if !ok {
+		return
+	}
+	targetID := mux.Vars(r)["targetId"]
+	if targetID == "" {
+		httputil.BadRequest(w, "[backlog] delete target", "targetId is required")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	if err := DeleteTarget(dir, targetID); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httputil.NotFound(w, "[backlog] update target", err.Error())
+			return
+		}
+		httputil.InternalError(w, "[backlog] delete target", err.Error())
+		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
 }
 
 // UpdateModuleRequirementsHandler replaces the requirements array in a module.

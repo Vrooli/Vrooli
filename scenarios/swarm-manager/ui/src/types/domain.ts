@@ -220,6 +220,15 @@ export interface ModuleFormValues {
   description: string;
 }
 
+export interface ArchiveTargetFormValues {
+  id: string;
+  criticality: string;
+  title: string;
+  notes: string;
+  status: string;
+  linked_requirement_ids: string[];
+}
+
 export interface ArchiveTargetsResponse {
   targets: ArchiveTarget[];
   requirements: ArchiveRequirementGroup[];

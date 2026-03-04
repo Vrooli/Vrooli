@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, Target, FileCheck, CheckCircle2, Circle, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, ChevronRight, Target, FileCheck, CheckCircle2, Circle, Plus, Pencil, Trash2, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react";
 import { Card } from "../ui/card";
 import type { ArchiveTarget, ArchiveRequirement, ArchiveRequirementGroup } from "../../types";
 
@@ -18,6 +18,9 @@ interface OperationalTargetsPanelProps {
   onCreateModule?: () => void;
   onEditModule?: (groupId: string) => void;
   onDeleteModule?: (groupId: string) => void;
+  onCreateTarget?: () => void;
+  onEditTarget?: (target: ArchiveTarget) => void;
+  onDeleteTarget?: (targetId: string) => void;
 }
 
 const CRITICALITY_ORDER = ["P0", "P1", "P2"] as const;
@@ -37,6 +40,76 @@ function StatusIcon({ status }: { status: string }) {
     return <CheckCircle2 className="h-4 w-4 text-green-400" />;
   }
   return <Circle className="h-4 w-4 text-slate-500" />;
+}
+
+interface ActionsMenuItem {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  destructive?: boolean;
+}
+
+function ActionsMenu({ items }: { items: ActionsMenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Desktop: inline icon buttons */}
+      <div className="hidden items-center gap-0.5 sm:flex">
+        {items.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={(e) => { e.preventDefault(); item.onClick(); }}
+            className={`rounded p-1 text-slate-500 ${item.destructive ? "hover:text-red-400" : "hover:text-slate-300"}`}
+            title={item.label}
+          >
+            {item.icon}
+          </button>
+        ))}
+      </div>
+      {/* Mobile: ellipsis dropdown */}
+      <div className="sm:hidden">
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); setOpen(!open); }}
+          className="rounded p-1 text-slate-500 hover:text-slate-300"
+          title="Actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        {open && (
+          <div className="absolute right-0 z-10 mt-1 min-w-[160px] rounded-md border border-slate-700 bg-slate-900 py-1 shadow-md">
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={(e) => { e.preventDefault(); item.onClick(); setOpen(false); }}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${item.destructive ? "text-red-400 hover:bg-red-500/10" : "text-slate-300 hover:bg-slate-800"}`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function RequirementGroupNode({
@@ -69,6 +142,30 @@ function RequirementGroupNode({
 
   if (!hasContent && !editable) return null;
 
+  const moduleActions: ActionsMenuItem[] = [];
+  if (onCreateRequirement) {
+    moduleActions.push({
+      label: "Add Requirement",
+      icon: <Plus className="h-3.5 w-3.5" />,
+      onClick: () => onCreateRequirement(group.id),
+    });
+  }
+  if (onEditModule) {
+    moduleActions.push({
+      label: "Edit Module",
+      icon: <Pencil className="h-3.5 w-3.5" />,
+      onClick: () => onEditModule(group.id),
+    });
+  }
+  if (onDeleteModule) {
+    moduleActions.push({
+      label: "Delete Module",
+      icon: <Trash2 className="h-3.5 w-3.5" />,
+      onClick: () => onDeleteModule(group.id),
+      destructive: true,
+    });
+  }
+
   return (
     <div className={depth > 0 ? "ml-4 border-l border-slate-700/50 pl-3" : ""}>
       <div className="flex items-center gap-1">
@@ -85,44 +182,42 @@ function RequirementGroupNode({
           <span>{group.name}</span>
           <span className="text-xs text-slate-500">({group.requirements.length})</span>
         </button>
-        {editable && (
-          <div className="flex items-center gap-0.5">
-            {onCreateRequirement && (
-              <button
-                type="button"
-                onClick={() => onCreateRequirement(group.id)}
-                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
-                title="Add requirement"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            )}
-            {onEditModule && (
-              <button
-                type="button"
-                onClick={() => onEditModule(group.id)}
-                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
-                title="Edit module"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
-            {onDeleteModule && (
-              <button
-                type="button"
-                onClick={() => onDeleteModule(group.id)}
-                className="rounded p-1 text-slate-500 hover:bg-slate-800/50 hover:text-red-400"
-                title="Delete module"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        )}
+        {editable && <ActionsMenu items={moduleActions} />}
       </div>
       {expanded && (
         <div className="mt-1 space-y-1">
           {group.requirements.map((req, idx) => {
+            const reqActions: ActionsMenuItem[] = [];
+            if (onEditRequirement) {
+              reqActions.push({
+                label: "Edit",
+                icon: <Pencil className="h-3.5 w-3.5" />,
+                onClick: () => onEditRequirement(group.id, req),
+              });
+            }
+            if (onDeleteRequirement) {
+              reqActions.push({
+                label: "Delete",
+                icon: <Trash2 className="h-3.5 w-3.5" />,
+                onClick: () => onDeleteRequirement(group.id, req.id),
+                destructive: true,
+              });
+            }
+            if (onReorderRequirement && idx > 0) {
+              reqActions.push({
+                label: "Move Up",
+                icon: <ArrowUp className="h-3.5 w-3.5" />,
+                onClick: () => onReorderRequirement(group.id, req.id, "up"),
+              });
+            }
+            if (onReorderRequirement && idx < group.requirements.length - 1) {
+              reqActions.push({
+                label: "Move Down",
+                icon: <ArrowDown className="h-3.5 w-3.5" />,
+                onClick: () => onReorderRequirement(group.id, req.id, "down"),
+              });
+            }
+
             const Wrapper = onToggle ? "label" : "div";
             return (
               <Wrapper
@@ -152,47 +247,8 @@ function RequirementGroupNode({
                   )}
                 </div>
                 {editable && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover/req:opacity-100">
-                    {onEditRequirement && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); onEditRequirement(group.id, req); }}
-                        className="rounded p-1 text-slate-500 hover:text-slate-300"
-                        title="Edit requirement"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {onDeleteRequirement && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); onDeleteRequirement(group.id, req.id); }}
-                        className="rounded p-1 text-slate-500 hover:text-red-400"
-                        title="Delete requirement"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {onReorderRequirement && idx > 0 && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); onReorderRequirement(group.id, req.id, "up"); }}
-                        className="rounded p-1 text-slate-500 hover:text-slate-300"
-                        title="Move up"
-                      >
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {onReorderRequirement && idx < group.requirements.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); onReorderRequirement(group.id, req.id, "down"); }}
-                        className="rounded p-1 text-slate-500 hover:text-slate-300"
-                        title="Move down"
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                  <div className="opacity-0 group-hover/req:opacity-100">
+                    <ActionsMenu items={reqActions} />
                   </div>
                 )}
               </Wrapper>
@@ -235,6 +291,9 @@ export function OperationalTargetsPanel({
   onCreateModule,
   onEditModule,
   onDeleteModule,
+  onCreateTarget,
+  onEditTarget,
+  onDeleteTarget,
 }: OperationalTargetsPanelProps) {
   const [targetsExpanded, setTargetsExpanded] = useState(true);
   const [requirementsExpanded, setRequirementsExpanded] = useState(true);
@@ -254,27 +313,40 @@ export function OperationalTargetsPanel({
   const hasTargets = targets.length > 0;
   const hasRequirements = requirements.length > 0;
 
-  if (!hasTargets && !hasRequirements) return null;
+  if (!hasTargets && !hasRequirements && !editable) return null;
 
   return (
     <div className="space-y-4">
-      {hasTargets && (
+      {(hasTargets || editable) && (
         <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
           <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => setTargetsExpanded(!targetsExpanded)}
-              className="flex w-full items-center gap-2 border-b border-slate-800 pb-2 text-left"
-            >
-              {targetsExpanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center border-b border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setTargetsExpanded(!targetsExpanded)}
+                className="flex flex-1 items-center gap-2 text-left"
+              >
+                {targetsExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                )}
+                <Target className="h-4 w-4 text-slate-400" />
+                <h2 className="text-base font-semibold text-slate-100">Operational Targets</h2>
+                <span className="ml-auto text-xs text-slate-500">{targets.length} targets</span>
+              </button>
+              {editable && onCreateTarget && (
+                <button
+                  type="button"
+                  onClick={onCreateTarget}
+                  className="ml-2 flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                  title="Add target"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Target</span>
+                </button>
               )}
-              <Target className="h-4 w-4 text-slate-400" />
-              <h2 className="text-base font-semibold text-slate-100">Operational Targets</h2>
-              <span className="ml-auto text-xs text-slate-500">{targets.length} targets</span>
-            </button>
+            </div>
             {targetsExpanded && (
               <div className="space-y-4">
                 {CRITICALITY_ORDER.map((level) => {
@@ -287,11 +359,28 @@ export function OperationalTargetsPanel({
                       </div>
                       <div className="space-y-1">
                         {group.map((target) => {
+                          const targetActions: ActionsMenuItem[] = [];
+                          if (onEditTarget) {
+                            targetActions.push({
+                              label: "Edit Target",
+                              icon: <Pencil className="h-3.5 w-3.5" />,
+                              onClick: () => onEditTarget(target),
+                            });
+                          }
+                          if (onDeleteTarget) {
+                            targetActions.push({
+                              label: "Delete Target",
+                              icon: <Trash2 className="h-3.5 w-3.5" />,
+                              onClick: () => onDeleteTarget(target.id),
+                              destructive: true,
+                            });
+                          }
+
                           const TargetWrapper = onTargetToggle ? "label" : "div";
                           return (
                             <TargetWrapper
                               key={target.id}
-                              className={`flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30${onTargetToggle ? " cursor-pointer" : ""}`}
+                              className={`group/target flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30${onTargetToggle ? " cursor-pointer" : ""}`}
                             >
                               {onTargetToggle ? (
                                 <input
@@ -324,6 +413,11 @@ export function OperationalTargetsPanel({
                                   </div>
                                 )}
                               </div>
+                              {editable && targetActions.length > 0 && (
+                                <div className="opacity-0 group-hover/target:opacity-100">
+                                  <ActionsMenu items={targetActions} />
+                                </div>
+                              )}
                             </TargetWrapper>
                           );
                         })}
@@ -337,7 +431,7 @@ export function OperationalTargetsPanel({
         </Card>
       )}
 
-      {hasRequirements && (
+      {(hasRequirements || editable) && (
         <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
           <div className="space-y-3">
             <div className="flex items-center border-b border-slate-800 pb-2">

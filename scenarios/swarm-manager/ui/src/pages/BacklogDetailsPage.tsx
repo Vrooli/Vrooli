@@ -65,6 +65,7 @@ import { IdeaClarifyPanel } from "../components/backlog/idea-clarify-panel";
 import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-panel";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
+import { TargetFormDialog } from "../components/backlog/target-form-dialog";
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import {
   buildClarifyQuestionsContent,
@@ -92,6 +93,8 @@ import {
 import type {
   ArchiveRequirement,
   ArchiveRequirementRecord,
+  ArchiveTarget,
+  ArchiveTargetFormValues,
   ArchiveTargetsResponse,
   BacklogFile,
   BacklogKind,
@@ -247,6 +250,9 @@ export function BacklogDetailsPage() {
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [moduleDialogMode, setModuleDialogMode] = useState<"create" | "edit">("create");
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [targetDialogMode, setTargetDialogMode] = useState<"create" | "edit">("create");
+  const [editingTarget, setEditingTarget] = useState<ArchiveTarget | null>(null);
 
   const {
     data: item,
@@ -609,6 +615,59 @@ export function BacklogDetailsPage() {
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
   });
+
+  const createTargetMutation = useMutation({
+    mutationFn: (target: ArchiveTargetFormValues) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.createArchiveTarget(backlogKind, name, target);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const updateTargetMutation = useMutation({
+    mutationFn: ({ targetId, target }: { targetId: string; target: ArchiveTargetFormValues }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.updateArchiveTarget(backlogKind, name, targetId, target);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const deleteTargetMutation = useMutation({
+    mutationFn: (targetId: string) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.deleteArchiveTarget(backlogKind, name, targetId);
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+  });
+
+  const handleCreateTarget = useCallback(() => {
+    setEditingTarget(null);
+    setTargetDialogMode("create");
+    setTargetDialogOpen(true);
+  }, []);
+
+  const handleEditTarget = useCallback((target: ArchiveTarget) => {
+    setEditingTarget(target);
+    setTargetDialogMode("edit");
+    setTargetDialogOpen(true);
+  }, []);
+
+  const handleDeleteTarget = useCallback((targetId: string) => {
+    if (!window.confirm(`Delete target "${targetId}"?`)) return;
+    deleteTargetMutation.mutate(targetId);
+  }, [deleteTargetMutation]);
+
+  const handleTargetDialogSubmit = useCallback((values: ArchiveTargetFormValues) => {
+    if (targetDialogMode === "create") {
+      createTargetMutation.mutate(values, {
+        onSuccess: () => { setTargetDialogOpen(false); setEditingTarget(null); },
+      });
+    } else if (editingTarget) {
+      updateTargetMutation.mutate({ targetId: editingTarget.id, target: values }, {
+        onSuccess: () => { setTargetDialogOpen(false); setEditingTarget(null); },
+      });
+    }
+  }, [targetDialogMode, editingTarget, createTargetMutation, updateTargetMutation]);
 
   const handleCreateRequirement = useCallback((groupId: string) => {
     setEditingReq({ groupId });
@@ -1656,6 +1715,9 @@ export function BacklogDetailsPage() {
           onCreateModule={handleCreateModule}
           onEditModule={handleEditModule}
           onDeleteModule={handleDeleteModule}
+          onCreateTarget={handleCreateTarget}
+          onEditTarget={handleEditTarget}
+          onDeleteTarget={handleDeleteTarget}
         />
       )}
     </div>
@@ -1964,6 +2026,9 @@ export function BacklogDetailsPage() {
                 onCreateModule={handleCreateModule}
                 onEditModule={handleEditModule}
                 onDeleteModule={handleDeleteModule}
+                onCreateTarget={handleCreateTarget}
+                onEditTarget={handleEditTarget}
+                onDeleteTarget={handleDeleteTarget}
               />
             )}
             {fileWorkspace}
@@ -2164,6 +2229,19 @@ export function BacklogDetailsPage() {
         }
         onClose={() => { setModuleDialogOpen(false); setEditingModuleId(null); createModuleMutation.reset(); updateModuleMetaMutation.reset(); }}
         onSubmit={handleModuleDialogSubmit}
+      />
+
+      <TargetFormDialog
+        isOpen={targetDialogOpen}
+        mode={targetDialogMode}
+        initialValues={editingTarget ?? undefined}
+        isSubmitting={createTargetMutation.isPending || updateTargetMutation.isPending}
+        submitError={
+          (createTargetMutation.error instanceof Error ? createTargetMutation.error.message : null)
+          ?? (updateTargetMutation.error instanceof Error ? updateTargetMutation.error.message : null)
+        }
+        onClose={() => { setTargetDialogOpen(false); setEditingTarget(null); createTargetMutation.reset(); updateTargetMutation.reset(); }}
+        onSubmit={handleTargetDialogSubmit}
       />
     </div>
   );
