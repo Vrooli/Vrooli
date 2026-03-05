@@ -431,6 +431,18 @@ export interface PromptSkillVersion {
   createdBy?: string;
 }
 
+export interface ClarifyQuestionFormValues {
+  question: string;
+  options?: string[];
+  answer?: string;
+}
+
+export interface SuggestionFormValues {
+  suggestion: string;
+  details?: string;
+  status?: IdeaSuggestionDecision;
+}
+
 export interface PromptSkillVersions {
   skillId: string;
   current: number;

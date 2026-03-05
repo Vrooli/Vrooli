@@ -66,6 +66,8 @@ import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-pan
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
 import { TargetFormDialog } from "../components/backlog/target-form-dialog";
+import { QuestionFormDialog } from "../components/backlog/question-form-dialog";
+import { SuggestionFormDialog } from "../components/backlog/suggestion-form-dialog";
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import {
   buildClarifyQuestionsContent,
@@ -101,10 +103,12 @@ import type {
   BacklogResearchTarget,
   BacklogStatus,
   IdeaAgentMode,
+  ClarifyQuestionFormValues,
   IdeaClarificationQuestion,
   IdeaSuggestion,
   ModuleFormValues,
   ResearchResponse,
+  SuggestionFormValues,
 } from "../types";
 import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
 
@@ -253,6 +257,16 @@ export function BacklogDetailsPage() {
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
   const [targetDialogMode, setTargetDialogMode] = useState<"create" | "edit">("create");
   const [editingTarget, setEditingTarget] = useState<ArchiveTarget | null>(null);
+  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
+  const [questionDialogMode, setQuestionDialogMode] = useState<"create" | "edit">("create");
+  const [editingQuestion, setEditingQuestion] = useState<IdeaClarificationQuestion | null>(null);
+  const [questionSubmitting, setQuestionSubmitting] = useState(false);
+  const [questionSubmitError, setQuestionSubmitError] = useState<string | null>(null);
+  const [suggestionDialogOpen, setSuggestionDialogOpen] = useState(false);
+  const [suggestionDialogMode, setSuggestionDialogMode] = useState<"create" | "edit">("create");
+  const [editingSuggestion, setEditingSuggestion] = useState<IdeaSuggestion | null>(null);
+  const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
+  const [suggestionSubmitError, setSuggestionSubmitError] = useState<string | null>(null);
 
   const {
     data: item,
@@ -776,6 +790,118 @@ export function BacklogDetailsPage() {
       });
     }
   }, [moduleDialogMode, editingModuleId, createModuleMutation, updateModuleMetaMutation]);
+
+  // --- Question CRUD handlers ---
+  const saveQuestions = useCallback(async (questions: IdeaClarificationQuestion[]) => {
+    if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+    const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
+    await backlogService.saveFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.clarify, content, "application/json");
+    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify] });
+    void refetchFiles();
+    void refetchClarifyContent();
+  }, [backlogKind, name, clarifyParsed.raw, queryClient, refetchFiles, refetchClarifyContent]);
+
+  const handleAddQuestion = useCallback(() => {
+    setEditingQuestion(null);
+    setQuestionDialogMode("create");
+    setQuestionSubmitError(null);
+    setQuestionDialogOpen(true);
+  }, []);
+
+  const handleEditQuestion = useCallback((question: IdeaClarificationQuestion) => {
+    setEditingQuestion(question);
+    setQuestionDialogMode("edit");
+    setQuestionSubmitError(null);
+    setQuestionDialogOpen(true);
+  }, []);
+
+  const handleDeleteQuestion = useCallback(async (questionId: string) => {
+    if (!window.confirm(`Delete this question?`)) return;
+    const updated = clarifyParsed.questions.filter((q) => q.id !== questionId);
+    try {
+      await saveQuestions(updated);
+    } catch { /* error handled by query invalidation */ }
+  }, [clarifyParsed.questions, saveQuestions]);
+
+  const handleQuestionDialogSubmit = useCallback(async (values: ClarifyQuestionFormValues) => {
+    setQuestionSubmitting(true);
+    setQuestionSubmitError(null);
+    try {
+      let updated: IdeaClarificationQuestion[];
+      if (questionDialogMode === "edit" && editingQuestion) {
+        updated = clarifyParsed.questions.map((q) =>
+          q.id === editingQuestion.id ? { ...q, ...values } : q
+        );
+      } else {
+        const newId = `q-${Date.now().toString(36)}`;
+        updated = [...clarifyParsed.questions, { id: newId, ...values }];
+      }
+      await saveQuestions(updated);
+      setQuestionDialogOpen(false);
+      setEditingQuestion(null);
+    } catch (err) {
+      setQuestionSubmitError(err instanceof Error ? err.message : "Failed to save question.");
+    } finally {
+      setQuestionSubmitting(false);
+    }
+  }, [questionDialogMode, editingQuestion, clarifyParsed.questions, saveQuestions]);
+
+  // --- Suggestion CRUD handlers ---
+  const saveSuggestions = useCallback(async (suggestions: IdeaSuggestion[]) => {
+    if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+    const content = buildSuggestionsContent(suggestionsParsed.raw, suggestions);
+    await backlogService.saveFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.suggest, content, "application/json");
+    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest] });
+    void refetchFiles();
+    void refetchSuggestionsContent();
+  }, [backlogKind, name, suggestionsParsed.raw, queryClient, refetchFiles, refetchSuggestionsContent]);
+
+  const handleAddSuggestion = useCallback(() => {
+    setEditingSuggestion(null);
+    setSuggestionDialogMode("create");
+    setSuggestionSubmitError(null);
+    setSuggestionDialogOpen(true);
+  }, []);
+
+  const handleEditSuggestion = useCallback((suggestion: IdeaSuggestion) => {
+    setEditingSuggestion(suggestion);
+    setSuggestionDialogMode("edit");
+    setSuggestionSubmitError(null);
+    setSuggestionDialogOpen(true);
+  }, []);
+
+  const handleDeleteSuggestion = useCallback(async (suggestionId: string) => {
+    if (!window.confirm(`Delete this suggestion?`)) return;
+    const updated = suggestionsParsed.suggestions.filter((s) => s.id !== suggestionId);
+    try {
+      await saveSuggestions(updated);
+    } catch { /* error handled by query invalidation */ }
+  }, [suggestionsParsed.suggestions, saveSuggestions]);
+
+  const handleSuggestionDialogSubmit = useCallback(async (values: SuggestionFormValues) => {
+    setSuggestionSubmitting(true);
+    setSuggestionSubmitError(null);
+    try {
+      let updated: IdeaSuggestion[];
+      if (suggestionDialogMode === "edit" && editingSuggestion) {
+        updated = suggestionsParsed.suggestions.map((s) =>
+          s.id === editingSuggestion.id ? { ...s, ...values } : s
+        );
+      } else {
+        const newId = `s-${Date.now().toString(36)}`;
+        updated = [...suggestionsParsed.suggestions, { id: newId, ...values }];
+      }
+      await saveSuggestions(updated);
+      setSuggestionDialogOpen(false);
+      setEditingSuggestion(null);
+    } catch (err) {
+      setSuggestionSubmitError(err instanceof Error ? err.message : "Failed to save suggestion.");
+    } finally {
+      setSuggestionSubmitting(false);
+    }
+  }, [suggestionDialogMode, editingSuggestion, suggestionsParsed.suggestions, saveSuggestions]);
 
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
@@ -1396,6 +1522,9 @@ export function BacklogDetailsPage() {
           onSubmit={({ questions, nextMode }) =>
             clarifyMutation.mutate({ questions, nextMode })
           }
+          onAdd={handleAddQuestion}
+          onEdit={handleEditQuestion}
+          onDelete={handleDeleteQuestion}
         />
       )}
       {suggestionsFile && (
@@ -1406,6 +1535,9 @@ export function BacklogDetailsPage() {
           isSubmitting={suggestionsMutation.isPending}
           submitError={suggestionsError}
           onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
+          onAdd={handleAddSuggestion}
+          onEdit={handleEditSuggestion}
+          onDelete={handleDeleteSuggestion}
         />
       )}
     </div>
@@ -2242,6 +2374,34 @@ export function BacklogDetailsPage() {
         }
         onClose={() => { setTargetDialogOpen(false); setEditingTarget(null); createTargetMutation.reset(); updateTargetMutation.reset(); }}
         onSubmit={handleTargetDialogSubmit}
+      />
+
+      <QuestionFormDialog
+        isOpen={questionDialogOpen}
+        mode={questionDialogMode}
+        initialValues={editingQuestion ? {
+          question: editingQuestion.question,
+          options: editingQuestion.options,
+          answer: editingQuestion.answer,
+        } : undefined}
+        isSubmitting={questionSubmitting}
+        submitError={questionSubmitError}
+        onClose={() => { setQuestionDialogOpen(false); setEditingQuestion(null); setQuestionSubmitError(null); }}
+        onSubmit={handleQuestionDialogSubmit}
+      />
+
+      <SuggestionFormDialog
+        isOpen={suggestionDialogOpen}
+        mode={suggestionDialogMode}
+        initialValues={editingSuggestion ? {
+          suggestion: editingSuggestion.suggestion,
+          details: editingSuggestion.details,
+          status: editingSuggestion.status,
+        } : undefined}
+        isSubmitting={suggestionSubmitting}
+        submitError={suggestionSubmitError}
+        onClose={() => { setSuggestionDialogOpen(false); setEditingSuggestion(null); setSuggestionSubmitError(null); }}
+        onSubmit={handleSuggestionDialogSubmit}
       />
     </div>
   );

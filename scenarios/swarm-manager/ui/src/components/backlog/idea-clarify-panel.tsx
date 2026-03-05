@@ -1,6 +1,6 @@
 // DOC: docs/guides/idea-agent-workflow.md#phase-1-clarify
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, MessageSquareText } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquareText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { ClarifyQuestionList } from "./clarify-question-list";
@@ -16,6 +16,9 @@ interface IdeaClarifyPanelProps {
   isSubmitting: boolean;
   submitError?: string | null;
   onSubmit: (payload: { questions: IdeaClarificationQuestion[]; nextMode: NextAction }) => void;
+  onAdd?: () => void;
+  onEdit?: (question: IdeaClarificationQuestion) => void;
+  onDelete?: (questionId: string) => void;
 }
 
 const NEXT_ACTION_OPTIONS: Array<{ value: NextAction; label: string; helper: string }> = [
@@ -43,6 +46,9 @@ export function IdeaClarifyPanel({
   isSubmitting,
   submitError,
   onSubmit,
+  onAdd,
+  onEdit,
+  onDelete,
 }: IdeaClarifyPanelProps) {
   const [localQuestions, setLocalQuestions] = useState<IdeaClarificationQuestion[]>(questions);
   const [nextMode, setNextMode] = useState<NextAction>("none");
@@ -96,6 +102,16 @@ export function IdeaClarifyPanel({
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
           {localQuestions.length} question{localQuestions.length === 1 ? "" : "s"}
         </span>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+            className="ml-1 rounded-md p-1 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+            title="Add question"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
       </button>
 
       {expanded && (
@@ -112,17 +128,56 @@ export function IdeaClarifyPanel({
 
           {!hasQuestions && (
             <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/40 p-4 text-sm text-slate-400">
-              No questions found yet. If the agent is still running, refresh the file list once it finishes.
+              No questions found yet.{" "}
+              {onAdd ? (
+                <button type="button" onClick={onAdd} className="text-cyan-400 hover:text-cyan-300 underline">
+                  Add one manually
+                </button>
+              ) : (
+                "If the agent is still running, refresh the file list once it finishes."
+              )}
             </div>
           )}
 
           {hasQuestions && (
-            <div className="mt-4">
-              <ClarifyQuestionList
-                questions={localQuestions}
-                onChange={setLocalQuestions}
-                testIdPrefix="clarify"
-              />
+            <div className="mt-4 space-y-3">
+              {localQuestions.map((q, idx) => (
+                <div key={q.id} className="relative">
+                  {(onEdit || onDelete) && (
+                    <div className="absolute right-2 top-2 flex gap-1">
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(q)}
+                          className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
+                          title="Edit question"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(q.id)}
+                          className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
+                          title="Delete question"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <ClarifyQuestionList
+                    questions={[q]}
+                    onChange={(updated) => {
+                      setLocalQuestions((prev) =>
+                        prev.map((pq) => (pq.id === updated[0]?.id ? updated[0]! : pq))
+                      );
+                    }}
+                    testIdPrefix={`clarify-${idx}`}
+                  />
+                </div>
+              ))}
             </div>
           )}
 

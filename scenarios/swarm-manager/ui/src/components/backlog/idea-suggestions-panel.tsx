@@ -1,6 +1,6 @@
 // DOC: docs/guides/idea-agent-workflow.md#phase-2-suggest
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Select } from "../ui/select";
@@ -14,6 +14,9 @@ interface IdeaSuggestionsPanelProps {
   isSubmitting: boolean;
   submitError?: string | null;
   onSubmit: (suggestions: IdeaSuggestion[]) => void;
+  onAdd?: () => void;
+  onEdit?: (suggestion: IdeaSuggestion) => void;
+  onDelete?: (suggestionId: string) => void;
 }
 
 const DECISION_OPTIONS: Array<{ value: IdeaSuggestionDecision; label: string }> = [
@@ -29,6 +32,9 @@ export function IdeaSuggestionsPanel({
   isSubmitting,
   submitError,
   onSubmit,
+  onAdd,
+  onEdit,
+  onDelete,
 }: IdeaSuggestionsPanelProps) {
   const [localSuggestions, setLocalSuggestions] = useState<IdeaSuggestion[]>(suggestions);
   const [expanded, setExpanded] = useState(true);
@@ -71,6 +77,16 @@ export function IdeaSuggestionsPanel({
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
           {localSuggestions.length} suggestion{localSuggestions.length === 1 ? "" : "s"}
         </span>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+            className="ml-1 rounded-md p-1 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+            title="Add suggestion"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
       </button>
 
       {expanded && (
@@ -87,7 +103,14 @@ export function IdeaSuggestionsPanel({
 
           {!hasSuggestions && (
             <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/40 p-4 text-sm text-slate-400">
-              No suggestions found yet. If the agent is still running, refresh the file list once it finishes.
+              No suggestions found yet.{" "}
+              {onAdd ? (
+                <button type="button" onClick={onAdd} className="text-cyan-400 hover:text-cyan-300 underline">
+                  Add one manually
+                </button>
+              ) : (
+                "If the agent is still running, refresh the file list once it finishes."
+              )}
             </div>
           )}
 
@@ -97,6 +120,28 @@ export function IdeaSuggestionsPanel({
                 <div key={suggestion.id} className="rounded-lg border border-white/10 bg-slate-800/40 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-slate-100">Suggestion {index + 1}</p>
+                    <div className="flex items-center gap-2">
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(suggestion)}
+                          className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
+                          title="Edit suggestion"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(suggestion.id)}
+                          className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
+                          title="Delete suggestion"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <Select
                       value={suggestion.status ?? "pending"}
                       onChange={(event) => {
