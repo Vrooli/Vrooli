@@ -3,7 +3,8 @@ module swarm-manager
 go 1.21.13
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/gofiber/adaptor/v2 v2.2.1
+	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
