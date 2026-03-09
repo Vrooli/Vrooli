@@ -1,10 +1,10 @@
 {
+  "created": "2026-03-09T12:00:00Z",
+  "description": "Unified personal lifestyle intelligence dashboard that ties together domain-specific scenarios (nootropics, skincare, diet/nutrition, exercise, meditation/focus, socialization/mental health, sleep, learning, biomarkers) into a single analytics and automation layer. Designed for personal use with an automation-first philosophy: everything runs hands-off by default, but each domain can be deep-dived and customized. The dashboard defines the shared data model, cross-domain correlation engine, and integration patterns that all lifestyle scenarios build against.",
   "kind": "idea",
   "name": "lifestyle-dashboard",
-  "title": "Lifestyle Dashboard",
-  "description": "Unified personal lifestyle intelligence dashboard that ties together domain-specific scenarios (nootropics, skincare, diet/nutrition, exercise, meditation/focus, socialization/mental health, sleep, learning, biomarkers) into a single analytics and automation layer. Designed for personal use with an automation-first philosophy: everything runs hands-off by default, but each domain can be deep-dived and customized. The dashboard defines the shared data model, cross-domain correlation engine, and integration patterns that all lifestyle scenarios build against.",
   "priority": 3,
-  "status": "backlog",
+  "status": "queued",
   "tags": [
     "lifestyle",
     "health",
@@ -15,6 +15,6 @@
     "cross-scenario",
     "foundation"
   ],
-  "created": "2026-03-09T12:00:00Z",
-  "updated": "2026-03-09T12:00:00Z"
+  "title": "Lifestyle Dashboard",
+  "updated": "2026-03-09T23:04:16Z"
 }

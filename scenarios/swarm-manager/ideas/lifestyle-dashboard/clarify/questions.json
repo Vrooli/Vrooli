@@ -1,0 +1,62 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Which wearable device(s) are you planning to use for passive data collection (sleep, HRV, activity)?",
+      "options": [
+        "Oura Ring",
+        "Whoop",
+        "Apple Watch",
+        "Garmin",
+        "None yet - decide later"
+      ],
+      "answer": "None yet. But should be written with dependency injection to ensure  that device support can be added easily. Also should be able to manually enter data"
+    },
+    {
+      "id": "q2",
+      "question": "Should the dashboard support mobile-first interactions (PWA/responsive) or is desktop-primary acceptable for P0?",
+      "options": [
+        "Mobile-first PWA",
+        "Desktop-primary with responsive",
+        "Desktop-only for P0"
+      ],
+      "answer": "Both (responsive) but mobile is most important"
+    },
+    {
+      "id": "q3",
+      "question": "What's the preferred event retention policy - keep all historical data indefinitely or implement retention windows?",
+      "options": [
+        "Keep all data indefinitely",
+        "Rolling 2-year window",
+        "Configurable per-domain retention"
+      ],
+      "answer": "Keep all data indefinitely (personal server, storage is cheap, historical trends are valuable). Also a way to manage data from the UI settings (like viewing the size and large files, cleaning all or selected data, etc. - the typical storage management type of things)"
+    },
+    {
+      "id": "q4",
+      "question": "Should the correlation engine require a minimum sample size before surfacing insights (to avoid spurious correlations)?",
+      "options": [
+        "Yes, require 30+ data points",
+        "Yes, require 14+ data points",
+        "No minimum, show with confidence warnings",
+        "Configurable threshold"
+      ],
+      "answer": "Yes - configurable threshold (from PRD OT-P1-1: \"Configurable minimum data threshold before generating correlations\")"
+    },
+    {
+      "id": "q5",
+      "question": "Which domain scenario should be built first alongside the dashboard to validate the integration contract?",
+      "options": [
+        "Nootropics Tracker",
+        "Sleep Tracker",
+        "Diet & Nutrition"
+      ],
+      "answer": "Nootropics Tracker (from VISION.md: \"lowest friction, immediate value, tight feedback loop\", doesn't require hardware purchase)"
+    }
+  ],
+  "generated_at": "2026-03-09T19:00:00Z",
+  "updated_at": "2026-03-09T19:00:00Z",
+  "max_questions": 10,
+  "generatedAt": "2026-03-09T22:38:39.722Z",
+  "updatedAt": "2026-03-09T22:38:39.722Z"
+}

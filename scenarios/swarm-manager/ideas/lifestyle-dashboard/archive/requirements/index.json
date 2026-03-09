@@ -1,91 +1,127 @@
 {
-  "scenario": "lifestyle-dashboard",
-  "version": "1.0.0",
-  "generated": "2026-03-09T12:00:00Z",
-  "modules": [
+  "_metadata": {
+    "description": "Lifestyle Dashboard requirement registry - Parent-level requirements reference child modules declared under imports",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-03-09"
+  },
+  "meta": {
+    "scenario": "lifestyle-dashboard",
+    "version": "1.0.0",
+    "generated": "2026-03-09",
+    "owners": [
+      {
+        "platform": "lifestyle-dashboard",
+        "contact": "matt@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "events/schema.json",
+    "domains/registration.json",
+    "queries/api.json",
+    "dashboard/ui.json",
+    "briefs/daily.json",
+    "intelligence/correlation.json"
+  ],
+  "requirements": [
     {
-      "id": "01-shared-event-schema",
-      "prd_ref": "OT-P0-1",
-      "title": "Shared Event Schema & Storage",
-      "criticality": "P0"
+      "id": "LD-FUNC-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Shared event schema and time-series storage",
+      "description": "PostgreSQL time-series events table with JSONB payloads, common envelope (timestamp, domain, event_type, payload), indexed by domain+timestamp, extensible without migrations.",
+      "status": "not_started",
+      "children": [
+        "LD-EVENT-SCHEMA",
+        "LD-EVENT-STORAGE",
+        "LD-EVENT-INDEX"
+      ],
+      "validation": []
     },
     {
-      "id": "02-domain-registration",
-      "prd_ref": "OT-P0-2",
-      "title": "Domain Registration & Discovery",
-      "criticality": "P0"
+      "id": "LD-FUNC-002",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Domain registration and discovery",
+      "description": "Dynamic domain scenario registration, capability exposure, health status tracking. Domains can start/stop independently.",
+      "status": "not_started",
+      "children": [
+        "LD-DOMAIN-REGISTER",
+        "LD-DOMAIN-DISCOVER",
+        "LD-DOMAIN-HEALTH"
+      ],
+      "validation": []
     },
     {
-      "id": "03-cross-domain-query-api",
-      "prd_ref": "OT-P0-3",
-      "title": "Cross-Domain Query API",
-      "criticality": "P0"
+      "id": "LD-FUNC-003",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Cross-domain query API",
+      "description": "API endpoints for querying events across domains with time-range filters, domain filters, basic aggregations, and correlation queries.",
+      "status": "not_started",
+      "children": [
+        "LD-QUERY-FILTER",
+        "LD-QUERY-AGGREGATE",
+        "LD-QUERY-CORRELATE"
+      ],
+      "validation": []
     },
     {
-      "id": "04-unified-dashboard-ui",
-      "prd_ref": "OT-P0-4",
-      "title": "Unified Dashboard UI",
-      "criticality": "P0"
+      "id": "LD-FUNC-004",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Unified dashboard UI",
+      "description": "Timeline view across all domains, per-domain sections with deep-dive links, trend charts, responsive design for mobile.",
+      "status": "not_started",
+      "children": [
+        "LD-UI-TIMELINE",
+        "LD-UI-DOMAINS",
+        "LD-UI-TRENDS",
+        "LD-UI-RESPONSIVE"
+      ],
+      "validation": []
     },
     {
-      "id": "05-daily-brief-system",
-      "prd_ref": "OT-P0-5",
-      "title": "Daily Brief System",
-      "criticality": "P0"
+      "id": "LD-FUNC-005",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Daily brief system",
+      "description": "Morning brief (what to do today) and evening review (what happened, notable patterns) consolidated from all active domains.",
+      "status": "not_started",
+      "children": [
+        "LD-BRIEF-MORNING",
+        "LD-BRIEF-EVENING",
+        "LD-BRIEF-CONSOLIDATE"
+      ],
+      "validation": []
     },
     {
-      "id": "06-correlation-engine",
-      "prd_ref": "OT-P1-1",
-      "title": "Correlation Engine",
-      "criticality": "P1"
+      "id": "LD-FUNC-006",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Correlation engine",
+      "description": "Automated statistical correlation analysis across domains with significance tracking and configurable minimum data threshold.",
+      "status": "not_started",
+      "children": [
+        "LD-CORR-ANALYZE",
+        "LD-CORR-SIGNIFICANCE",
+        "LD-CORR-THRESHOLD"
+      ],
+      "validation": []
     },
     {
-      "id": "07-experiment-framework",
-      "prd_ref": "OT-P1-2",
-      "title": "Experiment Framework",
-      "criticality": "P1"
-    },
-    {
-      "id": "08-notification-scheduler",
-      "prd_ref": "OT-P1-3",
-      "title": "Consolidated Notification Scheduler",
-      "criticality": "P1"
-    },
-    {
-      "id": "09-medical-export",
-      "prd_ref": "OT-P1-4",
-      "title": "Medical Export",
-      "criticality": "P1"
-    },
-    {
-      "id": "10-natural-language-queries",
-      "prd_ref": "OT-P1-5",
-      "title": "Natural Language Queries",
-      "criticality": "P1"
-    },
-    {
-      "id": "11-domain-sdk",
-      "prd_ref": "OT-P2-1",
-      "title": "Domain SDK / Shared Types Package",
-      "criticality": "P2"
-    },
-    {
-      "id": "12-smart-recommendations",
-      "prd_ref": "OT-P2-2",
-      "title": "Smart Recommendations",
-      "criticality": "P2"
-    },
-    {
-      "id": "13-hardware-integration",
-      "prd_ref": "OT-P2-3",
-      "title": "Hardware Integration Framework",
-      "criticality": "P2"
-    },
-    {
-      "id": "14-historical-import",
-      "prd_ref": "OT-P2-4",
-      "title": "Historical Import",
-      "criticality": "P2"
+      "id": "LD-FUNC-007",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Experiment framework",
+      "description": "N=1 experiments with hypothesis, intervention, measurement, duration, compliance tracking, and outcome reports.",
+      "status": "not_started",
+      "children": [
+        "LD-EXP-DEFINE",
+        "LD-EXP-TRACK",
+        "LD-EXP-REPORT"
+      ],
+      "validation": []
     }
   ]
 }

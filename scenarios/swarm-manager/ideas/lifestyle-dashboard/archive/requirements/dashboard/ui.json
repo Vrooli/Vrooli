@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "Dashboard UI requirements",
+    "domain": "dashboard",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-UI-TIMELINE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Unified timeline view",
+      "description": "Main dashboard displays chronological timeline of events from all registered domains. Events color-coded by domain. Expandable event cards show payload details.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-DOMAINS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Per-domain sections",
+      "description": "Dashboard includes collapsible sections for each registered domain showing domain-specific summary, recent events, and link to domain's deep-dive UI.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-TRENDS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Trend charts",
+      "description": "Dashboard includes configurable trend charts with 7d/30d/90d time windows. Line charts for continuous metrics, bar charts for discrete events. Domain comparison overlays.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-RESPONSIVE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Mobile-responsive design",
+      "description": "Dashboard adapts to phone screens for quick daily checks. Simplified mobile view prioritizes daily brief and critical metrics. Full features on tablet/desktop.",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}
