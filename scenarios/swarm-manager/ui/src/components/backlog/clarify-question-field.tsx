@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Textarea } from "../ui/textarea";
 import { RadioGroup } from "../ui/radio-group";
 import type { IdeaClarificationQuestion } from "../../types";
@@ -19,6 +19,15 @@ export function ClarifyQuestionField({ question, index, onChange, testIdPrefix }
   const [otherSelected, setOtherSelected] = useState(
     () => hasOptions && !!question.answer && !question.options!.includes(question.answer),
   );
+
+  // Sync otherSelected when the question prop changes (e.g., after save + reload).
+  // Only sync when answer is non-empty so that clicking "Other" (which clears the
+  // answer to "") still keeps the textarea visible.
+  useEffect(() => {
+    if (hasOptions && question.answer) {
+      setOtherSelected(!question.options!.includes(question.answer));
+    }
+  }, [hasOptions, question.answer, question.options]);
 
   const selectedRadio = otherSelected ? OTHER_VALUE : (question.answer ?? "");
 

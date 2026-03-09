@@ -2312,6 +2312,7 @@ export function BacklogDetailsPage() {
         isSubmitting={agentMutation.isPending}
         backlogKind={backlogKind}
         backlogTitle={item?.title ?? name ?? ""}
+        itemStatus={item?.status}
         researchTarget={item?.researchTarget}
         errorMessage={agentError}
         files={files}

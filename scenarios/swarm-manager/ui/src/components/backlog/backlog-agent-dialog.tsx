@@ -25,6 +25,7 @@ interface BacklogAgentDialogProps {
   isSubmitting?: boolean;
   backlogKind: BacklogKind;
   backlogTitle: string;
+  itemStatus?: string;
   researchTarget?: BacklogResearchTarget;
   errorMessage?: string | null;
   files?: BacklogFile[];
@@ -48,6 +49,13 @@ const MODE_OPTIONS: Array<{
   description: string;
   output: string;
 }> = [
+  {
+    value: "initialize",
+    title: "Initialize",
+    description:
+      "Bootstrap this item with questions, suggestions, a refined plan, and optionally a PRD — all in one pass.",
+    output: "Writes to clarify/, suggest/, enhance/, and optionally archive/",
+  },
   {
     value: "clarify",
     title: "Clarify",
@@ -157,6 +165,7 @@ export function BacklogAgentDialog({
   isSubmitting = false,
   backlogKind,
   backlogTitle,
+  itemStatus,
   researchTarget,
   errorMessage = null,
   files,
@@ -188,7 +197,7 @@ export function BacklogAgentDialog({
   useEffect(() => {
     if (isOpen) {
       setPrompt("");
-      setMode("clarify");
+      setMode(itemStatus === "backlog" ? "initialize" : "clarify");
       setTargetKind(researchTarget ?? "idea");
       setSelectedFilePaths(new Set());
       const initTargets = initialSelectedTargetIds?.size ? new Set(initialSelectedTargetIds) : new Set<string>();
@@ -199,7 +208,13 @@ export function BacklogAgentDialog({
       setShowAttachContext(hasInitialSelections);
       setAttachTab(hasInitialSelections ? "targets" : "files");
     }
-  }, [isOpen, researchTarget, initialSelectedTargetIds, initialSelectedRequirementIds]);
+  }, [isOpen, researchTarget, itemStatus, initialSelectedTargetIds, initialSelectedRequirementIds]);
+
+  const filteredModes = useMemo(() => {
+    if (isIdea) return MODE_OPTIONS;
+    if (itemStatus === "backlog") return MODE_OPTIONS.filter((o) => o.value === "initialize");
+    return [];
+  }, [isIdea, itemStatus]);
 
   const activeMode = useMemo(() => MODE_OPTIONS.find((option) => option.value === mode), [mode]);
 
@@ -230,11 +245,11 @@ export function BacklogAgentDialog({
         {description}
       </div>
 
-      {isIdea && (
+      {filteredModes.length > 0 && (
         <fieldset className="mt-4 space-y-3" data-testid={selectors.backlogForm.agentMode}>
           <legend className="text-sm font-medium text-slate-300">Agent type</legend>
           <div className="grid gap-3 md:grid-cols-3">
-            {MODE_OPTIONS.map((option) => {
+            {filteredModes.map((option) => {
               const isSelected = option.value === mode;
               return (
                 <label
@@ -455,7 +470,7 @@ export function BacklogAgentDialog({
         <Button
           onClick={() =>
             onSubmit({
-              mode: isIdea ? mode : undefined,
+              mode: filteredModes.length > 0 ? mode : undefined,
               prompt,
               targetKind: isResearch ? targetKind : undefined,
               contextPaths: selectedFilePaths.size > 0 ? [...selectedFilePaths] : undefined,
@@ -466,7 +481,7 @@ export function BacklogAgentDialog({
           disabled={isSubmitting}
           data-testid={selectors.backlogForm.agentSubmit}
         >
-          {isSubmitting ? "Spawning..." : `Run ${isIdea ? activeMode?.title ?? "Agent" : "Research"}`}
+          {isSubmitting ? "Spawning..." : `Run ${filteredModes.length > 0 ? activeMode?.title ?? "Agent" : "Research"}`}
         </Button>
       </div>
     </Dialog>

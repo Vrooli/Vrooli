@@ -117,6 +117,12 @@ var researchSkillIDs = map[ResearchMode]map[BacklogKind]string{
 		KindExecute:  "swarm-manager-research-general",
 		KindResearch: "swarm-manager-research-general",
 	},
+	ResearchModeInitialize: {
+		KindIdea:     "swarm-manager-initialize-backlog",
+		KindResearch: "swarm-manager-initialize-backlog",
+		KindFix:      "swarm-manager-initialize-backlog",
+		KindExecute:  "swarm-manager-initialize-backlog",
+	},
 }
 
 // NewHandler creates a new backlog handler.
@@ -299,10 +305,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 type ResearchMode string
 
 const (
-	ResearchModeClarify  ResearchMode = "clarify"
-	ResearchModeSuggest  ResearchMode = "suggest"
-	ResearchModeEnhance  ResearchMode = "enhance"
-	ResearchModeResearch ResearchMode = "research"
+	ResearchModeClarify    ResearchMode = "clarify"
+	ResearchModeSuggest    ResearchMode = "suggest"
+	ResearchModeEnhance    ResearchMode = "enhance"
+	ResearchModeResearch   ResearchMode = "research"
+	ResearchModeInitialize ResearchMode = "initialize"
 )
 
 func parseResearchMode(raw string) ResearchMode {
@@ -316,6 +323,8 @@ func parseResearchMode(raw string) ResearchMode {
 		return ResearchModeEnhance
 	case "research", "", "explore", "investigate":
 		return ResearchModeResearch
+	case "initialize":
+		return ResearchModeInitialize
 	default:
 		return ResearchModeResearch
 	}
@@ -324,7 +333,7 @@ func parseResearchMode(raw string) ResearchMode {
 func validateResearchModeForKind(kind BacklogKind, mode ResearchMode) error {
 	if kind == KindIdea {
 		switch mode {
-		case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance:
+		case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance, ResearchModeInitialize:
 			return nil
 		default:
 			return fmt.Errorf("mode must be clarify, suggest, or enhance")
@@ -1473,6 +1482,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if mode == ResearchModeInitialize && item.Status != StatusBacklog {
+		httputil.Conflict(w, "[backlog] research", "initialize is only available for items in 'backlog' status")
+		return
+	}
+
 	if kind == KindResearch && req.TargetKind != nil {
 		normalized, err := normalizeResearchTarget(*req.TargetKind)
 		if err != nil {
@@ -1802,6 +1816,8 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 		return "Suggest improvements: " + label
 	case ResearchModeEnhance:
 		return "Enhance idea: " + label
+	case ResearchModeInitialize:
+		return "Initialize: " + label
 	default:
 		return "Research: " + label
 	}

@@ -1,0 +1,91 @@
+{
+  "scenario": "lifestyle-dashboard",
+  "version": "1.0.0",
+  "generated": "2026-03-09T12:00:00Z",
+  "modules": [
+    {
+      "id": "01-shared-event-schema",
+      "prd_ref": "OT-P0-1",
+      "title": "Shared Event Schema & Storage",
+      "criticality": "P0"
+    },
+    {
+      "id": "02-domain-registration",
+      "prd_ref": "OT-P0-2",
+      "title": "Domain Registration & Discovery",
+      "criticality": "P0"
+    },
+    {
+      "id": "03-cross-domain-query-api",
+      "prd_ref": "OT-P0-3",
+      "title": "Cross-Domain Query API",
+      "criticality": "P0"
+    },
+    {
+      "id": "04-unified-dashboard-ui",
+      "prd_ref": "OT-P0-4",
+      "title": "Unified Dashboard UI",
+      "criticality": "P0"
+    },
+    {
+      "id": "05-daily-brief-system",
+      "prd_ref": "OT-P0-5",
+      "title": "Daily Brief System",
+      "criticality": "P0"
+    },
+    {
+      "id": "06-correlation-engine",
+      "prd_ref": "OT-P1-1",
+      "title": "Correlation Engine",
+      "criticality": "P1"
+    },
+    {
+      "id": "07-experiment-framework",
+      "prd_ref": "OT-P1-2",
+      "title": "Experiment Framework",
+      "criticality": "P1"
+    },
+    {
+      "id": "08-notification-scheduler",
+      "prd_ref": "OT-P1-3",
+      "title": "Consolidated Notification Scheduler",
+      "criticality": "P1"
+    },
+    {
+      "id": "09-medical-export",
+      "prd_ref": "OT-P1-4",
+      "title": "Medical Export",
+      "criticality": "P1"
+    },
+    {
+      "id": "10-natural-language-queries",
+      "prd_ref": "OT-P1-5",
+      "title": "Natural Language Queries",
+      "criticality": "P1"
+    },
+    {
+      "id": "11-domain-sdk",
+      "prd_ref": "OT-P2-1",
+      "title": "Domain SDK / Shared Types Package",
+      "criticality": "P2"
+    },
+    {
+      "id": "12-smart-recommendations",
+      "prd_ref": "OT-P2-2",
+      "title": "Smart Recommendations",
+      "criticality": "P2"
+    },
+    {
+      "id": "13-hardware-integration",
+      "prd_ref": "OT-P2-3",
+      "title": "Hardware Integration Framework",
+      "criticality": "P2"
+    },
+    {
+      "id": "14-historical-import",
+      "prd_ref": "OT-P2-4",
+      "title": "Historical Import",
+      "criticality": "P2"
+    }
+  ]
+}
