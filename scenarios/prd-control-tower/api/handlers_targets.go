@@ -533,7 +533,6 @@ func getOrCreateDraft(entityType, entityName string) (*Draft, error) {
 		&draft.CreatedAt,
 		&draft.UpdatedAt,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create draft: %w", err)
 	}

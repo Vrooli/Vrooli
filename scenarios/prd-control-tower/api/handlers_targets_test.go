@@ -28,7 +28,6 @@ func TestHandleGetDraftTargetsNoDB(t *testing.T) {
 
 // TestHandleGetDraftTargetsMissingDraft tests non-existent draft
 func TestHandleGetDraftTargetsMissingDraft(t *testing.T) {
-
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/nonexistent-id/targets", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent-id"})
 	w := httptest.NewRecorder()
@@ -72,7 +71,6 @@ func TestHandleUpdateDraftTargetsNoDB(t *testing.T) {
 
 // TestHandleUpdateDraftTargetsInvalidJSON tests invalid JSON input
 func TestHandleUpdateDraftTargetsInvalidJSON(t *testing.T) {
-
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/drafts/test-id/targets", bytes.NewReader([]byte("{invalid json")))
 	req = mux.SetURLVars(req, map[string]string{"id": "test-draft-id"})
 	w := httptest.NewRecorder()
@@ -84,7 +82,7 @@ func TestHandleUpdateDraftTargetsInvalidJSON(t *testing.T) {
 	}
 
 	var errorResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errorResp)
+	_ = json.NewDecoder(w.Body).Decode(&errorResp)
 	if errorResp["error"] == "" {
 		t.Error("Expected error message in response")
 	}
@@ -92,7 +90,6 @@ func TestHandleUpdateDraftTargetsInvalidJSON(t *testing.T) {
 
 // TestHandleUpdateDraftTargetsEmptyTargets tests empty targets list
 func TestHandleUpdateDraftTargetsEmptyTargets(t *testing.T) {
-
 	requestBody := UpdateTargetsRequest{
 		Targets: []OperationalTargetUpdate{},
 	}
@@ -113,7 +110,6 @@ func TestHandleUpdateDraftTargetsEmptyTargets(t *testing.T) {
 
 // TestHandleUpdateDraftTargetsMultipleTargets tests updating multiple targets
 func TestHandleUpdateDraftTargetsMultipleTargets(t *testing.T) {
-
 	requestBody := UpdateTargetsRequest{
 		Targets: []OperationalTargetUpdate{
 			{
@@ -148,7 +144,6 @@ func TestHandleUpdateDraftTargetsMultipleTargets(t *testing.T) {
 
 // TestHandleUpdateDraftTargetsNewTarget tests adding a new target
 func TestHandleUpdateDraftTargetsNewTarget(t *testing.T) {
-
 	requestBody := UpdateTargetsRequest{
 		Targets: []OperationalTargetUpdate{
 			{

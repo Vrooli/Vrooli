@@ -179,11 +179,13 @@ func TestSaveDraftToFile(t *testing.T) {
 	originalDir, _ := os.Getwd()
 	tmpDir := t.TempDir()
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("Failed to create api dir: %v", err)
 	}
-	os.Chdir(apiDir)
-	defer os.Chdir(originalDir)
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("Failed to chdir to api dir: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	tests := []struct {
 		name        string

@@ -615,7 +615,6 @@ func handleRecordVisit(w http.ResponseWriter, r *http.Request) {
 			visit_count = catalog_visits.visit_count + 1,
 			last_visited_at = $3
 	`, entityType, entityName, now)
-
 	if err != nil {
 		respondInternalError(w, "Failed to record visit", err)
 		return
@@ -707,7 +706,7 @@ func handleUpdateCatalogLabels(w http.ResponseWriter, r *http.Request) {
 		respondInternalError(w, "Failed to start transaction", err)
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Delete existing labels
 	_, err = tx.Exec(`

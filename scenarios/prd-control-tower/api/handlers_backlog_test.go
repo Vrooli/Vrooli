@@ -121,7 +121,7 @@ func TestHandleCreateBacklogEntriesTooMany(t *testing.T) {
 
 	if w.Code == http.StatusBadRequest {
 		var errorResp map[string]string
-		json.NewDecoder(w.Body).Decode(&errorResp)
+		_ = json.NewDecoder(w.Body).Decode(&errorResp)
 		if errorResp["error"] != "Too many backlog items in a single request (max 50)" {
 			t.Errorf("Expected 'too many' error message, got: %s", errorResp["error"])
 		}
@@ -220,7 +220,7 @@ func TestHandleConvertBacklogEntriesEmpty(t *testing.T) {
 
 	// Error message varies based on response format, just check we got an error
 	var errorResp map[string]string
-	json.NewDecoder(w.Body).Decode(&errorResp)
+	_ = json.NewDecoder(w.Body).Decode(&errorResp)
 	if errorResp["error"] == "" {
 		t.Error("Expected error message in response")
 	}

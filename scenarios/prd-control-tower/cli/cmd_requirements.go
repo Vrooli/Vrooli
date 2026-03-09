@@ -16,6 +16,7 @@ type RequirementsGenerateRequest struct {
 	EntityName string `json:"entity_name"`
 	Context    string `json:"context,omitempty"`
 	Model      string `json:"model,omitempty"`
+	CustomPath string `json:"custom_path,omitempty"`
 }
 
 // RequirementsGenerateResponse matches the API response structure
@@ -53,6 +54,7 @@ type RequirementsFixRequest struct {
 	EntityName string `json:"entity_name"`
 	Context    string `json:"context,omitempty"`
 	Model      string `json:"model,omitempty"`
+	CustomPath string `json:"custom_path,omitempty"`
 }
 
 // RequirementsFixResponse matches the API response structure
@@ -122,6 +124,7 @@ func (a *App) requirementsGenerate(args []string) error {
 	context := fs.String("context", "", "Additional context for AI generation")
 	contextFile := fs.String("context-file", "", "Path to a file containing context for AI generation")
 	model := fs.String("model", "", "Override OpenRouter model")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	remaining, err := parseArgs(fs, args)
 	if err != nil {
@@ -162,6 +165,7 @@ func (a *App) requirementsGenerate(args []string) error {
 		EntityName: name,
 		Context:    finalContext,
 		Model:      strings.TrimSpace(*model),
+		CustomPath: strings.TrimSpace(*customPath),
 	}
 
 	body, err := a.services.Requirements.Generate(req)
@@ -205,6 +209,7 @@ func (a *App) requirementsFix(args []string) error {
 	context := fs.String("context", "", "Additional context for AI generation")
 	contextFile := fs.String("context-file", "", "Path to a file containing context for AI generation")
 	model := fs.String("model", "", "Override OpenRouter model")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	remaining, err := parseArgs(fs, args)
 	if err != nil {
@@ -245,6 +250,7 @@ func (a *App) requirementsFix(args []string) error {
 		EntityName: name,
 		Context:    finalContext,
 		Model:      strings.TrimSpace(*model),
+		CustomPath: strings.TrimSpace(*customPath),
 	}
 
 	body, err := a.services.Requirements.Fix(req)
@@ -288,6 +294,7 @@ func (a *App) requirementsValidate(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	entityType := fs.String("type", "", "Entity type: scenario or resource (default: auto-detect)")
 	noCache := fs.Bool("no-cache", false, "Bypass validation cache")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	remaining, err := parseArgs(fs, args)
 	if err != nil {
@@ -311,7 +318,7 @@ func (a *App) requirementsValidate(args []string) error {
 	}
 
 	// Call API
-	body, err := a.services.Requirements.Validate(resolvedType, name, !*noCache)
+	body, err := a.services.Requirements.Validate(resolvedType, name, !*noCache, strings.TrimSpace(*customPath))
 	if err != nil {
 		return err
 	}

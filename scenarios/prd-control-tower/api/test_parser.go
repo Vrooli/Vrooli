@@ -97,7 +97,6 @@ func scanTestFilesForRequirement(entityType, entityName, requirementID string) (
 
 		return nil
 	})
-
 	if err != nil {
 		return references, err
 	}

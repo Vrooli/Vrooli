@@ -20,13 +20,13 @@ func TestHandleGetCatalog(t *testing.T) {
 
 	// Create test scenarios directory structure
 	scenariosDir := filepath.Join(tmpDir, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenarios dir: %v", err)
 	}
 
 	// Create a test scenario with PRD
 	testScenarioDir := filepath.Join(scenariosDir, "test-scenario")
-	if err := os.MkdirAll(testScenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(testScenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test scenario dir: %v", err)
 	}
 	prdPath := filepath.Join(testScenarioDir, "PRD.md")
@@ -37,19 +37,19 @@ This is a test scenario for unit testing.
 ## Features
 - Feature 1
 - Feature 2`
-	if err := os.WriteFile(prdPath, []byte(prdContent), 0644); err != nil {
+	if err := os.WriteFile(prdPath, []byte(prdContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test PRD: %v", err)
 	}
 
 	// Create resources directory
 	resourcesDir := filepath.Join(tmpDir, "resources")
-	if err := os.MkdirAll(resourcesDir, 0755); err != nil {
+	if err := os.MkdirAll(resourcesDir, 0o755); err != nil {
 		t.Fatalf("Failed to create resources dir: %v", err)
 	}
 
 	// Create a test resource without PRD
 	testResourceDir := filepath.Join(resourcesDir, "test-resource")
-	if err := os.MkdirAll(testResourceDir, 0755); err != nil {
+	if err := os.MkdirAll(testResourceDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test resource dir: %v", err)
 	}
 
@@ -112,13 +112,13 @@ func TestHandleGetPublishedPRD(t *testing.T) {
 
 	// Create test scenario with PRD
 	scenarioDir := filepath.Join(tmpDir, "scenarios", "test-scenario")
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
 	prdContent := "# Test PRD\n\nThis is test content."
 	prdPath := filepath.Join(scenarioDir, "PRD.md")
-	if err := os.WriteFile(prdPath, []byte(prdContent), 0644); err != nil {
+	if err := os.WriteFile(prdPath, []byte(prdContent), 0o644); err != nil {
 		t.Fatalf("Failed to create PRD: %v", err)
 	}
 

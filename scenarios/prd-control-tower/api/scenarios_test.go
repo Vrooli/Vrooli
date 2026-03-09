@@ -30,13 +30,13 @@ func TestHandleScenarioExistence(t *testing.T) {
 	// Create a test scenario directory
 	scenariosDir := filepath.Join(tmpRoot, "scenarios")
 	testScenarioDir := filepath.Join(scenariosDir, "test-scenario")
-	if err := os.MkdirAll(testScenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(testScenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test scenario dir: %v", err)
 	}
 
 	// Create a file (not directory) to test the IsDir check
 	fileScenarioPath := filepath.Join(scenariosDir, "file-not-dir")
-	if err := os.WriteFile(fileScenarioPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(fileScenarioPath, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file scenario: %v", err)
 	}
 

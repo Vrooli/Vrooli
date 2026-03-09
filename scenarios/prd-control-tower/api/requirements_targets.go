@@ -22,12 +22,16 @@ const (
 	modernP2Heading         = "### 🟢 P2 – Future / expansion"
 )
 
-func extractOperationalTargets(entityType, entityName string) ([]OperationalTarget, error) {
-	vrooliRoot, err := getVrooliRoot()
+func extractOperationalTargets(entityType, entityName string, customPath ...string) ([]OperationalTarget, error) {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	entityBaseDir, err := resolveEntityBaseDir(entityType, entityName, cp)
 	if err != nil {
 		return nil, err
 	}
-	prdPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "PRD.md")
+	prdPath := filepath.Join(entityBaseDir, "PRD.md")
 	content, err := os.ReadFile(prdPath)
 	if err != nil {
 		return nil, err

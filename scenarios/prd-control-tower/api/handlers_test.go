@@ -7,37 +7,36 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestHandleHealth tests the health check endpoint
 func TestHandleHealth(t *testing.T) {
+	// Build the same handler used in main.go (no DB in unit tests)
+	handler := health.New().Version("1.0.0").Handler()
+
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
 
-	handleHealth(w, req)
+	handler(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("handleHealth() status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf("health handler status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var response HealthResponse
+	var response health.Response
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Errorf("Failed to decode health response: %v", err)
 		return
 	}
 
-	if response.Service != "prd-control-tower-api" {
-		t.Errorf("handleHealth() service = %q, want %q", response.Service, "prd-control-tower-api")
+	// Without DB check, status should be healthy
+	if response.Status != "healthy" {
+		t.Errorf("health handler status = %q, want %q", response.Status, "healthy")
 	}
 
-	// Status may be "degraded" when db is nil, which is expected in unit tests
-	if response.Status != "healthy" && response.Status != "degraded" {
-		t.Errorf("handleHealth() status = %q, want %q or %q", response.Status, "healthy", "degraded")
-	}
-
-	// Verify response structure contains dependencies
-	if response.Dependencies == nil {
-		t.Errorf("handleHealth() dependencies should not be nil")
+	if response.Version != "1.0.0" {
+		t.Errorf("health handler version = %q, want %q", response.Version, "1.0.0")
 	}
 }
 
@@ -47,7 +46,7 @@ func TestCORSMiddleware(t *testing.T) {
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Wrap with CORS middleware

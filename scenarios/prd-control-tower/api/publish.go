@@ -22,6 +22,7 @@ type PublishRequest struct {
 	CreateBackup bool                    `json:"create_backup"`
 	DeleteDraft  bool                    `json:"delete_draft"`
 	Template     *PublishTemplateRequest `json:"template,omitempty"`
+	CustomPath   string                  `json:"custom_path,omitempty"` // Override base directory for PRD output
 }
 
 // PublishTemplateRequest describes template/scenario creation metadata
@@ -90,7 +91,7 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate operational targets linkage before publishing
-	if err := validateOperationalTargetsLinkage(draft.EntityType, publishEntityName, draft.Content); err != nil {
+	if err := validateOperationalTargetsLinkage(draft.EntityType, publishEntityName, draft.Content, req.CustomPath); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"success": false,
 			"message": err.Error(),
@@ -100,14 +101,13 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Construct target PRD path
-	vrooliRoot, err := getVrooliRoot()
+	entityBaseDir, err := resolveEntityBaseDir(draft.EntityType, publishEntityName, req.CustomPath)
 	if err != nil {
-		respondInternalError(w, "Failed to get Vrooli root", err)
+		respondInternalError(w, "Failed to resolve entity directory", err)
 		return
 	}
 
-	baseDir := filepath.Join(vrooliRoot, draft.EntityType+"s")
-	targetPath := filepath.Join(baseDir, publishEntityName, "PRD.md")
+	targetPath := filepath.Join(entityBaseDir, "PRD.md")
 
 	var generationResult *ScenarioGenerationResult
 	if req.Template != nil {
@@ -132,12 +132,12 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 
 	// Write PRD.md file
 	targetDir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		respondInternalError(w, "Failed to create target directory", err)
 		return
 	}
 
-	if err := os.WriteFile(targetPath, []byte(draft.Content), 0644); err != nil {
+	if err := os.WriteFile(targetPath, []byte(draft.Content), 0o644); err != nil {
 		respondInternalError(w, "Failed to write PRD file", err)
 		return
 	}
@@ -311,7 +311,7 @@ func sortedTemplateKeys(vars map[string]templateVarDefinition) []string {
 }
 
 // validateOperationalTargetsLinkage checks if P0/P1 operational targets have linkages to requirements
-func validateOperationalTargetsLinkage(entityType, entityName, content string) error {
+func validateOperationalTargetsLinkage(entityType, entityName, content string, customPath ...string) error {
 	// Get operational targets from draft content
 	targets := parseOperationalTargets(content, entityType, entityName)
 	if len(targets) == 0 {
@@ -319,14 +319,17 @@ func validateOperationalTargetsLinkage(entityType, entityName, content string) e
 		return nil
 	}
 
-	// Load requirements to check linkages
-	vrooliRoot, err := getVrooliRoot()
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	entityBaseDir, err := resolveEntityBaseDir(entityType, entityName, cp)
 	if err != nil {
-		slog.Warn("Failed to get Vrooli root for validation", "error", err)
+		slog.Warn("Failed to resolve entity directory for validation", "error", err)
 		return nil
 	}
 
-	reqsPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "requirements", "index.json")
+	reqsPath := filepath.Join(entityBaseDir, "requirements", "index.json")
 	if _, err := os.Stat(reqsPath); os.IsNotExist(err) {
 		// No requirements file - skip validation
 		return nil
@@ -344,7 +347,7 @@ func validateOperationalTargetsLinkage(entityType, entityName, content string) e
 		return nil
 	}
 
-	groups, err := loadRequirementsForEntity(entityType, entityName)
+	groups, err := loadRequirementsForEntity(entityType, entityName, cp)
 	if err != nil {
 		return fmt.Errorf("failed to load requirements registry: %w", err)
 	}

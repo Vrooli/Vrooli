@@ -84,13 +84,13 @@ func TestParseRequirementGroups(t *testing.T) {
 
 	indexPath := filepath.Join(tmpDir, "index.json")
 	indexBytes, _ := json.MarshalIndent(indexData, "", "  ")
-	if err := os.WriteFile(indexPath, indexBytes, 0644); err != nil {
+	if err := os.WriteFile(indexPath, indexBytes, 0o644); err != nil {
 		t.Fatalf("failed to create test index.json: %v", err)
 	}
 
 	// Create child directory and file
 	childDir := filepath.Join(tmpDir, "child")
-	if err := os.MkdirAll(childDir, 0755); err != nil {
+	if err := os.MkdirAll(childDir, 0o755); err != nil {
 		t.Fatalf("failed to create child directory: %v", err)
 	}
 
@@ -112,7 +112,7 @@ func TestParseRequirementGroups(t *testing.T) {
 
 	childPath := filepath.Join(childDir, "child.json")
 	childBytes, _ := json.MarshalIndent(childData, "", "  ")
-	if err := os.WriteFile(childPath, childBytes, 0644); err != nil {
+	if err := os.WriteFile(childPath, childBytes, 0o644); err != nil {
 		t.Fatalf("failed to create test child.json: %v", err)
 	}
 
@@ -166,7 +166,7 @@ func TestParseRequirementGroupsCircularImport(t *testing.T) {
 
 	indexPath := filepath.Join(tmpDir, "index.json")
 	indexBytes, _ := json.MarshalIndent(indexData, "", "  ")
-	if err := os.WriteFile(indexPath, indexBytes, 0644); err != nil {
+	if err := os.WriteFile(indexPath, indexBytes, 0o644); err != nil {
 		t.Fatalf("failed to create test index.json: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestParseRequirementGroupsCircularImport(t *testing.T) {
 
 	childPath := filepath.Join(tmpDir, "child.json")
 	childBytes, _ := json.MarshalIndent(childData, "", "  ")
-	if err := os.WriteFile(childPath, childBytes, 0644); err != nil {
+	if err := os.WriteFile(childPath, childBytes, 0o644); err != nil {
 		t.Fatalf("failed to create test child.json: %v", err)
 	}
 
