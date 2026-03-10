@@ -547,15 +547,6 @@ const FileRow = memo(function FileRow({
           {/* Desktop: hover-to-reveal actions */}
           {!isMobile && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-              {onViewMetrics && (
-                <button
-                  className="p-1 rounded hover:bg-slate-700 transition-all"
-                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
-                  title="View file metrics"
-                >
-                  <BarChart3 className="h-3 w-3 text-slate-400" />
-                </button>
-              )}
               <button
                 className="p-1 rounded hover:bg-slate-700 transition-all"
                 onClick={(e) => {
@@ -572,6 +563,15 @@ const FileRow = memo(function FileRow({
                   actionIcon
                 )}
               </button>
+              {onViewMetrics && (
+                <button
+                  className="p-1 rounded hover:bg-slate-700 transition-all"
+                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
+                  title="View file metrics"
+                >
+                  <BarChart3 className="h-3 w-3 text-slate-400" />
+                </button>
+              )}
               {onConfirmIgnore && onIgnore && (
                 <button
                   className="p-1 rounded hover:bg-amber-900/40 transition-all"

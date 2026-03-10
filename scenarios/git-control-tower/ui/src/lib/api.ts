@@ -224,6 +224,8 @@ export interface DiffStats {
   is_binary?: boolean;
   is_rename?: boolean;
   old_path?: string;
+  comment_additions?: number;
+  comment_deletions?: number;
 }
 
 /** View mode for the diff viewer */

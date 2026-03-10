@@ -7,6 +7,47 @@ export interface AggregateMetrics {
   totalFiles: number;
   binaryCount: number;
   renameCount: number;
+  fileTypeBreakdown: Record<string, number>;
+  churnRatio: number;
+  paretoPercent: number;
+  paretoTopN: number;
+  testFileCount: number;
+}
+
+/** Extract lowercase file extension, or "(no ext)" for extensionless files. */
+export function fileExtension(path: string): string {
+  const dot = path.lastIndexOf(".");
+  if (dot === -1 || dot === path.length - 1) return "(no ext)";
+  // Avoid treating hidden files like ".gitignore" as having extension "gitignore"
+  const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  if (dot <= slash + 1) return "(no ext)";
+  return path.slice(dot).toLowerCase();
+}
+
+/** Check if a file path looks like a test file. */
+export function isTestFile(path: string): boolean {
+  if (path.endsWith("_test.go")) return true;
+  if (/\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path)) return true;
+  if (path.includes("/__tests__/")) return true;
+  return false;
+}
+
+/** Human-readable label for churn ratio. */
+export function churnLabel(ratio: number): string {
+  if (ratio >= 0.7) return "rewriting";
+  if (ratio >= 0.3) return "mixed";
+  if (ratio > 0) return "net change";
+  return "";
+}
+
+/** Format file type breakdown as a compact string. */
+export function formatFileTypeBreakdown(breakdown: Record<string, number>, maxShow = 5): string {
+  const entries = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return "";
+  const shown = entries.slice(0, maxShow).map(([ext, count]) => `${count} ${ext}`);
+  const remaining = entries.length - maxShow;
+  if (remaining > 0) shown.push(`(+${remaining} more)`);
+  return shown.join(", ");
 }
 
 /** Aggregate per-file DiffStats across all categories into summary metrics. */
@@ -18,23 +59,59 @@ export function aggregateFileStats(fileStats?: RepoFileStats): AggregateMetrics 
     totalFiles: 0,
     binaryCount: 0,
     renameCount: 0,
+    fileTypeBreakdown: {},
+    churnRatio: 0,
+    paretoPercent: 0,
+    paretoTopN: 0,
+    testFileCount: 0,
   };
   if (!fileStats) return result;
 
   const seen = new Set<string>();
+  const fileSizes: number[] = [];
+
   for (const category of [fileStats.staged, fileStats.unstaged, fileStats.untracked]) {
     if (!category) continue;
     for (const [path, stats] of Object.entries(category)) {
       if (seen.has(path)) continue;
       seen.add(path);
-      result.totalAdditions += stats.additions ?? 0;
-      result.totalDeletions += stats.deletions ?? 0;
-      result.totalNetLines += stats.net_lines ?? (stats.additions ?? 0) - (stats.deletions ?? 0);
+
+      const add = stats.additions ?? 0;
+      const del = stats.deletions ?? 0;
+      result.totalAdditions += add;
+      result.totalDeletions += del;
+      result.totalNetLines += stats.net_lines ?? add - del;
       result.totalFiles++;
       if (stats.is_binary) result.binaryCount++;
       if (stats.is_rename) result.renameCount++;
+
+      // File type breakdown
+      const ext = fileExtension(path);
+      result.fileTypeBreakdown[ext] = (result.fileTypeBreakdown[ext] ?? 0) + 1;
+
+      // Test file detection
+      if (isTestFile(path)) result.testFileCount++;
+
+      // Track per-file change size for Pareto
+      fileSizes.push(add + del);
     }
   }
+
+  // Churn ratio
+  const maxVal = Math.max(result.totalAdditions, result.totalDeletions);
+  const minVal = Math.min(result.totalAdditions, result.totalDeletions);
+  result.churnRatio = maxVal > 0 ? minVal / maxVal : 0;
+
+  // Pareto concentration
+  if (fileSizes.length > 0) {
+    fileSizes.sort((a, b) => b - a);
+    const topN = Math.max(1, Math.ceil(fileSizes.length * 0.2));
+    const totalChanges = fileSizes.reduce((a, b) => a + b, 0);
+    const topSum = fileSizes.slice(0, topN).reduce((a, b) => a + b, 0);
+    result.paretoTopN = topN;
+    result.paretoPercent = totalChanges > 0 ? Math.round((topSum / totalChanges) * 100) : 0;
+  }
+
   return result;
 }
 

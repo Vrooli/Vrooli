@@ -7,6 +7,9 @@ import {
   formatNetLines,
   densityLabel,
   categoryStats,
+  isTestFile,
+  churnLabel,
+  formatFileTypeBreakdown,
 } from "../lib/metrics";
 
 interface ChangeMetricsModalProps {
@@ -191,12 +194,21 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
           </div>
         )}
 
+        {/* Comment lines (file mode only) */}
+        {mode === "file" && s && (s.comment_additions || s.comment_deletions) ? (
+          <MetricRow
+            label="Comment lines"
+            value={`+${s.comment_additions ?? 0} / -${s.comment_deletions ?? 0}`}
+            testId="metric-comment-lines"
+          />
+        ) : null}
+
         {/* Density bar (file mode only) */}
         {mode === "file" && s && <DensityBar density={s.density} />}
       </div>
 
-      {/* Details: rename / binary (file mode) */}
-      {mode === "file" && s && (s.is_rename || s.is_binary) && (
+      {/* Details: rename / binary / test file (file mode) */}
+      {mode === "file" && s && (s.is_rename || s.is_binary || (filePath && isTestFile(filePath))) && (
         <div className="space-y-2 border-t border-slate-800 pt-3">
           <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
             Details
@@ -217,6 +229,11 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
               Binary file
             </div>
           )}
+          {filePath && isTestFile(filePath) && (
+            <div className="text-xs text-amber-400" data-testid="metric-is-test-file">
+              Test file
+            </div>
+          )}
         </div>
       )}
 
@@ -231,6 +248,34 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
             value={`${aggregate.totalFiles}${aggregate.binaryCount > 0 ? ` (${aggregate.binaryCount} binary)` : ""}${aggregate.renameCount > 0 ? ` (${aggregate.renameCount} renamed)` : ""}`}
             testId="metric-total-files"
           />
+          {Object.keys(aggregate.fileTypeBreakdown).length > 0 && (
+            <MetricRow
+              label="File types"
+              value={formatFileTypeBreakdown(aggregate.fileTypeBreakdown)}
+              testId="metric-file-types"
+            />
+          )}
+          {aggregate.testFileCount > 0 && (
+            <MetricRow
+              label="Test files"
+              value={aggregate.testFileCount}
+              testId="metric-test-files"
+            />
+          )}
+          {aggregate.churnRatio > 0 && (
+            <MetricRow
+              label="Churn"
+              value={`${(aggregate.churnRatio * 100).toFixed(0)}% ${churnLabel(aggregate.churnRatio)}`}
+              testId="metric-churn"
+            />
+          )}
+          {aggregate.totalFiles >= 3 && (
+            <MetricRow
+              label={`Top ${aggregate.paretoTopN} file(s)`}
+              value={`${aggregate.paretoPercent}% of changes`}
+              testId="metric-concentration"
+            />
+          )}
           <div className="space-y-0.5 border-t border-slate-800/60 pt-2 mt-2">
             {stagedCat && (
               <CategoryRow label="Staged" {...stagedCat} />

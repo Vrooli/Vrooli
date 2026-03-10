@@ -299,6 +299,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 			return nil, fmt.Errorf("check diff for source content: %w", diffErr)
 		}
 		parsed := ParseDiffOutput(string(diffOut))
+		enrichCommentStats(parsed, cleanPath)
 		hasDiff = parsed.HasDiff
 		stats = parsed.Stats
 	}
@@ -336,6 +337,7 @@ func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir 
 	}
 
 	parsed := ParseDiffOutput(string(out))
+	enrichCommentStats(parsed, cleanPath)
 	parsed.RepoDir = repoDir
 	parsed.Path = cleanPath
 	parsed.Staged = false
@@ -456,6 +458,7 @@ func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir
 	}
 
 	parsed := ParseDiffOutput(string(out))
+	enrichCommentStats(parsed, pathForGit)
 	parsed.RepoDir = repoDir
 	parsed.Path = pathForGit
 	parsed.Staged = req.Staged
@@ -682,6 +685,57 @@ func countHunkChangedLines(h DiffHunk) int {
 		}
 	}
 	return count
+}
+
+// isCommentLine checks if a trimmed line (without +/- prefix) is a comment
+// based on the file extension.
+func isCommentLine(trimmedContent string, ext string) bool {
+	if trimmedContent == "" {
+		return false
+	}
+	ext = strings.ToLower(ext)
+	switch ext {
+	case ".go", ".ts", ".tsx", ".js", ".jsx", ".java", ".c", ".cpp", ".rs", ".swift":
+		return strings.HasPrefix(trimmedContent, "//") ||
+			strings.HasPrefix(trimmedContent, "/*") ||
+			strings.HasPrefix(trimmedContent, "*/") ||
+			strings.HasPrefix(trimmedContent, "*")
+	case ".py", ".rb", ".sh", ".bash", ".yaml", ".yml", ".toml":
+		return strings.HasPrefix(trimmedContent, "#")
+	case ".html", ".xml", ".svg":
+		return strings.HasPrefix(trimmedContent, "<!--")
+	}
+	return false
+}
+
+// enrichCommentStats counts comment additions/deletions in the parsed diff.
+func enrichCommentStats(resp *DiffResponse, path string) {
+	if path == "" || resp == nil {
+		return
+	}
+	ext := filepath.Ext(path)
+	if ext == "" {
+		return
+	}
+	for _, hunk := range resp.Hunks {
+		for _, line := range hunk.Lines {
+			if len(line) == 0 {
+				continue
+			}
+			prefix := line[0]
+			if prefix == '+' && !strings.HasPrefix(line, "+++") {
+				content := strings.TrimSpace(line[1:])
+				if isCommentLine(content, ext) {
+					resp.Stats.CommentAdditions++
+				}
+			} else if prefix == '-' && !strings.HasPrefix(line, "---") {
+				content := strings.TrimSpace(line[1:])
+				if isCommentLine(content, ext) {
+					resp.Stats.CommentDeletions++
+				}
+			}
+		}
+	}
 }
 
 func atoi(s string) int {

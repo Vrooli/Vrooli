@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateFileStats, formatNetLines, densityLabel, categoryStats, getFileStats, filterFileStats, filterCategoryStats } from "./metrics";
+import { aggregateFileStats, formatNetLines, densityLabel, categoryStats, getFileStats, filterFileStats, filterCategoryStats, fileExtension, isTestFile, churnLabel, formatFileTypeBreakdown } from "./metrics";
 import type { RepoFileStats, DiffStats } from "./api";
 
 describe("aggregateFileStats", () => {
@@ -55,6 +55,129 @@ describe("aggregateFileStats", () => {
     };
     const result = aggregateFileStats(fileStats);
     expect(result.totalNetLines).toBe(7);
+  });
+
+  it("computes fileTypeBreakdown", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "a.go": { additions: 10, deletions: 3, files: 1 },
+        "b.go": { additions: 5, deletions: 2, files: 1 },
+        "c.ts": { additions: 8, deletions: 0, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.fileTypeBreakdown).toEqual({ ".go": 2, ".ts": 1 });
+  });
+
+  it("computes testFileCount", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "app.go": { additions: 10, deletions: 3, files: 1 },
+        "app_test.go": { additions: 5, deletions: 2, files: 1 },
+        "utils.test.ts": { additions: 8, deletions: 0, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.testFileCount).toBe(2);
+  });
+
+  it("computes churnRatio", () => {
+    const fileStats: RepoFileStats = {
+      staged: { "a.ts": { additions: 10, deletions: 10, files: 1 } },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.churnRatio).toBe(1);
+  });
+
+  it("computes churnRatio as 0 when only additions", () => {
+    const fileStats: RepoFileStats = {
+      staged: { "a.ts": { additions: 10, deletions: 0, files: 1 } },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.churnRatio).toBe(0);
+  });
+
+  it("computes paretoPercent for skewed distribution", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "a.ts": { additions: 100, deletions: 0, files: 1 },
+        "b.ts": { additions: 1, deletions: 0, files: 1 },
+        "c.ts": { additions: 1, deletions: 0, files: 1 },
+        "d.ts": { additions: 1, deletions: 0, files: 1 },
+        "e.ts": { additions: 1, deletions: 0, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    // Top 20% = 1 file, which has 100 out of 104 total = 96%
+    expect(result.paretoTopN).toBe(1);
+    expect(result.paretoPercent).toBe(96);
+  });
+
+  it("computes paretoPercent for even distribution", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "a.ts": { additions: 10, deletions: 0, files: 1 },
+        "b.ts": { additions: 10, deletions: 0, files: 1 },
+        "c.ts": { additions: 10, deletions: 0, files: 1 },
+        "d.ts": { additions: 10, deletions: 0, files: 1 },
+        "e.ts": { additions: 10, deletions: 0, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.paretoTopN).toBe(1);
+    expect(result.paretoPercent).toBe(20);
+  });
+
+  it("handles single file for pareto", () => {
+    const fileStats: RepoFileStats = {
+      staged: { "a.ts": { additions: 10, deletions: 5, files: 1 } },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.paretoTopN).toBe(1);
+    expect(result.paretoPercent).toBe(100);
+  });
+});
+
+describe("fileExtension", () => {
+  it("extracts .go", () => expect(fileExtension("main.go")).toBe(".go"));
+  it("returns (no ext) for extensionless", () => expect(fileExtension("Makefile")).toBe("(no ext)"));
+  it("extracts .test.ts as .ts", () => expect(fileExtension("foo.test.ts")).toBe(".ts"));
+  it("handles hidden files", () => expect(fileExtension(".gitignore")).toBe("(no ext)"));
+  it("handles paths with dirs", () => expect(fileExtension("src/lib/api.ts")).toBe(".ts"));
+});
+
+describe("isTestFile", () => {
+  it("matches _test.go", () => expect(isTestFile("foo_test.go")).toBe(true));
+  it("matches .test.tsx", () => expect(isTestFile("bar.test.tsx")).toBe(true));
+  it("matches .spec.js", () => expect(isTestFile("baz.spec.js")).toBe(true));
+  it("matches __tests__ path", () => expect(isTestFile("src/__tests__/baz.ts")).toBe(true));
+  it("rejects regular file", () => expect(isTestFile("app.ts")).toBe(false));
+  it("rejects test_utils.go", () => expect(isTestFile("test_utils.go")).toBe(false));
+});
+
+describe("churnLabel", () => {
+  it("returns empty for 0", () => expect(churnLabel(0)).toBe(""));
+  it("returns net change for 0.29", () => expect(churnLabel(0.29)).toBe("net change"));
+  it("returns mixed for 0.3", () => expect(churnLabel(0.3)).toBe("mixed"));
+  it("returns mixed for 0.69", () => expect(churnLabel(0.69)).toBe("mixed"));
+  it("returns rewriting for 0.7", () => expect(churnLabel(0.7)).toBe("rewriting"));
+  it("returns rewriting for 1.0", () => expect(churnLabel(1.0)).toBe("rewriting"));
+});
+
+describe("formatFileTypeBreakdown", () => {
+  it("sorts by count descending", () => {
+    const bd = { ".ts": 2, ".go": 3, ".css": 1 };
+    expect(formatFileTypeBreakdown(bd)).toBe("3 .go, 2 .ts, 1 .css");
+  });
+
+  it("truncates with +N more", () => {
+    const bd = { ".a": 1, ".b": 1, ".c": 1, ".d": 1, ".e": 1, ".f": 1, ".g": 1 };
+    const result = formatFileTypeBreakdown(bd, 3);
+    expect(result).toContain("(+4 more)");
+  });
+
+  it("returns empty string for empty breakdown", () => {
+    expect(formatFileTypeBreakdown({})).toBe("");
   });
 });
 

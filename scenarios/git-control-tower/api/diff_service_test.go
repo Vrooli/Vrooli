@@ -613,6 +613,81 @@ func TestParseDiffOutput_SingleHunk_EnhancedStats(t *testing.T) {
 	}
 }
 
+func TestIsCommentLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		ext     string
+		want    bool
+	}{
+		{"Go single-line comment", "// this is a comment", ".go", true},
+		{"Go block comment start", "/* block start", ".go", true},
+		{"Go block comment end", "*/ end", ".go", true},
+		{"Go mid-block star", "* continuation", ".go", true},
+		{"Go code line", "fmt.Println()", ".go", false},
+		{"TS comment", "// comment", ".ts", true},
+		{"TSX comment", "// comment", ".tsx", true},
+		{"Python comment", "# comment", ".py", true},
+		{"Python code", "print('hello')", ".py", false},
+		{"Shell comment", "# comment", ".sh", true},
+		{"YAML comment", "# comment", ".yaml", true},
+		{"HTML comment", "<!-- comment -->", ".html", true},
+		{"HTML tag", "<div>", ".html", false},
+		{"Unknown ext returns false", "// comment", ".xyz", false},
+		{"Empty line returns false", "", ".go", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCommentLine(tt.content, tt.ext)
+			if got != tt.want {
+				t.Errorf("isCommentLine(%q, %q) = %v, want %v", tt.content, tt.ext, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnrichCommentStats(t *testing.T) {
+	resp := &DiffResponse{
+		Hunks: []DiffHunk{
+			{
+				Lines: []string{
+					" context line",
+					"+// added comment",
+					"+fmt.Println()",
+					"+/* block comment */",
+					"-// deleted comment",
+					"-oldCode()",
+					"--- a/file.go",
+					"+++ b/file.go",
+				},
+			},
+		},
+		Stats: DiffStats{},
+	}
+	enrichCommentStats(resp, "file.go")
+
+	if resp.Stats.CommentAdditions != 2 {
+		t.Errorf("CommentAdditions = %d, want 2", resp.Stats.CommentAdditions)
+	}
+	if resp.Stats.CommentDeletions != 1 {
+		t.Errorf("CommentDeletions = %d, want 1", resp.Stats.CommentDeletions)
+	}
+}
+
+func TestEnrichCommentStats_NoPath(t *testing.T) {
+	resp := &DiffResponse{
+		Hunks: []DiffHunk{
+			{Lines: []string{"+// comment"}},
+		},
+		Stats: DiffStats{},
+	}
+	enrichCommentStats(resp, "")
+
+	if resp.Stats.CommentAdditions != 0 {
+		t.Errorf("CommentAdditions = %d, want 0 (no-op for empty path)", resp.Stats.CommentAdditions)
+	}
+}
+
 func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
 	tests := []struct {
 		name       string

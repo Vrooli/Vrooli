@@ -47,6 +47,14 @@ const aggregateFileStats: RepoFileStats = {
   },
 };
 
+const aggregateWithTests: RepoFileStats = {
+  staged: {
+    "main.go": { additions: 50, deletions: 10, files: 1, net_lines: 40 },
+    "main_test.go": { additions: 30, deletions: 5, files: 1, net_lines: 25 },
+    "utils.ts": { additions: 20, deletions: 20, files: 1, net_lines: 0 },
+  },
+};
+
 describe("ChangeMetricsModal", () => {
   beforeEach(() => {
     mockIsMobile = false;
@@ -196,5 +204,127 @@ describe("ChangeMetricsModal", () => {
       />,
     );
     expect(screen.queryByTestId("density-bar")).not.toBeInTheDocument();
+  });
+
+  it("renders file type breakdown in aggregate mode", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={aggregateWithTests}
+      />,
+    );
+    const el = screen.getByTestId("metric-file-types");
+    expect(el).toBeInTheDocument();
+    expect(el.textContent).toContain(".go");
+    expect(el.textContent).toContain(".ts");
+  });
+
+  it("renders test file count when > 0 in aggregate mode", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={aggregateWithTests}
+      />,
+    );
+    expect(screen.getByTestId("metric-test-files")).toHaveTextContent("1");
+  });
+
+  it("hides test file count when 0", () => {
+    const noTests: RepoFileStats = {
+      staged: { "a.ts": { additions: 10, deletions: 3, files: 1 } },
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={noTests}
+      />,
+    );
+    expect(screen.queryByTestId("metric-test-files")).not.toBeInTheDocument();
+  });
+
+  it("renders churn ratio when > 0 in aggregate mode", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={aggregateWithTests}
+      />,
+    );
+    const el = screen.getByTestId("metric-churn");
+    expect(el).toBeInTheDocument();
+  });
+
+  it("renders concentration when 3+ files in aggregate mode", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={aggregateWithTests}
+      />,
+    );
+    const el = screen.getByTestId("metric-concentration");
+    expect(el).toBeInTheDocument();
+    expect(el.textContent).toContain("% of changes");
+  });
+
+  it("renders comment lines in file mode when present", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ ...fileStats, comment_additions: 5, comment_deletions: 2 }}
+        filePath="src/api.ts"
+      />,
+    );
+    const el = screen.getByTestId("metric-comment-lines");
+    expect(el).toHaveTextContent("+5 / -2");
+  });
+
+  it("does not render comment lines when absent", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={fileStats}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.queryByTestId("metric-comment-lines")).not.toBeInTheDocument();
+  });
+
+  it("renders test file badge for test files in file mode", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={fileStats}
+        filePath="src/utils.test.ts"
+      />,
+    );
+    expect(screen.getByTestId("metric-is-test-file")).toHaveTextContent("Test file");
+  });
+
+  it("does not render test file badge for non-test files", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={fileStats}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.queryByTestId("metric-is-test-file")).not.toBeInTheDocument();
   });
 });
