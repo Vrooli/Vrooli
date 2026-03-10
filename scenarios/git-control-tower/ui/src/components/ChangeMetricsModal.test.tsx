@@ -327,4 +327,104 @@ describe("ChangeMetricsModal", () => {
     );
     expect(screen.queryByTestId("metric-is-test-file")).not.toBeInTheDocument();
   });
+
+  it("shows loading spinner when enhancedLoading is true", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1 }}
+        filePath="src/api.ts"
+        enhancedLoading={true}
+      />,
+    );
+    expect(screen.getByTestId("enhanced-loading")).toBeInTheDocument();
+    // Hunk and comment sections should not render while loading
+    expect(screen.queryByTestId("metric-hunk-count")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("metric-comment-lines")).not.toBeInTheDocument();
+  });
+
+  it("displays enhanced metrics from enhancedStats", () => {
+    const enhanced: DiffStats = {
+      additions: 10,
+      deletions: 5,
+      files: 1,
+      hunk_count: 4,
+      largest_hunk: 20,
+      density: 0.25,
+      comment_additions: 3,
+      comment_deletions: 1,
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1 }}
+        filePath="src/api.ts"
+        enhancedStats={enhanced}
+      />,
+    );
+    expect(screen.getByTestId("metric-hunk-count")).toHaveTextContent("4");
+    expect(screen.getByTestId("metric-largest-hunk")).toHaveTextContent("20 lines");
+    expect(screen.getByTestId("metric-comment-lines")).toHaveTextContent("+3 / -1");
+    expect(screen.getByTestId("density-bar")).toBeInTheDocument();
+  });
+
+  it("hides enhanced metrics section for untracked files", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 0, files: 1, net_lines: 10 }}
+        filePath="src/new-file.ts"
+        isUntracked={true}
+      />,
+    );
+    // Should still show basic stats
+    expect(screen.getByTestId("metric-net-lines")).toHaveTextContent("net +10");
+    // Should not show loading or enhanced sections
+    expect(screen.queryByTestId("enhanced-loading")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("metric-hunk-count")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("density-bar")).not.toBeInTheDocument();
+  });
+
+  it("shows basic stats immediately without enhanced stats", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 20, deletions: 8, files: 1, net_lines: 12 }}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.getByTestId("metric-net-lines")).toHaveTextContent("net +12");
+    expect(screen.queryByTestId("enhanced-loading")).not.toBeInTheDocument();
+  });
+
+  it("merges enhanced stats over basic stats for rename info", () => {
+    const enhanced: DiffStats = {
+      additions: 5,
+      deletions: 2,
+      files: 1,
+      is_rename: true,
+      old_path: "old-name.ts",
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 5, deletions: 2, files: 1 }}
+        filePath="new-name.ts"
+        enhancedStats={enhanced}
+      />,
+    );
+    const rename = screen.getByTestId("metric-rename");
+    expect(rename).toHaveTextContent("old-name.ts");
+    expect(rename).toHaveTextContent("new-name.ts");
+  });
 });

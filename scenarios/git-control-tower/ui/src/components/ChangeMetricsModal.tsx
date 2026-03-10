@@ -1,5 +1,5 @@
 import { memo, useMemo, useEffect, useCallback } from "react";
-import { X, BarChart3, Plus, Minus, ArrowRight } from "lucide-react";
+import { X, BarChart3, Plus, Minus, ArrowRight, Loader2 } from "lucide-react";
 import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
 import {
@@ -24,6 +24,12 @@ interface ChangeMetricsModalProps {
   fileStats?: RepoFileStats;
   /** Custom title override */
   title?: string;
+  /** Enhanced stats fetched on-demand from /repo/diff (hunks, density, comments, rename) */
+  enhancedStats?: DiffStats;
+  /** Whether enhanced stats are currently loading */
+  enhancedLoading?: boolean;
+  /** Whether the file is untracked (no enhanced metrics available) */
+  isUntracked?: boolean;
 }
 
 /** Density bar: visual representation of change scatter. */
@@ -105,6 +111,15 @@ function CategoryRow({
   );
 }
 
+function EnhancedLoadingRow() {
+  return (
+    <div className="flex items-center gap-2 py-1" data-testid="enhanced-loading">
+      <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
+      <span className="text-xs text-slate-500">Loading detailed metrics…</span>
+    </div>
+  );
+}
+
 export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   isOpen,
   onClose,
@@ -113,6 +128,9 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   filePath,
   fileStats,
   title,
+  enhancedStats,
+  enhancedLoading,
+  isUntracked,
 }: ChangeMetricsModalProps) {
   const isMobile = useIsMobile();
 
@@ -179,63 +197,85 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
         </div>
 
         {/* Hunk info (file mode only — aggregate doesn't have hunk data) */}
-        {mode === "file" && s && (s.hunk_count ?? 0) > 0 && (
-          <div className="space-y-0.5">
-            <MetricRow
-              label="Hunks"
-              value={s.hunk_count ?? 0}
-              testId="metric-hunk-count"
-            />
-            <MetricRow
-              label="Largest hunk"
-              value={`${s.largest_hunk ?? 0} lines`}
-              testId="metric-largest-hunk"
-            />
-          </div>
-        )}
+        {mode === "file" && !isUntracked && (() => {
+          const es = enhancedStats;
+          const hunkSrc = es ?? s;
+          if (enhancedLoading) return <EnhancedLoadingRow />;
+          if (hunkSrc && (hunkSrc.hunk_count ?? 0) > 0) return (
+            <div className="space-y-0.5">
+              <MetricRow
+                label="Hunks"
+                value={hunkSrc.hunk_count ?? 0}
+                testId="metric-hunk-count"
+              />
+              <MetricRow
+                label="Largest hunk"
+                value={`${hunkSrc.largest_hunk ?? 0} lines`}
+                testId="metric-largest-hunk"
+              />
+            </div>
+          );
+          return null;
+        })()}
 
         {/* Comment lines (file mode only) */}
-        {mode === "file" && s && (s.comment_additions || s.comment_deletions) ? (
-          <MetricRow
-            label="Comment lines"
-            value={`+${s.comment_additions ?? 0} / -${s.comment_deletions ?? 0}`}
-            testId="metric-comment-lines"
-          />
-        ) : null}
+        {mode === "file" && !isUntracked && (() => {
+          const es = enhancedStats;
+          const commentSrc = es ?? s;
+          if (!enhancedLoading && commentSrc && (commentSrc.comment_additions || commentSrc.comment_deletions)) return (
+            <MetricRow
+              label="Comment lines"
+              value={`+${commentSrc.comment_additions ?? 0} / -${commentSrc.comment_deletions ?? 0}`}
+              testId="metric-comment-lines"
+            />
+          );
+          return null;
+        })()}
 
         {/* Density bar (file mode only) */}
-        {mode === "file" && s && <DensityBar density={s.density} />}
+        {mode === "file" && !isUntracked && (() => {
+          const densitySrc = enhancedStats ?? s;
+          if (!enhancedLoading && densitySrc) return <DensityBar density={densitySrc.density} />;
+          return null;
+        })()}
       </div>
 
       {/* Details: rename / binary / test file (file mode) */}
-      {mode === "file" && s && (s.is_rename || s.is_binary || (filePath && isTestFile(filePath))) && (
-        <div className="space-y-2 border-t border-slate-800 pt-3">
-          <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Details
-          </h3>
-          {s.is_rename && s.old_path && (
-            <div
-              className="flex items-center gap-2 text-xs text-slate-300"
-              data-testid="metric-rename"
-            >
-              <span className="text-slate-500">Rename:</span>
-              <span className="truncate">{s.old_path}</span>
-              <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
-              <span className="truncate">{filePath}</span>
-            </div>
-          )}
-          {s.is_binary && (
-            <div className="text-xs text-amber-400" data-testid="metric-binary">
-              Binary file
-            </div>
-          )}
-          {filePath && isTestFile(filePath) && (
-            <div className="text-xs text-amber-400" data-testid="metric-is-test-file">
-              Test file
-            </div>
-          )}
-        </div>
-      )}
+      {mode === "file" && (() => {
+        const detailSrc = enhancedStats ?? s;
+        const showRename = !isUntracked && detailSrc?.is_rename && detailSrc?.old_path;
+        const showBinary = s?.is_binary;
+        const showTest = filePath && isTestFile(filePath);
+        if (!showRename && !showBinary && !showTest) return null;
+        return (
+          <div className="space-y-2 border-t border-slate-800 pt-3">
+            <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Details
+            </h3>
+            {showRename && (
+              <div
+                className="flex items-center gap-2 text-xs text-slate-300"
+                data-testid="metric-rename"
+              >
+                <span className="text-slate-500">Rename:</span>
+                <span className="truncate">{detailSrc!.old_path}</span>
+                <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                <span className="truncate">{filePath}</span>
+              </div>
+            )}
+            {showBinary && (
+              <div className="text-xs text-amber-400" data-testid="metric-binary">
+                Binary file
+              </div>
+            )}
+            {showTest && (
+              <div className="text-xs text-amber-400" data-testid="metric-is-test-file">
+                Test file
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Aggregate breakdown */}
       {mode === "aggregate" && aggregate && (

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { DiffStats } from "./api";
 import {
   fetchHealth,
   fetchRepoStatus,
@@ -193,6 +194,25 @@ export function useDiff(
     // Only enable when we have a valid path, especially important for "any" file viewing
     enabled: Boolean(path)
   });
+}
+
+export function useDiffStats(
+  path?: string,
+  staged = false,
+  untracked = false,
+  enabled = false,
+  repoId?: string | null,
+) {
+  const query = useQuery({
+    queryKey: queryKeys.diff(path, staged, untracked, undefined, "diff", false, repoId),
+    queryFn: () => fetchDiff(path, staged, untracked, undefined, "diff", false, repoId ?? undefined),
+    enabled: enabled && Boolean(path) && !untracked,
+    staleTime: 30_000,
+  });
+  return {
+    stats: query.data?.stats as DiffStats | undefined,
+    isLoading: query.isLoading && enabled && Boolean(path) && !untracked,
+  };
 }
 
 export function useStageFiles(repoId?: string | null) {

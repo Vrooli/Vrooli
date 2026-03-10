@@ -42,6 +42,7 @@ import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
+import { useDiffStats } from "../lib/hooks";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -161,7 +162,7 @@ interface FileSectionProps {
   onLongPress?: (file: string, staged: boolean) => void;
   onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
   onStatsClick?: () => void;
-  onViewMetrics?: (file: string) => void;
+  onViewMetrics?: (file: string, category: FileCategory) => void;
 }
 
 const statusStyleMap = {
@@ -329,7 +330,8 @@ interface FileRowProps {
   mobileSelectionMode?: boolean;
   onLongPress?: (file: string, staged: boolean) => void;
   onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
-  onViewMetrics?: (file: string) => void;
+  onViewMetrics?: (file: string, category: FileCategory) => void;
+  category: FileCategory;
 }
 
 const FileRow = memo(function FileRow({
@@ -365,6 +367,7 @@ const FileRow = memo(function FileRow({
   onLongPress,
   onMobileTap,
   onViewMetrics,
+  category,
 }: FileRowProps) {
   const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
@@ -566,7 +569,7 @@ const FileRow = memo(function FileRow({
               {onViewMetrics && (
                 <button
                   className="p-1 rounded hover:bg-slate-700 transition-all"
-                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
+                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file, category); }}
                   title="View file metrics"
                 >
                   <BarChart3 className="h-3 w-3 text-slate-400" />
@@ -783,6 +786,7 @@ function FileSection({
               onLongPress={onLongPress}
               onMobileTap={onMobileTap}
               onViewMetrics={onViewMetrics}
+              category={category}
             />
           ))}
         </ul>
@@ -866,6 +870,7 @@ export function FileList({
     path?: string;
     filteredFileStats?: RepoFileStats;
     title?: string;
+    category?: FileCategory;
   } | null>(null);
   const openAggregateMetrics = useCallback(
     () => setMetricsModal({ mode: "aggregate" }),
@@ -873,10 +878,10 @@ export function FileList({
   );
 
   const openFileMetrics = useCallback(
-    (path: string) => {
+    (path: string, category?: FileCategory) => {
       const stats = getFileStats(path, fileStats);
       if (!stats) return;
-      setMetricsModal({ mode: "file", stats, path });
+      setMetricsModal({ mode: "file", stats, path, category });
     },
     [fileStats],
   );
@@ -910,6 +915,15 @@ export function FileList({
       });
     },
     [fileStats],
+  );
+
+  // Fetch enhanced stats (hunks, density, comments) on-demand when file metrics modal is open
+  const enhancedQuery = useDiffStats(
+    metricsModal?.path,
+    metricsModal?.category === "staged",
+    metricsModal?.category === "untracked",
+    metricsModal !== null && metricsModal.mode === "file",
+    repoId,
   );
 
   // Mobile file actions state
@@ -2036,7 +2050,10 @@ export function FileList({
               label="View Metrics"
               description="View change metrics for this file"
               onClick={() => {
-                openFileMetrics(mobileActionFileInfo.path);
+                const cat: FileCategory = mobileActionFileInfo.isStaged ? "staged"
+                  : mobileActionFileInfo.isUntracked ? "untracked"
+                  : "unstaged";
+                openFileMetrics(mobileActionFileInfo.path, cat);
                 setMobileActionFile(null);
               }}
             />
@@ -2149,6 +2166,9 @@ export function FileList({
         filePath={metricsModal?.path}
         fileStats={metricsModal?.filteredFileStats ?? fileStats}
         title={metricsModal?.title}
+        enhancedStats={enhancedQuery.stats}
+        enhancedLoading={enhancedQuery.isLoading}
+        isUntracked={metricsModal?.category === "untracked"}
       />
     </MobileContext.Provider>
   );
