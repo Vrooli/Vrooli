@@ -101,6 +101,7 @@ export async function runRules(scenarioNames?: string[]) {
 }
 
 export type FixChange = { type: string; detail: string };
+export type FileDiff = { before: string; after: string };
 export type FixResult = {
   scenario_name: string;
   rule_id: string;
@@ -108,6 +109,7 @@ export type FixResult = {
   file_path: string;
   changes: FixChange[];
   error?: string;
+  diff?: FileDiff;
 };
 export type FixRequest = {
   scenario_names: string[];

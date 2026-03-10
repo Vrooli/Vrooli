@@ -60,6 +60,11 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 
 	fixed := len(changes) > 0 && (len(existingContent) == 0 || string(existingContent) != output)
 
+	var diff *FileDiff
+	if dryRun && fixed {
+		diff = &FileDiff{Before: string(existingContent), After: output}
+	}
+
 	// Write if not dry-run and there are changes.
 	if fixed && !dryRun {
 		if err := os.MkdirAll(filepath.Dir(makefilePath), 0o755); err != nil {
@@ -79,6 +84,7 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 			Fixed:        fixed,
 			FilePath:     makefilePath,
 			Changes:      changes,
+			Diff:         diff,
 		})
 	}
 	return results

@@ -31,6 +31,7 @@ func FixGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	}
 
 	text := string(raw)
+	originalText := text
 	var changes []FixChange
 
 	// Check for API internal imports needing replace+require wiring.
@@ -83,7 +84,10 @@ func FixGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 		}}
 	}
 
-	if !dryRun {
+	var diff *FileDiff
+	if dryRun {
+		diff = &FileDiff{Before: originalText, After: text}
+	} else {
 		if err := os.WriteFile(cliGoMod, []byte(text), 0o644); err != nil {
 			return []FixResult{{
 				ScenarioName: scenarioName,
@@ -101,6 +105,7 @@ func FixGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 		Fixed:        true,
 		FilePath:     cliGoMod,
 		Changes:      changes,
+		Diff:         diff,
 	}}
 }
 

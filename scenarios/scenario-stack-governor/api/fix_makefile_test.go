@@ -48,6 +48,9 @@ func TestFixMakefile_GeneratesCanonical(t *testing.T) {
 		if r.Error != "" {
 			t.Errorf("rule %s: unexpected error: %s", r.RuleID, r.Error)
 		}
+		if r.Diff != nil {
+			t.Errorf("rule %s: expected Diff to be nil on non-dry-run", r.RuleID)
+		}
 	}
 
 	// Verify the file was written.
@@ -180,6 +183,17 @@ func TestFixMakefile_DryRunDoesNotWrite(t *testing.T) {
 	// File should NOT exist.
 	if _, err := os.Stat(makefilePath); err == nil {
 		t.Error("expected Makefile to NOT be written in dry-run mode")
+	}
+
+	// Diff should be populated.
+	if results[0].Diff == nil {
+		t.Fatal("expected Diff to be populated in dry-run")
+	}
+	if results[0].Diff.Before != "" {
+		t.Errorf("expected Diff.Before to be empty (no existing Makefile), got %q", results[0].Diff.Before)
+	}
+	if !strings.Contains(results[0].Diff.After, "Scenario Makefile") {
+		t.Error("expected Diff.After to contain the canonical header")
 	}
 }
 

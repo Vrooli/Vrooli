@@ -20,7 +20,14 @@ type FixResult struct {
 	Fixed        bool        `json:"fixed"`
 	FilePath     string      `json:"file_path"`
 	Changes      []FixChange `json:"changes"`
+	Diff         *FileDiff   `json:"diff,omitempty"`
 	Error        string      `json:"error,omitempty"`
+}
+
+// FileDiff holds before/after file content for dry-run review.
+type FileDiff struct {
+	Before string `json:"before"`
+	After  string `json:"after"`
 }
 
 // FixChange describes a single mutation applied (or that would be applied in dry-run).

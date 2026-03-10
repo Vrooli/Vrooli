@@ -16,6 +16,7 @@ import { ScenarioPicker } from "./components/ScenarioPicker";
 import { RuleSelector } from "./components/RuleSelector";
 import { ResultsPanel } from "./components/ResultsPanel";
 import { ConfigPanel } from "./components/ConfigPanel";
+import { DiffReviewModal } from "./components/DiffReviewModal";
 
 function toggleRule(config: RulesConfig, id: string, enabled: boolean): RulesConfig {
   return {
@@ -59,6 +60,9 @@ export default function App() {
   const [fixResultsMap, setFixResultsMap] = useState<Record<string, FixResult[]>>({});
   const [dryRun, setDryRun] = useState(false);
 
+  // Diff review modal state for two-phase fix flow.
+  const [pendingReview, setPendingReview] = useState<{ ruleId: string; scenarioNames: string[]; results: FixResult[] } | null>(null);
+
   // Config panel collapse state.
   const [configExpanded, setConfigExpanded] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -93,10 +97,42 @@ export default function App() {
         dry_run: args.dryRun
       }),
     onSuccess: (data, variables) => {
+      if (variables.dryRun) {
+        setFixResultsMap((prev) => ({
+          ...prev,
+          [variables.ruleId]: data.results
+        }));
+      }
+    }
+  });
+
+  // Preview fix: dry-run to get diffs, then show review modal
+  const previewFix = useMutation({
+    mutationFn: (args: { ruleId: string; scenarioNames: string[] }) =>
+      fixRules({
+        scenario_names: args.scenarioNames,
+        rule_ids: [args.ruleId],
+        dry_run: true
+      }),
+    onSuccess: (data, variables) => {
+      setPendingReview({ ruleId: variables.ruleId, scenarioNames: variables.scenarioNames, results: data.results });
+    }
+  });
+
+  // Apply fix: actually write changes, then update results and close modal
+  const applyFix = useMutation({
+    mutationFn: (args: { ruleId: string; scenarioNames: string[] }) =>
+      fixRules({
+        scenario_names: args.scenarioNames,
+        rule_ids: [args.ruleId],
+        dry_run: false
+      }),
+    onSuccess: (data, variables) => {
       setFixResultsMap((prev) => ({
         ...prev,
         [variables.ruleId]: data.results
       }));
+      setPendingReview(null);
     }
   });
 
@@ -127,10 +163,26 @@ export default function App() {
 
   const handleFix = useCallback(
     (ruleId: string, scenarioNames: string[], isDryRun: boolean) => {
-      fix.mutate({ ruleId, scenarioNames, dryRun: isDryRun });
+      if (isDryRun) {
+        // Dry run: show inline results directly
+        fix.mutate({ ruleId, scenarioNames, dryRun: true });
+      } else {
+        // Real fix: preview first (dry-run to get diffs), then show review modal
+        previewFix.mutate({ ruleId, scenarioNames });
+      }
     },
-    [fix]
+    [fix, previewFix]
   );
+
+  const handleApplyReview = useCallback(() => {
+    if (pendingReview) {
+      applyFix.mutate({ ruleId: pendingReview.ruleId, scenarioNames: pendingReview.scenarioNames });
+    }
+  }, [pendingReview, applyFix]);
+
+  const handleCancelReview = useCallback(() => {
+    setPendingReview(null);
+  }, []);
 
   const scenarioList = scenarios.data?.scenarios ?? [];
   const noRulesSelected = selectedRuleIds.size === 0;
@@ -212,13 +264,21 @@ export default function App() {
             onToggleExpand={(id) => setExpandedRuleId((prev) => (prev === id ? null : id))}
             fixResults={fixResultsMap}
             onFix={handleFix}
-            fixPending={fix.isPending}
+            fixPending={fix.isPending || previewFix.isPending}
             dryRun={dryRun}
             onToggleDryRun={() => setDryRun((prev) => !prev)}
           />
         )}
       </div>
       </div>
+
+      <DiffReviewModal
+        open={pendingReview !== null}
+        results={pendingReview?.results ?? []}
+        onApply={handleApplyReview}
+        onCancel={handleCancelReview}
+        applying={applyFix.isPending}
+      />
     </div>
   );
 }

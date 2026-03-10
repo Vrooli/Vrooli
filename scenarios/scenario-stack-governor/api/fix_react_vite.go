@@ -118,20 +118,23 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 	lifecycle["setup"] = setup
 	doc["lifecycle"] = lifecycle
 
-	if !dryRun {
-		out, err := json.MarshalIndent(doc, "", "  ")
-		if err != nil {
-			return []FixResult{{
-				ScenarioName: scenarioName,
-				RuleID:       ruleID,
-				Fixed:        false,
-				FilePath:     serviceJSONPath,
-				Error:        err.Error(),
-			}}
-		}
-		// Ensure trailing newline.
-		out = append(out, '\n')
-		if err := os.WriteFile(serviceJSONPath, out, 0o644); err != nil {
+	afterBytes, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return []FixResult{{
+			ScenarioName: scenarioName,
+			RuleID:       ruleID,
+			Fixed:        false,
+			FilePath:     serviceJSONPath,
+			Error:        err.Error(),
+		}}
+	}
+	afterBytes = append(afterBytes, '\n')
+
+	var diff *FileDiff
+	if dryRun {
+		diff = &FileDiff{Before: string(raw), After: string(afterBytes)}
+	} else {
+		if err := os.WriteFile(serviceJSONPath, afterBytes, 0o644); err != nil {
 			return []FixResult{{
 				ScenarioName: scenarioName,
 				RuleID:       ruleID,
@@ -148,5 +151,6 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 		Fixed:        true,
 		FilePath:     serviceJSONPath,
 		Changes:      changes,
+		Diff:         diff,
 	}}
 }

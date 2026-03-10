@@ -60,6 +60,9 @@ func main() {}
 	if !r.Fixed {
 		t.Fatalf("expected fixed=true, got false; error=%s", r.Error)
 	}
+	if r.Diff != nil {
+		t.Error("expected Diff to be nil on non-dry-run")
+	}
 
 	content, _ := os.ReadFile(filepath.Join(scenarioDir, "cli", "go.mod"))
 	text := string(content)
@@ -183,5 +186,16 @@ func main() {}
 	content, _ := os.ReadFile(goModPath)
 	if string(content) != original {
 		t.Error("expected go.mod to be unchanged in dry-run mode")
+	}
+
+	// Diff should be populated.
+	if results[0].Diff == nil {
+		t.Fatal("expected Diff to be populated in dry-run")
+	}
+	if results[0].Diff.Before != original {
+		t.Error("expected Diff.Before to equal original go.mod content")
+	}
+	if !strings.Contains(results[0].Diff.After, "replace") {
+		t.Error("expected Diff.After to contain 'replace'")
 	}
 }

@@ -156,6 +156,9 @@ func TestIntegration_FixDryRun(t *testing.T) {
 		if !r.Fixed {
 			t.Errorf("rule %s: expected fixed=true in dry-run", r.RuleID)
 		}
+		if r.Diff == nil {
+			t.Errorf("rule %s: expected Diff to be populated in dry-run", r.RuleID)
+		}
 	}
 
 	// Makefile must NOT exist on disk.
@@ -323,5 +326,34 @@ migrate: ## Run database migrations
 	}
 	if !foundPreserved {
 		t.Error("expected preserved_custom changes in fix results")
+	}
+}
+
+// TestIntegration_FixApplyNoDiff verifies that applying fixes (non-dry-run)
+// does not populate Diff fields.
+func TestIntegration_FixApplyNoDiff(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "apply-no-diff"
+	mkdirAll(t, filepath.Join(root, "scenarios", scenarioName))
+
+	resp := postJSON(t, ts, "/api/v1/fix", FixRequest{
+		ScenarioNames: []string{scenarioName},
+		RuleIDs:       []string{"MAKEFILE_STRUCTURE"},
+		DryRun:        false,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var fixResp FixResponse
+	decodeJSON(t, resp, &fixResp)
+
+	for _, r := range fixResp.Results {
+		if r.Diff != nil {
+			t.Errorf("rule %s: expected Diff to be nil on actual apply", r.RuleID)
+		}
 	}
 }

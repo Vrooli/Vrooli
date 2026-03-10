@@ -59,6 +59,9 @@ func TestFixReactVite_PatchesExistingStep(t *testing.T) {
 	if !results[0].Fixed {
 		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
 	}
+	if results[0].Diff != nil {
+		t.Error("expected Diff to be nil on non-dry-run")
+	}
 
 	content, _ := os.ReadFile(sjPath)
 	if !strings.Contains(string(content), "--ignore-workspace") {
@@ -162,5 +165,16 @@ func TestFixReactVite_DryRunDoesNotWrite(t *testing.T) {
 	current, _ := os.ReadFile(sjPath)
 	if string(current) != string(original) {
 		t.Error("expected service.json to be unchanged in dry-run mode")
+	}
+
+	// Diff should be populated.
+	if results[0].Diff == nil {
+		t.Fatal("expected Diff to be populated in dry-run")
+	}
+	if results[0].Diff.Before != string(original) {
+		t.Error("expected Diff.Before to equal original service.json content")
+	}
+	if !strings.Contains(results[0].Diff.After, "--ignore-workspace") {
+		t.Error("expected Diff.After to contain '--ignore-workspace'")
 	}
 }

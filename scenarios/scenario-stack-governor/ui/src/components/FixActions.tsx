@@ -30,6 +30,16 @@ export function FixActions({
     }
   };
 
+  const handleClick = () => {
+    if (dryRun) {
+      // Dry run: confirm before previewing
+      setConfirmTarget(scenarioNames);
+    } else {
+      // Real fix: skip ConfirmDialog — diff review modal in App.tsx handles confirmation
+      onFix(ruleId, scenarioNames, false);
+    }
+  };
+
   return (
     <>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -46,7 +56,7 @@ export function FixActions({
           size="sm"
           variant="outline"
           disabled={isPending}
-          onClick={() => setConfirmTarget(scenarioNames)}
+          onClick={handleClick}
         >
           {isPending ? "Fixing..." : `Fix All (${scenarioNames.length})`}
         </Button>
@@ -54,13 +64,9 @@ export function FixActions({
 
       <ConfirmDialog
         open={confirmTarget !== null}
-        title={dryRun ? "Dry Run Fix" : "Apply Fix"}
-        message={
-          dryRun
-            ? `Preview fixes for ${ruleId} across ${confirmTarget?.length ?? 0} scenario(s). No files will be changed.`
-            : `Apply fixes for ${ruleId} across ${confirmTarget?.length ?? 0} scenario(s). This will modify files on disk.`
-        }
-        confirmLabel={dryRun ? "Preview" : "Fix"}
+        title="Dry Run Fix"
+        message={`Preview fixes for ${ruleId} across ${confirmTarget?.length ?? 0} scenario(s). No files will be changed.`}
+        confirmLabel="Preview"
         onConfirm={handleConfirm}
         onCancel={() => setConfirmTarget(null)}
       />
@@ -83,24 +89,29 @@ export function FixScenarioButton({
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const handleClick = () => {
+    if (dryRun) {
+      setShowConfirm(true);
+    } else {
+      // Real fix: skip ConfirmDialog — diff review modal in App.tsx handles confirmation
+      onFix(ruleId, [scenarioName], false);
+    }
+  };
+
   return (
     <>
       <button
         className="ml-2 rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 hover:bg-white/5 hover:text-slate-200 disabled:opacity-50"
         disabled={isPending}
-        onClick={() => setShowConfirm(true)}
+        onClick={handleClick}
       >
         Fix
       </button>
       <ConfirmDialog
         open={showConfirm}
-        title={dryRun ? "Dry Run Fix" : "Apply Fix"}
-        message={
-          dryRun
-            ? `Preview fix for ${ruleId} on ${scenarioName}. No files will be changed.`
-            : `Apply fix for ${ruleId} on ${scenarioName}. This will modify files on disk.`
-        }
-        confirmLabel={dryRun ? "Preview" : "Fix"}
+        title="Dry Run Fix"
+        message={`Preview fix for ${ruleId} on ${scenarioName}. No files will be changed.`}
+        confirmLabel="Preview"
         onConfirm={() => {
           onFix(ruleId, [scenarioName], dryRun);
           setShowConfirm(false);
