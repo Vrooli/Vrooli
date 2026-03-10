@@ -614,15 +614,6 @@ const FileRow = memo(function FileRow({
           {/* Mobile: show primary action always, menu for secondary actions */}
           {isMobile && (
             <div className="flex items-center gap-1">
-              {onViewMetrics && (
-                <button
-                  className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
-                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
-                  title="View file metrics"
-                >
-                  <BarChart3 className="h-5 w-5 text-slate-400" />
-                </button>
-              )}
               {/* Primary action (stage/unstage) - always visible */}
               <button
                 className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
@@ -642,7 +633,7 @@ const FileRow = memo(function FileRow({
               </button>
 
               {/* More actions button - opens bottom sheet */}
-              {(onConfirmIgnore || canDiscard) && onOpenMobileActions && (
+              {(onConfirmIgnore || canDiscard || onViewMetrics) && onOpenMobileActions && (
                 <button
                   className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
                   onClick={(e) => {
@@ -856,7 +847,9 @@ export function FileList({
     (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
+  const [compactHeader, setCompactHeader] = useState(false);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(),
@@ -1121,6 +1114,19 @@ export function FileList({
     // Re-run when collapsed changes to re-observe the new ScrollArea element
   }, [collapsed]);
 
+  // Track card width to swap +/- stats for a compact icon in the header
+  useEffect(() => {
+    if (!cardRef.current || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const width = cardRef.current?.clientWidth ?? 0;
+      setCompactHeader(width < 450);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (!groupingActive) {
       setConfirmingGroup(null);
@@ -1271,6 +1277,7 @@ export function FileList({
   return (
     <MobileContext.Provider value={isMobile}>
       <Card
+        ref={cardRef}
         className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto"}`}
         data-testid="file-list-panel"
       >
@@ -1289,10 +1296,24 @@ export function FileList({
               )}
             </button>
             <span className="truncate">Changes</span>
-            <LineStats
-              stats={totalStats}
-              onClick={() => setMetricsModal({ mode: "aggregate" })}
-            />
+            {compactHeader ? (
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-slate-800/70 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMetricsModal({ mode: "aggregate" });
+                }}
+                aria-label="View change metrics"
+              >
+                <BarChart3 className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            ) : (
+              <LineStats
+                stats={totalStats}
+                onClick={() => setMetricsModal({ mode: "aggregate" })}
+              />
+            )}
           </CardTitle>
           <div className="flex flex-wrap gap-2 justify-end min-w-0">
             {hasUnstaged && (
@@ -2009,6 +2030,17 @@ export function FileList({
           }
         >
           <div className="space-y-1">
+            {/* View metrics */}
+            <BottomSheetAction
+              icon={<BarChart3 className="h-5 w-5 text-slate-300" />}
+              label="View Metrics"
+              description="View change metrics for this file"
+              onClick={() => {
+                openFileMetrics(mobileActionFileInfo.path);
+                setMobileActionFile(null);
+              }}
+            />
+
             {/* Stage/Unstage action */}
             {mobileActionFileInfo.isStaged && (
               <BottomSheetAction
