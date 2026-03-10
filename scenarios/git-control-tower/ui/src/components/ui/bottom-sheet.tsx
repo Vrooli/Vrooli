@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface BottomSheetProps {
@@ -88,7 +89,9 @@ export function BottomSheet({
         ? "max-h-[50vh]"
         : "max-h-[85vh]";
 
-  return (
+  // Portal to document.body to escape CSS containing blocks created by
+  // backdrop-filter, transform, or will-change on ancestor elements.
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -133,7 +136,8 @@ export function BottomSheet({
           {children}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

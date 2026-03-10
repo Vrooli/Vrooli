@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { File, History, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import type { ViewingCommit } from "../App";
+import type { ViewingCommit } from "./HistoryModeHeader";
 
 interface HistoryFileListProps {
   viewingCommit: ViewingCommit;

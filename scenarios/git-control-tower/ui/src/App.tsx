@@ -25,15 +25,7 @@ import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
-
-/** State for viewing a historical commit (read-only mode) */
-export interface ViewingCommit {
-  hash: string;
-  subject: string;
-  files: string[];
-  author?: string;
-  date?: string;
-}
+import type { ViewingCommit } from "./components/HistoryModeHeader";
 import {
   useHealth,
   useRepoStatus,
@@ -2311,6 +2303,8 @@ export default function App() {
           onOpenFileSearch={() => setIsFileSearchOpen(true)}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
+          viewingFileBlame={viewingFileBlame}
+          onExitBlameMode={handleExitBlameMode}
         />
 
         {/* Main Content - Single Panel at a time */}

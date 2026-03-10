@@ -1,8 +1,19 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RepoStatus, SyncStatusResponse } from "../lib/api";
+import type { BranchActions } from "./BranchSelector";
 import { StatusHeader } from "./StatusHeader";
+
+const stubBranchActions: BranchActions = {
+  isLoading: false,
+  createBranch: vi.fn().mockResolvedValue({ success: true }),
+  switchBranch: vi.fn().mockResolvedValue({ success: true }),
+  publishBranch: vi.fn().mockResolvedValue({ success: true }),
+  isCreating: false,
+  isSwitching: false,
+  isPublishing: false
+};
 
 describe("StatusHeader", () => {
   it("clarifies clean working tree with ahead/behind info", () => {
@@ -35,6 +46,7 @@ describe("StatusHeader", () => {
       <StatusHeader
         status={status}
         syncStatus={syncStatus}
+        branchActions={stubBranchActions}
         isLoading={false}
         onRefresh={() => {}}
         onOpenSettings={() => {}}

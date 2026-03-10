@@ -1,31 +1,27 @@
 import { useState } from "react";
 import {
-  GitBranch,
-  GitCommit,
   Menu,
   RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  Circle,
-  ArrowUp,
-  ArrowDown,
   Settings,
-  History,
-  Search,
-  X
+  Search
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
-import type { ViewingCommit } from "../App";
+import type { ViewingCommit } from "./HistoryModeHeader";
+import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
+import { HealthIndicator } from "./HealthIndicator";
+import { FileStatsBadges } from "./FileStatsBadges";
+import { HistoryModeHeader } from "./HistoryModeHeader";
+import { BlameModeHeader } from "./BlameModeHeader";
+import { useHeaderState } from "../hooks/useHeaderState";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
-  branchActions?: BranchActions;
+  branchActions: BranchActions;
   repoActions?: RepoActions;
   onRepoChange?: (repoId: string | null) => void;
   isLoading: boolean;
@@ -34,9 +30,10 @@ interface MobileHeaderProps {
   onOpenGroupingSettings?: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
-  // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
+  viewingFileBlame?: ViewingFileBlame | null;
+  onExitBlameMode?: () => void;
 }
 
 export function MobileHeader({
@@ -53,61 +50,27 @@ export function MobileHeader({
   onOpenUpstreamInfo,
   onOpenFileSearch,
   viewingCommit,
-  onExitHistoryMode
+  onExitHistoryMode,
+  viewingFileBlame,
+  onExitBlameMode
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isHealthy } = useHeaderState(status, health, syncStatus);
 
-  const isHealthy = health?.readiness ?? false;
-  const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
-  const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
-  const branchName = syncStatus?.branch ?? status?.branch.head ?? "";
-  const upstreamRef = syncStatus?.upstream ?? status?.branch.upstream ?? "";
-  const upstreamBranch = upstreamRef ? upstreamRef.split("/").slice(1).join("/") : "";
-  const trackingMismatch = Boolean(
-    branchName && upstreamBranch && branchName !== upstreamBranch
-  );
+  if (viewingFileBlame && onExitBlameMode) {
+    return <BlameModeHeader file={viewingFileBlame} onExit={onExitBlameMode} compact />;
+  }
+
+  if (viewingCommit && onExitHistoryMode) {
+    return <HistoryModeHeader commit={viewingCommit} onExit={onExitHistoryMode} compact />;
+  }
+
   const stagedCount = status?.summary.staged ?? 0;
   const unstagedCount = status?.summary.unstaged ?? 0;
   const untrackedCount = status?.summary.untracked ?? 0;
   const conflictCount = status?.summary.conflicts ?? 0;
-  const isHistoryMode = Boolean(viewingCommit);
-
   const isClean =
-    stagedCount === 0 &&
-    unstagedCount === 0 &&
-    untrackedCount === 0 &&
-    conflictCount === 0;
-
-  // History mode header - different layout
-  if (isHistoryMode && viewingCommit) {
-    return (
-      <header
-        className="flex items-center justify-between px-3 py-2 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm pt-safe"
-        data-testid="mobile-header"
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <History className="h-4 w-4 text-amber-400 flex-shrink-0" />
-          <Badge variant="warning" className="flex-shrink-0 text-xs">
-            History
-          </Badge>
-          <GitCommit className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-          <span className="font-mono text-xs text-amber-200">
-            {viewingCommit.hash.substring(0, 7)}
-          </span>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onExitHistoryMode}
-          className="gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30 text-xs px-2"
-        >
-          <X className="h-3.5 w-3.5" />
-          Exit
-        </Button>
-      </header>
-    );
-  }
+    stagedCount === 0 && unstagedCount === 0 && untrackedCount === 0 && conflictCount === 0;
 
   return (
     <>
@@ -117,67 +80,23 @@ export function MobileHeader({
       >
         {/* Left: Branch info */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {branchActions ? (
-            <BranchSelector
-              status={status}
-              syncStatus={syncStatus}
-              actions={branchActions}
-              repoActions={repoActions}
-              onRepoChange={onRepoChange}
-              variant="mobile"
-            />
-          ) : (
-            <>
-              <GitBranch className="h-4 w-4 text-slate-400 flex-shrink-0" />
-              <span className="font-mono text-sm text-slate-200 truncate">
-                {status?.branch.head || "—"}
-              </span>
-              {ahead > 0 && (
-                <Badge variant="info" className="gap-0.5 flex-shrink-0">
-                  <ArrowUp className="h-3 w-3" />
-                  {ahead}
-                </Badge>
-              )}
-              {behind > 0 && (
-                <Badge variant="warning" className="gap-0.5 flex-shrink-0">
-                  <ArrowDown className="h-3 w-3" />
-                  {behind}
-                </Badge>
-              )}
-              {upstreamRef && (
-                <button
-                  type="button"
-                  onClick={onOpenUpstreamInfo}
-                  className="rounded-md focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400/60 disabled:opacity-50"
-                  aria-label={`Open upstream details for ${upstreamRef}`}
-                  disabled={!onOpenUpstreamInfo}
-                >
-                  <Badge
-                    variant={trackingMismatch ? "warning" : "default"}
-                    className="gap-1 flex-shrink-0"
-                  >
-                    {trackingMismatch ? "Tracks" : "Upstream"} {upstreamRef}
-                  </Badge>
-                </button>
-              )}
-            </>
-          )}
+          <BranchSelector
+            status={status}
+            syncStatus={syncStatus}
+            actions={branchActions}
+            repoActions={repoActions}
+            onRepoChange={onRepoChange}
+            onOpenUpstreamInfo={onOpenUpstreamInfo}
+            variant="mobile"
+          />
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
-          {/* Health indicator */}
           <div className="p-2">
-            {isHealthy ? (
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-            ) : health ? (
-              <AlertCircle className="h-4 w-4 text-amber-500" />
-            ) : (
-              <Circle className="h-4 w-4 text-slate-600" />
-            )}
+            <HealthIndicator health={health} isHealthy={isHealthy} />
           </div>
 
-          {/* Search button */}
           {onOpenFileSearch && (
             <button
               onClick={onOpenFileSearch}
@@ -189,7 +108,6 @@ export function MobileHeader({
             </button>
           )}
 
-          {/* Refresh button */}
           <button
             onClick={onRefresh}
             disabled={isLoading}
@@ -202,7 +120,6 @@ export function MobileHeader({
             />
           </button>
 
-          {/* Menu button */}
           <button
             onClick={() => setMenuOpen(true)}
             className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
@@ -259,18 +176,12 @@ export function MobileHeader({
                 Changes
               </div>
               <div className="flex flex-wrap gap-2">
-                {stagedCount > 0 && (
-                  <Badge variant="staged">{stagedCount} staged</Badge>
-                )}
-                {unstagedCount > 0 && (
-                  <Badge variant="unstaged">{unstagedCount} modified</Badge>
-                )}
-                {untrackedCount > 0 && (
-                  <Badge variant="untracked">{untrackedCount} untracked</Badge>
-                )}
-                {conflictCount > 0 && (
-                  <Badge variant="conflict">{conflictCount} conflicts</Badge>
-                )}
+                <FileStatsBadges
+                  staged={stagedCount}
+                  unstaged={unstagedCount}
+                  untracked={untrackedCount}
+                  conflicts={conflictCount}
+                />
               </div>
             </div>
           )}
