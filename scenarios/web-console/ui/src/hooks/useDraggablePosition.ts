@@ -316,12 +316,14 @@ export const useDraggablePosition = (
         let vy = 0;
         const samples = state.velocitySamples;
         if (samples.length >= 2) {
-          const first = samples[0]!;
-          const last = samples[samples.length - 1]!;
-          const dt = (last.t - first.t) / 1000; // seconds
-          if (dt > 0.001) {
-            vx = (last.x - first.x) / dt;
-            vy = (last.y - first.y) / dt;
+          const first = samples[0];
+          const last = samples[samples.length - 1];
+          if (first && last) {
+            const dt = (last.t - first.t) / 1000; // seconds
+            if (dt > 0.001) {
+              vx = (last.x - first.x) / dt;
+              vy = (last.y - first.y) / dt;
+            }
           }
         }
 

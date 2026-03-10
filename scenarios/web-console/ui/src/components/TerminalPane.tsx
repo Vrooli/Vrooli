@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from "react";
+import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback, useMemo } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -18,7 +18,8 @@ interface TerminalPaneProps {
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
 export interface TerminalPaneHandle {
-  sendInput: (data: string) => void;
+  /** Send data to the terminal. Returns true if sent immediately, false if queued. */
+  sendInput: (data: string) => boolean;
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
@@ -35,7 +36,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const paneThemeId = useWorkspaceStore(
       useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.themeId ?? DEFAULT_THEME_ID, [sessionId]),
     );
-    const paneTheme = TERMINAL_THEMES[paneThemeId]?.colors ?? TERMINAL_THEMES[DEFAULT_THEME_ID]!.colors;
+    const paneTheme = useMemo(() => {
+      const fallback = { background: "#0f172a", foreground: "#e2e8f0", cursor: "#38bdf8" } as const;
+      return TERMINAL_THEMES[paneThemeId]?.colors ?? TERMINAL_THEMES[DEFAULT_THEME_ID]?.colors ?? fallback;
+    }, [paneThemeId]);
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize } = useTerminalSocket({

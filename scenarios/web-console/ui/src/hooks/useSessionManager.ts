@@ -140,14 +140,15 @@ export function useSessionManager() {
   }, []);
 
   const sendToActiveTerminal = useCallback(
-    (data: string, targetId?: string) => {
+    (data: string, targetId?: string): boolean => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
-          handle.sendInput(data);
+          return handle.sendInput(data);
         }
       }
+      return false;
     },
     [panes],
   );

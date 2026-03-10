@@ -156,7 +156,7 @@ describe("SettingsModal", () => {
 
     it("clicking a default color swatch calls setDefaultHeaderColor", () => {
       render(<SettingsModal />);
-      const firstColor = HEADER_COLORS[0]!;
+      const firstColor = HEADER_COLORS[0] ?? "transparent";
       fireEvent.click(screen.getByTestId(`defaults-header-color-${firstColor}`));
       expect(mockStoreState.setDefaultHeaderColor).toHaveBeenCalledWith(firstColor);
     });

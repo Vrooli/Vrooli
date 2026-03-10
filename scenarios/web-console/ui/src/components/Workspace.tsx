@@ -196,8 +196,8 @@ export default function Workspace() {
   );
 
   const handleSendToTerminal = useCallback(
-    (data: string) => {
-      sendToActiveTerminal(data, store.activePane ?? undefined);
+    (data: string): boolean => {
+      return sendToActiveTerminal(data, store.activePane ?? undefined);
     },
     [sendToActiveTerminal, store.activePane],
   );

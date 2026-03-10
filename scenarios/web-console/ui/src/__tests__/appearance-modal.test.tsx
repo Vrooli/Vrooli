@@ -80,7 +80,7 @@ describe("AppearanceModal", () => {
   it("clicking a header color swatch calls setPaneColor", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
-    const firstColor = HEADER_COLORS[0]!;
+    const firstColor = HEADER_COLORS[0] ?? "transparent";
     fireEvent.click(screen.getByTestId(`appearance-header-color-${firstColor}`));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", firstColor);
   });

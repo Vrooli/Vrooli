@@ -17,9 +17,9 @@ describe("UI configuration constants", () => {
   it("exports terminal appearance defaults", () => {
     const defaultTheme = TERMINAL_THEMES[DEFAULT_THEME_ID];
     expect(defaultTheme).toBeDefined();
-    expect(defaultTheme!.colors.background).toBe("#0f172a");
-    expect(defaultTheme!.colors.foreground).toBe("#e2e8f0");
-    expect(defaultTheme!.colors.cursor).toBe("#38bdf8");
+    expect(defaultTheme?.colors.background).toBe("#0f172a");
+    expect(defaultTheme?.colors.foreground).toBe("#e2e8f0");
+    expect(defaultTheme?.colors.cursor).toBe("#38bdf8");
     expect(TERMINAL_FONT_SIZE).toBe(14);
     expect(TERMINAL_FONT_FAMILY).toContain("monospace");
   });

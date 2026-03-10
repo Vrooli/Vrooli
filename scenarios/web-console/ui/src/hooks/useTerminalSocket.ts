@@ -122,12 +122,14 @@ export function useTerminalSocket({
   }, []);
 
   const sendInput = useCallback(
-    (data: string) => {
-      if (!sendMessage({ type: "stdin", data })) {
-        // Inputs can be triggered before socket open (launcher shortcuts,
-        // restored-session command replay). Queue and flush on connect.
-        enqueueInput(data);
+    (data: string): boolean => {
+      if (sendMessage({ type: "stdin", data })) {
+        return true;
       }
+      // Inputs can be triggered before socket open (launcher shortcuts,
+      // restored-session command replay). Queue and flush on connect.
+      enqueueInput(data);
+      return false;
     },
     [enqueueInput, sendMessage],
   );
