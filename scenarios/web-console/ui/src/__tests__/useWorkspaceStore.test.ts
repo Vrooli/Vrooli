@@ -31,6 +31,8 @@ describe("useWorkspaceStore", () => {
         sessionId: "sess-1",
         name: "bash",
         headerColor: "transparent",
+        themeId: "slate-ocean",
+        fontSize: 14,
       });
     });
 

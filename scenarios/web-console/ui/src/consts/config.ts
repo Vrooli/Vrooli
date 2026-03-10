@@ -11,13 +11,57 @@
 // Terminal Appearance
 // ---------------------------------------------------------------------------
 
-/** Terminal color theme applied to xterm.js instances. */
-export const TERMINAL_THEME = {
-  background: "#0f172a",
-  foreground: "#e2e8f0",
-  cursor: "#38bdf8",
-  selectionBackground: "#334155",
-} as const;
+/** Color properties for a terminal theme. */
+export interface TerminalThemeColors {
+  background: string;
+  foreground: string;
+  cursor: string;
+  selectionBackground: string;
+}
+
+/** A named terminal color theme. */
+export interface TerminalThemeDefinition {
+  id: string;
+  label: string;
+  colors: TerminalThemeColors;
+}
+
+/** Default theme applied to new panes. */
+export const DEFAULT_THEME_ID = "slate-ocean";
+
+/** Curated terminal color theme presets. */
+export const TERMINAL_THEMES: Record<string, TerminalThemeDefinition> = {
+  "slate-ocean": {
+    id: "slate-ocean",
+    label: "Slate Ocean",
+    colors: { background: "#0f172a", foreground: "#e2e8f0", cursor: "#38bdf8", selectionBackground: "#334155" },
+  },
+  dracula: {
+    id: "dracula",
+    label: "Dracula",
+    colors: { background: "#282a36", foreground: "#f8f8f2", cursor: "#ff79c6", selectionBackground: "#44475a" },
+  },
+  "solarized-dark": {
+    id: "solarized-dark",
+    label: "Solarized Dark",
+    colors: { background: "#002b36", foreground: "#839496", cursor: "#b58900", selectionBackground: "#073642" },
+  },
+  monokai: {
+    id: "monokai",
+    label: "Monokai",
+    colors: { background: "#272822", foreground: "#f8f8f2", cursor: "#f92672", selectionBackground: "#49483e" },
+  },
+  nord: {
+    id: "nord",
+    label: "Nord",
+    colors: { background: "#2e3440", foreground: "#d8dee9", cursor: "#88c0d0", selectionBackground: "#434c5e" },
+  },
+  "github-dark": {
+    id: "github-dark",
+    label: "GitHub Dark",
+    colors: { background: "#0d1117", foreground: "#c9d1d9", cursor: "#58a6ff", selectionBackground: "#161b22" },
+  },
+};
 
 /** Font size in pixels for terminal text. Range: 8–24. */
 export const TERMINAL_FONT_SIZE = 14;

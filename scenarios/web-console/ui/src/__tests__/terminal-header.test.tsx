@@ -4,13 +4,13 @@ import TerminalHeader from "../components/TerminalHeader";
 
 // Mock the workspace store
 const mockRenamePaneById = vi.fn();
-const mockSetPaneColor = vi.fn();
+const mockSetAppearanceModalPane = vi.fn();
 
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       renamePaneById: mockRenamePaneById,
-      setPaneColor: mockSetPaneColor,
+      setAppearanceModalPane: mockSetAppearanceModalPane,
     };
     return selector(state);
   },
@@ -77,34 +77,10 @@ describe("TerminalHeader", () => {
     expect(screen.getByTestId("terminal-header-name-sess-1")).toBeTruthy();
   });
 
-  it("toggles color picker on swatch click", () => {
+  it("clicking appearance button calls setAppearanceModalPane", () => {
     render(<TerminalHeader {...defaultProps} />);
-
-    // Color picker should not be visible initially
-    expect(screen.queryByTestId("terminal-header-color-picker-sess-1")).toBeNull();
-
-    // Click the color swatch
-    fireEvent.click(screen.getByTestId("terminal-header-color-sess-1"));
-    expect(screen.getByTestId("terminal-header-color-picker-sess-1")).toBeTruthy();
-
-    // Click again to close
-    fireEvent.click(screen.getByTestId("terminal-header-color-sess-1"));
-    expect(screen.queryByTestId("terminal-header-color-picker-sess-1")).toBeNull();
-  });
-
-  it("selects a color from the picker", () => {
-    render(<TerminalHeader {...defaultProps} />);
-    fireEvent.click(screen.getByTestId("terminal-header-color-sess-1"));
-
-    // Click a specific color button (the first non-transparent one)
-    const colorButtons = screen
-      .getByTestId("terminal-header-color-picker-sess-1")
-      .querySelectorAll("button");
-    // First button is "no color", second is the first HEADER_COLOR
-    const secondBtn = colorButtons[1];
-    if (secondBtn) fireEvent.click(secondBtn);
-
-    expect(mockSetPaneColor).toHaveBeenCalledWith("sess-1", "#7aa0ff");
+    fireEvent.click(screen.getByTestId("terminal-header-appearance-sess-1"));
+    expect(mockSetAppearanceModalPane).toHaveBeenCalledWith("sess-1");
   });
 
   it("calls onClose when close button is clicked", () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  TERMINAL_THEME,
+  TERMINAL_THEMES,
+  DEFAULT_THEME_ID,
   TERMINAL_FONT_SIZE,
   TERMINAL_FONT_FAMILY,
   DEFAULT_COLS,
@@ -14,9 +15,11 @@ import {
 // [REQ:P1-002a] Shortcut Profile Management - config exports
 describe("UI configuration constants", () => {
   it("exports terminal appearance defaults", () => {
-    expect(TERMINAL_THEME.background).toBe("#0f172a");
-    expect(TERMINAL_THEME.foreground).toBe("#e2e8f0");
-    expect(TERMINAL_THEME.cursor).toBe("#38bdf8");
+    const defaultTheme = TERMINAL_THEMES[DEFAULT_THEME_ID];
+    expect(defaultTheme).toBeDefined();
+    expect(defaultTheme!.colors.background).toBe("#0f172a");
+    expect(defaultTheme!.colors.foreground).toBe("#e2e8f0");
+    expect(defaultTheme!.colors.cursor).toBe("#38bdf8");
     expect(TERMINAL_FONT_SIZE).toBe(14);
     expect(TERMINAL_FONT_FAMILY).toContain("monospace");
   });

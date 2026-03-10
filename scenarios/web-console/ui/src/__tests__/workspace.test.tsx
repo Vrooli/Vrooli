@@ -57,29 +57,39 @@ const mockStoreState = {
   columnFractions: [] as number[],
   rowFractions: [] as number[],
   activePane: null as string | null,
-  terminalFontSize: 14,
+  appearanceModalPane: null as string | null,
   isMinimapVisible: true,
+  displayMode: "grid",
   settingsModalOpen: false,
   sessionsModalOpen: false,
+  aiModalOpen: false,
+};
+
+const mockStoreActions = {
+  addPane: vi.fn(),
+  removePane: vi.fn(),
+  renamePaneById: vi.fn(),
+  setPaneColor: vi.fn(),
+  setPaneTheme: vi.fn(),
+  setPaneFontSize: vi.fn(),
+  movePaneToIndex: vi.fn(),
+  setColumnFractions: vi.fn(),
+  setRowFractions: vi.fn(),
+  setActivePane: vi.fn(),
+  setAppearanceModalPane: vi.fn(),
+  setMinimapVisible: vi.fn(),
+  setDisplayMode: vi.fn(),
+  setSettingsModalOpen: vi.fn(),
+  setSessionsModalOpen: vi.fn(),
+  setAiModalOpen: vi.fn(),
+  resetLayout: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: () => ({
-    ...mockStoreState,
-    addPane: vi.fn(),
-    removePane: vi.fn(),
-    renamePaneById: vi.fn(),
-    setPaneColor: vi.fn(),
-    movePaneToIndex: vi.fn(),
-    setColumnFractions: vi.fn(),
-    setRowFractions: vi.fn(),
-    setActivePane: vi.fn(),
-    setTerminalFontSize: vi.fn(),
-    setMinimapVisible: vi.fn(),
-    setSettingsModalOpen: vi.fn(),
-    setSessionsModalOpen: vi.fn(),
-    resetLayout: vi.fn(),
-  }),
+  useWorkspaceStore: (selector?: (state: Record<string, unknown>) => unknown) => {
+    const fullState = { ...mockStoreState, ...mockStoreActions };
+    return selector ? selector(fullState) : fullState;
+  },
 }));
 
 // Mock child components to isolate Workspace layout logic
@@ -173,7 +183,6 @@ describe("Workspace", () => {
     mockStoreState.columnFractions = [];
     mockStoreState.rowFractions = [];
     mockStoreState.activePane = null;
-    mockStoreState.terminalFontSize = 14;
     mockStoreState.isMinimapVisible = true;
     mockStoreState.settingsModalOpen = false;
     mockStoreState.sessionsModalOpen = false;

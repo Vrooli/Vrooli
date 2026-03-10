@@ -3,7 +3,6 @@ import {
   X,
   GripHorizontal,
   Plus,
-  Minus,
   Trash2,
   Save,
   AlertCircle,
@@ -22,7 +21,6 @@ import {
   deleteShortcutProfile,
   toErrorInfo,
 } from "../lib/api";
-import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "../lib/fontSizeUtils";
 
 function ShortcutEditor({
   profile,
@@ -146,8 +144,6 @@ function ShortcutEditor({
 export default function SettingsModal() {
   const settingsModalOpen = useWorkspaceStore((s) => s.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((s) => s.setSettingsModalOpen);
-  const terminalFontSize = useWorkspaceStore((s) => s.terminalFontSize);
-  const setTerminalFontSize = useWorkspaceStore((s) => s.setTerminalFontSize);
   const isMinimapVisible = useWorkspaceStore((s) => s.isMinimapVisible);
   const setMinimapVisible = useWorkspaceStore((s) => s.setMinimapVisible);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
@@ -350,45 +346,12 @@ export default function SettingsModal() {
             )}
           </section>
 
-          {/* Section 2: Terminal Appearance */}
+          {/* Section 2: Layout */}
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-              Terminal Appearance
+              Layout
             </h3>
             <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3 space-y-3">
-              {/* Font Size */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-wc-text-secondary">Font Size</span>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    data-testid="font-size-decrease"
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={terminalFontSize <= FONT_SIZE_MIN}
-                    onClick={() => setTerminalFontSize(terminalFontSize - 1)}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span
-                    data-testid="font-size-value"
-                    className="w-8 text-center text-sm font-mono text-wc-text-primary"
-                  >
-                    {terminalFontSize}
-                  </span>
-                  <Button
-                    data-testid="font-size-increase"
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={terminalFontSize >= FONT_SIZE_MAX}
-                    onClick={() => setTerminalFontSize(terminalFontSize + 1)}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-
               {/* Display Mode */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-wc-text-secondary">Layout</span>

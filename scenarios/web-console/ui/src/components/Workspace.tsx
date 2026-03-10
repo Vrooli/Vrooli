@@ -27,6 +27,7 @@ import FloatingToolbar from "./FloatingToolbar";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
+import AppearanceModal from "./AppearanceModal";
 import TabBar from "./TabBar";
 
 type ActiveResize = {
@@ -551,6 +552,9 @@ export default function Workspace() {
 
       {/* Settings Modal */}
       <SettingsModal />
+
+      {/* Appearance Modal */}
+      <AppearanceModal />
 
       {/* AI Modal */}
       <AiInput onExecute={handleSendToTerminal} />

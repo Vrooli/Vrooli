@@ -66,7 +66,7 @@ vi.mock("../hooks/useTerminalSocket", () => ({
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      terminalFontSize: 14,
+      panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
       renamePaneById: vi.fn(),
     }),
 }));

@@ -1,12 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
-import { TERMINAL_FONT_SIZE } from "../consts/config";
+import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
 
 export interface PaneMetadata {
   sessionId: string;
   name: string;
   headerColor: string;
+  themeId: string;
+  fontSize: number;
 }
 
 export type DisplayMode = "grid" | "tabs";
@@ -16,7 +18,7 @@ interface WorkspaceState {
   columnFractions: number[];
   rowFractions: number[];
   activePane: string | null;
-  terminalFontSize: number;
+  appearanceModalPane: string | null;
   isMinimapVisible: boolean;
   displayMode: DisplayMode;
   settingsModalOpen: boolean;
@@ -29,11 +31,13 @@ interface WorkspaceActions {
   removePane: (sessionId: string) => void;
   renamePaneById: (sessionId: string, name: string) => void;
   setPaneColor: (sessionId: string, color: string) => void;
+  setPaneTheme: (sessionId: string, themeId: string) => void;
+  setPaneFontSize: (sessionId: string, size: number) => void;
   movePaneToIndex: (sessionId: string, newIndex: number) => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
   setActivePane: (sessionId: string | null) => void;
-  setTerminalFontSize: (size: number) => void;
+  setAppearanceModalPane: (sessionId: string | null) => void;
   setMinimapVisible: (visible: boolean) => void;
   setDisplayMode: (mode: DisplayMode) => void;
   setSettingsModalOpen: (open: boolean) => void;
@@ -51,7 +55,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       columnFractions: [],
       rowFractions: [],
       activePane: null,
-      terminalFontSize: TERMINAL_FONT_SIZE,
+      appearanceModalPane: null,
       isMinimapVisible: true,
       displayMode: "grid",
       settingsModalOpen: false,
@@ -64,7 +68,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return {
             panes: [
               ...state.panes,
-              { sessionId, name, headerColor: "transparent" },
+              { sessionId, name, headerColor: "transparent", themeId: DEFAULT_THEME_ID, fontSize: TERMINAL_FONT_SIZE },
             ],
           };
         }),
@@ -90,6 +94,20 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           ),
         })),
 
+      setPaneTheme: (sessionId, themeId) =>
+        set((state) => ({
+          panes: state.panes.map((p) =>
+            p.sessionId === sessionId ? { ...p, themeId } : p,
+          ),
+        })),
+
+      setPaneFontSize: (sessionId, size) =>
+        set((state) => ({
+          panes: state.panes.map((p) =>
+            p.sessionId === sessionId ? { ...p, fontSize: clampFontSize(size) } : p,
+          ),
+        })),
+
       movePaneToIndex: (sessionId, newIndex) =>
         set((state) => {
           const idx = state.panes.findIndex((p) => p.sessionId === sessionId);
@@ -106,7 +124,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setColumnFractions: (fractions) => set({ columnFractions: fractions }),
       setRowFractions: (fractions) => set({ rowFractions: fractions }),
       setActivePane: (sessionId) => set({ activePane: sessionId }),
-      setTerminalFontSize: (size) => set({ terminalFontSize: clampFontSize(size) }),
+      setAppearanceModalPane: (sessionId) => set({ appearanceModalPane: sessionId }),
       setMinimapVisible: (visible) => set({ isMinimapVisible: visible }),
       setDisplayMode: (mode) => set({ displayMode: mode }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
@@ -122,7 +140,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         panes: state.panes,
         columnFractions: state.columnFractions,
         rowFractions: state.rowFractions,
-        terminalFontSize: state.terminalFontSize,
         isMinimapVisible: state.isMinimapVisible,
         displayMode: state.displayMode,
       }),

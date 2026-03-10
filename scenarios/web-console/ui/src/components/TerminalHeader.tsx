@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, PaintBucket, X } from "lucide-react";
-import { HEADER_COLORS } from "../consts/config";
+import { GripVertical, Palette, X } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
@@ -26,13 +25,12 @@ export default function TerminalHeader({
   onDragStart,
 }: TerminalHeaderProps) {
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
-  const setPaneColor = useWorkspaceStore((s) => s.setPaneColor);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
+  const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const panes = useWorkspaceStore((s) => s.panes);
 
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(name);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commitRename = useCallback(() => {
@@ -118,72 +116,19 @@ export default function TerminalHeader({
         </span>
       )}
 
-      {/* Color picker */}
-      <div className="relative">
-        <button
-          data-testid={`terminal-header-color-${sessionId}`}
-          type="button"
-          className="flex h-5 w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
-          onClick={(e) => {
-            e.stopPropagation();
-            setColorPickerOpen((prev) => !prev);
-          }}
-          title="Set header color"
-        >
-          <PaintBucket
-            className="h-3 w-3"
-            style={
-              headerColor !== "transparent"
-                ? { color: headerColor }
-                : undefined
-            }
-          />
-        </button>
-        {colorPickerOpen && (
-          <div
-            data-testid={`terminal-header-color-picker-${sessionId}`}
-            className="absolute right-0 top-6 z-20 flex flex-wrap gap-1 rounded border border-wc-default bg-wc-surface-raised p-1.5 shadow-lg"
-            style={{ width: "120px" }}
-          >
-            {/* Transparent option */}
-            <button
-              type="button"
-              className={cn(
-                "h-5 w-5 rounded-full border",
-                headerColor === "transparent"
-                  ? "border-wc-accent"
-                  : "border-wc-default",
-              )}
-              style={{ background: "rgb(var(--wc-surface-input))" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setPaneColor(sessionId, "transparent");
-                setColorPickerOpen(false);
-              }}
-              title="No color"
-            />
-            {HEADER_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                className={cn(
-                  "h-5 w-5 rounded-full border",
-                  headerColor === color
-                    ? "border-wc-accent"
-                    : "border-wc-default",
-                )}
-                style={{ backgroundColor: color }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPaneColor(sessionId, color);
-                  setColorPickerOpen(false);
-                }}
-                title={color}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Appearance button */}
+      <button
+        data-testid={`terminal-header-appearance-${sessionId}`}
+        type="button"
+        className="flex h-5 w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+        onClick={(e) => {
+          e.stopPropagation();
+          setAppearanceModalPane(sessionId);
+        }}
+        title="Appearance settings"
+      >
+        <Palette className="h-3 w-3" />
+      </button>
 
       {/* Close button */}
       <Button

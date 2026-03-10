@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useEffect, useRef, useImperativeHandle, forwardRef, useState } from "react";
+import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -8,7 +8,7 @@ import "@xterm/xterm/css/xterm.css";
 import { useTerminalSocket } from "../hooks/useTerminalSocket";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { TERMINAL_THEME, TERMINAL_FONT_FAMILY } from "../consts/config";
+import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from "../consts/config";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -27,7 +27,15 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
-    const terminalFontSize = useWorkspaceStore((s) => s.terminalFontSize);
+
+    // Per-pane selectors with fallbacks for old persisted data
+    const paneFontSize = useWorkspaceStore(
+      useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
+    );
+    const paneThemeId = useWorkspaceStore(
+      useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.themeId ?? DEFAULT_THEME_ID, [sessionId]),
+    );
+    const paneTheme = TERMINAL_THEMES[paneThemeId]?.colors ?? TERMINAL_THEMES[DEFAULT_THEME_ID]!.colors;
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize } = useTerminalSocket({
@@ -54,9 +62,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 
       const term = new Terminal({
         cursorBlink: true,
-        fontSize: terminalFontSize,
+        fontSize: paneFontSize,
         fontFamily: TERMINAL_FONT_FAMILY,
-        theme: TERMINAL_THEME,
+        theme: paneTheme,
         allowProposedApi: true,
       });
 
@@ -88,10 +96,16 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // React to font size changes from store
     useEffect(() => {
       if (!terminal || !fitRef.current) return;
-      terminal.options.fontSize = terminalFontSize;
+      terminal.options.fontSize = paneFontSize;
       fitRef.current.fit();
       sendResize(terminal.cols, terminal.rows);
-    }, [terminalFontSize, terminal, sendResize]);
+    }, [paneFontSize, terminal, sendResize]);
+
+    // React to theme changes from store
+    useEffect(() => {
+      if (!terminal) return;
+      terminal.options.theme = paneTheme;
+    }, [paneTheme, terminal]);
 
     // Handle container resize -> fit terminal -> notify server.
     // Throttled via requestAnimationFrame to avoid flooding the WebSocket
