@@ -25,7 +25,12 @@ export default function TabBar({
 }: TabBarProps) {
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
+  const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
+
+  // Long-press detection for opening appearance modal on tabs
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
 
   const plusHandlers = useLongPress({
     onPress: onNewTerminal,
@@ -182,10 +187,40 @@ export default function TabBar({
                 isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
               )}
               onClick={() => setActivePane(pane.sessionId)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (longPressTimer.current) {
+                  clearTimeout(longPressTimer.current);
+                  longPressTimer.current = null;
+                }
+                longPressFired.current = true;
+                setAppearanceModalPane(pane.sessionId);
+              }}
               onPointerDown={(e) => {
-                // Only start drag on left-click
+                // Ctrl+left-click starts drag reorder
                 if (e.button === 0 && e.ctrlKey) {
                   startTabDrag(pane.sessionId, e);
+                  return;
+                }
+                // Start long-press timer for touch/pen
+                if (e.pointerType !== "mouse" && e.button === 0) {
+                  longPressFired.current = false;
+                  longPressTimer.current = setTimeout(() => {
+                    longPressFired.current = true;
+                    setAppearanceModalPane(pane.sessionId);
+                  }, 500);
+                }
+              }}
+              onPointerUp={() => {
+                if (longPressTimer.current) {
+                  clearTimeout(longPressTimer.current);
+                  longPressTimer.current = null;
+                }
+              }}
+              onPointerCancel={() => {
+                if (longPressTimer.current) {
+                  clearTimeout(longPressTimer.current);
+                  longPressTimer.current = null;
                 }
               }}
             >
