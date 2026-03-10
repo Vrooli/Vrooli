@@ -4,23 +4,33 @@ import { Plus, X } from "lucide-react";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
+import { useLongPress } from "../hooks/useLongPress";
 
 interface TabBarProps {
   panes: PaneMetadata[];
   activePane: string | null;
   onNewTerminal: () => void;
+  onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
+  isCreating?: boolean;
 }
 
 export default function TabBar({
   panes,
   activePane,
   onNewTerminal,
+  onOpenLauncher,
   onClosePane,
+  isCreating,
 }: TabBarProps) {
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
+
+  const plusHandlers = useLongPress({
+    onPress: onNewTerminal,
+    onLongPress: onOpenLauncher,
+  });
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
@@ -141,12 +151,12 @@ export default function TabBar({
   return (
     <div
       data-testid="tab-bar"
-      className="flex items-center h-9 border-b border-wc-default bg-wc-surface-header shrink-0"
+      className="flex items-stretch h-9 border-b border-wc-default bg-wc-surface-header shrink-0"
       role="tablist"
     >
       <div
         ref={tabContainerRef}
-        className="flex-1 flex items-center overflow-x-auto wc-hide-scrollbar"
+        className="flex-1 flex items-stretch overflow-x-auto wc-hide-scrollbar"
       >
         {panes.map((pane, idx) => {
           const isActive = pane.sessionId === activePane;
@@ -166,7 +176,7 @@ export default function TabBar({
                 "group relative flex items-center gap-1.5 h-full px-3 text-xs shrink-0 border-r border-wc-default transition-colors",
                 "hover:bg-wc-surface-raised focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent",
                 isActive
-                  ? "bg-wc-surface-base text-wc-text-primary"
+                  ? "bg-wc-surface-base text-wc-text-primary font-medium shadow-[inset_0_-2px_0_0_rgb(var(--wc-accent))]"
                   : "bg-wc-surface-header text-wc-text-secondary",
                 isBeingDragged && "opacity-40",
                 isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
@@ -217,9 +227,13 @@ export default function TabBar({
         data-testid="tab-bar-new"
         variant="ghost"
         size="icon"
-        className="h-7 w-7 shrink-0 mx-1"
-        onClick={onNewTerminal}
-        title="New terminal"
+        className="h-7 w-7 shrink-0 mx-1 self-center"
+        disabled={isCreating}
+        title="New terminal (long-press for launcher)"
+        onPointerDown={plusHandlers.onPointerDown}
+        onPointerUp={plusHandlers.onPointerUp}
+        onPointerCancel={plusHandlers.onPointerCancel}
+        onContextMenu={plusHandlers.onContextMenu}
       >
         <Plus className="h-4 w-4" />
       </Button>

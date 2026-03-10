@@ -458,7 +458,9 @@ export default function Workspace() {
           panes={orderedPanes}
           activePane={store.activePane}
           onNewTerminal={() => handleLaunch()}
+          onOpenLauncher={openLauncher}
           onClosePane={handleRemovePane}
+          isCreating={isCreating}
         />
       )}
 
