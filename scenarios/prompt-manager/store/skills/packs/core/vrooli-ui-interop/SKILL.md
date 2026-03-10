@@ -463,6 +463,105 @@ Audit: `rg "emitShortcutIntent" ui/src/hooks/useKeyboardShortcuts.ts` — must m
 
 ---
 
+## Section 4.5: Iframe-Safe Scroll & Viewport APIs
+
+### The Problem
+
+Several DOM APIs implicitly traverse the iframe boundary, affecting the **host document** (app-monitor) instead of — or in addition to — the scenario's own document. This causes content to shift irreversibly in the proxy/iframe context while appearing to work fine on localhost.
+
+The most common offender is `scrollIntoView()`. When called on an element inside an iframe, it scrolls **every** scrollable ancestor in the chain — including ancestors in the host document outside the iframe. If the host uses `overflow: hidden` on the iframe shell (as app-monitor does), the content shifts up with no scrollbar to recover.
+
+### Banned APIs
+
+These APIs must **never** be used directly in scenario UI code:
+
+| API | Why it breaks | Safe alternative |
+|-----|---------------|-----------------|
+| `element.scrollIntoView()` | Scrolls all ancestors including host document | `container.scrollTo()` targeting your own scroll container |
+| `window.scrollTo()` / `window.scroll()` | In an iframe, `window` is the iframe's window — usually harmless, but can interact unpredictably with host scroll state | Use a ref to your scroll container and call `container.scrollTo()` |
+| `window.scrollBy()` | Same issue as `window.scrollTo()` | `container.scrollBy()` on your own scroll container |
+| `document.documentElement.scrollTop = N` | Moves the iframe's root scroll position, which can desync with host layout | `container.scrollTop = N` on your own scroll container |
+| `element.focus()` without `preventScroll` | `focus()` implicitly calls `scrollIntoView` on the focused element | `element.focus({ preventScroll: true })` then manually scroll your container if needed |
+
+### The Safe Pattern
+
+Always scroll by targeting the specific scrollable container you own:
+
+```tsx
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe-safe scrolling                     ║
+// ║                                                              ║
+// ║  Never use scrollIntoView() — it crosses iframe boundaries   ║
+// ║  and shifts the host document's scroll position.             ║
+// ║                                                              ║
+// ║  Always scroll by targeting your own scroll container.       ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+const scrollContainerRef = useRef<HTMLDivElement>(null);
+const targetRef = useRef<HTMLDivElement>(null);
+
+function scrollToTarget() {
+  const container = scrollContainerRef.current;
+  const target = targetRef.current;
+  if (container && target) {
+    container.scrollTo({
+      top: target.offsetTop - container.offsetTop,
+      behavior: "smooth",
+    });
+  }
+}
+
+// Layout: root is overflow-hidden, inner container is overflow-auto
+return (
+  <div className="h-full flex flex-col overflow-hidden">
+    <div ref={scrollContainerRef} className="flex-1 overflow-auto">
+      {/* ... content ... */}
+      <div ref={targetRef} />
+      {/* ... more content ... */}
+    </div>
+  </div>
+);
+```
+
+### Layout Rule: `h-full` not `h-screen`
+
+`h-screen` compiles to `height: 100vh`. Inside an iframe, `100vh` can refer to the **outer window's viewport height**, not the iframe's actual dimensions. This causes the content to be sized incorrectly.
+
+Use `h-full` (`height: 100%`) with an explicit height chain instead:
+
+```css
+/* In styles.css */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+```
+
+```tsx
+/* In App.tsx — uses h-full, NOT h-screen */
+<div className="h-full flex flex-col overflow-hidden">
+  <div className="flex-1 overflow-auto">
+    {/* content */}
+  </div>
+</div>
+```
+
+This works in all three contexts because `height: 100%` correctly inherits from the parent — whether that parent is the browser viewport (localhost/tunnel) or an iframe element (proxy).
+
+### Self-Detection
+
+These patterns degrade gracefully:
+
+| Pattern | Localhost | Proxy/iframe |
+|---|---|---|
+| `container.scrollTo()` | Scrolls the container (same as scrollIntoView would) | Scrolls only the container, never the host |
+| `h-full` + height chain | 100% of viewport (same as h-screen) | 100% of iframe element |
+| `focus({ preventScroll: true })` | Focuses without scrolling (then you scroll manually) | Same — no host document scroll side effect |
+
+Audit: `rg "scrollIntoView" ui/src/` — must return 0 matches in production files. `rg "h-screen" ui/src/` — should return 0 matches (use `h-full` with height chain instead).
+
+---
+
 ## Section 5: Self-Detection & Graceful Degradation
 
 Every pattern in this skill auto-detects its context and degrades to a no-op when the context isn't present:
@@ -474,6 +573,8 @@ Every pattern in this skill auto-detects its context and degrades to a no-op whe
 | `resolveApiBase()` | Checks proxy globals, hostname, env | Returns `http://localhost:PORT/api/v1` | Returns proxy-relative API path |
 | `emitShortcutIntent()` | Bridge initialized? | postMessage to self (harmless no-op) | Relays to host |
 | `base: './'` in Vite | N/A (always relative) | Assets load from `/` | Assets load from proxy path |
+| `container.scrollTo()` | N/A (always contained) | Scrolls container (same effect) | Scrolls only container, never host |
+| `h-full` + height chain | N/A (always %) | 100% of viewport | 100% of iframe element |
 
 **Rule: No conditional branches for deployment context in component code.** The interop layer (slots [B]-[G]) absorbs all context differences. Components just call `buildUrl("/endpoint")` and `navigate("/page")` — they never check whether they're proxied.
 
@@ -505,7 +606,7 @@ These checks are also included in `app-monitor diagnostics <scenario-name>` (the
 
 ### Check Reference
 
-The automated scanner verifies 17 compliance checks mapped to slots [A]-[G]:
+The automated scanner verifies 19 compliance checks mapped to slots [A]-[G] plus cross-cutting rules:
 
 | # | Check | Slot | Severity | What It Verifies |
 |---|-------|------|----------|------------------|
@@ -526,6 +627,8 @@ The automated scanner verifies 17 compliance checks mapped to slots [A]-[G]:
 | 15 | Proxy base preservation | [F] | high | resolveApiBase output not rebuilt with window.location.origin |
 | 16 | Secure UI tunnel | [C] | high | Custom server routes API calls through proxyToApi |
 | 17 | Standard server functions | [C] | medium | Server file uses `startScenarioServer` or `createScenarioServer` from `@vrooli/api-base/server` |
+| 18 | No scrollIntoView | §4.5 | high | No `scrollIntoView` calls in ui/src/ production files |
+| 19 | No h-screen | §4.5 | medium | No `h-screen` class usage in ui/src/ (use `h-full` with height chain) |
 
 Checks 5, 9, 10, 13, 14, 16, and 17 are conditional — they skip automatically when the feature isn't used (no router, no keyboard shortcuts, no bridge call, no custom server, no server file).
 
