@@ -642,7 +642,6 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
-
 	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
@@ -852,7 +851,6 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 }
 
 func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViolation, int, []string, error) {
-
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, 0, nil, fmt.Errorf("scenario name is required")
 	}
@@ -980,7 +978,6 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 
 		return nil
 	})
-
 	if err != nil {
 		return violations, filesScanned, targets, err
 	}
@@ -1434,4 +1431,75 @@ func getStandardsViolationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+type deterministicFixRequest struct {
+	ScenarioNames []string `json:"scenario_names"`
+	RuleIDs       []string `json:"rule_ids"`
+	DryRun        bool     `json:"dry_run"`
+}
+
+func handleDeterministicFix(w http.ResponseWriter, r *http.Request) {
+	var req deterministicFixRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	if len(req.RuleIDs) == 0 {
+		HTTPError(w, "rule_ids is required", http.StatusBadRequest, nil)
+		return
+	}
+	if len(req.ScenarioNames) == 0 {
+		HTTPError(w, "scenario_names is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	// Group rule IDs by their fixer provider
+	type fixerGroup struct {
+		fixer   externalRuleFixer
+		ruleIDs []string
+	}
+	groups := make(map[externalRuleFixer]*fixerGroup)
+	var unfixable []string
+
+	for _, ruleID := range req.RuleIDs {
+		fixer, ok := externalFixerForRule(ruleID)
+		if !ok {
+			unfixable = append(unfixable, ruleID)
+			continue
+		}
+		g, exists := groups[fixer]
+		if !exists {
+			g = &fixerGroup{fixer: fixer}
+			groups[fixer] = g
+		}
+		g.ruleIDs = append(g.ruleIDs, ruleID)
+	}
+
+	var allResults []ExternalFixResult
+	var errs []string
+
+	for _, g := range groups {
+		results, err := g.fixer.Fix(r.Context(), req.ScenarioNames, g.ruleIDs, req.DryRun)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		allResults = append(allResults, results...)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]any{
+		"results": allResults,
+		"count":   len(allResults),
+	}
+	if len(unfixable) > 0 {
+		response["unfixable_rules"] = unfixable
+	}
+	if len(errs) > 0 {
+		response["errors"] = errs
+	}
+
+	_ = json.NewEncoder(w).Encode(response)
 }

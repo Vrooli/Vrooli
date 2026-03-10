@@ -365,6 +365,7 @@ func main() {
 	api.HandleFunc("/standards/check/{name}", enhancedStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/violations", getStandardsViolationsHandler).Methods("GET")
 	api.HandleFunc("/standards/violations/summary", getStandardsViolationsSummaryHandler).Methods("GET")
+	api.HandleFunc("/standards/fix", handleDeterministicFix).Methods("POST", "OPTIONS")
 
 	// Claude Fix endpoints
 	api.HandleFunc("/claude/fix", triggerClaudeFixHandler).Methods("POST")
