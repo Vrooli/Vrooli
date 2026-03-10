@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "title": "Lifestyle Dashboard Documentation",
+  "description": "Documentation for the unified personal lifestyle intelligence dashboard providing shared data model, correlation engine, and analytics layer for domain-specific health scenarios",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get the lifestyle dashboard running in 5 minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "System architecture, mental model, and data flow",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "RESEARCH.md",
+          "title": "Research",
+          "description": "Background research and references",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Audit",
+          "description": "Storage architecture decisions and audit findings",
+          "internal": true
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Current limitations, deferred decisions, and open questions",
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and session summaries",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference"],
+    "secondary": ["internal"]
+  }
+}

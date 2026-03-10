@@ -193,7 +193,7 @@ export async function registerDomain(params: RegisterDomainParams): Promise<Doma
   return res.json();
 }
 
-export async function checkDomainHealth(name: string): Promise<{ domain: string; status: string; last_check: string }> {
+export async function fetchDomainHealth(name: string): Promise<{ domain: string; status: string; last_check: string; message?: string }> {
   const url = buildApiUrl(`/domains/${name}/health`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -205,6 +205,9 @@ export async function checkDomainHealth(name: string): Promise<{ domain: string;
 
   return res.json();
 }
+
+// Alias for backward compatibility
+export const checkDomainHealth = fetchDomainHealth;
 
 // =============================================================================
 // Statistics API
