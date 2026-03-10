@@ -2,12 +2,12 @@
   "_metadata": {
     "description": "Lifestyle Dashboard requirement registry - Parent-level requirements reference child modules declared under imports",
     "schema_version": "1.0.0",
-    "last_updated": "2026-03-09"
+    "last_updated": "2026-03-10"
   },
   "meta": {
     "scenario": "lifestyle-dashboard",
     "version": "1.0.0",
-    "generated": "2026-03-09",
+    "generated": "2026-03-10",
     "owners": [
       {
         "platform": "lifestyle-dashboard",
@@ -34,7 +34,7 @@
       "linked_operational_target_ids": ["OT-P0-001"],
       "title": "Shared event schema and SQLite storage",
       "description": "SQLite events table with JSON payloads, common envelope (id UUID, timestamp ISO-8601, domain, event_type, payload JSON), indexed by domain+timestamp, extensible without migrations. Includes causality markers: is_intervention (bool), hypothesis_id (UUID nullable).",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-EVENT-SCHEMA",
         "LD-EVENT-STORAGE",
@@ -49,7 +49,7 @@
       "linked_operational_target_ids": ["OT-P0-002"],
       "title": "Domain registration and discovery",
       "description": "Dynamic domain scenario registration via API, capability exposure, health status tracking. Domains can start/stop independently.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-DOMAIN-REGISTER",
         "LD-DOMAIN-DISCOVER",
@@ -64,7 +64,7 @@
       "linked_operational_target_ids": ["OT-P0-003"],
       "title": "Cross-domain query API",
       "description": "API endpoints for querying events across domains with time-range filters, domain filters, basic aggregations, and correlation queries.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-QUERY-FILTER",
         "LD-QUERY-AGGREGATE",
@@ -79,7 +79,7 @@
       "linked_operational_target_ids": ["OT-P0-004"],
       "title": "Unified dashboard UI",
       "description": "Mobile-first responsive design. Timeline view across all domains, per-domain collapsible sections with deep-dive links, trend charts (7d/30d/90d), daily Lifestyle Score display.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-UI-TIMELINE",
         "LD-UI-DOMAINS",
@@ -96,7 +96,7 @@
       "linked_operational_target_ids": ["OT-P0-005"],
       "title": "Daily brief system",
       "description": "Morning brief (7am default: what to do today, experiments in progress, yesterday summary) and evening review (9pm default: what happened, compliance rates, tomorrow preview) consolidated from all active domains.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-BRIEF-MORNING",
         "LD-BRIEF-EVENING",
@@ -111,7 +111,7 @@
       "linked_operational_target_ids": ["OT-P0-006"],
       "title": "Storage management UI",
       "description": "Settings page showing database size and large files, ability to clean all or selected data, manage large files. Typical storage management operations.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-UI-STORAGE"
       ],

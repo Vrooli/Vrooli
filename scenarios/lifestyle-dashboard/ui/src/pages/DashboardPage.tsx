@@ -5,9 +5,13 @@
  * This is the primary view for the unified lifestyle intelligence dashboard.
  *
  * [REQ:LD-DASHBOARD-TIMELINE] - Unified dashboard UI with timeline view
+ * [REQ:LD-UI-TRENDS] - Trend charts with 7d/30d/90d selectable periods
+ * [REQ:LD-UI-TIMELINE] - Timeline view across all domains
+ * [REQ:LD-UI-SCORE] - Daily Lifestyle Score display
  */
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Database, Heart, Clock, TrendingUp, AlertCircle, Activity } from "lucide-react";
+import { Database, Heart, Clock, TrendingUp, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import {
@@ -16,18 +20,26 @@ import {
   TimelineChart,
   StatCard,
   DomainBreakdown,
+  LifestyleScoreCard,
 } from "../components/dashboard";
+import type { TrendPeriod } from "../components/dashboard/TimelineChart";
+import { Card, CardHeader, CardTitle } from "../components/ui";
+import { ErrorAlert } from "../components/ErrorAlert";
 
 import {
   fetchDomains,
   fetchSummary,
   fetchTimeline,
   fetchEvents,
+  fetchScore,
 } from "../lib/api";
 
 import { formatRelativeTime } from "../lib/format";
 
 export default function DashboardPage() {
+  // [REQ:LD-UI-TRENDS] - State for timeline period selection (7d/30d/90d)
+  const [timelinePeriod, setTimelinePeriod] = useState<TrendPeriod>(7);
+
   const domainsQuery = useQuery({
     queryKey: ["domains"],
     queryFn: fetchDomains,
@@ -40,9 +52,10 @@ export default function DashboardPage() {
     refetchInterval: 30000,
   });
 
+  // [REQ:LD-UI-TRENDS] - Timeline query uses selected period
   const timelineQuery = useQuery({
-    queryKey: ["timeline"],
-    queryFn: () => fetchTimeline(7),
+    queryKey: ["timeline", timelinePeriod],
+    queryFn: () => fetchTimeline(timelinePeriod),
     refetchInterval: 60000,
   });
 
@@ -52,27 +65,42 @@ export default function DashboardPage() {
     refetchInterval: 30000,
   });
 
-  const hasError = domainsQuery.error || summaryQuery.error;
+  // [REQ:LD-UI-SCORE] - Fetch lifestyle score for dashboard display
+  const scoreQuery = useQuery({
+    queryKey: ["score"],
+    queryFn: () => fetchScore(7),
+    refetchInterval: 60000,
+  });
+
+  // Get the first error from any query, with priority to most important
+  const error = domainsQuery.error || summaryQuery.error || timelineQuery.error || eventsQuery.error || scoreQuery.error;
+
+  const handleRetry = () => {
+    domainsQuery.refetch();
+    summaryQuery.refetch();
+    timelineQuery.refetch();
+    eventsQuery.refetch();
+    scoreQuery.refetch();
+  };
 
   return (
     <div className="space-y-6">
-      {/* Error state */}
-      {hasError && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <p className="text-red-400">
-              Unable to connect to the API. Make sure the scenario is running.
-            </p>
-          </div>
-          <p className="mt-2 text-sm text-slate-400">
-            Run: <code className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">vrooli scenario start lifestyle-dashboard</code>
-          </p>
-        </div>
-      )}
+      {/* Error state with structured error handling */}
+      <ErrorAlert
+        error={error as Error | null}
+        onRetry={handleRetry}
+      />
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Top row: Lifestyle Score + Stats [REQ:LD-UI-SCORE] */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Lifestyle Score card */}
+        <LifestyleScoreCard
+          score={scoreQuery.data?.current ?? null}
+          isLoading={scoreQuery.isLoading}
+        />
+
+        {/* Stats grid (2 columns on mobile, 2x2 on desktop within this column) */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
         <StatCard
           label="Total Events"
           value={summaryQuery.data?.total_events ?? "-"}
@@ -93,40 +121,46 @@ export default function DashboardPage() {
           value={timelineQuery.data?.timeline?.reduce((sum: number, e: { count: number }) => sum + e.count, 0) ?? "-"}
           icon={TrendingUp}
         />
+        </div>
       </div>
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Timeline chart */}
-        <div className="lg:col-span-2 rounded-xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-lg font-medium mb-4">Activity Timeline</h2>
+        {/* Timeline chart with period selector [REQ:LD-UI-TRENDS] */}
+        <Card padding="lg" className="lg:col-span-2">
+          <CardTitle className="mb-4">Activity Timeline</CardTitle>
           {timelineQuery.isLoading ? (
             <div className="h-32 flex items-center justify-center text-slate-500">Loading...</div>
           ) : (
-            <TimelineChart data={timelineQuery.data?.timeline ?? []} />
+            <TimelineChart
+              data={timelineQuery.data?.timeline ?? []}
+              period={timelinePeriod}
+              onPeriodChange={setTimelinePeriod}
+              showPeriodSelector
+            />
           )}
-        </div>
+        </Card>
 
         {/* Domain breakdown */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-lg font-medium mb-4">Events by Domain</h2>
+        <Card padding="lg">
+          <CardTitle className="mb-4">Events by Domain</CardTitle>
           <DomainBreakdown data={summaryQuery.data?.events_by_domain ?? []} />
-        </div>
+        </Card>
       </div>
 
       {/* Two-column layout for domains and events */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Registered domains */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Registered Domains</h2>
+        <Card padding="lg">
+          <CardHeader>
+            <CardTitle>Registered Domains</CardTitle>
             <Link
               to="/domains"
               className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >
               View all
             </Link>
-          </div>
+          </CardHeader>
           {domainsQuery.isLoading ? (
             <div className="text-slate-500">Loading...</div>
           ) : domainsQuery.data?.domains && domainsQuery.data.domains.length > 0 ? (
@@ -146,19 +180,19 @@ export default function DashboardPage() {
               </p>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Recent events */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Recent Events</h2>
+        <Card padding="lg">
+          <CardHeader>
+            <CardTitle>Recent Events</CardTitle>
             <Link
               to="/events"
               className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >
               View all
             </Link>
-          </div>
+          </CardHeader>
           {eventsQuery.isLoading ? (
             <div className="text-slate-500">Loading...</div>
           ) : eventsQuery.data?.events && eventsQuery.data.events.length > 0 ? (
@@ -176,7 +210,7 @@ export default function DashboardPage() {
               </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

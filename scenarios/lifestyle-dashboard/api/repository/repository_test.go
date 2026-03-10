@@ -414,3 +414,513 @@ func TestIsNotFound(t *testing.T) {
 		t.Error("Expected IsNotFound to return false for other errors")
 	}
 }
+
+// =============================================================================
+// BriefRepository Tests
+// =============================================================================
+
+// TestBriefRepository_GenerateMorningBrief verifies morning brief generation.
+// [REQ:LD-BRIEF-MORNING] Repository generates morning brief with yesterday summary.
+func TestBriefRepository_GenerateMorningBrief(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Create domain and events
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "meditation", DisplayName: "Meditation"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "meditation", EventType: "session.completed"})
+
+	brief, err := briefRepo.GenerateMorningBrief(ctx, "2026-03-10")
+	if err != nil {
+		t.Fatalf("Failed to generate morning brief: %v", err)
+	}
+
+	if brief.Type != "morning" {
+		t.Errorf("Expected type 'morning', got '%s'", brief.Type)
+	}
+	if brief.Date != "2026-03-10" {
+		t.Errorf("Expected date '2026-03-10', got '%s'", brief.Date)
+	}
+	if brief.GeneratedAt == "" {
+		t.Error("Expected GeneratedAt to be set")
+	}
+	if brief.Summary == "" {
+		t.Error("Expected Summary to be generated")
+	}
+}
+
+// TestBriefRepository_GenerateEveningBrief verifies evening brief generation.
+// [REQ:LD-BRIEF-EVENING] Repository generates evening review with today's events.
+func TestBriefRepository_GenerateEveningBrief(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Create domain and events
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "exercise", DisplayName: "Exercise"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "exercise", EventType: "workout.logged"})
+
+	brief, err := briefRepo.GenerateEveningBrief(ctx, "2026-03-10")
+	if err != nil {
+		t.Fatalf("Failed to generate evening brief: %v", err)
+	}
+
+	if brief.Type != "evening" {
+		t.Errorf("Expected type 'evening', got '%s'", brief.Type)
+	}
+	if brief.Date != "2026-03-10" {
+		t.Errorf("Expected date '2026-03-10', got '%s'", brief.Date)
+	}
+	if brief.Summary == "" {
+		t.Error("Expected Summary to be generated")
+	}
+}
+
+// TestBriefRepository_GetCurrentBrief verifies time-based brief selection.
+// [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Repository auto-selects brief type.
+func TestBriefRepository_GetCurrentBrief(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	brief, err := briefRepo.GetCurrentBrief(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get current brief: %v", err)
+	}
+
+	// Should return either morning or evening based on time
+	if brief.Type != "morning" && brief.Type != "evening" {
+		t.Errorf("Expected type 'morning' or 'evening', got '%s'", brief.Type)
+	}
+}
+
+// TestBriefRepository_CrossDomainConsolidation verifies multi-domain brief sections.
+// [REQ:LD-BRIEF-CONSOLIDATE] Repository consolidates data from all active domains.
+func TestBriefRepository_CrossDomainConsolidation(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Create multiple domains with today's activity
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "sleep", DisplayName: "Sleep"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "nutrition", DisplayName: "Nutrition"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "exercise", DisplayName: "Exercise"})
+
+	// Add events for today
+	today := domain.Event{Domain: "sleep", EventType: "sleep.logged"}
+	eventRepo.Create(ctx, &today)
+
+	// Get evening brief for today
+	brief, err := briefRepo.GenerateEveningBrief(ctx, today.Timestamp[:10])
+	if err != nil {
+		t.Fatalf("Failed to generate brief: %v", err)
+	}
+
+	// Should have sections for all active domains
+	if len(brief.Sections) < 1 {
+		t.Errorf("Expected at least 1 section, got %d", len(brief.Sections))
+	}
+}
+
+// TestBriefRepository_PriorityBasedSections verifies section priority calculation.
+// [REQ:LD-BRIEF-CONSOLIDATE] Repository assigns priority based on event count.
+func TestBriefRepository_PriorityBasedSections(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Create domain with many events (should get high priority)
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "active", DisplayName: "Active"})
+	for i := 0; i < 5; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "active", EventType: "test.event"})
+	}
+
+	// Create domain with few events (should get medium priority)
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "moderate", DisplayName: "Moderate"})
+	for i := 0; i < 2; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "moderate", EventType: "test.event"})
+	}
+
+	// Get first event timestamp for date
+	events, _ := eventRepo.List(ctx, EventFilter{Limit: 1})
+	if len(events) == 0 {
+		t.Fatal("Expected events to exist")
+	}
+	date := events[0].Timestamp[:10]
+
+	brief, err := briefRepo.GenerateEveningBrief(ctx, date)
+	if err != nil {
+		t.Fatalf("Failed to generate brief: %v", err)
+	}
+
+	// Find the active domain section - should have priority 1 (high)
+	var activeSection *domain.BriefSection
+	for _, s := range brief.Sections {
+		if s.Domain == "active" {
+			activeSection = &s
+			break
+		}
+	}
+
+	if activeSection != nil && activeSection.EventCount >= 5 && activeSection.Priority != 1 {
+		t.Errorf("Expected high priority (1) for domain with 5+ events, got %d", activeSection.Priority)
+	}
+}
+
+// TestBriefRepository_ScoreIncluded verifies score is attached to brief.
+// [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Brief includes current score.
+func TestBriefRepository_ScoreIncluded(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Create activity to generate a score
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "test-domain", DisplayName: "Test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "test-domain", EventType: "test.event"})
+
+	brief, err := briefRepo.GetCurrentBrief(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get brief: %v", err)
+	}
+
+	// Score may or may not be present depending on data - just verify no error
+	// and that ScoreTrend is a valid value if present
+	if brief.ScoreTrend != "" && brief.ScoreTrend != "up" && brief.ScoreTrend != "down" && brief.ScoreTrend != "stable" {
+		t.Errorf("Invalid ScoreTrend value: '%s'", brief.ScoreTrend)
+	}
+}
+
+// TestBriefRepository_InvalidDateFallback verifies handling of invalid dates.
+// [REQ:LD-BRIEF-MORNING] Repository handles invalid date gracefully.
+func TestBriefRepository_InvalidDateFallback(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	briefRepo := NewSQLiteBriefRepository(db)
+	ctx := context.Background()
+
+	// Should not error with invalid date, uses today as fallback
+	brief, err := briefRepo.GenerateMorningBrief(ctx, "invalid-date")
+	if err != nil {
+		t.Fatalf("Failed with invalid date: %v", err)
+	}
+
+	if brief.Type != "morning" {
+		t.Errorf("Expected type 'morning', got '%s'", brief.Type)
+	}
+}
+
+// =============================================================================
+// StorageRepository Tests
+// =============================================================================
+
+// TestStorageRepository_GetStorageInfo verifies storage info retrieval.
+// [REQ:LD-UI-STORAGE] Repository returns storage overview data.
+func TestStorageRepository_GetStorageInfo(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create test data
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "storage-test", DisplayName: "Storage Test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "storage-test", EventType: "test.event"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "storage-test", EventType: "test.event"})
+
+	info, err := storageRepo.GetStorageInfo(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get storage info: %v", err)
+	}
+
+	if info.TotalEvents != 2 {
+		t.Errorf("Expected 2 total events, got %d", info.TotalEvents)
+	}
+	if info.TotalDomains != 1 {
+		t.Errorf("Expected 1 domain, got %d", info.TotalDomains)
+	}
+}
+
+// TestStorageRepository_GetStorageInfo_Empty verifies storage info with no data.
+// [REQ:LD-UI-STORAGE] Repository handles empty database.
+func TestStorageRepository_GetStorageInfo_Empty(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	info, err := storageRepo.GetStorageInfo(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get storage info: %v", err)
+	}
+
+	if info.TotalEvents != 0 {
+		t.Errorf("Expected 0 events, got %d", info.TotalEvents)
+	}
+	if info.TotalDomains != 0 {
+		t.Errorf("Expected 0 domains, got %d", info.TotalDomains)
+	}
+	if len(info.EventsByDomain) != 0 {
+		t.Errorf("Expected empty EventsByDomain, got %d entries", len(info.EventsByDomain))
+	}
+}
+
+// TestStorageRepository_GetStorageInfo_EventsByDomain verifies domain breakdown.
+// [REQ:LD-UI-STORAGE] Repository provides per-domain event counts.
+func TestStorageRepository_GetStorageInfo_EventsByDomain(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create multiple domains with different event counts
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "domain-a", DisplayName: "Domain A"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "domain-b", DisplayName: "Domain B"})
+
+	// Add 3 events to domain-a
+	for i := 0; i < 3; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "domain-a", EventType: "test"})
+	}
+	// Add 1 event to domain-b
+	eventRepo.Create(ctx, &domain.Event{Domain: "domain-b", EventType: "test"})
+
+	info, err := storageRepo.GetStorageInfo(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get storage info: %v", err)
+	}
+
+	if len(info.EventsByDomain) != 2 {
+		t.Errorf("Expected 2 domain entries, got %d", len(info.EventsByDomain))
+	}
+
+	// Should be sorted by count DESC, so domain-a first
+	if len(info.EventsByDomain) > 0 && info.EventsByDomain[0].Domain != "domain-a" {
+		t.Errorf("Expected domain-a first (highest count), got '%s'", info.EventsByDomain[0].Domain)
+	}
+}
+
+// TestStorageRepository_CleanupEvents_All verifies clearing all events.
+// [REQ:LD-UI-STORAGE] Repository clears all events when no filters specified.
+func TestStorageRepository_CleanupEvents_All(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create events
+	eventRepo.Create(ctx, &domain.Event{Domain: "test-a", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "test-b", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "test-c", EventType: "test"})
+
+	// Clear all
+	result, err := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{})
+	if err != nil {
+		t.Fatalf("Failed to cleanup events: %v", err)
+	}
+
+	if result.DeletedEvents != 3 {
+		t.Errorf("Expected 3 deleted events, got %d", result.DeletedEvents)
+	}
+
+	// Verify empty
+	events, _ := eventRepo.List(ctx, EventFilter{})
+	if len(events) != 0 {
+		t.Errorf("Expected 0 events after cleanup, got %d", len(events))
+	}
+}
+
+// TestStorageRepository_CleanupEvents_ByDomain verifies domain-specific cleanup.
+// [REQ:LD-UI-STORAGE] Repository clears events only from specified domains.
+func TestStorageRepository_CleanupEvents_ByDomain(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create events in different domains
+	eventRepo.Create(ctx, &domain.Event{Domain: "keep-domain", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "clear-domain", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "clear-domain", EventType: "test"})
+
+	// Clear only clear-domain
+	result, err := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{
+		Domains: []string{"clear-domain"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to cleanup events: %v", err)
+	}
+
+	if result.DeletedEvents != 2 {
+		t.Errorf("Expected 2 deleted events, got %d", result.DeletedEvents)
+	}
+
+	// Verify keep-domain still has its event
+	events, _ := eventRepo.List(ctx, EventFilter{Domain: "keep-domain"})
+	if len(events) != 1 {
+		t.Errorf("Expected 1 event in keep-domain, got %d", len(events))
+	}
+
+	// Verify clear-domain is empty
+	events, _ = eventRepo.List(ctx, EventFilter{Domain: "clear-domain"})
+	if len(events) != 0 {
+		t.Errorf("Expected 0 events in clear-domain, got %d", len(events))
+	}
+}
+
+// TestStorageRepository_CleanupEvents_ResponseMessage verifies response messages.
+// [REQ:LD-UI-STORAGE] Repository generates appropriate cleanup messages.
+func TestStorageRepository_CleanupEvents_ResponseMessage(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create test events
+	eventRepo.Create(ctx, &domain.Event{Domain: "test", EventType: "test"})
+
+	// Test clear all message
+	result, _ := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{})
+	if result.Message == "" {
+		t.Error("Expected non-empty message")
+	}
+	if result.DomainsCleared[0] != "all" {
+		t.Errorf("Expected 'all' in DomainsCleared, got %v", result.DomainsCleared)
+	}
+}
+
+// =============================================================================
+// StatsRepository GetLifestyleScore Tests
+// =============================================================================
+
+// TestStatsRepository_GetLifestyleScore verifies lifestyle score calculation.
+// [REQ:LD-UI-SCORE] Repository calculates composite lifestyle score.
+func TestStatsRepository_GetLifestyleScore(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	// Create domains and events to generate a score
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "sleep", DisplayName: "Sleep"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "exercise", DisplayName: "Exercise"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "sleep", EventType: "sleep.logged"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "exercise", EventType: "workout.logged"})
+
+	resp, err := statsRepo.GetLifestyleScore(ctx, 7)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+
+	score := resp.Current
+	if score.Score < 0 || score.Score > 100 {
+		t.Errorf("Expected score 0-100, got %d", score.Score)
+	}
+	if score.Trend != "up" && score.Trend != "down" && score.Trend != "stable" {
+		t.Errorf("Expected valid trend, got '%s'", score.Trend)
+	}
+	if score.DataQuality != "good" && score.DataQuality != "limited" && score.DataQuality != "insufficient" {
+		t.Errorf("Expected valid data quality, got '%s'", score.DataQuality)
+	}
+}
+
+// TestStatsRepository_GetLifestyleScore_Empty verifies score with no data.
+// [REQ:LD-UI-SCORE] Repository handles empty database gracefully.
+func TestStatsRepository_GetLifestyleScore_Empty(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	resp, err := statsRepo.GetLifestyleScore(ctx, 7)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+
+	score := resp.Current
+	if score.Score != 0 {
+		t.Errorf("Expected 0 score with no data, got %d", score.Score)
+	}
+	if score.DataQuality != "insufficient" {
+		t.Errorf("Expected 'insufficient' data quality, got '%s'", score.DataQuality)
+	}
+}
+
+// TestStatsRepository_GetLifestyleScore_DomainBreakdown verifies per-domain scores.
+// [REQ:LD-UI-SCORE] Repository provides per-domain score breakdown.
+func TestStatsRepository_GetLifestyleScore_DomainBreakdown(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	// Create domains with different activity levels
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "active", DisplayName: "Active Domain"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "inactive", DisplayName: "Inactive Domain"})
+
+	// Add multiple events to active domain
+	for i := 0; i < 5; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "active", EventType: "test"})
+	}
+
+	resp, err := statsRepo.GetLifestyleScore(ctx, 7)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+
+	score := resp.Current
+	// Should have at least one domain in breakdown
+	if len(score.DomainScores) < 1 {
+		t.Error("Expected at least 1 domain in score breakdown")
+	}
+
+	// Active domain should have events counted
+	for _, ds := range score.DomainScores {
+		if ds.Domain == "active" && ds.EventCount < 5 {
+			t.Errorf("Expected active domain to have 5+ events, got %d", ds.EventCount)
+		}
+	}
+}
+
+// TestStatsRepository_GetLifestyleScore_History verifies score history retrieval.
+// [REQ:LD-UI-SCORE] Repository provides score history for trend visualization.
+func TestStatsRepository_GetLifestyleScore_History(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	resp, err := statsRepo.GetLifestyleScore(ctx, 7)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+
+	// History should be present (may be empty with no historical data)
+	if resp.History == nil {
+		t.Error("Expected History to be non-nil (even if empty)")
+	}
+}

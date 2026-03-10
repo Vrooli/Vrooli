@@ -58,6 +58,8 @@ Cross-domain data points that flow into the dashboard from health scenarios:
 - **is_intervention**: Whether this represents an action taken
 - **hypothesis_id**: Link to correlation hypotheses
 
+See [CODE: api/domain/types.go#Event] for the type definition.
+
 ### Domains
 Registered health/wellness scenarios that integrate with the dashboard:
 - **name**: Unique identifier (slug format)
@@ -65,37 +67,41 @@ Registered health/wellness scenarios that integrate with the dashboard:
 - **health_url**: Endpoint for health checks
 - **status**: active | inactive | unhealthy
 
+See [CODE: api/domain/types.go#Domain] for the type definition.
+
 ### Statistics
 Aggregated views across domains:
 - **Timeline**: Event counts by day and domain
 - **Summary**: Total events, active domains, breakdown by source
 
+See [CODE: api/handlers/stats.go] for the statistics handlers.
+
 ## Architectural Boundaries
 
 ### Entry Layer (UI + main.go)
-- React pages handle routing and user interaction
-- Go main.go handles configuration and wiring
-- CORS middleware enables UI-API communication
+- React pages handle routing and user interaction [CODE: ui/src/App.tsx]
+- Go main.go handles configuration and wiring [CODE: api/main.go]
+- CORS middleware enables UI-API communication [CODE: api/main.go#corsMiddleware]
 
 ### Presentation Layer (handlers/)
-- HTTP request/response handling
+- HTTP request/response handling [CODE: api/handlers/handlers.go]
 - Input validation and error formatting
 - Delegates to repository interfaces
 
 ### Abstraction Layer (repository/)
-- Defines storage contracts via interfaces
-- SQLite implementations handle queries
-- Custom `ErrNotFound` for not-found handling
+- Defines storage contracts via interfaces [CODE: api/repository/interfaces.go]
+- SQLite implementations handle queries [CODE: api/repository/sqlite_events.go]
+- Custom `ErrNotFound` for not-found handling [CODE: api/repository/interfaces.go#ErrNotFound]
 
 ### Domain Layer (domain/)
-- Pure type definitions
+- Pure type definitions [CODE: api/domain/types.go]
 - No business logic, no dependencies
-- Schema initialization
+- Schema initialization [CODE: api/domain/schema.go#InitSchema]
 
 ### Infrastructure Layer (SQLite)
 - Single-file embedded database
 - WAL mode for concurrent reads
-- `api-core/database.Connect()` with retry
+- `api-core/database.Connect()` with retry [CODE: api/main.go:201]
 
 ## Data Flow
 

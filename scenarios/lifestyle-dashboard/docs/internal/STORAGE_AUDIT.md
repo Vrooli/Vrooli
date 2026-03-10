@@ -73,6 +73,12 @@ api/repository/
 └── repository_test.go    # 15 unit tests for repository layer
 ```
 
+Key implementation files:
+- [CODE: api/repository/interfaces.go] - Repository contracts
+- [CODE: api/repository/sqlite_events.go] - Event storage implementation
+- [CODE: api/repository/sqlite_domains.go] - Domain storage implementation
+- [CODE: api/repository/sqlite_stats.go] - Statistics queries
+
 ### Interface Design
 
 ```go
@@ -109,6 +115,8 @@ type StatsRepository interface {
 6. **Auditor Compliance**: Uses api-core/database package (no violations)
 
 ## SQLite-Specific Configuration
+
+See [CODE: api/main.go:201] for the database connection setup:
 
 ```go
 // api/main.go - Uses api-core/database with SQLite driver

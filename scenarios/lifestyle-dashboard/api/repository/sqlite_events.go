@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"lifestyle-dashboard/config"
 	"lifestyle-dashboard/domain"
 )
 
@@ -102,9 +103,14 @@ func (r *SQLiteEventRepository) List(ctx context.Context, filter EventFilter) ([
 
 	query += " ORDER BY timestamp DESC"
 
+	// Apply limit from filter, falling back to config default
+	cfg := config.DefaultQueryConfig()
 	limit := filter.Limit
 	if limit <= 0 {
-		limit = 100
+		limit = cfg.DefaultEventLimit
+	}
+	if limit > cfg.MaxEventLimit {
+		limit = cfg.MaxEventLimit
 	}
 	query += " LIMIT ?"
 	args = append(args, limit)

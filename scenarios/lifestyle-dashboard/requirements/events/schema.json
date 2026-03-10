@@ -2,7 +2,7 @@
   "_metadata": {
     "description": "Event schema and storage requirements",
     "domain": "events",
-    "last_updated": "2026-03-09"
+    "last_updated": "2026-03-10"
   },
   "requirements": [
     {
@@ -12,8 +12,30 @@
       "linked_operational_target_ids": ["OT-P0-001"],
       "title": "Common event envelope schema",
       "description": "All events follow a common envelope: id (TEXT UUID), timestamp (TEXT ISO-8601), domain (TEXT), event_type (TEXT), payload (TEXT JSON). Causality fields: is_intervention (INTEGER 0/1), hypothesis_id (TEXT UUID nullable).",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventSchema_CommonEnvelope",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests event creation with common envelope fields"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventSchema_CausalityFields",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests is_intervention and hypothesis_id causality fields"
+        },
+        {
+          "type": "test",
+          "ref": "api/domain/types_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests Event type serialization"
+        }
+      ]
     },
     {
       "id": "LD-EVENT-STORAGE",
@@ -22,8 +44,30 @@
       "linked_operational_target_ids": ["OT-P0-001"],
       "title": "SQLite events table",
       "description": "Events stored in lifestyle.db SQLite file. JSON payloads via TEXT columns. Extensible without schema migrations when adding new domains. Single-writer constraint: all writes via API.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventStorage_SQLitePersistence",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests events persisted to SQLite with JSON payloads"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventStorage_MultiDomainExtensibility",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests extensibility without schema migrations for new domains"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/events_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests event persistence through handler layer"
+        }
+      ]
     },
     {
       "id": "LD-EVENT-INDEX",
@@ -32,8 +76,30 @@
       "linked_operational_target_ids": ["OT-P0-001"],
       "title": "Event indexing strategy",
       "description": "Composite index on (domain, timestamp) for efficient time-range queries. Index on event_type. Partial index on hypothesis_id WHERE NOT NULL for experiment queries.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventIndex_CompositeIndex",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests composite index on (domain, timestamp)"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventIndex_PartialHypothesisIndex",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests partial index on hypothesis_id"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestEventIndex_QueryPerformance",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests query performance with indexes"
+        }
+      ]
     }
   ]
 }

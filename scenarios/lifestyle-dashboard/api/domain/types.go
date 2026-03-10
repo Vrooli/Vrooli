@@ -1,3 +1,7 @@
+// DOC: docs/concepts/ARCHITECTURE.md#Key-Domain-Concepts
+// DOC: PRD.md#OT-P0-001
+// DOC: PRD.md#OT-P0-002
+//
 // Package domain contains the core business entities for the lifestyle dashboard.
 // These types represent the shared event schema (P0-001) and domain registration (P0-002).
 package domain
@@ -101,4 +105,112 @@ type HealthCheckResponse struct {
 type ErrorResponse struct {
 	Error   bool   `json:"error"`
 	Message string `json:"message"`
+}
+
+// LifestyleScore represents the daily composite score (P0-004, P1-003).
+// The score is a 0-100 value combining activity across all active domains.
+// [REQ:LD-UI-SCORE] Score structure for dashboard display.
+type LifestyleScore struct {
+	Score           int                `json:"score"`           // 0-100 composite score
+	Date            string             `json:"date"`            // ISO date (YYYY-MM-DD)
+	DomainScores    []DomainScore      `json:"domain_scores"`   // Per-domain breakdown
+	Trend           string             `json:"trend"`           // "up", "down", "stable"
+	ChangeFromYesterday int            `json:"change_from_yesterday"` // Delta from previous day
+	DataQuality     string             `json:"data_quality"`    // "good", "limited", "insufficient"
+	Message         string             `json:"message"`         // Human-readable summary
+}
+
+// DomainScore represents a single domain's contribution to the lifestyle score.
+type DomainScore struct {
+	Domain      string  `json:"domain"`       // Domain name
+	DisplayName string  `json:"display_name"` // Human-readable name
+	Score       int     `json:"score"`        // 0-100 domain score
+	Weight      float64 `json:"weight"`       // Weight in composite (0-1)
+	EventCount  int     `json:"event_count"`  // Events in scoring window
+}
+
+// ScoreHistoryEntry represents a historical score data point.
+type ScoreHistoryEntry struct {
+	Date  string `json:"date"`
+	Score int    `json:"score"`
+}
+
+// ScoreResponse wraps the lifestyle score for API responses.
+type ScoreResponse struct {
+	Current LifestyleScore      `json:"current"`
+	History []ScoreHistoryEntry `json:"history"`
+}
+
+// =============================================================================
+// Storage Management Types (P0-006)
+// =============================================================================
+
+// StorageInfo provides database storage information for the settings page.
+// [REQ:LD-UI-STORAGE] Storage overview data.
+type StorageInfo struct {
+	DatabaseSizeBytes int64               `json:"database_size_bytes"`
+	TotalEvents       int                 `json:"total_events"`
+	TotalDomains      int                 `json:"total_domains"`
+	EventsByDomain    []DomainStorageInfo `json:"events_by_domain"`
+	OldestEvent       string              `json:"oldest_event,omitempty"`
+	NewestEvent       string              `json:"newest_event,omitempty"`
+}
+
+// DomainStorageInfo represents storage usage for a specific domain.
+type DomainStorageInfo struct {
+	Domain      string `json:"domain"`
+	DisplayName string `json:"display_name"`
+	EventCount  int    `json:"event_count"`
+}
+
+// CleanupRequest specifies what data to clean.
+// [REQ:LD-UI-STORAGE] Data cleanup request.
+type CleanupRequest struct {
+	Domains []string `json:"domains,omitempty"` // Empty = all domains
+	Before  string   `json:"before,omitempty"`  // ISO timestamp - delete events before this
+}
+
+// CleanupResponse reports the result of a cleanup operation.
+type CleanupResponse struct {
+	DeletedEvents  int      `json:"deleted_events"`
+	DomainsCleared []string `json:"domains_cleared"`
+	Message        string   `json:"message"`
+}
+
+// =============================================================================
+// Daily Brief System Types (P0-005)
+// =============================================================================
+
+// Brief represents a morning or evening brief.
+// [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Brief structure.
+type Brief struct {
+	Type         string          `json:"type"`          // "morning" or "evening"
+	GeneratedAt  string          `json:"generated_at"`  // ISO timestamp
+	Date         string          `json:"date"`          // Target date (YYYY-MM-DD)
+	Summary      string          `json:"summary"`       // Human-readable summary
+	Sections     []BriefSection  `json:"sections"`      // Consolidated domain content
+	Score        *int            `json:"score,omitempty"`        // Current lifestyle score (if available)
+	ScoreTrend   string          `json:"score_trend,omitempty"`  // "up", "down", "stable"
+}
+
+// BriefSection represents a domain's contribution to the brief.
+// [REQ:LD-BRIEF-CONSOLIDATE] Cross-domain consolidation.
+type BriefSection struct {
+	Domain      string   `json:"domain"`
+	DisplayName string   `json:"display_name"`
+	Priority    int      `json:"priority"`    // 1=high, 2=medium, 3=low
+	Items       []string `json:"items"`       // Bullet points for this domain
+	EventCount  int      `json:"event_count"` // Events in the period
+}
+
+// BriefConfig holds configuration for brief generation timing.
+type BriefConfig struct {
+	MorningHour int `json:"morning_hour"` // Default: 7
+	EveningHour int `json:"evening_hour"` // Default: 21
+}
+
+// BriefResponse wraps a brief for API responses.
+type BriefResponse struct {
+	Brief  Brief  `json:"brief"`
+	Config BriefConfig `json:"config"`
 }

@@ -7,13 +7,48 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
-// INTEROP-CRITICAL: Initialize iframe bridge for web-console embedding
-if (window.top !== window.self) {
-  const parentOrigin = window.location.ancestorOrigins?.[0] ?? "*";
-  initIframeBridgeChild({ parentOrigin, appId: "lifestyle-dashboard" });
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
+// ║                                                              ║
+// ║  Must run BEFORE React mount so that:                        ║
+// ║  1. Storage shimming is in place before any component        ║
+// ║     accesses localStorage/sessionStorage                     ║
+// ║  2. The bridge message channel is ready for host commands    ║
+// ║                                                              ║
+// ║  The window.parent check ensures this is a no-op when        ║
+// ║  running outside an iframe (localhost, tunnel).              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+declare global {
+  interface Window {
+    __lifestyleDashboardBridgeInitialized?: boolean;
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+if (
+  typeof window !== "undefined" &&
+  window.parent !== window &&
+  !window.__lifestyleDashboardBridgeInitialized
+) {
+  let parentOrigin: string | undefined;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch {
+    // Fall back to default origin when parsing fails.
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: "lifestyle-dashboard" });
+  window.__lifestyleDashboardBridgeInitialized = true;
+}
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found - ensure index.html has an element with id='root'");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />

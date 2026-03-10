@@ -2,7 +2,7 @@
   "_metadata": {
     "description": "Daily brief system requirements",
     "domain": "briefs",
-    "last_updated": "2026-03-09"
+    "last_updated": "2026-03-10"
   },
   "requirements": [
     {
@@ -12,8 +12,30 @@
       "linked_operational_target_ids": ["OT-P0-005"],
       "title": "Morning brief generation",
       "description": "Morning brief (default 7am) consolidates: scheduled actions from all domains, experiments in progress, yesterday's summary, notable correlations. Delivered via UI (notifications P1).",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefMorning_Endpoint",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests GET /api/v1/briefs/morning returns morning brief"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefMorning_DateParam",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests date parameter validation for morning brief"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefMorning_ScoreIncluded",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests morning brief includes lifestyle score"
+        }
+      ]
     },
     {
       "id": "LD-BRIEF-EVENING",
@@ -22,8 +44,16 @@
       "linked_operational_target_ids": ["OT-P0-005"],
       "title": "Evening review generation",
       "description": "Evening review (default 9pm) consolidates: what happened today across all domains, compliance rates, notable patterns, tomorrow's preview. Quick one-screen summary.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefEvening_Endpoint",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests GET /api/v1/briefs/evening returns evening brief"
+        }
+      ]
     },
     {
       "id": "LD-BRIEF-CONSOLIDATE",
@@ -32,8 +62,23 @@
       "linked_operational_target_ids": ["OT-P0-005"],
       "title": "Cross-domain consolidation",
       "description": "Brief generator queries all active domains for their contribution to the brief. Domains provide structured brief content via API. Dashboard merges and prioritizes by importance.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefConsolidate_CrossDomain",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests brief consolidates events from multiple domains"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestBriefConsolidate_PrioritySections",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests sections prioritized by domain importance"
+        }
+      ]
     }
   ]
 }

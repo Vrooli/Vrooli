@@ -1,3 +1,7 @@
+// DOC: docs/QUICKSTART.md#Create-an-Event
+// DOC: PRD.md#OT-P0-001
+// DOC: README.md#Events
+// DOC: docs/internal/ERROR_SEMANTICS.md
 package handlers
 
 import (
@@ -9,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"lifestyle-dashboard/domain"
+	"lifestyle-dashboard/errors"
 	"lifestyle-dashboard/repository"
 )
 
@@ -17,12 +22,17 @@ import (
 func (h *Handler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req domain.CreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid JSON body")
+		WriteAPIError(w, errors.ErrInvalidJSON)
 		return
 	}
 
-	if req.Domain == "" || req.EventType == "" {
-		WriteError(w, http.StatusBadRequest, "domain and event_type are required")
+	// Validate required fields with specific error messages
+	if req.Domain == "" {
+		WriteAPIError(w, errors.ErrMissingDomain)
+		return
+	}
+	if req.EventType == "" {
+		WriteAPIError(w, errors.ErrMissingEventType)
 		return
 	}
 
@@ -40,8 +50,8 @@ func (h *Handler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 
 	// Delegate to repository (handles ID generation and timestamps)
 	if err := h.Events.Create(r.Context(), event); err != nil {
-		log.Printf("Error creating event: %v", err)
-		WriteError(w, http.StatusInternalServerError, "failed to create event")
+		log.Printf("[ERROR] CreateEvent: database error: %v", err)
+		WriteAPIError(w, errors.NewInternalError(errors.CodeDatabaseError, "Failed to create event. Please try again."))
 		return
 	}
 
@@ -68,8 +78,8 @@ func (h *Handler) QueryEvents(w http.ResponseWriter, r *http.Request) {
 
 	events, err := h.Events.List(r.Context(), filter)
 	if err != nil {
-		log.Printf("Error querying events: %v", err)
-		WriteError(w, http.StatusInternalServerError, "failed to query events")
+		log.Printf("[ERROR] QueryEvents: database error: %v", err)
+		WriteAPIError(w, errors.NewInternalError(errors.CodeDatabaseError, "Failed to query events. Please try again."))
 		return
 	}
 
@@ -87,12 +97,12 @@ func (h *Handler) GetEvent(w http.ResponseWriter, r *http.Request) {
 
 	event, err := h.Events.GetByID(r.Context(), id)
 	if repository.IsNotFound(err) {
-		WriteError(w, http.StatusNotFound, "event not found")
+		WriteAPIError(w, errors.NewNotFoundError(errors.CodeEventNotFound, "event", id))
 		return
 	}
 	if err != nil {
-		log.Printf("Error getting event: %v", err)
-		WriteError(w, http.StatusInternalServerError, "failed to get event")
+		log.Printf("[ERROR] GetEvent(%s): database error: %v", id, err)
+		WriteAPIError(w, errors.NewInternalError(errors.CodeDatabaseError, "Failed to retrieve event. Please try again."))
 		return
 	}
 

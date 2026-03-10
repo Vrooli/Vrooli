@@ -1,6 +1,10 @@
 /**
  * Formatting utilities for the Lifestyle Dashboard.
- * Provides consistent date/time formatting across components.
+ * Provides consistent date/time/size formatting across components.
+ *
+ * Architecture tier: core (pure utilities, no framework dependencies)
+ *
+ * @module lib/format
  */
 
 /**
@@ -44,4 +48,40 @@ export function formatDateTime(timestamp: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * Format a date string safely (e.g., "Mar 9, 2026").
+ * Returns fallback for undefined/invalid dates.
+ *
+ * @param dateStr - ISO date string or undefined
+ * @param fallback - Value to return for invalid/missing dates (default: "-")
+ */
+export function formatDate(dateStr: string | undefined, fallback = "-"): string {
+  if (!dateStr) return fallback;
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Format bytes to human-readable size (e.g., "1.5 MB")
+ *
+ * @param bytes - Number of bytes
+ * @returns Formatted string with appropriate unit (B, KB, MB, GB)
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"] as const;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const idx = Math.min(i, sizes.length - 1);
+  const size = sizes[idx];
+  return `${(bytes / Math.pow(k, idx)).toFixed(1)} ${size}`;
 }

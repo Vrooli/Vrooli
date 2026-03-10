@@ -56,6 +56,36 @@
           "internal": true
         },
         {
+          "path": "internal/SEAMS.md",
+          "title": "Integration Seams",
+          "description": "Testability boundaries and dependency injection points",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test organization patterns and mock infrastructure",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async operations, polling, scheduling, and time-dependent behavior",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "System Invariants",
+          "description": "Idempotency guarantees, replay safety, and state consistency rules",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification",
+          "description": "Utility structure audit, duplications, and architecture tier compliance",
+          "internal": true
+        },
+        {
           "path": "PROBLEMS.md",
           "title": "Known Issues",
           "description": "Current limitations, deferred decisions, and open questions",

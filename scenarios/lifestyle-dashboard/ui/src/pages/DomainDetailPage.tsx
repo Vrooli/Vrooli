@@ -7,26 +7,30 @@
  * [REQ:LD-DOMAIN-HEALTH] - Domain health status tracking
  */
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, RefreshCw, AlertCircle, Activity, Heart } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { ChevronLeft, RefreshCw, Activity, Heart } from "lucide-react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 
 import { StatusBadge, EventRow } from "../components/dashboard";
-import { fetchDomain, fetchDomainHealth, fetchEvents } from "../lib/api";
+import { ErrorAlert } from "../components/ErrorAlert";
+import { fetchDomain, fetchDomainHealth, fetchEvents, APIError } from "../lib/api";
 import { formatRelativeTime, formatDateTime } from "../lib/format";
 
 export default function DomainDetailPage() {
   const { name } = useParams<{ name: string }>();
+  const navigate = useNavigate();
 
   const domainQuery = useQuery({
     queryKey: ["domain", name],
-    queryFn: () => fetchDomain(name!),
+    // Query is only enabled when name exists, so we can safely assert it's defined in queryFn
+    queryFn: () => fetchDomain(name ?? ""),
     enabled: !!name,
     refetchInterval: 30000,
   });
 
   const healthQuery = useQuery({
     queryKey: ["domain-health", name],
-    queryFn: () => fetchDomainHealth(name!),
+    // Query is only enabled when name exists, so we can safely assert it's defined in queryFn
+    queryFn: () => fetchDomainHealth(name ?? ""),
     enabled: !!name,
     refetchInterval: 60000,
   });
@@ -41,6 +45,16 @@ export default function DomainDetailPage() {
   const domain = domainQuery.data;
   const health = healthQuery.data;
 
+  const handleRetry = () => {
+    domainQuery.refetch();
+    healthQuery.refetch();
+    eventsQuery.refetch();
+  };
+
+  const handleBack = () => {
+    navigate("/domains");
+  };
+
   if (domainQuery.isLoading) {
     return (
       <div className="text-center py-12 text-slate-500">
@@ -49,20 +63,22 @@ export default function DomainDetailPage() {
     );
   }
 
+  // Handle error state with structured error display
   if (domainQuery.error || !domain) {
+    const error = domainQuery.error as Error;
+    const isNotFound = error instanceof APIError && error.isNotFound;
+
     return (
       <div className="space-y-6">
         <Link to="/domains" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
           <ChevronLeft className="w-5 h-5" />
           Back to domains
         </Link>
-        <div className="text-center py-12 rounded-xl border border-red-500/30 bg-red-500/10">
-          <AlertCircle className="w-16 h-16 mx-auto text-red-400 mb-4" />
-          <h2 className="text-xl font-medium text-red-400 mb-2">Domain not found</h2>
-          <p className="text-slate-400">
-            The domain "{name}" could not be found.
-          </p>
-        </div>
+        <ErrorAlert
+          error={error || new Error(`Domain "${name}" not found`)}
+          onRetry={isNotFound ? undefined : handleRetry}
+          onBack={handleBack}
+        />
       </div>
     );
   }
@@ -82,11 +98,7 @@ export default function DomainDetailPage() {
           <p className="text-slate-400">{domain.name}</p>
         </div>
         <button
-          onClick={() => {
-            domainQuery.refetch();
-            healthQuery.refetch();
-            eventsQuery.refetch();
-          }}
+          onClick={handleRetry}
           className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
           disabled={domainQuery.isFetching}
         >
@@ -135,6 +147,9 @@ export default function DomainDetailPage() {
               )}
             </div>
           </div>
+          {health?.message && (
+            <p className="mt-2 text-sm text-amber-400">{health.message}</p>
+          )}
           {domain.health_url && (
             <p className="mt-3 text-xs text-slate-500 truncate" title={domain.health_url}>
               {domain.health_url}

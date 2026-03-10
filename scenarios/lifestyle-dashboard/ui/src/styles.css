@@ -6,7 +6,15 @@
   color-scheme: dark;
 }
 
+/* INTEROP-CRITICAL: Height chain for iframe compatibility
+ * h-full (100%) works correctly in all contexts (localhost, tunnel, proxy/iframe)
+ * h-screen (100vh) can be incorrect inside iframes where vh refers to outer window
+ */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  margin: 0;
 }

@@ -14,3 +14,5 @@ export { TimelineChart } from "./TimelineChart";
 export { StatCard } from "./StatCard";
 export { DomainBreakdown } from "./DomainBreakdown";
 export { Header } from "./Header";
+export { LifestyleScoreCard } from "./LifestyleScoreCard";
+export { default as BriefCard } from "./BriefCard";

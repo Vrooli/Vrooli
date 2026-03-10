@@ -19,6 +19,7 @@ import {
   DomainDetailPage,
   EventsPage,
   SettingsPage,
+  BriefsPage,
 } from "./pages";
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="domains" element={<DomainsPage />} />
           <Route path="domains/:name" element={<DomainDetailPage />} />
           <Route path="events" element={<EventsPage />} />
+          <Route path="briefs" element={<BriefsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

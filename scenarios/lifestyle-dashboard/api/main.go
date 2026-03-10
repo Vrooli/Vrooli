@@ -1,3 +1,9 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/internal/STORAGE_AUDIT.md#ADR-003
+// DOC: PRD.md#OT-P0-001
+//
+// Package main is the entry point for the Lifestyle Dashboard API.
+// It wires HTTP handlers, repositories, and the SQLite database.
 package main
 
 import (
@@ -43,11 +49,13 @@ func NewServer(db *sql.DB) *Server {
 	eventRepo := repository.NewSQLiteEventRepository(db)
 	domainRepo := repository.NewSQLiteDomainRepository(db)
 	statsRepo := repository.NewSQLiteStatsRepository(db)
+	storageRepo := repository.NewSQLiteStorageRepository(db)
+	briefsRepo := repository.NewSQLiteBriefRepository(db)
 
 	srv := &Server{
 		db:      db,
 		router:  mux.NewRouter(),
-		handler: handlers.New(eventRepo, domainRepo, statsRepo),
+		handler: handlers.New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo),
 	}
 	srv.setupRoutes()
 	return srv
@@ -80,6 +88,16 @@ func (s *Server) setupRoutes() {
 	// Statistics API - P0-003, P0-004
 	s.router.HandleFunc("/api/v1/stats/timeline", s.handler.GetTimeline).Methods("GET")
 	s.router.HandleFunc("/api/v1/stats/summary", s.handler.GetSummary).Methods("GET")
+	s.router.HandleFunc("/api/v1/stats/score", s.handler.GetScore).Methods("GET")
+
+	// Storage API - P0-006
+	s.router.HandleFunc("/api/v1/storage", s.handler.GetStorageInfo).Methods("GET")
+	s.router.HandleFunc("/api/v1/storage/events", s.handler.CleanupEvents).Methods("DELETE")
+
+	// Briefs API - P0-005
+	s.router.HandleFunc("/api/v1/briefs/current", s.handler.GetCurrentBrief).Methods("GET")
+	s.router.HandleFunc("/api/v1/briefs/morning", s.handler.GetMorningBrief).Methods("GET")
+	s.router.HandleFunc("/api/v1/briefs/evening", s.handler.GetEveningBrief).Methods("GET")
 }
 
 // Handler returns the HTTP handler with recovery middleware.

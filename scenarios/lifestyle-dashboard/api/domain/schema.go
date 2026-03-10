@@ -1,3 +1,7 @@
+// DOC: docs/internal/STORAGE_AUDIT.md#Schema-Status
+// DOC: README.md#Event-Schema
+// DOC: PRD.md#OT-P0-001
+//
 // Package domain contains the core business entities for the lifestyle dashboard.
 package domain
 

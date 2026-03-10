@@ -7,6 +7,7 @@
  */
 import { Heart } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
+import { Card } from "../ui";
 import { formatRelativeTime } from "../../lib/format";
 import type { Domain } from "../../lib/api";
 
@@ -17,8 +18,8 @@ interface DomainCardProps {
 
 export function DomainCard({ domain, onClick }: DomainCardProps) {
   return (
-    <div
-      className="rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/[0.07] transition-colors cursor-pointer"
+    <Card
+      interactive
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -58,6 +59,6 @@ export function DomainCard({ domain, onClick }: DomainCardProps) {
           Last check: {formatRelativeTime(domain.last_health_at)}
         </p>
       )}
-    </div>
+    </Card>
   );
 }

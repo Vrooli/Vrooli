@@ -8,3 +8,4 @@ export { default as DomainsPage } from "./DomainsPage";
 export { default as DomainDetailPage } from "./DomainDetailPage";
 export { default as EventsPage } from "./EventsPage";
 export { default as SettingsPage } from "./SettingsPage";
+export { default as BriefsPage } from "./BriefsPage";

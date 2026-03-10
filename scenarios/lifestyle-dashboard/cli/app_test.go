@@ -61,6 +61,16 @@ func TestAPIPath(t *testing.T) {
 			input:    "/events",
 			wantPath: "/api/v1/events",
 		},
+		{
+			name:     "domains path",
+			input:    "/domains",
+			wantPath: "/api/v1/domains",
+		},
+		{
+			name:     "stats timeline path",
+			input:    "/stats/timeline",
+			wantPath: "/api/v1/stats/timeline",
+		},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +84,7 @@ func TestAPIPath(t *testing.T) {
 }
 
 // TestRegisterCommands verifies the command registration
+// [REQ:LD-FUNC-001] CLI commands for all API endpoints
 func TestRegisterCommands(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -85,16 +96,94 @@ func TestRegisterCommands(t *testing.T) {
 		t.Error("registerCommands() returned no command groups")
 	}
 
-	// Verify we have Health and Configuration groups
+	// Verify we have all expected command groups
 	groupNames := make(map[string]bool)
+	commandNames := make(map[string]bool)
 	for _, g := range groups {
 		groupNames[g.Title] = true
+		for _, cmd := range g.Commands {
+			commandNames[cmd.Name] = true
+		}
 	}
 
-	if !groupNames["Health"] {
-		t.Error("missing Health command group")
+	// Check required groups
+	requiredGroups := []string{"Health", "Events", "Domains", "Statistics", "Configuration"}
+	for _, name := range requiredGroups {
+		if !groupNames[name] {
+			t.Errorf("missing %s command group", name)
+		}
 	}
-	if !groupNames["Configuration"] {
-		t.Error("missing Configuration command group")
+
+	// Check required commands for API parity
+	requiredCommands := []string{
+		"status",
+		"event create",
+		"event list",
+		"event get",
+		"domain register",
+		"domain list",
+		"domain get",
+		"domain update",
+		"domain health",
+		"stats timeline",
+		"stats summary",
+	}
+	for _, name := range requiredCommands {
+		if !commandNames[name] {
+			t.Errorf("missing command: %s", name)
+		}
+	}
+}
+
+// TestCommandsNeedAPI verifies API-requiring commands have NeedsAPI set
+func TestCommandsNeedAPI(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	groups := app.registerCommands()
+
+	// Commands that should require API access
+	apiCommands := map[string]bool{
+		"status":          true,
+		"event create":    true,
+		"event list":      true,
+		"event get":       true,
+		"domain register": true,
+		"domain list":     true,
+		"domain get":      true,
+		"domain update":   true,
+		"domain health":   true,
+		"stats timeline":  true,
+		"stats summary":   true,
+	}
+
+	for _, g := range groups {
+		for _, cmd := range g.Commands {
+			if expected, exists := apiCommands[cmd.Name]; exists {
+				if cmd.NeedsAPI != expected {
+					t.Errorf("command %q: NeedsAPI = %v, want %v", cmd.Name, cmd.NeedsAPI, expected)
+				}
+			}
+		}
+	}
+}
+
+// TestCommandDescriptions verifies all commands have descriptions
+func TestCommandDescriptions(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	groups := app.registerCommands()
+
+	for _, g := range groups {
+		for _, cmd := range g.Commands {
+			if cmd.Description == "" {
+				t.Errorf("command %q has empty description", cmd.Name)
+			}
+		}
 	}
 }

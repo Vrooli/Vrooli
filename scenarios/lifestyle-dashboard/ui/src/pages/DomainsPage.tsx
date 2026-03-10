@@ -9,21 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Heart, RefreshCw, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { DomainCard, StatusBadge } from "../components/dashboard";
-import { fetchDomains } from "../lib/api";
+import { StatusBadge } from "../components/dashboard";
+import { fetchDomains, type Domain } from "../lib/api";
 import { formatRelativeTime } from "../lib/format";
-
-interface Domain {
-  name: string;
-  display_name: string;
-  description?: string;
-  capabilities?: string[];
-  status: string;
-  health_url?: string;
-  last_health_at?: string;
-  registered_at: string;
-  updated_at: string;
-}
 
 export default function DomainsPage() {
   const domainsQuery = useQuery({
