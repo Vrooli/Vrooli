@@ -10,12 +10,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
-func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName string) RuleResult {
+func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
 	start := time.Now()
-	result := RuleResult{
+	result = RuleResult{
 		RuleID:    "GO_CLI_WORKSPACE_INDEPENDENCE",
 		StartedAt: start,
 	}
@@ -48,23 +51,42 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 		return result
 	}
 
+	var mu sync.Mutex
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(5)
 	for _, goMod := range goMods {
-		moduleDir := filepath.Dir(goMod)
-		name := filepath.Base(filepath.Dir(moduleDir)) // scenario slug
-		buildCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-		out, buildErr := runGoBuild(buildCtx, moduleDir)
-		cancel()
-		if buildErr != nil {
-			result.Findings = append(result.Findings, Finding{
-				Level:   "error",
-				Message: fmt.Sprintf("%s: `GOWORK=off go build ./...` failed", name),
-				Evidence: []Evidence{
-					{Type: "path", Ref: moduleDir},
-					{Type: "command", Ref: "GOWORK=off go build ./..."},
-					{Type: "note", Detail: out},
-				},
-			})
-		}
+		goMod := goMod
+		g.Go(func() error {
+			moduleDir := filepath.Dir(goMod)
+			name := filepath.Base(filepath.Dir(moduleDir)) // scenario slug
+			buildCtx, cancel := context.WithTimeout(gCtx, 3*time.Minute)
+			out, buildErr := runGoBuild(buildCtx, moduleDir)
+			cancel()
+			if buildErr != nil {
+				mu.Lock()
+				result.Findings = append(result.Findings, Finding{
+					Level:        "error",
+					Message:      fmt.Sprintf("%s: `GOWORK=off go build ./...` failed", name),
+					ScenarioName: name,
+					Evidence: []Evidence{
+						{Type: "path", Ref: moduleDir},
+						{Type: "command", Ref: "GOWORK=off go build ./..."},
+						{Type: "note", Detail: out},
+					},
+				})
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	// If the parent context timed out before we could collect findings, add a sentinel.
+	if ctx.Err() != nil && len(result.Findings) == 0 {
+		result.Findings = append(result.Findings, Finding{
+			Level:   "error",
+			Message: fmt.Sprintf("rule timed out after %s before builds could complete", time.Since(start).Truncate(time.Second)),
+		})
 	}
 
 	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot, cleanedScenario)...)
@@ -99,6 +121,7 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 
 	for _, cliGoMod := range cliGoMods {
 		scenarioDir := filepath.Dir(filepath.Dir(cliGoMod))
+		scenSlug := filepath.Base(scenarioDir)
 		apiGoMod := filepath.Join(scenarioDir, "api", "go.mod")
 		if !fileExists(apiGoMod) {
 			continue
@@ -151,8 +174,9 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 
 		if len(missing) > 0 {
 			findings = append(findings, Finding{
-				Level:   "error",
-				Message: fmt.Sprintf("%s: CLI imports %s/internal/* but is missing go.mod wiring", cliModule, apiModule),
+				Level:        "error",
+				Message:      fmt.Sprintf("%s: CLI imports %s/internal/* but is missing go.mod wiring", cliModule, apiModule),
+				ScenarioName: scenSlug,
 				Evidence: []Evidence{
 					{Type: "file", Ref: cliGoMod},
 					{Type: "note", Detail: "Add: " + strings.Join(missing, " | ")},
@@ -187,9 +211,11 @@ func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
 			continue
 		}
 
+		scenSlug := filepath.Base(filepath.Dir(filepath.Dir(cliGoMod)))
 		findings = append(findings, Finding{
-			Level:   "error",
-			Message: "CLI depends on packages/proto but is missing a local replace directive (replace is not transitive)",
+			Level:        "error",
+			Message:      "CLI depends on packages/proto but is missing a local replace directive (replace is not transitive)",
+			ScenarioName: scenSlug,
 			Evidence: []Evidence{
 				{Type: "file", Ref: cliGoMod},
 				{Type: "note", Detail: "Add: replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto (path adjusted per module depth)"},

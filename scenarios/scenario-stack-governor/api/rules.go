@@ -8,6 +8,7 @@ type RuleDefinition struct {
 	Category       string `json:"category"`
 	Severity       string `json:"severity"`
 	DefaultEnabled bool   `json:"default_enabled"`
+	Fixable        bool   `json:"fixable"`
 }
 
 func AllRuleDefinitions() []RuleDefinition {
@@ -20,6 +21,7 @@ func AllRuleDefinitions() []RuleDefinition {
 			Category:       "go",
 			Severity:       "error",
 			DefaultEnabled: true,
+			Fixable:        true,
 		},
 		{
 			ID:             "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
@@ -29,6 +31,37 @@ func AllRuleDefinitions() []RuleDefinition {
 			Category:       "typescript",
 			Severity:       "error",
 			DefaultEnabled: true,
+			Fixable:        true,
+		},
+		{
+			ID:             "MAKEFILE_STRUCTURE",
+			Title:          "Makefile follows canonical structure",
+			Summary:        "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure including fmt-go/lint-go/fmt-ui/lint-ui targets.",
+			WhyImportant:   "STRICT consistency ensures agents and humans can rely on standard targets across all scenarios. Any deviation breaks tooling and creates confusion.",
+			Category:       "makefile",
+			Severity:       "error",
+			DefaultEnabled: true,
+			Fixable:        true,
+		},
+		{
+			ID:             "MAKEFILE_LIFECYCLE",
+			Title:          "Makefile lifecycle targets use Vrooli CLI",
+			Summary:        "Ensures lifecycle targets (start, stop, test, logs, status) call the Vrooli CLI with canonical messaging.",
+			WhyImportant:   "Keeps lifecycle orchestration consistent and prevents direct execution regressions. Every scenario must delegate to `vrooli scenario <verb>` so process naming, port allocation, and health checks work correctly.",
+			Category:       "makefile",
+			Severity:       "error",
+			DefaultEnabled: true,
+			Fixable:        true,
+		},
+		{
+			ID:             "MAKEFILE_QUALITY",
+			Title:          "Makefile quality targets have proper guards",
+			Summary:        "Validates fmt/lint/check targets invoke canonical sub-commands and enforce strict Go formatting/linting logic with proper guards and fallbacks.",
+			WhyImportant:   "Keeps code quality workflows discoverable and consistent across scenarios. Guards prevent failures when api/ directory is absent; fallbacks ensure formatting works even without gofumpt.",
+			Category:       "makefile",
+			Severity:       "warning",
+			DefaultEnabled: true,
+			Fixable:        true,
 		},
 	}
 }

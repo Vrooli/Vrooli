@@ -39,4 +39,3 @@ func scenarioRootFromCWD() (string, error) {
 func configPathForScenario(scenarioRoot string) string {
 	return filepath.Join(scenarioRoot, "config", "rules.json")
 }
-

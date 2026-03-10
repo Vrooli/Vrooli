@@ -9,9 +9,10 @@ type Evidence struct {
 }
 
 type Finding struct {
-	Level    string     `json:"level"` // error|warn|info
-	Message  string     `json:"message"`
-	Evidence []Evidence `json:"evidence,omitempty"`
+	Level        string     `json:"level"` // error|warn|info
+	Message      string     `json:"message"`
+	Evidence     []Evidence `json:"evidence,omitempty"`
+	ScenarioName string     `json:"scenario_name,omitempty"`
 }
 
 type RuleResult struct {
@@ -23,8 +24,8 @@ type RuleResult struct {
 }
 
 type RunRequest struct {
-	Scope        string `json:"scope,omitempty"`         // reserved (repo|scenario); default repo
-	ScenarioName string `json:"scenario_name,omitempty"` // optional; when set, rules should scope to this scenario
+	Scope         string   `json:"scope,omitempty"`          // reserved (repo|scenario); default repo
+	ScenarioNames []string `json:"scenario_names,omitempty"` // optional; when set, rules should scope to these scenarios
 }
 
 type RunResponse struct {

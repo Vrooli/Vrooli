@@ -59,8 +59,9 @@ func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
 	serviceJSONPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	if !fileExists(serviceJSONPath) {
 		findings = append(findings, Finding{
-			Level:   "warn",
-			Message: fmt.Sprintf("%s: UI present but .vrooli/service.json missing", scenarioName),
+			Level:        "warn",
+			Message:      fmt.Sprintf("%s: UI present but .vrooli/service.json missing", scenarioName),
+			ScenarioName: scenarioName,
 			Evidence: []Evidence{
 				{Type: "file", Ref: uiPackageJSON},
 			},
@@ -71,8 +72,9 @@ func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
 	lifecycleInstallOK, installRun := hasUIInstallIgnoreWorkspace(serviceJSONPath)
 	if !lifecycleInstallOK {
 		findings = append(findings, Finding{
-			Level:   "error",
-			Message: fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace`", scenarioName),
+			Level:        "error",
+			Message:      fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace`", scenarioName),
+			ScenarioName: scenarioName,
 			Evidence: []Evidence{
 				{Type: "file", Ref: serviceJSONPath},
 				{Type: "note", Detail: "Expected setup step like: cd ui && pnpm install --ignore-workspace"},
@@ -84,8 +86,9 @@ func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
 	uiNodeModules := filepath.Join(scenarioDir, "ui", "node_modules")
 	if !dirExists(uiNodeModules) {
 		findings = append(findings, Finding{
-			Level:   "info",
-			Message: fmt.Sprintf("%s: ui/node_modules missing (run setup or install UI deps)", scenarioName),
+			Level:        "info",
+			Message:      fmt.Sprintf("%s: ui/node_modules missing (run setup or install UI deps)", scenarioName),
+			ScenarioName: scenarioName,
 			Evidence: []Evidence{
 				{Type: "path", Ref: uiNodeModules},
 				{Type: "command", Ref: "cd ui && pnpm install --ignore-workspace"},
