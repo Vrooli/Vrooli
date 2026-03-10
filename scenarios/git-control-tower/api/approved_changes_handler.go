@@ -12,6 +12,14 @@ func (s *Server) handleApprovedChanges(w http.ResponseWriter, r *http.Request) {
 	}
 	defer hctx.Cancel()
 
+	if !s.capabilities.IsAvailable(hctx.Ctx, "workspace-sandbox") {
+		hctx.Resp.OK(ApprovedChangesResponse{
+			Available: false,
+			Warning:   "Workspace Sandbox is not running",
+		})
+		return
+	}
+
 	preview, err := s.sandbox.GetCommitPreview(hctx.Ctx, hctx.RepoDir)
 	if err != nil {
 		hctx.Resp.OK(ApprovedChangesResponse{
@@ -33,6 +41,14 @@ func (s *Server) handleApprovedChangesPreview(w http.ResponseWriter, r *http.Req
 
 	var req ApprovedChangesPreviewRequest
 	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	if !s.capabilities.IsAvailable(hctx.Ctx, "workspace-sandbox") {
+		hctx.Resp.OK(ApprovedChangesResponse{
+			Available: false,
+			Warning:   "Workspace Sandbox is not running",
+		})
 		return
 	}
 

@@ -2,29 +2,17 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "ollama": {
-        "description": "AI-assisted commit message suggestions",
-        "enabled": false,
-        "required": false,
-        "type": "ollama"
-      },
-      "redis": {
-        "description": "Optional caching for diff/status operations",
-        "enabled": false,
-        "required": false,
-        "type": "redis"
-      },
-      "resource-openrouter": {
-        "description": "AI fallback for commit message suggestions",
-        "enabled": false,
-        "required": false,
-        "type": "resource-openrouter"
-      },
       "sqlite": {
         "description": "Audit log and metadata storage (local SQLite database)",
         "enabled": true,
         "required": true,
         "type": "sqlite"
+      }
+    },
+    "scenarios": {
+      "workspace-sandbox": {
+        "description": "Approved changes tracking and commit preview",
+        "required": false
       }
     }
   },

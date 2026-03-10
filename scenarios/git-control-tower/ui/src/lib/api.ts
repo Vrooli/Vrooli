@@ -547,6 +547,30 @@ export interface ContentSearchResponse {
 }
 
 // ============================================================================
+// Capabilities Types
+// ============================================================================
+
+export type DependencyKind = "scenario" | "resource";
+export type CapabilityStatus = "available" | "unavailable" | "unknown";
+
+export interface CapabilityState {
+  id: string;
+  name: string;
+  description: string;
+  dependencyKind: DependencyKind;
+  dependencySlug: string;
+  features: string[];
+  status: CapabilityStatus;
+  message?: string;
+  checkedAt?: string;
+}
+
+export interface CapabilitiesResponse {
+  capabilities: CapabilityState[];
+  timestamp: string;
+}
+
+// ============================================================================
 // Credentials Types
 // ============================================================================
 
@@ -1025,6 +1049,19 @@ export async function saveFileContent(
   }
 
   return handleResponse<SaveFileContentResponse>(res);
+}
+
+// ============================================================================
+// Capabilities API Functions
+// ============================================================================
+
+export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
+  const url = buildApiUrl("/capabilities", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<CapabilitiesResponse>(res);
 }
 
 // ============================================================================

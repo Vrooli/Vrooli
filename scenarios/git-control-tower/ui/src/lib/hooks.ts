@@ -42,10 +42,12 @@ import {
   getSSHPublicKey,
   testSSHConnection,
   deleteSSHKey,
+  fetchCapabilities,
   fetchGroupingRules,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  type CapabilitiesResponse,
   type GroupingRulesConfig,
   type GitignoreMoveRequest,
   type GitignoreHealthResponse,
@@ -113,6 +115,7 @@ export const queryKeys = {
   credentials: (repoId?: string | null) => ["credentials", repoId ?? "default"] as const,
   groupingRules: (repoId?: string | null) => ["repo", "grouping-rules", repoId ?? "default"] as const,
   gitignoreHealth: (repoId?: string | null) => ["repo", "gitignore", "health", repoId ?? "default"] as const,
+  capabilities: ["capabilities"] as const,
   sshKeys: ["ssh", "keys"] as const,
   repos: ["repos"] as const,
   activeRepo: ["repos", "active"] as const
@@ -436,6 +439,18 @@ export function useContentSearch(
     queryKey: queryKeys.contentSearch(query, options, repoId),
     queryFn: () => searchContent(request, repoId ?? undefined),
     enabled: enabled && query.length >= 2 // Minimum 2 characters
+  });
+}
+
+// ============================================================================
+// Capabilities Hooks
+// ============================================================================
+
+export function useCapabilities() {
+  return useQuery<CapabilitiesResponse, Error>({
+    queryKey: queryKeys.capabilities,
+    queryFn: fetchCapabilities,
+    refetchInterval: 30_000,
   });
 }
 

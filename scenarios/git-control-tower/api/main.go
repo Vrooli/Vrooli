@@ -38,6 +38,7 @@ type Server struct {
 	git             GitRunner
 	audit           AuditLogger
 	sandbox         *WorkspaceSandboxClient
+	capabilities    *CapabilityRegistry
 	sshDeps         ssh.SSHDeps
 	repos           *RepoService
 	credStore       *CredentialsStore
@@ -89,6 +90,12 @@ func NewServer() (*Server, error) {
 		git:     &ExecGitRunner{GitPath: "git"},
 		audit:   auditLogger,
 		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
+		capabilities: NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{
+			"workspace-sandbox": &ScenarioChecker{
+				Slug:   "workspace-sandbox",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
+		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
@@ -155,6 +162,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/files/delete", s.handleDeletePath).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/search/content", s.handleContentSearch).Methods("GET")
+	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints

@@ -5,10 +5,11 @@ import { useIsMobile } from "../hooks";
 import { SettingsTabLayout } from "./SettingsTabLayout";
 import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabHealth } from "./SettingsTabHealth";
+import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { SyncStatusResponse } from "../lib/api";
 
-export type SettingsTab = "layout" | "credentials" | "health";
+export type SettingsTab = "layout" | "credentials" | "integrations" | "health";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface SettingsModalProps {
 const tabLabels: Record<SettingsTab, string> = {
   layout: "Layout",
   credentials: "Credentials",
+  integrations: "Integrations",
   health: "Health",
 };
 
@@ -122,6 +124,13 @@ export function SettingsModal({
             />
           )}
 
+          {activeTab === "integrations" && (
+            <SettingsTabIntegrations
+              isMobile={true}
+              repoId={repoId}
+            />
+          )}
+
           {activeTab === "health" && (
             <SettingsTabHealth
               isMobile={true}
@@ -210,6 +219,13 @@ export function SettingsModal({
             <SettingsTabCredentials
               remoteUrl={remoteUrl}
               hasUpstream={hasUpstream}
+              isMobile={false}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "integrations" && (
+            <SettingsTabIntegrations
               isMobile={false}
               repoId={repoId}
             />
