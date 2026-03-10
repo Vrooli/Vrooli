@@ -52,13 +52,15 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	parsed.Scopes = detectScopes(parsed.Files)
 
 	stagedStats := map[string]DiffStats{}
+	var stagedBinaries []string
 	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
-		stagedStats = parseNumstatOutput(numstat)
+		stagedStats, stagedBinaries = parseNumstatOutput(numstat)
 	}
 
 	unstagedStats := map[string]DiffStats{}
+	var unstagedBinaries []string
 	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
-		unstagedStats = parseNumstatOutput(numstat)
+		unstagedStats, unstagedBinaries = parseNumstatOutput(numstat)
 	}
 
 	untrackedStats := map[string]DiffStats{}
@@ -78,12 +80,19 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		}
 	}
 
+	// Collect binary files from numstat results (no extra git calls needed)
 	binarySet := map[string]struct{}{}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
-		addBinaryFiles(binarySet, numstat)
+	for _, p := range stagedBinaries {
+		binarySet[p] = struct{}{}
 	}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
-		addBinaryFiles(binarySet, numstat)
+	for _, p := range unstagedBinaries {
+		binarySet[p] = struct{}{}
+	}
+	// Also include untracked binaries
+	for path, stats := range untrackedStats {
+		if stats.IsBinary {
+			binarySet[path] = struct{}{}
+		}
 	}
 	if len(binarySet) > 0 {
 		parsed.Files.Binary = make([]string, 0, len(binarySet))
@@ -105,33 +114,12 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	return parsed, nil
 }
 
-func addBinaryFiles(out map[string]struct{}, numstat []byte) {
-	lines := strings.Split(strings.TrimSpace(string(numstat)), "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
-			continue
-		}
-		additions := strings.TrimSpace(parts[0])
-		deletions := strings.TrimSpace(parts[1])
-		path := strings.TrimSpace(parts[2])
-		if path == "" {
-			continue
-		}
-		if additions == "-" || deletions == "-" {
-			out[path] = struct{}{}
-		}
-	}
-}
-
-func parseNumstatOutput(out []byte) map[string]DiffStats {
+func parseNumstatOutput(out []byte) (map[string]DiffStats, []string) {
 	stats := map[string]DiffStats{}
+	var binaries []string
 	raw := strings.TrimSpace(string(out))
 	if raw == "" {
-		return stats
+		return stats, binaries
 	}
 	lines := strings.Split(raw, "\n")
 	for _, line := range lines {
@@ -146,13 +134,23 @@ func parseNumstatOutput(out []byte) map[string]DiffStats {
 		if path == "" {
 			continue
 		}
+		additions := strings.TrimSpace(parts[0])
+		deletions := strings.TrimSpace(parts[1])
+		if additions == "-" || deletions == "-" {
+			binaries = append(binaries, path)
+			stats[path] = DiffStats{Files: 1, IsBinary: true}
+			continue
+		}
+		add := parseNumstatValue(parts[0])
+		del := parseNumstatValue(parts[1])
 		stats[path] = DiffStats{
-			Additions: parseNumstatValue(parts[0]),
-			Deletions: parseNumstatValue(parts[1]),
+			Additions: add,
+			Deletions: del,
 			Files:     1,
+			NetLines:  add - del,
 		}
 	}
-	return stats
+	return stats, binaries
 }
 
 func parseNumstatValue(value string) int {
@@ -179,11 +177,10 @@ func buildUntrackedStats(repoDir string, path string) (DiffStats, error) {
 	if err != nil {
 		return DiffStats{}, err
 	}
-	stats := DiffStats{Files: 1}
-	if !isBinary {
-		stats.Additions = lines
+	if isBinary {
+		return DiffStats{Files: 1, IsBinary: true}, nil
 	}
-	return stats, nil
+	return DiffStats{Files: 1, Additions: lines, NetLines: lines}, nil
 }
 
 func countFileLines(path string) (int, bool, error) {

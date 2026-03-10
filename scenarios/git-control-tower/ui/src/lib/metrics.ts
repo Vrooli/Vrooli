@@ -1,0 +1,109 @@
+import type { DiffStats, RepoFileStats } from "./api";
+
+export interface AggregateMetrics {
+  totalAdditions: number;
+  totalDeletions: number;
+  totalNetLines: number;
+  totalFiles: number;
+  binaryCount: number;
+  renameCount: number;
+}
+
+/** Aggregate per-file DiffStats across all categories into summary metrics. */
+export function aggregateFileStats(fileStats?: RepoFileStats): AggregateMetrics {
+  const result: AggregateMetrics = {
+    totalAdditions: 0,
+    totalDeletions: 0,
+    totalNetLines: 0,
+    totalFiles: 0,
+    binaryCount: 0,
+    renameCount: 0,
+  };
+  if (!fileStats) return result;
+
+  const seen = new Set<string>();
+  for (const category of [fileStats.staged, fileStats.unstaged, fileStats.untracked]) {
+    if (!category) continue;
+    for (const [path, stats] of Object.entries(category)) {
+      if (seen.has(path)) continue;
+      seen.add(path);
+      result.totalAdditions += stats.additions ?? 0;
+      result.totalDeletions += stats.deletions ?? 0;
+      result.totalNetLines += stats.net_lines ?? (stats.additions ?? 0) - (stats.deletions ?? 0);
+      result.totalFiles++;
+      if (stats.is_binary) result.binaryCount++;
+      if (stats.is_rename) result.renameCount++;
+    }
+  }
+  return result;
+}
+
+/** Format net lines as a signed string: "+42", "-7", or "0". */
+export function formatNetLines(net: number): string {
+  if (net > 0) return `+${net}`;
+  if (net < 0) return `${net}`;
+  return "0";
+}
+
+/** Human-readable label for change density. */
+export function densityLabel(density?: number): string {
+  if (density == null || density === 0) return "";
+  if (density <= 0.1) return "focused";
+  if (density <= 0.3) return "moderate";
+  return "scattered";
+}
+
+/** Per-category summary for aggregate modal display. */
+export function categoryStats(stats?: Record<string, DiffStats>): { additions: number; deletions: number; netLines: number; count: number } {
+  const result = { additions: 0, deletions: 0, netLines: 0, count: 0 };
+  if (!stats) return result;
+  for (const s of Object.values(stats)) {
+    result.additions += s.additions ?? 0;
+    result.deletions += s.deletions ?? 0;
+    result.netLines += s.net_lines ?? (s.additions ?? 0) - (s.deletions ?? 0);
+    result.count++;
+  }
+  return result;
+}
+
+/** Look up DiffStats for a file across all categories. */
+export function getFileStats(path: string, fileStats?: RepoFileStats): DiffStats | undefined {
+  if (!fileStats) return undefined;
+  return fileStats.staged?.[path] ?? fileStats.unstaged?.[path] ?? fileStats.untracked?.[path];
+}
+
+/** Filter RepoFileStats to only include specified file paths. */
+export function filterFileStats(paths: string[], fileStats?: RepoFileStats): RepoFileStats {
+  if (!fileStats) return {};
+  const pathSet = new Set(paths);
+  const pick = (cat?: Record<string, DiffStats>) => {
+    if (!cat) return undefined;
+    const result: Record<string, DiffStats> = {};
+    for (const [p, s] of Object.entries(cat)) {
+      if (pathSet.has(p)) result[p] = s;
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+  };
+  return {
+    staged: pick(fileStats.staged),
+    unstaged: pick(fileStats.unstaged),
+    untracked: pick(fileStats.untracked),
+  };
+}
+
+/** Filter RepoFileStats to a single category with specified paths. */
+export function filterCategoryStats(
+  paths: string[],
+  category: "staged" | "unstaged" | "untracked",
+  fileStats?: RepoFileStats,
+): RepoFileStats {
+  if (!fileStats) return {};
+  const source = fileStats[category];
+  if (!source) return {};
+  const pathSet = new Set(paths);
+  const filtered: Record<string, DiffStats> = {};
+  for (const [p, s] of Object.entries(source)) {
+    if (pathSet.has(p)) filtered[p] = s;
+  }
+  return Object.keys(filtered).length > 0 ? { [category]: filtered } : {};
+}

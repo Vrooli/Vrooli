@@ -28,6 +28,7 @@ import {
   Square,
   CheckSquare,
   X,
+  BarChart3,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -39,6 +40,8 @@ import { resolveGroupForFile } from "../lib/grouping";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { ChangeMetricsModal } from "./ChangeMetricsModal";
+import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -157,6 +160,8 @@ interface FileSectionProps {
   mobileSelectionMode?: boolean;
   onLongPress?: (file: string, staged: boolean) => void;
   onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
+  onStatsClick?: () => void;
+  onViewMetrics?: (file: string) => void;
 }
 
 const statusStyleMap = {
@@ -193,15 +198,17 @@ function hasLineStats(stats?: DiffStats) {
 function LineStats({
   stats,
   compact = false,
+  onClick,
 }: {
   stats?: DiffStats;
   compact?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   if (!hasLineStats(stats)) return null;
   const textSize = compact ? "text-[11px]" : "text-xs";
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
-  return (
-    <div className={`flex items-center gap-2 ${textSize}`}>
+  const inner = (
+    <>
       <span className="flex items-center gap-1 text-emerald-500">
         <Plus className={iconSize} />
         {stats?.additions ?? 0}
@@ -210,6 +217,26 @@ function LineStats({
         <Minus className={iconSize} />
         {stats?.deletions ?? 0}
       </span>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`flex items-center gap-2 ${textSize} hover:underline decoration-slate-600 cursor-pointer`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick(e);
+        }}
+        aria-label="View change metrics"
+      >
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <div className={`flex items-center gap-2 ${textSize}`}>
+      {inner}
     </div>
   );
 }
@@ -302,6 +329,7 @@ interface FileRowProps {
   mobileSelectionMode?: boolean;
   onLongPress?: (file: string, staged: boolean) => void;
   onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
+  onViewMetrics?: (file: string) => void;
 }
 
 const FileRow = memo(function FileRow({
@@ -336,6 +364,7 @@ const FileRow = memo(function FileRow({
   mobileSelectionMode,
   onLongPress,
   onMobileTap,
+  onViewMetrics,
 }: FileRowProps) {
   const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
@@ -518,6 +547,15 @@ const FileRow = memo(function FileRow({
           {/* Desktop: hover-to-reveal actions */}
           {!isMobile && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+              {onViewMetrics && (
+                <button
+                  className="p-1 rounded hover:bg-slate-700 transition-all"
+                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
+                  title="View file metrics"
+                >
+                  <BarChart3 className="h-3 w-3 text-slate-400" />
+                </button>
+              )}
               <button
                 className="p-1 rounded hover:bg-slate-700 transition-all"
                 onClick={(e) => {
@@ -576,6 +614,15 @@ const FileRow = memo(function FileRow({
           {/* Mobile: show primary action always, menu for secondary actions */}
           {isMobile && (
             <div className="flex items-center gap-1">
+              {onViewMetrics && (
+                <button
+                  className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
+                  onClick={(e) => { e.stopPropagation(); onViewMetrics(file); }}
+                  title="View file metrics"
+                >
+                  <BarChart3 className="h-5 w-5 text-slate-400" />
+                </button>
+              )}
               {/* Primary action (stage/unstage) - always visible */}
               <button
                 className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
@@ -649,6 +696,8 @@ function FileSection({
   mobileSelectionMode,
   onLongPress,
   onMobileTap,
+  onStatsClick,
+  onViewMetrics,
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -701,7 +750,7 @@ function FileSection({
           {title}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <LineStats stats={changeStats} compact />
+          <LineStats stats={changeStats} compact onClick={onStatsClick} />
           <span className="text-xs text-slate-600">{files.length}</span>
         </div>
       </button>
@@ -742,6 +791,7 @@ function FileSection({
               mobileSelectionMode={mobileSelectionMode}
               onLongPress={onLongPress}
               onMobileTap={onMobileTap}
+              onViewMetrics={onViewMetrics}
             />
           ))}
         </ul>
@@ -814,6 +864,59 @@ export function FileList({
   const binarySet = useMemo(
     () => new Set(files?.binary ?? []),
     [files?.binary],
+  );
+
+  // Metrics modal state
+  const [metricsModal, setMetricsModal] = useState<{
+    mode: "file" | "aggregate";
+    stats?: DiffStats;
+    path?: string;
+    filteredFileStats?: RepoFileStats;
+    title?: string;
+  } | null>(null);
+  const openAggregateMetrics = useCallback(
+    () => setMetricsModal({ mode: "aggregate" }),
+    [],
+  );
+
+  const openFileMetrics = useCallback(
+    (path: string) => {
+      const stats = getFileStats(path, fileStats);
+      if (!stats) return;
+      setMetricsModal({ mode: "file", stats, path });
+    },
+    [fileStats],
+  );
+
+  const openGroupMetrics = useCallback(
+    (groupFiles: Record<string, string[]>, groupLabel: string) => {
+      const allPaths = [
+        ...(groupFiles.conflicts ?? []),
+        ...(groupFiles.staged ?? []),
+        ...(groupFiles.unstaged ?? []),
+        ...(groupFiles.untracked ?? []),
+      ];
+      const filtered = filterFileStats(allPaths, fileStats);
+      setMetricsModal({
+        mode: "aggregate",
+        filteredFileStats: filtered,
+        title: `${groupLabel} — Change Metrics`,
+      });
+    },
+    [fileStats],
+  );
+
+  const openGroupCategoryMetrics = useCallback(
+    (paths: string[], category: "staged" | "unstaged" | "untracked", groupLabel: string) => {
+      const catLabel = category.charAt(0).toUpperCase() + category.slice(1);
+      const filtered = filterCategoryStats(paths, category, fileStats);
+      setMetricsModal({
+        mode: "aggregate",
+        filteredFileStats: filtered,
+        title: `${catLabel} (${groupLabel})`,
+      });
+    },
+    [fileStats],
   );
 
   // Mobile file actions state
@@ -1186,7 +1289,10 @@ export function FileList({
               )}
             </button>
             <span className="truncate">Changes</span>
-            <LineStats stats={totalStats} />
+            <LineStats
+              stats={totalStats}
+              onClick={() => setMetricsModal({ mode: "aggregate" })}
+            />
           </CardTitle>
           <div className="flex flex-wrap gap-2 justify-end min-w-0">
             {hasUnstaged && (
@@ -1459,7 +1565,16 @@ export function FileList({
                             </div>
                           </button>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <span>{groupCount} files</span>
+                            <button
+                              type="button"
+                              className="hover:underline decoration-slate-600 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openGroupMetrics(group.files, group.label);
+                              }}
+                            >
+                              {groupCount} files
+                            </button>
                             {!isGroupCollapsed &&
                               stageable.length > 0 &&
                               onStagePaths && (
@@ -1566,6 +1681,8 @@ export function FileList({
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
+                                onStatsClick={() => openGroupCategoryMetrics(group.files.conflicts, "unstaged", group.label)}
+                                onViewMetrics={openFileMetrics}
                               />
                               <FileSection
                                 key={`${group.id}-staged`}
@@ -1603,6 +1720,8 @@ export function FileList({
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
+                                onStatsClick={() => openGroupCategoryMetrics(group.files.staged, "staged", group.label)}
+                                onViewMetrics={openFileMetrics}
                               />
                               <FileSection
                                 key={`${group.id}-unstaged`}
@@ -1644,6 +1763,8 @@ export function FileList({
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
+                                onStatsClick={() => openGroupCategoryMetrics(group.files.unstaged, "unstaged", group.label)}
+                                onViewMetrics={openFileMetrics}
                               />
                               <FileSection
                                 key={`${group.id}-untracked`}
@@ -1686,6 +1807,8 @@ export function FileList({
                                 mobileSelectionMode={mobileSelectionMode}
                                 onLongPress={handleLongPress}
                                 onMobileTap={handleMobileTap}
+                                onStatsClick={() => openGroupCategoryMetrics(group.files.untracked, "untracked", group.label)}
+                                onViewMetrics={openFileMetrics}
                               />
                             </div>
                           </>
@@ -1729,6 +1852,8 @@ export function FileList({
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
+                      onStatsClick={openAggregateMetrics}
+                      onViewMetrics={openFileMetrics}
                     />
 
                     {/* Staged Changes */}
@@ -1765,6 +1890,8 @@ export function FileList({
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
+                      onStatsClick={openAggregateMetrics}
+                      onViewMetrics={openFileMetrics}
                     />
 
                     {/* Unstaged Changes */}
@@ -1803,6 +1930,8 @@ export function FileList({
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
+                      onStatsClick={openAggregateMetrics}
+                      onViewMetrics={openFileMetrics}
                     />
 
                     {/* Untracked Files */}
@@ -1842,6 +1971,8 @@ export function FileList({
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
+                      onStatsClick={openAggregateMetrics}
+                      onViewMetrics={openFileMetrics}
                     />
                   </>
                 )}
@@ -1975,6 +2106,17 @@ export function FileList({
         position={contextMenu ?? { x: 0, y: 0 }}
         items={contextMenuItems}
         onClose={handleCloseContextMenu}
+      />
+
+      {/* Change metrics modal */}
+      <ChangeMetricsModal
+        isOpen={metricsModal !== null}
+        onClose={() => setMetricsModal(null)}
+        mode={metricsModal?.mode ?? "aggregate"}
+        stats={metricsModal?.stats}
+        filePath={metricsModal?.path}
+        fileStats={metricsModal?.filteredFileStats ?? fileStats}
+        title={metricsModal?.title}
       />
     </MobileContext.Provider>
   );

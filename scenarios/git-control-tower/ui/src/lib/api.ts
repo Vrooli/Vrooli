@@ -217,6 +217,13 @@ export interface DiffStats {
   additions: number;
   deletions: number;
   files: number;
+  net_lines?: number;
+  hunk_count?: number;
+  largest_hunk?: number;
+  density?: number;
+  is_binary?: boolean;
+  is_rename?: boolean;
+  old_path?: string;
 }
 
 /** View mode for the diff viewer */

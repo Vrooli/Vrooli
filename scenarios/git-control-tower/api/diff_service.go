@@ -610,6 +610,16 @@ func ParseDiffOutput(raw string) *DiffResponse {
 			continue
 		}
 
+		// Detect renames in diff header metadata
+		if strings.HasPrefix(line, "rename from ") {
+			resp.Stats.IsRename = true
+			resp.Stats.OldPath = strings.TrimPrefix(line, "rename from ")
+			continue
+		}
+		if strings.HasPrefix(line, "rename to ") {
+			continue
+		}
+
 		// Parse hunk headers
 		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {
 			if currentHunk != nil {
@@ -646,7 +656,32 @@ func ParseDiffOutput(raw string) *DiffResponse {
 
 	resp.Stats.Files = len(filesSet)
 
+	// Compute enhanced metrics from parsed hunks
+	resp.Stats.NetLines = resp.Stats.Additions - resp.Stats.Deletions
+	resp.Stats.HunkCount = len(resp.Hunks)
+	for _, h := range resp.Hunks {
+		if n := countHunkChangedLines(h); n > resp.Stats.LargestHunk {
+			resp.Stats.LargestHunk = n
+		}
+	}
+	if total := resp.Stats.Additions + resp.Stats.Deletions; total > 0 && resp.Stats.HunkCount > 0 {
+		resp.Stats.Density = float64(resp.Stats.HunkCount) / float64(total)
+	}
+
 	return resp
+}
+
+// countHunkChangedLines counts added/deleted lines in a single hunk.
+func countHunkChangedLines(h DiffHunk) int {
+	count := 0
+	for _, line := range h.Lines {
+		if len(line) > 0 && (line[0] == '+' || line[0] == '-') {
+			if !strings.HasPrefix(line, "+++") && !strings.HasPrefix(line, "---") {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func atoi(s string) int {

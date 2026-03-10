@@ -220,9 +220,13 @@ type diffResponse struct {
 	Staged  bool   `json:"staged"`
 	HasDiff bool   `json:"has_diff"`
 	Stats   struct {
-		Additions int `json:"additions"`
-		Deletions int `json:"deletions"`
-		Files     int `json:"files"`
+		Additions   int     `json:"additions"`
+		Deletions   int     `json:"deletions"`
+		Files       int     `json:"files"`
+		NetLines    int     `json:"net_lines"`
+		HunkCount   int     `json:"hunk_count"`
+		LargestHunk int     `json:"largest_hunk"`
+		Density     float64 `json:"density"`
 	} `json:"stats"`
 	Raw string `json:"raw"`
 }
@@ -263,8 +267,13 @@ func (a *App) cmdDiff(args []string) error {
 		if parsed.Staged {
 			fmt.Println("(staged changes)")
 		}
-		fmt.Printf("Stats: +%d -%d (%d files)\n",
-			parsed.Stats.Additions, parsed.Stats.Deletions, parsed.Stats.Files)
+		statLine := fmt.Sprintf("Stats: +%d -%d (net %+d)",
+			parsed.Stats.Additions, parsed.Stats.Deletions, parsed.Stats.NetLines)
+		if parsed.Stats.HunkCount > 0 {
+			statLine += fmt.Sprintf(" | %d hunks, largest: %d lines",
+				parsed.Stats.HunkCount, parsed.Stats.LargestHunk)
+		}
+		fmt.Println(statLine)
 		if parsed.Raw != "" {
 			fmt.Println("---")
 			fmt.Println(parsed.Raw)

@@ -450,3 +450,224 @@ func TestGetDiff_StagedChanges(t *testing.T) {
 func runGitCmd(t *testing.T, dir string, args ...string) {
 	RunGitCommand(t, dir, args...)
 }
+
+// --- Enhanced Metrics Tests ---
+
+func TestCountHunkChangedLines(t *testing.T) {
+	tests := []struct {
+		name string
+		hunk DiffHunk
+		want int
+	}{
+		{
+			name: "mixed additions and deletions",
+			hunk: DiffHunk{Lines: []string{
+				" context",
+				"+added1",
+				"+added2",
+				"-deleted1",
+				" context",
+			}},
+			want: 3,
+		},
+		{
+			name: "empty hunk",
+			hunk: DiffHunk{Lines: []string{}},
+			want: 0,
+		},
+		{
+			name: "only context lines",
+			hunk: DiffHunk{Lines: []string{" a", " b", " c"}},
+			want: 0,
+		},
+		{
+			name: "skips +++ and --- headers",
+			hunk: DiffHunk{Lines: []string{
+				"--- a/file.txt",
+				"+++ b/file.txt",
+				"+real addition",
+			}},
+			want: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := countHunkChangedLines(tt.hunk)
+			if got != tt.want {
+				t.Errorf("countHunkChangedLines() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDiffOutput_EnhancedStats(t *testing.T) {
+	// Two hunks: first has 3 changes, second has 5 changes
+	raw := `diff --git a/file.txt b/file.txt
+index 1234..5678 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,5 +1,6 @@
+ context
++added1
++added2
+-deleted1
+ context
+@@ -10,4 +11,7 @@
+ context
++added3
++added4
++added5
+-deleted2
+-deleted3
+ context
+`
+	resp := ParseDiffOutput(raw)
+
+	if resp.Stats.HunkCount != 2 {
+		t.Errorf("HunkCount = %d, want 2", resp.Stats.HunkCount)
+	}
+	if resp.Stats.Additions != 5 {
+		t.Errorf("Additions = %d, want 5", resp.Stats.Additions)
+	}
+	if resp.Stats.Deletions != 3 {
+		t.Errorf("Deletions = %d, want 3", resp.Stats.Deletions)
+	}
+	if resp.Stats.NetLines != 2 {
+		t.Errorf("NetLines = %d, want 2", resp.Stats.NetLines)
+	}
+	if resp.Stats.LargestHunk != 5 {
+		t.Errorf("LargestHunk = %d, want 5", resp.Stats.LargestHunk)
+	}
+	// Density = 2 hunks / 8 total changed lines = 0.25
+	expectedDensity := 0.25
+	if resp.Stats.Density < expectedDensity-0.01 || resp.Stats.Density > expectedDensity+0.01 {
+		t.Errorf("Density = %f, want ~%f", resp.Stats.Density, expectedDensity)
+	}
+}
+
+func TestParseDiffOutput_RenameDetection(t *testing.T) {
+	raw := `diff --git a/old.txt b/new.txt
+similarity index 95%
+rename from old.txt
+rename to new.txt
+index 1234..5678 100644
+--- a/old.txt
++++ b/new.txt
+@@ -1,3 +1,3 @@
+ line1
+-old line
++new line
+ line3
+`
+	resp := ParseDiffOutput(raw)
+
+	if !resp.Stats.IsRename {
+		t.Error("expected IsRename=true")
+	}
+	if resp.Stats.OldPath != "old.txt" {
+		t.Errorf("OldPath = %q, want %q", resp.Stats.OldPath, "old.txt")
+	}
+}
+
+func TestParseDiffOutput_EmptyDiff_EnhancedStats(t *testing.T) {
+	resp := ParseDiffOutput("")
+
+	if resp.HasDiff {
+		t.Error("expected HasDiff=false for empty diff")
+	}
+	if resp.Stats.HunkCount != 0 {
+		t.Errorf("HunkCount = %d, want 0", resp.Stats.HunkCount)
+	}
+	if resp.Stats.LargestHunk != 0 {
+		t.Errorf("LargestHunk = %d, want 0", resp.Stats.LargestHunk)
+	}
+	if resp.Stats.Density != 0 {
+		t.Errorf("Density = %f, want 0", resp.Stats.Density)
+	}
+}
+
+func TestParseDiffOutput_SingleHunk_EnhancedStats(t *testing.T) {
+	raw := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,3 +1,4 @@
+ line1
++added
+ line2
+ line3
+`
+	resp := ParseDiffOutput(raw)
+
+	if resp.Stats.HunkCount != 1 {
+		t.Errorf("HunkCount = %d, want 1", resp.Stats.HunkCount)
+	}
+	if resp.Stats.LargestHunk != 1 {
+		t.Errorf("LargestHunk = %d, want 1", resp.Stats.LargestHunk)
+	}
+	// Density = 1 hunk / 1 changed line = 1.0
+	if resp.Stats.Density != 1.0 {
+		t.Errorf("Density = %f, want 1.0", resp.Stats.Density)
+	}
+	if resp.Stats.NetLines != 1 {
+		t.Errorf("NetLines = %d, want 1", resp.Stats.NetLines)
+	}
+}
+
+func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantNet    int
+		wantBinary bool
+		wantBinLen int
+	}{
+		{
+			name:       "normal file",
+			input:      "10\t3\tfile.go\n",
+			wantNet:    7,
+			wantBinary: false,
+			wantBinLen: 0,
+		},
+		{
+			name:       "binary file",
+			input:      "-\t-\timage.png\n",
+			wantNet:    0,
+			wantBinary: true,
+			wantBinLen: 1,
+		},
+		{
+			name:       "mixed",
+			input:      "5\t2\tcode.go\n-\t-\tphoto.jpg\n",
+			wantNet:    3,
+			wantBinary: true,
+			wantBinLen: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stats, binaries := parseNumstatOutput([]byte(tt.input))
+			if tt.wantBinLen != len(binaries) {
+				t.Errorf("binaries len = %d, want %d", len(binaries), tt.wantBinLen)
+			}
+			if tt.wantBinary {
+				foundBin := false
+				for _, s := range stats {
+					if s.IsBinary {
+						foundBin = true
+						break
+					}
+				}
+				if !foundBin {
+					t.Error("expected at least one IsBinary=true entry")
+				}
+			}
+			if !tt.wantBinary {
+				for path, s := range stats {
+					if s.NetLines != tt.wantNet {
+						t.Errorf("stats[%s].NetLines = %d, want %d", path, s.NetLines, tt.wantNet)
+					}
+				}
+			}
+		})
+	}
+}

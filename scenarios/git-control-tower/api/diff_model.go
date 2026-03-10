@@ -73,7 +73,14 @@ type DiffHunk struct {
 
 // DiffStats summarizes the diff changes
 type DiffStats struct {
-	Additions int `json:"additions"`
-	Deletions int `json:"deletions"`
-	Files     int `json:"files"`
+	Additions   int     `json:"additions"`
+	Deletions   int     `json:"deletions"`
+	Files       int     `json:"files"`
+	NetLines    int     `json:"net_lines,omitempty"`
+	HunkCount   int     `json:"hunk_count,omitempty"`
+	LargestHunk int     `json:"largest_hunk,omitempty"`
+	Density     float64 `json:"density,omitempty"`
+	IsBinary    bool    `json:"is_binary,omitempty"`
+	IsRename    bool    `json:"is_rename,omitempty"`
+	OldPath     string  `json:"old_path,omitempty"`
 }

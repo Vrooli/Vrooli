@@ -21,6 +21,7 @@ import {
 } from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
 import { getFileTypeInfo } from "../lib/fileTypes";
+import { ChangeMetricsModal } from "./ChangeMetricsModal";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -611,6 +612,7 @@ export function DiffViewer({
     scrollHeight: 1,
     clientHeight: 1
   });
+  const [metricsOpen, setMetricsOpen] = useState(false);
 
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
@@ -1057,7 +1059,13 @@ export function DiffViewer({
             )
           )}
           {diff?.stats && diff.has_diff && viewMode !== "source" && (
-            <div className="flex items-center gap-2" data-testid="diff-stats">
+            <button
+              type="button"
+              className="flex items-center gap-2 hover:underline decoration-slate-600 cursor-pointer"
+              data-testid="diff-stats"
+              onClick={() => setMetricsOpen(true)}
+              aria-label="View change metrics"
+            >
               <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
                 <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
                 {diff.stats.additions}
@@ -1066,7 +1074,7 @@ export function DiffViewer({
                 <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
                 {diff.stats.deletions}
               </span>
-            </div>
+            </button>
           )}
         </div>
       </CardHeader>
@@ -1391,6 +1399,14 @@ export function DiffViewer({
           </div>
         )}
       </CardContent>
+
+      <ChangeMetricsModal
+        isOpen={metricsOpen}
+        onClose={() => setMetricsOpen(false)}
+        mode="file"
+        stats={diff?.stats}
+        filePath={selectedFile}
+      />
     </Card>
   );
 }
