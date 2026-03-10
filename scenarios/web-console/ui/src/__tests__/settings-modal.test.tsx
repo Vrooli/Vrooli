@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SettingsModal from "../components/SettingsModal";
+import { HEADER_COLORS } from "../consts/config";
 import type { ShortcutProfile } from "../lib/api";
 
 // Mock workspace store
@@ -11,6 +12,12 @@ const mockStoreState = {
   setMinimapVisible: vi.fn(),
   displayMode: "grid",
   setDisplayMode: vi.fn(),
+  defaultHeaderColor: "transparent",
+  defaultThemeId: "slate-ocean",
+  defaultFontSize: 14,
+  setDefaultHeaderColor: vi.fn(),
+  setDefaultThemeId: vi.fn(),
+  setDefaultFontSize: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -72,6 +79,12 @@ describe("SettingsModal", () => {
     mockStoreState.setMinimapVisible = vi.fn();
     mockStoreState.displayMode = "grid";
     mockStoreState.setDisplayMode = vi.fn();
+    mockStoreState.defaultHeaderColor = "transparent";
+    mockStoreState.defaultThemeId = "slate-ocean";
+    mockStoreState.defaultFontSize = 14;
+    mockStoreState.setDefaultHeaderColor = vi.fn();
+    mockStoreState.setDefaultThemeId = vi.fn();
+    mockStoreState.setDefaultFontSize = vi.fn();
     const api = await import("../lib/api");
     mockListProfiles = api.listShortcutProfiles as ReturnType<typeof vi.fn>;
     mockListProfiles.mockResolvedValue([]);
@@ -132,5 +145,37 @@ describe("SettingsModal", () => {
     render(<SettingsModal />);
     const toggle = screen.getByTestId("minimap-toggle");
     expect(toggle.getAttribute("aria-checked")).toBe("false");
+  });
+
+  describe("Appearance Defaults section", () => {
+    it("renders New Pane Defaults section", () => {
+      render(<SettingsModal />);
+      expect(screen.getByText("New Pane Defaults")).toBeTruthy();
+    });
+
+    it("clicking a default color swatch calls setDefaultHeaderColor", () => {
+      render(<SettingsModal />);
+      const firstColor = HEADER_COLORS[0]!;
+      fireEvent.click(screen.getByTestId(`defaults-header-color-${firstColor}`));
+      expect(mockStoreState.setDefaultHeaderColor).toHaveBeenCalledWith(firstColor);
+    });
+
+    it("clicking a default theme card calls setDefaultThemeId", () => {
+      render(<SettingsModal />);
+      fireEvent.click(screen.getByTestId("defaults-theme-dracula"));
+      expect(mockStoreState.setDefaultThemeId).toHaveBeenCalledWith("dracula");
+    });
+
+    it("default font increase button calls setDefaultFontSize", () => {
+      render(<SettingsModal />);
+      fireEvent.click(screen.getByTestId("defaults-font-increase"));
+      expect(mockStoreState.setDefaultFontSize).toHaveBeenCalledWith(15);
+    });
+
+    it("default font decrease button calls setDefaultFontSize", () => {
+      render(<SettingsModal />);
+      fireEvent.click(screen.getByTestId("defaults-font-decrease"));
+      expect(mockStoreState.setDefaultFontSize).toHaveBeenCalledWith(13);
+    });
   });
 });

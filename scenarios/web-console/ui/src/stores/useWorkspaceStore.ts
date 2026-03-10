@@ -24,6 +24,9 @@ interface WorkspaceState {
   settingsModalOpen: boolean;
   sessionsModalOpen: boolean;
   aiModalOpen: boolean;
+  defaultHeaderColor: string;
+  defaultThemeId: string;
+  defaultFontSize: number;
 }
 
 interface WorkspaceActions {
@@ -43,6 +46,9 @@ interface WorkspaceActions {
   setSettingsModalOpen: (open: boolean) => void;
   setSessionsModalOpen: (open: boolean) => void;
   setAiModalOpen: (open: boolean) => void;
+  setDefaultHeaderColor: (color: string) => void;
+  setDefaultThemeId: (themeId: string) => void;
+  setDefaultFontSize: (size: number) => void;
   resetLayout: () => void;
 }
 
@@ -61,6 +67,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       settingsModalOpen: false,
       sessionsModalOpen: false,
       aiModalOpen: false,
+      defaultHeaderColor: "transparent",
+      defaultThemeId: DEFAULT_THEME_ID,
+      defaultFontSize: TERMINAL_FONT_SIZE,
 
       addPane: (sessionId, name) =>
         set((state) => {
@@ -68,7 +77,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return {
             panes: [
               ...state.panes,
-              { sessionId, name, headerColor: "transparent", themeId: DEFAULT_THEME_ID, fontSize: TERMINAL_FONT_SIZE },
+              { sessionId, name, headerColor: state.defaultHeaderColor, themeId: state.defaultThemeId, fontSize: state.defaultFontSize },
             ],
           };
         }),
@@ -130,6 +139,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
+      setDefaultHeaderColor: (color) => set({ defaultHeaderColor: color }),
+      setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
+      setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),
@@ -142,6 +154,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         rowFractions: state.rowFractions,
         isMinimapVisible: state.isMinimapVisible,
         displayMode: state.displayMode,
+        defaultHeaderColor: state.defaultHeaderColor,
+        defaultThemeId: state.defaultThemeId,
+        defaultFontSize: state.defaultFontSize,
       }),
     },
   ),

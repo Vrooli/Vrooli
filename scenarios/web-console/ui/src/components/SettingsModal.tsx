@@ -13,6 +13,9 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { Button } from "./ui/button";
 import ProviderHealthPanel from "./ProviderHealthPanel";
+import HeaderColorPicker from "./appearance/HeaderColorPicker";
+import ThemePicker from "./appearance/ThemePicker";
+import FontSizeStepper from "./appearance/FontSizeStepper";
 import {
   type ShortcutProfile,
   type ShortcutEntry,
@@ -148,6 +151,12 @@ export default function SettingsModal() {
   const setMinimapVisible = useWorkspaceStore((s) => s.setMinimapVisible);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
   const setDisplayMode = useWorkspaceStore((s) => s.setDisplayMode);
+  const defaultHeaderColor = useWorkspaceStore((s) => s.defaultHeaderColor);
+  const defaultThemeId = useWorkspaceStore((s) => s.defaultThemeId);
+  const defaultFontSize = useWorkspaceStore((s) => s.defaultFontSize);
+  const setDefaultHeaderColor = useWorkspaceStore((s) => s.setDefaultHeaderColor);
+  const setDefaultThemeId = useWorkspaceStore((s) => s.setDefaultThemeId);
+  const setDefaultFontSize = useWorkspaceStore((s) => s.setDefaultFontSize);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -403,7 +412,31 @@ export default function SettingsModal() {
             </div>
           </section>
 
-          {/* Section 3: AI Providers */}
+          {/* Section 3: Appearance Defaults */}
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
+              New Pane Defaults
+            </h3>
+            <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3 space-y-4">
+              <HeaderColorPicker
+                currentColor={defaultHeaderColor}
+                onSelectColor={setDefaultHeaderColor}
+                testIdPrefix="defaults"
+              />
+              <ThemePicker
+                currentThemeId={defaultThemeId}
+                onSelectTheme={setDefaultThemeId}
+                testIdPrefix="defaults"
+              />
+              <FontSizeStepper
+                currentSize={defaultFontSize}
+                onChangeSize={setDefaultFontSize}
+                testIdPrefix="defaults"
+              />
+            </div>
+          </section>
+
+          {/* Section 4: AI Providers */}
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
               AI Providers

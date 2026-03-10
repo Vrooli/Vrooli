@@ -1,11 +1,12 @@
 import { useCallback } from "react";
-import { X, GripHorizontal, Plus, Minus } from "lucide-react";
+import { X, GripHorizontal } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
-import { HEADER_COLORS, TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
-import { FONT_SIZE_MIN, FONT_SIZE_MAX } from "../lib/fontSizeUtils";
-import { cn } from "../lib/classnames";
+import { DEFAULT_THEME_ID } from "../consts/config";
 import { Button } from "./ui/button";
+import HeaderColorPicker from "./appearance/HeaderColorPicker";
+import ThemePicker from "./appearance/ThemePicker";
+import FontSizeStepper from "./appearance/FontSizeStepper";
 
 export default function AppearanceModal() {
   const appearanceModalPane = useWorkspaceStore((s) => s.appearanceModalPane);
@@ -91,110 +92,21 @@ export default function AppearanceModal() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {/* Section 1: Header Color */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-              Header Color
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {/* Transparent option */}
-              <button
-                type="button"
-                data-testid="appearance-header-color-transparent"
-                className={cn(
-                  "h-6 w-6 rounded-full border",
-                  currentColor === "transparent" ? "border-wc-accent ring-1 ring-wc-accent" : "border-wc-default",
-                )}
-                style={{ background: "rgb(var(--wc-surface-input))" }}
-                onClick={() => setPaneColor(sessionId, "transparent")}
-                title="No color"
-              />
-              {HEADER_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  data-testid={`appearance-header-color-${color}`}
-                  className={cn(
-                    "h-6 w-6 rounded-full border",
-                    currentColor === color ? "border-wc-accent ring-1 ring-wc-accent" : "border-wc-default",
-                  )}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setPaneColor(sessionId, color)}
-                  title={color}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* Section 2: Terminal Theme */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-              Terminal Theme
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.values(TERMINAL_THEMES).map((theme) => (
-                <button
-                  key={theme.id}
-                  type="button"
-                  data-testid={`appearance-theme-${theme.id}`}
-                  className={cn(
-                    "rounded-lg border p-2 text-left transition-colors",
-                    currentThemeId === theme.id
-                      ? "border-wc-accent ring-1 ring-wc-accent"
-                      : "border-wc-default hover:border-wc-text-faint",
-                  )}
-                  onClick={() => setPaneTheme(sessionId, theme.id)}
-                >
-                  <div
-                    className="rounded px-2 py-1.5 mb-1.5 font-mono text-[10px] leading-tight"
-                    style={{ backgroundColor: theme.colors.background, color: theme.colors.foreground }}
-                  >
-                    <span>$ hello world</span>
-                    <span
-                      className="inline-block ml-0.5 h-2.5 w-1 align-middle rounded-sm"
-                      style={{ backgroundColor: theme.colors.cursor }}
-                    />
-                  </div>
-                  <span className="text-xs text-wc-text-secondary">{theme.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Section 3: Font Size */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-              Font Size
-            </h3>
-            <div className="flex items-center gap-1.5">
-              <Button
-                data-testid="appearance-font-decrease"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={currentFontSize <= FONT_SIZE_MIN}
-                onClick={() => setPaneFontSize(sessionId, currentFontSize - 1)}
-              >
-                <Minus className="h-3 w-3" />
-              </Button>
-              <span
-                data-testid="appearance-font-value"
-                className="w-8 text-center text-sm font-mono text-wc-text-primary"
-              >
-                {currentFontSize}
-              </span>
-              <Button
-                data-testid="appearance-font-increase"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={currentFontSize >= FONT_SIZE_MAX}
-                onClick={() => setPaneFontSize(sessionId, currentFontSize + 1)}
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-          </section>
+          <HeaderColorPicker
+            currentColor={currentColor}
+            onSelectColor={(color) => setPaneColor(sessionId, color)}
+            testIdPrefix="appearance"
+          />
+          <ThemePicker
+            currentThemeId={currentThemeId}
+            onSelectTheme={(themeId) => setPaneTheme(sessionId, themeId)}
+            testIdPrefix="appearance"
+          />
+          <FontSizeStepper
+            currentSize={currentFontSize}
+            onChangeSize={(size) => setPaneFontSize(sessionId, size)}
+            testIdPrefix="appearance"
+          />
         </div>
       </div>
     </>

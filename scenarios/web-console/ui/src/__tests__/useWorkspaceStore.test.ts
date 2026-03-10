@@ -10,6 +10,9 @@ describe("useWorkspaceStore", () => {
       rowFractions: [],
       activePane: null,
       settingsModalOpen: false,
+      defaultHeaderColor: "transparent",
+      defaultThemeId: "slate-ocean",
+      defaultFontSize: 14,
     });
   });
 
@@ -154,6 +157,48 @@ describe("useWorkspaceStore", () => {
       expect(useWorkspaceStore.getState().settingsModalOpen).toBe(true);
       useWorkspaceStore.getState().setSettingsModalOpen(false);
       expect(useWorkspaceStore.getState().settingsModalOpen).toBe(false);
+    });
+  });
+
+  describe("default appearance", () => {
+    it("starts with default values", () => {
+      const state = useWorkspaceStore.getState();
+      expect(state.defaultHeaderColor).toBe("transparent");
+      expect(state.defaultThemeId).toBe("slate-ocean");
+      expect(state.defaultFontSize).toBe(14);
+    });
+
+    it("setDefaultHeaderColor updates the value", () => {
+      useWorkspaceStore.getState().setDefaultHeaderColor("#ff7a7a");
+      expect(useWorkspaceStore.getState().defaultHeaderColor).toBe("#ff7a7a");
+    });
+
+    it("setDefaultThemeId updates the value", () => {
+      useWorkspaceStore.getState().setDefaultThemeId("dracula");
+      expect(useWorkspaceStore.getState().defaultThemeId).toBe("dracula");
+    });
+
+    it("setDefaultFontSize updates and clamps the value", () => {
+      useWorkspaceStore.getState().setDefaultFontSize(20);
+      expect(useWorkspaceStore.getState().defaultFontSize).toBe(20);
+
+      useWorkspaceStore.getState().setDefaultFontSize(2);
+      expect(useWorkspaceStore.getState().defaultFontSize).toBe(8);
+
+      useWorkspaceStore.getState().setDefaultFontSize(100);
+      expect(useWorkspaceStore.getState().defaultFontSize).toBe(24);
+    });
+
+    it("addPane uses current defaults", () => {
+      useWorkspaceStore.getState().setDefaultHeaderColor("#7aa0ff");
+      useWorkspaceStore.getState().setDefaultThemeId("dracula");
+      useWorkspaceStore.getState().setDefaultFontSize(18);
+
+      useWorkspaceStore.getState().addPane("sess-new", "zsh");
+      const pane = useWorkspaceStore.getState().panes[0];
+      expect(pane?.headerColor).toBe("#7aa0ff");
+      expect(pane?.themeId).toBe("dracula");
+      expect(pane?.fontSize).toBe(18);
     });
   });
 
