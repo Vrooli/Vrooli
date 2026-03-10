@@ -141,7 +141,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ref={containerRef}
         data-testid="terminal-pane"
         data-session-id={sessionId}
-        className="h-full w-full min-h-[200px] relative"
+        className="h-full w-full min-h-[200px] relative p-1"
       >
         {hasSelection && (
           <button

@@ -1,12 +1,11 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useRef, useState, useEffect } from "react";
-import { Maximize2, Minimize2, ChevronUp, ChevronDown } from "lucide-react";
+import { Maximize2, Minimize2, SendHorizontal } from "lucide-react";
 import { TOOLBAR_KEYS, type ToolbarKey } from "../consts/toolbar-keys";
 import { cn } from "../lib/classnames";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
-import { useCommandHistory } from "../hooks/useCommandHistory";
 
 // [REQ:P0-007a] Floating Toolbar Component
 // [REQ:P0-007b] Terminal Key/Chord Mapping
@@ -32,12 +31,9 @@ export default function MobileToolbar({
   visible = true,
 }: MobileToolbarProps) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence();
-  const { push: pushHistory, navigateUp, navigateDown, resetNavigation } = useCommandHistory();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
-  // Store draft when browsing history so we can restore it
-  const savedDraftRef = useRef<string | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear status timer on unmount
@@ -51,7 +47,6 @@ export default function MobileToolbar({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
-    // Reset to auto to measure scrollHeight correctly
     el.style.height = "auto";
     const target = expanded
       ? el.scrollHeight
@@ -71,8 +66,6 @@ export default function MobileToolbar({
   }, []);
 
   const refocusTextarea = useCallback(() => {
-    // Use setTimeout to ensure focus happens after the current event cycle,
-    // which is necessary on mobile to reliably re-grab the virtual keyboard.
     setTimeout(() => textareaRef.current?.focus(), 0);
   }, []);
 
@@ -90,36 +83,13 @@ export default function MobileToolbar({
 
     const sent = onInput(inputValue + "\n");
     if (sent) {
-      pushHistory(trimmed);
       clearDraft();
       showStatus("sent");
     } else {
-      // Data was queued, not sent — keep input so user can copy/retry
-      pushHistory(trimmed);
       showStatus("queued");
     }
-    resetNavigation();
-    savedDraftRef.current = null;
     refocusTextarea();
-  }, [inputValue, onInput, pushHistory, clearDraft, showStatus, resetNavigation, refocusTextarea]);
-
-  const handleHistoryNavigation = useCallback(
-    (direction: "up" | "down") => {
-      // Save current draft before first navigation
-      if (savedDraftRef.current === null) {
-        savedDraftRef.current = inputValue;
-      }
-      const entry = direction === "up" ? navigateUp() : navigateDown();
-      if (entry !== null) {
-        setInputValue(entry);
-      } else if (direction === "down") {
-        // Returned to draft
-        setInputValue(savedDraftRef.current ?? "");
-        savedDraftRef.current = null;
-      }
-    },
-    [inputValue, navigateUp, navigateDown, setInputValue],
-  );
+  }, [inputValue, onInput, clearDraft, showStatus, refocusTextarea]);
 
   if (!visible) return null;
 
@@ -129,24 +99,20 @@ export default function MobileToolbar({
       className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation"
     >
       {/* Command input row */}
-      <div className="flex items-end gap-1 px-2 py-1.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex items-end gap-0.5 px-1 py-1">
+        <div className="flex min-w-0 flex-1 flex-col">
           <textarea
             ref={textareaRef}
             data-testid="mobile-command-input"
             value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              resetNavigation();
-              savedDraftRef.current = null;
-            }}
+            onChange={(e) => setInputValue(e.target.value)}
             autoComplete="off"
             autoCorrect="on"
             spellCheck={false}
             rows={1}
             placeholder="Type command…"
             className={cn(
-              "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
+              "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
               expanded ? "overflow-y-auto" : "overflow-hidden",
             )}
             style={{
@@ -154,33 +120,11 @@ export default function MobileToolbar({
               maxHeight: expanded ? "60vh" : `${MAX_TEXTAREA_HEIGHT}px`,
             }}
           />
-          {/* Send status indicator */}
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
               Queued — connection lost. Input preserved.
             </span>
           )}
-        </div>
-        {/* History navigation */}
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <button
-            data-testid="history-up"
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => handleHistoryNavigation("up")}
-            className="rounded border border-wc-default bg-wc-surface-input p-1 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-            title="Previous command"
-          >
-            <ChevronUp className="h-3 w-3" />
-          </button>
-          <button
-            data-testid="history-down"
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => handleHistoryNavigation("down")}
-            className="rounded border border-wc-default bg-wc-surface-input p-1 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-            title="Next command"
-          >
-            <ChevronDown className="h-3 w-3" />
-          </button>
         </div>
         {/* Expand/collapse toggle */}
         <button
@@ -198,13 +142,14 @@ export default function MobileToolbar({
           onPointerDown={(e) => e.preventDefault()}
           onClick={submitCommand}
           disabled={!inputValue.trim()}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-3 py-1.5 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active disabled:opacity-40 touch-manipulation"
+          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active disabled:opacity-40 touch-manipulation"
+          title="Send command"
         >
-          Send
+          <SendHorizontal className="h-3.5 w-3.5" />
         </button>
       </div>
       {/* Toolbar keys row */}
-      <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5 touch-manipulation">
+      <div className="flex items-center gap-0.5 overflow-x-auto px-1 py-1 touch-manipulation">
         {TOOLBAR_KEYS.map((key) => (
           <button
             key={key.label}
@@ -212,8 +157,8 @@ export default function MobileToolbar({
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => handleKey(key)}
             className={cn(
-              "shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-              key.width === "wide" ? "min-w-[4rem]" : key.width === "narrow" ? "min-w-[2rem]" : "min-w-[2.5rem]",
+              "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
+              key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
             )}
           >
             {key.label}
