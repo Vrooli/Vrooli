@@ -1,5 +1,5 @@
-import { memo, useMemo, useEffect, useCallback } from "react";
-import { X, BarChart3, Plus, Minus, ArrowRight, Loader2 } from "lucide-react";
+import { memo, useMemo, useEffect, useCallback, useState } from "react";
+import { X, BarChart3, Plus, Minus, ArrowRight, Loader2, Info } from "lucide-react";
 import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
 import {
@@ -10,6 +10,10 @@ import {
   isTestFile,
   churnLabel,
   formatFileTypeBreakdown,
+  fileChurnRatio,
+  avgLinesPerHunk,
+  changeRiskScore,
+  riskLabel,
 } from "../lib/metrics";
 
 interface ChangeMetricsModalProps {
@@ -30,22 +34,63 @@ interface ChangeMetricsModalProps {
   enhancedLoading?: boolean;
   /** Whether the file is untracked (no enhanced metrics available) */
   isUntracked?: boolean;
+  fileHotspots?: Record<string, number>;
 }
 
 /** Density bar: visual representation of change scatter. */
 function DensityBar({ density }: { density?: number }) {
+  const [showHelp, setShowHelp] = useState(false);
   if (!density || density === 0) return null;
   const pct = Math.min(density * 100, 100);
   const label = densityLabel(density);
   return (
     <div className="space-y-1" data-testid="density-bar">
       <div className="flex items-center justify-between text-xs text-slate-400">
-        <span>Density</span>
+        <span className="flex items-center gap-1">
+          Density
+          <button
+            type="button"
+            className="inline-flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors"
+            onClick={() => setShowHelp((v) => !v)}
+            aria-label="What is density?"
+            data-testid="density-help-toggle"
+          >
+            <Info className="h-3 w-3" />
+          </button>
+        </span>
         <span>
           {density.toFixed(2)}
           {label ? ` (${label})` : ""}
         </span>
       </div>
+      {showHelp && (
+        <div
+          className="text-[11px] leading-relaxed text-slate-400 bg-slate-900/60 rounded-md px-2.5 py-2 border border-slate-800/60"
+          data-testid="density-help-text"
+        >
+          <p>
+            Density = hunks &divide; lines changed. It measures how scattered
+            your edits are within the file.
+          </p>
+          <ul className="mt-1.5 space-y-0.5 list-none">
+            <li>
+              <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: "#10b981" }} />
+              <strong className="text-slate-300">&le; 0.10 &mdash; Focused:</strong>{" "}
+              changes are in a few contiguous blocks.
+            </li>
+            <li>
+              <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: "#f59e0b" }} />
+              <strong className="text-slate-300">&le; 0.30 &mdash; Moderate:</strong>{" "}
+              edits touch several areas of the file.
+            </li>
+            <li>
+              <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: "#ef4444" }} />
+              <strong className="text-slate-300">&gt; 0.30 &mdash; Scattered:</strong>{" "}
+              many small edits spread across the file.
+            </li>
+          </ul>
+        </div>
+      )}
       <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
@@ -131,6 +176,7 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   enhancedStats,
   enhancedLoading,
   isUntracked,
+  fileHotspots,
 }: ChangeMetricsModalProps) {
   const isMobile = useIsMobile();
 
@@ -238,6 +284,60 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
           if (!enhancedLoading && densitySrc) return <DensityBar density={densitySrc.density} />;
           return null;
         })()}
+        {/* Per-file churn ratio (file mode only) */}
+        {mode === "file" && (() => {
+          if (!s) return null;
+          const ratio = fileChurnRatio(s);
+          if (ratio === 0) return null;
+          return (
+            <MetricRow
+              label="Churn ratio"
+              value={`${(ratio * 100).toFixed(0)}% ${churnLabel(ratio)}`}
+              testId="metric-file-churn"
+            />
+          );
+        })()}
+
+        {/* Avg lines per hunk (file mode only) */}
+        {mode === "file" && !isUntracked && (() => {
+          const hunkSrc = enhancedStats ?? s;
+          if (!hunkSrc || !hunkSrc.hunk_count || hunkSrc.hunk_count === 0) return null;
+          return (
+            <MetricRow
+              label="Avg lines/hunk"
+              value={avgLinesPerHunk(hunkSrc)}
+              testId="metric-avg-lines-per-hunk"
+            />
+          );
+        })()}
+
+        {/* Change risk score (file mode only) */}
+        {mode === "file" && !isUntracked && (() => {
+          const hunkSrc = enhancedStats ?? s;
+          if (!hunkSrc || !hunkSrc.hunk_count || hunkSrc.hunk_count === 0) return null;
+          const score = changeRiskScore(hunkSrc);
+          const label = riskLabel(score);
+          return (
+            <MetricRow
+              label="Risk score"
+              value={`${score}${label ? ` (${label})` : ""}`}
+              testId="metric-risk-score"
+            />
+          );
+        })()}
+
+        {/* File hotspot (file mode only) */}
+        {mode === "file" && (() => {
+          const count = filePath && fileHotspots?.[filePath];
+          if (!count || count <= 1) return null;
+          return (
+            <MetricRow
+              label="Hotspot"
+              value={`${count} commits in last 50`}
+              testId="metric-hotspot"
+            />
+          );
+        })()}
       </div>
 
       {/* Details: rename / binary / test file (file mode) */}
@@ -246,7 +346,9 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
         const showRename = !isUntracked && detailSrc?.is_rename && detailSrc?.old_path;
         const showBinary = s?.is_binary;
         const showTest = filePath && isTestFile(filePath);
-        if (!showRename && !showBinary && !showTest) return null;
+        const showNewFile = s?.is_new_file || isUntracked;
+        const showDeletedFile = s?.is_deleted_file;
+        if (!showRename && !showBinary && !showTest && !showNewFile && !showDeletedFile) return null;
         return (
           <div className="space-y-2 border-t border-slate-800 pt-3">
             <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -271,6 +373,16 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
             {showTest && (
               <div className="text-xs text-amber-400" data-testid="metric-is-test-file">
                 Test file
+              </div>
+            )}
+            {showNewFile && (
+              <div className="text-xs text-emerald-400" data-testid="metric-new-file">
+                New file
+              </div>
+            )}
+            {showDeletedFile && (
+              <div className="text-xs text-red-400" data-testid="metric-deleted-file">
+                Deleted file
               </div>
             )}
           </div>
@@ -300,6 +412,27 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
               label="Test files"
               value={aggregate.testFileCount}
               testId="metric-test-files"
+            />
+          )}
+          {aggregate.testToCodeRatio > 0 && (
+            <MetricRow
+              label="Test-to-code ratio"
+              value={`${(aggregate.testToCodeRatio * 100).toFixed(0)}%`}
+              testId="metric-test-to-code-ratio"
+            />
+          )}
+          {aggregate.newFileCount > 0 && (
+            <MetricRow
+              label="New files"
+              value={aggregate.newFileCount}
+              testId="metric-new-file-count"
+            />
+          )}
+          {aggregate.deletedFileCount > 0 && (
+            <MetricRow
+              label="Deleted files"
+              value={aggregate.deletedFileCount}
+              testId="metric-deleted-file-count"
             />
           )}
           {aggregate.churnRatio > 0 && (

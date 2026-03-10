@@ -85,4 +85,6 @@ type DiffStats struct {
 	OldPath          string  `json:"old_path,omitempty"`
 	CommentAdditions int     `json:"comment_additions,omitempty"`
 	CommentDeletions int     `json:"comment_deletions,omitempty"`
+	IsNewFile        bool    `json:"is_new_file,omitempty"`
+	IsDeletedFile    bool    `json:"is_deleted_file,omitempty"`
 }

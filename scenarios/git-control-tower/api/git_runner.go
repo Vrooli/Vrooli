@@ -148,6 +148,10 @@ type GitRunner interface {
 	// GrepContent searches file contents using git grep.
 	// Returns raw output in format: file:line:content
 	GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error)
+
+	// LogFileFrequency returns a map of file paths to the number of commits
+	// they appeared in over the last commitLimit commits.
+	LogFileFrequency(ctx context.Context, repoDir string, commitLimit int) (map[string]int, error)
 }
 
 // GrepOptions configures the git grep search.
@@ -1080,4 +1084,35 @@ func (r *ExecGitRunner) GrepContent(ctx context.Context, repoDir string, opts Gr
 	}
 
 	return out, nil
+}
+
+func (r *ExecGitRunner) LogFileFrequency(ctx context.Context, repoDir string, commitLimit int) (map[string]int, error) {
+	if commitLimit <= 0 {
+		commitLimit = 50
+	}
+	args := []string{
+		"-C", repoDir,
+		"log",
+		"--name-only",
+		"--pretty=format:",
+		"-n", fmt.Sprintf("%d", commitLimit),
+	}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("git log --name-only failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git log --name-only failed: %w", err)
+	}
+
+	freq := map[string]int{}
+	for _, line := range strings.Split(string(out), "\n") {
+		name := strings.TrimSpace(line)
+		if name != "" {
+			freq[name]++
+		}
+	}
+	return freq, nil
 }

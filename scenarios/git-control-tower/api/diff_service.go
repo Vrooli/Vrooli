@@ -622,6 +622,14 @@ func ParseDiffOutput(raw string) *DiffResponse {
 		if strings.HasPrefix(line, "rename to ") {
 			continue
 		}
+		if strings.HasPrefix(line, "new file mode") {
+			resp.Stats.IsNewFile = true
+			continue
+		}
+		if strings.HasPrefix(line, "deleted file mode") {
+			resp.Stats.IsDeletedFile = true
+			continue
+		}
 
 		// Parse hunk headers
 		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {

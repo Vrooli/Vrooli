@@ -688,6 +688,52 @@ func TestEnrichCommentStats_NoPath(t *testing.T) {
 	}
 }
 
+func TestParseDiffOutput_NewFileDetection(t *testing.T) {
+	raw := `diff --git a/newfile.go b/newfile.go
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/newfile.go
+@@ -0,0 +1,3 @@
++package main
++
++func hello() {}
+`
+	resp := ParseDiffOutput(raw)
+	if !resp.Stats.IsNewFile {
+		t.Error("expected IsNewFile to be true")
+	}
+	if resp.Stats.IsDeletedFile {
+		t.Error("expected IsDeletedFile to be false")
+	}
+	if resp.Stats.Additions != 3 {
+		t.Errorf("expected 3 additions, got %d", resp.Stats.Additions)
+	}
+}
+
+func TestParseDiffOutput_DeletedFileDetection(t *testing.T) {
+	raw := `diff --git a/old.go b/old.go
+deleted file mode 100644
+index abc1234..0000000
+--- a/old.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package main
+-
+-func goodbye() {}
+`
+	resp := ParseDiffOutput(raw)
+	if resp.Stats.IsNewFile {
+		t.Error("expected IsNewFile to be false")
+	}
+	if !resp.Stats.IsDeletedFile {
+		t.Error("expected IsDeletedFile to be true")
+	}
+	if resp.Stats.Deletions != 3 {
+		t.Errorf("expected 3 deletions, got %d", resp.Stats.Deletions)
+	}
+}
+
 func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -122,6 +122,7 @@ interface FileListProps {
   onEnterSelectionMode?: (path: string, staged: boolean) => void;
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
+  fileHotspots?: Record<string, number>;
 }
 
 interface FileSectionProps {
@@ -844,6 +845,7 @@ export function FileList({
   onEnterSelectionMode,
   onExitSelectionMode,
   onMobileSelectFile,
+  fileHotspots,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -2169,6 +2171,7 @@ export function FileList({
         enhancedStats={enhancedQuery.stats}
         enhancedLoading={enhancedQuery.isLoading}
         isUntracked={metricsModal?.category === "untracked"}
+        fileHotspots={fileHotspots}
       />
     </MobileContext.Provider>
   );

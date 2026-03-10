@@ -81,6 +81,10 @@ type FakeGitRunner struct {
 	// Push behavior controls
 	PushUpdatesRemote bool
 
+	// File frequency simulation
+	FileFrequency      map[string]int
+	FileFrequencyError error
+
 	// Call tracking for verification
 	Calls []FakeGitCall
 }
@@ -139,6 +143,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		GitAvailable:      true,
 		RepoRoot:          "/fake/repo",
 		ConfigValues:      map[string]string{},
+		FileFrequency:     map[string]int{},
 		Calls:             []FakeGitCall{},
 		PushUpdatesRemote: true,
 	}
@@ -819,6 +824,20 @@ func (f *FakeGitRunner) GrepContent(ctx context.Context, repoDir string, opts Gr
 	return []byte{}, nil
 }
 
+func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, commitLimit int) (map[string]int, error) {
+	f.recordCall("LogFileFrequency", repoDir, fmt.Sprintf("limit=%d", commitLimit))
+
+	if f.FileFrequencyError != nil {
+		return nil, f.FileFrequencyError
+	}
+
+	result := make(map[string]int, len(f.FileFrequency))
+	for k, v := range f.FileFrequency {
+		result[k] = v
+	}
+	return result, nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.
@@ -884,6 +903,12 @@ func (f *FakeGitRunner) WithRemoteBranch(name string, oid string) *FakeGitRunner
 		OID:          oid,
 		LastCommitAt: "2025-01-01 00:00:00 +0000",
 	}
+	return f
+}
+
+// WithFileFrequency sets the simulated file frequency data.
+func (f *FakeGitRunner) WithFileFrequency(freq map[string]int) *FakeGitRunner {
+	f.FileFrequency = freq
 	return f
 }
 

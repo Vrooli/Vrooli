@@ -12,6 +12,11 @@ export interface AggregateMetrics {
   paretoPercent: number;
   paretoTopN: number;
   testFileCount: number;
+  testAdditions: number;
+  testDeletions: number;
+  testToCodeRatio: number;
+  newFileCount: number;
+  deletedFileCount: number;
 }
 
 /** Extract lowercase file extension, or "(no ext)" for extensionless files. */
@@ -40,6 +45,35 @@ export function churnLabel(ratio: number): string {
   return "";
 }
 
+/** Per-file churn ratio: min(add,del)/max(add,del). 0 = pure growth/deletion, 1 = pure rewriting. */
+export function fileChurnRatio(stats: DiffStats): number {
+  const add = stats.additions ?? 0;
+  const del = stats.deletions ?? 0;
+  const maxVal = Math.max(add, del);
+  if (maxVal === 0) return 0;
+  return Math.min(add, del) / maxVal;
+}
+
+/** Average lines changed per hunk. */
+export function avgLinesPerHunk(stats: DiffStats): number {
+  const hunks = stats.hunk_count ?? 0;
+  if (hunks === 0) return 0;
+  return Math.round(((stats.additions ?? 0) + (stats.deletions ?? 0)) / hunks);
+}
+
+/** Change risk heuristic: hunk_count * largest_hunk. Higher = needs more review attention. */
+export function changeRiskScore(stats: DiffStats): number {
+  return (stats.hunk_count ?? 0) * (stats.largest_hunk ?? 0);
+}
+
+/** Human label for risk score. */
+export function riskLabel(score: number): string {
+  if (score <= 0) return "";
+  if (score < 50) return "low";
+  if (score < 200) return "moderate";
+  return "high";
+}
+
 /** Format file type breakdown as a compact string. */
 export function formatFileTypeBreakdown(breakdown: Record<string, number>, maxShow = 5): string {
   const entries = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
@@ -64,6 +98,11 @@ export function aggregateFileStats(fileStats?: RepoFileStats): AggregateMetrics 
     paretoPercent: 0,
     paretoTopN: 0,
     testFileCount: 0,
+    testAdditions: 0,
+    testDeletions: 0,
+    testToCodeRatio: 0,
+    newFileCount: 0,
+    deletedFileCount: 0,
   };
   if (!fileStats) return result;
 
@@ -92,6 +131,16 @@ export function aggregateFileStats(fileStats?: RepoFileStats): AggregateMetrics 
       // Test file detection
       if (isTestFile(path)) result.testFileCount++;
 
+      // Track test additions/deletions separately
+      if (isTestFile(path)) {
+        result.testAdditions += add;
+        result.testDeletions += del;
+      }
+
+      // Count new/deleted files
+      if (stats.is_new_file) result.newFileCount++;
+      if (stats.is_deleted_file) result.deletedFileCount++;
+
       // Track per-file change size for Pareto
       fileSizes.push(add + del);
     }
@@ -110,6 +159,12 @@ export function aggregateFileStats(fileStats?: RepoFileStats): AggregateMetrics 
     const topSum = fileSizes.slice(0, topN).reduce((a, b) => a + b, 0);
     result.paretoTopN = topN;
     result.paretoPercent = totalChanges > 0 ? Math.round((topSum / totalChanges) * 100) : 0;
+  }
+
+  // Test-to-code ratio
+  const codeChanges = (result.totalAdditions + result.totalDeletions) - (result.testAdditions + result.testDeletions);
+  if (codeChanges > 0) {
+    result.testToCodeRatio = (result.testAdditions + result.testDeletions) / codeChanges;
   }
 
   return result;

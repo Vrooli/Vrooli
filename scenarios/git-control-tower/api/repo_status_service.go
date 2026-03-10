@@ -101,6 +101,30 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		}
 	}
 
+	// Compute file hotspots from recent git log
+	if hotspots, err := deps.Git.LogFileFrequency(ctx, repoDir, 50); err == nil {
+		// Filter to only files present in current changes
+		changedFiles := map[string]struct{}{}
+		for _, p := range parsed.Files.Staged {
+			changedFiles[p] = struct{}{}
+		}
+		for _, p := range parsed.Files.Unstaged {
+			changedFiles[p] = struct{}{}
+		}
+		for _, p := range parsed.Files.Untracked {
+			changedFiles[p] = struct{}{}
+		}
+		filtered := map[string]int{}
+		for path, count := range hotspots {
+			if _, ok := changedFiles[path]; ok {
+				filtered[path] = count
+			}
+		}
+		if len(filtered) > 0 {
+			parsed.FileHotspots = filtered
+		}
+	}
+
 	sort.Strings(parsed.Files.Staged)
 	sort.Strings(parsed.Files.Unstaged)
 	sort.Strings(parsed.Files.Untracked)
@@ -178,9 +202,9 @@ func buildUntrackedStats(repoDir string, path string) (DiffStats, error) {
 		return DiffStats{}, err
 	}
 	if isBinary {
-		return DiffStats{Files: 1, IsBinary: true}, nil
+		return DiffStats{Files: 1, IsBinary: true, IsNewFile: true}, nil
 	}
-	return DiffStats{Files: 1, Additions: lines, NetLines: lines}, nil
+	return DiffStats{Files: 1, Additions: lines, NetLines: lines, IsNewFile: true}, nil
 }
 
 func countFileLines(path string) (int, bool, error) {

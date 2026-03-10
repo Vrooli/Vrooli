@@ -427,4 +427,204 @@ describe("ChangeMetricsModal", () => {
     expect(rename).toHaveTextContent("old-name.ts");
     expect(rename).toHaveTextContent("new-name.ts");
   });
+
+  it("toggles density help text on info icon click", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={fileStats}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.queryByTestId("density-help-text")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("density-help-toggle"));
+    expect(screen.getByTestId("density-help-text")).toBeInTheDocument();
+    expect(screen.getByTestId("density-help-text")).toHaveTextContent("hunks");
+    expect(screen.getByTestId("density-help-text")).toHaveTextContent("Focused");
+    expect(screen.getByTestId("density-help-text")).toHaveTextContent("Scattered");
+    // Toggle off
+    fireEvent.click(screen.getByTestId("density-help-toggle"));
+    expect(screen.queryByTestId("density-help-text")).not.toBeInTheDocument();
+  });
+
+  it("renders per-file churn ratio when > 0", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 10, files: 1, net_lines: 0 }}
+        filePath="src/api.ts"
+      />,
+    );
+    const el = screen.getByTestId("metric-file-churn");
+    expect(el).toHaveTextContent("100%");
+    expect(el).toHaveTextContent("rewriting");
+  });
+
+  it("hides per-file churn ratio when 0", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 0, files: 1, net_lines: 10 }}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.queryByTestId("metric-file-churn")).not.toBeInTheDocument();
+  });
+
+  it("renders avg lines per hunk when hunks > 0", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1, hunk_count: 3, largest_hunk: 10 }}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.getByTestId("metric-avg-lines-per-hunk")).toHaveTextContent("5");
+  });
+
+  it("renders risk score when hunks > 0", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1, hunk_count: 3, largest_hunk: 20 }}
+        filePath="src/api.ts"
+      />,
+    );
+    const el = screen.getByTestId("metric-risk-score");
+    expect(el).toHaveTextContent("60");
+    expect(el).toHaveTextContent("moderate");
+  });
+
+  it("renders hotspot count when > 1", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1 }}
+        filePath="src/api.ts"
+        fileHotspots={{ "src/api.ts": 7 }}
+      />,
+    );
+    const el = screen.getByTestId("metric-hotspot");
+    expect(el).toHaveTextContent("7 commits in last 50");
+  });
+
+  it("hides hotspot when count is 1", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 5, files: 1 }}
+        filePath="src/api.ts"
+        fileHotspots={{ "src/api.ts": 1 }}
+      />,
+    );
+    expect(screen.queryByTestId("metric-hotspot")).not.toBeInTheDocument();
+  });
+
+  it("renders new file badge", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 0, files: 1, is_new_file: true }}
+        filePath="src/new.ts"
+      />,
+    );
+    expect(screen.getByTestId("metric-new-file")).toHaveTextContent("New file");
+  });
+
+  it("renders new file badge for untracked files", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 10, deletions: 0, files: 1 }}
+        filePath="src/new.ts"
+        isUntracked={true}
+      />,
+    );
+    expect(screen.getByTestId("metric-new-file")).toHaveTextContent("New file");
+  });
+
+  it("renders deleted file badge", () => {
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={{ additions: 0, deletions: 10, files: 1, is_deleted_file: true }}
+        filePath="src/old.ts"
+      />,
+    );
+    expect(screen.getByTestId("metric-deleted-file")).toHaveTextContent("Deleted file");
+  });
+
+  it("renders test-to-code ratio in aggregate mode", () => {
+    const stats: RepoFileStats = {
+      staged: {
+        "app.go": { additions: 50, deletions: 10, files: 1 },
+        "app_test.go": { additions: 30, deletions: 5, files: 1 },
+      },
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={stats}
+      />,
+    );
+    expect(screen.getByTestId("metric-test-to-code-ratio")).toBeInTheDocument();
+  });
+
+  it("renders new file count in aggregate mode", () => {
+    const stats: RepoFileStats = {
+      staged: {
+        "new.go": { additions: 10, deletions: 0, files: 1, is_new_file: true },
+        "mod.go": { additions: 5, deletions: 2, files: 1 },
+      },
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={stats}
+      />,
+    );
+    expect(screen.getByTestId("metric-new-file-count")).toHaveTextContent("1");
+  });
+
+  it("renders deleted file count in aggregate mode", () => {
+    const stats: RepoFileStats = {
+      staged: {
+        "old.go": { additions: 0, deletions: 5, files: 1, is_deleted_file: true },
+        "mod.go": { additions: 5, deletions: 2, files: 1 },
+      },
+    };
+    render(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={stats}
+      />,
+    );
+    expect(screen.getByTestId("metric-deleted-file-count")).toHaveTextContent("1");
+  });
 });

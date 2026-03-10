@@ -186,6 +186,7 @@ export interface RepoStatus {
     email?: string;
   };
   timestamp: string;
+  file_hotspots?: Record<string, number>;
 }
 
 export interface RepoHistoryResponse {
@@ -226,6 +227,8 @@ export interface DiffStats {
   old_path?: string;
   comment_additions?: number;
   comment_deletions?: number;
+  is_new_file?: boolean;
+  is_deleted_file?: boolean;
 }
 
 /** View mode for the diff viewer */

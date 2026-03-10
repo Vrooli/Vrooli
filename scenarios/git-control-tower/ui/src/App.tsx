@@ -1911,6 +1911,7 @@ export default function App() {
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
             onMobileSelectFile={handleMobileSelectFile}
+            fileHotspots={statusQuery.data?.file_hotspots}
           />
         );
       case "history":
@@ -2169,6 +2170,7 @@ export default function App() {
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
             onMobileSelectFile={handleMobileSelectFile}
+            fileHotspots={statusQuery.data?.file_hotspots}
           />
         );
       case "diff":

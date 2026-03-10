@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateFileStats, formatNetLines, densityLabel, categoryStats, getFileStats, filterFileStats, filterCategoryStats, fileExtension, isTestFile, churnLabel, formatFileTypeBreakdown } from "./metrics";
+import { aggregateFileStats, formatNetLines, densityLabel, categoryStats, getFileStats, filterFileStats, filterCategoryStats, fileExtension, isTestFile, churnLabel, formatFileTypeBreakdown, fileChurnRatio, avgLinesPerHunk, changeRiskScore, riskLabel } from "./metrics";
 import type { RepoFileStats, DiffStats } from "./api";
 
 describe("aggregateFileStats", () => {
@@ -135,6 +135,43 @@ describe("aggregateFileStats", () => {
     const result = aggregateFileStats(fileStats);
     expect(result.paretoTopN).toBe(1);
     expect(result.paretoPercent).toBe(100);
+  });
+
+  it("computes testAdditions and testDeletions", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "app.go": { additions: 50, deletions: 10, files: 1 },
+        "app_test.go": { additions: 30, deletions: 5, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.testAdditions).toBe(30);
+    expect(result.testDeletions).toBe(5);
+  });
+
+  it("computes testToCodeRatio", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "app.go": { additions: 50, deletions: 10, files: 1 },
+        "app_test.go": { additions: 30, deletions: 5, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    // test changes = 35, code changes = 60, ratio = 35/60
+    expect(result.testToCodeRatio).toBeCloseTo(35 / 60, 5);
+  });
+
+  it("computes newFileCount and deletedFileCount", () => {
+    const fileStats: RepoFileStats = {
+      staged: {
+        "new.go": { additions: 10, deletions: 0, files: 1, is_new_file: true },
+        "old.go": { additions: 0, deletions: 5, files: 1, is_deleted_file: true },
+        "mod.go": { additions: 3, deletions: 2, files: 1 },
+      },
+    };
+    const result = aggregateFileStats(fileStats);
+    expect(result.newFileCount).toBe(1);
+    expect(result.deletedFileCount).toBe(1);
   });
 });
 
@@ -302,4 +339,55 @@ describe("filterCategoryStats", () => {
   it("returns empty object when no paths match", () => {
     expect(filterCategoryStats(["x.ts"], "staged", testFileStats)).toEqual({});
   });
+});
+
+describe("fileChurnRatio", () => {
+  it("returns 0 for pure additions", () => {
+    expect(fileChurnRatio({ additions: 10, deletions: 0, files: 1 })).toBe(0);
+  });
+  it("returns 1 for equal add/del", () => {
+    expect(fileChurnRatio({ additions: 10, deletions: 10, files: 1 })).toBe(1);
+  });
+  it("returns ratio for mixed case", () => {
+    const ratio = fileChurnRatio({ additions: 10, deletions: 5, files: 1 });
+    expect(ratio).toBe(0.5);
+  });
+  it("returns 0 for zero changes", () => {
+    expect(fileChurnRatio({ additions: 0, deletions: 0, files: 1 })).toBe(0);
+  });
+});
+
+describe("avgLinesPerHunk", () => {
+  it("computes average", () => {
+    expect(avgLinesPerHunk({ additions: 10, deletions: 5, files: 1, hunk_count: 3 })).toBe(5);
+  });
+  it("returns 0 for zero hunks", () => {
+    expect(avgLinesPerHunk({ additions: 10, deletions: 5, files: 1, hunk_count: 0 })).toBe(0);
+  });
+  it("returns 0 for missing hunk_count", () => {
+    expect(avgLinesPerHunk({ additions: 10, deletions: 5, files: 1 })).toBe(0);
+  });
+});
+
+describe("changeRiskScore", () => {
+  it("computes product of hunks and largest hunk", () => {
+    expect(changeRiskScore({ additions: 10, deletions: 5, files: 1, hunk_count: 3, largest_hunk: 20 })).toBe(60);
+  });
+  it("returns 0 for zero hunks", () => {
+    expect(changeRiskScore({ additions: 10, deletions: 5, files: 1, hunk_count: 0, largest_hunk: 20 })).toBe(0);
+  });
+  it("returns 0 for missing fields", () => {
+    expect(changeRiskScore({ additions: 10, deletions: 5, files: 1 })).toBe(0);
+  });
+});
+
+describe("riskLabel", () => {
+  it("returns empty for 0", () => expect(riskLabel(0)).toBe(""));
+  it("returns low for small score", () => expect(riskLabel(10)).toBe("low"));
+  it("returns moderate for medium score", () => expect(riskLabel(100)).toBe("moderate"));
+  it("returns high for large score", () => expect(riskLabel(500)).toBe("high"));
+  it("boundary: 49 is low", () => expect(riskLabel(49)).toBe("low"));
+  it("boundary: 50 is moderate", () => expect(riskLabel(50)).toBe("moderate"));
+  it("boundary: 199 is moderate", () => expect(riskLabel(199)).toBe("moderate"));
+  it("boundary: 200 is high", () => expect(riskLabel(200)).toBe("high"));
 });
