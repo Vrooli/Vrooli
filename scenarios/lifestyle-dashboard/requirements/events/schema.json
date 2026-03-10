@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "description": "Event schema and storage requirements",
+    "domain": "events",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-EVENT-SCHEMA",
+      "category": "events.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "linked_operational_target_ids": ["OT-P0-001"],
+      "title": "Common event envelope schema",
+      "description": "All events follow a common envelope: id (TEXT UUID), timestamp (TEXT ISO-8601), domain (TEXT), event_type (TEXT), payload (TEXT JSON). Causality fields: is_intervention (INTEGER 0/1), hypothesis_id (TEXT UUID nullable).",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-EVENT-STORAGE",
+      "category": "events.database",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "linked_operational_target_ids": ["OT-P0-001"],
+      "title": "SQLite events table",
+      "description": "Events stored in lifestyle.db SQLite file. JSON payloads via TEXT columns. Extensible without schema migrations when adding new domains. Single-writer constraint: all writes via API.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-EVENT-INDEX",
+      "category": "events.database",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "linked_operational_target_ids": ["OT-P0-001"],
+      "title": "Event indexing strategy",
+      "description": "Composite index on (domain, timestamp) for efficient time-range queries. Index on event_type. Partial index on hypothesis_id WHERE NOT NULL for experiment queries.",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "description": "Correlation engine, digest, score, and experiment framework requirements",
+    "domain": "intelligence",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-CORR-ANALYZE",
+      "category": "intelligence.engine",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "linked_operational_target_ids": ["OT-P1-001"],
+      "title": "Automated correlation analysis",
+      "description": "Background job runs daily to discover correlations between event types across domains. Uses Pearson correlation for continuous variables, chi-squared for categorical.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-CORR-SIGNIFICANCE",
+      "category": "intelligence.engine",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "linked_operational_target_ids": ["OT-P1-001"],
+      "title": "Statistical significance tracking",
+      "description": "Correlations include p-value and confidence interval. Only surfaces correlations with p < 0.05. Tracks correlation stability over time (new vs confirmed).",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-CORR-THRESHOLD",
+      "category": "intelligence.engine",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "linked_operational_target_ids": ["OT-P1-001"],
+      "title": "Configurable minimum threshold",
+      "description": "User-configurable minimum sample size before generating correlations. Default: 14 data points. Prevents spurious correlations from limited data. UI shows 'needs more data' for insufficient samples.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-DIGEST-WEEKLY",
+      "category": "intelligence.digest",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "linked_operational_target_ids": ["OT-P1-002"],
+      "title": "Weekly digest generation",
+      "description": "Every Sunday 6pm, generate 'What Changed?' digest. Compare current week to rolling 4-week baseline. Show: domain-level deltas, new correlations discovered, Lifestyle Score trend. Delivery: in-app notification.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-SCORE-CALC",
+      "category": "intelligence.score",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "linked_operational_target_ids": ["OT-P1-003"],
+      "title": "Lifestyle Score calculation",
+      "description": "Daily score 0-100 computed from all active domains. Domain weights: sleep (high), exercise (high), diet (medium), nootropics (medium), socialization (low). Weights adjustable per user. Score calculated at midnight for previous day.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-EXP-DEFINE",
+      "category": "intelligence.experiments",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "linked_operational_target_ids": ["OT-P1-004"],
+      "title": "Experiment definition",
+      "description": "Users define N=1 experiments with: hypothesis, intervention event type, measurement event type, duration (days), baseline period (days). Experiments can span multiple domains. Events tagged with hypothesis_id.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-EXP-TRACK",
+      "category": "intelligence.experiments",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "linked_operational_target_ids": ["OT-P1-004"],
+      "title": "Experiment tracking",
+      "description": "Dashboard tracks experiment progress: days remaining, compliance rate (intervention events logged), measurement completeness. Daily brief includes experiment reminders.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-EXP-REPORT",
+      "category": "intelligence.experiments",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "linked_operational_target_ids": ["OT-P1-004"],
+      "title": "Experiment outcome reports",
+      "description": "On experiment completion, generates report: baseline vs intervention comparison, statistical significance, effect size, recommendation (continue/stop/inconclusive).",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}

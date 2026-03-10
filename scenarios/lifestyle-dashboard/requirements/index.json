@@ -1,0 +1,219 @@
+{
+  "_metadata": {
+    "description": "Lifestyle Dashboard requirement registry - Parent-level requirements reference child modules declared under imports",
+    "schema_version": "1.0.0",
+    "last_updated": "2026-03-09"
+  },
+  "meta": {
+    "scenario": "lifestyle-dashboard",
+    "version": "1.0.0",
+    "generated": "2026-03-09",
+    "owners": [
+      {
+        "platform": "lifestyle-dashboard",
+        "contact": "matt@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "events/schema.json",
+    "domains/registration.json",
+    "queries/api.json",
+    "dashboard/ui.json",
+    "briefs/daily.json",
+    "intelligence/correlation.json",
+    "automation/notifications.json",
+    "export/medical.json",
+    "ai/queries.json"
+  ],
+  "requirements": [
+    {
+      "id": "LD-FUNC-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "linked_operational_target_ids": ["OT-P0-001"],
+      "title": "Shared event schema and SQLite storage",
+      "description": "SQLite events table with JSON payloads, common envelope (id UUID, timestamp ISO-8601, domain, event_type, payload JSON), indexed by domain+timestamp, extensible without migrations. Includes causality markers: is_intervention (bool), hypothesis_id (UUID nullable).",
+      "status": "not_started",
+      "children": [
+        "LD-EVENT-SCHEMA",
+        "LD-EVENT-STORAGE",
+        "LD-EVENT-INDEX"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-002",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain registration and discovery",
+      "description": "Dynamic domain scenario registration via API, capability exposure, health status tracking. Domains can start/stop independently.",
+      "status": "not_started",
+      "children": [
+        "LD-DOMAIN-REGISTER",
+        "LD-DOMAIN-DISCOVER",
+        "LD-DOMAIN-HEALTH"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-003",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "linked_operational_target_ids": ["OT-P0-003"],
+      "title": "Cross-domain query API",
+      "description": "API endpoints for querying events across domains with time-range filters, domain filters, basic aggregations, and correlation queries.",
+      "status": "not_started",
+      "children": [
+        "LD-QUERY-FILTER",
+        "LD-QUERY-AGGREGATE",
+        "LD-QUERY-CORRELATE"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-004",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Unified dashboard UI",
+      "description": "Mobile-first responsive design. Timeline view across all domains, per-domain collapsible sections with deep-dive links, trend charts (7d/30d/90d), daily Lifestyle Score display.",
+      "status": "not_started",
+      "children": [
+        "LD-UI-TIMELINE",
+        "LD-UI-DOMAINS",
+        "LD-UI-TRENDS",
+        "LD-UI-RESPONSIVE",
+        "LD-UI-SCORE"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-005",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "linked_operational_target_ids": ["OT-P0-005"],
+      "title": "Daily brief system",
+      "description": "Morning brief (7am default: what to do today, experiments in progress, yesterday summary) and evening review (9pm default: what happened, compliance rates, tomorrow preview) consolidated from all active domains.",
+      "status": "not_started",
+      "children": [
+        "LD-BRIEF-MORNING",
+        "LD-BRIEF-EVENING",
+        "LD-BRIEF-CONSOLIDATE"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-006",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "linked_operational_target_ids": ["OT-P0-006"],
+      "title": "Storage management UI",
+      "description": "Settings page showing database size and large files, ability to clean all or selected data, manage large files. Typical storage management operations.",
+      "status": "not_started",
+      "children": [
+        "LD-UI-STORAGE"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-007",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "linked_operational_target_ids": ["OT-P1-001"],
+      "title": "Correlation engine",
+      "description": "Automated statistical correlation analysis across domains with significance tracking (p-value, confidence interval). Configurable minimum threshold (default: 14 data points). 'Needs more data' indicator for insufficient samples.",
+      "status": "not_started",
+      "children": [
+        "LD-CORR-ANALYZE",
+        "LD-CORR-SIGNIFICANCE",
+        "LD-CORR-THRESHOLD"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-008",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "linked_operational_target_ids": ["OT-P1-002"],
+      "title": "Weekly digest",
+      "description": "'What Changed?' summary every Sunday (6pm default) comparing current week to rolling 4-week baseline. Shows deltas, new correlations discovered, medium-term trends.",
+      "status": "not_started",
+      "children": [
+        "LD-DIGEST-WEEKLY"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-009",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "linked_operational_target_ids": ["OT-P1-003"],
+      "title": "Composite Lifestyle Score",
+      "description": "Daily 0-100 score combining all active domains. Weights configurable (sleep heavy, socialization light). Trajectory visualization over time. No gamification.",
+      "status": "not_started",
+      "children": [
+        "LD-SCORE-CALC"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-010",
+      "category": "intelligence",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "linked_operational_target_ids": ["OT-P1-004"],
+      "title": "Experiment framework",
+      "description": "N=1 experiments with hypothesis, intervention, measurement, duration, compliance tracking, and outcome reports. Leverages causality markers (is_intervention, hypothesis_id).",
+      "status": "not_started",
+      "children": [
+        "LD-EXP-DEFINE",
+        "LD-EXP-TRACK",
+        "LD-EXP-REPORT"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-011",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "linked_operational_target_ids": ["OT-P1-005"],
+      "title": "Notification consolidation",
+      "description": "Central scheduler collecting domain notifications into minimal daily touchpoints. Reduces alert fatigue while preserving actionable information.",
+      "status": "not_started",
+      "children": [
+        "LD-NOTIF-SCHEDULER",
+        "LD-NOTIF-CONSOLIDATE"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-012",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "linked_operational_target_ids": ["OT-P1-006"],
+      "title": "Medical export",
+      "description": "Comprehensive PDF health reports combining all domain data for healthcare providers. Includes trends, correlations, and experiment results with selectable data ranges.",
+      "status": "not_started",
+      "children": [
+        "LD-EXPORT-PDF",
+        "LD-EXPORT-DATA-SELECTION"
+      ],
+      "validation": []
+    },
+    {
+      "id": "LD-FUNC-013",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "linked_operational_target_ids": ["OT-P1-007"],
+      "title": "Natural language queries",
+      "description": "Ollama-powered questions against event data. Support questions like 'How has my sleep been this month?' and 'What changed when I started creatine?'",
+      "status": "not_started",
+      "children": [
+        "LD-NL-QUERY-PARSE",
+        "LD-NL-QUERY-EXECUTE"
+      ],
+      "validation": []
+    }
+  ]
+}

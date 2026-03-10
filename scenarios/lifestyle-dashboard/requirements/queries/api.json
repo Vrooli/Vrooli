@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "description": "Cross-domain query API requirements",
+    "domain": "queries",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-QUERY-FILTER",
+      "category": "queries.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "linked_operational_target_ids": ["OT-P0-003"],
+      "title": "Event filtering by time and domain",
+      "description": "GET /api/v1/events supports query params: start_time, end_time, domains (comma-separated), event_types (comma-separated), limit, offset. Returns paginated event list.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-QUERY-AGGREGATE",
+      "category": "queries.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "linked_operational_target_ids": ["OT-P0-003"],
+      "title": "Event aggregation queries",
+      "description": "GET /api/v1/events/aggregate supports grouping by day/week/month, aggregation functions (count, avg, sum), and domain filtering. Returns time-bucketed aggregates.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-QUERY-CORRELATE",
+      "category": "queries.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "linked_operational_target_ids": ["OT-P0-003"],
+      "title": "Cross-domain correlation queries",
+      "description": "GET /api/v1/correlations accepts two event types and returns statistical correlation with confidence interval. Example: 'show me sleep quality on days I took magnesium vs days I didn't'.",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}

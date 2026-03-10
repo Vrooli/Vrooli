@@ -1,0 +1,69 @@
+{
+  "_metadata": {
+    "description": "Dashboard UI requirements",
+    "domain": "dashboard",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-UI-TIMELINE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Unified timeline view",
+      "description": "Main dashboard displays chronological timeline of events from all registered domains. Events color-coded by domain. Expandable event cards show payload details.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-DOMAINS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Per-domain sections",
+      "description": "Dashboard includes collapsible sections for each registered domain showing domain-specific summary, recent events, and link to domain's deep-dive UI.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-TRENDS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Trend charts",
+      "description": "Dashboard includes configurable trend charts with 7d/30d/90d time windows. Line charts for continuous metrics, bar charts for discrete events. Domain comparison overlays.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-RESPONSIVE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Mobile-first responsive design",
+      "description": "Dashboard designed mobile-first for phone-based daily brief consumption. Touch-friendly targets (44x44px minimum). Simplified mobile view prioritizes daily brief and Lifestyle Score. Full features on tablet/desktop.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-SCORE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Lifestyle Score display",
+      "description": "Dashboard prominently displays daily 0-100 Lifestyle Score. Trend line showing score history. Tap to see domain breakdown. No gamification.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-UI-STORAGE",
+      "category": "dashboard.settings",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "linked_operational_target_ids": ["OT-P0-006"],
+      "title": "Storage management settings",
+      "description": "Settings page shows database size, large files breakdown. Actions: clean all data, clean selected domains, export data backup, import backup.",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "P1 notification consolidation requirements for Lifestyle Dashboard",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LD-NOTIF-SCHEDULER",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "linked_operational_target_ids": ["OT-P1-005"],
+      "title": "Central notification scheduler",
+      "description": "Central scheduler that collects domain notifications and consolidates them into minimal daily touchpoints (morning/evening briefs)",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "api-integration-test",
+          "parameters": {
+            "endpoint": "/api/v1/notifications/schedule",
+            "method": "POST"
+          }
+        }
+      ]
+    },
+    {
+      "id": "LD-NOTIF-CONSOLIDATE",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "linked_operational_target_ids": ["OT-P1-005"],
+      "title": "Notification consolidation logic",
+      "description": "Consolidate multiple domain notifications into grouped summaries, reducing alert fatigue while preserving actionable information",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "unit-test",
+          "parameters": {
+            "test_pattern": "TestNotificationConsolidation"
+          }
+        }
+      ]
+    }
+  ]
+}

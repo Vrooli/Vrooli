@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "description": "Domain registration and discovery requirements",
+    "domain": "domains",
+    "last_updated": "2026-03-09"
+  },
+  "requirements": [
+    {
+      "id": "LD-DOMAIN-REGISTER",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain registration endpoint",
+      "description": "POST /api/v1/domains/register accepts domain name, capabilities list, UI route, and health endpoint. Returns registration confirmation with assigned domain ID.",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-DOMAIN-DISCOVER",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain discovery endpoint",
+      "description": "GET /api/v1/domains returns list of registered domains with capabilities, health status, and last event timestamp. Supports filtering by status (active/inactive).",
+      "status": "not_started",
+      "validation": []
+    },
+    {
+      "id": "LD-DOMAIN-HEALTH",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain health tracking",
+      "description": "Dashboard periodically polls domain health endpoints. Domains not responding for 5 minutes marked inactive. Health status visible in UI and affects daily brief content.",
+      "status": "not_started",
+      "validation": []
+    }
+  ]
+}

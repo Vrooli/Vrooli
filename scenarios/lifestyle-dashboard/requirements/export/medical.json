@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "P1 medical export requirements for Lifestyle Dashboard",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LD-EXPORT-PDF",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "linked_operational_target_ids": ["OT-P1-006"],
+      "title": "PDF health report generation",
+      "description": "Generate comprehensive PDF health reports combining all domain data for healthcare providers. Includes trends, correlations, and experiment results",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "api-integration-test",
+          "parameters": {
+            "endpoint": "/api/v1/export/medical",
+            "method": "POST"
+          }
+        }
+      ]
+    },
+    {
+      "id": "LD-EXPORT-DATA-SELECTION",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "linked_operational_target_ids": ["OT-P1-006"],
+      "title": "Selectable data for medical export",
+      "description": "Allow user to select which domains, time ranges, and data types to include in medical export PDF",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "unit-test",
+          "parameters": {
+            "test_pattern": "TestExportDataSelection"
+          }
+        }
+      ]
+    }
+  ]
+}
