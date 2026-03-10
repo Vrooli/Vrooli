@@ -33,6 +33,7 @@ vi.mock("../hooks/useDraggablePosition", () => ({
     },
     handleClickCapture: vi.fn(),
     resetPosition: vi.fn(),
+    moveTo: vi.fn(),
     isDragging: false,
     position: { x: 100, y: 100 },
   }),

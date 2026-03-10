@@ -124,3 +124,8 @@ body {
   background: rgb(var(--wc-accent) / 0.08);
   pointer-events: none;
 }
+
+/* ── Floating toolbar dock/undock animation ── */
+.wc-dock-transition {
+  transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
+}

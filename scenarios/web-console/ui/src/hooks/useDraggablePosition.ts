@@ -10,6 +10,12 @@ import { useFloatingPosition } from "./useFloatingPosition";
 const DEFAULT_DRAG_THRESHOLD = 6;
 const DEFAULT_FLOATING_MARGIN = 12;
 
+interface VelocitySample {
+  x: number;
+  y: number;
+  t: number;
+}
+
 type DragState = {
   pointerId: number;
   startX: number;
@@ -21,12 +27,19 @@ type DragState = {
   pointerCaptured: boolean;
   dragging: boolean;
   lastPosition: { x: number; y: number } | null;
+  velocitySamples: VelocitySample[];
 };
 
 interface StoredPosition {
   x: number;
   y: number;
   savedAt: number;
+}
+
+export interface DragEndInfo {
+  position: { x: number; y: number };
+  velocity: { vx: number; vy: number };
+  elementSize: { width: number; height: number };
 }
 
 export interface UseDraggablePositionOptions {
@@ -36,7 +49,7 @@ export interface UseDraggablePositionOptions {
   floatingMargin?: number;
   dragThreshold?: number;
   onDragStart?: () => void;
-  onDragEnd?: () => void;
+  onDragEnd?: (info: DragEndInfo) => void;
 }
 
 export interface UseDraggablePositionReturn {
@@ -52,6 +65,7 @@ export interface UseDraggablePositionReturn {
   };
   handleClickCapture: (e: ReactMouseEvent) => void;
   resetPosition: () => void;
+  moveTo: (pos: { x: number; y: number }) => void;
 }
 
 const getPointerDelta = (
@@ -230,6 +244,7 @@ export const useDraggablePosition = (
         pointerCaptured: false,
         dragging: false,
         lastPosition: null,
+        velocitySamples: [],
       };
       setIsDragging(false);
       setIsTrackingPointer(true);
@@ -271,6 +286,11 @@ export const useDraggablePosition = (
       // bypassing React's async render cycle that causes 1+ frame lag (jitter).
       element.style.transform = `translate3d(${Math.round(next.x)}px, ${Math.round(next.y)}px, 0)`;
       state.lastPosition = next;
+
+      // Track velocity samples (keep last 5 for smoothing)
+      const now = performance.now();
+      state.velocitySamples.push({ x: next.x, y: next.y, t: now });
+      if (state.velocitySamples.length > 5) state.velocitySamples.shift();
     },
     [clampPosition, dragThreshold, onDragStart],
   );
@@ -290,11 +310,31 @@ export const useDraggablePosition = (
       if (state.dragging) {
         event.preventDefault?.();
         suppressClickRef.current = true;
+
+        // Compute velocity from recent samples
+        let vx = 0;
+        let vy = 0;
+        const samples = state.velocitySamples;
+        if (samples.length >= 2) {
+          const first = samples[0]!;
+          const last = samples[samples.length - 1]!;
+          const dt = (last.t - first.t) / 1000; // seconds
+          if (dt > 0.001) {
+            vx = (last.x - first.x) / dt;
+            vy = (last.y - first.y) / dt;
+          }
+        }
+
+        const finalPos = state.lastPosition ?? { x: 0, y: 0 };
         // Sync final drag position to React state (for floatingStyle + localStorage persistence)
         if (state.lastPosition) {
           setPosition(state.lastPosition);
         }
-        onDragEnd?.();
+        onDragEnd?.({
+          position: finalPos,
+          velocity: { vx, vy },
+          elementSize: { width: state.width, height: state.height },
+        });
         window.setTimeout(() => {
           suppressClickRef.current = false;
         }, 0);
@@ -353,6 +393,10 @@ export const useDraggablePosition = (
     }
   }, [getInitialPosition, storageKey]);
 
+  const moveTo = useCallback((pos: { x: number; y: number }) => {
+    setPosition(pos);
+  }, []);
+
   return useMemo(
     () => ({
       elementRef,
@@ -367,6 +411,7 @@ export const useDraggablePosition = (
       },
       handleClickCapture,
       resetPosition,
+      moveTo,
     }),
     [
       position,
@@ -377,6 +422,7 @@ export const useDraggablePosition = (
       handlePointerEnd,
       handleClickCapture,
       resetPosition,
+      moveTo,
     ],
   );
 };
