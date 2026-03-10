@@ -68,6 +68,47 @@ import {
 
 const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
+type SelectionEntry = { path: string; staged: boolean };
+
+/** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
+function computeNextSelection(
+  nextKey: string,
+  lastKey: string | null,
+  mode: "single" | "toggle" | "range",
+  currentSelection: SelectionEntry[],
+  orderedIndexMap: Map<string, number>,
+  orderedKeys: string[],
+  orderedKeyToEntry: Map<string, SelectionEntry>,
+  selectionKey: (entry: SelectionEntry) => string,
+): SelectionEntry[] {
+  const nextEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
+
+  if (mode === "range" && lastKey && orderedIndexMap.has(lastKey) && orderedIndexMap.has(nextKey)) {
+    const start = orderedIndexMap.get(lastKey) ?? 0;
+    const end = orderedIndexMap.get(nextKey) ?? 0;
+    const [from, to] = start < end ? [start, end] : [end, start];
+    return orderedKeys
+      .slice(from, to + 1)
+      .map((key) => orderedKeyToEntry.get(key))
+      .filter((entry): entry is SelectionEntry => Boolean(entry));
+  }
+
+  if (mode === "toggle") {
+    const hasEntry = currentSelection.some((entry) => selectionKey(entry) === nextKey);
+    if (hasEntry) {
+      return currentSelection.filter((entry) => selectionKey(entry) !== nextKey);
+    }
+    return [...currentSelection, nextEntry].sort((a, b) => {
+      const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
+      const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
+      return aIndex - bIndex;
+    });
+  }
+
+  // single
+  return [nextEntry];
+}
+
 export default function App() {
   const queryClient = useQueryClient();
   const { repoId, setRepoId } = useRepoSelection();
@@ -598,38 +639,9 @@ export default function App() {
     [selectedFiles, selectionKey]
   );
 
-  const handleSelectFile = useCallback(
-    (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
-      const nextEntry = orderedKeyToEntry.get(selectionKey({ path, staged })) ?? { path, staged };
-      const nextKey = selectionKey(nextEntry);
-      const lastKey = lastSelectedKeyRef.current;
-      const isToggle = event.metaKey || event.ctrlKey;
-      const isRange = event.shiftKey && lastKey && orderedIndexMap.has(lastKey);
-      let nextSelection: Array<{ path: string; staged: boolean }>;
-
-      if (isRange && orderedIndexMap.has(nextKey)) {
-        const start = orderedIndexMap.get(lastKey) ?? 0;
-        const end = orderedIndexMap.get(nextKey) ?? 0;
-        const [from, to] = start < end ? [start, end] : [end, start];
-        nextSelection = orderedKeys
-          .slice(from, to + 1)
-          .map((key) => orderedKeyToEntry.get(key))
-          .filter((entry): entry is { path: string; staged: boolean } => Boolean(entry));
-      } else if (isToggle) {
-        const hasEntry = selectedFiles.some((entry) => selectionKey(entry) === nextKey);
-        if (hasEntry) {
-          nextSelection = selectedFiles.filter((entry) => selectionKey(entry) !== nextKey);
-        } else {
-          nextSelection = [...selectedFiles, nextEntry].sort((a, b) => {
-            const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
-            const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
-            return aIndex - bIndex;
-          });
-        }
-      } else {
-        nextSelection = [nextEntry];
-      }
-
+  /** Apply a computed selection and update primary-file state */
+  const applySelection = useCallback(
+    (nextSelection: SelectionEntry[], nextKey: string) => {
       setSelectedFiles(nextSelection);
       lastSelectedKeyRef.current = nextKey;
 
@@ -640,20 +652,37 @@ export default function App() {
         return;
       }
 
+      const clickedEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
       const clickedStillSelected = nextSelection.some((entry) => selectionKey(entry) === nextKey);
       const primary = clickedStillSelected
-        ? nextEntry
-        : nextSelection[nextSelection.length - 1] ?? nextEntry;
+        ? clickedEntry
+        : nextSelection[nextSelection.length - 1] ?? clickedEntry;
       setSelectedFile(primary.path);
       setSelectedIsStaged(primary.staged);
       setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
-      setIsViewingAnyFile(false); // Reset when selecting from changes list
-      // If related files panel is open, update it to show relations for the new file
+      setIsViewingAnyFile(false);
       if (showRelatedFiles) {
         setRelatedFilesForPath(primary.path);
       } else {
         setRelatedFilesForPath(undefined);
       }
+    },
+    [orderedKeyToEntry, selectionKey, untrackedSet, showRelatedFiles],
+  );
+
+  const handleSelectFile = useCallback(
+    (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
+      const nextKey = selectionKey({ path, staged });
+      const lastKey = lastSelectedKeyRef.current;
+      const isToggle = event.metaKey || event.ctrlKey;
+      const isRange = event.shiftKey && lastKey && orderedIndexMap.has(lastKey);
+      const mode: "single" | "toggle" | "range" = isRange ? "range" : isToggle ? "toggle" : "single";
+
+      const nextSelection = computeNextSelection(
+        nextKey, lastKey, mode, selectedFiles,
+        orderedIndexMap, orderedKeys, orderedKeyToEntry, selectionKey,
+      );
+      applySelection(nextSelection, nextKey);
     },
     [
       orderedIndexMap,
@@ -661,10 +690,55 @@ export default function App() {
       orderedKeys,
       selectionKey,
       selectedFiles,
-      untrackedSet,
-      showRelatedFiles
+      applySelection,
     ]
   );
+
+  // --- Mobile multi-select ---
+  const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
+
+  const handleMobileSelectFile = useCallback(
+    (path: string, staged: boolean, mode: "toggle" | "range") => {
+      const nextKey = selectionKey({ path, staged });
+      const lastKey = lastSelectedKeyRef.current;
+      const nextSelection = computeNextSelection(
+        nextKey, lastKey, mode, selectedFiles,
+        orderedIndexMap, orderedKeys, orderedKeyToEntry, selectionKey,
+      );
+      applySelection(nextSelection, nextKey);
+    },
+    [orderedIndexMap, orderedKeyToEntry, orderedKeys, selectionKey, selectedFiles, applySelection],
+  );
+
+  const handleEnterSelectionMode = useCallback(
+    (path: string, staged: boolean) => {
+      setMobileSelectionMode(true);
+      const nextKey = selectionKey({ path, staged });
+      const entry = orderedKeyToEntry.get(nextKey) ?? { path, staged };
+      setSelectedFiles([entry]);
+      lastSelectedKeyRef.current = nextKey;
+      setSelectedFile(path);
+      setSelectedIsStaged(staged);
+      setSelectedIsUntracked(!staged && untrackedSet.has(path));
+    },
+    [selectionKey, orderedKeyToEntry, untrackedSet],
+  );
+
+  const handleExitSelectionMode = useCallback(() => {
+    setMobileSelectionMode(false);
+    setSelectedFiles([]);
+    setSelectedFile(undefined);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    lastSelectedKeyRef.current = null;
+  }, []);
+
+  // Auto-exit mobile selection mode when entering history or tree view
+  useEffect(() => {
+    if (mobileSelectionMode && (viewingCommit || fileViewMode === "tree")) {
+      setMobileSelectionMode(false);
+    }
+  }, [mobileSelectionMode, viewingCommit, fileViewMode]);
 
   const handleStageFile = useCallback(
     (path: string) => {
@@ -1833,6 +1907,10 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
+            mobileSelectionMode={mobileSelectionMode}
+            onEnterSelectionMode={handleEnterSelectionMode}
+            onExitSelectionMode={handleExitSelectionMode}
+            onMobileSelectFile={handleMobileSelectFile}
           />
         );
       case "history":
@@ -2087,6 +2165,10 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
+            mobileSelectionMode={mobileSelectionMode}
+            onEnterSelectionMode={handleEnterSelectionMode}
+            onExitSelectionMode={handleExitSelectionMode}
+            onMobileSelectFile={handleMobileSelectFile}
           />
         );
       case "diff":

@@ -95,6 +95,9 @@ message RunEvent {
 
     // Rate limit event data (event_type = ERROR, subtype rate_limit).
     RateLimitEventData rate_limit = 20;
+
+    // Compaction event data (event_type = COMPACTION).
+    CompactionEventData compaction = 22;
   }
 }
 
@@ -511,4 +514,37 @@ message RateLimitEventData {
 
   // Human-readable message.
   string message = 6;
+}
+
+// =============================================================================
+// COMPACTION EVENT
+// =============================================================================
+
+// CompactionEventData represents a context compaction/summarization event
+// where conversation history is summarized to fit within context limits.
+//
+// @usage RunEvent.compaction
+message CompactionEventData {
+  // The summarized conversation content.
+  string summary = 1;
+
+  // What triggered the compaction.
+  // Values: "manual" (user typed /compact), "auto" (context limit reached).
+  string trigger = 2;
+
+  // User-provided focus instruction (from "/compact focus on X").
+  // Empty string if no focus was specified.
+  string focus = 3;
+
+  // Number of messages summarized.
+  int64 messages_compacted = 4;
+
+  // Token count before compaction.
+  int64 tokens_before = 5;
+
+  // Token count after compaction.
+  int64 tokens_after = 6;
+
+  // Original compaction command if manual (e.g., "/compact focus on auth").
+  string original_command = 7;
 }

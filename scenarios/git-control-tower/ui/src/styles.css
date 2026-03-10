@@ -169,6 +169,22 @@ pre {
   background: linear-gradient(to left, rgb(2 6 23), transparent);
 }
 
+/* Checkbox appear animation for mobile selection mode */
+@keyframes checkbox-appear {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.checkbox-appear {
+  animation: checkbox-appear 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Monaco editor styling aligned with read-only diff palette */
 .monaco-diff-editor .monaco-editor,
 .monaco-diff-editor .monaco-editor .margin,

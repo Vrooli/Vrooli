@@ -373,6 +373,9 @@ enum RunEventType {
 
   // Message deletion/redaction event.
   RUN_EVENT_TYPE_MESSAGE_DELETED = 9;
+
+  // Context compaction/summarization event.
+  RUN_EVENT_TYPE_COMPACTION = 10;
 }
 
 // =============================================================================

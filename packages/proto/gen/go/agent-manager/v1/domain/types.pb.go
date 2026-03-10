@@ -676,21 +676,24 @@ const (
 	RunEventType_RUN_EVENT_TYPE_ERROR RunEventType = 8
 	// Message deletion/redaction event.
 	RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED RunEventType = 9
+	// Context compaction/summarization event.
+	RunEventType_RUN_EVENT_TYPE_COMPACTION RunEventType = 10
 )
 
 // Enum value maps for RunEventType.
 var (
 	RunEventType_name = map[int32]string{
-		0: "RUN_EVENT_TYPE_UNSPECIFIED",
-		1: "RUN_EVENT_TYPE_LOG",
-		2: "RUN_EVENT_TYPE_MESSAGE",
-		3: "RUN_EVENT_TYPE_TOOL_CALL",
-		4: "RUN_EVENT_TYPE_TOOL_RESULT",
-		5: "RUN_EVENT_TYPE_STATUS",
-		6: "RUN_EVENT_TYPE_METRIC",
-		7: "RUN_EVENT_TYPE_ARTIFACT",
-		8: "RUN_EVENT_TYPE_ERROR",
-		9: "RUN_EVENT_TYPE_MESSAGE_DELETED",
+		0:  "RUN_EVENT_TYPE_UNSPECIFIED",
+		1:  "RUN_EVENT_TYPE_LOG",
+		2:  "RUN_EVENT_TYPE_MESSAGE",
+		3:  "RUN_EVENT_TYPE_TOOL_CALL",
+		4:  "RUN_EVENT_TYPE_TOOL_RESULT",
+		5:  "RUN_EVENT_TYPE_STATUS",
+		6:  "RUN_EVENT_TYPE_METRIC",
+		7:  "RUN_EVENT_TYPE_ARTIFACT",
+		8:  "RUN_EVENT_TYPE_ERROR",
+		9:  "RUN_EVENT_TYPE_MESSAGE_DELETED",
+		10: "RUN_EVENT_TYPE_COMPACTION",
 	}
 	RunEventType_value = map[string]int32{
 		"RUN_EVENT_TYPE_UNSPECIFIED":     0,
@@ -703,6 +706,7 @@ var (
 		"RUN_EVENT_TYPE_ARTIFACT":        7,
 		"RUN_EVENT_TYPE_ERROR":           8,
 		"RUN_EVENT_TYPE_MESSAGE_DELETED": 9,
+		"RUN_EVENT_TYPE_COMPACTION":      10,
 	}
 )
 
@@ -1477,7 +1481,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x16APPROVAL_STATE_PENDING\x10\x02\x12%\n" +
 	"!APPROVAL_STATE_PARTIALLY_APPROVED\x10\x03\x12\x1b\n" +
 	"\x17APPROVAL_STATE_APPROVED\x10\x04\x12\x1b\n" +
-	"\x17APPROVAL_STATE_REJECTED\x10\x05*\xb1\x02\n" +
+	"\x17APPROVAL_STATE_REJECTED\x10\x05*\xd0\x02\n" +
 	"\fRunEventType\x12\x1e\n" +
 	"\x1aRUN_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_EVENT_TYPE_LOG\x10\x01\x12\x1a\n" +
@@ -1488,7 +1492,9 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x15RUN_EVENT_TYPE_METRIC\x10\x06\x12\x1b\n" +
 	"\x17RUN_EVENT_TYPE_ARTIFACT\x10\a\x12\x18\n" +
 	"\x14RUN_EVENT_TYPE_ERROR\x10\b\x12\"\n" +
-	"\x1eRUN_EVENT_TYPE_MESSAGE_DELETED\x10\t*\xe0\x01\n" +
+	"\x1eRUN_EVENT_TYPE_MESSAGE_DELETED\x10\t\x12\x1d\n" +
+	"\x19RUN_EVENT_TYPE_COMPACTION\x10\n" +
+	"*\xe0\x01\n" +
 	"\x0eRecoveryAction\x12\x1f\n" +
 	"\x1bRECOVERY_ACTION_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RECOVERY_ACTION_NONE\x10\x01\x12\x19\n" +

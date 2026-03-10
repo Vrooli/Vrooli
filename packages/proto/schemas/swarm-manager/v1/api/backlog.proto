@@ -183,7 +183,8 @@ message BacklogResearchRequest {
     "enhance",
     "research",
     "explore",
-    "investigate"
+    "investigate",
+    "initialize"
   ] }];
 
   // Optional research target for research items.

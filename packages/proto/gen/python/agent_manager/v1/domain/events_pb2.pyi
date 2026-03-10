@@ -45,7 +45,7 @@ AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL: AgentManagerWsClientMessag
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING: AgentManagerWsClientMessageType
 
 class RunEvent(_message.Message):
-    __slots__ = ("id", "run_id", "sequence", "event_type", "timestamp", "log", "message", "message_deleted", "tool_call", "tool_result", "status", "metric", "artifact", "error", "progress", "cost", "rate_limit")
+    __slots__ = ("id", "run_id", "sequence", "event_type", "timestamp", "log", "message", "message_deleted", "tool_call", "tool_result", "status", "metric", "artifact", "error", "progress", "cost", "rate_limit", "compaction")
     ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
@@ -63,6 +63,7 @@ class RunEvent(_message.Message):
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     COST_FIELD_NUMBER: _ClassVar[int]
     RATE_LIMIT_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_FIELD_NUMBER: _ClassVar[int]
     id: str
     run_id: str
     sequence: int
@@ -80,7 +81,8 @@ class RunEvent(_message.Message):
     progress: ProgressEventData
     cost: CostEventData
     rate_limit: RateLimitEventData
-    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ...) -> None: ...
+    compaction: CompactionEventData
+    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ..., compaction: _Optional[_Union[CompactionEventData, _Mapping]] = ...) -> None: ...
 
 class AgentManagerWsMessage(_message.Message):
     __slots__ = ("type", "run_id", "run_event", "run_status", "task_status", "run_progress", "connected", "pong")
@@ -306,3 +308,21 @@ class RateLimitEventData(_message.Message):
     limit: int
     message: str
     def __init__(self, limit_type: _Optional[str] = ..., reset_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retry_after: _Optional[int] = ..., current_used: _Optional[int] = ..., limit: _Optional[int] = ..., message: _Optional[str] = ...) -> None: ...
+
+class CompactionEventData(_message.Message):
+    __slots__ = ("summary", "trigger", "focus", "messages_compacted", "tokens_before", "tokens_after", "original_command")
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    FOCUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGES_COMPACTED_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_AFTER_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    summary: str
+    trigger: str
+    focus: str
+    messages_compacted: int
+    tokens_before: int
+    tokens_after: int
+    original_command: str
+    def __init__(self, summary: _Optional[str] = ..., trigger: _Optional[str] = ..., focus: _Optional[str] = ..., messages_compacted: _Optional[int] = ..., tokens_before: _Optional[int] = ..., tokens_after: _Optional[int] = ..., original_command: _Optional[str] = ...) -> None: ...

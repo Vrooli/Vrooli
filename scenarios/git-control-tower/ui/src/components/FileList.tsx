@@ -25,12 +25,15 @@ import {
   Settings,
   MoreVertical,
   History,
+  Square,
+  CheckSquare,
+  X,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
-import { useIsMobile } from "../hooks";
+import { useIsMobile, useLongPress } from "../hooks";
 import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 import { resolveGroupForFile } from "../lib/grouping";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
@@ -111,6 +114,10 @@ interface FileListProps {
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
   repoId?: string | null;
+  mobileSelectionMode?: boolean;
+  onEnterSelectionMode?: (path: string, staged: boolean) => void;
+  onExitSelectionMode?: () => void;
+  onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
 }
 
 interface FileSectionProps {
@@ -147,6 +154,9 @@ interface FileSectionProps {
   groupingRules?: GroupingRule[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
+  mobileSelectionMode?: boolean;
+  onLongPress?: (file: string, staged: boolean) => void;
+  onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
 }
 
 const statusStyleMap = {
@@ -289,6 +299,9 @@ interface FileRowProps {
   groupingRules?: GroupingRule[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
+  mobileSelectionMode?: boolean;
+  onLongPress?: (file: string, staged: boolean) => void;
+  onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
 }
 
 const FileRow = memo(function FileRow({
@@ -320,28 +333,66 @@ const FileRow = memo(function FileRow({
   groupingRules,
   onOpenMobileActions,
   onContextMenu,
+  mobileSelectionMode,
+  onLongPress,
+  onMobileTap,
 }: FileRowProps) {
   const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
   const isConfirmingDiscard = confirmingDiscard === file;
-  const showActionButtons = !(isConfirmingIgnore || isConfirmingDiscard);
+  const showActionButtons = !(isConfirmingIgnore || isConfirmingDiscard) && !mobileSelectionMode;
+
+  const longPressHandlers = useLongPress({
+    onLongPress: () => {
+      if (mobileSelectionMode) {
+        onMobileTap?.(file, isStaged, "range");
+      } else {
+        onLongPress?.(file, isStaged);
+      }
+    },
+    onTap: () => {
+      if (mobileSelectionMode) {
+        onMobileTap?.(file, isStaged, "toggle");
+      }
+      // When not in selection mode, tap is handled by onClick
+    },
+  });
+
+  const touchProps = isMobile && onLongPress ? longPressHandlers : {};
+
   return (
     <li
       className={`group w-full flex items-center gap-2 rounded cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
         isMobile ? "px-3 py-3" : "px-2 py-1"
       } ${
-        isSelected
-          ? "bg-slate-700/50 text-slate-100"
-          : "hover:bg-slate-800/50 active:bg-slate-700/50 text-slate-300"
+        mobileSelectionMode && isSelected
+          ? "bg-blue-900/30 ring-1 ring-blue-500/30 text-slate-100"
+          : isSelected
+            ? "bg-slate-700/50 text-slate-100"
+            : "hover:bg-slate-800/50 active:bg-slate-700/50 text-slate-300"
       }`}
       data-testid={itemTestId}
       data-file-path={file}
-      onClick={(event) => onSelectFile(file, isStaged, event)}
+      onClick={(event) => {
+        // In mobile selection mode, taps are handled by useLongPress onTap
+        if (isMobile && mobileSelectionMode) return;
+        onSelectFile(file, isStaged, event);
+      }}
       onContextMenu={onContextMenu ? (e) => {
         e.preventDefault();
         onContextMenu(file, e);
       } : undefined}
+      {...touchProps}
     >
+      {mobileSelectionMode && (
+        <span className="flex-shrink-0 checkbox-appear">
+          {isSelected ? (
+            <CheckSquare className="h-5 w-5 text-blue-400" />
+          ) : (
+            <Square className="h-5 w-5 text-slate-500" />
+          )}
+        </span>
+      )}
       <span
         className={`flex items-center justify-center rounded border font-bold ${badge.style} ${
           isMobile ? "h-7 w-7 text-xs" : "h-5 w-5 text-[10px]"
@@ -595,6 +646,9 @@ function FileSection({
   groupingRules,
   onOpenMobileActions,
   onContextMenu,
+  mobileSelectionMode,
+  onLongPress,
+  onMobileTap,
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -685,6 +739,9 @@ function FileSection({
               groupingRules={groupingRules}
               onOpenMobileActions={onOpenMobileActions}
               onContextMenu={onContextMenu}
+              mobileSelectionMode={mobileSelectionMode}
+              onLongPress={onLongPress}
+              onMobileTap={onMobileTap}
             />
           ))}
         </ul>
@@ -738,6 +795,10 @@ export function FileList({
   onDeletePath,
   onBlameFile,
   repoId,
+  mobileSelectionMode = false,
+  onEnterSelectionMode,
+  onExitSelectionMode,
+  onMobileSelectFile,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -801,6 +862,54 @@ export function FileList({
       },
     ];
   }, [contextMenu, onBlameFile]);
+
+  // Mobile long-press enters selection mode; tap in selection mode toggles
+  const handleLongPress = useCallback(
+    (file: string, staged: boolean) => {
+      if (mobileSelectionMode) return;
+      onEnterSelectionMode?.(file, staged);
+    },
+    [mobileSelectionMode, onEnterSelectionMode],
+  );
+
+  const handleMobileTap = useCallback(
+    (file: string, staged: boolean, mode: "toggle" | "range") => {
+      onMobileSelectFile?.(file, staged, mode);
+    },
+    [onMobileSelectFile],
+  );
+
+  // Auto-exit selection mode when all files deselected
+  useEffect(() => {
+    if (mobileSelectionMode && (selectedFiles?.length ?? 0) === 0) {
+      onExitSelectionMode?.();
+    }
+  }, [mobileSelectionMode, selectedFiles?.length, onExitSelectionMode]);
+
+  // Suppress bottom sheet in selection mode
+  const handleOpenMobileActions = useCallback(
+    (file: string) => {
+      if (mobileSelectionMode) return;
+      setMobileActionFile(file);
+    },
+    [mobileSelectionMode],
+  );
+
+  // Selection toolbar: compute action availability
+  const selectionHasUnstaged = useMemo(() => {
+    if (!mobileSelectionMode || !selectedFiles) return false;
+    return selectedFiles.some((entry) => !entry.staged);
+  }, [mobileSelectionMode, selectedFiles]);
+  const selectionHasStaged = useMemo(() => {
+    if (!mobileSelectionMode || !selectedFiles) return false;
+    return selectedFiles.some((entry) => entry.staged);
+  }, [mobileSelectionMode, selectedFiles]);
+  const selectionHasDiscardable = useMemo(() => {
+    if (!mobileSelectionMode || !selectedFiles || !files) return false;
+    const unstaged = new Set(files.unstaged ?? []);
+    const untracked = new Set(files.untracked ?? []);
+    return selectedFiles.some((entry) => !entry.staged && (unstaged.has(entry.path) || untracked.has(entry.path)));
+  }, [mobileSelectionMode, selectedFiles, files]);
 
   const normalizedRules = useMemo(
     () =>
@@ -1125,6 +1234,75 @@ export function FileList({
 
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
+            {/* Mobile multi-select toolbar */}
+            {isMobile && mobileSelectionMode && (selectedFiles?.length ?? 0) > 0 && (
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-slate-700 transition-colors"
+                    onClick={onExitSelectionMode}
+                    aria-label="Exit selection mode"
+                  >
+                    <X className="h-4 w-4 text-slate-400" />
+                  </button>
+                  <span className="text-sm text-slate-200" aria-live="polite">
+                    {selectedFiles?.length ?? 0} file{(selectedFiles?.length ?? 0) !== 1 ? "s" : ""} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {selectionHasUnstaged && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/20"
+                      onClick={() => {
+                        const unstaged = selectedFiles?.filter((e) => !e.staged).map((e) => e.path) ?? [];
+                        if (unstaged.length > 0) onStagePaths?.(unstaged);
+                      }}
+                      disabled={isStaging}
+                    >
+                      Stage
+                    </Button>
+                  )}
+                  {selectionHasStaged && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => {
+                        const staged = selectedFiles?.filter((e) => e.staged).map((e) => e.path) ?? [];
+                        staged.forEach((p) => onUnstageFile(p));
+                      }}
+                      disabled={isStaging}
+                    >
+                      Unstage
+                    </Button>
+                  )}
+                  {selectionHasDiscardable && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
+                      onClick={() => {
+                        const discardable = selectedFiles?.filter((e) => !e.staged) ?? [];
+                        const tracked = discardable
+                          .filter((e) => !(files?.untracked ?? []).includes(e.path))
+                          .map((e) => e.path);
+                        const untracked = discardable
+                          .filter((e) => (files?.untracked ?? []).includes(e.path))
+                          .map((e) => e.path);
+                        if (tracked.length > 0) onDiscardPaths?.(tracked, false);
+                        if (untracked.length > 0) onDiscardPaths?.(untracked, true);
+                      }}
+                      disabled={isDiscarding}
+                    >
+                      Discard
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
             {showApprovedBanner && (
               <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
                 <div className="flex items-center justify-between gap-2">
@@ -1383,8 +1561,11 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 groupingRules={groupingRules}
-                                onOpenMobileActions={setMobileActionFile}
+                                onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                mobileSelectionMode={mobileSelectionMode}
+                                onLongPress={handleLongPress}
+                                onMobileTap={handleMobileTap}
                               />
                               <FileSection
                                 key={`${group.id}-staged`}
@@ -1417,8 +1598,11 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 groupingRules={groupingRules}
-                                onOpenMobileActions={setMobileActionFile}
+                                onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                mobileSelectionMode={mobileSelectionMode}
+                                onLongPress={handleLongPress}
+                                onMobileTap={handleMobileTap}
                               />
                               <FileSection
                                 key={`${group.id}-unstaged`}
@@ -1455,8 +1639,11 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 groupingRules={groupingRules}
-                                onOpenMobileActions={setMobileActionFile}
+                                onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                mobileSelectionMode={mobileSelectionMode}
+                                onLongPress={handleLongPress}
+                                onMobileTap={handleMobileTap}
                               />
                               <FileSection
                                 key={`${group.id}-untracked`}
@@ -1494,8 +1681,11 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 groupingRules={groupingRules}
-                                onOpenMobileActions={setMobileActionFile}
+                                onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                                mobileSelectionMode={mobileSelectionMode}
+                                onLongPress={handleLongPress}
+                                onMobileTap={handleMobileTap}
                               />
                             </div>
                           </>
@@ -1534,8 +1724,11 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       groupingRules={groupingRules}
-                      onOpenMobileActions={setMobileActionFile}
+                      onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      mobileSelectionMode={mobileSelectionMode}
+                      onLongPress={handleLongPress}
+                      onMobileTap={handleMobileTap}
                     />
 
                     {/* Staged Changes */}
@@ -1567,8 +1760,11 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       groupingRules={groupingRules}
-                      onOpenMobileActions={setMobileActionFile}
+                      onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      mobileSelectionMode={mobileSelectionMode}
+                      onLongPress={handleLongPress}
+                      onMobileTap={handleMobileTap}
                     />
 
                     {/* Unstaged Changes */}
@@ -1602,8 +1798,11 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       groupingRules={groupingRules}
-                      onOpenMobileActions={setMobileActionFile}
+                      onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      mobileSelectionMode={mobileSelectionMode}
+                      onLongPress={handleLongPress}
+                      onMobileTap={handleMobileTap}
                     />
 
                     {/* Untracked Files */}
@@ -1638,8 +1837,11 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       groupingRules={groupingRules}
-                      onOpenMobileActions={setMobileActionFile}
+                      onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
+                      mobileSelectionMode={mobileSelectionMode}
+                      onLongPress={handleLongPress}
+                      onMobileTap={handleMobileTap}
                     />
                   </>
                 )}
@@ -1665,8 +1867,8 @@ export function FileList({
         )}
       </Card>
 
-      {/* Mobile file action bottom sheet */}
-      {isMobile && mobileActionFileInfo && (
+      {/* Mobile file action bottom sheet (suppressed in selection mode) */}
+      {isMobile && !mobileSelectionMode && mobileActionFileInfo && (
         <BottomSheet
           isOpen={Boolean(mobileActionFile)}
           onClose={() => setMobileActionFile(null)}
