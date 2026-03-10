@@ -98,6 +98,7 @@ export function StatusHeader({
           untracked={status?.summary.untracked ?? 0}
           conflicts={status?.summary.conflicts ?? 0}
           cleanDetails={cleanDetails}
+          variant="compact"
         />
 
         <HealthIndicator health={health} isHealthy={isHealthy} />
