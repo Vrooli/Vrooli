@@ -42,6 +42,15 @@ CREATE TABLE IF NOT EXISTS domains (
 );
 
 CREATE INDEX IF NOT EXISTS idx_domains_status ON domains(status);
+
+-- Domain weights table (P1-003): Configurable weights for lifestyle score
+-- [REQ:LD-SCORE-CALC] Stores user-configurable domain weights.
+CREATE TABLE IF NOT EXISTS domain_weights (
+	domain TEXT PRIMARY KEY,
+	weight TEXT NOT NULL DEFAULT 'medium',
+	updated_at TEXT NOT NULL,
+	FOREIGN KEY (domain) REFERENCES domains(name) ON DELETE CASCADE
+);
 `
 
 // InitSchema creates all required tables and indexes in the database.

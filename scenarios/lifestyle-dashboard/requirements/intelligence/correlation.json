@@ -52,8 +52,21 @@
       "linked_operational_target_ids": ["OT-P1-003"],
       "title": "Lifestyle Score calculation",
       "description": "Daily score 0-100 computed from all active domains. Domain weights: sleep (high), exercise (high), diet (medium), nootropics (medium), socialization (low). Weights adjustable per user. Score calculated at midnight for previous day.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_score_config_test.go",
+          "phase": "unit",
+          "status": "passing"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/score_config_test.go",
+          "phase": "unit",
+          "status": "passing"
+        }
+      ]
     },
     {
       "id": "LD-EXP-DEFINE",

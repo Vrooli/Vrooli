@@ -51,11 +51,12 @@ func NewServer(db *sql.DB) *Server {
 	statsRepo := repository.NewSQLiteStatsRepository(db)
 	storageRepo := repository.NewSQLiteStorageRepository(db)
 	briefsRepo := repository.NewSQLiteBriefRepository(db)
+	scoreConfigRepo := repository.NewSQLiteScoreConfigRepository(db)
 
 	srv := &Server{
 		db:      db,
 		router:  mux.NewRouter(),
-		handler: handlers.New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo),
+		handler: handlers.New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo, scoreConfigRepo),
 	}
 	srv.setupRoutes()
 	return srv
@@ -89,6 +90,12 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/stats/timeline", s.handler.GetTimeline).Methods("GET")
 	s.router.HandleFunc("/api/v1/stats/summary", s.handler.GetSummary).Methods("GET")
 	s.router.HandleFunc("/api/v1/stats/score", s.handler.GetScore).Methods("GET")
+
+	// Score Configuration API - P1-003
+	// [REQ:LD-SCORE-CALC] Configurable domain weights for lifestyle score
+	s.router.HandleFunc("/api/v1/score/config", s.handler.GetScoreConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/score/config/{domain}", s.handler.GetDomainWeight).Methods("GET")
+	s.router.HandleFunc("/api/v1/score/config/{domain}", s.handler.UpdateDomainWeight).Methods("PUT")
 
 	// Storage API - P0-006
 	s.router.HandleFunc("/api/v1/storage", s.handler.GetStorageInfo).Methods("GET")

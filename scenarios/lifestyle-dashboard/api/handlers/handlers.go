@@ -25,22 +25,24 @@ import (
 // It uses repository interfaces rather than direct database access,
 // following the Storage Architecture skill's abstraction pattern.
 type Handler struct {
-	Events  repository.EventRepository
-	Domains repository.DomainRepository
-	Stats   repository.StatsRepository
-	Storage repository.StorageRepository
-	Briefs  repository.BriefRepository
+	Events      repository.EventRepository
+	Domains     repository.DomainRepository
+	Stats       repository.StatsRepository
+	Storage     repository.StorageRepository
+	Briefs      repository.BriefRepository
+	ScoreConfig repository.ScoreConfigRepository
 }
 
 // New creates a Handler with all repository implementations.
 // All repositories are required for the handler to function correctly.
-func New(events repository.EventRepository, domains repository.DomainRepository, stats repository.StatsRepository, storage repository.StorageRepository, briefs repository.BriefRepository) *Handler {
+func New(events repository.EventRepository, domains repository.DomainRepository, stats repository.StatsRepository, storage repository.StorageRepository, briefs repository.BriefRepository, scoreConfig repository.ScoreConfigRepository) *Handler {
 	return &Handler{
-		Events:  events,
-		Domains: domains,
-		Stats:   stats,
-		Storage: storage,
-		Briefs:  briefs,
+		Events:      events,
+		Domains:     domains,
+		Stats:       stats,
+		Storage:     storage,
+		Briefs:      briefs,
+		ScoreConfig: scoreConfig,
 	}
 }
 

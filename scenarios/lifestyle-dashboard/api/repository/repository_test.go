@@ -924,3 +924,407 @@ func TestStatsRepository_GetLifestyleScore_History(t *testing.T) {
 		t.Error("Expected History to be non-nil (even if empty)")
 	}
 }
+
+// =============================================================================
+// Additional StatsRepository Tests for Coverage
+// =============================================================================
+
+// TestStatsRepository_GetTimeline_InvalidDays verifies timeline with invalid days.
+// [REQ:LD-QUERY-AGGREGATE] Repository handles invalid days parameter gracefully.
+func TestStatsRepository_GetTimeline_InvalidDays(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	// Create test event
+	eventRepo.Create(ctx, &domain.Event{Domain: "timeline-test", EventType: "event"})
+
+	// Test with days <= 0 (should default to 7)
+	timeline, err := statsRepo.GetTimeline(ctx, 0)
+	if err != nil {
+		t.Fatalf("Failed to get timeline with days=0: %v", err)
+	}
+	if len(timeline) == 0 {
+		t.Error("Expected at least one timeline entry with default days")
+	}
+
+	// Test with negative days
+	timeline, err = statsRepo.GetTimeline(ctx, -5)
+	if err != nil {
+		t.Fatalf("Failed to get timeline with negative days: %v", err)
+	}
+	// Should still work with default
+	if timeline == nil {
+		t.Error("Expected non-nil timeline")
+	}
+}
+
+// TestStatsRepository_GetLifestyleScore_HighScore verifies score message for excellent score.
+// [REQ:LD-UI-SCORE] Repository generates appropriate messages for high scores.
+func TestStatsRepository_GetLifestyleScore_HighScore(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	domainRepo := NewSQLiteDomainRepository(db)
+	eventRepo := NewSQLiteEventRepository(db)
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	// Create domains and many events to get high score
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "sleep", DisplayName: "Sleep"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "exercise", DisplayName: "Exercise"})
+	domainRepo.Upsert(ctx, &domain.Domain{Name: "nutrition", DisplayName: "Nutrition"})
+
+	// Add 5 events per domain to max out each domain (5*20=100)
+	for i := 0; i < 5; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "sleep", EventType: "logged"})
+		eventRepo.Create(ctx, &domain.Event{Domain: "exercise", EventType: "logged"})
+		eventRepo.Create(ctx, &domain.Event{Domain: "nutrition", EventType: "logged"})
+	}
+
+	resp, err := statsRepo.GetLifestyleScore(ctx, 7)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+
+	score := resp.Current
+	if score.Score < 80 {
+		t.Errorf("Expected high score >= 80, got %d", score.Score)
+	}
+	if score.DataQuality != "good" {
+		t.Errorf("Expected 'good' data quality with 3 domains, got '%s'", score.DataQuality)
+	}
+	if score.Message == "" {
+		t.Error("Expected non-empty message")
+	}
+}
+
+// TestStatsRepository_GetLifestyleScore_InvalidHistoryDays verifies default history days.
+// [REQ:LD-UI-SCORE] Repository handles invalid history days parameter.
+func TestStatsRepository_GetLifestyleScore_InvalidHistoryDays(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	statsRepo := NewSQLiteStatsRepository(db)
+	ctx := context.Background()
+
+	// Test with days <= 0 (should default to 7)
+	resp, err := statsRepo.GetLifestyleScore(ctx, 0)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score: %v", err)
+	}
+	if resp.History == nil {
+		t.Error("Expected history to be non-nil")
+	}
+
+	// Test with negative days
+	resp, err = statsRepo.GetLifestyleScore(ctx, -10)
+	if err != nil {
+		t.Fatalf("Failed to get lifestyle score with negative days: %v", err)
+	}
+	if resp.History == nil {
+		t.Error("Expected history to be non-nil with negative days")
+	}
+}
+
+// =============================================================================
+// Additional DomainRepository Tests for Coverage
+// =============================================================================
+
+// TestDomainRepository_Update_MultipleFields verifies updating multiple fields at once.
+// [REQ:LD-DOMAIN-REGISTER] Repository supports multi-field partial updates.
+func TestDomainRepository_Update_MultipleFields(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewSQLiteDomainRepository(db)
+	ctx := context.Background()
+
+	repo.Upsert(ctx, &domain.Domain{
+		Name:        "multi-update",
+		DisplayName: "Original",
+		Description: "Original Desc",
+	})
+
+	// Update all three fields simultaneously
+	err := repo.Update(ctx, "multi-update", map[string]interface{}{
+		"display_name": "Updated Display",
+		"description":  "Updated Description",
+		"status":       "inactive",
+	})
+	if err != nil {
+		t.Fatalf("Failed to update multiple fields: %v", err)
+	}
+
+	d, _ := repo.GetByName(ctx, "multi-update")
+	if d.DisplayName != "Updated Display" {
+		t.Errorf("Expected 'Updated Display', got '%s'", d.DisplayName)
+	}
+	if d.Description != "Updated Description" {
+		t.Errorf("Expected 'Updated Description', got '%s'", d.Description)
+	}
+	if d.Status != "inactive" {
+		t.Errorf("Expected 'inactive', got '%s'", d.Status)
+	}
+}
+
+// TestDomainRepository_Update_NotFound verifies error for non-existent domain.
+// [REQ:LD-DOMAIN-REGISTER] Repository returns error for missing domain.
+func TestDomainRepository_Update_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewSQLiteDomainRepository(db)
+	ctx := context.Background()
+
+	err := repo.Update(ctx, "nonexistent-domain", map[string]interface{}{
+		"display_name": "Test",
+	})
+	if !IsNotFound(err) {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+// TestDomainRepository_UpdateStatus_NotFound verifies error for non-existent domain status update.
+// [REQ:LD-DOMAIN-HEALTH] Repository returns error for missing domain.
+func TestDomainRepository_UpdateStatus_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewSQLiteDomainRepository(db)
+	ctx := context.Background()
+
+	err := repo.UpdateStatus(ctx, "nonexistent", "unhealthy", "2026-03-10T00:00:00Z")
+	if !IsNotFound(err) {
+		t.Errorf("Expected ErrNotFound, got %v", err)
+	}
+}
+
+// TestDomainRepository_GetByName_WithLastHealthAt verifies retrieval with last_health_at.
+// [REQ:LD-DOMAIN-HEALTH] Repository retrieves domain with health timestamp.
+func TestDomainRepository_GetByName_WithLastHealthAt(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewSQLiteDomainRepository(db)
+	ctx := context.Background()
+
+	// Create domain and set health status
+	repo.Upsert(ctx, &domain.Domain{Name: "health-test", DisplayName: "Health Test"})
+	healthTime := "2026-03-10T12:00:00Z"
+	repo.UpdateStatus(ctx, "health-test", "healthy", healthTime)
+
+	d, err := repo.GetByName(ctx, "health-test")
+	if err != nil {
+		t.Fatalf("Failed to get domain: %v", err)
+	}
+	if d.LastHealthAt == nil || *d.LastHealthAt != healthTime {
+		t.Errorf("Expected LastHealthAt '%s', got '%v'", healthTime, d.LastHealthAt)
+	}
+}
+
+// TestDomainRepository_List_WithLastHealthAt verifies listing with health timestamps.
+// [REQ:LD-DOMAIN-DISCOVER] Repository lists domains with health timestamps.
+func TestDomainRepository_List_WithLastHealthAt(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	repo := NewSQLiteDomainRepository(db)
+	ctx := context.Background()
+
+	repo.Upsert(ctx, &domain.Domain{Name: "list-health", DisplayName: "List Health"})
+	repo.UpdateStatus(ctx, "list-health", "healthy", "2026-03-10T12:00:00Z")
+
+	domains, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("Failed to list domains: %v", err)
+	}
+	if len(domains) != 1 {
+		t.Fatalf("Expected 1 domain, got %d", len(domains))
+	}
+	if domains[0].LastHealthAt == nil {
+		t.Error("Expected LastHealthAt to be set in list")
+	}
+}
+
+// =============================================================================
+// Additional StorageRepository Tests for Coverage
+// =============================================================================
+
+// TestStorageRepository_CleanupEvents_WithBefore verifies cleanup with time filter.
+// [REQ:LD-UI-STORAGE] Repository clears events before specified timestamp.
+func TestStorageRepository_CleanupEvents_WithBefore(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create events with specific timestamps (need to use raw SQL for custom timestamps)
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"old-event", "2026-01-01T12:00:00Z", "test", "event", "{}", false, "2026-01-01T12:00:00Z")
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"new-event", "2026-03-10T12:00:00Z", "test", "event", "{}", false, "2026-03-10T12:00:00Z")
+
+	// Clear events before March
+	result, err := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{
+		Before: "2026-02-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("Failed to cleanup events: %v", err)
+	}
+
+	if result.DeletedEvents != 1 {
+		t.Errorf("Expected 1 deleted event, got %d", result.DeletedEvents)
+	}
+	if result.Message == "" {
+		t.Error("Expected non-empty message")
+	}
+}
+
+// TestStorageRepository_CleanupEvents_DomainAndBefore verifies cleanup with both filters.
+// [REQ:LD-UI-STORAGE] Repository clears events with combined filters.
+func TestStorageRepository_CleanupEvents_DomainAndBefore(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create events with different domains and timestamps
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"target-old", "2026-01-01T12:00:00Z", "target-domain", "event", "{}", false, "2026-01-01T12:00:00Z")
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"target-new", "2026-03-10T12:00:00Z", "target-domain", "event", "{}", false, "2026-03-10T12:00:00Z")
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"other-old", "2026-01-01T12:00:00Z", "other-domain", "event", "{}", false, "2026-01-01T12:00:00Z")
+
+	// Clear only old events from target-domain
+	result, err := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{
+		Domains: []string{"target-domain"},
+		Before:  "2026-02-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("Failed to cleanup events: %v", err)
+	}
+
+	if result.DeletedEvents != 1 {
+		t.Errorf("Expected 1 deleted event, got %d", result.DeletedEvents)
+	}
+
+	// Verify other-old event still exists
+	var count int
+	db.QueryRowContext(ctx, `SELECT COUNT(*) FROM events WHERE id = 'other-old'`).Scan(&count)
+	if count != 1 {
+		t.Error("Expected other-old event to still exist")
+	}
+}
+
+// TestStorageRepository_CleanupEvents_MultipleDomains verifies cleanup with multiple domains.
+// [REQ:LD-UI-STORAGE] Repository clears events from multiple domains at once.
+func TestStorageRepository_CleanupEvents_MultipleDomains(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	storageRepo := NewSQLiteStorageRepository(db)
+	ctx := context.Background()
+
+	// Create events in multiple domains
+	eventRepo.Create(ctx, &domain.Event{Domain: "domain-a", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "domain-b", EventType: "test"})
+	eventRepo.Create(ctx, &domain.Event{Domain: "domain-c", EventType: "test"})
+
+	// Clear domain-a and domain-b
+	result, err := storageRepo.CleanupEvents(ctx, domain.CleanupRequest{
+		Domains: []string{"domain-a", "domain-b"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to cleanup events: %v", err)
+	}
+
+	if result.DeletedEvents != 2 {
+		t.Errorf("Expected 2 deleted events, got %d", result.DeletedEvents)
+	}
+
+	// Verify domain-c still has its event
+	events, _ := eventRepo.List(ctx, EventFilter{Domain: "domain-c"})
+	if len(events) != 1 {
+		t.Errorf("Expected 1 event in domain-c, got %d", len(events))
+	}
+}
+
+// =============================================================================
+// Additional EventRepository Tests for Coverage
+// =============================================================================
+
+// TestEventRepository_List_EndTimeFilter verifies end time filtering.
+// [REQ:LD-QUERY-FILTER] Repository supports end time filtering.
+func TestEventRepository_List_EndTimeFilter(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	ctx := context.Background()
+
+	// Create events with different timestamps
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"early", "2026-01-01T12:00:00Z", "test", "event", "{}", false, "2026-01-01T12:00:00Z")
+	db.ExecContext(ctx, `INSERT INTO events (id, timestamp, domain, event_type, payload, is_intervention, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"late", "2026-03-10T12:00:00Z", "test", "event", "{}", false, "2026-03-10T12:00:00Z")
+
+	// Filter to only get events before March
+	events, err := eventRepo.List(ctx, EventFilter{
+		EndTime: "2026-02-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("Failed to list events: %v", err)
+	}
+
+	if len(events) != 1 {
+		t.Errorf("Expected 1 event before end time, got %d", len(events))
+	}
+}
+
+// TestEventRepository_List_MaxLimit verifies max limit enforcement.
+// [REQ:LD-QUERY-FILTER] Repository enforces maximum limit.
+func TestEventRepository_List_MaxLimit(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	ctx := context.Background()
+
+	// Create more events than max limit (1000)
+	// For testing, we'll just verify that an excessive limit doesn't cause issues
+	for i := 0; i < 10; i++ {
+		eventRepo.Create(ctx, &domain.Event{Domain: "limit-test", EventType: "event"})
+	}
+
+	// Request more than max - should be capped
+	events, err := eventRepo.List(ctx, EventFilter{Limit: 5000})
+	if err != nil {
+		t.Fatalf("Failed to list events: %v", err)
+	}
+
+	// Should return at most 10 (our events) or max limit, whichever is smaller
+	if len(events) > 10 {
+		t.Errorf("Expected at most 10 events, got %d", len(events))
+	}
+}
+
+// TestEventRepository_Create_WithHypothesisID verifies hypothesis ID storage.
+// [REQ:LD-EVENT-STORAGE] Repository stores hypothesis correlation ID.
+func TestEventRepository_Create_WithHypothesisID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	eventRepo := NewSQLiteEventRepository(db)
+	ctx := context.Background()
+
+	hypothesisID := "hypo-123"
+	event := &domain.Event{
+		Domain:       "test",
+		EventType:    "test.event",
+		HypothesisID: &hypothesisID,
+	}
+	err := eventRepo.Create(ctx, event)
+	if err != nil {
+		t.Fatalf("Failed to create event: %v", err)
+	}
+
+	// Retrieve and verify
+	retrieved, _ := eventRepo.GetByID(ctx, event.ID)
+	if retrieved.HypothesisID == nil || *retrieved.HypothesisID != hypothesisID {
+		t.Errorf("Expected HypothesisID '%s', got %v", hypothesisID, retrieved.HypothesisID)
+	}
+}

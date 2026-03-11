@@ -1869,3 +1869,131 @@ func TestBriefs_ScoreIncluded(t *testing.T) {
 		t.Error("[REQ:LD-BRIEF-MORNING] Score trend should be set when score is available")
 	}
 }
+
+// =============================================================================
+// CORS and Middleware Tests
+// =============================================================================
+
+// TestCORS_HeadersOnRequest validates CORS headers are set on actual API requests.
+// Note: OPTIONS preflight requires explicit route registration; current implementation
+// relies on browsers sending actual requests with credentials, which works for same-origin
+// or when CORS is handled by a reverse proxy (common in production).
+func TestCORS_HeadersOnRequest(t *testing.T) {
+	srv, _, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Send actual POST request with Origin header (simulating cross-origin)
+	event := domain.CreateEventRequest{
+		Domain:    "test",
+		EventType: "test.event",
+		Payload:   json.RawMessage(`{}`),
+	}
+	body, _ := json.Marshal(event)
+
+	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://localhost:3000")
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	// Request should succeed
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// CORS headers should be set on response
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Errorf("Expected Access-Control-Allow-Origin to be 'http://localhost:3000', got '%s'",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Error("Expected Access-Control-Allow-Credentials header to be 'true'")
+	}
+	if w.Header().Get("Access-Control-Allow-Methods") == "" {
+		t.Error("Expected Access-Control-Allow-Methods header")
+	}
+	if w.Header().Get("Access-Control-Allow-Headers") == "" {
+		t.Error("Expected Access-Control-Allow-Headers header")
+	}
+}
+
+// TestCORS_WithOrigin validates CORS headers are set when Origin is present.
+func TestCORS_WithOrigin(t *testing.T) {
+	srv, _, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/api/v1/domains", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	// Origin should be reflected in Allow-Origin header
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+		t.Errorf("Expected Access-Control-Allow-Origin to be 'http://localhost:5173', got '%s'",
+			w.Header().Get("Access-Control-Allow-Origin"))
+	}
+	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Errorf("Expected Access-Control-Allow-Credentials to be 'true'")
+	}
+}
+
+// TestCORS_WithoutOrigin validates requests without Origin still work.
+func TestCORS_WithoutOrigin(t *testing.T) {
+	srv, _, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	// No Origin header
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	// Should still return OK
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	// Allow-Origin should not be set when no Origin provided
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("Expected no Access-Control-Allow-Origin without Origin header")
+	}
+}
+
+// TestServer_Handler validates the recovery handler wrapper is accessible.
+func TestServer_Handler(t *testing.T) {
+	srv, _, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Get the wrapped handler (includes recovery middleware)
+	handler := srv.Handler()
+	if handler == nil {
+		t.Fatal("Expected Handler() to return non-nil http.Handler")
+	}
+
+	// Use the handler directly - should work like the router
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 through Handler(), got %d", w.Code)
+	}
+}
+
+// TestLoggingMiddleware validates request logging occurs.
+func TestLoggingMiddleware(t *testing.T) {
+	srv, _, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Make a request that should be logged
+	req := httptest.NewRequest("GET", "/api/v1/stats/summary", nil)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+
+	// Just verify the request completes successfully (log output goes to stderr)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+}

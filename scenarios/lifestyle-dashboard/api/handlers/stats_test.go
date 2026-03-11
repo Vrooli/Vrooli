@@ -210,3 +210,161 @@ func TestGetSummary_EmptyDatabase(t *testing.T) {
 		t.Errorf("Expected 0 active domains, got %d", resp.ActiveDomains)
 	}
 }
+
+// TestGetScore_Success verifies lifestyle score retrieval.
+// [REQ:LD-UI-SCORE] Handler returns lifestyle score.
+func TestGetScore_Success(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.ScoreResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	// Empty database should return score of 0
+	if resp.Current.Score < 0 || resp.Current.Score > 100 {
+		t.Errorf("Expected score 0-100, got %d", resp.Current.Score)
+	}
+}
+
+// TestGetScore_WithActivity verifies score calculation with domain activity.
+// [REQ:LD-UI-SCORE] Handler calculates score based on domain activity.
+func TestGetScore_WithActivity(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	// Create test data across multiple domains
+	h.registerTestDomain(t, "score-domain-1", "Score Domain 1")
+	h.registerTestDomain(t, "score-domain-2", "Score Domain 2")
+	h.createTestEvent(t, "score-domain-1", "test.event")
+	h.createTestEvent(t, "score-domain-1", "test.event")
+	h.createTestEvent(t, "score-domain-2", "test.event")
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.ScoreResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	// With activity, score should be greater than 0
+	if resp.Current.Score <= 0 {
+		t.Errorf("Expected score > 0 with activity, got %d", resp.Current.Score)
+	}
+	// Should have domain scores breakdown
+	if len(resp.Current.DomainScores) == 0 {
+		t.Error("Expected domain scores with activity")
+	}
+}
+
+// TestGetScore_WithHistoryDays verifies history_days parameter handling.
+// [REQ:LD-UI-SCORE] Handler respects history_days parameter.
+func TestGetScore_WithHistoryDays(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score?history_days=14", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.ScoreResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	// History should contain 14 entries
+	if len(resp.History) != 14 {
+		t.Errorf("Expected 14 history entries, got %d", len(resp.History))
+	}
+}
+
+// TestGetScore_DefaultHistoryDays verifies default history_days.
+// [REQ:LD-UI-SCORE] Handler uses default history_days.
+func TestGetScore_DefaultHistoryDays(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.ScoreResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	// Should have history with default 7 days
+	if len(resp.History) != 7 {
+		t.Errorf("Expected 7 history entries (default), got %d", len(resp.History))
+	}
+}
+
+// TestGetTimeline_InvalidDays verifies invalid days parameter handling.
+// [REQ:LD-QUERY-AGGREGATE] Timeline parameter validation.
+func TestGetTimeline_InvalidDays(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/timeline?days=invalid", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetTimeline(rr, req)
+
+	// Should still succeed with default days
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.TimelineResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	if resp.Days != "7" {
+		t.Errorf("Expected default days '7', got '%s'", resp.Days)
+	}
+}
+
+// TestGetTimeline_MaxDays verifies max days limit enforcement.
+// [REQ:LD-QUERY-AGGREGATE] Timeline max days enforcement.
+func TestGetTimeline_MaxDays(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	// Request more than max allowed
+	req := httptest.NewRequest("GET", "/api/v1/stats/timeline?days=999", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetTimeline(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp domain.TimelineResponse
+	json.NewDecoder(rr.Body).Decode(&resp)
+	// Should be capped at max (365)
+	if resp.Days != "365" {
+		t.Errorf("Expected capped days '365', got '%s'", resp.Days)
+	}
+}

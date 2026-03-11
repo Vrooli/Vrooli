@@ -38,7 +38,8 @@ func setupTestHandler(t *testing.T) (*Handler, *sql.DB) {
 	statsRepo := repository.NewSQLiteStatsRepository(db)
 	storageRepo := repository.NewSQLiteStorageRepository(db)
 	briefsRepo := repository.NewSQLiteBriefRepository(db)
-	h := New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo)
+	scoreConfigRepo := repository.NewSQLiteScoreConfigRepository(db)
+	h := New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo, scoreConfigRepo)
 	return h, db
 }
 
@@ -64,6 +65,9 @@ func TestNew_CreatesHandler(t *testing.T) {
 	}
 	if h.Briefs == nil {
 		t.Error("Handler Briefs repository should not be nil")
+	}
+	if h.ScoreConfig == nil {
+		t.Error("Handler ScoreConfig repository should not be nil")
 	}
 }
 

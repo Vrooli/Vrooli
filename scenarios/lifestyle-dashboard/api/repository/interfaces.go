@@ -96,6 +96,19 @@ type BriefRepository interface {
 	GetCurrentBrief(ctx context.Context) (*domain.Brief, error)
 }
 
+// ScoreConfigRepository abstracts score configuration operations.
+// [REQ:LD-SCORE-CALC] Configurable domain weights for lifestyle score.
+type ScoreConfigRepository interface {
+	// GetWeights returns weight configurations for all registered domains.
+	GetWeights(ctx context.Context) ([]domain.DomainWeightConfig, error)
+
+	// GetWeight returns the weight configuration for a specific domain.
+	GetWeight(ctx context.Context, domainName string) (*domain.DomainWeightConfig, error)
+
+	// SetWeight updates the weight for a specific domain.
+	SetWeight(ctx context.Context, domainName, weight string) error
+}
+
 // ErrNotFound is returned when a requested entity doesn't exist.
 type ErrNotFound struct {
 	Entity string

@@ -98,12 +98,12 @@ func (r *SQLiteStatsRepository) GetSummary(ctx context.Context) (*domain.Summary
 }
 
 // GetLifestyleScore calculates the composite lifestyle score.
-// [REQ:LD-UI-SCORE] Provides score data for dashboard display.
+// [REQ:LD-UI-SCORE] [REQ:LD-SCORE-CALC] Provides score data for dashboard display.
 //
-// Scoring algorithm (P0 simplified version):
-// - Each active domain contributes equally (weight = 1/N where N = active domains)
+// Scoring algorithm (P1 version with configurable weights):
+// - Domain weights are configurable: high (3x), medium (2x), low (1x), none (0x)
 // - Domain score = min(100, events_today * 20) -- each event adds 20 points, capped at 100
-// - Composite = weighted average of domain scores
+// - Composite = weighted average of domain scores using configured multipliers
 // - Data quality: "good" if >=3 domains with events, "limited" if 1-2, "insufficient" if 0
 func (r *SQLiteStatsRepository) GetLifestyleScore(ctx context.Context, historyDays int) (*domain.ScoreResponse, error) {
 	if historyDays <= 0 {
@@ -199,12 +199,14 @@ func calculateDomainScore(eventCount int) int {
 }
 
 // getTodayDomainScores calculates per-domain scores for the given date.
+// [REQ:LD-SCORE-CALC] Uses configurable domain weights from domain_weights table.
 func (r *SQLiteStatsRepository) getTodayDomainScores(ctx context.Context, date string) ([]domain.DomainScore, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 			d.name,
 			d.display_name,
-			COALESCE(e.event_count, 0) as event_count
+			COALESCE(e.event_count, 0) as event_count,
+			COALESCE(w.weight, 'medium') as weight_label
 		FROM domains d
 		LEFT JOIN (
 			SELECT domain, count(*) as event_count
@@ -212,6 +214,7 @@ func (r *SQLiteStatsRepository) getTodayDomainScores(ctx context.Context, date s
 			WHERE date(timestamp) = ?
 			GROUP BY domain
 		) e ON d.name = e.domain
+		LEFT JOIN domain_weights w ON d.name = w.domain
 		WHERE d.status = 'active'
 		ORDER BY d.name
 	`, date)
@@ -221,20 +224,36 @@ func (r *SQLiteStatsRepository) getTodayDomainScores(ctx context.Context, date s
 	defer rows.Close()
 
 	var scores []domain.DomainScore
+	var totalMultiplier float64
 	for rows.Next() {
 		var ds domain.DomainScore
-		if err := rows.Scan(&ds.Domain, &ds.DisplayName, &ds.EventCount); err != nil {
+		var weightLabel string
+		if err := rows.Scan(&ds.Domain, &ds.DisplayName, &ds.EventCount, &weightLabel); err != nil {
 			continue
 		}
 		ds.Score = calculateDomainScore(ds.EventCount)
+
+		// Apply preset if no explicit weight is set
+		if weightLabel == "medium" {
+			if preset, ok := domain.WeightPresets[ds.Domain]; ok {
+				weightLabel = preset
+			}
+		}
+
+		// Get multiplier for this weight level
+		multiplier := domain.WeightMultipliers[weightLabel]
+		if multiplier == 0 {
+			multiplier = 2.0 // Default to medium if unknown
+		}
+		ds.Weight = multiplier
+		totalMultiplier += multiplier
 		scores = append(scores, ds)
 	}
 
-	// Set equal weights across all domains
-	if len(scores) > 0 {
-		weight := 1.0 / float64(len(scores))
+	// Normalize weights to sum to 1.0 for the weighted average calculation
+	if totalMultiplier > 0 {
 		for i := range scores {
-			scores[i].Weight = weight
+			scores[i].Weight = scores[i].Weight / totalMultiplier
 		}
 	}
 
@@ -242,33 +261,53 @@ func (r *SQLiteStatsRepository) getTodayDomainScores(ctx context.Context, date s
 }
 
 // calculateDayScore computes the composite score for a specific date.
+// [REQ:LD-SCORE-CALC] Uses configurable domain weights for historical consistency.
 func (r *SQLiteStatsRepository) calculateDayScore(ctx context.Context, date string) (int, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT domain, count(*) as event_count
-		FROM events
-		WHERE date(timestamp) = ?
-		GROUP BY domain
+		SELECT
+			e.domain,
+			count(*) as event_count,
+			COALESCE(w.weight, 'medium') as weight_label
+		FROM events e
+		LEFT JOIN domain_weights w ON e.domain = w.domain
+		WHERE date(e.timestamp) = ?
+		GROUP BY e.domain
 	`, date)
 	if err != nil {
 		return 0, err
 	}
 	defer rows.Close()
 
-	var domainCount, totalScore int
+	var totalWeightedScore, totalMultiplier float64
 	for rows.Next() {
-		var domainName string
+		var domainName, weightLabel string
 		var eventCount int
-		if err := rows.Scan(&domainName, &eventCount); err != nil {
+		if err := rows.Scan(&domainName, &eventCount, &weightLabel); err != nil {
 			continue
 		}
-		totalScore += calculateDomainScore(eventCount)
-		domainCount++
+
+		// Apply preset if no explicit weight is set
+		if weightLabel == "medium" {
+			if preset, ok := domain.WeightPresets[domainName]; ok {
+				weightLabel = preset
+			}
+		}
+
+		// Get multiplier for this weight level
+		multiplier := domain.WeightMultipliers[weightLabel]
+		if multiplier == 0 {
+			multiplier = 2.0 // Default to medium if unknown
+		}
+
+		score := calculateDomainScore(eventCount)
+		totalWeightedScore += float64(score) * multiplier
+		totalMultiplier += multiplier
 	}
 
-	if domainCount == 0 {
+	if totalMultiplier == 0 {
 		return 0, nil
 	}
-	return totalScore / domainCount, rows.Err()
+	return int(totalWeightedScore / totalMultiplier), rows.Err()
 }
 
 // getScoreHistory returns historical scores for the past N days.

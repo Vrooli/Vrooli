@@ -152,7 +152,7 @@
       "linked_operational_target_ids": ["OT-P1-003"],
       "title": "Composite Lifestyle Score",
       "description": "Daily 0-100 score combining all active domains. Weights configurable (sleep heavy, socialization light). Trajectory visualization over time. No gamification.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-SCORE-CALC"
       ],

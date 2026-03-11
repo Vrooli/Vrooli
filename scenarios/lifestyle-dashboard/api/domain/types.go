@@ -214,3 +214,45 @@ type BriefResponse struct {
 	Brief  Brief  `json:"brief"`
 	Config BriefConfig `json:"config"`
 }
+
+// =============================================================================
+// Score Configuration Types (P1-003)
+// =============================================================================
+
+// DomainWeightConfig holds user-configurable weight for a domain.
+// [REQ:LD-SCORE-CALC] Configurable domain weights for lifestyle score.
+type DomainWeightConfig struct {
+	Domain      string  `json:"domain"`       // Domain name
+	DisplayName string  `json:"display_name"` // Human-readable name
+	Weight      string  `json:"weight"`       // "high", "medium", "low", "none"
+	Multiplier  float64 `json:"multiplier"`   // Numeric weight (high=3, medium=2, low=1, none=0)
+}
+
+// ScoreConfigResponse wraps score configuration for API responses.
+// [REQ:LD-SCORE-CALC] Score configuration endpoint.
+type ScoreConfigResponse struct {
+	Weights       []DomainWeightConfig `json:"weights"`
+	DefaultWeight string               `json:"default_weight"` // Applied to new domains
+}
+
+// UpdateWeightRequest is the request body for updating a domain's weight.
+type UpdateWeightRequest struct {
+	Weight string `json:"weight"` // "high", "medium", "low", "none"
+}
+
+// WeightPresets defines recommended weight configurations.
+var WeightPresets = map[string]string{
+	"sleep":         "high",   // Sleep is foundational
+	"exercise":      "high",   // Physical activity is core
+	"diet":          "medium", // Nutrition is important
+	"nootropics":    "medium", // Supplements matter
+	"socialization": "low",    // Social is tracked but less weighted
+}
+
+// WeightMultipliers maps weight labels to numeric multipliers.
+var WeightMultipliers = map[string]float64{
+	"high":   3.0,
+	"medium": 2.0,
+	"low":    1.0,
+	"none":   0.0,
+}
