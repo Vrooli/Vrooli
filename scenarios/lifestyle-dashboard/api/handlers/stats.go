@@ -17,6 +17,11 @@ import (
 // GetTimeline handles GET /api/v1/stats/timeline - P0-003, P0-004
 // [REQ:LD-QUERY-AGGREGATE] Returns event counts grouped by day and domain.
 func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
+	if h.Stats == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "stats service not configured"))
+		return
+	}
+
 	cfg := config.DefaultQueryConfig()
 	query := r.URL.Query()
 	daysStr := query.Get("days")
@@ -47,6 +52,11 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 // GetSummary handles GET /api/v1/stats/summary - P0-003, P0-004
 // [REQ:LD-QUERY-AGGREGATE] Returns aggregated statistics across all domains.
 func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
+	if h.Stats == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "stats service not configured"))
+		return
+	}
+
 	summary, err := h.Stats.GetSummary(r.Context())
 	if err != nil {
 		log.Printf("[ERROR] GetSummary: database error: %v", err)
@@ -60,6 +70,11 @@ func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 // GetScore handles GET /api/v1/stats/score - P0-004, P1-003
 // [REQ:LD-UI-SCORE] Returns the daily lifestyle score for dashboard display.
 func (h *Handler) GetScore(w http.ResponseWriter, r *http.Request) {
+	if h.Stats == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "stats service not configured"))
+		return
+	}
+
 	cfg := config.DefaultQueryConfig()
 	query := r.URL.Query()
 	historyDaysStr := query.Get("history_days")

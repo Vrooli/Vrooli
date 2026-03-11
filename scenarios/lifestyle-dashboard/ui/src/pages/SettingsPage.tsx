@@ -1,9 +1,10 @@
 /**
  * Settings Page
  *
- * Storage management and configuration settings.
+ * Storage management, score configuration, and system settings.
  *
  * [REQ:LD-UI-STORAGE] - Storage management UI
+ * [REQ:LD-SCORE-CALC] - Score configuration UI
  */
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,18 +17,36 @@ import {
   AlertTriangle,
   CheckCircle,
   Loader2,
+  Scale,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { fetchHealth, fetchStorageInfo, cleanupEvents, type StorageInfo } from "../lib/api";
+import { Card, StatBox } from "../components/ui";
+import {
+  fetchHealth,
+  fetchStorageInfo,
+  cleanupEvents,
+  fetchScoreConfig,
+  updateDomainWeight,
+  type StorageInfo,
+  type DomainWeightConfig,
+} from "../lib/api";
 import { formatBytes, formatDate } from "../lib/format";
 import { DATA_SELECTORS } from "../consts/selectors";
+
+const WEIGHT_OPTIONS = [
+  { value: "high", label: "High", color: "text-green-400", description: "3x weight" },
+  { value: "medium", label: "Medium", color: "text-yellow-400", description: "2x weight" },
+  { value: "low", label: "Low", color: "text-gray-400", description: "1x weight" },
+  { value: "none", label: "None", color: "text-red-400", description: "Excluded" },
+];
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
+  const [weightResult, setWeightResult] = useState<string | null>(null);
 
   const healthQuery = useQuery({
     queryKey: ["health"],
@@ -39,6 +58,13 @@ export default function SettingsPage() {
     queryKey: ["storage"],
     queryFn: fetchStorageInfo,
     refetchInterval: 30000,
+  });
+
+  // [REQ:LD-SCORE-CALC] Score configuration query
+  const scoreConfigQuery = useQuery({
+    queryKey: ["scoreConfig"],
+    queryFn: fetchScoreConfig,
+    refetchInterval: 60000,
   });
 
   const cleanupMutation = useMutation({
@@ -62,6 +88,22 @@ export default function SettingsPage() {
     },
   });
 
+  // [REQ:LD-SCORE-CALC] Weight update mutation
+  const weightMutation = useMutation({
+    mutationFn: ({ domain, weight }: { domain: string; weight: string }) =>
+      updateDomainWeight(domain, weight),
+    onSuccess: (data) => {
+      setWeightResult(`Updated ${data.display_name} to ${data.weight} weight`);
+      queryClient.invalidateQueries({ queryKey: ["scoreConfig"] });
+      queryClient.invalidateQueries({ queryKey: ["score"] });
+      setTimeout(() => setWeightResult(null), 3000);
+    },
+    onError: (err) => {
+      setWeightResult(`Error: ${err instanceof Error ? err.message : "Failed to update weight"}`);
+      setTimeout(() => setWeightResult(null), 5000);
+    },
+  });
+
   const handleClearAll = useCallback(() => {
     cleanupMutation.mutate(undefined);
   }, [cleanupMutation]);
@@ -73,8 +115,16 @@ export default function SettingsPage() {
     [cleanupMutation]
   );
 
+  const handleWeightChange = useCallback(
+    (domain: string, weight: string) => {
+      weightMutation.mutate({ domain, weight });
+    },
+    [weightMutation]
+  );
+
   const dbInfo = healthQuery.data?.dependencies?.database;
   const storage: StorageInfo | undefined = storageQuery.data;
+  const scoreConfig = scoreConfigQuery.data;
 
   return (
     <div className="space-y-6" data-testid={DATA_SELECTORS.SETTINGS_PAGE}>
@@ -85,11 +135,11 @@ export default function SettingsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-slate-400">Storage management and configuration</p>
+          <p className="text-slate-400">Storage management, score weights, and configuration</p>
         </div>
       </div>
 
-      {/* Cleanup result notification */}
+      {/* Notifications */}
       {cleanupResult && (
         <div
           className={`p-4 rounded-lg flex items-center gap-3 ${
@@ -107,8 +157,85 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {weightResult && (
+        <div
+          className={`p-4 rounded-lg flex items-center gap-3 ${
+            weightResult.startsWith("Error")
+              ? "bg-red-500/10 border border-red-500/20 text-red-400"
+              : "bg-green-500/10 border border-green-500/20 text-green-400"
+          }`}
+        >
+          {weightResult.startsWith("Error") ? (
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          )}
+          <span>{weightResult}</span>
+        </div>
+      )}
+
+      {/* Score Configuration [REQ:LD-SCORE-CALC] */}
+      <Card padding="lg">
+        <div className="flex items-center gap-3 mb-6">
+          <Scale className="w-6 h-6 text-purple-400" />
+          <div>
+            <h2 className="text-lg font-medium">Score Configuration</h2>
+            <p className="text-sm text-slate-400">Adjust how each domain contributes to your Lifestyle Score</p>
+          </div>
+        </div>
+
+        {scoreConfigQuery.isLoading ? (
+          <div className="text-center py-8 text-slate-500">Loading score configuration...</div>
+        ) : scoreConfig && scoreConfig.weights.length > 0 ? (
+          <div className="space-y-3">
+            {scoreConfig.weights.map((config: DomainWeightConfig) => (
+              <div
+                key={config.domain}
+                className="flex items-center justify-between py-3 px-4 rounded-lg bg-slate-800/30"
+                data-testid={`weight-config-${config.domain}`}
+              >
+                <div>
+                  <p className="font-medium">{config.display_name}</p>
+                  <p className="text-sm text-slate-500">{config.domain}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={config.weight}
+                    onChange={(e) => handleWeightChange(config.domain, e.target.value)}
+                    disabled={weightMutation.isPending}
+                    className="bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                  >
+                    {WEIGHT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} ({option.description})
+                      </option>
+                    ))}
+                  </select>
+                  {weightMutation.isPending && (
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-white/5">
+              <strong>Weight multipliers:</strong> High = 3x, Medium = 2x, Low = 1x, None = excluded from score.
+              New domains default to {scoreConfig.default_weight} weight.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-slate-400">
+            <Scale className="w-12 h-12 mx-auto mb-3 text-slate-700" />
+            <p>No domains registered yet</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Domain score weights will appear here when domains are registered
+            </p>
+          </div>
+        )}
+      </Card>
+
       {/* Storage overview */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card padding="lg">
         <div className="flex items-center gap-3 mb-6">
           <HardDrive className="w-6 h-6 text-blue-400" />
           <h2 className="text-lg font-medium">Storage Overview</h2>
@@ -116,7 +243,7 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Database size */}
-          <div className="rounded-lg bg-slate-800/50 p-4">
+          <StatBox>
             <div className="flex items-center gap-2 mb-2">
               <Database className="w-4 h-4 text-slate-400" />
               <span className="text-sm text-slate-400">Database Size</span>
@@ -129,28 +256,28 @@ export default function SettingsPage() {
             <p className="text-sm text-slate-500">
               {dbInfo?.connected ? "SQLite (WAL)" : "Disconnected"}
             </p>
-          </div>
+          </StatBox>
 
           {/* Total events */}
-          <div className="rounded-lg bg-slate-800/50 p-4">
+          <StatBox>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm text-slate-400">Total Events</span>
             </div>
             <p className="text-lg font-medium">{storage?.total_events ?? "-"}</p>
             <p className="text-sm text-slate-500">Stored in database</p>
-          </div>
+          </StatBox>
 
           {/* Active domains */}
-          <div className="rounded-lg bg-slate-800/50 p-4">
+          <StatBox>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm text-slate-400">Active Domains</span>
             </div>
             <p className="text-lg font-medium">{storage?.total_domains ?? "-"}</p>
             <p className="text-sm text-slate-500">Currently registered</p>
-          </div>
+          </StatBox>
 
           {/* Date range */}
-          <div className="rounded-lg bg-slate-800/50 p-4">
+          <StatBox>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm text-slate-400">Data Range</span>
             </div>
@@ -162,13 +289,13 @@ export default function SettingsPage() {
                 ? `to ${formatDate(storage.newest_event)}`
                 : "No events"}
             </p>
-          </div>
+          </StatBox>
         </div>
-      </div>
+      </Card>
 
       {/* Events by domain */}
       {storage?.events_by_domain && storage.events_by_domain.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <Card padding="lg">
           <div className="flex items-center gap-3 mb-6">
             <Database className="w-6 h-6 text-purple-400" />
             <h2 className="text-lg font-medium">Events by Domain</h2>
@@ -199,11 +326,11 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Service info */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card padding="lg">
         <div className="flex items-center gap-3 mb-6">
           <RefreshCw className="w-6 h-6 text-green-400" />
           <h2 className="text-lg font-medium">Service Information</h2>
@@ -241,10 +368,10 @@ export default function SettingsPage() {
             </span>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Data management */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card padding="lg">
         <div className="flex items-center gap-3 mb-6">
           <Trash2 className="w-6 h-6 text-red-400" />
           <h2 className="text-lg font-medium">Data Management</h2>
@@ -270,9 +397,9 @@ export default function SettingsPage() {
         </div>
 
         <p className="mt-4 text-xs text-slate-500">
-          [REQ:LD-UI-STORAGE] Storage management features
+          [REQ:LD-UI-STORAGE] [REQ:LD-SCORE-CALC] Storage and score configuration
         </p>
-      </div>
+      </Card>
 
       {/* Confirm clear all modal */}
       {showConfirmClear && (

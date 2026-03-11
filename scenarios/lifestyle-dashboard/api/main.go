@@ -52,11 +52,12 @@ func NewServer(db *sql.DB) *Server {
 	storageRepo := repository.NewSQLiteStorageRepository(db)
 	briefsRepo := repository.NewSQLiteBriefRepository(db)
 	scoreConfigRepo := repository.NewSQLiteScoreConfigRepository(db)
+	digestRepo := repository.NewSQLiteDigestRepository(db)
 
 	srv := &Server{
 		db:      db,
 		router:  mux.NewRouter(),
-		handler: handlers.New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo, scoreConfigRepo),
+		handler: handlers.New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo, scoreConfigRepo, digestRepo),
 	}
 	srv.setupRoutes()
 	return srv
@@ -105,6 +106,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/briefs/current", s.handler.GetCurrentBrief).Methods("GET")
 	s.router.HandleFunc("/api/v1/briefs/morning", s.handler.GetMorningBrief).Methods("GET")
 	s.router.HandleFunc("/api/v1/briefs/evening", s.handler.GetEveningBrief).Methods("GET")
+
+	// Weekly Digest API - P1-002
+	// [REQ:LD-DIGEST-WEEKLY] Weekly "What Changed?" digest
+	s.router.HandleFunc("/api/v1/digests/current", s.handler.GetCurrentDigest).Methods("GET")
+	s.router.HandleFunc("/api/v1/digests/{week_start}", s.handler.GetDigestByWeek).Methods("GET")
 }
 
 // Handler returns the HTTP handler with recovery middleware.

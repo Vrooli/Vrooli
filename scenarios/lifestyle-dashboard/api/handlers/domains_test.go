@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"lifestyle-dashboard/domain"
+	"lifestyle-dashboard/errors"
 )
 
 // TestRegisterDomain_Success verifies domain registration through handlers.
@@ -471,6 +474,58 @@ func TestGetDomainHealth_WithHealthURL_BadStatusCode(t *testing.T) {
 	if resp.Message == "" {
 		t.Error("Expected non-empty message for bad status code")
 	}
+}
+
+// TestListDomains_DatabaseError verifies error handling when List returns error.
+// [REQ:LD-DOMAIN-DISCOVER] Domain listing handles database errors.
+func TestListDomains_DatabaseError(t *testing.T) {
+	// Use mock repository with injected error
+	mockDomains := &mockDomainRepoWithError{
+		listError: fmt.Errorf("database connection lost"),
+	}
+	h := &Handler{Domains: mockDomains}
+
+	req := httptest.NewRequest("GET", "/api/v1/domains", nil)
+	rr := httptest.NewRecorder()
+
+	h.ListDomains(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+
+	var errResp errors.APIError
+	if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+		t.Fatalf("Failed to decode error response: %v", err)
+	}
+	if errResp.Category != errors.CategoryInternal {
+		t.Errorf("Expected category 'internal', got '%s'", errResp.Category)
+	}
+}
+
+// mockDomainRepoWithError provides controlled error injection for domain repository.
+type mockDomainRepoWithError struct {
+	listError error
+}
+
+func (m *mockDomainRepoWithError) Upsert(ctx context.Context, d *domain.Domain) error {
+	return nil
+}
+
+func (m *mockDomainRepoWithError) GetByName(ctx context.Context, name string) (*domain.Domain, error) {
+	return nil, nil
+}
+
+func (m *mockDomainRepoWithError) List(ctx context.Context) ([]domain.Domain, error) {
+	return nil, m.listError
+}
+
+func (m *mockDomainRepoWithError) UpdateStatus(ctx context.Context, name, status, lastHealthAt string) error {
+	return nil
+}
+
+func (m *mockDomainRepoWithError) Update(ctx context.Context, name string, updates map[string]interface{}) error {
+	return nil
 }
 
 // TestGetDomainHealth_NoHealthURL_WithLastHealthAt verifies no health URL response with last health time.

@@ -104,7 +104,7 @@ func (r *SQLiteStatsRepository) GetSummary(ctx context.Context) (*domain.Summary
 // - Domain weights are configurable: high (3x), medium (2x), low (1x), none (0x)
 // - Domain score = min(100, events_today * 20) -- each event adds 20 points, capped at 100
 // - Composite = weighted average of domain scores using configured multipliers
-// - Data quality: "good" if >=3 domains with events, "limited" if 1-2, "insufficient" if 0
+// - Data quality: determined by domain.DetermineDataQuality()
 func (r *SQLiteStatsRepository) GetLifestyleScore(ctx context.Context, historyDays int) (*domain.ScoreResponse, error) {
 	if historyDays <= 0 {
 		historyDays = 7
@@ -136,13 +136,8 @@ func (r *SQLiteStatsRepository) GetLifestyleScore(ctx context.Context, historyDa
 		compositeScore = int(totalScore / totalWeight)
 	}
 
-	// Determine data quality
-	dataQuality := "insufficient"
-	if domainsWithData >= 3 {
-		dataQuality = "good"
-	} else if domainsWithData >= 1 {
-		dataQuality = "limited"
-	}
+	// Determine data quality using domain decision helper
+	dataQuality := domain.DetermineDataQuality(domainsWithData)
 
 	// Get yesterday's score for trend calculation
 	yesterdayScore, err := r.calculateDayScore(ctx, yesterday)
@@ -150,17 +145,12 @@ func (r *SQLiteStatsRepository) GetLifestyleScore(ctx context.Context, historyDa
 		yesterdayScore = 0
 	}
 
-	// Determine trend
+	// Determine trend using domain decision helper
 	changeFromYesterday := compositeScore - yesterdayScore
-	trend := "stable"
-	if changeFromYesterday > 5 {
-		trend = "up"
-	} else if changeFromYesterday < -5 {
-		trend = "down"
-	}
+	trend := domain.DetermineDirection(float64(changeFromYesterday))
 
-	// Generate message
-	message := r.generateScoreMessage(compositeScore, trend, dataQuality, domainsWithData)
+	// Generate message using domain decision helpers
+	message := r.generateScoreMessage(compositeScore, string(trend), string(dataQuality), domainsWithData)
 
 	// Get history
 	history, err := r.getScoreHistory(ctx, historyDays)
@@ -173,29 +163,19 @@ func (r *SQLiteStatsRepository) GetLifestyleScore(ctx context.Context, historyDa
 			Score:               compositeScore,
 			Date:                today,
 			DomainScores:        domainScores,
-			Trend:               trend,
+			Trend:               string(trend),
 			ChangeFromYesterday: changeFromYesterday,
-			DataQuality:         dataQuality,
+			DataQuality:         string(dataQuality),
 			Message:             message,
 		},
 		History: history,
 	}, nil
 }
 
-// scoreMultiplier is the points per event (20 points per event).
-const scoreMultiplier = 20
-
-// maxDomainScore is the cap per domain (100 max).
-const maxDomainScore = 100
-
 // calculateDomainScore converts event count to a capped score.
-// Each event adds 20 points, capped at 100.
+// Delegates to domain.CalculateDomainScore for centralized decision logic.
 func calculateDomainScore(eventCount int) int {
-	score := eventCount * scoreMultiplier
-	if score > maxDomainScore {
-		return maxDomainScore
-	}
-	return score
+	return domain.CalculateDomainScore(eventCount)
 }
 
 // getTodayDomainScores calculates per-domain scores for the given date.
@@ -330,36 +310,21 @@ func (r *SQLiteStatsRepository) getScoreHistory(ctx context.Context, days int) (
 }
 
 // generateScoreMessage creates a human-readable summary of the score.
+// Uses domain decision helpers for consistent messaging across the codebase.
 func (r *SQLiteStatsRepository) generateScoreMessage(score int, trend, dataQuality string, domainsWithData int) string {
-	if dataQuality == "insufficient" {
+	if dataQuality == string(domain.DataQualityInsufficient) {
 		return "No activity recorded today. Start tracking to see your lifestyle score."
 	}
 
 	var qualityNote string
-	if dataQuality == "limited" {
+	if dataQuality == string(domain.DataQualityLimited) {
 		qualityNote = fmt.Sprintf(" Based on %d domain(s).", domainsWithData)
 	}
 
-	var trendNote string
-	switch trend {
-	case "up":
-		trendNote = " Trending up from yesterday!"
-	case "down":
-		trendNote = " Down from yesterday."
-	default:
-		trendNote = " Steady from yesterday."
-	}
-
-	var scoreNote string
-	if score >= 80 {
-		scoreNote = "Excellent day!"
-	} else if score >= 60 {
-		scoreNote = "Good progress today."
-	} else if score >= 40 {
-		scoreNote = "Moderate activity."
-	} else {
-		scoreNote = "Light activity today."
-	}
+	// Use domain helpers for consistent messaging
+	trendNote := domain.TrendMessage(domain.Direction(trend))
+	scoreLevel := domain.DetermineScoreLevel(score)
+	scoreNote := domain.ScoreLevelMessage(scoreLevel)
 
 	return scoreNote + trendNote + qualityNote
 }

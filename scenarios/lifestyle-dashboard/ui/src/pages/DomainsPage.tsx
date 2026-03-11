@@ -10,6 +10,7 @@ import { Heart, RefreshCw, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { StatusBadge } from "../components/dashboard";
+import { Card } from "../components/ui";
 import { fetchDomains, type Domain } from "../lib/api";
 import { formatRelativeTime } from "../lib/format";
 
@@ -52,14 +53,14 @@ export default function DomainsPage() {
 
       {/* Empty state */}
       {!domainsQuery.isLoading && (!domainsQuery.data?.domains || domainsQuery.data.domains.length === 0) && (
-        <div className="text-center py-12 rounded-xl border border-white/10 bg-white/5">
+        <Card padding="lg" className="text-center py-12">
           <Heart className="w-16 h-16 mx-auto text-slate-700 mb-4" />
           <h2 className="text-xl font-medium text-slate-300 mb-2">No domains registered</h2>
           <p className="text-slate-500 max-w-md mx-auto">
             Domain scenarios will register themselves when they start.
             Start a health scenario to see it appear here.
           </p>
-        </div>
+        </Card>
       )}
 
       {/* Active domains */}
@@ -74,35 +75,36 @@ export default function DomainsPage() {
               <Link
                 key={domain.name}
                 to={`/domains/${domain.name}`}
-                className="block rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-lg">{domain.display_name}</h3>
-                    <p className="text-sm text-slate-400">{domain.name}</p>
+                <Card interactive padding="lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-lg">{domain.display_name}</h3>
+                      <p className="text-sm text-slate-400">{domain.name}</p>
+                    </div>
+                    <StatusBadge status={domain.status} />
                   </div>
-                  <StatusBadge status={domain.status} />
-                </div>
-                {domain.description && (
-                  <p className="mt-3 text-sm text-slate-400 line-clamp-2">{domain.description}</p>
-                )}
-                {domain.capabilities && domain.capabilities.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {domain.capabilities.slice(0, 3).map((cap: string) => (
-                      <span key={cap} className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-400">
-                        {cap}
-                      </span>
-                    ))}
-                    {domain.capabilities.length > 3 && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-slate-500/10 text-slate-400">
-                        +{domain.capabilities.length - 3} more
-                      </span>
-                    )}
+                  {domain.description && (
+                    <p className="mt-3 text-sm text-slate-400 line-clamp-2">{domain.description}</p>
+                  )}
+                  {domain.capabilities && domain.capabilities.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {domain.capabilities.slice(0, 3).map((cap: string) => (
+                        <span key={cap} className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-400">
+                          {cap}
+                        </span>
+                      ))}
+                      {domain.capabilities.length > 3 && (
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-slate-500/10 text-slate-400">
+                          +{domain.capabilities.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-4 text-xs text-slate-500">
+                    Updated {formatRelativeTime(domain.updated_at)}
                   </div>
-                )}
-                <div className="mt-4 text-xs text-slate-500">
-                  Updated {formatRelativeTime(domain.updated_at)}
-                </div>
+                </Card>
               </Link>
             ))}
           </div>
@@ -121,21 +123,23 @@ export default function DomainsPage() {
               <Link
                 key={domain.name}
                 to={`/domains/${domain.name}`}
-                className="block rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors opacity-60"
+                className="opacity-60"
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-lg">{domain.display_name}</h3>
-                    <p className="text-sm text-slate-400">{domain.name}</p>
+                <Card interactive padding="lg">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-lg">{domain.display_name}</h3>
+                      <p className="text-sm text-slate-400">{domain.name}</p>
+                    </div>
+                    <StatusBadge status={domain.status} />
                   </div>
-                  <StatusBadge status={domain.status} />
-                </div>
-                {domain.description && (
-                  <p className="mt-3 text-sm text-slate-400 line-clamp-2">{domain.description}</p>
-                )}
-                <div className="mt-4 text-xs text-slate-500">
-                  Last seen {formatRelativeTime(domain.updated_at)}
-                </div>
+                  {domain.description && (
+                    <p className="mt-3 text-sm text-slate-400 line-clamp-2">{domain.description}</p>
+                  )}
+                  <div className="mt-4 text-xs text-slate-500">
+                    Last seen {formatRelativeTime(domain.updated_at)}
+                  </div>
+                </Card>
               </Link>
             ))}
           </div>

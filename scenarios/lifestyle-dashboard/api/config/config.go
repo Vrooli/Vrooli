@@ -180,6 +180,75 @@ func DefaultCORSConfig() CORSConfig {
 }
 
 // =============================================================================
+// Scoring Configuration
+// =============================================================================
+
+// ScoringConfig contains settings for lifestyle score calculation and trends.
+// These thresholds determine how changes are categorized and displayed.
+type ScoringConfig struct {
+	// TrendThreshold is the minimum percentage change to indicate up/down trend.
+	// Changes within ±TrendThreshold are considered "stable".
+	// Default: 5.0, Valid: 1.0-20.0
+	TrendThreshold float64
+
+	// DomainTrendThreshold is the threshold for individual domain direction.
+	// Typically higher than composite trend since domains are more volatile.
+	// Default: 10.0, Valid: 5.0-30.0
+	DomainTrendThreshold float64
+
+	// NotableChangeThreshold marks domain changes as notable when exceeded.
+	// Notable changes appear in highlights and focus recommendations.
+	// Default: 20.0, Valid: 10.0-50.0
+	NotableChangeThreshold float64
+
+	// DataQualityGoodThreshold is minimum active domains for "good" quality.
+	// Default: 3, Valid: 2-5
+	DataQualityGoodThreshold int
+
+	// DataQualityLimitedThreshold is minimum domains for "limited" quality.
+	// Below this is "insufficient".
+	// Default: 1, Valid: 1-3
+	DataQualityLimitedThreshold int
+
+	// ScoreExcellentThreshold is the score level for "Excellent day!" message.
+	// Default: 80, Valid: 70-95
+	ScoreExcellentThreshold int
+
+	// ScoreGoodThreshold is the score level for "Good progress" message.
+	// Default: 60, Valid: 50-80
+	ScoreGoodThreshold int
+
+	// ScoreModerateThreshold is the score level for "Moderate activity" message.
+	// Below this shows "Light activity".
+	// Default: 40, Valid: 30-60
+	ScoreModerateThreshold int
+
+	// PointsPerEvent is how many score points each event contributes.
+	// Default: 20, Valid: 10-50
+	PointsPerEvent int
+
+	// MaxDomainScore caps the score any single domain can contribute.
+	// Default: 100, Valid: 50-100
+	MaxDomainScore int
+}
+
+// DefaultScoringConfig returns the default scoring configuration.
+func DefaultScoringConfig() ScoringConfig {
+	return ScoringConfig{
+		TrendThreshold:              5.0,
+		DomainTrendThreshold:        10.0,
+		NotableChangeThreshold:      20.0,
+		DataQualityGoodThreshold:    3,
+		DataQualityLimitedThreshold: 1,
+		ScoreExcellentThreshold:     80,
+		ScoreGoodThreshold:          60,
+		ScoreModerateThreshold:      40,
+		PointsPerEvent:              20,
+		MaxDomainScore:              100,
+	}
+}
+
+// =============================================================================
 // Full Configuration
 // =============================================================================
 
@@ -190,6 +259,7 @@ type Config struct {
 	Query       QueryConfig
 	HealthCheck HealthCheckConfig
 	CORS        CORSConfig
+	Scoring     ScoringConfig
 }
 
 // Load creates a Config with defaults and applies environment overrides.
@@ -200,5 +270,6 @@ func Load() Config {
 		Query:       DefaultQueryConfig(),
 		HealthCheck: DefaultHealthCheckConfig(),
 		CORS:        DefaultCORSConfig(),
+		Scoring:     DefaultScoringConfig(),
 	}
 }

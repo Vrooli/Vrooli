@@ -162,29 +162,29 @@ func (h *Handler) GetDomainHealth(w http.ResponseWriter, r *http.Request) {
 	resp, healthErr := client.Do(req)
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	status := "healthy"
-	message := ""
-	if healthErr != nil {
-		status = "unhealthy"
-		message = "Health check failed: " + healthErr.Error()
-		log.Printf("[WARN] GetDomainHealth(%s): health check failed: %v", name, healthErr)
-	} else if resp.StatusCode >= cfg.UnhealthyThreshold {
-		status = "unhealthy"
-		message = "Health check returned unhealthy status code"
-	}
+
+	// Determine status using centralized decision helper
+	statusCode := 0
 	if resp != nil {
+		statusCode = resp.StatusCode
 		resp.Body.Close()
 	}
+	result := domain.DetermineHealthCheckResult(healthErr, statusCode, cfg.UnhealthyThreshold)
 
-	// Update domain status via repository
-	if updateErr := h.Domains.UpdateStatus(r.Context(), name, status, now); updateErr != nil {
+	if healthErr != nil {
+		log.Printf("[WARN] GetDomainHealth(%s): health check failed: %v", name, healthErr)
+	}
+
+	// Update domain status via repository (uses DomainStatus for storage)
+	if updateErr := h.Domains.UpdateStatus(r.Context(), name, string(result.DomainStatus), now); updateErr != nil {
 		log.Printf("[WARN] GetDomainHealth(%s): failed to update status: %v", name, updateErr)
 	}
 
+	// API response uses HealthStatus (healthy/unhealthy)
 	WriteJSON(w, http.StatusOK, domain.HealthCheckResponse{
 		Domain:    name,
-		Status:    status,
+		Status:    string(result.ResponseStatus),
 		LastCheck: now,
-		Message:   message,
+		Message:   result.Message,
 	})
 }

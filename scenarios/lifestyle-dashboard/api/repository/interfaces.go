@@ -109,6 +109,18 @@ type ScoreConfigRepository interface {
 	SetWeight(ctx context.Context, domainName, weight string) error
 }
 
+// DigestRepository abstracts weekly digest generation operations.
+// [REQ:LD-DIGEST-WEEKLY] Weekly digest for "What Changed?" summary.
+type DigestRepository interface {
+	// GenerateWeeklyDigest creates a weekly digest comparing current week to baseline.
+	// weekStart should be the Monday of the week being summarized.
+	GenerateWeeklyDigest(ctx context.Context, weekStart string) (*domain.WeeklyDigest, error)
+
+	// GetLatestDigest returns the most recent weekly digest (if any).
+	// Returns nil if no digest has been generated yet.
+	GetLatestDigest(ctx context.Context) (*domain.WeeklyDigest, error)
+}
+
 // ErrNotFound is returned when a requested entity doesn't exist.
 type ErrNotFound struct {
 	Entity string

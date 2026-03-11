@@ -60,7 +60,10 @@ export function formatDateTime(timestamp: string): string {
 export function formatDate(dateStr: string | undefined, fallback = "-"): string {
   if (!dateStr) return fallback;
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    const date = new Date(dateStr);
+    // Check for Invalid Date
+    if (isNaN(date.getTime())) return fallback;
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",

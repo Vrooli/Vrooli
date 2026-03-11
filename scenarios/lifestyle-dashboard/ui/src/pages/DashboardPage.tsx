@@ -21,6 +21,7 @@ import {
   StatCard,
   DomainBreakdown,
   LifestyleScoreCard,
+  BriefPreview,
 } from "../components/dashboard";
 import type { TrendPeriod } from "../components/dashboard/TimelineChart";
 import { Card, CardHeader, CardTitle } from "../components/ui";
@@ -32,6 +33,7 @@ import {
   fetchTimeline,
   fetchEvents,
   fetchScore,
+  fetchCurrentBrief,
 } from "../lib/api";
 
 import { formatRelativeTime } from "../lib/format";
@@ -72,8 +74,15 @@ export default function DashboardPage() {
     refetchInterval: 60000,
   });
 
+  // [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] - Fetch current brief for preview
+  const briefQuery = useQuery({
+    queryKey: ["brief", "current"],
+    queryFn: fetchCurrentBrief,
+    refetchInterval: 60000,
+  });
+
   // Get the first error from any query, with priority to most important
-  const error = domainsQuery.error || summaryQuery.error || timelineQuery.error || eventsQuery.error || scoreQuery.error;
+  const error = domainsQuery.error || summaryQuery.error || timelineQuery.error || eventsQuery.error || scoreQuery.error || briefQuery.error;
 
   const handleRetry = () => {
     domainsQuery.refetch();
@@ -81,6 +90,7 @@ export default function DashboardPage() {
     timelineQuery.refetch();
     eventsQuery.refetch();
     scoreQuery.refetch();
+    briefQuery.refetch();
   };
 
   return (
@@ -141,15 +151,22 @@ export default function DashboardPage() {
           )}
         </Card>
 
+        {/* Daily brief preview [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] */}
+        <BriefPreview
+          brief={briefQuery.data?.brief ?? null}
+          isLoading={briefQuery.isLoading}
+          error={briefQuery.error as Error | null}
+        />
+      </div>
+
+      {/* Three-column layout for domains breakdown, registered domains, and events */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Domain breakdown */}
         <Card padding="lg">
           <CardTitle className="mb-4">Events by Domain</CardTitle>
           <DomainBreakdown data={summaryQuery.data?.events_by_domain ?? []} />
         </Card>
-      </div>
 
-      {/* Two-column layout for domains and events */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Registered domains */}
         <Card padding="lg">
           <CardHeader>
@@ -165,7 +182,7 @@ export default function DashboardPage() {
             <div className="text-slate-500">Loading...</div>
           ) : domainsQuery.data?.domains && domainsQuery.data.domains.length > 0 ? (
             <div className="space-y-4">
-              {domainsQuery.data.domains.slice(0, 4).map((domain) => (
+              {domainsQuery.data.domains.slice(0, 3).map((domain) => (
                 <Link key={domain.name} to={`/domains/${domain.name}`}>
                   <DomainCard domain={domain} />
                 </Link>
@@ -197,7 +214,7 @@ export default function DashboardPage() {
             <div className="text-slate-500">Loading...</div>
           ) : eventsQuery.data?.events && eventsQuery.data.events.length > 0 ? (
             <div className="divide-y divide-white/5">
-              {eventsQuery.data.events.map((event) => (
+              {eventsQuery.data.events.slice(0, 6).map((event) => (
                 <EventRow key={event.id} event={event} />
               ))}
             </div>

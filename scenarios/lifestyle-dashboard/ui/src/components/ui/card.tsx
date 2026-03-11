@@ -75,3 +75,19 @@ export function CardTitle({
     />
   );
 }
+
+/**
+ * StatBox provides a compact stat display inside cards.
+ * Used for grid layouts with multiple stats (e.g., storage overview).
+ */
+export function StatBox({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("rounded-lg bg-slate-800/50 p-4", className)}
+      {...props}
+    />
+  );
+}

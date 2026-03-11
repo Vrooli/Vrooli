@@ -31,11 +31,12 @@ type Handler struct {
 	Storage     repository.StorageRepository
 	Briefs      repository.BriefRepository
 	ScoreConfig repository.ScoreConfigRepository
+	Digest      repository.DigestRepository
 }
 
 // New creates a Handler with all repository implementations.
 // All repositories are required for the handler to function correctly.
-func New(events repository.EventRepository, domains repository.DomainRepository, stats repository.StatsRepository, storage repository.StorageRepository, briefs repository.BriefRepository, scoreConfig repository.ScoreConfigRepository) *Handler {
+func New(events repository.EventRepository, domains repository.DomainRepository, stats repository.StatsRepository, storage repository.StorageRepository, briefs repository.BriefRepository, scoreConfig repository.ScoreConfigRepository, digest repository.DigestRepository) *Handler {
 	return &Handler{
 		Events:      events,
 		Domains:     domains,
@@ -43,6 +44,7 @@ func New(events repository.EventRepository, domains repository.DomainRepository,
 		Storage:     storage,
 		Briefs:      briefs,
 		ScoreConfig: scoreConfig,
+		Digest:      digest,
 	}
 }
 

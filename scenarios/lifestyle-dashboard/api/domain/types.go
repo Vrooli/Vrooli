@@ -256,3 +256,61 @@ var WeightMultipliers = map[string]float64{
 	"low":    1.0,
 	"none":   0.0,
 }
+
+// =============================================================================
+// Weekly Digest Types (P1-002)
+// =============================================================================
+
+// WeeklyDigest represents the "What Changed?" weekly summary.
+// Generated every Sunday 6pm, comparing current week to rolling 4-week baseline.
+// [REQ:LD-DIGEST-WEEKLY] Weekly digest structure.
+type WeeklyDigest struct {
+	GeneratedAt    string               `json:"generated_at"`    // ISO timestamp
+	WeekStartDate  string               `json:"week_start_date"` // Monday of the summarized week
+	WeekEndDate    string               `json:"week_end_date"`   // Sunday of the summarized week
+	Summary        string               `json:"summary"`         // Human-readable overview
+	ScoreTrend     DigestScoreTrend     `json:"score_trend"`     // Lifestyle score comparison
+	DomainChanges  []DigestDomainChange `json:"domain_changes"`  // Per-domain deltas
+	Correlations   []DigestCorrelation  `json:"correlations"`    // New correlations discovered
+	Highlights     []string             `json:"highlights"`      // Notable achievements or concerns
+	NextWeekFocus  []string             `json:"next_week_focus"` // Recommendations for next week
+}
+
+// DigestScoreTrend compares lifestyle score between current week and baseline.
+type DigestScoreTrend struct {
+	CurrentWeekAvg   float64 `json:"current_week_avg"`   // Average score this week
+	BaselineAvg      float64 `json:"baseline_avg"`       // 4-week rolling baseline average
+	PercentChange    float64 `json:"percent_change"`     // Percentage change from baseline
+	Direction        string  `json:"direction"`          // "up", "down", "stable"
+	ConsecutiveWeeks int     `json:"consecutive_weeks"`  // Weeks in current direction
+	Message          string  `json:"message"`            // Human-readable trend description
+}
+
+// DigestDomainChange summarizes a domain's activity change from baseline.
+type DigestDomainChange struct {
+	Domain            string  `json:"domain"`
+	DisplayName       string  `json:"display_name"`
+	CurrentWeekEvents int     `json:"current_week_events"` // Events this week
+	BaselineAvgEvents float64 `json:"baseline_avg_events"` // Average events in baseline
+	PercentChange     float64 `json:"percent_change"`      // Change from baseline
+	Direction         string  `json:"direction"`           // "up", "down", "stable"
+	Notable           bool    `json:"notable"`             // True if change > 20%
+	Message           string  `json:"message"`             // Human-readable summary
+}
+
+// DigestCorrelation represents a newly discovered or confirmed correlation.
+type DigestCorrelation struct {
+	Domain1     string  `json:"domain1"`
+	Domain2     string  `json:"domain2"`
+	EventType1  string  `json:"event_type1"`
+	EventType2  string  `json:"event_type2"`
+	Correlation float64 `json:"correlation"`       // Pearson correlation coefficient
+	Status      string  `json:"status"`            // "new", "confirmed", "strengthened"
+	DataPoints  int     `json:"data_points"`       // Sample size
+	Message     string  `json:"message,omitempty"` // Human-readable description
+}
+
+// WeeklyDigestResponse wraps a weekly digest for API responses.
+type WeeklyDigestResponse struct {
+	Digest WeeklyDigest `json:"digest"`
+}

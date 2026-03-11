@@ -492,3 +492,128 @@ export async function fetchEveningBrief(date?: string): Promise<BriefResponse> {
 
   return res.json();
 }
+
+// =============================================================================
+// Weekly Digest API (P1-002)
+// =============================================================================
+
+export interface DigestScoreTrend {
+  current_week_avg: number;
+  baseline_avg: number;
+  percent_change: number;
+  direction: "up" | "down" | "stable";
+  consecutive_weeks: number;
+  message: string;
+}
+
+export interface DigestDomainChange {
+  domain: string;
+  display_name: string;
+  current_week_events: number;
+  baseline_avg_events: number;
+  percent_change: number;
+  direction: "up" | "down" | "stable";
+  notable: boolean;
+  message: string;
+}
+
+export interface DigestCorrelation {
+  domain1: string;
+  domain2: string;
+  event_type1: string;
+  event_type2: string;
+  correlation: number;
+  status: "new" | "confirmed" | "strengthened";
+  data_points: number;
+  message?: string;
+}
+
+export interface WeeklyDigest {
+  generated_at: string;
+  week_start_date: string;
+  week_end_date: string;
+  summary: string;
+  score_trend: DigestScoreTrend;
+  domain_changes: DigestDomainChange[];
+  correlations: DigestCorrelation[];
+  highlights: string[];
+  next_week_focus: string[];
+}
+
+export interface WeeklyDigestResponse {
+  digest: WeeklyDigest;
+}
+
+/** [REQ:LD-DIGEST-WEEKLY] Fetch current weekly digest */
+export async function fetchCurrentDigest(): Promise<WeeklyDigestResponse> {
+  const url = buildApiUrl("/digests/current", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    await handleApiError(res, `Failed to fetch weekly digest: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/** [REQ:LD-DIGEST-WEEKLY] Fetch weekly digest for a specific week */
+export async function fetchDigestByWeek(weekStart: string): Promise<WeeklyDigestResponse> {
+  const url = buildApiUrl(`/digests/${weekStart}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    await handleApiError(res, `Failed to fetch weekly digest: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// =============================================================================
+// Score Configuration API (P1-003)
+// =============================================================================
+
+export interface DomainWeightConfig {
+  domain: string;
+  display_name: string;
+  weight: "high" | "medium" | "low" | "none";
+  multiplier: number;
+}
+
+export interface ScoreConfigResponse {
+  weights: DomainWeightConfig[];
+  default_weight: string;
+}
+
+/** [REQ:LD-SCORE-CALC] Fetch score configuration */
+export async function fetchScoreConfig(): Promise<ScoreConfigResponse> {
+  const url = buildApiUrl("/score/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    await handleApiError(res, `Failed to fetch score config: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/** [REQ:LD-SCORE-CALC] Update domain weight */
+export async function updateDomainWeight(domain: string, weight: string): Promise<DomainWeightConfig> {
+  const url = buildApiUrl(`/score/config/${domain}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weight }),
+  });
+
+  if (!res.ok) {
+    await handleApiError(res, `Failed to update domain weight: ${res.status}`);
+  }
+
+  return res.json();
+}

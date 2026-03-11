@@ -42,8 +42,21 @@
       "linked_operational_target_ids": ["OT-P1-002"],
       "title": "Weekly digest generation",
       "description": "Every Sunday 6pm, generate 'What Changed?' digest. Compare current week to rolling 4-week baseline. Show: domain-level deltas, new correlations discovered, Lifestyle Score trend. Delivery: in-app notification.",
-      "status": "not_started",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_digest_test.go",
+          "phase": "unit",
+          "status": "passing"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/digest_test.go",
+          "phase": "unit",
+          "status": "passing"
+        }
+      ]
     },
     {
       "id": "LD-SCORE-CALC",

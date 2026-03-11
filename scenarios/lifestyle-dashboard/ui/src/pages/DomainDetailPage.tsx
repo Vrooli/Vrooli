@@ -11,6 +11,7 @@ import { ChevronLeft, RefreshCw, Activity, Heart } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 
 import { StatusBadge, EventRow } from "../components/dashboard";
+import { Card } from "../components/ui";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { fetchDomain, fetchDomainHealth, fetchEvents, APIError } from "../lib/api";
 import { formatRelativeTime, formatDateTime } from "../lib/format";
@@ -108,7 +109,7 @@ export default function DomainDetailPage() {
 
       {/* Description and capabilities */}
       {(domain.description || (domain.capabilities && domain.capabilities.length > 0)) && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <Card padding="lg">
           {domain.description && (
             <p className="text-slate-300">{domain.description}</p>
           )}
@@ -124,13 +125,13 @@ export default function DomainDetailPage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Info grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Health status */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <Card padding="lg">
           <h3 className="text-sm font-medium text-slate-400 mb-3">Health Status</h3>
           <div className="flex items-center gap-3">
             <Heart className={`w-8 h-8 ${
@@ -155,29 +156,29 @@ export default function DomainDetailPage() {
               {domain.health_url}
             </p>
           )}
-        </div>
+        </Card>
 
         {/* Registration info */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <Card padding="lg">
           <h3 className="text-sm font-medium text-slate-400 mb-3">Registered</h3>
           <p className="font-medium">{formatDateTime(domain.registered_at)}</p>
           <p className="text-sm text-slate-500">
             {formatRelativeTime(domain.registered_at)}
           </p>
-        </div>
+        </Card>
 
         {/* Last updated */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <Card padding="lg">
           <h3 className="text-sm font-medium text-slate-400 mb-3">Last Updated</h3>
           <p className="font-medium">{formatDateTime(domain.updated_at)}</p>
           <p className="text-sm text-slate-500">
             {formatRelativeTime(domain.updated_at)}
           </p>
-        </div>
+        </Card>
       </div>
 
       {/* Events from this domain */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+      <Card padding="lg">
         <h2 className="text-lg font-medium mb-4">
           Recent Events
           {eventsQuery.data?.count !== undefined && (
@@ -200,7 +201,7 @@ export default function DomainDetailPage() {
             <p className="text-slate-400">No events from this domain</p>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

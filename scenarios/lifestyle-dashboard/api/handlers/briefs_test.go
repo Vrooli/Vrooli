@@ -222,3 +222,48 @@ func TestBriefConfig_Included(t *testing.T) {
 		t.Errorf("Expected EveningHour 21, got %d", resp.Config.EveningHour)
 	}
 }
+
+// TestGetCurrentBrief_NilRepository verifies error when briefs repository is nil.
+// [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Handler gracefully handles missing repository.
+func TestGetCurrentBrief_NilRepository(t *testing.T) {
+	h := &Handler{Briefs: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/briefs/current", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetCurrentBrief(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetMorningBrief_NilRepository verifies error when briefs repository is nil.
+// [REQ:LD-BRIEF-MORNING] Handler gracefully handles missing repository.
+func TestGetMorningBrief_NilRepository(t *testing.T) {
+	h := &Handler{Briefs: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/briefs/morning", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetMorningBrief(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetEveningBrief_NilRepository verifies error when briefs repository is nil.
+// [REQ:LD-BRIEF-EVENING] Handler gracefully handles missing repository.
+func TestGetEveningBrief_NilRepository(t *testing.T) {
+	h := &Handler{Briefs: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/briefs/evening", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetEveningBrief(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}

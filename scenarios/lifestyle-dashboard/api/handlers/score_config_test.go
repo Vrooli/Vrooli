@@ -212,3 +212,85 @@ func TestUpdateDomainWeight_SetNone(t *testing.T) {
 		t.Errorf("Expected multiplier 0.0 for 'none', got %f", weight.Multiplier)
 	}
 }
+
+// TestGetScoreConfig_NilRepository verifies error when score config repository is nil.
+// [REQ:LD-SCORE-CALC] Handler gracefully handles missing repository.
+func TestGetScoreConfig_NilRepository(t *testing.T) {
+	h := &Handler{ScoreConfig: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/score/config", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScoreConfig(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetDomainWeight_NilRepository verifies error when score config repository is nil.
+// [REQ:LD-SCORE-CALC] Handler gracefully handles missing repository.
+func TestGetDomainWeight_NilRepository(t *testing.T) {
+	h := &Handler{ScoreConfig: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/score/config/sleep", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetDomainWeight(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestUpdateDomainWeight_NilRepository verifies error when score config repository is nil.
+// [REQ:LD-SCORE-CALC] Handler gracefully handles missing repository.
+func TestUpdateDomainWeight_NilRepository(t *testing.T) {
+	h := &Handler{ScoreConfig: nil}
+
+	body := `{"weight": "high"}`
+	req := httptest.NewRequest("PUT", "/api/v1/score/config/sleep", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.UpdateDomainWeight(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetDomainWeight_MissingDomainName verifies validation when domain name is empty.
+// [REQ:LD-SCORE-CALC] Handler validates required domain parameter.
+func TestGetDomainWeight_MissingDomainName(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	// Request with empty domain
+	req := httptest.NewRequest("GET", "/api/v1/score/config/", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetDomainWeight(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+}
+
+// TestUpdateDomainWeight_MissingDomainName verifies validation when domain name is empty.
+// [REQ:LD-SCORE-CALC] Handler validates required domain parameter.
+func TestUpdateDomainWeight_MissingDomainName(t *testing.T) {
+	h, db := setupTestHandler(t)
+	defer db.Close()
+
+	body := `{"weight": "high"}`
+	req := httptest.NewRequest("PUT", "/api/v1/score/config/", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.UpdateDomainWeight(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+}

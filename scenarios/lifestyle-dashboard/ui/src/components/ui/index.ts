@@ -6,4 +6,4 @@
  */
 
 export { Button, type ButtonProps } from "./button";
-export { Card, CardHeader, CardTitle, type CardProps } from "./card";
+export { Card, CardHeader, CardTitle, StatBox, type CardProps } from "./card";

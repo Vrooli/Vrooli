@@ -3,7 +3,7 @@
 This document describes the **seams** (deliberate boundaries where behavior can be substituted) in the Lifestyle Dashboard scenario. Understanding seams helps developers write testable code and swap implementations without invasive changes.
 
 ## Last Updated
-2026-03-10 (Phase 15 iteration 3: Repository refactoring, code duplication resolved)
+2026-03-11 (Phase 20 iter 2: Nil repository error handling, handler coverage 80.2%)
 
 ## What is a Seam?
 
@@ -218,14 +218,39 @@ func (c *sqliteChecker) Check(ctx context.Context) health.CheckResult {
 
 ## Testing Seams Summary
 
+### API Testing Seams
+
 | Seam | Test Type | Mock Available | Location |
 |------|-----------|----------------|----------|
 | Repository | Unit | ✅ Yes | `api/internal/testutil/mocks.go` |
 | Handler | Unit | ✅ Yes (via repo mocks) | `api/handlers/*_test.go` |
 | Database | Integration | ✅ Yes (in-memory) | `api/internal/testutil/db.go` |
-| Time | Unit | ❌ No | N/A |
+| Time | Unit | ✅ Yes | `api/internal/clock/clock.go` |
 | UUID | Unit | ❌ No | N/A |
 | Health | Integration | ✅ Yes | via api-core |
+
+### UI Testing Seams
+
+| Seam | Test Type | Mock Available | Location |
+|------|-----------|----------------|----------|
+| API Functions | Unit | ✅ Via fetch mock | `ui/src/lib/api.test.ts` |
+| Error Handling | Unit | ✅ Yes | `ui/src/components/ErrorAlert.test.tsx` |
+| Formatting | Unit | ✅ Pure functions | `ui/src/lib/format.test.ts` |
+| Time | Unit | ✅ Via vi.useFakeTimers | Vitest time mocking |
+
+**UI Test Coverage** (64 tests):
+- `ErrorAlert.test.tsx`: 22 tests - error categorization, recovery actions, rendering
+- `format.test.ts`: 22 tests - formatRelativeTime, formatDate, formatBytes, etc.
+- `api.test.ts`: 20 tests - APIError class, error categories, retryability
+
+**Nil Repository Error Handling** (17 tests added Phase 20 iter 2):
+All handlers now check for nil repositories and return 503 Service Unavailable:
+- `briefs_test.go`: 3 tests - GetCurrentBrief, GetMorningBrief, GetEveningBrief
+- `digest_test.go`: 2 tests - GetCurrentDigest, GetDigestByWeek
+- `score_config_test.go`: 3 tests - GetScoreConfig, GetDomainWeight, UpdateDomainWeight
+- `stats_test.go`: 3 tests - GetTimeline, GetSummary, GetScore
+- `storage_test.go`: 2 tests - GetStorageInfo, CleanupEvents
+Plus 4 additional validation tests for missing domain names in score config handlers.
 
 ## Seam Usage Guidelines
 
@@ -625,22 +650,140 @@ Domain status can be:
 
 **Improvement Opportunity**: Extract status transitions to a dedicated function with clear rules.
 
+### Decision Point 7: Trend Direction Determination (NEW - Phase 19)
+
+**Location**: `api/domain/decisions.go`
+**Type**: Threshold-based classification
+**Strength**: ✅ Strong - centralized with configurable thresholds
+
+Direction determination logic has been extracted to centralized helpers:
+
+```go
+// [CODE: api/domain/decisions.go:50-60]
+func DetermineDirectionWithThreshold(percentChange, threshold float64) Direction {
+    if math.Abs(percentChange) < threshold {
+        return DirectionStable
+    }
+    if percentChange > 0 {
+        return DirectionUp
+    }
+    return DirectionDown
+}
+```
+
+**Thresholds** (from `api/config/config.go:ScoringConfig`):
+| Threshold | Default | Purpose |
+|-----------|---------|---------|
+| TrendThreshold | 5.0% | Composite score direction |
+| DomainTrendThreshold | 10.0% | Individual domain direction |
+| NotableChangeThreshold | 20.0% | Highlight-worthy changes |
+
+**Who Uses This Decision**:
+- `api/repository/sqlite_stats.go:GetLifestyleScore` - Score trend via `DetermineDirection`
+- `api/repository/sqlite_digest.go:getDomainChanges` - Domain trend via `DetermineDomainDirection`
+- `api/repository/sqlite_digest.go:getScoreTrend` - Digest trend via `DetermineDirection`
+
+### Decision Point 8: Data Quality Assessment (NEW - Phase 19)
+
+**Location**: `api/domain/decisions.go`
+**Type**: Threshold-based classification
+**Strength**: ✅ Strong - centralized with configurable thresholds
+
+```go
+// [CODE: api/domain/decisions.go:100-110]
+func DetermineDataQuality(activeDomains int) DataQuality {
+    if activeDomains >= 3 { return DataQualityGood }
+    if activeDomains >= 1 { return DataQualityLimited }
+    return DataQualityInsufficient
+}
+```
+
+**Thresholds** (from `api/config/config.go:ScoringConfig`):
+- `DataQualityGoodThreshold`: 3 (default)
+- `DataQualityLimitedThreshold`: 1 (default)
+
+### Decision Point 9: Score Level Messaging (NEW - Phase 19)
+
+**Location**: `api/domain/decisions.go`
+**Type**: Threshold-based classification
+**Strength**: ✅ Strong - centralized with user-friendly messages
+
+```go
+// [CODE: api/domain/decisions.go:130-145]
+func DetermineScoreLevel(score int) ScoreLevel
+func ScoreLevelMessage(level ScoreLevel) string
+func TrendMessage(direction Direction) string
+```
+
+**Thresholds** (from `api/config/config.go:ScoringConfig`):
+| Level | Threshold | Message |
+|-------|-----------|---------|
+| Excellent | ≥80 | "Excellent day!" |
+| Good | ≥60 | "Good progress today." |
+| Moderate | ≥40 | "Moderate activity." |
+| Light | <40 | "Light activity today." |
+
+### Decision Point 10: Health Check Result (NEW - Phase 19 iter 2)
+
+**Location**: `api/domain/decisions.go`
+**Type**: Dual-status response
+**Strength**: ✅ Strong - separates API response from storage status
+
+```go
+// [CODE: api/domain/decisions.go:270-300]
+type HealthCheckResult struct {
+    ResponseStatus HealthStatus  // For API: "healthy"/"unhealthy"
+    DomainStatus   DomainStatus  // For storage: "active"/"unhealthy"
+    Message        string
+}
+func DetermineHealthCheckResult(healthError error, statusCode, threshold int) HealthCheckResult
+```
+
+**Decision Criteria**:
+- `healthError != nil` → unhealthy
+- `statusCode >= threshold (default 300)` → unhealthy
+- otherwise → healthy (API) / active (storage)
+
+**Unique feature**: Returns separate statuses for API response ("healthy"/"unhealthy") and storage ("active"/"unhealthy") to maintain API contract while using correct domain status internally.
+
+### Decision Point 11: Highlight Generation (NEW - Phase 19 iter 2)
+
+**Location**: `api/domain/decisions.go`
+**Type**: Threshold + direction classification
+**Strength**: ✅ Strong - centralized highlight logic
+
+```go
+// [CODE: api/domain/decisions.go:320-340]
+func ShouldHighlightDomainChange(percentChange float64, direction Direction) (bool, HighlightType)
+func ShouldHighlightScoreImprovement(percentChange float64, direction Direction) bool
+func GenerateFocusRecommendation(displayName string, percentChange float64, direction Direction) (string, bool)
+```
+
+**Who Uses This Decision**:
+- `repository/sqlite_digest.go:generateHighlights` - Weekly digest highlights
+- `repository/sqlite_digest.go:generateNextWeekFocus` - Focus recommendations
+
 ### Decision Points Summary
 
 | Decision | Location | Extracted? | Tested? |
 |----------|----------|------------|---------|
 | Error categorization | `errors/errors.go` | ✅ Yes | ✅ Yes |
-| Health status | `handlers/domains.go` | ✅ Yes | ✅ Yes |
+| Health check result | `domain/decisions.go` | ✅ Yes | ✅ Yes |
 | Event limit | `repository/sqlite_events.go` | ✅ Yes | ✅ Yes |
 | Timeline days | `handlers/stats.go` | ✅ Yes | ✅ Yes |
-| UI recovery action | `ErrorAlert.tsx` | ✅ Yes | ❌ No |
-| Domain status | Scattered | ⚠️ Partial | ⚠️ Partial |
+| UI recovery action | `ErrorAlert.tsx` | ✅ Yes | ✅ Yes |
+| **Domain status** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Trend direction** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Data quality** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Score level** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Notable change** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Highlight generation** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
+| **Focus recommendations** | `domain/decisions.go` | ✅ Yes | ✅ Yes |
 
 ### Decision Debt
 
-1. **Domain Status Transitions**: Consider extracting to a `DomainStatusMachine` or at minimum documenting valid transitions.
-2. **UI Recovery Actions**: Add unit tests for `getRecoveryAction` function.
-3. **Payload Validation**: No decision logic yet - if added, should be in `domain/` package.
+1. ~~**UI Recovery Actions**: Add unit tests for `getRecoveryAction` function.~~ ✅ Resolved Phase 19 iteration 3 - 22 tests added in `ErrorAlert.test.tsx`
+2. **Payload Validation**: No decision logic yet - if added, should be in `domain/` package.
 
 ## CLI Surface
 
@@ -782,6 +925,49 @@ This section tracks known technical debt and simplification opportunities for fu
      - Unified logic between `getTodayDomainScores` and `calculateDayScore`
    - **Files**: `api/repository/sqlite_briefs.go`, `api/repository/sqlite_stats.go`
 
+4. **Decision boundary extraction** (✅ Resolved - Phase 19)
+   - **Was**: Direction determination, percent change, data quality, and score messaging logic duplicated across `sqlite_stats.go` and `sqlite_digest.go` with scattered magic numbers
+   - **Now**: Centralized in `api/domain/decisions.go` with:
+     - `DetermineDirection()`, `DetermineDomainDirection()` - trend direction helpers
+     - `CalculatePercentChange()` - percent change calculation
+     - `IsNotableChange()` - notable change detection
+     - `DetermineDataQuality()` - data quality assessment
+     - `CalculateDomainScore()` - score calculation with configurable params
+     - `DetermineScoreLevel()`, `ScoreLevelMessage()`, `TrendMessage()` - messaging helpers
+   - **Configuration**: Thresholds moved to `api/config/config.go:ScoringConfig`
+   - **Tests**: 15 new tests in `api/domain/decisions_test.go`
+   - **Impact**: All decision boundaries are now explicit, testable, and configurable
+
+5. **Domain status transitions** (✅ Resolved - Phase 19 iteration 2)
+   - **Was**: Health check status determination scattered in `handlers/domains.go` with separate logic for API responses vs storage
+   - **Now**: Centralized in `api/domain/decisions.go` with:
+     - `HealthCheckResult` struct separating API response status from storage status
+     - `DetermineHealthCheckResult()` - single source of truth for health check → status mapping
+     - `HealthStatusHealthy`/`HealthStatusUnhealthy` - API response statuses
+     - `DomainStatusActive`/`DomainStatusUnhealthy` - storage statuses
+   - **Tests**: 6 new tests for health check result determination
+   - **Impact**: Clear separation between API contracts (healthy/unhealthy) and storage (active/unhealthy)
+
+6. **Highlight/recommendation generation** (✅ Resolved - Phase 19 iteration 2)
+   - **Was**: Highlight and focus recommendation logic embedded in `sqlite_digest.go` with inline thresholds
+   - **Now**: Centralized in `api/domain/decisions.go` with:
+     - `ShouldHighlightDomainChange()` - determines if a domain change warrants highlighting
+     - `ShouldHighlightScoreImprovement()` - determines if a score improvement is significant
+     - `GenerateFocusRecommendation()` - generates focus recommendations based on direction/magnitude
+     - `HighlightType` enum - positive/warning/info highlight categorization
+   - **Tests**: 5 new tests for highlight and recommendation generation
+   - **Impact**: Digest generation logic is clearer, thresholds are explicit and testable
+
+7. **UI Recovery Action decision tests** (✅ Resolved - Phase 19 iteration 3)
+   - **Was**: `getRecoveryAction`, `getErrorTitle`, and `getErrorMessage` functions in `ErrorAlert.tsx` untested
+   - **Now**: Comprehensive test coverage in `ui/src/components/ErrorAlert.test.tsx`:
+     - 7 tests for `getRecoveryAction` (internal→retry, unavailable→retry, not_found→back, validation→help, network errors→retry, unknown→retry)
+     - 7 tests for `getErrorTitle` (all 5 categories + network + generic)
+     - 4 tests for error message/recovery hints
+     - 4 tests for component rendering behavior
+   - **Tests**: 22 new UI tests with vitest + @testing-library/react
+   - **Impact**: All decision points in the scenario (API + UI) now have test coverage
+
 ### Current Debt
 
 1. **Direct time.Now() calls** (Priority: Low)
@@ -805,11 +991,16 @@ This section tracks known technical debt and simplification opportunities for fu
 - Error handling uses centralized categories with recovery hints
 - Configuration is centralized in `api/config/` with env overrides
 - UI utilities are properly tiered (core/framework/domain)
+- **Decision boundaries are explicit** - trend, quality, and score decisions centralized in `domain/decisions.go`
+- **Scoring thresholds are configurable** - all magic numbers extracted to `config/config.go:ScoringConfig`
+- **All decision points tested** - 12 API decision points + 3 UI decision functions have test coverage
 
 **Where to look for common changes:**
 - New API endpoints: `api/handlers/*.go` + `api/main.go:setupRoutes()`
 - New storage queries: `api/repository/sqlite_*.go`
 - New domain types: `api/domain/types.go`
+- **Decision boundaries**: `api/domain/decisions.go` (trend, quality, score level)
+- **Scoring thresholds**: `api/config/config.go:ScoringConfig`
 - New UI pages: `ui/src/pages/*.tsx` + `ui/src/App.tsx` routes
 - Configuration: `api/config/config.go`
 - Test utilities: `api/internal/testutil/`

@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"lifestyle-dashboard/domain"
+	"lifestyle-dashboard/errors"
 )
 
 // TestGetStorageInfo_Success verifies storage info retrieval.
@@ -250,4 +253,98 @@ func TestCleanupEvents_MultipleDomains(t *testing.T) {
 	if resp.DeletedEvents != 2 {
 		t.Errorf("Expected 2 deleted events, got %d", resp.DeletedEvents)
 	}
+}
+
+// TestGetStorageInfo_NilRepository verifies error when storage repository is nil.
+// [REQ:LD-UI-STORAGE] Handler gracefully handles missing repository.
+func TestGetStorageInfo_NilRepository(t *testing.T) {
+	h := &Handler{Storage: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/storage", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetStorageInfo(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+}
+
+// TestCleanupEvents_NilRepository verifies error when storage repository is nil.
+// [REQ:LD-UI-STORAGE] Handler gracefully handles missing repository.
+func TestCleanupEvents_NilRepository(t *testing.T) {
+	h := &Handler{Storage: nil}
+
+	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", nil)
+	rr := httptest.NewRecorder()
+
+	h.CleanupEvents(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetStorageInfo_DatabaseError verifies error handling when GetStorageInfo returns error.
+// [REQ:LD-UI-STORAGE] Handler handles database errors for storage info.
+func TestGetStorageInfo_DatabaseError(t *testing.T) {
+	mockStorage := &mockStorageRepoWithError{
+		getInfoError: fmt.Errorf("database connection lost"),
+	}
+	h := &Handler{Storage: mockStorage}
+
+	req := httptest.NewRequest("GET", "/api/v1/storage", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetStorageInfo(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+
+	var errResp errors.APIError
+	if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+		t.Fatalf("Failed to decode error response: %v", err)
+	}
+	if errResp.Category != errors.CategoryInternal {
+		t.Errorf("Expected category 'internal', got '%s'", errResp.Category)
+	}
+}
+
+// TestCleanupEvents_DatabaseError verifies error handling when CleanupEvents returns error.
+// [REQ:LD-UI-STORAGE] Handler handles database errors for cleanup.
+func TestCleanupEvents_DatabaseError(t *testing.T) {
+	mockStorage := &mockStorageRepoWithError{
+		cleanupError: fmt.Errorf("delete operation failed"),
+	}
+	h := &Handler{Storage: mockStorage}
+
+	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", nil)
+	rr := httptest.NewRecorder()
+
+	h.CleanupEvents(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+}
+
+// mockStorageRepoWithError provides controlled error injection for storage repository.
+type mockStorageRepoWithError struct {
+	getInfoError error
+	cleanupError error
+}
+
+func (m *mockStorageRepoWithError) GetStorageInfo(ctx context.Context) (*domain.StorageInfo, error) {
+	if m.getInfoError != nil {
+		return nil, m.getInfoError
+	}
+	return &domain.StorageInfo{}, nil
+}
+
+func (m *mockStorageRepoWithError) CleanupEvents(ctx context.Context, req domain.CleanupRequest) (*domain.CleanupResponse, error) {
+	if m.cleanupError != nil {
+		return nil, m.cleanupError
+	}
+	return &domain.CleanupResponse{}, nil
 }

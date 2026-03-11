@@ -139,7 +139,7 @@
       "linked_operational_target_ids": ["OT-P1-002"],
       "title": "Weekly digest",
       "description": "'What Changed?' summary every Sunday (6pm default) comparing current week to rolling 4-week baseline. Shows deltas, new correlations discovered, medium-term trends.",
-      "status": "not_started",
+      "status": "complete",
       "children": [
         "LD-DIGEST-WEEKLY"
       ],

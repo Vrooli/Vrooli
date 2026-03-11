@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"lifestyle-dashboard/domain"
+	"lifestyle-dashboard/errors"
 )
 
 // TestQueryEvents_WithFilters verifies event querying with domain filter.
@@ -367,4 +370,139 @@ func TestGetTimeline_MaxDays(t *testing.T) {
 	if resp.Days != "365" {
 		t.Errorf("Expected capped days '365', got '%s'", resp.Days)
 	}
+}
+
+// TestGetTimeline_NilRepository verifies error when stats repository is nil.
+// [REQ:LD-QUERY-AGGREGATE] Handler gracefully handles missing repository.
+func TestGetTimeline_NilRepository(t *testing.T) {
+	h := &Handler{Stats: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/timeline", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetTimeline(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetSummary_NilRepository verifies error when stats repository is nil.
+// [REQ:LD-QUERY-AGGREGATE] Handler gracefully handles missing repository.
+func TestGetSummary_NilRepository(t *testing.T) {
+	h := &Handler{Stats: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/summary", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetSummary(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetScore_NilRepository verifies error when stats repository is nil.
+// [REQ:LD-UI-SCORE] Handler gracefully handles missing repository.
+func TestGetScore_NilRepository(t *testing.T) {
+	h := &Handler{Stats: nil}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetSummary_DatabaseError verifies error handling when GetSummary returns error.
+// [REQ:LD-QUERY-AGGREGATE] Summary handles database errors.
+func TestGetSummary_DatabaseError(t *testing.T) {
+	mockStats := &mockStatsRepoWithError{
+		summaryError: fmt.Errorf("database connection lost"),
+	}
+	h := &Handler{Stats: mockStats}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/summary", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetSummary(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+
+	var errResp errors.APIError
+	if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+		t.Fatalf("Failed to decode error response: %v", err)
+	}
+	if errResp.Category != errors.CategoryInternal {
+		t.Errorf("Expected category 'internal', got '%s'", errResp.Category)
+	}
+}
+
+// TestGetTimeline_DatabaseError verifies error handling when GetTimeline returns error.
+// [REQ:LD-QUERY-AGGREGATE] Timeline handles database errors.
+func TestGetTimeline_DatabaseError(t *testing.T) {
+	mockStats := &mockStatsRepoWithError{
+		timelineError: fmt.Errorf("database timeout"),
+	}
+	h := &Handler{Stats: mockStats}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/timeline", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetTimeline(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+}
+
+// TestGetScore_DatabaseError verifies error handling when GetLifestyleScore returns error.
+// [REQ:LD-UI-SCORE] Score handles database errors.
+func TestGetScore_DatabaseError(t *testing.T) {
+	mockStats := &mockStatsRepoWithError{
+		scoreError: fmt.Errorf("calculation failed"),
+	}
+	h := &Handler{Stats: mockStats}
+
+	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetScore(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+}
+
+// mockStatsRepoWithError provides controlled error injection for stats repository.
+type mockStatsRepoWithError struct {
+	summaryError  error
+	timelineError error
+	scoreError    error
+}
+
+func (m *mockStatsRepoWithError) GetTimeline(ctx context.Context, days int) ([]domain.TimelineEntry, error) {
+	if m.timelineError != nil {
+		return nil, m.timelineError
+	}
+	return []domain.TimelineEntry{}, nil
+}
+
+func (m *mockStatsRepoWithError) GetSummary(ctx context.Context) (*domain.SummaryResponse, error) {
+	if m.summaryError != nil {
+		return nil, m.summaryError
+	}
+	return &domain.SummaryResponse{}, nil
+}
+
+func (m *mockStatsRepoWithError) GetLifestyleScore(ctx context.Context, historyDays int) (*domain.ScoreResponse, error) {
+	if m.scoreError != nil {
+		return nil, m.scoreError
+	}
+	return &domain.ScoreResponse{}, nil
 }

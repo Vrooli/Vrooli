@@ -14,6 +14,11 @@ import (
 // GET /api/v1/score/config
 // [REQ:LD-SCORE-CALC] Retrieves configurable domain weights.
 func (h *Handler) GetScoreConfig(w http.ResponseWriter, r *http.Request) {
+	if h.ScoreConfig == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "score config service not configured"))
+		return
+	}
+
 	weights, err := h.ScoreConfig.GetWeights(r.Context())
 	if err != nil {
 		WriteAPIError(w, errors.NewInternalError(errors.CodeDatabaseError, "Failed to get score configuration"))
@@ -30,6 +35,11 @@ func (h *Handler) GetScoreConfig(w http.ResponseWriter, r *http.Request) {
 // GET /api/v1/score/config/{domain}
 // [REQ:LD-SCORE-CALC] Retrieves single domain weight.
 func (h *Handler) GetDomainWeight(w http.ResponseWriter, r *http.Request) {
+	if h.ScoreConfig == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "score config service not configured"))
+		return
+	}
+
 	// Extract domain from path
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/score/config/")
 	domainName := strings.TrimSuffix(path, "/")
@@ -56,6 +66,11 @@ func (h *Handler) GetDomainWeight(w http.ResponseWriter, r *http.Request) {
 // PUT /api/v1/score/config/{domain}
 // [REQ:LD-SCORE-CALC] Updates domain weight.
 func (h *Handler) UpdateDomainWeight(w http.ResponseWriter, r *http.Request) {
+	if h.ScoreConfig == nil {
+		WriteAPIError(w, errors.NewUnavailableError(errors.CodeDependencyUnavailable, "score config service not configured"))
+		return
+	}
+
 	// Extract domain from path
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/score/config/")
 	domainName := strings.TrimSuffix(path, "/")

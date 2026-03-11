@@ -16,3 +16,4 @@ export { DomainBreakdown } from "./DomainBreakdown";
 export { Header } from "./Header";
 export { LifestyleScoreCard } from "./LifestyleScoreCard";
 export { default as BriefCard } from "./BriefCard";
+export { default as BriefPreview } from "./BriefPreview";
