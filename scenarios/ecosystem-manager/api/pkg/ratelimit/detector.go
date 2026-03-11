@@ -68,7 +68,9 @@ func DetectFromError(err error, output string, elapsed time.Duration) Detection 
 	}
 }
 
-// isRateLimitPattern detects if the output contains rate limit error patterns
+// isRateLimitPattern detects if the output contains rate limit error patterns.
+// Patterns are intentionally specific to avoid false positives - a bare "429" or
+// "rate limit" could appear in normal agent discussion, code, or log output.
 func isRateLimitPattern(output string) bool {
 	patterns := []string{
 		"ai usage limit reached",
@@ -84,9 +86,11 @@ func isRateLimitPattern(output string) bool {
 		"quota exceeded",
 		"rate limits are critical",
 		"error 429",
-		"usage limit",
-		"rate limit",
-		"429",
+		"http 429",
+		"status 429",
+		"status: 429",
+		"code 429",
+		"code: 429",
 	}
 
 	lower := strings.ToLower(output)

@@ -61,6 +61,30 @@ func TestDetectFromError_HitYourLimitPattern(t *testing.T) {
 	}
 }
 
+func TestDetectFromError_Bare429NotRateLimit(t *testing.T) {
+	// A bare "429" in output (e.g., line numbers, IDs) should NOT trigger rate limit detection
+	result := DetectFromError(nil, "processing line 429 of file.go", 5*time.Second)
+	if result.IsRateLimited {
+		t.Fatalf("bare '429' in output should not trigger rate limit detection")
+	}
+}
+
+func TestDetectFromError_BareRateLimitNotDetected(t *testing.T) {
+	// Discussion about rate limits should NOT trigger detection
+	result := DetectFromError(nil, "implementing rate limit handling for the API", 5*time.Second)
+	if result.IsRateLimited {
+		t.Fatalf("discussion about rate limits should not trigger detection")
+	}
+}
+
+func TestDetectFromError_Error429Detected(t *testing.T) {
+	// "error 429" should still trigger detection
+	result := DetectFromError(nil, "error 429: too many requests", 5*time.Second)
+	if !result.IsRateLimited {
+		t.Fatalf("'error 429' should trigger rate limit detection")
+	}
+}
+
 func TestExtractRetryDurationCapsAndPatterns(t *testing.T) {
 	if got := ExtractRetryDuration("retry-after=50000"); got != MaxRetrySeconds {
 		t.Fatalf("expected max cap %d, got %d", MaxRetrySeconds, got)

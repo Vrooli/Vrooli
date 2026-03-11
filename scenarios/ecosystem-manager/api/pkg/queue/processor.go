@@ -489,6 +489,14 @@ func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
 		return fmt.Errorf("task id required")
 	}
 
+	// Respect processor state: don't start tasks when paused or inactive
+	if qp.IsPaused() {
+		return fmt.Errorf("processor is paused")
+	}
+	if !settings.IsActive() {
+		return fmt.Errorf("processor is inactive")
+	}
+
 	// Prevent duplicate launches
 	if qp.IsTaskRunning(taskID) {
 		return nil
@@ -529,8 +537,12 @@ func (qp *Processor) StartTaskIfSlotAvailable(taskID string) error {
 
 	qp.mu.Lock()
 	isRunning := qp.isRunning
+	isPaused := qp.isPaused
 	qp.mu.Unlock()
-	if !isRunning {
+	if !isRunning || isPaused {
+		return nil
+	}
+	if !settings.IsActive() {
 		return nil
 	}
 

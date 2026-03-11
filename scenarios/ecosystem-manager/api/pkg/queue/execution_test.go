@@ -584,24 +584,45 @@ func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
 	}
 }
 
-func TestMapAgentManagerResult_DetectsRateLimitInSuccessfulOutput(t *testing.T) {
+func TestMapAgentManagerResult_DetectsRateLimitInErrorMsg(t *testing.T) {
 	em := &ExecutionManager{}
 	run := &domainpb.Run{
-		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		Status:   domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		ErrorMsg: "You've hit your limit · resets 10am (America/New_York)",
 	}
 	task := tasks.TaskItem{ID: "rate-limit-task"}
-	output := "System context received\nYou've hit your limit · resets 10am (America/New_York)\nStatus: running -> complete"
+	output := "Some normal task output"
 
 	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
 
 	if resp.Success {
-		t.Fatal("expected success=false for rate-limited output")
+		t.Fatal("expected success=false for rate-limited error message")
 	}
 	if !resp.RateLimited {
-		t.Fatal("expected rate_limited=true for rate-limited output")
+		t.Fatal("expected rate_limited=true for rate-limited error message")
 	}
 	if resp.RetryAfter <= 0 {
 		t.Fatalf("expected positive retry_after, got %d", resp.RetryAfter)
+	}
+}
+
+func TestMapAgentManagerResult_IgnoresRateLimitInOutput(t *testing.T) {
+	// Rate limit text in the output (agent conversation) should NOT trigger detection.
+	// Only error messages and summaries should be checked.
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	task := tasks.TaskItem{ID: "normal-task-mentioning-limits"}
+	output := "Implementing rate limit handling for the API\nLine 429 of the response parser\nUsage limit documentation updated"
+
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
+
+	if !resp.Success {
+		t.Fatal("expected success=true when rate limit text is only in output")
+	}
+	if resp.RateLimited {
+		t.Fatal("expected rate_limited=false when rate limit text is only in output")
 	}
 }
 

@@ -606,24 +606,28 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 		}
 	}
 
-	// Defensive detection: if agent-manager reported COMPLETE but output/summary clearly
-	// indicates a rate limit, treat this as rate-limited instead of successful.
-	rateLimitText := strings.TrimSpace(strings.Join([]string{
-		run.ErrorMsg,
-		output,
-		response.Message,
-		response.FinalMessage,
-	}, "\n"))
-	rateLimitDetection := ratelimit.DetectFromError(nil, rateLimitText, 0)
-	if rateLimitDetection.IsRateLimited {
-		response.Success = false
-		response.RateLimited = true
-		response.RetryAfter = rateLimitDetection.RetryAfter
-		if response.RetryAfter <= 0 {
-			response.RetryAfter = DefaultRateLimitRetry
-		}
-		if response.Error == "" {
-			response.Error = "RATE_LIMIT: API rate limit reached"
+	// Defensive detection: if agent-manager reported COMPLETE but the error/summary
+	// clearly indicates a rate limit, treat this as rate-limited instead of successful.
+	// IMPORTANT: Only scan error messages and summary, NOT the full output. The output
+	// contains the entire agent conversation (tool calls, code, discussion) which can
+	// legitimately mention "rate limit", "429", etc. without being an actual rate limit.
+	if !response.RateLimited {
+		rateLimitText := strings.TrimSpace(strings.Join([]string{
+			run.ErrorMsg,
+			response.Message,
+			response.FinalMessage,
+		}, "\n"))
+		rateLimitDetection := ratelimit.DetectFromError(nil, rateLimitText, 0)
+		if rateLimitDetection.IsRateLimited {
+			response.Success = false
+			response.RateLimited = true
+			response.RetryAfter = rateLimitDetection.RetryAfter
+			if response.RetryAfter <= 0 {
+				response.RetryAfter = DefaultRateLimitRetry
+			}
+			if response.Error == "" {
+				response.Error = "RATE_LIMIT: API rate limit reached"
+			}
 		}
 	}
 

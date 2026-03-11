@@ -10,7 +10,7 @@
   "skip_permissions": true,
   "task_timeout": 125,
   "idle_timeout_cap": 102,
-  "runner_type": "claude-code",
+  "runner_type": "codex",
   "recycler": {
     "enabled_for": "scenarios",
     "interval_seconds": 240,
