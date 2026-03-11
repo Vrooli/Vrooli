@@ -1,0 +1,47 @@
+{
+  "description": "Visual overview showing all references, their connected skills, validation status (pass/fail/unconfigured), overlaps, and conflicts in an interactive layout.",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Create web dashboard showing reference list, connected skills, validation status, coverage overlaps, and conflicts. Support filtering, sorting, and click-through navigation to detailed views.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Interactive Dashboard UI",
+      "validation": [
+        {
+          "notes": "Test UI component rendering",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify dashboard data integration",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dashboard load time \u003c 2s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dashboard provides clear system overview",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dashboard UI"
+}

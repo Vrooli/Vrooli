@@ -1,0 +1,40 @@
+{
+  "description": "Complete docs/ directory following documentation-health steer: manifest.json, QUICKSTART.md, concepts/ARCHITECTURE.md, reference/api-endpoints.md, reference/cli-commands.md, internal/SEAMS.md, internal/PROBLEMS.md, internal/PROGRESS.md. Bidirectional DOC:/[CODE:] references.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Maintain complete docs/ directory with all required documentation files and bidirectional code references.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Documentation Structure",
+      "validation": [
+        {
+          "notes": "Verify file presence",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate doc references",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Documentation review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Documentation Set"
+}

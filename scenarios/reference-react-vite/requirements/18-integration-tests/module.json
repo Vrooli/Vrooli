@@ -1,0 +1,40 @@
+{
+  "description": "Bats-based CLI integration tests. API integration tests using httptest. At least one end-to-end flow tested across API, CLI, and UI.",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Implement comprehensive integration tests across CLI, API, and UI components.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Integration Test Suite",
+      "validation": [
+        {
+          "notes": "Run Bats tests",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Execute end-to-end tests",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test coverage review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Integration Tests"
+}

@@ -1,0 +1,50 @@
+{
+  "description": "Connect prompt-manager skills to reference scenarios via the prompt-manager API. Store the skill's version number (from prompt-manager's version history) and content hash at connection time. Support connecting/disconnecting skills via API and CLI.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement storage and API for managing connections between skills and reference scenarios",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Prompt-Manager Skill Connection Store",
+      "validation": [
+        {
+          "notes": "Version numbers stored correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Content hashes validated",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Prompt-manager API integration successful",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Connections maintain version history",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Skill Connection Management"
+}

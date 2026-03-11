@@ -1,0 +1,109 @@
+{
+  "description": "Register existing scenarios as references, storing which template they are based on. Support CRUD operations via API and CLI. Persist to PostgreSQL.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Design and implement PostgreSQL schema for storing reference scenarios with template associations and metadata",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Reference Scenario Database Schema",
+      "validation": [
+        {
+          "notes": "Schema migrations execute successfully",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD operations validate data constraints",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Database connections handle concurrent operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Query execution time \u003c 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All required fields are present in schema",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement REST API endpoints for CRUD operations on reference scenarios",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Reference Scenario API Endpoints",
+      "validation": [
+        {
+          "notes": "All endpoints return correct status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Input validation handles edge cases",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API authentication works correctly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Database operations succeed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response time \u003c 200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All CRUD operations available via API",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Reference Scenario Registry"
+}

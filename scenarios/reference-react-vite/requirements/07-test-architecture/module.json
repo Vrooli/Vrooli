@@ -1,0 +1,47 @@
+{
+  "description": "Co-located unit tests alongside production code (api/*_test.go, ui/src/**/*.test.tsx). Centralized test helpers/mocks. Testcontainers setup for database tests. At least 80% structural test coverage across API and UI.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement co-located unit tests with centralized test helpers and mocks. Use Testcontainers for database testing. Maintain minimum 80% code coverage.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Test Architecture and Coverage",
+      "validation": [
+        {
+          "notes": "Verify test file locations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate test helper organization",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run coverage reports",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm 80% coverage threshold",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Test Architecture"
+}

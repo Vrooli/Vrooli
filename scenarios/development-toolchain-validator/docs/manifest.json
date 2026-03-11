@@ -1,0 +1,134 @@
+{
+  "version": "1.0.0",
+  "title": "Development Toolchain Validator Documentation",
+  "description": "Documentation for validating steer skill interoperability, tooling correctness, and cross-scenario coherence against reference implementations",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get running in 5 minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "High-level system design and data flow"
+        },
+        {
+          "path": "concepts/VISION.md",
+          "title": "Vision & Purpose",
+          "description": "Why this scenario exists and how it fits into the Vrooli ecosystem"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain vocabulary and key terms"
+        },
+        {
+          "path": "concepts/SKILL-CONNECTIONS.md",
+          "title": "Skill Connections",
+          "description": "How skills are connected to references and configured"
+        },
+        {
+          "path": "concepts/ASSERTION-ENGINE.md",
+          "title": "Assertion Engine",
+          "description": "How structural and CLI tool assertions work"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        {
+          "path": "guides/connecting-skills.md",
+          "title": "Connecting Skills to References",
+          "description": "Step-by-step guide for skill connection and configuration"
+        },
+        {
+          "path": "guides/writing-assertions.md",
+          "title": "Writing Assertions",
+          "description": "How to write structural and CLI tool assertions"
+        },
+        {
+          "path": "guides/interpreting-reports.md",
+          "title": "Interpreting Reports",
+          "description": "Understanding validation reports, overlaps, and conflicts"
+        },
+        {
+          "path": "guides/tooling-baselines.md",
+          "title": "Tooling Baselines",
+          "description": "Setting up and using scenario-auditor, test-genie, and completeness scoring baselines"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "REST API documentation"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Reference",
+          "description": "CLI command documentation"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Database schema, config formats, and environment variables"
+        },
+        {
+          "path": "reference/data-model.md",
+          "title": "Data Model",
+          "description": "PostgreSQL schema and entity relationships"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Integration Boundaries",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress Log",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "secondary": ["internal"]
+  }
+}

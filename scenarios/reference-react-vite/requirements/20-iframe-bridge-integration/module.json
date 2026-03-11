@@ -1,0 +1,40 @@
+{
+  "description": "UI properly integrates with Vrooli's iframe-bridge for orchestration. ui-smoke test passes with browserless screenshot capture.",
+  "module_id": "MOD-P1-020",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Implement proper integration with Vrooli's iframe-bridge including UI smoke tests.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "draft",
+      "title": "iframe-bridge Integration",
+      "validation": [
+        {
+          "notes": "Test bridge methods",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-smoke test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify screenshots",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "iframe-bridge Integration"
+}

@@ -1,0 +1,40 @@
+{
+  "description": "CORS configuration, CSP headers, rate limiting middleware. Input validation at API boundaries. No hardcoded secrets.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "description": "Configure security headers, CORS, rate limiting, and input validation. Remove hardcoded secrets.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Security Configuration",
+      "validation": [
+        {
+          "notes": "Test middleware",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Security scan",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Security review",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Security Headers"
+}

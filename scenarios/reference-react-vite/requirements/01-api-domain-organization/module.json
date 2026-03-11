@@ -1,0 +1,54 @@
+{
+  "description": "Implement a Go API with screaming-architecture organization: endpoints grouped by bounded context/domain, not by HTTP verbs or technical layers. At least 3 distinct domain modules demonstrating the pattern.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "API codebase must follow screaming architecture with endpoints organized by business domain rather than technical concerns. Each domain must be a distinct module with its own handlers, models, and repositories.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Domain-Driven API Structure",
+      "validation": [
+        {
+          "notes": "Verify each domain module has separate package",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test domain-specific handler isolation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify API endpoints map to correct domain handlers",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Minimum 3 distinct domain modules implemented",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No cross-domain handler dependencies",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "API Domain Organization"
+}

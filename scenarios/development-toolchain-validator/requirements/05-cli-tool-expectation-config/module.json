@@ -1,0 +1,47 @@
+{
+  "description": "For each skill-reference connection, allow defining CLI tool assertions: a command to run (read-only tools with `--json` output), a JSONPath expression, a comparison operator (eq, neq, gt, gte, lt, lte, exists, contains, matches, between), and an expected value. These represent the validation/search tools referenced in steer skills.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Define and implement schema for CLI tool assertions including command specification and JSONPath evaluations",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "CLI Tool Assertion Schema",
+      "validation": [
+        {
+          "notes": "JSONPath parsing works",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operator logic correct",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Command execution successful",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All comparison operators supported",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI Tool Expectation Config"
+}

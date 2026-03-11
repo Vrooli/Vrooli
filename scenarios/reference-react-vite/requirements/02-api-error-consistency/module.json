@@ -1,0 +1,54 @@
+{
+  "description": "All API endpoints return errors in a consistent shape: error code (machine-oriented), human message, structured details, and request/correlation ID. No endpoint-specific error formats.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "All API endpoints must return errors in a consistent JSON structure containing: error_code (string), message (string), details (object), request_id (string).",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Standardized Error Response Format",
+      "validation": [
+        {
+          "notes": "Test error response structure for each error case",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify error codes are machine-readable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify error format consistency across all endpoints",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error responses include all required fields",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error details are structured appropriately for each error type",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "API Error Consistency"
+}

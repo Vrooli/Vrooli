@@ -1,0 +1,40 @@
+{
+  "description": "WCAG 2.1 AA compliance: semantic HTML, keyboard navigation, ARIA attributes, sufficient color contrast. Lighthouse accessibility score 90+.",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement WCAG 2.1 AA compliance features and achieve 90+ Lighthouse accessibility score.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "WCAG Compliance",
+      "validation": [
+        {
+          "notes": "Test ARIA attributes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run Lighthouse",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessibility audit",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Accessibility Compliance"
+}

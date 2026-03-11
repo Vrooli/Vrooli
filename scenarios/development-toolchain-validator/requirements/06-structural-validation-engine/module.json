@@ -1,0 +1,64 @@
+{
+  "description": "Run all structural expectations against a reference scenario and report pass/fail per expectation, per skill connection. Detect missing folders, missing files, and snippet mismatches.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Implement engine to evaluate structural expectations against reference scenarios",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Structural Validation Engine Core",
+      "validation": [
+        {
+          "notes": "Folder checks accurate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "File pattern matching works",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Content validation correct",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full validation pipeline succeeds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validation completes \u003c 5s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All structural rules evaluated",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Structural Validation Engine"
+}

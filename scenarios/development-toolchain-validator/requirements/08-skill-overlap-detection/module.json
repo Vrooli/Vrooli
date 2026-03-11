@@ -1,0 +1,50 @@
+{
+  "description": "For each reference scenario, analyze all connected skill configurations to identify overlapping structural expectations (multiple skills expecting structures in the same files/folders). Report overlaps with the specific skills involved and the conflicting expectations.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Implement analysis system to detect overlapping structural expectations between skills",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Skill Overlap Analysis Engine",
+      "validation": [
+        {
+          "notes": "Overlap detection accurate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rule comparison correct",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis pipeline works",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All overlap types detected",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Skill Overlap Detection"
+}

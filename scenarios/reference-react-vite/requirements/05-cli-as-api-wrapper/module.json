@@ -1,0 +1,98 @@
+{
+  "description": "Go CLI that is a thin wrapper over the API. Every API endpoint has a corresponding CLI command. CLI uses the same error shapes as the API. Installed via install.sh to ~/.vrooli/bin.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Implement CLI commands matching all API endpoints with consistent interface and error handling.",
+      "id": "REQ-P0-005a",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "CLI Command Parity",
+      "validation": [
+        {
+          "notes": "Test CLI command parsing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify error handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test CLI-API interaction",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify command output format",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "100% API endpoint coverage via CLI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-005a"
+      ],
+      "description": "Provide install.sh script that installs CLI binary to ~/.vrooli/bin with proper permissions.",
+      "id": "REQ-P0-005b",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "CLI Installation Script",
+      "validation": [
+        {
+          "notes": "Test installation script",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify binary permissions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test installation on fresh system",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI successfully installed and executable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI as API Wrapper"
+}

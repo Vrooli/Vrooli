@@ -1,0 +1,33 @@
+{
+  "description": "Complete requirements/index.json with all operational targets mapped. Tests tagged with [REQ:ID] comments linking to requirements.",
+  "module_id": "MOD-P1-019",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Maintain requirements index with traceable links between requirements and tests.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Requirements Tracking",
+      "validation": [
+        {
+          "notes": "Verify requirement tags",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Traceability audit",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Requirements Traceability"
+}

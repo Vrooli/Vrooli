@@ -1,0 +1,47 @@
+{
+  "description": "Aggregate health endpoint combining: validation results, tooling baselines (auditor/test-genie/completeness), skill maturity scores, and coverage map into a single health score per reference.",
+  "module_id": "MOD-P1-019",
+  "prd_ref": "OT-P1-009",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Calculate aggregate health score combining validation results (30%), tooling baselines (30%), skill maturity (20%), and coverage completeness (20%). Provide health score API endpoint returning detailed breakdown.",
+      "id": "REQ-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "draft",
+      "title": "Reference Health Score",
+      "validation": [
+        {
+          "notes": "Test health score calculation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify health API responses",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Health calculation \u003c 5s per reference",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Score accurately reflects reference health",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Reference Health Summary"
+}

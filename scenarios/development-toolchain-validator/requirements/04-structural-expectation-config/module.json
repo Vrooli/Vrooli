@@ -1,0 +1,50 @@
+{
+  "description": "For each skill-reference connection, allow defining structural expectations: required/optional folders, files matching glob patterns, and content snippets expected at specific file locations. Store as JSON configuration per connection.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Create JSON schema and storage for structural validation rules including file patterns and content expectations",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Structural Expectation Configuration Store",
+      "validation": [
+        {
+          "notes": "JSON schema validation works",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pattern matching tested",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Configuration persistence works",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All structural rule types supported",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Structural Expectation Config"
+}

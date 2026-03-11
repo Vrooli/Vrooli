@@ -1,0 +1,52 @@
+{
+  "description": "Analyze a steer skill's SKILL.md content and suggest structural expectations and CLI tool assertions that could be configured, based on patterns in the skill text (folder references, CLI commands mentioned, convergence patterns).",
+  "module_id": "MOD-P2-021",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-005",
+        "REQ-P0-006"
+      ],
+      "description": "Create system to analyze skill content and suggest configuration based on patterns",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Auto-Config Analysis Engine",
+      "validation": [
+        {
+          "notes": "Pattern detection accurate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Suggestion generation works",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full analysis pipeline successful",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Useful suggestions provided",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Auto-Config Suggestions"
+}

@@ -1,0 +1,152 @@
+{
+  "_metadata": {
+    "entity": "reference-react-vite",
+    "generated_at": "2026-03-11T13:34:25-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-api-domain-organization/module.json",
+    "02-api-error-consistency/module.json",
+    "03-api-health-lifecycle/module.json",
+    "04-storage-layer/module.json",
+    "05-cli-as-api-wrapper/module.json",
+    "06-react-ui-foundation/module.json",
+    "07-test-architecture/module.json",
+    "08-documentation-set/module.json",
+    "09-service-configuration/module.json",
+    "10-scenario-auditor-compliance/module.json",
+    "11-test-genie-all-pass/module.json",
+    "12-completeness-score-96/module.json",
+    "13-interoperability-patterns/module.json",
+    "14-pagination-filtering/module.json",
+    "15-security-headers/module.json",
+    "16-accessibility-compliance/module.json",
+    "17-error-boundary-ui/module.json",
+    "18-integration-tests/module.json",
+    "19-requirements-traceability/module.json",
+    "20-iframe-bridge-integration/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-api-domain-organization",
+      "priority": "P0",
+      "title": "API Domain Organization"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-api-error-consistency",
+      "priority": "P0",
+      "title": "API Error Consistency"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-api-health-lifecycle",
+      "priority": "P0",
+      "title": "API Health \u0026 Lifecycle"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-storage-layer",
+      "priority": "P0",
+      "title": "Storage Layer"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-cli-as-api-wrapper",
+      "priority": "P0",
+      "title": "CLI as API Wrapper"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-react-ui-foundation",
+      "priority": "P0",
+      "title": "React UI Foundation"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-test-architecture",
+      "priority": "P0",
+      "title": "Test Architecture"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-documentation-set",
+      "priority": "P0",
+      "title": "Documentation Set"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-service-configuration",
+      "priority": "P0",
+      "title": "Service Configuration"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-scenario-auditor-compliance",
+      "priority": "P0",
+      "title": "Scenario-Auditor Compliance"
+    },
+    {
+      "id": "MOD-P0-011",
+      "path": "11-test-genie-all-pass",
+      "priority": "P0",
+      "title": "Test-Genie All-Pass"
+    },
+    {
+      "id": "MOD-P0-012",
+      "path": "12-completeness-score-96",
+      "priority": "P0",
+      "title": "Completeness Score 96+"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-interoperability-patterns",
+      "priority": "P1",
+      "title": "Interoperability Patterns"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-pagination-filtering",
+      "priority": "P1",
+      "title": "Pagination \u0026 Filtering"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-security-headers",
+      "priority": "P1",
+      "title": "Security Headers"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-accessibility-compliance",
+      "priority": "P1",
+      "title": "Accessibility Compliance"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-error-boundary-ui",
+      "priority": "P1",
+      "title": "Error Boundary UI"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-integration-tests",
+      "priority": "P1",
+      "title": "Integration Tests"
+    },
+    {
+      "id": "MOD-P1-019",
+      "path": "19-requirements-traceability",
+      "priority": "P1",
+      "title": "Requirements Traceability"
+    },
+    {
+      "id": "MOD-P1-020",
+      "path": "20-iframe-bridge-integration",
+      "priority": "P1",
+      "title": "iframe-bridge Integration"
+    }
+  ]
+}

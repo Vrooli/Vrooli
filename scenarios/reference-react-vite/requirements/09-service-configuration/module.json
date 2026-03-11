@@ -1,0 +1,40 @@
+{
+  "description": "Fully populated .vrooli/service.json with correct port ranges (API 15000-19999, UI 35000-39999), complete lifecycle (setup/develop/test/stop), health checks, and resource declarations.",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Maintain service.json with correct port ranges, lifecycle commands, health checks, and resource declarations.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Service Configuration Schema",
+      "validation": [
+        {
+          "notes": "Validate JSON schema",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test lifecycle commands",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify port assignments",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Service Configuration"
+}

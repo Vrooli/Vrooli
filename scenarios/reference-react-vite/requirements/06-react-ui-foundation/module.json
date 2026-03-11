@@ -1,0 +1,95 @@
+{
+  "description": "React + TypeScript + Vite UI with: component-based architecture, proper routing (at least 3 routes), loading/error/empty states for all data-fetching components, and data-testid attributes on interactive elements.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement React UI using TypeScript and Vite with component-based architecture and proper routing.",
+      "id": "REQ-P0-006a",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "React Component Architecture",
+      "validation": [
+        {
+          "notes": "Test component rendering",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify route configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test navigation between routes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Minimum 3 distinct routes implemented",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-006a"
+      ],
+      "description": "Implement comprehensive loading, error, and empty states for all data-fetching components.",
+      "id": "REQ-P0-006b",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "UI State Management",
+      "validation": [
+        {
+          "notes": "Test state transitions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify error handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test loading states with delayed API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify empty state rendering",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All data-fetching components handle all states",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "React UI Foundation"
+}
