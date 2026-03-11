@@ -126,7 +126,10 @@ func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		hctx.Resp.InternalError("failed to write screenshot response")
+		return
+	}
 }
 
 // handleVisualCaptureVideo handles GET /api/v1/repo/visual-captures/{id}/video/{filename}
@@ -158,7 +161,10 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "video/webm")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		hctx.Resp.InternalError("failed to write video response")
+		return
+	}
 }
 
 // handleVisualCaptureStorageStats handles GET /api/v1/repo/visual-capture-storage

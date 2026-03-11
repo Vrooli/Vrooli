@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import Editor from "@monaco-editor/react";
+import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -90,7 +90,7 @@ function markerPriority(change: Exclude<LineChange, "">): number {
   }
 }
 
-export function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
+function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
   const changedLines = annotatedLines
     .map((line, index) => ({ line, index }))
     .filter(({ line }) => line.change === "added" || line.change === "deleted" || line.change === "modified");
@@ -123,7 +123,7 @@ export function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMar
     }));
 }
 
-export function scrollTopFromMinimapPointer(
+function scrollTopFromMinimapPointer(
   pointerOffsetY: number,
   railHeight: number,
   scrollHeight: number,
@@ -210,7 +210,7 @@ function getMonacoLanguage(filePath?: string): string {
   return languageMap[detected] ?? detected;
 }
 
-function defineMonacoTheme(monaco: typeof Monaco): void {
+function defineMonacoTheme(monaco: MonacoInstance): void {
   monaco.editor.defineTheme(monacoThemeName, {
     base: "vs-dark",
     inherit: true,
@@ -237,7 +237,7 @@ function defineMonacoTheme(monaco: typeof Monaco): void {
   });
 }
 
-export function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
+function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
   if (lines.length === 0) return [];
 
   const bucketCount = Math.min(maxRows, lines.length);
@@ -605,7 +605,7 @@ export function DiffViewer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictHash, setConflictHash] = useState<string | null>(null);
   const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<typeof Monaco | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
   const monacoDecorationIdsRef = useRef<string[]>([]);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
@@ -685,8 +685,8 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
 
   // Determine what content to show
-  const annotatedLines = diff?.annotated_lines ?? [];
-  const hunks = diff?.hunks ?? [];
+  const annotatedLines = useMemo(() => diff?.annotated_lines ?? [], [diff?.annotated_lines]);
+  const hunks = useMemo(() => diff?.hunks ?? [], [diff?.hunks]);
   const fullContent = diff?.full_content ?? "";
   const hasAnnotatedLines = annotatedLines.length > 0;
   const hasFullContent = diff?.full_content !== undefined;
@@ -788,7 +788,7 @@ export function DiffViewer({
       setSaveError(err instanceof Error ? err.message : "Failed to save file");
     }
   }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
-  const handleMonacoBeforeMount = useCallback((monaco: typeof Monaco) => {
+  const handleMonacoBeforeMount = useCallback((monaco: MonacoInstance) => {
     monacoRef.current = monaco;
     defineMonacoTheme(monaco);
   }, []);

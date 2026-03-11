@@ -4,7 +4,6 @@ import {
   Search,
   Settings
 } from "lucide-react";
-import { Badge } from "./ui/badge";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "./HistoryModeHeader";
 import type { ViewingFileBlame } from "./BlameModeHeader";
@@ -51,7 +50,7 @@ export function StatusHeader({
   viewingFileBlame,
   onExitBlameMode
 }: StatusHeaderProps) {
-  const { isHealthy, upstreamRef, trackingMismatch, cleanDetails } =
+  const { isHealthy, cleanDetails } =
     useHeaderState(status, health, syncStatus);
 
   if (viewingFileBlame && onExitBlameMode) {

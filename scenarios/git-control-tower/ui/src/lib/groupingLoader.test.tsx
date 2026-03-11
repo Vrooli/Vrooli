@@ -12,7 +12,7 @@
  * process data (data available, or done loading with no data).
  */
 import "@testing-library/jest-dom";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -101,6 +101,11 @@ function useGroupingLoaderLogic(
 // Tests
 // ---------------------------------------------------------------------------
 
+interface HookProps {
+  repoDir: string | undefined;
+  query: QueryResult<GroupingRulesConfig>;
+}
+
 describe("grouping loader race condition (regression)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -118,12 +123,12 @@ describe("grouping loader race condition (regression)", () => {
 
     // Phase 1: repoDir available, grouping query still loading
     const { result, rerender } = renderHook(
-      ({ repoDir, query }: { repoDir: string | undefined; query: QueryResult<GroupingRulesConfig> }) =>
+      ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
         initialProps: {
           repoDir: "/home/user/repo",
-          query: { data: undefined, isLoading: true },
+          query: { data: undefined, isLoading: true } as QueryResult<GroupingRulesConfig>,
         },
       },
     );
@@ -142,7 +147,7 @@ describe("grouping loader race condition (regression)", () => {
     await waitFor(() => {
       expect(result.current.groupingLoadedKey).not.toBeNull();
       expect(result.current.groupingRules).toHaveLength(1);
-      expect(result.current.groupingRules[0].label).toBe("Scenarios");
+      expect((result.current.groupingRules[0] as { label: string } | undefined)?.label).toBe("Scenarios");
     });
   });
 
@@ -163,7 +168,7 @@ describe("grouping loader race condition (regression)", () => {
 
     expect(result.current.groupingLoadedKey).not.toBeNull();
     expect(result.current.groupingRules).toHaveLength(1);
-    expect(result.current.groupingRules[0].label).toBe("Scenarios");
+    expect((result.current.groupingRules[0] as { label: string } | undefined)?.label).toBe("Scenarios");
   });
 
   it("does not save empty rules while API is still loading", async () => {
@@ -176,12 +181,12 @@ describe("grouping loader race condition (regression)", () => {
 
     // Phase 1: loading
     const { result, rerender } = renderHook(
-      ({ repoDir, query }: { repoDir: string | undefined; query: QueryResult<GroupingRulesConfig> }) =>
+      ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
         initialProps: {
           repoDir: "/home/user/repo",
-          query: { data: undefined, isLoading: true },
+          query: { data: undefined, isLoading: true } as QueryResult<GroupingRulesConfig>,
         },
       },
     );
@@ -201,7 +206,7 @@ describe("grouping loader race condition (regression)", () => {
 
     // The save should contain the real rules, not empty
     expect(result.current.lastSavedRules).toHaveLength(1);
-    expect(result.current.lastSavedRules[0].label).toBe("Scenarios");
+    expect((result.current.lastSavedRules[0] as { label: string } | undefined)?.label).toBe("Scenarios");
   });
 
   it("falls back to defaults when API returns empty and is done loading", () => {
@@ -240,11 +245,11 @@ describe("grouping loader race condition (regression)", () => {
 
     // Phase 1: no repoDir yet, but API data is ready
     const { result, rerender } = renderHook(
-      ({ repoDir, query }: { repoDir: string | undefined; query: QueryResult<GroupingRulesConfig> }) =>
+      ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
         initialProps: {
-          repoDir: undefined,
+          repoDir: undefined as string | undefined,
           query: { data: savedRules, isLoading: false },
         },
       },
@@ -260,7 +265,7 @@ describe("grouping loader race condition (regression)", () => {
 
     await waitFor(() => {
       expect(result.current.groupingRules).toHaveLength(1);
-      expect(result.current.groupingRules[0].label).toBe("Resources");
+      expect((result.current.groupingRules[0] as { label: string } | undefined)?.label).toBe("Resources");
     });
   });
 });

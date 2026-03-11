@@ -372,7 +372,7 @@ func validateFilename(filename string) error {
 
 func dirSize(path string) int64 {
 	var size int64
-	filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}

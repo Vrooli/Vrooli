@@ -27,7 +27,7 @@ func TestBASClient_CaptureScreenshot(t *testing.T) {
 			t.Errorf("unexpected URL: %s", req.URL)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(BASScreenshotResponse{
+		_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
 			Screenshot:     "data:image/png;base64,iVBORw0KGgo=",
 			URL:            req.URL,
 			DurationMS:     150,
@@ -61,7 +61,7 @@ func TestBASClient_CaptureScreenshot_ServerError(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/preview-screenshot", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -86,7 +86,7 @@ func TestBASClient_ExecuteAdhocWorkflow(t *testing.T) {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(BASExecuteResponse{
+		_ = json.NewEncoder(w).Encode(BASExecuteResponse{
 			ExecutionID: "exec-123",
 			Status:      "completed",
 		})
@@ -120,7 +120,7 @@ func TestBASClient_GetScreenshots(t *testing.T) {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(BASScreenshotsResponse{
+		_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{
 			Screenshots: []BASExecutionScreenshot{
 				{StepIndex: 0, StepLabel: "Navigate"},
 				{StepIndex: 1, StepLabel: "Click button"},

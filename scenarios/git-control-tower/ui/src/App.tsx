@@ -2468,6 +2468,12 @@ export default function App() {
           onSelectFile={handleSelectAnyFile}
           repoId={repoId}
         />
+        <ScenarioReviewModal
+          isOpen={reviewSlug !== null}
+          onClose={() => setReviewSlug(null)}
+          scenarioSlug={reviewSlug ?? ""}
+          repoId={repoId}
+        />
       </div>
     );
   }

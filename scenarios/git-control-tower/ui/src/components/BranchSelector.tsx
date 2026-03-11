@@ -92,10 +92,10 @@ export function BranchSelector({
   const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
   const showPublish = currentBranch !== "" && currentUpstream === "";
 
-  const repoList = repoActions?.repos?.repos ?? [];
   const activeRepoId = repoActions?.repos?.active_id;
+  const repoList = repoActions?.repos?.repos;
   const activeRepo = useMemo(
-    () => repoList.find((repo: RepoRecord) => repo.id === activeRepoId) ?? null,
+    () => (repoList ?? []).find((repo: RepoRecord) => repo.id === activeRepoId) ?? null,
     [repoList, activeRepoId]
   );
   const hasActiveRepo = activeRepoId !== undefined && activeRepoId !== null;

@@ -16,7 +16,7 @@ export function SettingsTabHealth({ isMobile, repoId }: SettingsTabHealthProps) 
   const [dismissedPatterns, setDismissedPatterns] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem(`gct.gitignore.dismissals`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
+      return stored ? new Set<string>(JSON.parse(stored) as string[]) : new Set();
     } catch {
       return new Set();
     }
@@ -26,7 +26,7 @@ export function SettingsTabHealth({ isMobile, repoId }: SettingsTabHealthProps) 
 
   const hasGroupingRules = (groupingRulesQuery.data?.rules?.length ?? 0) > 0;
 
-  const suggestions = healthQuery.data?.suggestions ?? [];
+  const suggestions = useMemo(() => healthQuery.data?.suggestions ?? [], [healthQuery.data?.suggestions]);
 
   const movable = useMemo(
     () => suggestions.filter(s => s.type === "single_group" && !dismissedPatterns.has(s.pattern)),

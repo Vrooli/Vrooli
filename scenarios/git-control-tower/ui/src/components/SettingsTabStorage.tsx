@@ -19,7 +19,7 @@ function formatBytes(bytes: number): string {
 export function SettingsTabStorage({ isMobile, repoId }: SettingsTabStorageProps) {
   const statsQuery = useCaptureStorageStats(repoId);
   const clearAll = useClearAllCaptureStorage(repoId);
-  const deleteCapture = useDeleteVisualCapture(repoId);
+  const _deleteCapture = useDeleteVisualCapture(repoId);
   const [confirmClear, setConfirmClear] = useState(false);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
 

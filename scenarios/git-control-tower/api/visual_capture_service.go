@@ -92,6 +92,7 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		Pages:               capturedPages,
 		ScreenshotCount:     len(screenshots),
 		VideoCount:          0,
+		VideoStatus:         "not_implemented",
 		CreatedAt:           time.Now().UTC(),
 		Status:              status,
 		Error:               captureErr,

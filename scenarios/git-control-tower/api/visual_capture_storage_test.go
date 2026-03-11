@@ -262,12 +262,21 @@ func TestStorage_PathTraversal(t *testing.T) {
 	}
 	// Write a file at the parent level to verify traversal is blocked
 	parentDir, _ := store.snapshotDir(1, "test-scenario", "pt-1")
-	os.MkdirAll(filepath.Dir(parentDir), 0o755)
-	os.MkdirAll(parentDir, 0o755)
-	metaBytes, _ := json.Marshal(meta)
-	os.WriteFile(filepath.Join(parentDir, "metadata.json"), metaBytes, 0o644)
+	if err := os.MkdirAll(filepath.Dir(parentDir), 0o755); err != nil {
+		t.Fatalf("create parent dir parent: %v", err)
+	}
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+		t.Fatalf("create parent dir: %v", err)
+	}
+	metaBytes, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("marshal meta: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(parentDir, "metadata.json"), metaBytes, 0o644); err != nil {
+		t.Fatalf("write metadata.json: %v", err)
+	}
 
-	_, err := store.GetScreenshotFile(1, "test-scenario", "pt-1", "../metadata.json")
+	_, err = store.GetScreenshotFile(1, "test-scenario", "pt-1", "../metadata.json")
 	if err == nil {
 		t.Fatal("expected error for path traversal filename")
 	}

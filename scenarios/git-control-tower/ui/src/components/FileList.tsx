@@ -1617,9 +1617,9 @@ export function FileList({
                             </button>
                             {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) && (
                               <ReviewButton
-                                scenarioSlug={group.displayPrefix.split("/")[1]}
+                                scenarioSlug={group.displayPrefix.split("/")[1] ?? ""}
                                 repoId={repoId}
-                                onViewReport={() => onOpenReview(group.displayPrefix!.split("/")[1])}
+                                onViewReport={() => onOpenReview(group.displayPrefix?.split("/")[1] ?? "")}
                               />
                             )}
                             {!isGroupCollapsed &&

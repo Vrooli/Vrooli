@@ -23,7 +23,9 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	os.MkdirAll(repoDir, 0o755)
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatalf("create repo dir: %v", err)
+	}
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		EnvGet:      func(key string) string { return "" },
@@ -53,7 +55,7 @@ func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 	deps, _ := testCaptureSetup(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/preview-screenshot" {
 			pngData := base64.StdEncoding.EncodeToString([]byte{0x89, 0x50, 0x4E, 0x47})
-			json.NewEncoder(w).Encode(BASScreenshotResponse{
+			_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
 				Screenshot:     "data:image/png;base64," + pngData,
 				URL:            "http://localhost:3000/",
 				DurationMS:     100,
@@ -67,7 +69,9 @@ func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 
 	// Create lighthouse.json
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
-	os.MkdirAll(lhDir, 0o755)
+	if err := os.MkdirAll(lhDir, 0o755); err != nil {
+		t.Fatalf("create lighthouse dir: %v", err)
+	}
 	lhConfig := LighthouseConfig{
 		Enabled: true,
 		Pages: []LighthousePage{
@@ -75,8 +79,13 @@ func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 			{ID: "about", Path: "/about", Label: "About"},
 		},
 	}
-	lhData, _ := json.Marshal(lhConfig)
-	os.WriteFile(filepath.Join(lhDir, "lighthouse.json"), lhData, 0o644)
+	lhData, err := json.Marshal(lhConfig)
+	if err != nil {
+		t.Fatalf("marshal lighthouse config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(lhDir, "lighthouse.json"), lhData, 0o644); err != nil {
+		t.Fatalf("write lighthouse.json: %v", err)
+	}
 
 	// We need to mock the UI URL resolution - use the BAS server URL as a stand-in
 	// since CaptureScenario calls discovery.ResolveScenarioURL which won't work in tests.
@@ -99,7 +108,9 @@ func TestCaptureScenario_NoLighthouseConfig(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	os.MkdirAll(repoDir, 0o755)
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatalf("create repo dir: %v", err)
+	}
 
 	pages := discoverPages(OSFileIO{}, repoDir, "nonexistent")
 	if len(pages) != 1 {
@@ -120,13 +131,20 @@ func TestDiscoverPages_MultipleLocations(t *testing.T) {
 
 	// Create lighthouse.json under apps/ instead of scenarios/
 	appsDir := filepath.Join(tmpDir, "apps", "my-app", ".vrooli")
-	os.MkdirAll(appsDir, 0o755)
+	if err := os.MkdirAll(appsDir, 0o755); err != nil {
+		t.Fatalf("create apps dir: %v", err)
+	}
 	lhConfig := LighthouseConfig{
 		Enabled: true,
 		Pages:   []LighthousePage{{ID: "main", Path: "/main", Label: "Main"}},
 	}
-	lhData, _ := json.Marshal(lhConfig)
-	os.WriteFile(filepath.Join(appsDir, "lighthouse.json"), lhData, 0o644)
+	lhData, err := json.Marshal(lhConfig)
+	if err != nil {
+		t.Fatalf("marshal lighthouse config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appsDir, "lighthouse.json"), lhData, 0o644); err != nil {
+		t.Fatalf("write lighthouse.json: %v", err)
+	}
 
 	pages := discoverPages(OSFileIO{}, tmpDir, "my-app")
 	if len(pages) != 1 {
@@ -200,14 +218,14 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 			if callCount == 1 {
 				// First call succeeds
 				pngData := base64.StdEncoding.EncodeToString([]byte{0x89, 0x50})
-				json.NewEncoder(w).Encode(BASScreenshotResponse{
+				_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
 					Screenshot: "data:image/png;base64," + pngData,
 				})
 				return
 			}
 			// Second call fails
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
 			return
 		}
 		w.WriteHeader(404)

@@ -5,7 +5,6 @@ import {
   Settings,
   Search
 } from "lucide-react";
-import { Badge } from "./ui/badge";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 import type { ViewingCommit } from "./HistoryModeHeader";

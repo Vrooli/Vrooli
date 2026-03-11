@@ -1393,6 +1393,7 @@ export interface SnapshotSetMeta {
   pages: string[];
   screenshotCount: number;
   videoCount: number;
+  videoStatus?: "not_implemented" | "disabled" | "captured" | "failed";
   createdAt: string;
   sizeBytes: number;
   status: CaptureStatus;

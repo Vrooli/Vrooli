@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -113,100 +112,4 @@ func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*Ignor
 		GitignorePath: gitignorePath,
 		Timestamp:     time.Now().UTC(),
 	}, nil
-}
-
-func findNearestGitignore(repoDir string, path string) (string, string, error) {
-	repoRoot := filepath.Clean(repoDir)
-	absPath := filepath.Join(repoRoot, path)
-	dir := filepath.Dir(absPath)
-
-	for {
-		gitignorePath := filepath.Join(dir, ".gitignore")
-		if _, err := os.Stat(gitignorePath); err == nil {
-			return gitignorePath, dir, nil
-		} else if !os.IsNotExist(err) {
-			return "", "", fmt.Errorf("stat .gitignore: %w", err)
-		}
-
-		if dir == repoRoot {
-			return gitignorePath, dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	return "", "", fmt.Errorf("gitignore resolution failed")
-}
-
-func ignoreEntryForPath(repoDir string, gitignoreDir string, path string) (string, error) {
-	repoRoot := filepath.Clean(repoDir)
-	absPath := filepath.Join(repoRoot, path)
-	rel, err := filepath.Rel(gitignoreDir, absPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve ignore entry: %w", err)
-	}
-	rel = filepath.ToSlash(rel)
-	rel = strings.TrimPrefix(rel, "./")
-	if rel == "" || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("invalid ignore entry for %q", path)
-	}
-	return rel, nil
-}
-
-func ensureIgnoreEntries(gitignorePath string, entries []string) error {
-	var content string
-	raw, err := os.ReadFile(gitignorePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("read .gitignore: %w", err)
-		}
-	} else {
-		content = string(raw)
-	}
-
-	existing := map[string]bool{}
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		normalized := strings.TrimPrefix(trimmed, "/")
-		existing[normalized] = true
-	}
-
-	var toAdd []string
-	for _, entry := range entries {
-		normalized := strings.TrimPrefix(strings.TrimSpace(entry), "/")
-		if normalized == "" {
-			continue
-		}
-		if existing[normalized] {
-			continue
-		}
-		existing[normalized] = true
-		toAdd = append(toAdd, normalized)
-	}
-
-	if len(toAdd) == 0 {
-		return nil
-	}
-
-	var builder strings.Builder
-	builder.WriteString(content)
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		builder.WriteString("\n")
-	}
-	for _, entry := range toAdd {
-		builder.WriteString(entry)
-		builder.WriteString("\n")
-	}
-
-	if err := os.WriteFile(gitignorePath, []byte(builder.String()), 0o644); err != nil {
-		return fmt.Errorf("write .gitignore: %w", err)
-	}
-	return nil
 }

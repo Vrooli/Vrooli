@@ -71,6 +71,7 @@ type SnapshotSetMeta struct {
 	Pages               []string  `json:"pages"`
 	ScreenshotCount     int       `json:"screenshotCount"`
 	VideoCount          int       `json:"videoCount"`
+	VideoStatus         string    `json:"videoStatus,omitempty"` // "not_implemented" | "disabled" | "captured" | "failed"
 	CreatedAt           time.Time `json:"createdAt"`
 	SizeBytes           int64     `json:"sizeBytes"`
 	Status              string    `json:"status"`

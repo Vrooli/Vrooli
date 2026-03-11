@@ -360,7 +360,7 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
                 data-testid="metric-rename"
               >
                 <span className="text-slate-500">Rename:</span>
-                <span className="truncate">{detailSrc!.old_path}</span>
+                <span className="truncate">{detailSrc?.old_path}</span>
                 <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                 <span className="truncate">{filePath}</span>
               </div>

@@ -27,7 +27,7 @@ func TestTestGenieClient_ExecuteSuite(t *testing.T) {
 			t.Errorf("unexpected scenario name: %s", req.ScenarioName)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TestExecutionResult{
+		_ = json.NewEncoder(w).Encode(TestExecutionResult{
 			ExecutionID:  "exec-001",
 			ScenarioName: req.ScenarioName,
 			Success:      true,
@@ -72,7 +72,7 @@ func TestTestGenieClient_ExecuteSuite_ServerError(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/executions", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal failure"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal failure"})
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -103,7 +103,7 @@ func TestTestGenieClient_ListExecutions(t *testing.T) {
 			t.Errorf("expected scenario=git-control-tower, got %s", scenario)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TestExecutionListResponse{
+		_ = json.NewEncoder(w).Encode(TestExecutionListResponse{
 			Items: []TestExecutionResult{
 				{ExecutionID: "exec-001", ScenarioName: scenario, Success: true},
 				{ExecutionID: "exec-002", ScenarioName: scenario, Success: false},
@@ -140,7 +140,7 @@ func TestTestGenieClient_GetExecution(t *testing.T) {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TestExecutionResult{
+		_ = json.NewEncoder(w).Encode(TestExecutionResult{
 			ExecutionID:  "exec-001",
 			ScenarioName: "git-control-tower",
 			Success:      true,

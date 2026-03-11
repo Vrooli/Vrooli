@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution } from "../lib/hooks";
@@ -45,121 +46,86 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
     tests: "Tests",
   };
 
-  const content = (
-    <>
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="h-4 w-4 text-slate-400" />
-          <div>
-            <h2 className={`font-semibold text-slate-100 ${isMobile ? "text-base" : "text-sm"}`}>
-              {scenarioSlug}
-            </h2>
-            {after && (
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Last captured: {new Date(after.createdAt).toLocaleString()}
-              </p>
-            )}
+  const captureBanner = isCapturing && (
+    <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50 text-blue-300 text-xs">
+      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      Capturing screenshots...
+    </div>
+  );
+
+  const tabNav = (mobile: boolean) => (
+    <div className="flex border-b border-slate-800 px-4">
+      {(Object.keys(tabLabels) as Tab[]).map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => setActiveTab(tab)}
+          className={`px-4 ${mobile ? "py-3 text-sm" : "py-2 text-xs"} font-medium border-b-2 transition-colors ${
+            activeTab === tab
+              ? "text-blue-400 border-blue-400"
+              : "text-slate-400 border-transparent hover:text-slate-200"
+          }`}
+        >
+          {tabLabels[tab]}
+        </button>
+      ))}
+    </div>
+  );
+
+  const tabContent = (
+    <div className="flex-1 overflow-y-auto px-4 py-4">
+      {activeTab === "overview" ? (
+        <OverviewTab
+          after={after}
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          basAvailable={basAvailable}
+          testGenieAvailable={testGenieAvailable}
+          isCapturing={isCapturing}
+          onCapture={() => triggerCapture.mutate(scenarioSlug)}
+        />
+      ) : activeTab === "screenshots" ? (
+        capturesQuery.isLoading ? (
+          <div className="space-y-4">
+            <div className="h-48 animate-pulse bg-slate-800 rounded" />
+            <div className="h-48 animate-pulse bg-slate-800 rounded" />
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {basAvailable && (
-            <button
-              type="button"
-              className="h-8 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-              onClick={() => triggerCapture.mutate(scenarioSlug)}
-              disabled={isCapturing}
-              title="Re-capture"
-            >
-              {isCapturing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-            </button>
-          )}
-          <button
-            type="button"
-            className={`inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 ${
-              isMobile ? "h-11 w-11" : "h-8 w-8"
-            }`}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
-          </button>
-        </div>
-      </div>
-
-      {/* Capture in progress banner */}
-      {isCapturing && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50 text-blue-300 text-xs">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Capturing screenshots...
-        </div>
-      )}
-
-      {/* Tab Navigation */}
-      <div className="flex border-b border-slate-800 px-4">
-        {(Object.keys(tabLabels) as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? "text-blue-400 border-blue-400"
-                : "text-slate-400 border-transparent hover:text-slate-200"
-            }`}
-          >
-            {tabLabels[tab]}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {activeTab === "overview" ? (
-          <OverviewTab
+        ) : capturesQuery.error ? (
+          <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
+        ) : (
+          <ScreenshotsTab
+            before={before}
             after={after}
             scenarioSlug={scenarioSlug}
-            repoId={repoId}
+            isMobile={isMobile}
             basAvailable={basAvailable}
-            testGenieAvailable={testGenieAvailable}
+            isCapturing={isCapturing}
+            onCapture={() => triggerCapture.mutate(scenarioSlug)}
           />
-        ) : activeTab === "screenshots" ? (
-          capturesQuery.isLoading ? (
-            <div className="space-y-4">
-              <div className="h-48 animate-pulse bg-slate-800 rounded" />
-              <div className="h-48 animate-pulse bg-slate-800 rounded" />
-            </div>
-          ) : capturesQuery.error ? (
-            <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
-          ) : (
-            <ScreenshotsTab
-              before={before}
-              after={after}
-              scenarioSlug={scenarioSlug}
-              isMobile={isMobile}
-            />
-          )
-        ) : activeTab === "videos" ? (
-          capturesQuery.isLoading ? (
-            <div className="h-48 animate-pulse bg-slate-800 rounded" />
-          ) : capturesQuery.error ? (
-            <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
-          ) : (
-            <VideosTab before={before} after={after} scenarioSlug={scenarioSlug} />
-          )
+        )
+      ) : activeTab === "videos" ? (
+        capturesQuery.isLoading ? (
+          <div className="h-48 animate-pulse bg-slate-800 rounded" />
+        ) : capturesQuery.error ? (
+          <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
         ) : (
-          <TestsTab
+          <VideosTab
+            before={before}
+            after={after}
             scenarioSlug={scenarioSlug}
-            repoId={repoId}
-            testGenieAvailable={testGenieAvailable}
+            basAvailable={basAvailable}
+            isCapturing={isCapturing}
+            onCapture={() => triggerCapture.mutate(scenarioSlug)}
           />
-        )}
-      </div>
-    </>
+        )
+      ) : (
+        <TestsTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          testGenieAvailable={testGenieAvailable}
+        />
+      )}
+    </div>
   );
 
   if (isMobile) {
@@ -170,9 +136,52 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
         aria-modal="true"
         aria-label="Scenario Review"
       >
-        {content}
+        {/* Mobile header with pt-safe and touch-friendly close */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4 text-slate-400" />
+            <div>
+              <h2 className="font-semibold text-slate-100 text-base">
+                {scenarioSlug}
+              </h2>
+              {after && (
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Last captured: {new Date(after.createdAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {basAvailable && (
+              <button
+                type="button"
+                className="h-11 w-11 inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+                onClick={() => triggerCapture.mutate(scenarioSlug)}
+                disabled={isCapturing}
+                title="Re-capture"
+              >
+                {isCapturing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        {captureBanner}
+        {tabNav(true)}
+        {tabContent}
         <div className="border-t border-slate-800 px-4 py-4 pb-safe">
-          <Button variant="default" size="sm" onClick={onClose} className="w-full h-12 text-sm">
+          <Button variant="default" size="sm" onClick={onClose} className="w-full h-12 text-sm touch-target">
             Done
           </Button>
         </div>
@@ -188,9 +197,199 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
       aria-label="Scenario Review"
     >
       <div className="w-full max-w-4xl max-h-[85vh] flex flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-xl">
-        {content}
+        {/* Desktop header */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4 text-slate-400" />
+            <div>
+              <h2 className="font-semibold text-slate-100 text-sm">
+                {scenarioSlug}
+              </h2>
+              {after && (
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Last captured: {new Date(after.createdAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {basAvailable && (
+              <button
+                type="button"
+                className="h-8 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                onClick={() => triggerCapture.mutate(scenarioSlug)}
+                disabled={isCapturing}
+                title="Re-capture"
+              >
+                {isCapturing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        {captureBanner}
+        {tabNav(false)}
+        {tabContent}
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// Media Lightbox with navigation
+// ============================================================================
+
+interface LightboxItem {
+  label: string;
+  sublabel?: string;
+  type: "image" | "video";
+  url: string;
+}
+
+function MediaLightbox({
+  items,
+  initialIndex,
+  isOpen,
+  onClose,
+}: {
+  items: LightboxItem[];
+  initialIndex: number;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+
+  // Reset index when opening with a new initialIndex
+  useEffect(() => {
+    if (isOpen) setIndex(initialIndex);
+  }, [isOpen, initialIndex]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+    if (e.key === "ArrowLeft") setIndex(i => Math.max(0, i - 1));
+    if (e.key === "ArrowRight") setIndex(i => Math.min(items.length - 1, i + 1));
+  }, [onClose, items.length]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleKeyDown]);
+
+  if (!isOpen || items.length === 0) return null;
+
+  const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- clampedIndex is always in bounds after the length check above
+  const current = items[clampedIndex]!;
+  const hasPrev = clampedIndex > 0;
+  const hasNext = clampedIndex < items.length - 1;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[60] flex flex-col bg-black/95"
+      onClick={onClose}
+    >
+      {/* Top info bar */}
+      <div
+        className="flex items-center justify-between px-4 py-3 bg-black/80 border-b border-slate-800/50"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-200 truncate">{current.label}</p>
+          {current.sublabel && (
+            <p className="text-[11px] text-slate-500 truncate">{current.sublabel}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-4">
+          {items.length > 1 && (
+            <span className="text-xs text-slate-500">{clampedIndex + 1} / {items.length}</span>
+          )}
+          <button
+            type="button"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Media area */}
+      <div
+        className="flex-1 flex items-center justify-center p-4 min-h-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {current.type === "image" ? (
+          <img
+            key={current.url}
+            src={current.url}
+            alt={current.label}
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+        ) : (
+          <video
+            key={current.url}
+            controls
+            autoPlay
+            src={current.url}
+            className="max-w-full max-h-full rounded-lg"
+          />
+        )}
+      </div>
+
+      {/* Bottom nav bar */}
+      {items.length > 1 && (
+        <div
+          className="flex items-center justify-center gap-4 px-4 py-3 bg-black/80 border-t border-slate-800/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            disabled={!hasPrev}
+            onClick={() => setIndex(i => i - 1)}
+            className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Previous"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex gap-1.5">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIndex(i)}
+                className={`h-2 rounded-full transition-all ${
+                  i === clampedIndex ? "w-6 bg-blue-400" : "w-2 bg-slate-600 hover:bg-slate-500"
+                }`}
+                aria-label={`Go to item ${i + 1}`}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={!hasNext}
+            onClick={() => setIndex(i => i + 1)}
+            className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Next"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+    </div>,
+    document.body,
   );
 }
 
@@ -204,12 +403,16 @@ function OverviewTab({
   repoId,
   basAvailable,
   testGenieAvailable,
+  isCapturing,
+  onCapture,
 }: {
   after?: SnapshotSetMeta;
   scenarioSlug: string;
   repoId?: string | null;
   basAvailable: boolean;
   testGenieAvailable: boolean;
+  isCapturing: boolean;
+  onCapture: () => void;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
@@ -251,7 +454,13 @@ function OverviewTab({
         {!basAvailable ? (
           <p className="text-xs text-slate-500">Browser Automation Studio not available</p>
         ) : !after ? (
-          <p className="text-xs text-slate-500">No captures yet. Click the capture button to take screenshots.</p>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">No captures yet</p>
+            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
+              {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+              Capture Screenshots
+            </Button>
+          </div>
         ) : (
           <div className="space-y-2">
             <div className="flex justify-between text-xs">
@@ -331,26 +540,68 @@ function ScreenshotsTab({
   after,
   scenarioSlug,
   isMobile,
+  basAvailable,
+  isCapturing,
+  onCapture,
 }: {
   before?: SnapshotSetMeta;
   after?: SnapshotSetMeta;
   scenarioSlug: string;
   isMobile: boolean;
+  basAvailable: boolean;
+  isCapturing: boolean;
+  onCapture: () => void;
 }) {
   const [selectedPage, setSelectedPage] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
 
   if (!after) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
         <ClipboardCheck className="h-8 w-8 mb-3 opacity-50" />
         <p className="text-sm">No captures yet</p>
-        <p className="text-xs mt-1">Click the capture button to take screenshots</p>
+        {basAvailable ? (
+          <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="mt-3 h-7 text-xs gap-1">
+            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+            Capture Screenshots
+          </Button>
+        ) : (
+          <p className="text-xs mt-1">Browser Automation Studio is not available</p>
+        )}
       </div>
     );
   }
 
   const afterPages = after.pages ?? [];
   const currentPage = afterPages[selectedPage] ?? "/";
+
+  // Build lightbox items: all pages for the "after" capture, then all for "before" if present
+  const lightboxItems: LightboxItem[] = [];
+  for (const page of afterPages) {
+    const filename = sanitizePagePath(page) + ".png";
+    lightboxItems.push({
+      label: before ? `After: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
+      sublabel: new Date(after.createdAt).toLocaleString(),
+      type: "image",
+      url: buildCaptureScreenshotUrl(after.id, scenarioSlug, filename),
+    });
+  }
+  if (before) {
+    const beforePages = before.pages ?? [];
+    for (const page of beforePages) {
+      const filename = sanitizePagePath(page) + ".png";
+      lightboxItems.push({
+        label: `Before: ${page === "/" ? "/ (Home)" : page}`,
+        sublabel: new Date(before.createdAt).toLocaleString(),
+        type: "image",
+        url: buildCaptureScreenshotUrl(before.id, scenarioSlug, filename),
+      });
+    }
+  }
+
+  // Map click targets to lightbox indices
+  const afterIndex = (pageIdx: number) => pageIdx;
+  const beforeIndex = (pageIdx: number) => afterPages.length + pageIdx;
 
   return (
     <div className="space-y-4">
@@ -407,7 +658,12 @@ function ScreenshotsTab({
                 {new Date(before.createdAt).toLocaleString()}
               </span>
             </div>
-            <ScreenshotImage captureId={before.id} scenarioSlug={scenarioSlug} pagePath={currentPage} />
+            <ScreenshotImage
+              captureId={before.id}
+              scenarioSlug={scenarioSlug}
+              pagePath={currentPage}
+              onClick={() => setLightboxIndex(beforeIndex(selectedPage))}
+            />
           </div>
         )}
         <div>
@@ -419,9 +675,21 @@ function ScreenshotsTab({
               </span>
             )}
           </div>
-          <ScreenshotImage captureId={after.id} scenarioSlug={scenarioSlug} pagePath={currentPage} />
+          <ScreenshotImage
+            captureId={after.id}
+            scenarioSlug={scenarioSlug}
+            pagePath={currentPage}
+            onClick={() => setLightboxIndex(afterIndex(selectedPage))}
+          />
         </div>
       </div>
+
+      <MediaLightbox
+        items={lightboxItems}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxIndex >= 0}
+        onClose={() => setLightboxIndex(-1)}
+      />
     </div>
   );
 }
@@ -430,16 +698,21 @@ function ScreenshotImage({
   captureId,
   scenarioSlug,
   pagePath,
+  onClick,
 }: {
   captureId: string;
   scenarioSlug: string;
   pagePath: string;
+  onClick: () => void;
 }) {
   const filename = sanitizePagePath(pagePath) + ".png";
   const url = buildCaptureScreenshotUrl(captureId, scenarioSlug, filename);
 
   return (
-    <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900">
+    <div
+      className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900 cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-shadow"
+      onClick={onClick}
+    >
       <img
         src={url}
         alt={`Screenshot of ${pagePath}`}
@@ -458,42 +731,103 @@ function VideosTab({
   before,
   after,
   scenarioSlug,
+  basAvailable,
+  isCapturing,
+  onCapture,
 }: {
   before?: SnapshotSetMeta;
   after?: SnapshotSetMeta;
   scenarioSlug: string;
+  basAvailable: boolean;
+  isCapturing: boolean;
+  onCapture: () => void;
 }) {
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
+
   if (!after || after.videoCount === 0) {
+    const reason = after?.videoStatus === "not_implemented"
+      ? "Video recording is not yet supported. Screenshots are available."
+      : after?.videoStatus === "failed"
+      ? "Video recording failed during capture."
+      : !after
+      ? "No captures yet"
+      : "No videos were recorded for this capture.";
+
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">No video recordings available</p>
+        <p className="text-sm">{reason}</p>
+        {basAvailable && !after && (
+          <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="mt-3 h-7 text-xs gap-1">
+            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+            Capture Screenshots
+          </Button>
+        )}
       </div>
     );
   }
 
+  const lightboxItems: LightboxItem[] = [];
+  const afterVideoUrl = buildCaptureVideoUrl(after.id, scenarioSlug, "recording.webm");
+  lightboxItems.push({
+    label: before ? "After" : "Current",
+    sublabel: new Date(after.createdAt).toLocaleString(),
+    type: "video",
+    url: afterVideoUrl,
+  });
+
+  const beforeVideoUrl = before && before.videoCount > 0
+    ? buildCaptureVideoUrl(before.id, scenarioSlug, "recording.webm")
+    : null;
+  if (before && beforeVideoUrl) {
+    lightboxItems.push({
+      label: "Before",
+      sublabel: new Date(before.createdAt).toLocaleString(),
+      type: "video",
+      url: beforeVideoUrl,
+    });
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {before && before.videoCount > 0 && (
+    <>
+      <div className="grid grid-cols-2 gap-4">
+        {beforeVideoUrl && (
+          <div>
+            <p className="text-xs font-medium text-slate-400 mb-2">Before</p>
+            <div
+              className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
+              onClick={() => setLightboxIndex(1)}
+            >
+              <video
+                controls
+                src={beforeVideoUrl}
+                className="w-full rounded-lg border border-slate-800"
+              />
+            </div>
+          </div>
+        )}
         <div>
-          <p className="text-xs font-medium text-slate-400 mb-2">Before</p>
-          <video
-            controls
-            src={buildCaptureVideoUrl(before.id, scenarioSlug, "recording.webm")}
-            className="w-full rounded-lg border border-slate-800"
-          />
+          <p className="text-xs font-medium text-slate-400 mb-2">
+            {before ? "After" : "Current"}
+          </p>
+          <div
+            className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
+            onClick={() => setLightboxIndex(0)}
+          >
+            <video
+              controls
+              src={afterVideoUrl}
+              className="w-full rounded-lg border border-slate-800"
+            />
+          </div>
         </div>
-      )}
-      <div>
-        <p className="text-xs font-medium text-slate-400 mb-2">
-          {before ? "After" : "Current"}
-        </p>
-        <video
-          controls
-          src={buildCaptureVideoUrl(after.id, scenarioSlug, "recording.webm")}
-          className="w-full rounded-lg border border-slate-800"
-        />
       </div>
-    </div>
+      <MediaLightbox
+        items={lightboxItems}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxIndex >= 0}
+        onClose={() => setLightboxIndex(-1)}
+      />
+    </>
   );
 }
 

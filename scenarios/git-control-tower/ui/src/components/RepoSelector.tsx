@@ -41,8 +41,10 @@ export function RepoSelector({ repoActions, onRepoChange, onBack }: RepoSelector
   const [cloneDestination, setCloneDestination] = useState("");
   const [repoError, setRepoError] = useState<string | null>(null);
 
-  const repoList = repoActions.repos?.repos ?? [];
+  const repoListSource = repoActions.repos?.repos;
   const activeRepoId = repoActions.repos?.active_id;
+
+  const repoList = useMemo(() => repoListSource ?? [], [repoListSource]);
 
   const filteredRepos = useMemo(() => {
     const term = repoSearch.trim().toLowerCase();
