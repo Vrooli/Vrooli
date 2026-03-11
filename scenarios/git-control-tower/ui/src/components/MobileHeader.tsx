@@ -13,6 +13,7 @@ import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 import { HealthIndicator } from "./HealthIndicator";
 import { FileStatsBadges } from "./FileStatsBadges";
+import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { useHeaderState } from "../hooks/useHeaderState";
@@ -34,6 +35,10 @@ interface MobileHeaderProps {
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
   onExitBlameMode?: () => void;
+  onPush?: () => void;
+  onPull?: () => void;
+  isPushing?: boolean;
+  isPulling?: boolean;
 }
 
 export function MobileHeader({
@@ -52,7 +57,11 @@ export function MobileHeader({
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
-  onExitBlameMode
+  onExitBlameMode,
+  onPush,
+  onPull,
+  isPushing,
+  isPulling
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isHealthy } = useHeaderState(status, health, syncStatus);
@@ -88,11 +97,26 @@ export function MobileHeader({
             onRepoChange={onRepoChange}
             onOpenUpstreamInfo={onOpenUpstreamInfo}
             variant="mobile"
+            commitOid={status?.branch.oid}
           />
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
+          {onPush && onPull && (
+            <SyncButton
+              ahead={syncStatus?.ahead ?? 0}
+              behind={syncStatus?.behind ?? 0}
+              canPush={syncStatus?.can_push ?? false}
+              canPull={syncStatus?.can_pull ?? false}
+              onPush={onPush}
+              onPull={onPull}
+              isPushing={isPushing ?? false}
+              isPulling={isPulling ?? false}
+              warning={syncStatus?.safety_warnings?.join("; ")}
+            />
+          )}
+
           <div className="p-2">
             <HealthIndicator health={health} isHealthy={isHealthy} />
           </div>

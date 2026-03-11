@@ -49,6 +49,7 @@ interface BranchSelectorProps {
   onRepoChange?: (repoId: string | null) => void;
   onOpenUpstreamInfo?: () => void;
   variant?: "desktop" | "mobile";
+  commitOid?: string;
 }
 
 type PendingAction =
@@ -63,7 +64,8 @@ export function BranchSelector({
   repoActions,
   onRepoChange,
   onOpenUpstreamInfo,
-  variant = "desktop"
+  variant = "desktop",
+  commitOid
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -564,17 +566,10 @@ export function BranchSelector({
           <span className="font-mono text-sm text-slate-200 truncate">
             {currentBranch || "Detached"}
           </span>
-          {ahead > 0 && (
-            <Badge variant="info" className="gap-0.5 flex-shrink-0">
-              <ArrowUp className="h-3 w-3" />
-              {ahead}
-            </Badge>
-          )}
-          {behind > 0 && (
-            <Badge variant="warning" className="gap-0.5 flex-shrink-0">
-              <ArrowDown className="h-3 w-3" />
-              {behind}
-            </Badge>
+          {commitOid && (
+            <span className="font-mono text-xs text-slate-500">
+              · {commitOid.substring(0, 7)}
+            </span>
           )}
           <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
         </button>
@@ -600,17 +595,10 @@ export function BranchSelector({
         <span className="font-mono text-sm text-slate-200">
           {currentBranch || "Detached"}
         </span>
-        {ahead > 0 && (
-          <Badge variant="info" className="gap-0.5">
-            <ArrowUp className="h-3 w-3" />
-            {ahead}
-          </Badge>
-        )}
-        {behind > 0 && (
-          <Badge variant="warning" className="gap-0.5">
-            <ArrowDown className="h-3 w-3" />
-            {behind}
-          </Badge>
+        {commitOid && (
+          <span className="font-mono text-xs text-slate-500">
+            · {commitOid.substring(0, 7)}
+          </span>
         )}
         <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
       </button>

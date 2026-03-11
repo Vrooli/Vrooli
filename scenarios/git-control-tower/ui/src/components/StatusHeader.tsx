@@ -1,6 +1,5 @@
 import {
   ClipboardCheck,
-  GitCommit,
   RefreshCw,
   Search,
   Settings
@@ -14,6 +13,7 @@ import { FileStatsBadges } from "./FileStatsBadges";
 import { IconButton } from "./IconButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
+import { SyncButton } from "./SyncButton";
 import { useHeaderState } from "../hooks/useHeaderState";
 
 interface StatusHeaderProps {
@@ -33,6 +33,10 @@ interface StatusHeaderProps {
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
   onExitBlameMode?: () => void;
+  onPush?: () => void;
+  onPull?: () => void;
+  isPushing?: boolean;
+  isPulling?: boolean;
 }
 
 export function StatusHeader({
@@ -51,7 +55,11 @@ export function StatusHeader({
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
-  onExitBlameMode
+  onExitBlameMode,
+  onPush,
+  onPull,
+  isPushing,
+  isPulling
 }: StatusHeaderProps) {
   const { isHealthy, cleanDetails } =
     useHeaderState(status, health, syncStatus);
@@ -69,7 +77,7 @@ export function StatusHeader({
       className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm"
       data-testid="status-header"
     >
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         {/* Branch Info */}
         <div className="flex items-center gap-2" data-testid="branch-info">
           <BranchSelector
@@ -79,17 +87,23 @@ export function StatusHeader({
             repoActions={repoActions}
             onRepoChange={onRepoChange}
             onOpenUpstreamInfo={onOpenUpstreamInfo}
+            commitOid={status?.branch.oid}
           />
         </div>
 
-        {/* Commit OID */}
-        {status?.branch.oid && (
-          <div className="flex items-center gap-2 text-slate-500" data-testid="commit-oid">
-            <GitCommit className="h-4 w-4" />
-            <span className="font-mono text-xs">
-              {status.branch.oid.substring(0, 7)}
-            </span>
-          </div>
+        {/* Sync Button */}
+        {onPush && onPull && (
+          <SyncButton
+            ahead={syncStatus?.ahead ?? 0}
+            behind={syncStatus?.behind ?? 0}
+            canPush={syncStatus?.can_push ?? false}
+            canPull={syncStatus?.can_pull ?? false}
+            onPush={onPush}
+            onPull={onPull}
+            isPushing={isPushing ?? false}
+            isPulling={isPulling ?? false}
+            warning={syncStatus?.safety_warnings?.join("; ")}
+          />
         )}
       </div>
 

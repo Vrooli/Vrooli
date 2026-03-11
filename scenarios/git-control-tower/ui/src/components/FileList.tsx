@@ -65,13 +65,6 @@ interface FileListProps {
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
-  syncStatus?: {
-    ahead: number;
-    behind: number;
-    canPush: boolean;
-    canPull: boolean;
-    warning?: string;
-  };
   approvedChanges?: {
     available: boolean;
     committableFiles: number;
@@ -80,10 +73,6 @@ interface FileListProps {
   approvedPaths?: Set<string>;
   onStageApproved?: () => void;
   isStagingApproved?: boolean;
-  onPush?: () => void;
-  onPull?: () => void;
-  isPushing?: boolean;
-  isPulling?: boolean;
   onSelectFile: (
     path: string,
     staged: boolean,
@@ -802,15 +791,10 @@ export function FileList({
   selectedFiles,
   selectedKeySet,
   selectionKey,
-  syncStatus,
   approvedChanges,
   approvedPaths,
   onStageApproved,
   isStagingApproved = false,
-  onPush,
-  onPull,
-  isPushing = false,
-  isPulling = false,
   onSelectFile,
   onStageFile,
   onUnstageFile,
@@ -1083,9 +1067,6 @@ export function FileList({
   );
   const showApprovedBanner = Boolean(
     approvedChanges?.available && (approvedChanges.committableFiles ?? 0) > 0,
-  );
-  const showSync = Boolean(
-    syncStatus && (syncStatus.ahead > 0 || syncStatus.behind > 0),
   );
   const handleDiscardUntracked = useCallback(
     (path: string) => onDiscardFile(path, true),
@@ -1463,56 +1444,6 @@ export function FileList({
                 {approvedChanges?.warning && (
                   <div className="mt-1 text-[11px] text-emerald-300/80">
                     {approvedChanges.warning}
-                  </div>
-                )}
-              </div>
-            )}
-            {showSync && (
-              <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400">Sync</span>
-                    {syncStatus?.ahead ? (
-                      <span className="text-emerald-300">
-                        {syncStatus.ahead} ahead
-                      </span>
-                    ) : null}
-                    {syncStatus?.behind ? (
-                      <span className="text-amber-300">
-                        {syncStatus.behind} behind
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {syncStatus?.behind ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onPull}
-                        disabled={isPulling || !syncStatus?.canPull}
-                        title={syncStatus?.warning || "Pull from remote"}
-                        className="h-7 px-2"
-                      >
-                        Pull
-                      </Button>
-                    ) : null}
-                    {syncStatus?.ahead ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onPush}
-                        disabled={isPushing || !syncStatus?.canPush}
-                        title={syncStatus?.warning || "Push to remote"}
-                        className="h-7 px-2"
-                      >
-                        Push
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-                {syncStatus?.warning && (
-                  <div className="mt-1 text-[11px] text-amber-400">
-                    {syncStatus.warning}
                   </div>
                 )}
               </div>

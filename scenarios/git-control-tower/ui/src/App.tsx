@@ -1864,17 +1864,6 @@ export default function App() {
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            syncStatus={
-              syncStatusQuery.data
-                ? {
-                    ahead: syncStatusQuery.data.ahead,
-                    behind: syncStatusQuery.data.behind,
-                    canPush: syncStatusQuery.data.can_push,
-                    canPull: syncStatusQuery.data.can_pull,
-                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
-                  }
-                : undefined
-            }
             approvedChanges={
               approvedChangesQuery.data
                 ? {
@@ -1887,10 +1876,6 @@ export default function App() {
             approvedPaths={approvedPendingSet}
             onStageApproved={handleStageApproved}
             isStagingApproved={isStaging}
-            onPush={handlePush}
-            onPull={handlePull}
-            isPushing={pushMutation.isPending}
-            isPulling={pullMutation.isPending}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               if (primaryPanel === "review") setPrimaryPanel("diff");
@@ -1981,7 +1966,6 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={commitMutation.isPending}
-            lastCommitHash={lastCommitHash}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
@@ -2136,17 +2120,6 @@ export default function App() {
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            syncStatus={
-              syncStatusQuery.data
-                ? {
-                    ahead: syncStatusQuery.data.ahead,
-                    behind: syncStatusQuery.data.behind,
-                    canPush: syncStatusQuery.data.can_push,
-                    canPull: syncStatusQuery.data.can_pull,
-                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
-                  }
-                : undefined
-            }
             approvedChanges={
               approvedChangesQuery.data
                 ? {
@@ -2159,10 +2132,6 @@ export default function App() {
             approvedPaths={approvedPendingSet}
             onStageApproved={handleStageApproved}
             isStagingApproved={isStaging}
-            onPush={handlePush}
-            onPull={handlePull}
-            isPushing={pushMutation.isPending}
-            isPulling={pullMutation.isPending}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               // On mobile, switch to diff view after selecting a file
@@ -2243,7 +2212,6 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={commitMutation.isPending}
-            lastCommitHash={lastCommitHash}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
@@ -2354,6 +2322,10 @@ export default function App() {
           onExitHistoryMode={handleExitHistoryMode}
           viewingFileBlame={viewingFileBlame}
           onExitBlameMode={handleExitBlameMode}
+          onPush={handlePush}
+          onPull={handlePull}
+          isPushing={pushMutation.isPending}
+          isPulling={pullMutation.isPending}
         />
 
         {/* Main Content - Single Panel at a time */}
@@ -2536,6 +2508,10 @@ export default function App() {
         onExitHistoryMode={handleExitHistoryMode}
         viewingFileBlame={viewingFileBlame}
         onExitBlameMode={handleExitBlameMode}
+        onPush={handlePush}
+        onPull={handlePull}
+        isPushing={pushMutation.isPending}
+        isPulling={pullMutation.isPending}
       />
 
       {/* Main Content - Layout */}
