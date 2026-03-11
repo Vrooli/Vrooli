@@ -80,6 +80,14 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "tidiness-manager",
 		Features:       []string{"Code quality score", "Lint/type issues", "File metrics", "Light scanning"},
 	},
+	{
+		ID:             "agent-manager",
+		Name:           "Agent Manager",
+		Description:    "AI agent orchestration with sandbox isolation and approval workflows",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "agent-manager",
+		Features:       []string{"Agent runs", "Multi-turn conversations", "Change approval"},
+	},
 }
 
 // CapabilityRegistry tracks dependency availability with caching.

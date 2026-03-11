@@ -61,6 +61,16 @@ import {
   fetchTidinessStaleness,
   triggerTidinessLightScan,
   fetchTidinessScenarioDetail,
+  fetchAgentProfiles,
+  createAgentRun,
+  fetchAgentRuns,
+  fetchAgentRun,
+  fetchAgentRunEvents,
+  fetchAgentRunDiff,
+  continueAgentRun,
+  approveAgentRun,
+  rejectAgentRun,
+  stopAgentRun,
   type CapabilitiesResponse,
   type TestExecutionRequest,
   type TestExecutionResult,
@@ -108,9 +118,19 @@ import {
   type TidinessScoreResponse,
   type TidinessIssue,
   type TidinessStalenessInfo,
-  type TidinessLightScanRequest,
   type TidinessLightScanResult,
   type TidinessScenarioDetail,
+  type AgentProfileListResponse,
+  type AgentRunRequest,
+  type AgentRunCreateResponse,
+  type AgentRun,
+  type AgentRunStatus,
+  type AgentRunListResponse,
+  type AgentRunEventsResponse,
+  type AgentRunDiffResponse,
+  type AgentContinueRequest,
+  type AgentApproveRequest,
+  type AgentRejectRequest,
 } from "./api";
 
 export const queryKeys = {
@@ -164,6 +184,15 @@ export const queryKeys = {
     ["repo", "tidiness-staleness", repoId ?? "default", scenarioName] as const,
   tidinessScenarioDetail: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-scenario", repoId ?? "default", scenarioName] as const,
+  agentProfiles: ["agent", "profiles"] as const,
+  agentRuns: (slug: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", slug] as const,
+  agentRun: (runId: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", "detail", runId] as const,
+  agentRunEvents: (runId: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", "events", runId] as const,
+  agentRunDiff: (runId: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", "diff", runId] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";
@@ -856,5 +885,117 @@ export function useTidinessScenarioDetail(scenarioName: string, enabled = true, 
     queryFn: () => fetchTidinessScenarioDetail(scenarioName, repoId ?? undefined),
     enabled: enabled && Boolean(scenarioName),
     refetchInterval: 30_000,
+  });
+}
+
+// ── Agent Manager hooks ──────────────────────────────────────────────
+
+const AGENT_ACTIVE_STATUSES: AgentRunStatus[] = ["pending", "starting", "running"];
+
+function agentPollingInterval(status?: AgentRunStatus): number | false {
+  if (!status) return false;
+  if (AGENT_ACTIVE_STATUSES.includes(status)) return 2_000;
+  if (status === "needs_review") return 5_000;
+  return false; // terminal states: complete, failed, cancelled
+}
+
+export function useAgentProfiles(enabled = true) {
+  return useQuery<AgentProfileListResponse, Error>({
+    queryKey: queryKeys.agentProfiles,
+    queryFn: () => fetchAgentProfiles(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useAgentRuns(slug: string, enabled = true, repoId?: string | null) {
+  return useQuery<AgentRunListResponse, Error>({
+    queryKey: queryKeys.agentRuns(slug, repoId),
+    queryFn: () => fetchAgentRuns(slug, 5, repoId ?? undefined),
+    enabled: enabled && Boolean(slug),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAgentRun(runId: string | null, enabled = true, repoId?: string | null) {
+  return useQuery<AgentRun, Error>({
+    queryKey: queryKeys.agentRun(runId ?? "", repoId),
+    queryFn: () => fetchAgentRun(runId as string, repoId ?? undefined),
+    enabled: enabled && Boolean(runId),
+    refetchInterval: (query) => agentPollingInterval(query.state.data?.status),
+  });
+}
+
+export function useAgentRunEvents(
+  runId: string | null,
+  afterSequence: number,
+  enabled = true,
+  repoId?: string | null
+) {
+  return useQuery<AgentRunEventsResponse, Error>({
+    queryKey: [...queryKeys.agentRunEvents(runId ?? "", repoId), afterSequence],
+    queryFn: () => fetchAgentRunEvents(runId as string, afterSequence, repoId ?? undefined),
+    enabled: enabled && Boolean(runId),
+    refetchInterval: 2_000,
+  });
+}
+
+export function useAgentRunDiff(runId: string | null, enabled = true, repoId?: string | null) {
+  return useQuery<AgentRunDiffResponse, Error>({
+    queryKey: queryKeys.agentRunDiff(runId ?? "", repoId),
+    queryFn: () => fetchAgentRunDiff(runId as string, repoId ?? undefined),
+    enabled: enabled && Boolean(runId),
+    staleTime: 10_000,
+  });
+}
+
+export function useCreateAgentRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AgentRunCreateResponse, Error, AgentRunRequest>({
+    mutationFn: (request) => createAgentRun(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
+    },
+  });
+}
+
+export function useContinueAgentRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AgentRun, Error, { runId: string; request: AgentContinueRequest }>({
+    mutationFn: ({ runId, request }) => continueAgentRun(runId, request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
+    },
+  });
+}
+
+export function useApproveAgentRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AgentRun, Error, { runId: string; request: AgentApproveRequest }>({
+    mutationFn: ({ runId, request }) => approveAgentRun(runId, request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
+      queryClient.invalidateQueries({ queryKey: ["repo", "status"] });
+    },
+  });
+}
+
+export function useRejectAgentRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AgentRun, Error, { runId: string; request: AgentRejectRequest }>({
+    mutationFn: ({ runId, request }) => rejectAgentRun(runId, request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
+    },
+  });
+}
+
+export function useStopAgentRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AgentRun, Error, string>({
+    mutationFn: (runId) => stopAgentRun(runId, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
+    },
   });
 }

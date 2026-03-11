@@ -48,6 +48,7 @@ type Server struct {
 	periodicCapture      *PeriodicCapture
 	testGenieClient      *TestGenieClient
 	tidinessClient       *TidinessManagerClient
+	agentManagerClient   *AgentManagerClient
 }
 
 // NewServer initializes configuration, database, and routes
@@ -112,6 +113,10 @@ func NewServer() (*Server, error) {
 				Slug:   "tidiness-manager",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
+		"agent-manager": &ScenarioChecker{
+				Slug:   "agent-manager",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
 		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
@@ -133,6 +138,7 @@ func NewServer() (*Server, error) {
 	srv.basClient = NewBrowserAutomationClient(30 * time.Second)
 	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
 	srv.tidinessClient = NewTidinessManagerClient(30 * time.Second)
+	srv.agentManagerClient = NewAgentManagerClient(120 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
@@ -219,6 +225,18 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/tidiness-staleness", s.handleTidinessStaleness).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/tidiness-scan", s.handleTidinessLightScan).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/tidiness-scenario", s.handleTidinessScenarioDetail).Methods("GET")
+
+	// Agent-manager endpoints
+	s.router.HandleFunc("/api/v1/agent/profiles", s.handleAgentProfiles).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/run", s.handleAgentRunCreate).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/runs", s.handleAgentRunList).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}", s.handleAgentRunDetail).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/events", s.handleAgentRunEvents).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/diff", s.handleAgentRunDiff).Methods("GET")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/continue", s.handleAgentRunContinue).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/approve", s.handleAgentRunApprove).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/reject", s.handleAgentRunReject).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/runs/{id}/stop", s.handleAgentRunStop).Methods("POST")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")

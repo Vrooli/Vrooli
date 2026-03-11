@@ -1763,3 +1763,251 @@ export async function fetchTidinessScenarioDetail(
   });
   return handleResponse<TidinessScenarioDetail>(res);
 }
+
+// ── Agent Manager types ──────────────────────────────────────────────
+
+export interface AgentProfile {
+  id: string;
+  key?: string;
+  name: string;
+  description?: string;
+  model?: string;
+}
+
+export interface AgentProfileListResponse {
+  profiles: AgentProfile[];
+}
+
+export interface AgentRunRequest {
+  scenarioSlug: string;
+  prompt: string;
+  profileId?: string;
+  profileKey?: string;
+}
+
+export interface AgentRunCreateResponse {
+  runId: string;
+  taskId: string;
+}
+
+export type AgentRunStatus =
+  | "pending"
+  | "starting"
+  | "running"
+  | "needs_review"
+  | "complete"
+  | "failed"
+  | "cancelled";
+
+export interface AgentRunSummary {
+  description?: string;
+  filesModified: number;
+  filesCreated: number;
+  filesDeleted: number;
+  tokensUsed?: number;
+  costEstimate?: string;
+}
+
+export interface AgentRunActions {
+  canStop: boolean;
+  canContinue: boolean;
+  canApprove: boolean;
+  canReject: boolean;
+  canRetry: boolean;
+}
+
+export interface AgentRun {
+  id: string;
+  taskId?: string;
+  status: AgentRunStatus;
+  phase?: string;
+  progressPercent?: number;
+  errorMsg?: string;
+  summary?: AgentRunSummary;
+  actions?: AgentRunActions;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface AgentRunListResponse {
+  runs: AgentRun[];
+  count: number;
+}
+
+export type AgentEventType = "message" | "tool_call" | "tool_result" | "error" | "status_change";
+
+export interface AgentRunEvent {
+  id: string;
+  runId: string;
+  sequence: number;
+  eventType: AgentEventType;
+  timestamp: string;
+  data?: unknown;
+}
+
+export interface AgentRunEventsResponse {
+  events: AgentRunEvent[];
+  count: number;
+}
+
+export interface AgentRunDiffFile {
+  path: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  patch?: string;
+}
+
+export interface AgentRunDiffResponse {
+  runId: string;
+  files: AgentRunDiffFile[];
+}
+
+export interface AgentContinueRequest {
+  message: string;
+}
+
+export interface AgentApproveRequest {
+  actor?: string;
+  commitMsg?: string;
+}
+
+export interface AgentRejectRequest {
+  actor?: string;
+  reason?: string;
+}
+
+export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary";
+
+export interface AgentContextItem {
+  kind: AgentContextKind;
+  id: string;
+  label: string;
+  markdown: string;
+}
+
+// ── Agent Manager fetch functions ────────────────────────────────────
+
+export async function fetchAgentProfiles(repoId?: string): Promise<AgentProfileListResponse> {
+  const url = buildApiUrl("/agent/profiles", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<AgentProfileListResponse>(res);
+}
+
+export async function createAgentRun(
+  request: AgentRunRequest,
+  repoId?: string
+): Promise<AgentRunCreateResponse> {
+  const url = buildApiUrl("/agent/run", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AgentRunCreateResponse>(res);
+}
+
+export async function fetchAgentRuns(
+  scenarioSlug: string,
+  limit?: number,
+  repoId?: string
+): Promise<AgentRunListResponse> {
+  const params = new URLSearchParams({ scenarioSlug });
+  if (limit) params.set("limit", String(limit));
+  const url = buildApiUrl(`/agent/runs?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<AgentRunListResponse>(res);
+}
+
+export async function fetchAgentRun(runId: string, repoId?: string): Promise<AgentRun> {
+  const url = buildApiUrl(`/agent/runs/${runId}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<AgentRun>(res);
+}
+
+export async function fetchAgentRunEvents(
+  runId: string,
+  afterSequence?: number,
+  repoId?: string
+): Promise<AgentRunEventsResponse> {
+  const params = new URLSearchParams();
+  if (afterSequence != null) params.set("afterSequence", String(afterSequence));
+  const qs = params.toString();
+  const url = buildApiUrl(`/agent/runs/${runId}/events${qs ? `?${qs}` : ""}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<AgentRunEventsResponse>(res);
+}
+
+export async function fetchAgentRunDiff(runId: string, repoId?: string): Promise<AgentRunDiffResponse> {
+  const url = buildApiUrl(`/agent/runs/${runId}/diff`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<AgentRunDiffResponse>(res);
+}
+
+export async function continueAgentRun(
+  runId: string,
+  request: AgentContinueRequest,
+  repoId?: string
+): Promise<AgentRun> {
+  const url = buildApiUrl(`/agent/runs/${runId}/continue`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AgentRun>(res);
+}
+
+export async function approveAgentRun(
+  runId: string,
+  request: AgentApproveRequest,
+  repoId?: string
+): Promise<AgentRun> {
+  const url = buildApiUrl(`/agent/runs/${runId}/approve`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AgentRun>(res);
+}
+
+export async function rejectAgentRun(
+  runId: string,
+  request: AgentRejectRequest,
+  repoId?: string
+): Promise<AgentRun> {
+  const url = buildApiUrl(`/agent/runs/${runId}/reject`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<AgentRun>(res);
+}
+
+export async function stopAgentRun(runId: string, repoId?: string): Promise<AgentRun> {
+  const url = buildApiUrl(`/agent/runs/${runId}/stop`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify({}),
+  });
+  return handleResponse<AgentRun>(res);
+}

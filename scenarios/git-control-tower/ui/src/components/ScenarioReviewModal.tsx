@@ -5,11 +5,13 @@ import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo } from "../lib/api";
+import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
+import { AgentTab, AttachToAgentButton } from "./AgentTab";
+import { testFailureContextItems, codeQualityContextItems } from "../lib/agentContext";
 
-type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality";
+type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality" | "agent";
 
 interface ScenarioReviewModalProps {
   isOpen: boolean;
@@ -35,6 +37,22 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
   const tidinessAvailable = capabilities.data?.capabilities?.some(
     c => c.id === "tidiness-manager" && c.status === "available"
   ) ?? false;
+  const agentManagerAvailable = capabilities.data?.capabilities?.some(
+    c => c.id === "agent-manager" && c.status === "available"
+  ) ?? false;
+
+  const [agentContext, setAgentContext] = useState<AgentContextItem[]>([]);
+  const addAgentContext = useCallback((item: AgentContextItem) => {
+    setAgentContext((prev) => {
+      if (prev.some((c) => c.id === item.id)) return prev;
+      return [...prev, item];
+    });
+    setActiveTab("agent");
+  }, []);
+  const removeAgentContext = useCallback((id: string) => {
+    setAgentContext((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+  const clearAgentContext = useCallback(() => setAgentContext([]), []);
 
   if (!isOpen) return null;
 
@@ -52,12 +70,14 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
     videos: "Videos",
     tests: "Tests",
     "code-quality": "Code Quality",
+    agent: "Agent",
   };
 
   const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
     tab => {
       if (tab === "metrics") return Boolean(fileStats);
       if (tab === "code-quality") return tidinessAvailable;
+      if (tab === "agent") return agentManagerAvailable;
       return true;
     }
   );
@@ -143,13 +163,26 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           testGenieAvailable={testGenieAvailable}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
         />
-      ) : (
+      ) : activeTab === "code-quality" ? (
         <CodeQualityTab
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           tidinessAvailable={tidinessAvailable}
           fileStats={fileStats}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
+        />
+      ) : (
+        <AgentTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          agentManagerAvailable={agentManagerAvailable}
+          contextItems={agentContext}
+          onRemoveContext={removeAgentContext}
+          onClearContext={clearAgentContext}
         />
       )}
     </div>
@@ -967,10 +1000,14 @@ function TestsTab({
   scenarioSlug,
   repoId,
   testGenieAvailable,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
   testGenieAvailable: boolean;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const triggerTest = useTriggerTestExecution(repoId);
@@ -1078,12 +1115,20 @@ function TestsTab({
           <div className="space-y-1">
             <h4 className="text-xs font-medium text-slate-400 mb-2">Phases</h4>
             {latest.phases.map((phase) => (
-              <PhaseRow
-                key={phase.name}
-                phase={phase}
-                expanded={expandedPhase === phase.name}
-                onToggle={() => setExpandedPhase(expandedPhase === phase.name ? null : phase.name)}
-              />
+              <div key={phase.name} className="flex items-start gap-1">
+                <div className="flex-1 min-w-0">
+                  <PhaseRow
+                    phase={phase}
+                    expanded={expandedPhase === phase.name}
+                    onToggle={() => setExpandedPhase(expandedPhase === phase.name ? null : phase.name)}
+                  />
+                </div>
+                {agentManagerAvailable && phase.status === "failed" && onAttachToAgent && (
+                  <div className="mt-2 shrink-0">
+                    <AttachToAgentButton onClick={() => { const items = testFailureContextItems([phase]); if (items[0]) onAttachToAgent(items[0]); }} />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
@@ -1207,37 +1252,21 @@ function CodeQualityTab({
   repoId,
   tidinessAvailable,
   fileStats,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
   tidinessAvailable: boolean;
   fileStats?: RepoFileStats;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const [view, setView] = useState<"changed" | "scenario">("changed");
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
   const tidinessIssues = useTidinessIssues(scenarioSlug, undefined, tidinessAvailable, repoId);
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
   const triggerScan = useTriggerTidinessScan(repoId);
-
-  if (!tidinessAvailable) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">Tidiness Manager is not available</p>
-        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
-          Start the tidiness-manager scenario to view code quality data
-        </p>
-      </div>
-    );
-  }
-
-  // Use staleness as source of truth for "has been scanned" — more reliable than score.last_scan
-  const stalenessLoaded = !tidinessStaleness.isLoading;
-  const neverScanned = stalenessLoaded && (
-    !tidinessStaleness.data?.last_scan_at &&
-    tidinessStaleness.data?.stale_reason?.includes("no scans")
-  );
-  const isScanning = triggerScan.isPending;
-  const scanResult = triggerScan.data;
 
   // Get changed file paths (scenario-relative)
   const changedFiles = useMemo(() => {
@@ -1266,6 +1295,26 @@ function CodeQualityTab({
     }
     return map;
   }, [changedFileIssues]);
+
+  if (!tidinessAvailable) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+        <p className="text-sm">Tidiness Manager is not available</p>
+        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
+          Start the tidiness-manager scenario to view code quality data
+        </p>
+      </div>
+    );
+  }
+
+  // Use staleness as source of truth for "has been scanned" — more reliable than score.last_scan
+  const stalenessLoaded = !tidinessStaleness.isLoading;
+  const neverScanned = stalenessLoaded && (
+    !tidinessStaleness.data?.last_scan_at &&
+    tidinessStaleness.data?.stale_reason?.includes("no scans")
+  );
+  const isScanning = triggerScan.isPending;
+  const scanResult = triggerScan.data;
 
   // Never-scanned state: show a prominent CTA
   if (neverScanned) {
@@ -1384,6 +1433,8 @@ function CodeQualityTab({
           changedFiles={changedFiles}
           scoreData={tidinessScore.data}
           isLoading={tidinessIssues.isLoading}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={onAttachToAgent}
         />
       ) : (
         <ScenarioWideView
@@ -1401,12 +1452,16 @@ function ChangedFilesView({
   changedFiles,
   scoreData,
   isLoading,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   issues: TidinessIssue[];
   issuesByFile: Map<string, TidinessIssue[]>;
   changedFiles: string[];
   scoreData?: { score: number; violations: number } | null;
   isLoading: boolean;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
@@ -1476,13 +1531,16 @@ function ChangedFilesView({
                         issue.severity === "critical" || issue.severity === "high" ? "bg-red-500" :
                         issue.severity === "medium" ? "bg-amber-500" : "bg-blue-500"
                       }`} />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <span className="text-slate-500">{issue.category}:</span>{" "}
                         <span className="text-slate-300">{issue.title}</span>
                         {issue.line_number != null && (
                           <span className="text-slate-600 ml-1">L:{issue.line_number}</span>
                         )}
                       </div>
+                      {agentManagerAvailable && onAttachToAgent && (
+                        <AttachToAgentButton onClick={() => { const items = codeQualityContextItems([issue]); if (items[0]) onAttachToAgent(items[0]); }} />
+                      )}
                     </div>
                   ))}
                 </div>
