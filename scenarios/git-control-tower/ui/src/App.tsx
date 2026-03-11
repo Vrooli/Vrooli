@@ -272,6 +272,17 @@ export default function App() {
       // Note: Full history mode restoration would require fetching commit details
       // For now, we just store the hash - user can click on the commit in history to fully restore
     }
+    if (state.primary) {
+      const validPrimary: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
+      if (validPrimary.includes(state.primary as LayoutSection)) {
+        setPrimaryPanel(state.primary as LayoutSection);
+      }
+    } else {
+      setPrimaryPanel("diff");
+    }
+    if (state.reviewScenario) {
+      setReviewScenarioSlug(state.reviewScenario);
+    }
   }, []);
 
   const { updateState: updateUrlState } = useUrlState({
@@ -281,7 +292,7 @@ export default function App() {
   // Initialize state from URL on mount
   useEffect(() => {
     const initialState = parseUrlState(window.location.search);
-    if (initialState.file || initialState.commit) {
+    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario) {
       handleUrlStateChange(initialState);
     }
     // Mark as initialized so URL update effect can run
@@ -315,15 +326,15 @@ export default function App() {
       urlState.commit = viewingCommit.hash;
     }
 
-    updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, updateUrlState]);
-
-  // When a file is selected while review is the primary panel, switch to diff
-  useEffect(() => {
-    if (selectedFile && primaryPanel === "review") {
-      setPrimaryPanel("diff");
+    if (primaryPanel !== "diff") {
+      urlState.primary = primaryPanel;
     }
-  }, [selectedFile, primaryPanel]);
+    if (reviewScenarioSlug) {
+      urlState.reviewScenario = reviewScenarioSlug;
+    }
+
+    updateUrlState(urlState);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
@@ -1880,7 +1891,10 @@ export default function App() {
             onPull={handlePull}
             isPushing={pushMutation.isPending}
             isPulling={pullMutation.isPending}
-            onSelectFile={handleSelectFile}
+            onSelectFile={(path, staged, event) => {
+              handleSelectFile(path, staged, event);
+              if (primaryPanel === "review") setPrimaryPanel("diff");
+            }}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -1947,7 +1961,10 @@ export default function App() {
             onOpenFilters={() => setIsHistoryFiltersOpen(true)}
             onCloseFilters={() => setIsHistoryFiltersOpen(false)}
             selectedCommitHash={viewingCommit?.hash}
-            onSelectCommit={handleSelectCommit}
+            onSelectCommit={(entry) => {
+              handleSelectCommit(entry);
+              if (entry && primaryPanel === "review") setPrimaryPanel("diff");
+            }}
             blameFilePath={viewingFileBlame?.path}
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}

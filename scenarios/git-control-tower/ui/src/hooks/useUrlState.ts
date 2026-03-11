@@ -15,6 +15,10 @@ export interface UrlState {
   panel?: "changes" | "related";
   /** Commit hash when in history mode */
   commit?: string;
+  /** Primary panel (when set to review with a scenario slug) */
+  primary?: string;
+  /** Scenario slug for review panel */
+  reviewScenario?: string;
 }
 
 /**
@@ -51,6 +55,16 @@ export function parseUrlState(search: string): UrlState {
     state.commit = commit;
   }
 
+  const primary = params.get("primary");
+  if (primary) {
+    state.primary = primary;
+  }
+
+  const reviewScenario = params.get("reviewScenario");
+  if (reviewScenario) {
+    state.reviewScenario = decodeURIComponent(reviewScenario);
+  }
+
   return state;
 }
 
@@ -78,6 +92,14 @@ export function buildUrlSearch(state: UrlState): string {
 
   if (state.commit) {
     params.set("commit", state.commit);
+  }
+
+  if (state.primary && state.primary !== "diff") {
+    params.set("primary", state.primary);
+  }
+
+  if (state.reviewScenario) {
+    params.set("reviewScenario", encodeURIComponent(state.reviewScenario));
   }
 
   const search = params.toString();
