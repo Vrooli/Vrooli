@@ -32,12 +32,14 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 
 	// Discover pages
 	var pages []LighthousePage
+	var discoveryMethod string
 	if len(req.Pages) > 0 {
 		for _, p := range req.Pages {
 			pages = append(pages, LighthousePage{Path: p, Label: p})
 		}
+		discoveryMethod = "explicit"
 	} else {
-		pages = discoverPages(deps.FS, deps.RepoDir, req.ScenarioSlug)
+		pages, discoveryMethod = discoverPagesWithMethod(deps.FS, deps.RepoDir, req.ScenarioSlug)
 	}
 
 	// Default viewport
@@ -83,16 +85,17 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 	}
 
 	meta := SnapshotSetMeta{
-		ID:              snapshotID,
-		ScenarioSlug:    req.ScenarioSlug,
-		CommitHash:      commitHash,
-		TriggerType:     "manual",
-		Pages:           capturedPages,
-		ScreenshotCount: len(screenshots),
-		VideoCount:      0,
-		CreatedAt:       time.Now().UTC(),
-		Status:          status,
-		Error:           captureErr,
+		ID:                  snapshotID,
+		ScenarioSlug:        req.ScenarioSlug,
+		CommitHash:          commitHash,
+		TriggerType:         "manual",
+		Pages:               capturedPages,
+		ScreenshotCount:     len(screenshots),
+		VideoCount:          0,
+		CreatedAt:           time.Now().UTC(),
+		Status:              status,
+		Error:               captureErr,
+		PageDiscoveryMethod: discoveryMethod,
 	}
 
 	if err := deps.Storage.SaveSnapshotSet(deps.RepoID, meta, screenshots, nil); err != nil {
@@ -104,6 +107,12 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 
 // discoverPages reads lighthouse.json from the scenario directory.
 func discoverPages(fs FileIO, repoDir, scenarioSlug string) []LighthousePage {
+	pages, _ := discoverPagesWithMethod(fs, repoDir, scenarioSlug)
+	return pages
+}
+
+// discoverPagesWithMethod reads lighthouse.json and returns pages + discovery method.
+func discoverPagesWithMethod(fs FileIO, repoDir, scenarioSlug string) ([]LighthousePage, string) {
 	searchPaths := []string{
 		filepath.Join(repoDir, "scenarios", scenarioSlug, ".vrooli", "lighthouse.json"),
 		filepath.Join(repoDir, "apps", scenarioSlug, ".vrooli", "lighthouse.json"),
@@ -120,11 +129,11 @@ func discoverPages(fs FileIO, repoDir, scenarioSlug string) []LighthousePage {
 			continue
 		}
 		if cfg.Enabled && len(cfg.Pages) > 0 {
-			return cfg.Pages
+			return cfg.Pages, "lighthouse"
 		}
 	}
 
-	return []LighthousePage{{Path: "/", Label: "Home"}}
+	return []LighthousePage{{Path: "/", Label: "Home"}}, "fallback"
 }
 
 // sanitizeFilename converts page path "/" → "_root_", "/workflow/new" → "_workflow_new_"

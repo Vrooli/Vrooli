@@ -64,6 +64,14 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "browser-automation-studio",
 		Features:       []string{"Visual capture", "Screenshot history", "Periodic snapshots"},
 	},
+	{
+		ID:             "test-genie",
+		Name:           "Test Genie",
+		Description:    "Automated test execution and reporting for scenarios",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "test-genie",
+		Features:       []string{"Test execution", "Test history", "Phase-based testing"},
+	},
 }
 
 // CapabilityRegistry tracks dependency availability with caching.

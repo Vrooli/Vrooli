@@ -64,17 +64,18 @@ type VisualCaptureRequest struct {
 }
 
 type SnapshotSetMeta struct {
-	ID              string    `json:"id"`
-	ScenarioSlug    string    `json:"scenarioSlug"`
-	CommitHash      string    `json:"commitHash,omitempty"`
-	TriggerType     string    `json:"triggerType"`
-	Pages           []string  `json:"pages"`
-	ScreenshotCount int       `json:"screenshotCount"`
-	VideoCount      int       `json:"videoCount"`
-	CreatedAt       time.Time `json:"createdAt"`
-	SizeBytes       int64     `json:"sizeBytes"`
-	Status          string    `json:"status"`
-	Error           string    `json:"error,omitempty"`
+	ID                  string    `json:"id"`
+	ScenarioSlug        string    `json:"scenarioSlug"`
+	CommitHash          string    `json:"commitHash,omitempty"`
+	TriggerType         string    `json:"triggerType"`
+	Pages               []string  `json:"pages"`
+	ScreenshotCount     int       `json:"screenshotCount"`
+	VideoCount          int       `json:"videoCount"`
+	CreatedAt           time.Time `json:"createdAt"`
+	SizeBytes           int64     `json:"sizeBytes"`
+	Status              string    `json:"status"`
+	Error               string    `json:"error,omitempty"`
+	PageDiscoveryMethod string    `json:"pageDiscoveryMethod,omitempty"` // "lighthouse" | "fallback" | "explicit"
 }
 
 type SnapshotSetDetail struct {

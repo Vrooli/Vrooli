@@ -43,7 +43,7 @@ import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { CaptureButton } from "./CaptureButton";
+import { ReviewButton } from "./ReviewButton";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -120,7 +120,7 @@ interface FileListProps {
   onBlameFile?: (path: string) => void;
   repoId?: string | null;
   mobileSelectionMode?: boolean;
-  onOpenVisualReport?: (scenarioSlug: string) => void;
+  onOpenReview?: (scenarioSlug: string) => void;
   onEnterSelectionMode?: (path: string, staged: boolean) => void;
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
@@ -843,7 +843,7 @@ export function FileList({
   onDeletePath,
   onBlameFile,
   repoId,
-  onOpenVisualReport,
+  onOpenReview,
   mobileSelectionMode = false,
   onEnterSelectionMode,
   onExitSelectionMode,
@@ -1615,11 +1615,11 @@ export function FileList({
                             >
                               {groupCount} files
                             </button>
-                            {onOpenVisualReport && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) && (
-                              <CaptureButton
+                            {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) && (
+                              <ReviewButton
                                 scenarioSlug={group.displayPrefix.split("/")[1]}
                                 repoId={repoId}
-                                onViewReport={() => onOpenVisualReport(group.displayPrefix!.split("/")[1])}
+                                onViewReport={() => onOpenReview(group.displayPrefix!.split("/")[1])}
                               />
                             )}
                             {!isGroupCollapsed &&

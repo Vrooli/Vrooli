@@ -46,6 +46,7 @@ type Server struct {
 	basClient            *BrowserAutomationClient
 	visualCaptureStorage *VisualCaptureStorage
 	periodicCapture      *PeriodicCapture
+	testGenieClient      *TestGenieClient
 }
 
 // NewServer initializes configuration, database, and routes
@@ -102,6 +103,10 @@ func NewServer() (*Server, error) {
 				Slug:   "browser-automation-studio",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
+			"test-genie": &ScenarioChecker{
+				Slug:   "test-genie",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
 		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
@@ -121,6 +126,7 @@ func NewServer() (*Server, error) {
 	srv.storageResolver = resolver
 
 	srv.basClient = NewBrowserAutomationClient(30 * time.Second)
+	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
@@ -195,6 +201,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureStorageStats).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
+
+	// Test-genie endpoints
+	s.router.HandleFunc("/api/v1/repo/test-execution", s.handleTestExecution).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/test-executions", s.handleTestExecutionList).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/test-executions/{id}", s.handleTestExecutionDetail).Methods("GET")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")

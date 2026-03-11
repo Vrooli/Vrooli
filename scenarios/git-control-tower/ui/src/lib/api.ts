@@ -1397,6 +1397,7 @@ export interface SnapshotSetMeta {
   sizeBytes: number;
   status: CaptureStatus;
   error?: string;
+  pageDiscoveryMethod?: "lighthouse" | "fallback" | "explicit";
 }
 
 export interface SnapshotSetDetail extends SnapshotSetMeta {
@@ -1485,4 +1486,102 @@ export function buildCaptureScreenshotUrl(captureId: string, scenarioSlug: strin
 export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
   const params = new URLSearchParams({ scenarioSlug });
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
+}
+
+// ============================================================================
+// Test Execution Types (mirrors test-genie API)
+// ============================================================================
+
+export interface TestExecutionRequest {
+  scenarioName: string;
+  preset?: string;
+  phases?: string[];
+  skip?: string[];
+  failFast?: boolean;
+}
+
+export interface TestExecutionResult {
+  executionId: string;
+  scenarioName: string;
+  success: boolean;
+  startedAt: string;
+  completedAt?: string;
+  preset?: string;
+  phases: TestPhaseResult[];
+  phaseSummary: TestPhaseSummary;
+  warnings?: string[];
+}
+
+export interface TestPhaseResult {
+  name: string;
+  status: "passed" | "failed";
+  durationSeconds: number;
+  logPath?: string;
+  error?: string;
+  classification?: string;
+  remediation?: string;
+  observations?: TestObservation[];
+}
+
+export interface TestPhaseSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  durationSeconds: number;
+  observationCount: number;
+}
+
+export interface TestObservation {
+  icon?: string;
+  prefix?: string;
+  section?: string;
+  text: string;
+}
+
+export interface TestExecutionListResponse {
+  items: TestExecutionResult[];
+  count: number;
+}
+
+// ============================================================================
+// Test Execution API Functions
+// ============================================================================
+
+export async function triggerTestExecution(
+  request: TestExecutionRequest,
+  repoId?: string
+): Promise<TestExecutionResult> {
+  const url = buildApiUrl("/repo/test-execution", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request),
+  });
+  return handleResponse<TestExecutionResult>(res);
+}
+
+export async function fetchTestExecutions(
+  scenarioName: string,
+  limit = 10,
+  repoId?: string
+): Promise<TestExecutionListResponse> {
+  const params = new URLSearchParams({ scenarioName, limit: String(limit) });
+  const url = buildApiUrl(`/repo/test-executions?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<TestExecutionListResponse>(res);
+}
+
+export async function fetchTestExecution(
+  id: string,
+  repoId?: string
+): Promise<TestExecutionResult> {
+  const url = buildApiUrl(`/repo/test-executions/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<TestExecutionResult>(res);
 }

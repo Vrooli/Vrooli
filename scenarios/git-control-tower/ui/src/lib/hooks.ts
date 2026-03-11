@@ -53,7 +53,13 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
+  triggerTestExecution,
+  fetchTestExecutions,
+  fetchTestExecution,
   type CapabilitiesResponse,
+  type TestExecutionRequest,
+  type TestExecutionResult,
+  type TestExecutionListResponse,
   type GroupingRulesConfig,
   type GitignoreMoveRequest,
   type GitignoreHealthResponse,
@@ -135,6 +141,10 @@ export const queryKeys = {
     ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
   captureStorage: (repoId?: string | null) =>
     ["repo", "visual-capture-storage", repoId ?? "default"] as const,
+  testExecutions: (scenarioName: string, repoId?: string | null) =>
+    ["repo", "test-executions", repoId ?? "default", scenarioName] as const,
+  testExecution: (id: string, repoId?: string | null) =>
+    ["repo", "test-executions", repoId ?? "default", "detail", id] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";
@@ -732,6 +742,41 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
     mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
+    },
+  });
+}
+
+// ============================================================================
+// Test Execution Hooks
+// ============================================================================
+
+export function useTestExecutions(scenarioName: string, enabled = true, repoId?: string | null) {
+  return useQuery<TestExecutionListResponse, Error>({
+    queryKey: queryKeys.testExecutions(scenarioName, repoId),
+    queryFn: () => fetchTestExecutions(scenarioName, 10, repoId ?? undefined),
+    enabled: enabled && Boolean(scenarioName),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useTestExecution(id: string, enabled = true, repoId?: string | null) {
+  return useQuery<TestExecutionResult, Error>({
+    queryKey: queryKeys.testExecution(id, repoId),
+    queryFn: () => fetchTestExecution(id, repoId ?? undefined),
+    enabled: enabled && Boolean(id),
+    staleTime: 30_000,
+  });
+}
+
+export function useTriggerTestExecution(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<TestExecutionResult, Error, TestExecutionRequest>({
+    mutationFn: (request: TestExecutionRequest) =>
+      triggerTestExecution(request, repoId ?? undefined),
+    onSuccess: (_data, request) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.testExecutions(request.scenarioName, repoId),
+      });
     },
   });
 }

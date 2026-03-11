@@ -17,6 +17,10 @@
       "browser-automation-studio": {
         "description": "Visual capture and screenshot comparison for scenario UIs",
         "required": false
+      },
+      "test-genie": {
+        "description": "Automated test execution and reporting for scenarios",
+        "required": false
       }
     }
   },
