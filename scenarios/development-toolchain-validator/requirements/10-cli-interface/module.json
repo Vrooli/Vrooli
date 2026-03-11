@@ -9,21 +9,21 @@
       "description": "Implement CLI commands for core operations including: 'manage-refs' for reference management, 'connect-skills' for skill connections, 'config-expectations' for expectation configuration, 'run-validation' for validation execution, and 'view-report' for viewing validation results. Each command must support --help flag and JSON output format.",
       "id": "REQ-P0-011",
       "prd_ref": "OT-P0-010",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Core CLI Operations Interface",
       "validation": [
         {
           "notes": "Test each CLI command with --help flag",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/app_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Verify JSON output format",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/app_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
@@ -34,7 +34,7 @@
           "type": "test"
         },
         {
-          "notes": "CLI command response time \u003c 2s",
+          "notes": "CLI command response time <2s",
           "phase": "performance",
           "ref": "",
           "status": "pending",

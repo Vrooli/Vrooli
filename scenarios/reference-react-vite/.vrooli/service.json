@@ -187,8 +187,18 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
-        "schema": "reference-react-vite"
+        "description": "Primary relational data store for tasks, projects, and notes",
+        "schema": "reference-react-vite",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
       }
     }
   }

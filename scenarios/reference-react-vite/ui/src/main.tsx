@@ -7,8 +7,10 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
+// INTEROP-CRITICAL: iframe-bridge initialization must happen before render
+// to enable Vrooli orchestration when running in iframe context
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: 'reference-react-vite' });
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

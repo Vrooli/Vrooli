@@ -9,21 +9,21 @@
       "description": "Design and implement PostgreSQL schema for storing reference scenarios with template associations and metadata",
       "id": "REQ-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Reference Scenario Database Schema",
       "validation": [
         {
           "notes": "Schema migrations execute successfully",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/infrastructure/postgres/reference_repo_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "CRUD operations validate data constraints",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/reference/service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
@@ -34,7 +34,7 @@
           "type": "test"
         },
         {
-          "notes": "Query execution time \u003c 100ms",
+          "notes": "Query execution time <100ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",
@@ -43,8 +43,8 @@
         {
           "notes": "All required fields are present in schema",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "initialization/postgres/schema.sql",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -57,21 +57,21 @@
       "description": "Implement REST API endpoints for CRUD operations on reference scenarios",
       "id": "REQ-P0-002",
       "prd_ref": "OT-P0-001",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Reference Scenario API Endpoints",
       "validation": [
         {
           "notes": "All endpoints return correct status codes",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/reference_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Input validation handles edge cases",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/reference/service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
@@ -89,7 +89,7 @@
           "type": "test"
         },
         {
-          "notes": "API response time \u003c 200ms",
+          "notes": "API response time <200ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",
@@ -98,8 +98,8 @@
         {
           "notes": "All CRUD operations available via API",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/reference_test.go",
+          "status": "passing",
           "type": "test"
         }
       ]

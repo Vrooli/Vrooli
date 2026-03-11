@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "title": "Reference React Vite Documentation",
+  "description": "Documentation for the golden reference scenario demonstrating fully-developed React+Vite patterns",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get the reference scenario running in minutes",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and session changes"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Domain mental model, key entities, main flows, and natural boundaries"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "REST API endpoints for tasks, projects, and notes"
+        },
+        {
+          "path": "reference/data-model.md",
+          "title": "Data Model",
+          "description": "Database schema and entity relationships"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Environment variables and service configuration"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Architecture Seams",
+          "description": "Integration boundaries and responsibility zones",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Tech debt, blockers, and deferred work",
+          "internal": true
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Audit",
+          "description": "Storage architecture compliance checklist",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test infrastructure, patterns, and utilities",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference"],
+    "secondary": ["internal"]
+  }
+}

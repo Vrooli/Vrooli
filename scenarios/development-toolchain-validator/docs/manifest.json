@@ -94,7 +94,7 @@
         {
           "path": "reference/configuration.md",
           "title": "Configuration",
-          "description": "Database schema, config formats, and environment variables"
+          "description": "Control surface documentation: tunable levers, environment variables, and what's NOT configurable"
         },
         {
           "path": "reference/data-model.md",
@@ -112,16 +112,31 @@
         {
           "path": "internal/SEAMS.md",
           "title": "Integration Boundaries",
+          "description": "External and internal seam definitions, testability notes",
           "internal": true
         },
         {
           "path": "internal/PROBLEMS.md",
           "title": "Known Issues",
+          "description": "Tech debt, deferred work, and open questions",
           "internal": true
         },
         {
-          "path": "internal/PROGRESS.md",
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Architecture Audit",
+          "description": "PostgreSQL schema status and storage patterns",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Testing Architecture",
+          "description": "Test infrastructure, mocking patterns, and test organization",
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
           "title": "Progress Log",
+          "description": "Session history and completion status",
           "internal": true
         }
       ]

@@ -36,32 +36,41 @@ Development Toolchain Validator (DTV) is a Go API + React UI + CLI scenario that
 
 ## Domain Modules
 
-### 1. Registry (`api/pkg/registry/`)
+### 1. Registry (`api/domain/reference/`)
 
 Manages the core entities:
 
 - **Reference Scenarios**: Which scenarios are registered as references, what template they're based on.
+  - [CODE: api/domain/reference/model.go#Reference] - Domain entity
+  - [CODE: api/domain/reference/service.go#Service] - Business logic
+  - [CODE: api/domain/reference/repository.go#Repository] - Storage interface
+  - [CODE: api/infrastructure/postgres/reference_repo.go#ReferenceRepository] - PostgreSQL implementation
 - **Skill Connections**: Which prompt-manager skills are connected to which references, with version pinning.
+  - [CODE: api/domain/skill/] - Placeholder, not yet implemented
 - **Drift Detection**: Compares stored version/hash against current skill state in prompt-manager.
 
-### 2. Configuration (`api/pkg/config/`)
+### 2. Configuration (`api/domain/skill/`)
 
 Stores the declarative expectations for each skill-reference connection:
 
 - **Structural Expectations**: Folders, files (glob patterns), content snippets expected at specific locations.
+  - [CODE: initialization/postgres/schema.sql:48] - structural_expectations table
 - **CLI Tool Assertions**: Commands to run, JSONPath expressions to evaluate, operators, expected values.
+  - [CODE: initialization/postgres/schema.sql:73] - cli_assertions table
 
-### 3. Validation Engine (`api/pkg/validation/`)
+### 3. Validation Engine (`api/domain/validation/`)
 
 Executes expectations against reference scenarios:
 
 - **Structural Checker**: Walks the reference scenario's filesystem, checks folder/file existence, matches glob patterns, verifies snippets.
+  - [CODE: api/domain/validation/] - Placeholder, not yet implemented
 - **CLI Tool Executor**: Runs configured commands as subprocesses, parses JSON output, evaluates JSONPath assertions.
 - **Overlap Detector**: Finds structural expectations from different skills that target the same files/folders.
 - **Conflict Analyzer**: Identifies semantically incompatible expectations (mutually exclusive structures).
 - **Report Generator**: Aggregates all results into a comprehensive validation report.
+  - [CODE: api/domain/report/] - Placeholder, not yet implemented
 
-### 4. Tooling Baselines (`api/pkg/baselines/`) [P1]
+### 4. Tooling Baselines (`api/domain/baselines/`) [P1]
 
 Runs external development tools against references and validates expected results:
 
@@ -158,7 +167,9 @@ Runs external development tools against references and validates expected result
 
 **Integration pattern**: Subprocess execution with configurable timeout. JSON output parsed and evaluated against configured assertions. Commands are read-only — they do not modify the reference.
 
-## Database Schema (Conceptual)
+## Database Schema
+
+The actual schema is implemented in [CODE: initialization/postgres/schema.sql].
 
 ```sql
 -- Reference scenarios registered for validation

@@ -2,7 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
+  // INTEROP-CRITICAL: base path required for tunnel/proxy contexts in app-monitor
+  base: './',
   plugins: [react()],
   test: {
     globals: true,

@@ -1,15 +1,91 @@
 # Configuration
 
+This document describes all tunable levers (configuration options) for the Development Toolchain Validator. Configuration is organized into coherent groups that reflect how operators think about tuning behavior.
+
+## Control Surface Overview
+
+| Group | Lever | Environment Variable | Default | Impact |
+|-------|-------|---------------------|---------|--------|
+| Server | API Port | `API_PORT` | dynamic | Port for Go API server |
+| Server | UI Port | `UI_PORT` | dynamic | Port for React UI |
+| Server | CORS Origins | `CORS_ALLOWED_ORIGINS` | localhost | Origins allowed for API requests |
+| Data | Database URL | `DATABASE_URL` | - | PostgreSQL connection |
+| Pagination | Default Limit | `DTV_PAGINATION_DEFAULT_LIMIT` | 20 | Results per page when unspecified |
+| Pagination | Max Limit | `DTV_PAGINATION_MAX_LIMIT` | 100 | Hard cap on results per page |
+| Validation | Slug Min Length | `DTV_SLUG_MIN_LENGTH` | 2 | Minimum reference slug length |
+| Validation | Slug Max Length | `DTV_SLUG_MAX_LENGTH` | 100 | Maximum reference slug length |
+| Integration | prompt-manager URL | `PROMPT_MANAGER_API_URL` | auto-detect | External API integration |
+| CLI | Default Timeout | `DTV_CLI_TIMEOUT_DEFAULT` | 60 | CLI tool assertion timeout |
+
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `API_PORT` | Yes | Port for the Go API server (range 15000-19999) |
-| `UI_PORT` | Yes | Port for the React UI (range 35000-39999) |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `PROMPT_MANAGER_API_URL` | Yes | URL of prompt-manager's API (e.g., `http://localhost:18XXX/api/v1`) |
-| `VROOLI_PROJECT_ROOT` | No | Override for Vrooli project root path (auto-detected by default) |
-| `DTV_CLI_TIMEOUT_DEFAULT` | No | Default timeout for CLI tool assertions in seconds (default: 60) |
+### Required Variables
+
+| Variable | Description |
+|----------|-------------|
+| `API_PORT` | Port for the Go API server (range 15000-19999) |
+| `UI_PORT` | Port for the React UI (range 35000-39999) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `PROMPT_MANAGER_API_URL` | URL of prompt-manager's API (e.g., `http://localhost:18XXX/api/v1`) |
+
+### Optional Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VROOLI_PROJECT_ROOT` | auto-detected | Override for Vrooli project root path |
+| `DTV_CLI_TIMEOUT_DEFAULT` | 60 | Default timeout for CLI tool assertions in seconds |
+
+## API Configuration
+
+### Pagination Levers
+
+These levers control list endpoint behavior. Higher limits increase response payload size but reduce API calls needed to retrieve all results.
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `DTV_PAGINATION_DEFAULT_LIMIT` | 20 | 1-MaxLimit | Applied when no limit is specified or limit is invalid |
+| `DTV_PAGINATION_MAX_LIMIT` | 100 | 1-1000 | Upper bound for requested limits; prevents resource exhaustion |
+
+**Tradeoff**: Higher default/max limits mean fewer API calls but larger response payloads. For mobile clients or slow networks, lower values may be preferable.
+
+**Example**:
+```bash
+# Production with higher throughput needs
+export DTV_PAGINATION_DEFAULT_LIMIT=50
+export DTV_PAGINATION_MAX_LIMIT=200
+
+# Constrained environment
+export DTV_PAGINATION_DEFAULT_LIMIT=10
+export DTV_PAGINATION_MAX_LIMIT=25
+```
+
+### Validation Levers
+
+These levers control what input values are accepted by the API.
+
+| Variable | Default | Range | Description |
+|----------|---------|-------|-------------|
+| `DTV_SLUG_MIN_LENGTH` | 2 | 1-SlugMaxLength | Minimum allowed slug length |
+| `DTV_SLUG_MAX_LENGTH` | 100 | 1-255 | Maximum allowed slug length (capped by DB VARCHAR) |
+
+**Why constrained**: Slug constraints ensure URL-friendly identifiers. The regex pattern `^[a-z0-9][a-z0-9-]*[a-z0-9]$` is fixed and cannot be changed via configuration to maintain cross-system consistency.
+
+### CORS Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CORS_ALLOWED_ORIGINS` | localhost variants | Comma-separated list of allowed origins |
+
+**Default origins** (for development):
+- `http://localhost:3000`
+- `http://localhost:5173`
+- `http://127.0.0.1:3000`
+- `http://127.0.0.1:5173`
+
+**Production example**:
+```bash
+export CORS_ALLOWED_ORIGINS="https://app.example.com,https://admin.example.com"
+```
 
 ## PostgreSQL
 
@@ -76,3 +152,16 @@ Key sections:
 - **ports**: API (15000-19999), UI (35000-39999)
 - **lifecycle**: setup (build API/UI/CLI), develop (start servers), test (test-genie), stop
 - **dependencies**: PostgreSQL (required)
+
+## What Is NOT Configurable (And Why)
+
+Some values are intentionally **not** exposed as levers:
+
+| Value | Location | Why Not Configurable |
+|-------|----------|---------------------|
+| Slug regex pattern | `domain/reference/service.go` | Cross-system consistency; changing would break URL routing |
+| Health check paths | `.vrooli/service.json` | Infrastructure standard; changing breaks orchestration |
+| Database schema | `initialization/postgres/schema.sql` | Migrations should handle changes, not runtime config |
+| API version prefix | `handlers/reference.go` | Breaking changes need versioned endpoints, not config |
+
+These represent **conscious architectural decisions** where runtime configurability would introduce more risk than benefit.

@@ -1,5 +1,8 @@
 # Data Model
 
+Schema definition: [CODE: initialization/postgres/schema.sql]
+Domain model: [CODE: api/domain/reference/model.go#Reference]
+
 ## Entity Relationship Diagram
 
 ```
@@ -20,6 +23,9 @@ expectations   assertions     results
 
 ### references
 
+Schema: [CODE: initialization/postgres/schema.sql:9]
+Repository: [CODE: api/infrastructure/postgres/reference_repo.go#ReferenceRepository]
+
 Stores registered reference scenarios.
 
 | Column | Type | Constraints | Description |
@@ -32,6 +38,8 @@ Stores registered reference scenarios.
 | updated_at | TIMESTAMPTZ | NOT NULL | Last modified |
 
 ### skill_connections
+
+Schema: [CODE: initialization/postgres/schema.sql:25]
 
 Maps skills to references with version pinning.
 
@@ -46,6 +54,8 @@ Maps skills to references with version pinning.
 | | | UNIQUE(reference_id, skill_id) | One connection per skill per reference |
 
 ### structural_expectations
+
+Schema: [CODE: initialization/postgres/schema.sql:48]
 
 Filesystem expectations per connection.
 
@@ -63,6 +73,8 @@ Filesystem expectations per connection.
 
 ### cli_tool_assertions
 
+Schema: [CODE: initialization/postgres/schema.sql:73]
+
 CLI command assertions per connection.
 
 | Column | Type | Constraints | Description |
@@ -78,6 +90,8 @@ CLI command assertions per connection.
 | created_at | TIMESTAMPTZ | NOT NULL | When created |
 
 ### validation_runs
+
+Schema: [CODE: initialization/postgres/schema.sql:94]
 
 Historical validation results.
 

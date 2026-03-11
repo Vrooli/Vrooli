@@ -1,5 +1,7 @@
 # API Reference
 
+Server entry point: [CODE: api/main.go]
+
 ## Base URL
 
 `http://localhost:${API_PORT}/api/v1`
@@ -8,6 +10,8 @@
 
 ### GET /health
 Returns API health status.
+
+Implementation: [CODE: api/main.go:51] (setupRoutes)
 
 **Response**: `200 OK`
 ```json
@@ -19,6 +23,9 @@ Returns API health status.
 ```
 
 ## References
+
+Handler: [CODE: api/handlers/reference.go#ReferenceHandler]
+Service: [CODE: api/domain/reference/service.go#Service]
 
 ### GET /references
 List all registered reference scenarios.

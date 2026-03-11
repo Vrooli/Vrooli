@@ -7,8 +7,9 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
+// INTEROP-CRITICAL: iframe bridge initialization for app-monitor integration
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: "development-toolchain-validator" });
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
