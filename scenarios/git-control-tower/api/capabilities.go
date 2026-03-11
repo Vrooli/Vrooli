@@ -56,6 +56,14 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "workspace-sandbox",
 		Features:       []string{"Approved changes panel", "Commit preview filtering"},
 	},
+	{
+		ID:             "browser-automation-studio",
+		Name:           "Browser Automation Studio",
+		Description:    "Visual capture, screenshots, and workflow execution for scenario UIs",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "browser-automation-studio",
+		Features:       []string{"Visual capture", "Screenshot history", "Periodic snapshots"},
+	},
 }
 
 // CapabilityRegistry tracks dependency availability with caching.

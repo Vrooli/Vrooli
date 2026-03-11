@@ -19,6 +19,7 @@ import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { VisualReportModal } from "./components/VisualReportModal";
 import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
 import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
@@ -158,6 +159,7 @@ export default function App() {
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [visualReportSlug, setVisualReportSlug] = useState<string | null>(null);
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
@@ -1899,6 +1901,7 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
+            onOpenVisualReport={setVisualReportSlug}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2158,6 +2161,7 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
+            onOpenVisualReport={setVisualReportSlug}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2676,6 +2680,12 @@ export default function App() {
         isOpen={isFileSearchOpen}
         onClose={() => setIsFileSearchOpen(false)}
         onSelectFile={handleSelectAnyFile}
+        repoId={repoId}
+      />
+      <VisualReportModal
+        isOpen={visualReportSlug !== null}
+        onClose={() => setVisualReportSlug(null)}
+        scenarioSlug={visualReportSlug ?? ""}
         repoId={repoId}
       />
     </div>

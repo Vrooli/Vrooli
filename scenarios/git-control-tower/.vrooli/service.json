@@ -13,6 +13,10 @@
       "workspace-sandbox": {
         "description": "Approved changes tracking and commit preview",
         "required": false
+      },
+      "browser-automation-studio": {
+        "description": "Visual capture and screenshot comparison for scenario UIs",
+        "required": false
       }
     }
   },

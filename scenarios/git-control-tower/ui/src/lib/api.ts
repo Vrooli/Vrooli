@@ -1368,3 +1368,121 @@ export async function deleteSSHKey(request: SSHDeleteKeyRequest): Promise<SSHDel
   });
   return handleResponse<SSHDeleteKeyResponse>(res);
 }
+
+// ============================================================================
+// Visual Capture Types
+// ============================================================================
+
+export type CaptureTrigger = "periodic" | "post-commit" | "manual";
+export type CaptureStatus = "complete" | "failed";
+
+export interface SnapshotFile {
+  filename: string;
+  pagePath?: string;
+  pageLabel?: string;
+  width?: number;
+  height?: number;
+  sizeBytes: number;
+}
+
+export interface SnapshotSetMeta {
+  id: string;
+  scenarioSlug: string;
+  commitHash?: string;
+  triggerType: CaptureTrigger;
+  pages: string[];
+  screenshotCount: number;
+  videoCount: number;
+  createdAt: string;
+  sizeBytes: number;
+  status: CaptureStatus;
+  error?: string;
+}
+
+export interface SnapshotSetDetail extends SnapshotSetMeta {
+  screenshots: SnapshotFile[];
+  videos: SnapshotFile[];
+}
+
+export interface VisualCaptureListResponse {
+  snapshots: SnapshotSetMeta[];
+  total: number;
+}
+
+export interface CaptureStorageStats {
+  totalSizeBytes: number;
+  snapshotCount: number;
+  perScenario: { scenarioSlug: string; snapshotCount: number; sizeBytes: number }[];
+}
+
+// ============================================================================
+// Visual Capture API Functions
+// ============================================================================
+
+export async function triggerVisualCapture(scenarioSlug: string, repoId?: string): Promise<SnapshotSetMeta> {
+  const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify({ scenarioSlug })
+  });
+  return handleResponse<SnapshotSetMeta>(res);
+}
+
+export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string): Promise<VisualCaptureListResponse> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/visual-captures?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<VisualCaptureListResponse>(res);
+}
+
+export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<SnapshotSetDetail> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<SnapshotSetDetail>(res);
+}
+
+export async function fetchCaptureStorageStats(repoId?: string): Promise<CaptureStorageStats> {
+  const url = buildApiUrl("/repo/visual-capture-storage", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<CaptureStorageStats>(res);
+}
+
+export async function deleteVisualCapture(id: string, scenarioSlug: string, repoId?: string): Promise<void> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: buildRepoHeaders(repoId)
+  });
+  await handleResponse<unknown>(res);
+}
+
+export async function clearAllCaptureStorage(repoId?: string): Promise<void> {
+  const url = buildApiUrl("/repo/visual-capture-storage", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: buildRepoHeaders(repoId)
+  });
+  await handleResponse<unknown>(res);
+}
+
+export function buildCaptureScreenshotUrl(captureId: string, scenarioSlug: string, filename: string): string {
+  const params = new URLSearchParams({ scenarioSlug });
+  return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/screenshot/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
+}
+
+export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
+  const params = new URLSearchParams({ scenarioSlug });
+  return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
+}

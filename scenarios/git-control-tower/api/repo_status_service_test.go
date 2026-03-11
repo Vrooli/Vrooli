@@ -36,3 +36,28 @@ func TestGetRepoHistoryFiltersGraphOnlyLines(t *testing.T) {
 		t.Fatalf("unexpected history lines: got %v want %v", history.Lines, expected)
 	}
 }
+
+func TestScopeKeyForPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"scenarios/my-app/api/main.go", "scenario:my-app"},
+		{"resources/postgres/config.yaml", "resource:postgres"},
+		{"packages/api-core/storage/types.go", "package:api-core"},
+		{"apps/dashboard/src/App.tsx", "app:dashboard"},
+		{"services/auth/handler.go", "service:auth"},
+		{"README.md", "other"},
+		{".gitignore", "other"},
+		{"docs/guide.md", "other"},
+	}
+
+	for _, tt := range tests {
+		got := scopeKeyForPath(tt.path)
+		if got != tt.want {
+			t.Errorf("scopeKeyForPath(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}

@@ -1,0 +1,145 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/vrooli/api-core/discovery"
+)
+
+// BrowserAutomationClient is a lightweight HTTP client for browser-automation-studio APIs.
+type BrowserAutomationClient struct {
+	httpClient *http.Client
+	resolver   *discovery.Resolver
+}
+
+// NewBrowserAutomationClient creates a new BAS client with the given timeout.
+func NewBrowserAutomationClient(timeout time.Duration) *BrowserAutomationClient {
+	return &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: timeout},
+	}
+}
+
+// CaptureScreenshot calls POST /api/v1/preview-screenshot on BAS.
+func (c *BrowserAutomationClient) CaptureScreenshot(ctx context.Context, url string, viewport BASViewport) (*BASScreenshotResponse, error) {
+	var result BASScreenshotResponse
+	err := c.doJSON(ctx, "/api/v1/preview-screenshot", BASScreenshotRequest{
+		URL:      url,
+		Viewport: viewport,
+	}, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ExecuteAdhocWorkflow calls POST /api/v1/workflows/execute-adhoc on BAS.
+func (c *BrowserAutomationClient) ExecuteAdhocWorkflow(ctx context.Context, req BASExecuteAdhocRequest) (*BASExecuteResponse, error) {
+	var result BASExecuteResponse
+	err := c.doJSON(ctx, "/api/v1/workflows/execute-adhoc", req, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// GetScreenshots calls GET /api/v1/executions/{id}/screenshots on BAS.
+func (c *BrowserAutomationClient) GetScreenshots(ctx context.Context, executionID string) (*BASScreenshotsResponse, error) {
+	var result BASScreenshotsResponse
+	err := c.doGet(ctx, "/api/v1/executions/"+executionID+"/screenshots", &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *BrowserAutomationClient) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.resolver != nil {
+		return c.resolver.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
+	}
+	return discovery.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
+}
+
+func (c *BrowserAutomationClient) doJSON(ctx context.Context, path string, body, result interface{}) error {
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve BAS url: %w", err)
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("BAS request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return parseBASError(resp)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return nil
+}
+
+func (c *BrowserAutomationClient) doGet(ctx context.Context, path string, result interface{}) error {
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve BAS url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("BAS request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return parseBASError(resp)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return nil
+}
+
+func parseBASError(resp *http.Response) error {
+	body, _ := io.ReadAll(resp.Body)
+	var errResp struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &errResp); err == nil {
+		if errResp.Error != "" {
+			return fmt.Errorf("BAS error: %s", errResp.Error)
+		}
+		if errResp.Message != "" {
+			return fmt.Errorf("BAS error: %s", errResp.Message)
+		}
+	}
+	return fmt.Errorf("BAS error: status %d, body: %s", resp.StatusCode, string(body))
+}

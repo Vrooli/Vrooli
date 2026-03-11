@@ -6,10 +6,11 @@ import { SettingsTabLayout } from "./SettingsTabLayout";
 import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabHealth } from "./SettingsTabHealth";
 import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
+import { SettingsTabStorage } from "./SettingsTabStorage";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { SyncStatusResponse } from "../lib/api";
 
-export type SettingsTab = "layout" | "credentials" | "integrations" | "health";
+export type SettingsTab = "layout" | "credentials" | "integrations" | "health" | "storage";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ const tabLabels: Record<SettingsTab, string> = {
   credentials: "Credentials",
   integrations: "Integrations",
   health: "Health",
+  storage: "Storage",
 };
 
 export function SettingsModal({
@@ -137,6 +139,13 @@ export function SettingsModal({
               repoId={repoId}
             />
           )}
+
+          {activeTab === "storage" && (
+            <SettingsTabStorage
+              isMobile={true}
+              repoId={repoId}
+            />
+          )}
         </div>
 
         {/* Footer */}
@@ -233,6 +242,13 @@ export function SettingsModal({
 
           {activeTab === "health" && (
             <SettingsTabHealth
+              isMobile={false}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "storage" && (
+            <SettingsTabStorage
               isMobile={false}
               repoId={repoId}
             />

@@ -47,6 +47,12 @@ import {
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  triggerVisualCapture,
+  fetchVisualCaptures,
+  fetchVisualCaptureDetail,
+  fetchCaptureStorageStats,
+  deleteVisualCapture,
+  clearAllCaptureStorage,
   type CapabilitiesResponse,
   type GroupingRulesConfig,
   type GitignoreMoveRequest,
@@ -83,7 +89,11 @@ import {
   type SSHGenerateKeyRequest,
   type SSHGetPublicKeyRequest,
   type SSHTestConnectionRequest,
-  type SSHDeleteKeyRequest
+  type SSHDeleteKeyRequest,
+  type VisualCaptureListResponse,
+  type SnapshotSetMeta,
+  type SnapshotSetDetail,
+  type CaptureStorageStats,
 } from "./api";
 
 export const queryKeys = {
@@ -118,7 +128,13 @@ export const queryKeys = {
   capabilities: ["capabilities"] as const,
   sshKeys: ["ssh", "keys"] as const,
   repos: ["repos"] as const,
-  activeRepo: ["repos", "active"] as const
+  activeRepo: ["repos", "active"] as const,
+  visualCaptures: (slug: string, repoId?: string | null) =>
+    ["repo", "visual-captures", repoId ?? "default", slug] as const,
+  visualCaptureDetail: (id: string, slug: string, repoId?: string | null) =>
+    ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
+  captureStorage: (repoId?: string | null) =>
+    ["repo", "visual-capture-storage", repoId ?? "default"] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";
@@ -655,6 +671,67 @@ export function useGitignoreMove(repoId?: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.gitignoreHealth(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+    },
+  });
+}
+
+// ============================================================================
+// Visual Capture Hooks
+// ============================================================================
+
+export function useVisualCaptures(slug: string, enabled = true, repoId?: string | null) {
+  return useQuery<VisualCaptureListResponse, Error>({
+    queryKey: queryKeys.visualCaptures(slug, repoId),
+    queryFn: () => fetchVisualCaptures(slug, repoId ?? undefined),
+    enabled: enabled && Boolean(slug),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useVisualCaptureDetail(id: string, slug: string, enabled = true, repoId?: string | null) {
+  return useQuery<SnapshotSetDetail, Error>({
+    queryKey: queryKeys.visualCaptureDetail(id, slug, repoId),
+    queryFn: () => fetchVisualCaptureDetail(id, slug, repoId ?? undefined),
+    enabled: enabled && Boolean(id) && Boolean(slug),
+    staleTime: 60_000,
+  });
+}
+
+export function useTriggerVisualCapture(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<SnapshotSetMeta, Error, string>({
+    mutationFn: (scenarioSlug: string) => triggerVisualCapture(scenarioSlug, repoId ?? undefined),
+    onSuccess: (_data, scenarioSlug) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.visualCaptures(scenarioSlug, repoId) });
+    },
+  });
+}
+
+export function useCaptureStorageStats(repoId?: string | null) {
+  return useQuery<CaptureStorageStats, Error>({
+    queryKey: queryKeys.captureStorage(repoId),
+    queryFn: () => fetchCaptureStorageStats(repoId ?? undefined),
+    staleTime: 30_000,
+  });
+}
+
+export function useDeleteVisualCapture(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { id: string; scenarioSlug: string }>({
+    mutationFn: ({ id, scenarioSlug }) => deleteVisualCapture(id, scenarioSlug, repoId ?? undefined),
+    onSuccess: (_data, { scenarioSlug }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.visualCaptures(scenarioSlug, repoId) });
+    },
+  });
+}
+
+export function useClearAllCaptureStorage(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
     },
   });
 }

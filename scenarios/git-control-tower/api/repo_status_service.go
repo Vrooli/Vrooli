@@ -377,5 +377,11 @@ func scopeKeyForPath(path string) string {
 	if len(parts) >= 2 && parts[0] == "packages" {
 		return "package:" + parts[1]
 	}
+	if len(parts) >= 2 && parts[0] == "apps" {
+		return "app:" + parts[1]
+	}
+	if len(parts) >= 2 && parts[0] == "services" {
+		return "service:" + parts[1]
+	}
 	return "other"
 }

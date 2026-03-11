@@ -32,17 +32,20 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config          *Config
-	db              *sql.DB
-	router          *mux.Router
-	git             GitRunner
-	audit           AuditLogger
-	sandbox         *WorkspaceSandboxClient
-	capabilities    *CapabilityRegistry
-	sshDeps         ssh.SSHDeps
-	repos           *RepoService
-	credStore       *CredentialsStore
-	storageResolver *storage.Resolver
+	config               *Config
+	db                   *sql.DB
+	router               *mux.Router
+	git                  GitRunner
+	audit                AuditLogger
+	sandbox              *WorkspaceSandboxClient
+	capabilities         *CapabilityRegistry
+	sshDeps              ssh.SSHDeps
+	repos                *RepoService
+	credStore            *CredentialsStore
+	storageResolver      *storage.Resolver
+	basClient            *BrowserAutomationClient
+	visualCaptureStorage *VisualCaptureStorage
+	periodicCapture      *PeriodicCapture
 }
 
 // NewServer initializes configuration, database, and routes
@@ -95,6 +98,10 @@ func NewServer() (*Server, error) {
 				Slug:   "workspace-sandbox",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
+			"browser-automation-studio": &ScenarioChecker{
+				Slug:   "browser-automation-studio",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
 		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
@@ -112,6 +119,13 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("storage resolver init failed: %w", err)
 	}
 	srv.storageResolver = resolver
+
+	srv.basClient = NewBrowserAutomationClient(30 * time.Second)
+	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
+	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
+		Interval: 1 * time.Hour, MaxSnapshots: 10,
+	}, srv.capabilities, srv.basClient, srv.visualCaptureStorage, srv.repos, srv.git)
+	srv.periodicCapture.Start()
 
 	srv.setupRoutes()
 	return srv, nil
@@ -171,6 +185,16 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/credentials/{id}", s.handleDeleteCredential).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/credentials/test", s.handleTestCredential).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/remote/url", s.handleUpdateRemoteURL).Methods("POST")
+
+	// Visual capture endpoints
+	s.router.HandleFunc("/api/v1/repo/visual-capture", s.handleVisualCapture).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/visual-captures", s.handleVisualCaptureList).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDetail).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}/screenshot/{filename}", s.handleVisualCaptureScreenshot).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}/video/{filename}", s.handleVisualCaptureVideo).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureStorageStats).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")
@@ -1200,7 +1224,10 @@ func main() {
 
 	if err := server.Run(server.Config{
 		Handler: srv.Router(),
-		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			srv.periodicCapture.Stop()
+			return srv.db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
