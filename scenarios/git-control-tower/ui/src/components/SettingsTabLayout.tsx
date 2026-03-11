@@ -20,7 +20,8 @@ const panelLabels: Record<LayoutSection, string> = {
   changes: "Changes",
   history: "History",
   commit: "Commit",
-  diff: "Diff viewer"
+  diff: "Diff viewer",
+  review: "Review"
 };
 
 export function SettingsTabLayout({

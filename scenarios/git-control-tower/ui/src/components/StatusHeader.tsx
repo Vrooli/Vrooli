@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   GitCommit,
   RefreshCw,
   Search,
@@ -27,6 +28,7 @@ interface StatusHeaderProps {
   onOpenSettings: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
+  onOpenReview?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -45,6 +47,7 @@ export function StatusHeader({
   onOpenSettings,
   onOpenUpstreamInfo,
   onOpenFileSearch,
+  onOpenReview,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -101,6 +104,15 @@ export function StatusHeader({
         />
 
         <HealthIndicator health={health} isHealthy={isHealthy} />
+
+        <IconButton
+          onClick={onOpenReview}
+          label="Scenario review"
+          title="Scenario review"
+          data-testid="review-button"
+        >
+          <ClipboardCheck className="h-4 w-4 text-slate-400" />
+        </IconButton>
 
         <IconButton
           onClick={onOpenFileSearch}

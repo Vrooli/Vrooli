@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus } from "lucide-react";
+import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X } from "lucide-react";
 import { Button } from "./ui/button";
-import { useIsMobile } from "../hooks";
+import { Card, CardHeader, CardTitle } from "./ui/card";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
 import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem } from "../lib/api";
@@ -14,20 +14,18 @@ import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
 type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality" | "agent";
 
-interface ScenarioReviewModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface ScenarioReviewPanelProps {
   scenarioSlug: string;
   repoId?: string | null;
   fileStats?: RepoFileStats;
-  onChangeScenario?: (slug: string) => void;
+  onChangeScenario: (slug: string) => void;
+  isMobile?: boolean;
 }
 
-export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fileStats, onChangeScenario }: ScenarioReviewModalProps) {
-  const isMobile = useIsMobile();
+export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const capturesQuery = useVisualCaptures(scenarioSlug, isOpen, repoId);
+  const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
   const triggerCapture = useTriggerVisualCapture(repoId);
   const capabilities = useCapabilities();
 
@@ -56,8 +54,6 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
     setAgentContext((prev) => prev.filter((c) => c.id !== id));
   }, []);
   const clearAgentContext = useCallback(() => setAgentContext([]), []);
-
-  if (!isOpen) return null;
 
   const snapshots = capturesQuery.data?.snapshots ?? [];
   const completeSnapshots = snapshots.filter(s => s.status === "complete");
@@ -92,14 +88,14 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
     </div>
   );
 
-  const tabNav = (mobile: boolean) => (
-    <div className="flex border-b border-slate-800 px-4">
+  const tabNav = (
+    <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
       {visibleTabs.map((tab) => (
         <button
           key={tab}
           type="button"
           onClick={() => setActiveTab(tab)}
-          className={`px-4 ${mobile ? "py-3 text-sm" : "py-2 text-xs"} font-medium border-b-2 transition-colors ${
+          className={`px-4 ${isMobile ? "py-3 text-sm" : "py-2 text-xs"} font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === tab
               ? "text-blue-400 border-blue-400"
               : "text-slate-400 border-transparent hover:text-slate-200"
@@ -142,7 +138,7 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
             before={before}
             after={after}
             scenarioSlug={scenarioSlug}
-            isMobile={isMobile}
+            isMobile={isMobile ?? false}
             basAvailable={basAvailable}
             isCapturing={isCapturing}
             onCapture={() => triggerCapture.mutate(scenarioSlug)}
@@ -193,161 +189,83 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
     </div>
   );
 
-  if (isMobile) {
+  if (!scenarioSlug) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scenario Review"
-      >
-        {/* Mobile header with pt-safe and touch-friendly close */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4 text-slate-400" />
-            <div>
-              {onChangeScenario ? (
-                <button
-                  type="button"
-                  onClick={() => setIsPickerOpen(true)}
-                  className="font-semibold text-slate-100 text-base hover:text-blue-400 cursor-pointer flex items-center gap-1 transition-colors"
-                >
-                  {scenarioSlug}
-                  <ChevronDown className="h-3 w-3 text-slate-500" />
-                </button>
-              ) : (
-                <h2 className="font-semibold text-slate-100 text-base">
-                  {scenarioSlug}
-                </h2>
-              )}
-              {after && (
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Last captured: {new Date(after.createdAt).toLocaleString()}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {basAvailable && (
-              <button
-                type="button"
-                className="h-11 w-11 inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
-                onClick={() => triggerCapture.mutate(scenarioSlug)}
-                disabled={isCapturing}
-                title="Re-capture"
-              >
-                {isCapturing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
-              onClick={onClose}
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+      <Card className="h-full flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
+          <ClipboardCheck className="h-10 w-10 text-slate-600" />
+          <p className="text-sm text-center">No scenario selected. Choose a scenario to review.</p>
+          <button
+            type="button"
+            onClick={() => setIsPickerOpen(true)}
+            className="px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 hover:bg-slate-800/60 transition-colors"
+          >
+            Choose scenario
+          </button>
+          <ScenarioPickerModal
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            currentScenario={scenarioSlug}
+            onSelect={(slug) => {
+              setIsPickerOpen(false);
+              onChangeScenario(slug);
+            }}
+          />
         </div>
-        {captureBanner}
-        {tabNav(true)}
-        {tabContent}
-        <div className="border-t border-slate-800 px-4 py-4 pb-safe">
-          <Button variant="default" size="sm" onClick={onClose} className="w-full h-12 text-sm touch-target">
-            Done
-          </Button>
-        </div>
-        <ScenarioPickerModal
-          isOpen={isPickerOpen}
-          onClose={() => setIsPickerOpen(false)}
-          currentScenario={scenarioSlug}
-          onSelect={(slug) => {
-            setIsPickerOpen(false);
-            onChangeScenario?.(slug);
-          }}
-        />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Scenario Review"
-    >
-      <div className="w-full max-w-4xl max-h-[85vh] flex flex-col rounded-xl border border-slate-800 bg-slate-950 shadow-xl">
-        {/* Desktop header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4 text-slate-400" />
-            <div>
-              {onChangeScenario ? (
-                <button
-                  type="button"
-                  onClick={() => setIsPickerOpen(true)}
-                  className="font-semibold text-slate-100 text-sm hover:text-blue-400 cursor-pointer flex items-center gap-1 transition-colors"
-                >
-                  {scenarioSlug}
-                  <ChevronDown className="h-3 w-3 text-slate-500" />
-                </button>
-              ) : (
-                <h2 className="font-semibold text-slate-100 text-sm">
-                  {scenarioSlug}
-                </h2>
-              )}
-              {after && (
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Last captured: {new Date(after.createdAt).toLocaleString()}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {basAvailable && (
-              <button
-                type="button"
-                className="h-8 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                onClick={() => triggerCapture.mutate(scenarioSlug)}
-                disabled={isCapturing}
-                title="Re-capture"
-              >
-                {isCapturing ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
+    <Card className="h-full flex flex-col">
+      <CardHeader className={`flex-row items-center justify-between space-y-0 ${isMobile ? "py-4 px-4" : "py-3"}`}>
+        <CardTitle className="flex items-center gap-2 min-w-0">
+          <ClipboardCheck className="h-4 w-4 text-slate-400 shrink-0" />
+          <button
+            type="button"
+            onClick={() => setIsPickerOpen(true)}
+            className={`font-semibold text-slate-100 ${isMobile ? "text-base" : "text-sm"} hover:text-blue-400 cursor-pointer flex items-center gap-1 transition-colors truncate`}
+          >
+            {scenarioSlug}
+            <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
+          </button>
+          {after && (
+            <span className="text-[11px] text-slate-500 hidden sm:inline shrink-0">
+              Captured {new Date(after.createdAt).toLocaleString()}
+            </span>
+          )}
+        </CardTitle>
+        <div className="flex items-center gap-1 shrink-0">
+          {basAvailable && (
             <button
               type="button"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60"
-              onClick={onClose}
-              aria-label="Close"
+              className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
+              onClick={() => triggerCapture.mutate(scenarioSlug)}
+              disabled={isCapturing}
+              title="Re-capture screenshots"
             >
-              <X className="h-4 w-4" />
+              {isCapturing ? (
+                <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
+              ) : (
+                <RefreshCw className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+              )}
             </button>
-          </div>
+          )}
         </div>
-        {captureBanner}
-        {tabNav(false)}
-        {tabContent}
-        <ScenarioPickerModal
-          isOpen={isPickerOpen}
-          onClose={() => setIsPickerOpen(false)}
-          currentScenario={scenarioSlug}
-          onSelect={(slug) => {
-            setIsPickerOpen(false);
-            onChangeScenario?.(slug);
-          }}
-        />
-      </div>
-    </div>
+      </CardHeader>
+      {captureBanner}
+      {tabNav}
+      {tabContent}
+      <ScenarioPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        currentScenario={scenarioSlug}
+        onSelect={(slug) => {
+          setIsPickerOpen(false);
+          onChangeScenario(slug);
+        }}
+      />
+    </Card>
   );
 }
 

@@ -1,4 +1,4 @@
-import { FileText, FileDiff, GitCommit, History } from "lucide-react";
+import { ClipboardCheck, FileText, FileDiff, GitCommit, History } from "lucide-react";
 import type { LayoutSection } from "./LayoutSettingsModal";
 
 interface MobileNavProps {
@@ -16,7 +16,8 @@ const panels: Array<{
   { id: "changes", label: "Changes", icon: FileText },
   { id: "diff", label: "Diff", icon: FileDiff },
   { id: "commit", label: "Commit", icon: GitCommit },
-  { id: "history", label: "History", icon: History }
+  { id: "history", label: "History", icon: History },
+  { id: "review", label: "Review", icon: ClipboardCheck }
 ];
 
 export function MobileNav({

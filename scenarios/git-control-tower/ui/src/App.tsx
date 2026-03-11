@@ -10,7 +10,6 @@ import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
-import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
@@ -19,12 +18,12 @@ import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
-import { ScenarioReviewModal } from "./components/ScenarioReviewModal";
+import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
 import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
 import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, RepoFileStats } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import {
@@ -149,7 +148,6 @@ export default function App() {
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
-  const [isGroupingSettingsOpen, setIsGroupingSettingsOpen] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
@@ -159,12 +157,12 @@ export default function App() {
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [reviewState, setReviewState] = useState<{ slug: string; fileStats?: RepoFileStats } | null>(null);
+  const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
     const stored = localStorage.getItem("gct.mobileActivePanel");
-    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history"];
+    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
     if (stored && validPanels.includes(stored as LayoutSection)) {
       return stored as LayoutSection;
     }
@@ -320,10 +318,17 @@ export default function App() {
     updateUrlState(urlState);
   }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, updateUrlState]);
 
+  // When a file is selected while review is the primary panel, switch to diff
+  useEffect(() => {
+    if (selectedFile && primaryPanel === "review") {
+      setPrimaryPanel("diff");
+    }
+  }, [selectedFile, primaryPanel]);
+
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
   const stackPanels = useMemo(
-    () => layoutOrder.filter((section) => section !== primaryPanel),
+    () => primaryPanel === "review" ? layoutOrder : layoutOrder.filter((section) => section !== primaryPanel),
     [primaryPanel]
   );
   const stackSlots = useMemo(() => {
@@ -343,7 +348,8 @@ export default function App() {
       changes: changesCollapsed,
       history: historyCollapsed,
       commit: commitCollapsed,
-      diff: false
+      diff: false,
+      review: false
     }),
     [changesCollapsed, historyCollapsed, commitCollapsed]
   );
@@ -1235,6 +1241,8 @@ export default function App() {
     }
     if (isMobile) {
       setMobileActivePanel("diff");
+    } else {
+      setPrimaryPanel("diff");
     }
     // TODO: Use lineNumber to scroll to the specific line in the source viewer
     // This would require adding state and passing it to DiffViewer
@@ -1893,7 +1901,7 @@ export default function App() {
             groupingRules={groupingRules}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
-            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
             scrollToFile={scrollToFile}
@@ -1901,7 +1909,7 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
-            onOpenReview={(slug, stats) => setReviewState({ slug, fileStats: stats })}
+            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -1972,6 +1980,15 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+          />
+        );
+      case "review":
+        return (
+          <ScenarioReviewPanel
+            scenarioSlug={reviewScenarioSlug}
+            repoId={repoId}
+            fileStats={statusQuery.data?.file_stats}
+            onChangeScenario={setReviewScenarioSlug}
           />
         );
       case "diff":
@@ -2153,7 +2170,7 @@ export default function App() {
             groupingRules={groupingRules}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
-            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
             scrollToFile={scrollToFile}
@@ -2161,7 +2178,7 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
-            onOpenReview={(slug, stats) => setReviewState({ slug, fileStats: stats })}
+            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2266,6 +2283,16 @@ export default function App() {
             onExitBlameMode={handleExitBlameMode}
           />
         );
+      case "review":
+        return (
+          <ScenarioReviewPanel
+            scenarioSlug={reviewScenarioSlug}
+            repoId={repoId}
+            fileStats={statusQuery.data?.file_stats}
+            onChangeScenario={setReviewScenarioSlug}
+            isMobile
+          />
+        );
     }
   };
 
@@ -2302,9 +2329,10 @@ export default function App() {
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
           onOpenFileSearch={() => setIsFileSearchOpen(true)}
+          onOpenReview={() => setMobileActivePanel("review")}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
           viewingFileBlame={viewingFileBlame}
@@ -2413,15 +2441,6 @@ export default function App() {
         )}
 
         {/* Modals */}
-        <GroupingSettingsModal
-          isOpen={isGroupingSettingsOpen}
-          repoDir={repoDir}
-          groupingEnabled={fileViewMode === "grouped"}
-          onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
-          rules={groupingRules}
-          onChangeRules={setGroupingRules}
-          onClose={() => setIsGroupingSettingsOpen(false)}
-        />
         <SettingsModal
           isOpen={isSettingsOpen}
           repoDir={repoDir}
@@ -2436,6 +2455,10 @@ export default function App() {
             setPrimaryPanel("diff");
             setStackHeight(320);
           }}
+          groupingEnabled={fileViewMode === "grouped"}
+          onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
+          groupingRules={groupingRules}
+          onChangeGroupingRules={setGroupingRules}
           onClose={() => setIsSettingsOpen(false)}
         />
         <UpstreamInfoModal
@@ -2468,14 +2491,6 @@ export default function App() {
           onSelectFile={handleSelectAnyFile}
           repoId={repoId}
         />
-        <ScenarioReviewModal
-          isOpen={reviewState !== null}
-          onClose={() => setReviewState(null)}
-          scenarioSlug={reviewState?.slug ?? ""}
-          repoId={repoId}
-          fileStats={reviewState?.fileStats}
-          onChangeScenario={(slug) => setReviewState({ slug })}
-        />
       </div>
     );
   }
@@ -2499,6 +2514,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
+        onOpenReview={() => setPrimaryPanel("review")}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
         viewingFileBlame={viewingFileBlame}
@@ -2635,15 +2651,6 @@ export default function App() {
           <p className="text-xs mt-1">{pushNotice.message}</p>
         </div>
       )}
-      <GroupingSettingsModal
-        isOpen={isGroupingSettingsOpen}
-        repoDir={repoDir}
-        groupingEnabled={fileViewMode === "grouped"}
-        onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
-        rules={groupingRules}
-        onChangeRules={setGroupingRules}
-        onClose={() => setIsGroupingSettingsOpen(false)}
-      />
       <SettingsModal
         isOpen={isSettingsOpen}
         repoDir={repoDir}
@@ -2658,6 +2665,10 @@ export default function App() {
           setPrimaryPanel("diff");
           setStackHeight(320);
         }}
+        groupingEnabled={fileViewMode === "grouped"}
+        onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
+        groupingRules={groupingRules}
+        onChangeGroupingRules={setGroupingRules}
         onClose={() => setIsSettingsOpen(false)}
       />
       <UpstreamInfoModal
@@ -2689,14 +2700,6 @@ export default function App() {
         onClose={() => setIsFileSearchOpen(false)}
         onSelectFile={handleSelectAnyFile}
         repoId={repoId}
-      />
-      <ScenarioReviewModal
-        isOpen={reviewState !== null}
-        onClose={() => setReviewState(null)}
-        scenarioSlug={reviewState?.slug ?? ""}
-        repoId={repoId}
-        fileStats={reviewState?.fileStats}
-        onChangeScenario={(slug) => setReviewState({ slug })}
       />
     </div>
   );

@@ -7,10 +7,12 @@ import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabHealth } from "./SettingsTabHealth";
 import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
 import { SettingsTabStorage } from "./SettingsTabStorage";
+import { SettingsTabGrouping } from "./SettingsTabGrouping";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { SyncStatusResponse } from "../lib/api";
+import type { GroupingRule } from "./FileList";
 
-export type SettingsTab = "layout" | "credentials" | "integrations" | "health" | "storage";
+export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "health" | "storage";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,6 +25,11 @@ interface SettingsModalProps {
   onChangePreset: (preset: LayoutPreset) => void;
   onChangePrimary: (panel: LayoutSection) => void;
   onResetLayout: () => void;
+  // Grouping props
+  groupingEnabled: boolean;
+  onToggleGrouping: () => void;
+  groupingRules: GroupingRule[];
+  onChangeGroupingRules: (rules: GroupingRule[]) => void;
   // Common
   onClose: () => void;
   initialTab?: SettingsTab;
@@ -30,6 +37,7 @@ interface SettingsModalProps {
 
 const tabLabels: Record<SettingsTab, string> = {
   layout: "Layout",
+  grouping: "Grouping",
   credentials: "Credentials",
   integrations: "Integrations",
   health: "Health",
@@ -46,6 +54,10 @@ export function SettingsModal({
   onChangePreset,
   onChangePrimary,
   onResetLayout,
+  groupingEnabled,
+  onToggleGrouping,
+  groupingRules,
+  onChangeGroupingRules,
   onClose,
   initialTab = "layout"
 }: SettingsModalProps) {
@@ -83,13 +95,13 @@ export function SettingsModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 px-4">
+        <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
           {(Object.keys(tabLabels) as SettingsTab[]).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? "text-blue-400 border-blue-400"
                   : "text-slate-400 border-transparent hover:text-slate-200"
@@ -113,6 +125,16 @@ export function SettingsModal({
               onChangePreset={onChangePreset}
               onChangePrimary={onChangePrimary}
               onReset={onResetLayout}
+              isMobile={true}
+            />
+          )}
+
+          {activeTab === "grouping" && (
+            <SettingsTabGrouping
+              groupingEnabled={groupingEnabled}
+              onToggleGrouping={onToggleGrouping}
+              rules={groupingRules}
+              onChangeRules={onChangeGroupingRules}
               isMobile={true}
             />
           )}
@@ -220,6 +242,16 @@ export function SettingsModal({
               onChangePreset={onChangePreset}
               onChangePrimary={onChangePrimary}
               onReset={onResetLayout}
+              isMobile={false}
+            />
+          )}
+
+          {activeTab === "grouping" && (
+            <SettingsTabGrouping
+              groupingEnabled={groupingEnabled}
+              onToggleGrouping={onToggleGrouping}
+              rules={groupingRules}
+              onChangeRules={onChangeGroupingRules}
               isMobile={false}
             />
           )}

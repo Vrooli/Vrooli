@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ClipboardCheck,
   Menu,
   RefreshCw,
   Settings,
@@ -26,9 +27,9 @@ interface MobileHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
-  onOpenGroupingSettings?: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
+  onOpenReview?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -45,9 +46,9 @@ export function MobileHeader({
   isLoading,
   onRefresh,
   onOpenSettings,
-  onOpenGroupingSettings,
   onOpenUpstreamInfo,
   onOpenFileSearch,
+  onOpenReview,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -95,6 +96,17 @@ export function MobileHeader({
           <div className="p-2">
             <HealthIndicator health={health} isHealthy={isHealthy} />
           </div>
+
+          {onOpenReview && (
+            <button
+              onClick={onOpenReview}
+              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
+              aria-label="Scenario review"
+              data-testid="mobile-review-button"
+            >
+              <ClipboardCheck className="h-5 w-5 text-slate-400" />
+            </button>
+          )}
 
           {onOpenFileSearch && (
             <button
@@ -189,24 +201,13 @@ export function MobileHeader({
           <BottomSheetAction
             icon={<Settings className="h-5 w-5 text-slate-300" />}
             label="Settings"
-            description="Layout and credentials"
+            description="Layout, grouping, and credentials"
             onClick={() => {
               setMenuOpen(false);
               onOpenSettings();
             }}
           />
 
-          {onOpenGroupingSettings && (
-            <BottomSheetAction
-              icon={<Settings className="h-5 w-5 text-slate-300" />}
-              label="Grouping Settings"
-              description="Configure file grouping rules"
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenGroupingSettings();
-              }}
-            />
-          )}
         </div>
       </BottomSheet>
     </>

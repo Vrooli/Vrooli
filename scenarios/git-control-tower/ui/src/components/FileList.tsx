@@ -22,13 +22,13 @@ import {
   ChevronRight,
   Loader2,
   ShieldCheck,
-  Settings,
   MoreVertical,
   History,
   Square,
   CheckSquare,
   X,
   BarChart3,
+  ClipboardCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -43,7 +43,6 @@ import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { ReviewButton } from "./ReviewButton";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -110,7 +109,6 @@ interface FileListProps {
   groupingRules?: GroupingRule[];
   groupingAvailable?: boolean;
   onCycleViewMode?: () => void;
-  onOpenGroupingSettings?: () => void;
   onStagePaths?: (paths: string[]) => void;
   onDiscardPaths?: (paths: string[], untracked: boolean) => void;
   onSelectAnyFile?: (path: string) => void;
@@ -120,7 +118,7 @@ interface FileListProps {
   onBlameFile?: (path: string) => void;
   repoId?: string | null;
   mobileSelectionMode?: boolean;
-  onOpenReview?: (scenarioSlug: string, fileStats?: RepoFileStats) => void;
+  onOpenReview?: (scenarioSlug: string) => void;
   onEnterSelectionMode?: (path: string, staged: boolean) => void;
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
@@ -834,7 +832,6 @@ export function FileList({
   groupingRules = [],
   groupingAvailable = false,
   onCycleViewMode,
-  onOpenGroupingSettings,
   onStagePaths,
   onDiscardPaths,
   onSelectAnyFile,
@@ -1286,7 +1283,6 @@ export function FileList({
   }, [files, groupingActive, normalizedRules]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
-  const handleOpenGroupingSettings = onOpenGroupingSettings ?? (() => {});
   const totalFilesCount =
     (files?.conflicts?.length ?? 0) +
     (files?.staged?.length ?? 0) +
@@ -1366,15 +1362,6 @@ export function FileList({
               onCycle={handleCycleViewMode}
               groupingAvailable={groupingAvailable}
             />
-            <button
-              type="button"
-              onClick={handleOpenGroupingSettings}
-              className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-white/10 transition-colors"
-              title="Grouping settings"
-              aria-label="Grouping settings"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
           </div>
         </CardHeader>
 
@@ -1606,21 +1593,18 @@ export function FileList({
                           </button>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
                             {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) ? (
-                              <ReviewButton
-                                scenarioSlug={group.displayPrefix.split("/")[1] ?? ""}
-                                repoId={repoId}
-                                fileCount={groupCount}
-                                onViewReport={() => {
-                                  const allPaths = [
-                                    ...(group.files.conflicts ?? []),
-                                    ...(group.files.staged ?? []),
-                                    ...(group.files.unstaged ?? []),
-                                    ...(group.files.untracked ?? []),
-                                  ];
-                                  const filtered = filterFileStats(allPaths, fileStats);
-                                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "", filtered);
+                              <button
+                                type="button"
+                                className="h-7 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
                                 }}
-                              />
+                                title="Open scenario review"
+                              >
+                                {groupCount !== undefined && <span>{groupCount} files</span>}
+                                <ClipboardCheck className="h-3.5 w-3.5" />
+                              </button>
                             ) : (
                               <button
                                 type="button"
