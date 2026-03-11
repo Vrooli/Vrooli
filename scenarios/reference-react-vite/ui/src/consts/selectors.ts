@@ -1,5 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-empty-object-type */
 /**
  * Vrooli Ascension selector registry
+ *
+ * NOTE: ESLint any-related rules are disabled for this file because the selector
+ * registry uses intentional dynamic typing for flexible template interpolation.
+ * The runtime checks in normalizeParams() provide type safety at execution time.
  *
  * This file is the single source of truth for every selector used by the UI and
  * by Vrooli Ascension workflows. We deliberately model selectors as two
@@ -105,11 +110,14 @@ const normalizeParams = (
   const normalized: Record<string, string | number> = {};
 
   for (const key of Object.keys(schema)) {
-    if (!(key in raw)) {
+    const value = raw[key];
+    if (value === undefined) {
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
-    const value = raw[key];
+    if (!definitionEntry) {
+      continue;
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -118,15 +126,16 @@ const normalizeParams = (
       continue;
     }
     if (definitionEntry.type === "enum") {
-      if (!definitionEntry.values.includes(value)) {
+      const allowedValues = definitionEntry.values;
+      if (!allowedValues.includes(value)) {
         throw new Error(
-          `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
+          `Selector '${path}' parameter '${key}' must be one of: ${allowedValues.join(", ")}`,
         );
       }
       normalized[key] = value;
       continue;
     }
-    normalized[key] = value;
+    normalized[key] = String(value);
   }
 
   const extras = Object.keys(raw).filter((key) => !(key in schema));
@@ -246,7 +255,7 @@ const createDynamicSelectorFn = (
   };
 };
 
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
+const _defineDynamicSelector = <P extends ParamSchema | undefined>(
   definition: Omit<DynamicSelectorDefinition<P>, "kind">,
 ): DynamicSelectorDefinition<P> => ({
   ...definition,
@@ -266,25 +275,100 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+  layout: {
+    header: "app-header",
+    mainNav: "main-nav",
+    mainContent: "main-content",
+    healthIndicator: "health-indicator",
+    navDashboard: "nav-dashboard",
+    navTasks: "nav-tasks",
+    navProjects: "nav-projects"
   },
-  */
+  dashboard: {
+    page: "dashboard-page",
+    statTotalTasks: "stat-total-tasks",
+    statPending: "stat-pending",
+    statCompleted: "stat-completed",
+    statProjects: "stat-projects",
+    recentTasksLoading: "recent-tasks-loading",
+    recentTasksError: "recent-tasks-error",
+    recentTasksEmpty: "recent-tasks-empty",
+    recentTasksList: "recent-tasks-list",
+    quickActionNewTask: "quick-action-new-task",
+    quickActionNewProject: "quick-action-new-project"
+  },
+  tasks: {
+    page: "tasks-page",
+    form: "task-form",
+    input: "task-input",
+    submitButton: "task-submit",
+    loading: "tasks-loading",
+    error: "tasks-error",
+    empty: "tasks-empty",
+    list: "tasks-list",
+    count: "tasks-count",
+    createError: "task-create-error"
+  },
+  projects: {
+    page: "projects-page",
+    form: "project-form",
+    input: "project-input",
+    submitButton: "project-submit",
+    loading: "projects-loading",
+    error: "projects-error",
+    empty: "projects-empty",
+    grid: "projects-grid",
+    count: "projects-count",
+    createError: "project-create-error"
+  },
+  confirmDialog: {
+    container: "confirm-dialog",
+    backdrop: "confirm-dialog-backdrop",
+    confirmButton: "confirm-dialog-confirm",
+    cancelButton: "confirm-dialog-cancel"
+  }
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+  tasks: {
+    rowById: _defineDynamicSelector({
+      description: "Task row by ID",
+      testIdPattern: "task-row-${id}",
+      params: { id: { type: "string" } }
     }),
+    statusToggleById: _defineDynamicSelector({
+      description: "Task status toggle button by ID",
+      testIdPattern: "task-status-toggle-${id}",
+      params: { id: { type: "string" } }
+    }),
+    deleteById: _defineDynamicSelector({
+      description: "Task delete button by ID",
+      testIdPattern: "task-delete-${id}",
+      params: { id: { type: "string" } }
+    }),
+    itemById: _defineDynamicSelector({
+      description: "Task item in dashboard by ID",
+      testIdPattern: "task-item-${id}",
+      params: { id: { type: "string" } }
+    })
   },
-  */
+  projects: {
+    cardById: _defineDynamicSelector({
+      description: "Project card by ID",
+      testIdPattern: "project-card-${id}",
+      params: { id: { type: "string" } }
+    }),
+    statusToggleById: _defineDynamicSelector({
+      description: "Project status toggle button by ID",
+      testIdPattern: "project-status-toggle-${id}",
+      params: { id: { type: "string" } }
+    }),
+    deleteById: _defineDynamicSelector({
+      description: "Project delete button by ID",
+      testIdPattern: "project-delete-${id}",
+      params: { id: { type: "string" } }
+    })
+  }
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

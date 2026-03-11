@@ -9,7 +9,7 @@
       "description": "Design and implement PostgreSQL schema for storing reference scenarios with template associations and metadata",
       "id": "REQ-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "in_progress",
+      "status": "implemented",
       "title": "Reference Scenario Database Schema",
       "validation": [
         {
@@ -41,9 +41,9 @@
           "type": "test"
         },
         {
-          "notes": "All required fields are present in schema",
-          "phase": "business",
-          "ref": "initialization/postgres/schema.sql",
+          "notes": "Schema validation tests verify all required tables, columns, indexes, and constraints",
+          "phase": "unit",
+          "ref": "api/infrastructure/postgres/schema_test.go",
           "status": "passing",
           "type": "test"
         }
@@ -57,7 +57,7 @@
       "description": "Implement REST API endpoints for CRUD operations on reference scenarios",
       "id": "REQ-P0-002",
       "prd_ref": "OT-P0-001",
-      "status": "in_progress",
+      "status": "implemented",
       "title": "Reference Scenario API Endpoints",
       "validation": [
         {

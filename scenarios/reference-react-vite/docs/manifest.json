@@ -53,6 +53,11 @@
           "path": "reference/configuration.md",
           "title": "Configuration",
           "description": "Environment variables and service configuration"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Reference",
+          "description": "Command-line interface for tasks, projects, and notes"
         }
       ]
     },
@@ -84,6 +89,36 @@
           "path": "internal/UNIT_TEST_ARCHITECTURE.md",
           "title": "Unit Test Architecture",
           "description": "Test infrastructure, patterns, and utilities",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR_SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error handling patterns and recovery hints",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "description": "React coherence audit findings and recommendations",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async operations, polling, and time-based behavior",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Replay safety, idempotency, and data integrity",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Type consolidation and single source of truth patterns",
           "internal": true
         }
       ]

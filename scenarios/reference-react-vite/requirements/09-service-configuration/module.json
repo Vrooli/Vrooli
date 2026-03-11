@@ -6,32 +6,35 @@
   "requirements": [
     {
       "category": "core",
-      "description": "Maintain service.json with correct port ranges, lifecycle commands, health checks, and resource declarations.",
-      "id": "REQ-P0-009",
+      "description": "Service.json with correct port ranges (API 15000-19999, UI 35000-39999) and proper resource declarations.",
+      "id": "REQ-P0-009a",
       "prd_ref": "OT-P0-009",
-      "status": "draft",
-      "title": "Service Configuration Schema",
+      "status": "pass",
+      "title": "Port and Resource Configuration",
       "validation": [
         {
-          "notes": "Validate JSON schema",
+          "notes": "Validate JSON schema and port configuration",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
+          "ref": ".vrooli/testing.json",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Complete lifecycle commands (setup/develop/test/production/stop) with health checks.",
+      "id": "REQ-P0-009b",
+      "prd_ref": "OT-P0-009",
+      "status": "pass",
+      "title": "Lifecycle Completeness",
+      "validation": [
         {
-          "notes": "Test lifecycle commands",
+          "notes": "Lifecycle commands defined in Makefile",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify port assignments",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "Makefile",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

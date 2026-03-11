@@ -6,24 +6,58 @@
   "requirements": [
     {
       "category": "cli",
-      "description": "Implement CLI commands for core operations including: 'manage-refs' for reference management, 'connect-skills' for skill connections, 'config-expectations' for expectation configuration, 'run-validation' for validation execution, and 'view-report' for viewing validation results. Each command must support --help flag and JSON output format.",
+      "description": "Implement CLI commands for reference management ('dtv reference add/list/get/remove') and skill connection management ('dtv skill connect/disconnect/list')",
       "id": "REQ-P0-011",
       "prd_ref": "OT-P0-010",
-      "status": "in_progress",
-      "title": "Core CLI Operations Interface",
+      "status": "implemented",
+      "title": "Reference and Skill CLI Commands",
       "validation": [
         {
-          "notes": "Test each CLI command with --help flag",
+          "notes": "Reference CLI commands work with --help flag",
           "phase": "unit",
-          "ref": "cli/app_test.go",
+          "ref": "cli/cli_reference_test.go",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify JSON output format",
+          "notes": "Skill CLI commands work with --help flag",
           "phase": "unit",
-          "ref": "cli/app_test.go",
+          "ref": "cli/cli_connection_test.go",
           "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "JSON output format verified",
+          "phase": "unit",
+          "ref": "cli/cli_core_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-011"
+      ],
+      "description": "Implement CLI commands for expectation configuration ('dtv expectation add/list/remove') and validation execution ('dtv validate run/report')",
+      "id": "REQ-P0-011a",
+      "prd_ref": "OT-P0-010",
+      "status": "pending",
+      "title": "Expectation and Validation CLI Commands",
+      "validation": [
+        {
+          "notes": "Expectation CLI commands work with --help flag - NOT YET IMPLEMENTED",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validation CLI commands work with --help flag - NOT YET IMPLEMENTED",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
           "type": "test"
         },
         {

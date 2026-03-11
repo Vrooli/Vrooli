@@ -137,7 +137,7 @@ func (r *PostgresNoteRepository) Update(ctx context.Context, note *notes.Note) e
 		return fmt.Errorf("check update result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("note not found")
+		return fmt.Errorf("update note: %w", ErrNotFound)
 	}
 	return nil
 }
@@ -153,7 +153,7 @@ func (r *PostgresNoteRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("check delete result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("note not found")
+		return fmt.Errorf("delete note: %w", ErrNotFound)
 	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/internal/config"
 	"development-toolchain-validator/internal/mocks"
 	"development-toolchain-validator/internal/testutil"
 )
@@ -470,5 +471,382 @@ func TestWriteError(t *testing.T) {
 	testutil.AssertJSON(t, rec, &response)
 	if response.Error != "test error message" {
 		t.Errorf("expected error %q, got %q", "test error message", response.Error)
+	}
+}
+
+// TestNewReferenceHandlerWithConfig tests the config-based constructor.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - custom config constructor
+func TestNewReferenceHandlerWithConfig(t *testing.T) {
+	repo := mocks.NewMockRepository()
+	service := reference.NewService(repo)
+
+	customCfg := config.ValidationConfig{
+		SlugMinLength: 5,
+		SlugMaxLength: 50,
+	}
+
+	handler := NewReferenceHandlerWithConfig(service, customCfg)
+	if handler == nil {
+		t.Fatal("expected handler to be non-nil")
+	}
+	if handler.config.SlugMinLength != 5 {
+		t.Errorf("expected SlugMinLength 5, got %d", handler.config.SlugMinLength)
+	}
+	if handler.config.SlugMaxLength != 50 {
+		t.Errorf("expected SlugMaxLength 50, got %d", handler.config.SlugMaxLength)
+	}
+}
+
+// setupTestRouterWithConfig creates a router with a custom config.
+func setupTestRouterWithConfig(repo *mocks.MockRepository, cfg config.ValidationConfig) *mux.Router {
+	service := reference.NewService(repo)
+	handler := NewReferenceHandlerWithConfig(service, cfg)
+	router := mux.NewRouter()
+	handler.RegisterRoutes(router)
+	return router
+}
+
+// TestReferenceHandler_Create_DryRun tests dry-run mode for Create.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - dry-run validation
+func TestReferenceHandler_Create_DryRun(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name       string
+		body       string
+		setupMock  func(*mocks.MockRepository)
+		wantStatus int
+		wantDryRun bool
+		category   string
+	}{
+		{
+			name:       "dry_run_valid_input",
+			body:       `{"slug":"test-scenario","name":"Test Scenario","template":"react-vite","path":"` + tempDir + `"}`,
+			setupMock:  func(m *mocks.MockRepository) {},
+			wantStatus: http.StatusOK,
+			wantDryRun: true,
+			category:   "happy_path",
+		},
+		{
+			name:       "dry_run_invalid_slug",
+			body:       `{"slug":"Bad-Slug","name":"Test","template":"react-vite","path":"` + tempDir + `"}`,
+			setupMock:  func(m *mocks.MockRepository) {},
+			wantStatus: http.StatusBadRequest,
+			category:   "validation",
+		},
+		{
+			name: "dry_run_duplicate_slug",
+			body: `{"slug":"existing","name":"Test","template":"react-vite","path":"` + tempDir + `"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().WithSlug("existing").Build())
+			},
+			wantStatus: http.StatusConflict,
+			category:   "error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewMockRepository()
+			tc.setupMock(repo)
+			router := setupTestRouter(repo)
+
+			req := testutil.MakeRequest(t, http.MethodPost, "/api/v1/references", strings.NewReader(tc.body))
+			req.Header.Set("X-Dry-Run", "true")
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			testutil.AssertStatus(t, rec, tc.wantStatus)
+			testutil.AssertContentType(t, rec, "application/json")
+
+			if tc.wantDryRun {
+				var response struct {
+					DryRun  bool   `json:"dry_run"`
+					Success bool   `json:"success"`
+					Data    struct {
+						ID   string `json:"id"`
+						Slug string `json:"slug"`
+					} `json:"data"`
+				}
+				testutil.AssertJSON(t, rec, &response)
+				if !response.DryRun {
+					t.Error("expected dry_run to be true")
+				}
+				if !response.Success {
+					t.Error("expected success to be true")
+				}
+				if response.Data.ID == "" {
+					t.Error("expected data.id to be non-empty")
+				}
+			}
+		})
+	}
+}
+
+// TestReferenceHandler_Update_DryRun tests dry-run mode for Update.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - dry-run validation
+func TestReferenceHandler_Update_DryRun(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name       string
+		id         string
+		body       string
+		setupMock  func(*mocks.MockRepository)
+		wantStatus int
+		wantDryRun bool
+		category   string
+	}{
+		{
+			name: "dry_run_update_name",
+			id:   "ref-123",
+			body: `{"name":"Updated Name"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					WithName("Original Name").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			wantDryRun: true,
+			category:   "happy_path",
+		},
+		{
+			name: "dry_run_update_all_fields",
+			id:   "ref-123",
+			body: `{"name":"New Name","template":"go-api","path":"` + tempDir + `","description":"New desc"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			wantDryRun: true,
+			category:   "happy_path",
+		},
+		{
+			name:       "dry_run_not_found",
+			id:         "nonexistent",
+			body:       `{"name":"Updated"}`,
+			setupMock:  func(m *mocks.MockRepository) {},
+			wantStatus: http.StatusNotFound,
+			category:   "error",
+		},
+		{
+			name: "dry_run_invalid_path",
+			id:   "ref-123",
+			body: `{"path":"/nonexistent/path"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					Build())
+			},
+			wantStatus: http.StatusBadRequest,
+			category:   "validation",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewMockRepository()
+			tc.setupMock(repo)
+			router := setupTestRouter(repo)
+
+			req := testutil.MakeRequest(t, http.MethodPatch, "/api/v1/references/"+tc.id, strings.NewReader(tc.body))
+			req.Header.Set("X-Dry-Run", "true")
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			testutil.AssertStatus(t, rec, tc.wantStatus)
+
+			if tc.wantDryRun {
+				var response struct {
+					DryRun  bool `json:"dry_run"`
+					Success bool `json:"success"`
+					Data    struct {
+						ID   string `json:"id"`
+						Name string `json:"name"`
+					} `json:"data"`
+				}
+				testutil.AssertJSON(t, rec, &response)
+				if !response.DryRun {
+					t.Error("expected dry_run to be true")
+				}
+				if !response.Success {
+					t.Error("expected success to be true")
+				}
+			}
+		})
+	}
+}
+
+// TestReferenceHandler_Delete_DryRun tests dry-run mode for Delete.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - dry-run validation
+func TestReferenceHandler_Delete_DryRun(t *testing.T) {
+	tests := []struct {
+		name       string
+		id         string
+		setupMock  func(*mocks.MockRepository)
+		wantStatus int
+		wantDryRun bool
+		category   string
+	}{
+		{
+			name: "dry_run_delete_existing",
+			id:   "ref-123",
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			wantDryRun: true,
+			category:   "happy_path",
+		},
+		{
+			name:       "dry_run_delete_nonexistent",
+			id:         "nonexistent",
+			setupMock:  func(m *mocks.MockRepository) {},
+			wantStatus: http.StatusNotFound,
+			category:   "error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewMockRepository()
+			tc.setupMock(repo)
+			router := setupTestRouter(repo)
+
+			req := testutil.MakeRequest(t, http.MethodDelete, "/api/v1/references/"+tc.id, nil)
+			req.Header.Set("X-Dry-Run", "true")
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			testutil.AssertStatus(t, rec, tc.wantStatus)
+
+			if tc.wantDryRun {
+				var response struct {
+					DryRun  bool   `json:"dry_run"`
+					Success bool   `json:"success"`
+					Deleted string `json:"deleted"`
+				}
+				testutil.AssertJSON(t, rec, &response)
+				if !response.DryRun {
+					t.Error("expected dry_run to be true")
+				}
+				if !response.Success {
+					t.Error("expected success to be true")
+				}
+				if response.Deleted != tc.id {
+					t.Errorf("expected deleted %q, got %q", tc.id, response.Deleted)
+				}
+			}
+		})
+	}
+}
+
+// TestReferenceHandler_Create_WithCustomConfig tests error message formatting with custom config.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - custom config for error messages
+func TestReferenceHandler_Create_WithCustomConfig(t *testing.T) {
+	// Custom config affects error message formatting (e.g., slug length constraints in error messages)
+	// The actual validation happens at the service layer with service config
+	customCfg := config.ValidationConfig{
+		SlugMinLength: 5,
+		SlugMaxLength: 10,
+	}
+
+	repo := mocks.NewMockRepository()
+	router := setupTestRouterWithConfig(repo, customCfg)
+
+	// Test that config is properly used - create a reference with invalid slug format
+	// (not length-based, since that's service-level, but format-based)
+	body := `{"slug":"INVALID-CAPS","name":"Test","template":"react-vite","path":"/tmp"}`
+	req := testutil.MakeRequest(t, http.MethodPost, "/api/v1/references", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	// Invalid slug format should fail validation
+	testutil.AssertStatus(t, rec, http.StatusBadRequest)
+
+	var response struct {
+		Error string `json:"error"`
+	}
+	testutil.AssertJSON(t, rec, &response)
+	// Error message should mention slug constraints
+	if !strings.Contains(response.Error, "lowercase") && !strings.Contains(response.Error, "slug") {
+		t.Errorf("expected error message about slug, got: %s", response.Error)
+	}
+}
+
+// TestReferenceHandler_Update_PartialFields tests Update with various field combinations.
+// [REQ:REQ-P0-002] Reference Scenario API Endpoints - partial update coverage
+func TestReferenceHandler_Update_PartialFields(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name       string
+		id         string
+		body       string
+		setupMock  func(*mocks.MockRepository)
+		wantStatus int
+		category   string
+	}{
+		{
+			name: "update_template_only",
+			id:   "ref-123",
+			body: `{"template":"go-api"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					WithTemplate("react-vite").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			category:   "happy_path",
+		},
+		{
+			name: "update_description_only",
+			id:   "ref-123",
+			body: `{"description":"New description here"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			category:   "happy_path",
+		},
+		{
+			name: "update_path_valid",
+			id:   "ref-123",
+			body: `{"path":"` + tempDir + `"}`,
+			setupMock: func(m *mocks.MockRepository) {
+				m.WithReference(testutil.NewReferenceFactory().
+					WithID("ref-123").
+					Build())
+			},
+			wantStatus: http.StatusOK,
+			category:   "happy_path",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewMockRepository()
+			tc.setupMock(repo)
+			router := setupTestRouter(repo)
+
+			req := testutil.MakeRequest(t, http.MethodPatch, "/api/v1/references/"+tc.id, strings.NewReader(tc.body))
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			testutil.AssertStatus(t, rec, tc.wantStatus)
+		})
 	}
 }

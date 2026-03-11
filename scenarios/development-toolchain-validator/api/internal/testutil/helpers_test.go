@@ -284,3 +284,210 @@ func TestAssertJSON(t *testing.T) {
 		})
 	}
 }
+
+// TestDecodeJSONResponse verifies the generic JSON decoder helper.
+func TestDecodeJSONResponse(t *testing.T) {
+	type testResponse struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+
+	tests := []struct {
+		name       string
+		body       string
+		wantName   string
+		wantValue  int
+		category   string
+	}{
+		{
+			name:      "decode_struct",
+			body:      `{"name":"test","value":42}`,
+			wantName:  "test",
+			wantValue: 42,
+			category:  "happy_path",
+		},
+		{
+			name:      "decode_with_extra_fields",
+			body:      `{"name":"extra","value":100,"ignored":"field"}`,
+			wantName:  "extra",
+			wantValue: 100,
+			category:  "edge_case",
+		},
+		{
+			name:      "decode_partial_fields",
+			body:      `{"name":"partial"}`,
+			wantName:  "partial",
+			wantValue: 0,
+			category:  "boundary",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			rec.WriteString(tc.body)
+
+			result := DecodeJSONResponse[testResponse](t, rec)
+
+			if result.Name != tc.wantName {
+				t.Errorf("expected name %q, got %q", tc.wantName, result.Name)
+			}
+			if result.Value != tc.wantValue {
+				t.Errorf("expected value %d, got %d", tc.wantValue, result.Value)
+			}
+		})
+	}
+}
+
+// TestReferenceFactory verifies the reference fixture factory.
+func TestReferenceFactory(t *testing.T) {
+	t.Run("default_values", func(t *testing.T) {
+		factory := NewReferenceFactory()
+		ref := factory.Build()
+
+		if ref.ID == "" {
+			t.Error("expected non-empty default ID")
+		}
+		if ref.Slug != "test-reference" {
+			t.Errorf("expected default slug 'test-reference', got %q", ref.Slug)
+		}
+		if ref.Template != "react-vite" {
+			t.Errorf("expected default template 'react-vite', got %q", ref.Template)
+		}
+	})
+
+	t.Run("with_custom_id", func(t *testing.T) {
+		ref := NewReferenceFactory().WithID("custom-id").Build()
+		if ref.ID != "custom-id" {
+			t.Errorf("expected ID 'custom-id', got %q", ref.ID)
+		}
+	})
+
+	t.Run("with_custom_slug", func(t *testing.T) {
+		ref := NewReferenceFactory().WithSlug("my-slug").Build()
+		if ref.Slug != "my-slug" {
+			t.Errorf("expected slug 'my-slug', got %q", ref.Slug)
+		}
+	})
+
+	t.Run("with_custom_name", func(t *testing.T) {
+		ref := NewReferenceFactory().WithName("My Name").Build()
+		if ref.Name != "My Name" {
+			t.Errorf("expected name 'My Name', got %q", ref.Name)
+		}
+	})
+
+	t.Run("with_custom_template", func(t *testing.T) {
+		ref := NewReferenceFactory().WithTemplate("cli-only").Build()
+		if ref.Template != "cli-only" {
+			t.Errorf("expected template 'cli-only', got %q", ref.Template)
+		}
+	})
+
+	t.Run("with_custom_path", func(t *testing.T) {
+		ref := NewReferenceFactory().WithPath("/custom/path").Build()
+		if ref.Path != "/custom/path" {
+			t.Errorf("expected path '/custom/path', got %q", ref.Path)
+		}
+	})
+
+	t.Run("with_custom_description", func(t *testing.T) {
+		ref := NewReferenceFactory().WithDescription("Custom desc").Build()
+		if ref.Description != "Custom desc" {
+			t.Errorf("expected description 'Custom desc', got %q", ref.Description)
+		}
+	})
+
+	t.Run("chained_modifications", func(t *testing.T) {
+		ref := NewReferenceFactory().
+			WithID("id-1").
+			WithSlug("slug-1").
+			WithName("Name 1").
+			WithTemplate("template-1").
+			WithPath("/path/1").
+			WithDescription("Desc 1").
+			Build()
+
+		if ref.ID != "id-1" || ref.Slug != "slug-1" || ref.Name != "Name 1" {
+			t.Errorf("chained modifications failed: %+v", ref)
+		}
+	})
+
+	t.Run("build_returns_copy", func(t *testing.T) {
+		factory := NewReferenceFactory()
+		ref1 := factory.Build()
+		ref2 := factory.Build()
+
+		// Modify ref1
+		ref1.Slug = "modified"
+
+		// ref2 should not be affected
+		if ref2.Slug == "modified" {
+			t.Error("Build should return a copy, not a reference")
+		}
+	})
+}
+
+// TestCreateInputFactory verifies the create input fixture factory.
+func TestCreateInputFactory(t *testing.T) {
+	t.Run("default_values", func(t *testing.T) {
+		factory := NewCreateInputFactory()
+		input := factory.Build()
+
+		if input.Slug != "test-reference" {
+			t.Errorf("expected default slug 'test-reference', got %q", input.Slug)
+		}
+		if input.Template != "react-vite" {
+			t.Errorf("expected default template 'react-vite', got %q", input.Template)
+		}
+	})
+
+	t.Run("with_custom_slug", func(t *testing.T) {
+		input := NewCreateInputFactory().WithSlug("custom-slug").Build()
+		if input.Slug != "custom-slug" {
+			t.Errorf("expected slug 'custom-slug', got %q", input.Slug)
+		}
+	})
+
+	t.Run("with_custom_name", func(t *testing.T) {
+		input := NewCreateInputFactory().WithName("Custom Name").Build()
+		if input.Name != "Custom Name" {
+			t.Errorf("expected name 'Custom Name', got %q", input.Name)
+		}
+	})
+
+	t.Run("with_custom_template", func(t *testing.T) {
+		input := NewCreateInputFactory().WithTemplate("landing-page").Build()
+		if input.Template != "landing-page" {
+			t.Errorf("expected template 'landing-page', got %q", input.Template)
+		}
+	})
+
+	t.Run("with_custom_path", func(t *testing.T) {
+		input := NewCreateInputFactory().WithPath("/new/path").Build()
+		if input.Path != "/new/path" {
+			t.Errorf("expected path '/new/path', got %q", input.Path)
+		}
+	})
+
+	t.Run("with_custom_description", func(t *testing.T) {
+		input := NewCreateInputFactory().WithDescription("New desc").Build()
+		if input.Description != "New desc" {
+			t.Errorf("expected description 'New desc', got %q", input.Description)
+		}
+	})
+
+	t.Run("chained_modifications", func(t *testing.T) {
+		input := NewCreateInputFactory().
+			WithSlug("s1").
+			WithName("N1").
+			WithTemplate("t1").
+			WithPath("/p1").
+			WithDescription("d1").
+			Build()
+
+		if input.Slug != "s1" || input.Name != "N1" || input.Template != "t1" {
+			t.Errorf("chained modifications failed: %+v", input)
+		}
+	})
+}

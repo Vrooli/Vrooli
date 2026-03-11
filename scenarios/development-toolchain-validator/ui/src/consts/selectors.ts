@@ -52,7 +52,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,7 +79,7 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
@@ -93,11 +93,11 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector");
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -110,6 +110,10 @@ const normalizeParams = (
     }
     const definitionEntry = schema[key];
     const value = raw[key];
+    // Guard against undefined (noUncheckedIndexedAccess compliance)
+    if (!definitionEntry || value === undefined) {
+      continue;
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -117,7 +121,7 @@ const normalizeParams = (
       normalized[key] = value;
       continue;
     }
-    if (definitionEntry.type === "enum") {
+    if (definitionEntry.type === "enum" && "values" in definitionEntry) {
       if (!definitionEntry.values.includes(value)) {
         throw new Error(
           `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
@@ -233,7 +237,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -246,7 +250,8 @@ const createDynamicSelectorFn = (
   };
 };
 
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
+/** Helper to define a dynamic selector with type-safe params */
+export const defineDynamicSelector = <P extends ParamSchema | undefined>(
   definition: Omit<DynamicSelectorDefinition<P>, "kind">,
 ): DynamicSelectorDefinition<P> => ({
   ...definition,
@@ -266,25 +271,43 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
+  // Dashboard page selectors
   dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+    title: "dashboard-title",
+    healthStatus: "dashboard-health-status",
+    refreshButton: "dashboard-refresh-button",
+    referenceCount: "dashboard-reference-count",
+    emptyState: "dashboard-empty-state",
+    loadingState: "dashboard-loading-state",
+    errorState: "dashboard-error-state"
   },
-  */
+  // Reference list selectors
+  references: {
+    list: "references-list",
+    createButton: "references-create-button",
+    filterSelect: "references-filter-select"
+  }
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+  // Dynamic reference card selectors
+  references: {
+    cardBySlug: defineDynamicSelector({
+      description: "Reference card filtered by slug",
+      testIdPattern: "reference-card-${slug}",
+      params: { slug: { type: "string" } }
     }),
-  },
-  */
+    cardTemplate: defineDynamicSelector({
+      description: "Template badge on reference card",
+      testIdPattern: "reference-template-${slug}",
+      params: { slug: { type: "string" } }
+    }),
+    cardPath: defineDynamicSelector({
+      description: "Path display on reference card",
+      testIdPattern: "reference-path-${slug}",
+      params: { slug: { type: "string" } }
+    })
+  }
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

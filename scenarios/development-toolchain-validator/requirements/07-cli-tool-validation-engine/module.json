@@ -9,11 +9,11 @@
       "dependencies": [
         "REQ-P0-006"
       ],
-      "description": "Build secure execution environment for CLI tool commands with JSON output parsing",
+      "description": "Build secure execution environment for CLI tool commands with sandboxing and timeout controls",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-007",
       "status": "draft",
-      "title": "CLI Tool Execution Engine",
+      "title": "Secure CLI Command Execution",
       "validation": [
         {
           "notes": "Command execution safe",
@@ -22,6 +22,33 @@
           "status": "pending",
           "type": "test"
         },
+        {
+          "notes": "Commands timeout after 30s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dangerous commands blocked",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-008"
+      ],
+      "description": "Implement JSON output parsing with JSONPath evaluation and assertion operator support",
+      "id": "REQ-P0-008a",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "JSON Parsing and Assertion Evaluation",
+      "validation": [
         {
           "notes": "JSON parsing robust",
           "phase": "unit",
@@ -32,13 +59,6 @@
         {
           "notes": "Tool integration works",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Commands timeout after 30s",
-          "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"

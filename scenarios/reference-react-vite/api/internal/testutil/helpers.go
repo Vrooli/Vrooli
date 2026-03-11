@@ -1,15 +1,26 @@
 // DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md
+// DOC: docs/internal/ERROR_SEMANTICS.md
 // Package testutil provides testing utilities and helpers for unit tests.
 // It centralizes common test setup patterns, assertions, and fixtures.
 package testutil
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+)
+
+// Standard test errors for error injection testing.
+var (
+	// ErrDatabase simulates a database connection error for testing internal error paths.
+	ErrDatabase = errors.New("database connection error")
+
+	// ErrTimeout simulates a timeout error for testing retry logic.
+	ErrTimeout = errors.New("operation timed out")
 )
 
 // AssertStatus checks that the response has the expected status code.

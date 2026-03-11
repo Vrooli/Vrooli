@@ -552,3 +552,316 @@ Handler layer checks `isDryRun(r)` and uses validation methods:
 Dry-run validation is tested at the service layer:
 - [CODE: api/domain/reference/service_test.go#TestService_ValidateCreate]
 - [CODE: api/domain/reference/service_test.go#TestService_ValidateUpdate]
+
+## React Stability (2026-03-11)
+
+This section documents the stability infrastructure per React Stability skill requirements.
+
+### TypeScript Safety Configuration
+
+The scenario uses strict TypeScript configuration to catch runtime errors at compile time:
+
+| Rule | Location | Purpose |
+|------|----------|---------|
+| `strict: true` | tsconfig.node.json | Enables all strict type checks |
+| `noUncheckedIndexedAccess: true` | tsconfig.node.json | Forces null checks on array/object access |
+
+These rules prevent common crashes like:
+- `Cannot read property X of undefined`
+- `X is not a function`
+- `undefined is not iterable`
+
+### ESLint Safety Rules
+
+ESLint config (eslint.config.js) includes safety-critical rules:
+
+| Rule | Level | Purpose |
+|------|-------|---------|
+| `react-hooks/rules-of-hooks` | error | Prevents React Error #310 (hook count changes) |
+| `@typescript-eslint/no-non-null-assertion` | error | Prevents `!` operator that hides null bugs |
+| `@typescript-eslint/no-explicit-any` | error | Prevents disabling type checking |
+| `react-hooks/exhaustive-deps` | warn | Catches stale closure bugs |
+
+### Error Boundary Strategy
+
+Error boundaries are placed to isolate failures:
+
+| Location | Component | Purpose |
+|----------|-----------|---------|
+| App root | [CODE: ui/src/main.tsx] | Catches top-level rendering errors |
+| Data sections | Component-level | Isolates external data failures |
+
+The ErrorBoundary component ([CODE: ui/src/components/ErrorBoundary.tsx]) provides:
+- Error logging to console for debugging
+- User-friendly error message (no raw stack traces)
+- Recovery options: Try Again, Refresh Page
+- Optional custom fallback UI via props
+
+### Data Access Patterns
+
+All data access follows defensive patterns:
+- Optional chaining (`?.`) for nested access
+- Nullish coalescing (`??`) for defaults
+- Array guards before mapping: `(data?.items ?? []).map(...)`
+
+## UI Interop Compliance (2026-03-11)
+
+This section documents compliance with Vrooli UI Interop skill requirements.
+
+### Interop Slot Compliance
+
+| Slot | File | Status | Notes |
+|------|------|--------|-------|
+| [A] Dependencies | ui/package.json | ✅ | @vrooli/api-base, @vrooli/iframe-bridge |
+| [B] Vite base | ui/vite.config.ts | ✅ | `base: './'` with INTEROP-CRITICAL comment |
+| [C] Server | ui/server.js | ✅ | Uses `startScenarioServer()` |
+| [D] Bridge init | ui/src/main.tsx | ✅ | Idempotency guard, parentOrigin extraction |
+| [E] Router basename | N/A | N/A | No router (simple UI) |
+| [F] API client | ui/src/lib/api.ts | ✅ | Uses `resolveApiBase()`, `buildApiUrl()` |
+| [G] Keyboard shortcuts | N/A | N/A | No app-level shortcuts (simple UI) |
+
+### iframe Bridge Configuration
+
+The bridge initialization includes:
+1. **Guard**: `window.parent !== window` (iframe detection)
+2. **Idempotency**: `window.__developmentToolchainValidatorBridgeInitialized` flag
+3. **Parent origin**: Extracted from `document.referrer` for secure postMessage
+4. **App ID**: `"development-toolchain-validator"` for host identification
+
+### API Base Resolution
+
+API calls use centralized resolution ([CODE: ui/src/lib/api.ts]):
+```typescript
+const API_BASE = resolveApiBase({ appendSuffix: true });
+// Resolves to correct endpoint in all contexts:
+// - Localhost: http://localhost:PORT/api/v1
+// - Tunnel: https://subdomain.trycloudflare.com/api/v1
+// - Proxy: /apps/NAME/proxy/api/v1
+```
+
+### Self-Detection & Graceful Degradation
+
+All interop patterns auto-detect context and degrade to no-op when not applicable:
+- Bridge init: Skipped when not in iframe
+- API base: Falls back to localhost when not proxied
+- Router basename: Not needed (no router)
+
+## React Coherence (2026-03-11)
+
+This section documents architectural coherence per React Coherence skill requirements.
+
+### State Architecture
+
+Current pattern: **Server-state only** (appropriate for template stage)
+
+| State Type | Mechanism | Usage |
+|------------|-----------|-------|
+| Server state | React Query | Health check in App.tsx |
+| Local state | None | Template has no local state needs |
+| App-wide stores | None | Not needed for current feature set |
+
+**State decision guidance for future features:**
+1. Local `useState` for component-local, ephemeral state
+2. Feature-local hooks for feature-scoped shared state
+3. App-wide stores only for truly cross-surface state
+4. Server state via React Query (already in place)
+
+### Code Organization
+
+```
+ui/src/
+├── components/
+│   ├── ui/             # Primitives (Button) - CVA variants
+│   └── ErrorBoundary.tsx
+├── consts/
+│   └── selectors.ts    # Automation selectors (well-structured)
+├── lib/
+│   ├── api.ts          # Centralized API client
+│   └── utils.ts        # CN helper
+├── App.tsx             # Main app (minimal template)
+├── main.tsx            # Entry with providers
+└── styles.css          # Design tokens + Tailwind
+```
+
+**Ownership rules:**
+1. `styles.css` owns design tokens (color, surface, border, radius, motion)
+2. `components/ui/` owns base interactive primitives (Button)
+3. `lib/` owns pure utilities and API client
+4. `consts/` owns automation selectors
+
+### Design Token System
+
+Semantic tokens defined in `styles.css`:
+
+| Category | Tokens Defined | Status |
+|----------|---------------|--------|
+| Color - Text | primary, secondary, muted | ✅ |
+| Color - Surface | base, elevated, overlay | ✅ |
+| Color - Status | danger, success, warning | ✅ |
+| Border | default, subtle | ✅ |
+| Radius | sm, md, lg, xl, 2xl | ✅ |
+| Motion | fast, normal, slow, ease-out | ✅ |
+
+**Theme refresh readiness:** Foundation in place. Add theme switching infrastructure when product requirements call for it.
+
+### Iframe-Safe Layout Pattern
+
+Per UI Interop §4.5, the app uses `h-full` instead of `h-screen`:
+
+```tsx
+// In App.tsx - uses h-full, NOT h-screen
+<div className="h-full bg-slate-950 ...">
+```
+
+Height chain in styles.css:
+```css
+html, body, #root { height: 100%; margin: 0; }
+```
+
+This ensures correct sizing in all three deployment contexts (localhost, tunnel, proxy/iframe).
+
+### UI-API Integration (2026-03-11)
+
+The UI integrates with the Reference Registry API endpoints:
+
+| UI Component | API Endpoint | Method | Purpose |
+|--------------|--------------|--------|---------|
+| Dashboard health indicator | `/health` | GET | API connectivity status |
+| Reference list | `/references` | GET | Fetch all references |
+| Reference detail (planned) | `/references/{id}` | GET | Single reference |
+| Reference by slug (planned) | `/references/by-slug/{slug}` | GET | Lookup by slug |
+
+**API Client Pattern** ([CODE: ui/src/lib/api.ts]):
+- Typed request/response interfaces (`Reference`, `ReferenceListResponse`)
+- Centralized error handling with `ApiError` type
+- Uses `@vrooli/api-base` for URL resolution across deployment contexts
+
+**Automation Selectors** ([CODE: ui/src/consts/selectors.ts]):
+- Literal selectors for dashboard states (`loading`, `error`, `empty`)
+- Dynamic selectors for reference cards (`cardBySlug`, `cardTemplate`, `cardPath`)
+- All selectors use `data-testid` pattern for reliable automation
+
+### Coherence Audit Results
+
+Full audit documented in [docs/internal/COHERENCE-NOTES.md].
+
+**Summary:**
+- State: Server-state only via React Query (appropriate for current feature set)
+- Duplication: None found
+- Styling: Design tokens added, CVA in use
+- Architecture: Reference Registry dashboard implemented
+- Iframe safety: Uses `h-full` pattern throughout
+
+### Relationship to Other Skills
+
+| Skill | Boundary |
+|-------|----------|
+| react-stability | Stability = crash prevention (error boundaries, null guards) |
+| react-coherence | Coherence = code organization, state management, styling system |
+| vrooli-ui-interop | Interop = deployment-context correctness (iframe, proxy) |
+
+These skills work together:
+1. **Coherence** ensures maintainable structure
+2. **Stability** prevents runtime crashes
+3. **Interop** ensures correct behavior across deployment contexts
+
+## Temporal Flow & Replay Safety (2026-03-11)
+
+This section documents time-based behavior and idempotency guarantees.
+
+### Documentation References
+
+| Document | Purpose |
+|----------|---------|
+| [docs/internal/TEMPORAL-FLOWS.md] | Async operations, initialization sequences, polling |
+| [docs/internal/INVARIANTS.md] | Idempotency, replay safety, commit boundaries |
+
+### Key Temporal Patterns
+
+**API Operations**: All CRUD operations are synchronous request-response with no background processing.
+
+| Pattern | Status | Details |
+|---------|--------|---------|
+| Database init before server | ✅ Stable | `database.Connect()` blocks until ready |
+| Health check before data fetch (UI) | ✅ Stable | React Query `enabled: healthQuery.isSuccess` |
+| Iframe bridge before React mount | ✅ Stable | Idempotency guard prevents double-init |
+
+**Polling**: Health check (UI) polls every 30 seconds.
+
+### Idempotency Summary
+
+| Operation | Idempotent? | Double-Apply Behavior |
+|-----------|-------------|----------------------|
+| Create | No | Returns 409 Conflict |
+| Update | Yes | Same result on replay |
+| Delete | Yes* | Returns 404 on replay (acceptable) |
+| Dry-run | Yes | No side effects |
+
+### Replay Safety Tests
+
+Tests verifying replay behavior: [CODE: api/domain/reference/service_test.go#TestService_Create_ReplayReturnsConflict]
+
+```go
+// Replay patterns tested:
+// - TestService_Create_ReplayReturnsConflict
+// - TestService_Update_ReplayProducesSameState
+// - TestService_Delete_ReplayIsSafe
+// - TestService_ValidateCreate_NoSideEffects
+```
+
+### Future Hardening
+
+1. **Optimistic concurrency**: Add ETag/version field for update conflict detection
+2. **Idempotency keys**: Add `Idempotency-Key` header support for safe retries
+3. **Request timeouts**: Add server-side context timeouts to API handlers
+
+## Utility Consolidation (2026-03-11)
+
+This section documents the shared utility architecture per Utils Unification skill.
+
+### Package Structure
+
+```
+api/internal/
+├── validation/    # Core: Pure validators (slug, JSONPath, command safety)
+├── config/        # Core: Environment configuration
+├── errors/        # Core: Structured error types
+├── testutil/      # Testing: Factories and helpers
+└── mocks/         # Testing: Mock implementations
+```
+
+### Consolidated Utilities
+
+The `internal/validation` package consolidates validation patterns from domain services:
+
+| Utility | Domains Using | Purpose |
+|---------|--------------|---------|
+| `IsValidSlugFormat` | reference | URL-safe slug format check |
+| `IsValidSkillIDFormat` | skill | Skill ID format check |
+| `IsValidJSONPath` | expectation | JSONPath expression validation |
+| `IsLengthInRange` | reference, skill | Generic length bounds check |
+| `IsCommandSafe` | expectation | Dangerous command pattern detection |
+| `Truncate` | (CLI only) | String truncation with ellipsis |
+
+### Design Principles
+
+1. **Pure functions**: Validators have no side effects
+2. **No domain imports**: Internal packages cannot import domain packages
+3. **Config injection**: Domain-specific limits (min/max) come from config
+4. **Error construction**: Validators return bool; callers construct errors
+
+### Domain vs Shared
+
+**Keep in domain:**
+- Repository-dependent checks (slug uniqueness, path existence)
+- Domain-specific enums (ExpectationType, AssertionOperator)
+- Business rules requiring context
+
+**Move to shared:**
+- Format validation (regex-based)
+- Range checks (length bounds)
+- Safety checks (dangerous patterns)
+
+### Documentation
+
+Full utility architecture: [docs/internal/UTILS_UNIFICATION_NOTES.md]

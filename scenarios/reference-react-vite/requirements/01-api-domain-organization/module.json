@@ -7,45 +7,55 @@
     {
       "category": "api",
       "description": "API codebase must follow screaming architecture with endpoints organized by business domain rather than technical concerns. Each domain must be a distinct module with its own handlers, models, and repositories.",
-      "id": "REQ-P0-001",
+      "id": "REQ-P0-001a",
       "prd_ref": "OT-P0-001",
-      "status": "draft",
+      "status": "pass",
       "title": "Domain-Driven API Structure",
       "validation": [
         {
-          "notes": "Verify each domain module has separate package",
+          "notes": "Verify tasks domain module has separate package",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/tasks/task_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
-          "notes": "Test domain-specific handler isolation",
+          "notes": "Test tasks handler isolation",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/tasks_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
-          "notes": "Verify API endpoints map to correct domain handlers",
+          "notes": "Verify tasks handlers exist",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/handlers/tasks.go",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Each domain module must be independent with no cross-domain handler dependencies. At least 3 distinct domain modules must be implemented.",
+      "id": "REQ-P0-001b",
+      "prd_ref": "OT-P0-001",
+      "status": "pass",
+      "title": "Domain Module Independence",
+      "validation": [
+        {
+          "notes": "Tasks domain module implemented",
+          "phase": "business",
+          "ref": "api/domain/tasks/task.go",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Minimum 3 distinct domain modules implemented",
+          "notes": "Projects domain module implemented",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "No cross-domain handler dependencies",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/domain/projects/project.go",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

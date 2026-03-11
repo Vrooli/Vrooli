@@ -12,21 +12,21 @@
       "description": "Implement system to detect changes in skill content by comparing stored and current versions",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-003",
-      "status": "draft",
+      "status": "implemented",
       "title": "Skill Version Comparison Engine",
       "validation": [
         {
           "notes": "Version comparison logic accurate",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/skill/drift_service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Hash comparison works",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/skill/drift_service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {

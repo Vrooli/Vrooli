@@ -6,42 +6,38 @@
   "requirements": [
     {
       "category": "api",
-      "description": "Implement standardized pagination, filtering, and sorting across list endpoints.",
-      "id": "REQ-P1-002",
+      "description": "Implement proper pagination (cursor or offset) across list endpoints with consistent pattern.",
+      "id": "REQ-P1-002a",
       "prd_ref": "OT-P1-002",
-      "status": "draft",
-      "title": "List Endpoint Patterns",
+      "status": "pass",
+      "title": "Pagination Implementation",
       "validation": [
         {
-          "notes": "Test pagination logic",
+          "notes": "Test pagination logic - limit/offset with configurable bounds",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/pagination_test.go",
+          "status": "pass",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Implement filtering and sorting capabilities with consistent behavior across all list endpoints.",
+      "id": "REQ-P1-002b",
+      "prd_ref": "OT-P1-002",
+      "status": "pass",
+      "title": "Filtering and Sorting",
+      "validation": [
         {
-          "notes": "Verify filtering behavior",
+          "notes": "Verify filtering behavior (status, priority, project_id)",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Load test pagination",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate consistency",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/tasks_test.go",
+          "status": "pass",
           "type": "test"
         }
       ]
     }
   ],
-  "title": "Pagination \u0026 Filtering"
+  "title": "Pagination & Filtering"
 }

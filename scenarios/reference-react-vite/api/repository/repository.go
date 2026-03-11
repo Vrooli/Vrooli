@@ -5,16 +5,39 @@
 // DOC: docs/concepts/ARCHITECTURE.md#data-access-layer
 // DOC: docs/internal/SEAMS.md#repository-seam
 // DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/ERROR_SEMANTICS.md#repository-errors
 package repository
 
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"reference-react-vite/api/domain/notes"
 	"reference-react-vite/api/domain/projects"
 	"reference-react-vite/api/domain/tasks"
 )
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║  REPOSITORY ERRORS - Typed error categories for data access operations     ║
+// ║                                                                            ║
+// ║  Use errors.Is() to check error categories instead of string matching.     ║
+// ║  Example: if errors.Is(err, repository.ErrNotFound) { ... }                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+// ErrNotFound is returned when a requested resource does not exist.
+// Handlers should return 404 NOT_FOUND to clients.
+var ErrNotFound = errors.New("resource not found")
+
+// ErrConflict is returned when an operation would violate a constraint.
+// Handlers should return 409 CONFLICT to clients.
+var ErrConflict = errors.New("resource conflict")
+
+// IsNotFound checks if an error indicates a missing resource.
+// Use this for type-safe error checking instead of string comparison.
+func IsNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound)
+}
 
 // TaskRepository defines the data access contract for tasks.
 type TaskRepository interface {

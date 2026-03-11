@@ -174,7 +174,7 @@ func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	if err := h.repo.Delete(ctx, id); err != nil {
-		if err.Error() == "note not found" {
+		if repository.IsNotFound(err) {
 			writeNotFound(w, r, "note")
 			return
 		}

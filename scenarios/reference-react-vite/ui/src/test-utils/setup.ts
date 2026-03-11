@@ -11,21 +11,21 @@ afterEach(() => {
 });
 
 // Mock ResizeObserver (not available in jsdom)
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
+globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}));
+})) as unknown as typeof ResizeObserver;
 
 // Mock IntersectionObserver (not available in jsdom)
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
   root: null,
   rootMargin: '',
   thresholds: [],
-}));
+})) as unknown as typeof IntersectionObserver;
 
 // Mock matchMedia (not available in jsdom)
 Object.defineProperty(window, 'matchMedia', {

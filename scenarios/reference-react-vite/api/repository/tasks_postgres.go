@@ -169,7 +169,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *tasks.Task) e
 		return fmt.Errorf("check update result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("task not found")
+		return fmt.Errorf("update task: %w", ErrNotFound)
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func (r *PostgresTaskRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("check delete result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("task not found")
+		return fmt.Errorf("delete task: %w", ErrNotFound)
 	}
 	return nil
 }

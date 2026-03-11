@@ -73,7 +73,7 @@ Server-level settings.
 
 ### Database (PostgreSQL)
 
-[CODE: api/main.go:160-165]
+[CODE: api/main.go] (see `api.GetPostgresConnectionString()`)
 
 These are injected by the Vrooli resource system:
 
@@ -217,7 +217,7 @@ Defines health check endpoints:
 
 The API accepts cross-origin requests based on `CORS_ALLOWED_ORIGINS`:
 
-[CODE: api/main.go:88-113]
+[CODE: api/main.go] (see `corsMiddleware()`)
 
 ```bash
 # Development (default)

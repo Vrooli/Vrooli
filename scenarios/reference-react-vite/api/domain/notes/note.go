@@ -4,14 +4,18 @@
 // DOC: docs/concepts/ARCHITECTURE.md#note
 // DOC: docs/reference/api-endpoints.md#notes
 // DOC: docs/reference/data-model.md#notes
+// DOC: docs/internal/SEAMS.md#domain-logic-seam
 package notes
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"reference-react-vite/api/domain"
 )
 
 // Note represents a text annotation attached to a task.
@@ -44,7 +48,9 @@ type ListFilter struct {
 }
 
 // NewNote creates a new note from input, applying business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func NewNote(input CreateInput) (*Note, error) {
+	limits := domain.DefaultValidationLimits()
 	if strings.TrimSpace(input.TaskID) == "" {
 		return nil, errors.New("task_id is required")
 	}
@@ -53,8 +59,8 @@ func NewNote(input CreateInput) (*Note, error) {
 	if content == "" {
 		return nil, errors.New("note content is required")
 	}
-	if len(content) > 10000 {
-		return nil, errors.New("note content must be 10000 characters or less")
+	if len(content) > limits.NoteContentMaxLength {
+		return nil, fmt.Errorf("note content must be %d characters or less", limits.NoteContentMaxLength)
 	}
 
 	now := time.Now().UTC()
@@ -69,14 +75,16 @@ func NewNote(input CreateInput) (*Note, error) {
 }
 
 // ApplyUpdate applies update input to the note, enforcing business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func (n *Note) ApplyUpdate(input UpdateInput) error {
+	limits := domain.DefaultValidationLimits()
 	if input.Content != nil {
 		content := strings.TrimSpace(*input.Content)
 		if content == "" {
 			return errors.New("note content cannot be empty")
 		}
-		if len(content) > 10000 {
-			return errors.New("note content must be 10000 characters or less")
+		if len(content) > limits.NoteContentMaxLength {
+			return fmt.Errorf("note content must be %d characters or less", limits.NoteContentMaxLength)
 		}
 		n.Content = content
 	}

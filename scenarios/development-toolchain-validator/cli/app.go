@@ -93,6 +93,21 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	// Skill connection commands - maps to /api/v1/connections endpoints
+	// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store
+	connections := cliapp.CommandGroup{
+		Title: "Skill Connections",
+		Commands: []cliapp.Command{
+			{
+				Name:        "connection",
+				Aliases:     []string{"conn", "connections"},
+				NeedsAPI:    true,
+				Description: "Manage skill connections (list|get|connect|disconnect|drift)",
+				Run:         a.cmdConnection,
+			},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -100,7 +115,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, references, config}
+	return []cliapp.CommandGroup{health, references, connections, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -518,6 +533,331 @@ func (a *App) cmdRefDelete(args []string) error {
 	}
 
 	fmt.Printf("Deleted reference: %s\n", refID)
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connection Commands
+// Maps to: GET/POST /api/v1/connections, GET/PATCH/DELETE /api/v1/connections/{id}
+// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store
+// ─────────────────────────────────────────────────────────────────────────────
+
+// connectionResponse represents a skill connection from the API.
+type connectionResponse struct {
+	ID               string `json:"id"`
+	ReferenceID      string `json:"reference_id"`
+	SkillID          string `json:"skill_id"`
+	SkillVersion     string `json:"skill_version,omitempty"`
+	SkillContentHash string `json:"skill_content_hash,omitempty"`
+	ConnectedAt      string `json:"connected_at,omitempty"`
+	UpdatedAt        string `json:"updated_at,omitempty"`
+}
+
+// connectionListResponse represents a list of connections.
+type connectionListResponse struct {
+	Connections []connectionResponse `json:"connections"`
+	Count       int                  `json:"count"`
+}
+
+// connectionConnectRequest represents the request body for creating a connection.
+type connectionConnectRequest struct {
+	ReferenceID      string `json:"reference_id"`
+	SkillID          string `json:"skill_id"`
+	SkillVersion     string `json:"skill_version,omitempty"`
+	SkillContentHash string `json:"skill_content_hash,omitempty"`
+}
+
+// driftCheckRequest represents the request body for checking drift.
+type driftCheckRequest struct {
+	CurrentVersion string `json:"current_version"`
+	CurrentHash    string `json:"current_hash"`
+}
+
+// driftStatusResponse represents the drift check response.
+type driftStatusResponse struct {
+	ConnectionID   string `json:"connection_id"`
+	SkillID        string `json:"skill_id"`
+	StoredVersion  string `json:"stored_version"`
+	StoredHash     string `json:"stored_hash"`
+	CurrentVersion string `json:"current_version"`
+	CurrentHash    string `json:"current_hash"`
+	HasDrifted     bool   `json:"has_drifted"`
+	VersionChanged bool   `json:"version_changed"`
+	ContentChanged bool   `json:"content_changed"`
+}
+
+// cmdConnection routes to connection subcommands.
+func (a *App) cmdConnection(args []string) error {
+	if len(args) == 0 {
+		return a.printConnUsage()
+	}
+
+	subcommand := args[0]
+	subArgs := args[1:]
+
+	switch subcommand {
+	case "help":
+		return a.printConnUsage()
+	case "list", "ls":
+		return a.cmdConnList(subArgs)
+	case "get", "show":
+		return a.cmdConnGet(subArgs)
+	case "connect", "add":
+		return a.cmdConnConnect(subArgs)
+	case "disconnect", "rm", "delete":
+		return a.cmdConnDisconnect(subArgs)
+	case "drift", "check":
+		return a.cmdConnDrift(subArgs)
+	default:
+		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, a.connUsageText())
+	}
+}
+
+func (a *App) printConnUsage() error {
+	fmt.Println(a.connUsageText())
+	return nil
+}
+
+func (a *App) connUsageText() string {
+	return `Usage: development-toolchain-validator connection <subcommand> [args]
+
+Subcommands:
+  list, ls                              List all skill connections
+  get, show <id>                        Get connection by ID
+  connect, add --reference R --skill S  Connect a skill to a reference
+  disconnect, rm <id>                   Disconnect a skill
+  drift, check <id> --version V --hash H  Check if skill has drifted
+
+Flags:
+  --json        Output as JSON
+  --reference   Filter by reference ID (list) or set reference ID (connect)
+  --skill       Filter by skill ID (list) or set skill ID (connect)
+  --version     Skill version (connect/drift)
+  --hash        Skill content hash (connect/drift)
+
+Examples:
+  connection list --reference ref-123
+  connection get conn-abc123
+  connection connect --reference ref-123 --skill api-steer --version v1.0
+  connection disconnect conn-abc123
+  connection drift conn-abc123 --version v2.0 --hash newHash123`
+}
+
+// cmdConnList lists all connections with optional filtering.
+// Maps to: GET /api/v1/connections
+func (a *App) cmdConnList(args []string) error {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	referenceID := fs.String("reference", "", "Filter by reference ID")
+	skillID := fs.String("skill", "", "Filter by skill ID")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if *referenceID != "" {
+		query.Set("reference_id", *referenceID)
+	}
+	if *skillID != "" {
+		query.Set("skill_id", *skillID)
+	}
+
+	var resp connectionListResponse
+	if err := a.getWithQuery("/connections", query, &resp); err != nil {
+		return fmt.Errorf("failed to list connections: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Connections) == 0 {
+		fmt.Println("No connections found")
+		return nil
+	}
+
+	fmt.Printf("Connections (%d):\n", resp.Count)
+	for _, c := range resp.Connections {
+		version := c.SkillVersion
+		if version == "" {
+			version = "(no version)"
+		}
+		fmt.Printf("  %-36s  %-20s  %s\n", c.ID, c.SkillID, version)
+	}
+	return nil
+}
+
+// cmdConnGet retrieves a connection by ID.
+// Maps to: GET /api/v1/connections/{id}
+func (a *App) cmdConnGet(args []string) error {
+	fs := flag.NewFlagSet("get", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: connection get <id> [--json]")
+	}
+	connID := fs.Arg(0)
+
+	var conn connectionResponse
+	if err := a.get(fmt.Sprintf("/connections/%s", connID), &conn); err != nil {
+		return fmt.Errorf("failed to get connection: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(conn)
+	}
+
+	fmt.Printf("ID: %s\n", conn.ID)
+	fmt.Printf("Reference ID: %s\n", conn.ReferenceID)
+	fmt.Printf("Skill ID: %s\n", conn.SkillID)
+	if conn.SkillVersion != "" {
+		fmt.Printf("Version: %s\n", conn.SkillVersion)
+	}
+	if conn.SkillContentHash != "" {
+		fmt.Printf("Content Hash: %s\n", conn.SkillContentHash)
+	}
+	if conn.ConnectedAt != "" {
+		fmt.Printf("Connected: %s\n", conn.ConnectedAt)
+	}
+	if conn.UpdatedAt != "" {
+		fmt.Printf("Updated: %s\n", conn.UpdatedAt)
+	}
+	return nil
+}
+
+// cmdConnConnect creates a new skill connection.
+// Maps to: POST /api/v1/connections
+func (a *App) cmdConnConnect(args []string) error {
+	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
+	referenceID := fs.String("reference", "", "Reference ID (required)")
+	skillID := fs.String("skill", "", "Skill ID (required)")
+	version := fs.String("version", "", "Skill version")
+	hash := fs.String("hash", "", "Skill content hash")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	// Validate required fields
+	if *referenceID == "" || *skillID == "" {
+		return fmt.Errorf("usage: connection connect --reference R --skill S [--version V] [--hash H] [--json]\n\nBoth --reference and --skill are required")
+	}
+
+	req := connectionConnectRequest{
+		ReferenceID:      *referenceID,
+		SkillID:          *skillID,
+		SkillVersion:     *version,
+		SkillContentHash: *hash,
+	}
+
+	var conn connectionResponse
+	if err := a.post("/connections", req, &conn); err != nil {
+		return fmt.Errorf("failed to connect skill: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(conn)
+	}
+
+	fmt.Printf("Connected skill: %s to %s [%s]\n", conn.SkillID, conn.ReferenceID, conn.ID)
+	fmt.Printf("  View: development-toolchain-validator connection get %s\n", conn.ID)
+	return nil
+}
+
+// cmdConnDisconnect removes a skill connection.
+// Maps to: DELETE /api/v1/connections/{id}
+func (a *App) cmdConnDisconnect(args []string) error {
+	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: connection disconnect <id> [--json]")
+	}
+	connID := fs.Arg(0)
+
+	if err := a.delete(fmt.Sprintf("/connections/%s", connID)); err != nil {
+		return fmt.Errorf("failed to disconnect skill: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]interface{}{
+			"success":      true,
+			"disconnected": connID,
+		})
+	}
+
+	fmt.Printf("Disconnected: %s\n", connID)
+	return nil
+}
+
+// cmdConnDrift checks if a skill has drifted from its stored version.
+// Maps to: POST /api/v1/connections/{id}/drift
+func (a *App) cmdConnDrift(args []string) error {
+	fs := flag.NewFlagSet("drift", flag.ContinueOnError)
+	version := fs.String("version", "", "Current skill version (required)")
+	hash := fs.String("hash", "", "Current skill content hash (required)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: connection drift <id> --version V --hash H [--json]")
+	}
+	connID := fs.Arg(0)
+
+	if *version == "" || *hash == "" {
+		return fmt.Errorf("both --version and --hash are required for drift check")
+	}
+
+	req := driftCheckRequest{
+		CurrentVersion: *version,
+		CurrentHash:    *hash,
+	}
+
+	var status driftStatusResponse
+	if err := a.post(fmt.Sprintf("/connections/%s/drift", connID), req, &status); err != nil {
+		return fmt.Errorf("failed to check drift: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(status)
+	}
+
+	fmt.Printf("Skill: %s\n", status.SkillID)
+	fmt.Printf("Connection: %s\n", status.ConnectionID)
+	fmt.Printf("Stored Version: %s → Current: %s\n", status.StoredVersion, status.CurrentVersion)
+	fmt.Printf("Stored Hash: %s → Current: %s\n", status.StoredHash, status.CurrentHash)
+
+	if status.HasDrifted {
+		fmt.Println("\n⚠️  DRIFT DETECTED")
+		if status.VersionChanged {
+			fmt.Println("  - Version has changed")
+		}
+		if status.ContentChanged {
+			fmt.Println("  - Content has changed")
+		}
+		fmt.Println("\nConsider updating the connection configuration.")
+	} else {
+		fmt.Println("\n✓ No drift detected - skill matches stored version")
+	}
+
 	return nil
 }
 

@@ -16,4 +16,20 @@
 
 ## Tech Debt
 
-- None yet (new scenario).
+- **Operational target 1:1 mapping penalty**: 76% of operational targets have 1:1 requirement mapping, causing an 8pt scoring penalty. The requirements structure mirrors the PRD targets too closely. To resolve: consolidate related requirement modules under shared operational targets (e.g., combine reference registry + skill connection under a "Core Data Layer" target, or validation domains under "Validation Engine"). This requires requirements restructuring and index.json updates.
+
+## Test Gaps
+
+- **Validation domain tests**: The `domain/validation/` package has no tests. This domain is `draft` status (REQ-P0-007, REQ-P0-007a, REQ-P0-008, REQ-P0-008a) and not yet implemented.
+- **Report domain tests**: The `domain/report/` package has no tests. This domain is `draft` status (REQ-P0-010) and not yet implemented.
+- **Expectation handler response body validation**: Some tests check HTTP status but not response body content. Added tests for InvalidJSON error responses (2026-03-11).
+- **CLI test coverage**: CLI tests cover reference and connection commands with 53.1% coverage. Expectation/validation CLI commands are not yet implemented (REQ-P0-011a pending).
+
+## Resolved Tech Debt
+
+- ~~**Missing expectation handler tests**: GetByID and Delete handler tests missing.~~ **RESOLVED (2026-03-11)**: Added `TestExpectationHandler_GetStructural`, `TestExpectationHandler_GetCLI`, `TestExpectationHandler_DeleteStructural`, `TestExpectationHandler_DeleteCLI`, plus InvalidJSON and filter tests. Added proper [REQ:ID] header tags. Test count: 396→411 API tests.
+- ~~**Monolithic test file**: One test file validates 4+ requirements, causing a 2pt penalty.~~ **RESOLVED (2026-03-11)**: Split `api/domain/skill/service_test.go` into `connection_service_test.go` (REQ-P0-003) and `drift_service_test.go` (REQ-P0-004). Updated requirement module refs accordingly.
+- ~~**Handlers coverage below target**: Coverage at 62.9% was below 80% target.~~ **RESOLVED (2026-03-11)**: Added `errors_test.go`, dry-run tests for all mutating endpoints, `TestNewReferenceHandlerWithConfig`, `TestReferenceHandler_Create_DryRun`, `TestReferenceHandler_Update_DryRun`, `TestReferenceHandler_Delete_DryRun`, `TestReferenceHandler_Update_PartialFields`. Coverage improved 62.9% → 90.9% (exceeds 80% target).
+- ~~**Testutil coverage at 40.3%**: Missing tests for DecodeJSONResponse and factory builder methods.~~ **RESOLVED (2026-03-11)**: Added `TestDecodeJSONResponse`, `TestReferenceFactory` (9 subtests), `TestCreateInputFactory` (7 subtests). Coverage improved 40.3% → 90.3%.
+- ~~**Expectation domain coverage at 76.8%**: Missing tests for GetByID, Delete, and CLI operations.~~ **RESOLVED (2026-03-11)**: Added 12 new tests covering GetStructuralByID, DeleteStructural, GetCLIByID, ListCLI, DeleteCLI, DeleteCLIByConnection, WithConfig, plus validation failure tests. Coverage improved 76.8% → 98.2%.
+- ~~**CLI coverage at 32.4%**: CLI tests covered command routing but limited coverage for create/update/get/delete/drift validation flows.~~ **IMPROVED (2026-03-11)**: Added 23 new CLI tests covering alias commands, create field validation (all 4 required fields), update field validation, get/delete validation, connection connect/get/disconnect/drift validation. Coverage improved 32.4% → 53.1%.

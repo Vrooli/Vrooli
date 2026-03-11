@@ -9,11 +9,11 @@
       "dependencies": [
         "REQ-P0-005"
       ],
-      "description": "Implement engine to evaluate structural expectations against reference scenarios",
+      "description": "Implement validation logic for folder existence checks and file pattern matching using glob patterns",
       "id": "REQ-P0-007",
       "prd_ref": "OT-P0-006",
       "status": "draft",
-      "title": "Structural Validation Engine Core",
+      "title": "Folder and File Validation Logic",
       "validation": [
         {
           "notes": "Folder checks accurate",
@@ -30,6 +30,26 @@
           "type": "test"
         },
         {
+          "notes": "Glob patterns correctly matched",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "Implement content snippet validation and result aggregation per expectation and skill connection",
+      "id": "REQ-P0-007a",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Content Validation and Result Aggregation",
+      "validation": [
+        {
           "notes": "Content validation correct",
           "phase": "unit",
           "ref": "",
@@ -44,7 +64,7 @@
           "type": "test"
         },
         {
-          "notes": "Validation completes \u003c 5s",
+          "notes": "Validation completes < 5s",
           "phase": "performance",
           "ref": "",
           "status": "pending",

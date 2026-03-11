@@ -1,0 +1,232 @@
+{
+  "metadata": {
+    "name": "crud-operations",
+    "description": "Tests CRUD operations on the Reference Scenario Registry API endpoints",
+    "labels": {
+      "reset": "database",
+      "requirements_json": "[\"REQ-P0-001\", \"REQ-P0-002\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "list-empty",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.count",
+              "operator": "gte",
+              "expected_value": 0
+            }
+          ]
+        },
+        "metadata": {
+          "label": "List references (may be empty)"
+        }
+      }
+    },
+    {
+      "id": "create-reference",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"slug\": \"test-reference-{{TIMESTAMP}}\", \"name\": \"Test Reference Scenario\", \"template\": \"react-vite\", \"path\": \"scenarios/reference-react-vite\", \"description\": \"A test reference scenario for BAS testing\"}",
+          "expected_status": 201,
+          "assertions": [
+            {
+              "json_path": "$.reference.slug",
+              "operator": "contains",
+              "expected_value": "test-reference-"
+            },
+            {
+              "json_path": "$.reference.id",
+              "operator": "exists"
+            }
+          ],
+          "capture": {
+            "reference_id": "$.reference.id",
+            "reference_slug": "$.reference.slug"
+          }
+        },
+        "metadata": {
+          "label": "Create a new reference scenario"
+        }
+      }
+    },
+    {
+      "id": "get-by-id",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references/{{reference_id}}",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.reference.name",
+              "operator": "eq",
+              "expected_value": "Test Reference Scenario"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Get reference by ID"
+        }
+      }
+    },
+    {
+      "id": "get-by-slug",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references/by-slug/{{reference_slug}}",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.reference.template",
+              "operator": "eq",
+              "expected_value": "react-vite"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Get reference by slug"
+        }
+      }
+    },
+    {
+      "id": "update-reference",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "PATCH",
+          "url": "{{API_URL}}/api/v1/references/{{reference_id}}",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"name\": \"Updated Test Reference\", \"description\": \"Updated description for testing\"}",
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.reference.name",
+              "operator": "eq",
+              "expected_value": "Updated Test Reference"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Update reference scenario"
+        }
+      }
+    },
+    {
+      "id": "list-after-create",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.count",
+              "operator": "gte",
+              "expected_value": 1
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Verify reference appears in list"
+        }
+      }
+    },
+    {
+      "id": "delete-reference",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "DELETE",
+          "url": "{{API_URL}}/api/v1/references/{{reference_id}}",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 204
+        },
+        "metadata": {
+          "label": "Delete reference scenario"
+        }
+      }
+    },
+    {
+      "id": "verify-deleted",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references/{{reference_id}}",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 404
+        },
+        "metadata": {
+          "label": "Verify reference was deleted"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "list-empty",
+      "target": "create-reference",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "create-reference",
+      "target": "get-by-id",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "get-by-id",
+      "target": "get-by-slug",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "get-by-slug",
+      "target": "update-reference",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "update-reference",
+      "target": "list-after-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "list-after-create",
+      "target": "delete-reference",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "delete-reference",
+      "target": "verify-deleted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

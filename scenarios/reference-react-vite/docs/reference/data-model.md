@@ -52,7 +52,7 @@ Database schema and entity relationships for the reference-react-vite scenario.
 ## Tables
 
 ### projects
-[CODE: initialization/postgres/schema.sql:10-22]
+[CODE: initialization/postgres/schema.sql] (see `CREATE TABLE projects`)
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
@@ -73,7 +73,7 @@ Database schema and entity relationships for the reference-react-vite scenario.
 - `idx_projects_created`: created_at DESC
 
 ### tasks
-[CODE: initialization/postgres/schema.sql:24-42]
+[CODE: initialization/postgres/schema.sql] (see `CREATE TABLE tasks`)
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
@@ -100,7 +100,7 @@ Database schema and entity relationships for the reference-react-vite scenario.
 - `idx_tasks_created`: created_at DESC
 
 ### notes
-[CODE: initialization/postgres/schema.sql:44-56]
+[CODE: initialization/postgres/schema.sql] (see `CREATE TABLE notes`)
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
@@ -121,7 +121,7 @@ Database schema and entity relationships for the reference-react-vite scenario.
 ## Triggers
 
 ### Auto-update timestamps
-[CODE: initialization/postgres/schema.sql:58-75]
+[CODE: initialization/postgres/schema.sql] (see `set_updated_at` trigger)
 
 All tables have triggers that automatically update `updated_at` on row modification:
 

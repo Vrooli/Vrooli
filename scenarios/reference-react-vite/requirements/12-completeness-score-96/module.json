@@ -1,30 +1,40 @@
 {
-  "description": "`scenario-completeness-scoring score reference-react-vite` returns 96 or higher (Production Ready classification).",
+  "description": "scenario-completeness-scoring score reference-react-vite returns 96 or higher (Production Ready classification).",
   "module_id": "MOD-P0-012",
   "prd_ref": "OT-P0-012",
   "priority": "P0",
   "requirements": [
     {
       "category": "core",
-      "description": "Achieve minimum score of 96 on scenario-completeness-scoring tool.",
-      "id": "REQ-P0-012",
+      "description": "Achieve minimum base score of 96 before validation penalties on scenario-completeness-scoring tool.",
+      "id": "REQ-P0-012a",
       "prd_ref": "OT-P0-012",
-      "status": "draft",
-      "title": "Scenario Completeness Score",
+      "status": "in_progress",
+      "title": "Base Completeness Score",
       "validation": [
         {
-          "notes": "Run completeness scoring",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify minimum score",
+          "notes": "Target minimum base score 96",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "docs/PROGRESS.md",
+          "status": "in_progress",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "No validation penalties (proper requirement decomposition, passing tests, etc).",
+      "id": "REQ-P0-012b",
+      "prd_ref": "OT-P0-012",
+      "status": "pass",
+      "title": "Zero Validation Penalties",
+      "validation": [
+        {
+          "notes": "No 1:1 requirement mapping penalties",
+          "phase": "business",
+          "ref": "requirements/index.json",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

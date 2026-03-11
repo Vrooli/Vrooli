@@ -12,21 +12,28 @@
       "description": "Create JSON schema and storage for structural validation rules including file patterns and content expectations",
       "id": "REQ-P0-005",
       "prd_ref": "OT-P0-004",
-      "status": "draft",
+      "status": "implemented",
       "title": "Structural Expectation Configuration Store",
       "validation": [
         {
-          "notes": "JSON schema validation works",
+          "notes": "Structural expectation model with type validation (folder/file/content_snippet)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/expectation/structural_service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Pattern matching tested",
+          "notes": "Pattern validation and required content checks",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/expectation/structural_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "HTTP handlers with dry-run support",
+          "phase": "unit",
+          "ref": "api/handlers/expectation_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
@@ -39,8 +46,8 @@
         {
           "notes": "All structural rule types supported",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/expectation/structural_service_test.go",
+          "status": "passing",
           "type": "test"
         }
       ]

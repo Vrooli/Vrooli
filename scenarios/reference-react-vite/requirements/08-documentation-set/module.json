@@ -6,32 +6,49 @@
   "requirements": [
     {
       "category": "core",
-      "description": "Maintain complete docs/ directory with all required documentation files and bidirectional code references.",
-      "id": "REQ-P0-008",
+      "description": "Complete docs/ directory with all required documentation files.",
+      "id": "REQ-P0-008a",
       "prd_ref": "OT-P0-008",
-      "status": "draft",
+      "status": "pass",
       "title": "Documentation Structure",
       "validation": [
         {
-          "notes": "Verify file presence",
+          "notes": "Verify manifest.json present",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "docs/manifest.json",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Validate doc references",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Documentation review",
+          "notes": "Verify QUICKSTART.md present",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "docs/QUICKSTART.md",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Bidirectional DOC:/[CODE:] references linking documentation to code and code to documentation.",
+      "id": "REQ-P0-008b",
+      "prd_ref": "OT-P0-008",
+      "status": "pass",
+      "title": "Bidirectional Traceability",
+      "validation": [
+        {
+          "notes": "DOC: references in Go code files",
+          "phase": "integration",
+          "ref": "api/main.go",
+          "status": "pass",
+          "type": "structural"
+        },
+        {
+          "notes": "[CODE:] references in documentation",
+          "phase": "integration",
+          "ref": "docs/concepts/ARCHITECTURE.md",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

@@ -7,13 +7,48 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
-// INTEROP-CRITICAL: iframe-bridge initialization must happen before render
-// to enable Vrooli orchestration when running in iframe context
-if (window.top !== window.self) {
-  initIframeBridgeChild({ appId: 'reference-react-vite' });
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
+// ║                                                              ║
+// ║  Must run BEFORE React mount so that:                        ║
+// ║  1. Storage shimming is in place before any component        ║
+// ║     accesses localStorage/sessionStorage                     ║
+// ║  2. The bridge message channel is ready for host commands    ║
+// ║                                                              ║
+// ║  The window.parent check ensures this is a no-op when        ║
+// ║  running outside an iframe (localhost, tunnel).              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+declare global {
+  interface Window {
+    __referenceReactViteBridgeInitialized?: boolean;
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+if (
+  typeof window !== "undefined" &&
+  window.parent !== window &&
+  !window.__referenceReactViteBridgeInitialized
+) {
+  let parentOrigin: string | undefined;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch {
+    // Fall back to default origin when parsing fails.
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: "reference-react-vite" });
+  window.__referenceReactViteBridgeInitialized = true;
+}
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found. Ensure index.html has <div id=\"root\"></div>");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />

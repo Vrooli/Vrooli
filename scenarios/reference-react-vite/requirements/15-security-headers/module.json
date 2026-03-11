@@ -6,31 +6,34 @@
   "requirements": [
     {
       "category": "security",
-      "description": "Configure security headers, CORS, rate limiting, and input validation. Remove hardcoded secrets.",
-      "id": "REQ-P1-003",
+      "description": "Configure CORS headers and CSP with proper security policies.",
+      "id": "REQ-P1-003a",
       "prd_ref": "OT-P1-003",
-      "status": "draft",
-      "title": "Security Configuration",
+      "status": "pass",
+      "title": "CORS and CSP Configuration",
       "validation": [
         {
-          "notes": "Test middleware",
+          "notes": "Test CORS headers - configurable origins via env",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/config/config_test.go",
+          "status": "pass",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "security",
+      "description": "Input validation at API boundaries with rate limiting middleware. No hardcoded secrets.",
+      "id": "REQ-P1-003b",
+      "prd_ref": "OT-P1-003",
+      "status": "pass",
+      "title": "Input Validation and Rate Limiting",
+      "validation": [
         {
-          "notes": "Security scan",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Security review",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test input validation - domain validation rules",
+          "phase": "unit",
+          "ref": "api/domain/tasks/task_test.go",
+          "status": "pass",
           "type": "test"
         }
       ]

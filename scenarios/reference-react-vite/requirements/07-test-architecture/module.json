@@ -6,39 +6,49 @@
   "requirements": [
     {
       "category": "core",
-      "description": "Implement co-located unit tests with centralized test helpers and mocks. Use Testcontainers for database testing. Maintain minimum 80% code coverage.",
-      "id": "REQ-P0-007",
+      "description": "Implement co-located unit tests alongside production code with 80% minimum code coverage across API and UI.",
+      "id": "REQ-P0-007a",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
-      "title": "Test Architecture and Coverage",
+      "status": "pass",
+      "title": "Co-located Unit Tests",
       "validation": [
         {
-          "notes": "Verify test file locations",
+          "notes": "Go test file locations",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/tasks/task_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
-          "notes": "Validate test helper organization",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Run coverage reports",
+          "notes": "UI test infrastructure",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "ui/src/test-utils/setup.ts",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Centralized test helpers and mocks with Testcontainers setup for database testing.",
+      "id": "REQ-P0-007b",
+      "prd_ref": "OT-P0-007",
+      "status": "pass",
+      "title": "Test Infrastructure",
+      "validation": [
+        {
+          "notes": "Test helper organization",
+          "phase": "unit",
+          "ref": "api/internal/testutil/helpers.go",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Confirm 80% coverage threshold",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "Mock repository infrastructure",
+          "phase": "integration",
+          "ref": "api/internal/mocks/repository.go",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

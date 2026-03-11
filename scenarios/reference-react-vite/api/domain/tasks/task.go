@@ -4,14 +4,18 @@
 // DOC: docs/concepts/ARCHITECTURE.md#task
 // DOC: docs/reference/api-endpoints.md#tasks
 // DOC: docs/reference/data-model.md#tasks
+// DOC: docs/internal/SEAMS.md#domain-logic-seam
 package tasks
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"reference-react-vite/api/domain"
 )
 
 // Status represents the lifecycle state of a task.
@@ -92,13 +96,15 @@ func (p Priority) Validate() error {
 }
 
 // NewTask creates a new task from input, applying business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func NewTask(input CreateInput) (*Task, error) {
+	limits := domain.DefaultValidationLimits()
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
 		return nil, errors.New("task title is required")
 	}
-	if len(title) > 255 {
-		return nil, errors.New("task title must be 255 characters or less")
+	if len(title) > limits.TaskTitleMaxLength {
+		return nil, fmt.Errorf("task title must be %d characters or less", limits.TaskTitleMaxLength)
 	}
 
 	priority := input.Priority
@@ -124,14 +130,16 @@ func NewTask(input CreateInput) (*Task, error) {
 }
 
 // ApplyUpdate applies update input to the task, enforcing business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func (t *Task) ApplyUpdate(input UpdateInput) error {
+	limits := domain.DefaultValidationLimits()
 	if input.Title != nil {
 		title := strings.TrimSpace(*input.Title)
 		if title == "" {
 			return errors.New("task title cannot be empty")
 		}
-		if len(title) > 255 {
-			return errors.New("task title must be 255 characters or less")
+		if len(title) > limits.TaskTitleMaxLength {
+			return fmt.Errorf("task title must be %d characters or less", limits.TaskTitleMaxLength)
 		}
 		t.Title = title
 	}

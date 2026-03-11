@@ -2,6 +2,7 @@
 // DOC: docs/internal/SEAMS.md#api-handlers--domain-services
 // DOC: docs/reference/api-endpoints.md#references
 // DOC: docs/reference/configuration.md#api-configuration
+// DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
 package reference
 
 import (
@@ -10,9 +11,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"development-toolchain-validator/internal/config"
+	"development-toolchain-validator/internal/validation"
 )
 
 var (
@@ -26,22 +27,9 @@ var (
 	ErrPathNotExists = errors.New("scenario path does not exist")
 )
 
-// slugRegex validates reference slugs.
-//
-// Format rules (not configurable - these are invariants):
-//   - Lowercase letters (a-z): URL-friendly, case-insensitive matching
-//   - Numbers (0-9): Allow version suffixes like "react-app-v2"
-//   - Hyphens (-): Human-readable word separation
-//   - Must start and end with alphanumeric: Prevents edge cases like "--slug"
-//
-// The regex rejects:
-//   - Single characters (handled by length config, but also fails regex)
-//   - Leading/trailing hyphens
-//   - Uppercase letters
-//   - Special characters (underscores, dots, etc.)
-//
+// Note: Slug format validation moved to internal/validation package.
+// See: validation.IsValidSlugFormat()
 // See: docs/internal/SEAMS.md#decision-slug-format-validation
-var slugRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*[a-z0-9]$`)
 
 // ServiceConfig holds configuration for the reference service.
 // These levers are documented in docs/reference/configuration.md.
@@ -200,9 +188,10 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 
 // isValidSlug checks if a slug meets format and length requirements.
 // Length constraints are configurable via ServiceConfig.
+// Uses shared validation utilities from internal/validation package.
 func (s *Service) isValidSlug(slug string) bool {
 	if !s.config.Validation.IsValidSlugLength(len(slug)) {
 		return false
 	}
-	return slugRegex.MatchString(slug)
+	return validation.IsValidSlugFormat(slug)
 }

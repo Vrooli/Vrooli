@@ -7,45 +7,55 @@
     {
       "category": "api",
       "description": "All API endpoints must return errors in a consistent JSON structure containing: error_code (string), message (string), details (object), request_id (string).",
-      "id": "REQ-P0-002",
+      "id": "REQ-P0-002a",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
+      "status": "pass",
       "title": "Standardized Error Response Format",
       "validation": [
         {
           "notes": "Test error response structure for each error case",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/errors_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
           "notes": "Verify error codes are machine-readable",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/handlers/errors.go",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Verify error format consistency across all endpoints",
+          "notes": "Error semantics documented",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
+          "ref": "docs/internal/ERROR_SEMANTICS.md",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Error responses must include recovery hints with retryable flag and structured recovery suggestions. Error details should be appropriate for each error type.",
+      "id": "REQ-P0-002b",
+      "prd_ref": "OT-P0-002",
+      "status": "pass",
+      "title": "Error Recovery Hints",
+      "validation": [
         {
           "notes": "Error responses include all required fields",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/errors_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
-          "notes": "Error details are structured appropriately for each error type",
+          "notes": "Error details are structured appropriately",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "docs/internal/ERROR_SEMANTICS.md",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

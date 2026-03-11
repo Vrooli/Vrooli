@@ -139,12 +139,12 @@ Responsibilities:
 
 | Concern | Location | Notes |
 |---------|----------|-------|
-| CORS | [CODE: api/main.go:82-108] | Configurable via CORS_ALLOWED_ORIGINS |
-| Logging | [CODE: api/main.go:133-139] | Simple request logging middleware |
-| Request ID | [CODE: api/main.go:142-149] | Generated per-request for tracing |
+| CORS | [CODE: api/main.go] | Configurable via CORS_ALLOWED_ORIGINS |
+| Logging | [CODE: api/main.go] | Simple request logging middleware |
+| Request ID | [CODE: api/main.go] | Generated per-request for tracing |
 | Error Format | [CODE: api/handlers/errors.go] | Consistent API error shape |
-| Health Check | [CODE: api/main.go:51-57] | Uses api-core/health |
-| Graceful Shutdown | [CODE: api/main.go:170-175] | Uses api-core/server |
+| Health Check | [CODE: api/main.go] | Uses api-core/health |
+| Graceful Shutdown | [CODE: api/main.go] | Uses api-core/server |
 
 ## Technology Stack
 

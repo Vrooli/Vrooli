@@ -6,7 +6,19 @@
   color-scheme: dark;
 }
 
+/*
+ * INTEROP-CRITICAL: Height chain for iframe compatibility
+ *
+ * Use `h-full` (height: 100%) instead of `h-screen` (100vh) because:
+ * - Inside an iframe, 100vh can refer to the outer window's viewport height
+ * - This causes content to be sized incorrectly in proxy/iframe contexts
+ * - Using 100% correctly inherits from the parent element
+ */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  margin: 0;
 }

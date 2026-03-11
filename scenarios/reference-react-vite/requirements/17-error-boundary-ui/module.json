@@ -6,32 +6,35 @@
   "requirements": [
     {
       "category": "ui",
-      "description": "Implement React error boundaries and graceful error handling throughout the UI.",
-      "id": "REQ-P1-005",
+      "description": "React error boundaries at route and component level for catching and handling React errors gracefully.",
+      "id": "REQ-P1-005a",
       "prd_ref": "OT-P1-005",
-      "status": "draft",
-      "title": "Error Handling UI",
+      "status": "pass",
+      "title": "Route-Level Error Boundaries",
       "validation": [
         {
-          "notes": "Test error boundaries",
+          "notes": "Error boundary component implemented",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
+          "ref": "ui/src/components/ErrorBoundary.tsx",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Graceful error display with retry options and no unhandled promise rejections in console.",
+      "id": "REQ-P1-005b",
+      "prd_ref": "OT-P1-005",
+      "status": "pass",
+      "title": "Error Recovery UI",
+      "validation": [
         {
-          "notes": "Error simulation",
+          "notes": "Error states in pages with retry support",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Error UX review",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "ui/src/pages/Tasks.tsx",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

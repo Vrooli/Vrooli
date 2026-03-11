@@ -172,7 +172,7 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
 	if err := h.repo.Delete(ctx, id); err != nil {
-		if err.Error() == "task not found" {
+		if repository.IsNotFound(err) {
 			writeNotFound(w, r, "task")
 			return
 		}

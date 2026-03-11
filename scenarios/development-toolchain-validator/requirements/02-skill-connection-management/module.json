@@ -9,36 +9,63 @@
       "dependencies": [
         "REQ-P0-001"
       ],
-      "description": "Implement storage and API for managing connections between skills and reference scenarios",
+      "description": "Implement domain model and repository for skill connections with version and content hash storage",
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
-      "title": "Prompt-Manager Skill Connection Store",
+      "status": "implemented",
+      "title": "Skill Connection Domain Model",
       "validation": [
         {
-          "notes": "Version numbers stored correctly",
+          "notes": "Service CRUD operations work correctly with version and hash storage",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/skill/connection_service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Content hashes validated",
+          "notes": "Content hashes and versions stored and compared for drift detection",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Prompt-manager API integration successful",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/skill/connection_service_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Connections maintain version history",
           "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Implement REST API endpoints and CLI commands for connecting/disconnecting skills to references",
+      "id": "REQ-P0-003a",
+      "prd_ref": "OT-P0-002",
+      "status": "implemented",
+      "title": "Skill Connection API and CLI",
+      "validation": [
+        {
+          "notes": "HTTP handlers for connection CRUD and drift check",
+          "phase": "unit",
+          "ref": "api/handlers/skill_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "CLI commands for connection management",
+          "phase": "unit",
+          "ref": "cli/cli_connection_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Prompt-manager API integration successful",
+          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"

@@ -1,12 +1,13 @@
 // DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md#mock-organization
 // DOC: docs/internal/SEAMS.md#repository-seam
+// DOC: docs/internal/ERROR_SEMANTICS.md#repository-errors
 // Package mocks provides mock implementations of repository interfaces for testing.
 // These mocks enable unit testing of handlers without database dependencies.
 package mocks
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sync"
 
 	"reference-react-vite/api/domain/notes"
@@ -14,9 +15,6 @@ import (
 	"reference-react-vite/api/domain/tasks"
 	"reference-react-vite/api/repository"
 )
-
-// ErrNotFound is returned when an entity is not found.
-var ErrNotFound = errors.New("entity not found")
 
 // =============================================================================
 // MockTaskRepository - In-memory task storage for testing
@@ -150,7 +148,7 @@ func (m *MockTaskRepository) Update(_ context.Context, task *tasks.Task) error {
 	}
 
 	if _, ok := m.tasks[task.ID]; !ok {
-		return errors.New("task not found")
+		return fmt.Errorf("update task: %w", repository.ErrNotFound)
 	}
 
 	stored := *task
@@ -170,7 +168,7 @@ func (m *MockTaskRepository) Delete(_ context.Context, id string) error {
 	}
 
 	if _, ok := m.tasks[id]; !ok {
-		return errors.New("task not found")
+		return fmt.Errorf("delete task: %w", repository.ErrNotFound)
 	}
 
 	delete(m.tasks, id)
@@ -382,7 +380,7 @@ func (m *MockProjectRepository) Update(_ context.Context, project *projects.Proj
 	}
 
 	if _, ok := m.projects[project.ID]; !ok {
-		return errors.New("project not found")
+		return fmt.Errorf("update project: %w", repository.ErrNotFound)
 	}
 
 	stored := *project
@@ -402,7 +400,7 @@ func (m *MockProjectRepository) Delete(_ context.Context, id string) error {
 	}
 
 	if _, ok := m.projects[id]; !ok {
-		return errors.New("project not found")
+		return fmt.Errorf("delete project: %w", repository.ErrNotFound)
 	}
 
 	delete(m.projects, id)
@@ -607,7 +605,7 @@ func (m *MockNoteRepository) Update(_ context.Context, note *notes.Note) error {
 	}
 
 	if _, ok := m.notes[note.ID]; !ok {
-		return errors.New("note not found")
+		return fmt.Errorf("update note: %w", repository.ErrNotFound)
 	}
 
 	stored := *note
@@ -627,7 +625,7 @@ func (m *MockNoteRepository) Delete(_ context.Context, id string) error {
 	}
 
 	if _, ok := m.notes[id]; !ok {
-		return errors.New("note not found")
+		return fmt.Errorf("delete note: %w", repository.ErrNotFound)
 	}
 
 	delete(m.notes, id)

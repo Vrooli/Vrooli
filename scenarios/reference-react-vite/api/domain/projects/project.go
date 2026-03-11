@@ -4,14 +4,18 @@
 // DOC: docs/concepts/ARCHITECTURE.md#project
 // DOC: docs/reference/api-endpoints.md#projects
 // DOC: docs/reference/data-model.md#projects
+// DOC: docs/internal/SEAMS.md#domain-logic-seam
 package projects
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"reference-react-vite/api/domain"
 )
 
 // Status represents the lifecycle state of a project.
@@ -69,29 +73,24 @@ func (s Status) Validate() error {
 }
 
 // ValidateColor checks if a color is a valid hex color code.
+// Uses domain.IsValidHexColor() for consistent validation across packages.
 func ValidateColor(color string) error {
-	if color == "" {
-		return nil
-	}
-	if len(color) != 7 || color[0] != '#' {
+	if !domain.IsValidHexColor(color) {
 		return errors.New("color must be a valid hex code (e.g., #FF5733)")
-	}
-	for _, c := range color[1:] {
-		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
-			return errors.New("color must be a valid hex code (e.g., #FF5733)")
-		}
 	}
 	return nil
 }
 
 // NewProject creates a new project from input, applying business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func NewProject(input CreateInput) (*Project, error) {
+	limits := domain.DefaultValidationLimits()
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
 		return nil, errors.New("project name is required")
 	}
-	if len(name) > 100 {
-		return nil, errors.New("project name must be 100 characters or less")
+	if len(name) > limits.ProjectNameMaxLength {
+		return nil, fmt.Errorf("project name must be %d characters or less", limits.ProjectNameMaxLength)
 	}
 
 	if err := ValidateColor(input.Color); err != nil {
@@ -111,14 +110,16 @@ func NewProject(input CreateInput) (*Project, error) {
 }
 
 // ApplyUpdate applies update input to the project, enforcing business rules.
+// Validation limits come from domain.DefaultValidationLimits() for consistency.
 func (p *Project) ApplyUpdate(input UpdateInput) error {
+	limits := domain.DefaultValidationLimits()
 	if input.Name != nil {
 		name := strings.TrimSpace(*input.Name)
 		if name == "" {
 			return errors.New("project name cannot be empty")
 		}
-		if len(name) > 100 {
-			return errors.New("project name must be 100 characters or less")
+		if len(name) > limits.ProjectNameMaxLength {
+			return fmt.Errorf("project name must be %d characters or less", limits.ProjectNameMaxLength)
 		}
 		p.Name = name
 	}

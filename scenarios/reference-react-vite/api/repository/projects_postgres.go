@@ -159,7 +159,7 @@ func (r *PostgresProjectRepository) Update(ctx context.Context, project *project
 		return fmt.Errorf("check update result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("project not found")
+		return fmt.Errorf("update project: %w", ErrNotFound)
 	}
 	return nil
 }
@@ -175,7 +175,7 @@ func (r *PostgresProjectRepository) Delete(ctx context.Context, id string) error
 		return fmt.Errorf("check delete result: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("project not found")
+		return fmt.Errorf("delete project: %w", ErrNotFound)
 	}
 	return nil
 }

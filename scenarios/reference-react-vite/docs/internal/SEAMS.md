@@ -123,11 +123,80 @@ api/
 
 | Concern | Location | Notes |
 |---------|----------|-------|
-| Logging | [CODE: api/main.go:133-139] | Simple request logging |
-| CORS | [CODE: api/main.go:82-108] | Configurable via env var |
+| Logging | [CODE: api/main.go] | Request logging middleware |
+| Error logging | [CODE: api/handlers/errors.go] | Structured error logs |
+| CORS | [CODE: api/main.go] | Configurable via env var |
 | Request ID | [CODE: api/handlers/errors.go#getRequestID] | Generated per-request |
 | Error format | [CODE: api/handlers/errors.go#APIError] | Consistent API error shape |
+| Recovery hints | [CODE: api/handlers/errors.go#errorRecoveryHints] | User-actionable guidance |
 | Recovery | [CODE: api/main.go#Handler] | Gorilla handlers recovery |
+
+## Observability Surface
+
+This section documents the signals available for monitoring and debugging the scenario.
+
+### Key Observable States
+
+| State | Signal | How to Observe |
+|-------|--------|----------------|
+| Request received | `[METHOD] path duration` | stdout logs |
+| Error occurred | `[ERROR] request_id=X code=Y status=Z path=W message=M` | stdout logs |
+| Health status | `/health` endpoint | HTTP GET |
+
+### Signal Inventory
+
+#### Structured Error Logs
+
+All API errors emit structured log entries:
+```
+[ERROR] request_id=abc123 code=VALIDATION_ERROR status=422 path=/api/v1/tasks message="task title is required"
+```
+
+Fields:
+- `request_id`: Correlation ID (from client or auto-generated UUID)
+- `code`: Machine-readable error category
+- `status`: HTTP status code
+- `path`: Request path
+- `message`: Error description
+
+#### API Error Response Shape
+
+```json
+{
+  "code": "ERROR_CODE",
+  "message": "Human-readable description",
+  "details": { "field": "specific_error" },
+  "recovery": "Suggested action to resolve",
+  "retryable": false,
+  "request_id": "correlation-id"
+}
+```
+
+### Error Categories by Recovery Path
+
+| Category | User Action | Agent Action |
+|----------|-------------|--------------|
+| `BAD_REQUEST` | Fix request format | Parse error, check docs |
+| `VALIDATION_ERROR` | Fix field values | Read `details` field |
+| `NOT_FOUND` | Verify resource ID | List endpoint or retry |
+| `INTERNAL_ERROR` | Wait and retry | Exponential backoff |
+| `CONFLICT` | Refresh resource | Re-fetch then retry |
+| `UNAUTHORIZED` | Login/refresh token | Auth flow |
+
+### Gaps and Signal Debt
+
+| Gap | Current State | Future Work |
+|-----|---------------|-------------|
+| Request tracing | Request ID in errors only | OpenTelemetry integration |
+| Metrics | None | Prometheus endpoints |
+| Audit logging | None | Critical operation logging |
+| Health dependencies | DB only | External service checks |
+
+### Observability-Related Files
+
+- [CODE: api/handlers/errors.go] - Error logging and response formatting
+- [CODE: api/main.go] - Request logging middleware
+- [DOC: docs/internal/ERROR_SEMANTICS.md] - Error category documentation
 
 ## Seam Testing Strategy
 
@@ -200,14 +269,294 @@ All mocks follow these patterns for testability:
    repo.WithFindError(errors.New("not found"))
    ```
 
+## Change Axes
+
+This section documents the primary ways the scenario is likely to evolve and how localized those changes are.
+
+### Identified Change Axes
+
+| Change Axis | Current Cost | Extension Point | Notes |
+|-------------|--------------|-----------------|-------|
+| **Add new domain entity** | Low | Create `api/domain/<name>/` package following tasks pattern | Well-localized: add domain, repository, handler |
+| **Change validation rules** | Low | [CODE: api/domain/rules.go] | Single source of truth; domain packages import limits |
+| **Add status values** | Medium | Domain package + schema.sql | Must sync database CHECK constraints |
+| **Add new error category** | Low | [CODE: api/handlers/errors.go] | Well-documented extension points |
+| **Add filter to list endpoint** | Low | Handler + ListFilter struct | Follow existing pattern |
+| **Change pagination defaults** | Low | [CODE: api/config/config.go] | Environment variable override |
+| **Add API version (v2)** | High | Router + handlers | No versioning strategy yet |
+| **Add authentication** | High | Middleware + all handlers | No auth infrastructure |
+
+### Stable Core vs Volatile Edges
+
+**Stable Core** (rarely needs changing):
+- Repository interfaces [CODE: api/repository/repository.go]
+- Error response shape [CODE: api/handlers/errors.go#APIError]
+- Health check endpoint
+- Pagination utilities [CODE: api/handlers/pagination.go]
+- Centralized rules [CODE: api/domain/rules.go] (structure stable, values may change)
+
+**Volatile Edges** (expected to evolve):
+- Validation limit values in rules.go (business requirements change)
+- Status values (workflow evolution)
+- List filters (reporting needs)
+- Config defaults (deployment tuning)
+
+### Extension Point Patterns
+
+1. **New Entity**: Copy existing domain package structure
+   ```
+   api/domain/<entity>/
+   ├── <entity>.go       # Entity, CreateInput, UpdateInput, ListFilter
+   └── <entity>_test.go  # Table-driven tests
+   ```
+
+2. **New Filter**: Add field to ListFilter, update handler, update repository
+   ```go
+   // In domain package
+   type ListFilter struct {
+       ExistingField *string
+       NewField      *string  // Add here
+   }
+   ```
+
+3. **New Status**: Add constant, update Validate(), update schema CHECK
+
+## Decision Points
+
+This section documents where the system makes choices between alternatives.
+
+### Major Decision Points
+
+| Decision | Location | Criteria | Outcomes |
+|----------|----------|----------|----------|
+| **Status validation** | Domain packages | `Validate()` method | Allow/reject status value |
+| **Priority defaulting** | [CODE: api/domain/tasks/task.go#NewTask] | `priority == 0` | Use Medium priority |
+| **Color format validation** | [CODE: api/domain/rules.go#IsValidHexColor] | Regex pattern | Allow/reject color |
+| **Pagination bounds** | [CODE: api/handlers/pagination.go] | Config limits | Clamp to max, apply default |
+| **Error category selection** | Handler methods | Error type/message | Map to error code |
+| **CORS origin matching** | [CODE: api/main.go#isOriginAllowed] | Pattern matching | Allow/block origin |
+| **Retry eligibility** | [CODE: api/handlers/errors.go#retryableErrors] | Error code map | Mark retryable/not |
+
+### Decision Helpers
+
+Shared validation and decision helpers in [CODE: api/domain/rules.go]:
+
+```go
+// Validation limits - single source of truth
+limits := domain.DefaultValidationLimits()
+limits.TaskTitleMaxLength   // 255
+limits.ProjectNameMaxLength // 100
+limits.NoteContentMaxLength // 10000
+
+// Priority validation
+IsPriorityValid(p int) bool
+
+// Color validation
+IsValidHexColor(color string) bool
+
+// Status constants (for switch statements)
+TaskStatuses.Pending, TaskStatuses.InProgress, ...
+ProjectStatuses.Active, ProjectStatuses.Paused, ...
+```
+
+Domain packages (tasks, projects, notes) import `domain.DefaultValidationLimits()` rather than
+defining their own constants. This ensures a single source of truth for validation limits.
+
+### Decision Categories
+
+**Input Validation Decisions**:
+- What input formats are valid?
+- What lengths are acceptable?
+- What values are allowed for enums?
+- Location: Domain packages, rules.go
+
+**Default Value Decisions**:
+- What happens when optional fields are omitted?
+- Location: Domain factory functions (NewTask, NewProject)
+
+**Error Mapping Decisions**:
+- What error code corresponds to each failure mode?
+- What recovery hints should be shown?
+- Location: [CODE: api/handlers/errors.go]
+
+**Configuration Decisions**:
+- What are the runtime-tunable parameters?
+- What are sensible defaults?
+- Location: [CODE: api/config/config.go]
+
+### Future Decision Points (Not Yet Implemented)
+
+| Decision | When Needed | Considerations |
+|----------|-------------|----------------|
+| Status transitions | Workflow enforcement | State machine vs. free transitions |
+| Authorization | Multi-user support | RBAC, ownership, sharing |
+| Rate limiting | Production scale | Per-user, per-endpoint limits |
+| Soft delete | Data retention | Audit trails, recovery |
+
+## CLI Seam
+
+**Location**: [CODE: cli/]
+**Responsibility**: Thin wrapper over API for command-line operations
+
+The CLI provides full feature parity with the API, following the cli-steer pattern of being a thin wrapper that delegates all business logic to the API.
+
+### CLI Architecture
+
+```
+cli/
+├── main.go              # Entry point
+├── app.go               # App struct, command registration, handlers
+├── app_test.go          # CLI tests
+└── install.sh           # Cross-platform installer
+```
+
+### Command Structure
+
+| Domain | Commands | API Endpoints |
+|--------|----------|---------------|
+| Health | `status` | GET /health |
+| Tasks | `task list`, `task get`, `task create`, `task update`, `task delete` | /api/v1/tasks |
+| Projects | `project list`, `project get`, `project create`, `project update`, `project delete` | /api/v1/projects |
+| Notes | `note list`, `note get`, `note create`, `note update`, `note delete` | /api/v1/tasks/{id}/notes, /api/v1/notes/{id} |
+| Config | `configure` | N/A (local config) |
+
+### CLI Design Patterns
+
+**Uses cli-core for:**
+- ScenarioApp scaffolding with global flags
+- APIClient for HTTP requests
+- StandardScenarioEnv for env var derivation
+- Port detection via DetectPortFromVrooli
+- Stale binary detection and auto-rebuild
+- ParseInterspersed for flag/arg handling
+
+**Output modes:**
+- Default: Human-friendly formatted output
+- `--json`: Machine-readable JSON for scripting
+
+**Boundary enforcement:**
+- CLI never implements business logic
+- All operations go through API
+- Validation is minimal (just required args)
+- Error handling follows API error shapes
+
+### Key Files
+
+- [CODE: cli/app.go] - Command registration and handlers
+- [CODE: cli/app_test.go] - Command validation tests
+- [DOC: docs/reference/cli-commands.md] - CLI reference documentation
+
+## UI Stability Seam
+
+**Location**: [CODE: ui/src/App.tsx]
+**Responsibility**: React stability patterns for crash prevention
+
+The UI implements React Stability skill patterns to prevent runtime crashes and ensure graceful degradation.
+
+### TypeScript Safety
+
+- [CODE: ui/tsconfig.node.json] - `strict: true` and `noUncheckedIndexedAccess: true` enabled
+- [CODE: ui/eslint.config.js] - Safety-critical ESLint rules for:
+  - `react-hooks/rules-of-hooks` - Prevents React Error #310
+  - `@typescript-eslint/no-non-null-assertion` - Prevents null assertion operator
+  - `import/no-cycle` - Prevents circular dependencies
+
+### Error Boundaries
+
+- [CODE: ui/src/components/ErrorBoundary.tsx] - Reusable error boundary component
+- Wraps major UI sections to isolate failures
+- Provides fallback UI with retry capability
+
+### Iframe Interop
+
+- [CODE: ui/src/main.tsx] - Bridge initialization with idempotency guard
+- [CODE: ui/vite.config.ts] - Relative base (`./`) for proxy/tunnel contexts
+- [CODE: ui/src/styles.css] - `h-full` height chain for iframe compatibility
+- [CODE: ui/src/hooks/useKeyboardShortcuts.ts] - Centralized keyboard handler with iframe relay
+
+### Key Patterns
+
+| Pattern | Location | Purpose |
+|---------|----------|---------|
+| Error Boundary | [CODE: ui/src/components/ErrorBoundary.tsx] | Isolate component crashes |
+| Iframe Guard | [CODE: ui/src/main.tsx] | Prevent double bridge init |
+| Height Chain | [CODE: ui/src/styles.css] | Correct sizing in iframe |
+| Keyboard Relay | [CODE: ui/src/hooks/useKeyboardShortcuts.ts] | Host shortcut communication |
+
 ## Related Documentation
 
 - [DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md] - Test architecture details
+- [DOC: docs/internal/ERROR_SEMANTICS.md] - Error handling patterns
+- [DOC: docs/internal/TEMPORAL-FLOWS.md] - Async operations and time-based behavior
+- [DOC: docs/internal/INVARIANTS.md] - Replay safety and idempotency patterns
 - [DOC: docs/concepts/ARCHITECTURE.md] - Domain mental model
 - [DOC: docs/reference/api-endpoints.md] - REST API reference
+- [DOC: docs/reference/cli-commands.md] - CLI reference
 - [DOC: docs/reference/data-model.md] - Database schema
 - [DOC: docs/internal/STORAGE_AUDIT.md] - Storage compliance
 
+## React Coherence Seam
+
+**Location**: [CODE: ui/src/App.tsx]
+**Responsibility**: Architectural coherence for maintainability and theming
+
+The UI follows React Coherence skill patterns to ensure the codebase is well-organized, consistent in patterns, and free from avoidable duplication.
+
+### Code Organization
+
+```
+ui/src/
+├── components/
+│   ├── ErrorBoundary.tsx    # Shared error boundary
+│   └── ui/
+│       └── button.tsx        # Primitive with CVA variants
+├── hooks/
+│   └── useKeyboardShortcuts.ts  # Central shortcut handler
+├── lib/
+│   ├── api.ts               # API client (interop slot [F])
+│   └── utils.ts             # Utility functions
+├── consts/
+│   └── selectors.ts         # Test selectors registry
+├── test-utils/              # Test infrastructure
+├── App.tsx                  # App shell
+├── main.tsx                 # Entry point
+└── styles.css               # Global styles with tokens
+```
+
+### Ownership Rules
+
+| Location | Criteria | Examples |
+|----------|----------|----------|
+| `components/ui/` | Lowest-level reusable UI atoms | Button (has CVA variants) |
+| `components/` | Non-design-system shared widgets | ErrorBoundary |
+| `hooks/` | Domain-agnostic hooks | useKeyboardShortcuts |
+| `lib/` | Services and utilities | api.ts, utils.ts |
+
+### State Architecture
+
+- **Current pattern**: Server state only (React Query)
+- **App-wide stores**: None (not needed for current scope)
+- **Recommendation**: Follow state location decision table when expanding
+
+### Styling System
+
+- **Token coverage**: Tailwind defaults (no custom tokens yet)
+- **Primitive variant coverage**: Good (Button uses CVA)
+- **Pattern**: CVA variants for primitives, Tailwind utilities for composition
+
+### Key Files
+
+- [CODE: ui/src/components/ui/button.tsx] - Button primitive with CVA variants
+- [CODE: ui/src/lib/utils.ts] - `cn()` utility for className merging
+- [CODE: ui/src/styles.css] - Global styles with height chain
+- [DOC: docs/internal/COHERENCE-NOTES.md] - Full coherence audit findings
+
 ## Last Updated
 
-2026-03-11 - Added test infrastructure seams and mock patterns
+2026-03-11 - Spec sync verification, confirmed architecture alignment (Phase 15.2)
+2026-03-11 - Added TEMPORAL-FLOWS.md and INVARIANTS.md references (Phase 12)
+2026-03-11 - Added React Coherence Seam (Phase 10)
+2026-03-11 - Added UI Stability Seam with React safety patterns (Phase 9)
+2026-03-11 - Added CLI seam documentation with full API parity (Phase 8)
+2026-03-11 - Consolidated validation limits to use domain.DefaultValidationLimits() (Phase 7 iteration 2)
+2026-03-11 - Added change axes and decision points documentation (Phase 7)

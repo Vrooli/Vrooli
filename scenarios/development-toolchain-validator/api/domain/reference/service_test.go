@@ -761,6 +761,154 @@ func TestService_ValidateUpdate(t *testing.T) {
 	}
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Replay Safety Tests
+// DOC: docs/internal/INVARIANTS.md#testing-replay-safety
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TestService_Create_ReplayReturnsConflict verifies that Create is NOT idempotent -
+// replaying the same create operation returns a conflict error, preventing duplicates.
+func TestService_Create_ReplayReturnsConflict(t *testing.T) {
+	tempDir := t.TempDir()
+	repo := mocks.NewMockRepository()
+	service := reference.NewService(repo)
+	ctx := context.Background()
+
+	input := reference.CreateInput{
+		Slug:     "replay-test",
+		Name:     "Replay Test",
+		Template: "react-vite",
+		Path:     tempDir,
+	}
+
+	// First create should succeed
+	ref1, err := service.Create(ctx, input)
+	if err != nil {
+		t.Fatalf("first create should succeed: %v", err)
+	}
+	if ref1.Slug != input.Slug {
+		t.Errorf("expected slug %q, got %q", input.Slug, ref1.Slug)
+	}
+
+	// Replay (second create) should fail with ErrSlugExists
+	_, err = service.Create(ctx, input)
+	if err == nil {
+		t.Fatal("replay should fail, got nil error")
+	}
+	if !errors.Is(err, reference.ErrSlugExists) {
+		t.Fatalf("expected ErrSlugExists, got %v", err)
+	}
+}
+
+// TestService_Update_ReplayProducesSameState verifies that Update IS idempotent -
+// applying the same update twice produces the same final state.
+func TestService_Update_ReplayProducesSameState(t *testing.T) {
+	tempDir := t.TempDir()
+	repo := mocks.NewMockRepository()
+	repo.WithReference(testutil.NewReferenceFactory().
+		WithID("update-replay-test").
+		WithName("Original Name").
+		WithPath(tempDir).
+		Build())
+	service := reference.NewService(repo)
+	ctx := context.Background()
+
+	input := reference.UpdateInput{
+		Name: testutil.StringPtr("Updated Name"),
+	}
+
+	// First update
+	ref1, err := service.Update(ctx, "update-replay-test", input)
+	if err != nil {
+		t.Fatalf("first update should succeed: %v", err)
+	}
+	if ref1.Name != *input.Name {
+		t.Errorf("expected name %q, got %q", *input.Name, ref1.Name)
+	}
+
+	// Replay (second update with same input)
+	ref2, err := service.Update(ctx, "update-replay-test", input)
+	if err != nil {
+		t.Fatalf("replay should succeed: %v", err)
+	}
+
+	// Verify same result
+	if ref1.Name != ref2.Name {
+		t.Errorf("replay produced different name: %q vs %q", ref1.Name, ref2.Name)
+	}
+}
+
+// TestService_Delete_ReplayIsSafe verifies that Delete is idempotent by outcome -
+// replaying delete leaves the reference deleted (404 on replay is acceptable).
+func TestService_Delete_ReplayIsSafe(t *testing.T) {
+	repo := mocks.NewMockRepository()
+	repo.WithReference(testutil.NewReferenceFactory().
+		WithID("delete-replay-test").
+		Build())
+	service := reference.NewService(repo)
+	ctx := context.Background()
+
+	// First delete should succeed
+	err := service.Delete(ctx, "delete-replay-test")
+	if err != nil {
+		t.Fatalf("first delete should succeed: %v", err)
+	}
+
+	// Replay (second delete) returns ErrNotFound - acceptable
+	err = service.Delete(ctx, "delete-replay-test")
+	if !errors.Is(err, reference.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound on replay, got %v", err)
+	}
+
+	// Either way, reference should be deleted
+	_, err = service.GetByID(ctx, "delete-replay-test")
+	if !errors.Is(err, reference.ErrNotFound) {
+		t.Fatalf("reference should be deleted, got %v", err)
+	}
+}
+
+// TestService_ValidateCreate_NoSideEffects verifies that ValidateCreate (dry-run)
+// has no side effects and can be called repeatedly without changing state.
+func TestService_ValidateCreate_NoSideEffects(t *testing.T) {
+	tempDir := t.TempDir()
+	repo := mocks.NewMockRepository()
+	service := reference.NewService(repo)
+	ctx := context.Background()
+
+	input := reference.CreateInput{
+		Slug:     "dry-run-test",
+		Name:     "Dry Run Test",
+		Template: "react-vite",
+		Path:     tempDir,
+	}
+
+	// Multiple ValidateCreate calls should all succeed
+	for i := 0; i < 3; i++ {
+		_, err := service.ValidateCreate(ctx, input)
+		if err != nil {
+			t.Fatalf("ValidateCreate call %d should succeed: %v", i+1, err)
+		}
+	}
+
+	// No references should be created
+	if repo.CreateCallCount() != 0 {
+		t.Errorf("expected 0 create calls, got %d", repo.CreateCallCount())
+	}
+
+	// Slug should still be available for actual creation
+	ref, err := service.Create(ctx, input)
+	if err != nil {
+		t.Fatalf("create after dry-run should succeed: %v", err)
+	}
+	if ref.Slug != input.Slug {
+		t.Errorf("expected slug %q, got %q", input.Slug, ref.Slug)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Path Normalization Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
 // TestService_Create_PathNormalization verifies that paths are normalized to absolute.
 func TestService_Create_PathNormalization(t *testing.T) {
 	// Create a temp directory with a known structure

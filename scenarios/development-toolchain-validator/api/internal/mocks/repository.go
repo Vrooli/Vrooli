@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/skill"
 )
 
 // MockRepository is a configurable mock implementation of reference.Repository.
@@ -293,3 +294,301 @@ func (m *MockRepository) Reset() {
 
 // Ensure MockRepository implements Repository interface at compile time.
 var _ reference.Repository = (*MockRepository)(nil)
+
+// MockSkillRepository is a configurable mock implementation of skill.Repository.
+type MockSkillRepository struct {
+	mu sync.RWMutex
+
+	// Storage for in-memory state
+	connections    map[string]*skill.Connection
+	refSkillIndex  map[string]string // "refID:skillID" -> connection id mapping
+
+	// Error injection
+	connectErr                      error
+	getByIDErr                      error
+	getByReferenceAndSkillErr       error
+	listErr                         error
+	updateErr                       error
+	disconnectErr                   error
+	disconnectByReferenceAndSkillErr error
+
+	// Call tracking
+	connectCalls                      []skill.ConnectInput
+	getByIDCalls                      []string
+	getByReferenceAndSkillCalls       [][2]string
+	listCalls                         []skill.ListOptions
+	updateCalls                       []skillUpdateCall
+	disconnectCalls                   []string
+	disconnectByReferenceAndSkillCalls [][2]string
+}
+
+type skillUpdateCall struct {
+	ID    string
+	Input skill.UpdateInput
+}
+
+// NewMockSkillRepository creates a new mock skill repository with empty state.
+func NewMockSkillRepository() *MockSkillRepository {
+	return &MockSkillRepository{
+		connections:   make(map[string]*skill.Connection),
+		refSkillIndex: make(map[string]string),
+	}
+}
+
+// Builder methods for configuring the mock
+
+// WithConnection adds a connection to the mock's internal storage.
+func (m *MockSkillRepository) WithConnection(conn *skill.Connection) *MockSkillRepository {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.connections[conn.ID] = conn
+	key := conn.ReferenceID + ":" + conn.SkillID
+	m.refSkillIndex[key] = conn.ID
+	return m
+}
+
+// WithConnectError configures Connect to return an error.
+func (m *MockSkillRepository) WithConnectError(err error) *MockSkillRepository {
+	m.connectErr = err
+	return m
+}
+
+// WithGetByIDError configures GetByID to return an error.
+func (m *MockSkillRepository) WithGetByIDError(err error) *MockSkillRepository {
+	m.getByIDErr = err
+	return m
+}
+
+// WithGetByReferenceAndSkillError configures GetByReferenceAndSkill to return an error.
+func (m *MockSkillRepository) WithGetByReferenceAndSkillError(err error) *MockSkillRepository {
+	m.getByReferenceAndSkillErr = err
+	return m
+}
+
+// WithListError configures List to return an error.
+func (m *MockSkillRepository) WithListError(err error) *MockSkillRepository {
+	m.listErr = err
+	return m
+}
+
+// WithUpdateError configures Update to return an error.
+func (m *MockSkillRepository) WithUpdateError(err error) *MockSkillRepository {
+	m.updateErr = err
+	return m
+}
+
+// WithDisconnectError configures Disconnect to return an error.
+func (m *MockSkillRepository) WithDisconnectError(err error) *MockSkillRepository {
+	m.disconnectErr = err
+	return m
+}
+
+// WithDisconnectByReferenceAndSkillError configures DisconnectByReferenceAndSkill to return an error.
+func (m *MockSkillRepository) WithDisconnectByReferenceAndSkillError(err error) *MockSkillRepository {
+	m.disconnectByReferenceAndSkillErr = err
+	return m
+}
+
+// Repository interface implementation
+
+// Connect creates a new skill-reference connection.
+func (m *MockSkillRepository) Connect(_ context.Context, input skill.ConnectInput) (*skill.Connection, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.connectCalls = append(m.connectCalls, input)
+
+	if m.connectErr != nil {
+		return nil, m.connectErr
+	}
+
+	conn := &skill.Connection{
+		ID:               "mock-connection-id",
+		ReferenceID:      input.ReferenceID,
+		SkillID:          input.SkillID,
+		SkillVersion:     input.SkillVersion,
+		SkillContentHash: input.SkillContentHash,
+	}
+	m.connections[conn.ID] = conn
+	key := conn.ReferenceID + ":" + conn.SkillID
+	m.refSkillIndex[key] = conn.ID
+
+	return conn, nil
+}
+
+// GetByID retrieves a connection by its UUID.
+func (m *MockSkillRepository) GetByID(_ context.Context, id string) (*skill.Connection, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	m.getByIDCalls = append(m.getByIDCalls, id)
+
+	if m.getByIDErr != nil {
+		return nil, m.getByIDErr
+	}
+
+	conn, exists := m.connections[id]
+	if !exists {
+		return nil, skill.ErrNotFound
+	}
+	return conn, nil
+}
+
+// GetByReferenceAndSkill retrieves a connection by reference ID and skill ID.
+func (m *MockSkillRepository) GetByReferenceAndSkill(_ context.Context, referenceID, skillID string) (*skill.Connection, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	m.getByReferenceAndSkillCalls = append(m.getByReferenceAndSkillCalls, [2]string{referenceID, skillID})
+
+	if m.getByReferenceAndSkillErr != nil {
+		return nil, m.getByReferenceAndSkillErr
+	}
+
+	key := referenceID + ":" + skillID
+	id, exists := m.refSkillIndex[key]
+	if !exists {
+		return nil, skill.ErrNotFound
+	}
+	return m.connections[id], nil
+}
+
+// List retrieves connections with optional filtering.
+func (m *MockSkillRepository) List(_ context.Context, opts skill.ListOptions) ([]*skill.Connection, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	m.listCalls = append(m.listCalls, opts)
+
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+
+	var result []*skill.Connection
+	for _, conn := range m.connections {
+		if opts.ReferenceID != "" && conn.ReferenceID != opts.ReferenceID {
+			continue
+		}
+		if opts.SkillID != "" && conn.SkillID != opts.SkillID {
+			continue
+		}
+		result = append(result, conn)
+	}
+
+	if opts.Limit > 0 && len(result) > opts.Limit {
+		result = result[:opts.Limit]
+	}
+
+	return result, nil
+}
+
+// Update modifies an existing connection.
+func (m *MockSkillRepository) Update(_ context.Context, id string, input skill.UpdateInput) (*skill.Connection, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.updateCalls = append(m.updateCalls, skillUpdateCall{ID: id, Input: input})
+
+	if m.updateErr != nil {
+		return nil, m.updateErr
+	}
+
+	conn, exists := m.connections[id]
+	if !exists {
+		return nil, skill.ErrNotFound
+	}
+
+	if input.SkillVersion != nil {
+		conn.SkillVersion = *input.SkillVersion
+	}
+	if input.SkillContentHash != nil {
+		conn.SkillContentHash = *input.SkillContentHash
+	}
+
+	return conn, nil
+}
+
+// Disconnect removes a skill-reference connection by ID.
+func (m *MockSkillRepository) Disconnect(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.disconnectCalls = append(m.disconnectCalls, id)
+
+	if m.disconnectErr != nil {
+		return m.disconnectErr
+	}
+
+	conn, exists := m.connections[id]
+	if !exists {
+		return skill.ErrNotFound
+	}
+
+	key := conn.ReferenceID + ":" + conn.SkillID
+	delete(m.refSkillIndex, key)
+	delete(m.connections, id)
+	return nil
+}
+
+// DisconnectByReferenceAndSkill removes a connection by reference ID and skill ID.
+func (m *MockSkillRepository) DisconnectByReferenceAndSkill(_ context.Context, referenceID, skillID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.disconnectByReferenceAndSkillCalls = append(m.disconnectByReferenceAndSkillCalls, [2]string{referenceID, skillID})
+
+	if m.disconnectByReferenceAndSkillErr != nil {
+		return m.disconnectByReferenceAndSkillErr
+	}
+
+	key := referenceID + ":" + skillID
+	id, exists := m.refSkillIndex[key]
+	if !exists {
+		return skill.ErrNotFound
+	}
+
+	delete(m.refSkillIndex, key)
+	delete(m.connections, id)
+	return nil
+}
+
+// Assertion methods for verifying mock interactions
+
+// ConnectCallCount returns the number of times Connect was called.
+func (m *MockSkillRepository) ConnectCallCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.connectCalls)
+}
+
+// DisconnectCallCount returns the number of times Disconnect was called.
+func (m *MockSkillRepository) DisconnectCallCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.disconnectCalls)
+}
+
+// UpdateCallCount returns the number of times Update was called.
+func (m *MockSkillRepository) UpdateCallCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.updateCalls)
+}
+
+// ResetSkill clears all call tracking and internal state.
+func (m *MockSkillRepository) ResetSkill() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.connections = make(map[string]*skill.Connection)
+	m.refSkillIndex = make(map[string]string)
+	m.connectCalls = nil
+	m.getByIDCalls = nil
+	m.getByReferenceAndSkillCalls = nil
+	m.listCalls = nil
+	m.updateCalls = nil
+	m.disconnectCalls = nil
+	m.disconnectByReferenceAndSkillCalls = nil
+}
+
+// Ensure MockSkillRepository implements skill.Repository interface at compile time.
+var _ skill.Repository = (*MockSkillRepository)(nil)

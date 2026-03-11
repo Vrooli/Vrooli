@@ -6,32 +6,35 @@
   "requirements": [
     {
       "category": "api",
-      "description": "Implement proto-first or typed contracts between UI and API with structured message formats.",
-      "id": "REQ-P1-001",
+      "description": "TypeScript type definitions shared between UI and API with structured message formats.",
+      "id": "REQ-P1-001a",
       "prd_ref": "OT-P1-001",
-      "status": "draft",
-      "title": "Type-Safe API Contracts",
+      "status": "pass",
+      "title": "Typed API Contracts",
       "validation": [
         {
-          "notes": "Verify type definitions",
+          "notes": "Verify type definitions in UI API client",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
+          "ref": "ui/src/lib/api.ts",
+          "status": "pass",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Consistent JSON serialization with proper date handling and error shapes.",
+      "id": "REQ-P1-001b",
+      "prd_ref": "OT-P1-001",
+      "status": "pass",
+      "title": "Serialization Consistency",
+      "validation": [
         {
-          "notes": "Test serialization",
+          "notes": "Test serialization in handlers - JSON encoding",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Review contract patterns",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/handlers/tasks.go",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

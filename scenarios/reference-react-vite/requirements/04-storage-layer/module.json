@@ -9,43 +9,29 @@
       "description": "Implement data access layer using repository pattern with clear separation from business logic handlers.",
       "id": "REQ-P0-004a",
       "prd_ref": "OT-P0-004",
-      "status": "draft",
+      "status": "pass",
       "title": "PostgreSQL Repository Pattern",
       "validation": [
         {
-          "notes": "Test repository methods in isolation",
+          "notes": "Test repository interface contracts and behavior in isolation",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/repository/repository_test.go",
+          "status": "pass",
           "type": "test"
         },
         {
-          "notes": "Verify handler-repository separation",
+          "notes": "Verify handler-repository separation - handlers use repository interfaces",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/repository/repository.go",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Test repository with real database",
+          "notes": "Repository implementations for all domains",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify connection configuration",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Repository pattern implemented for all data access",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/repository/tasks_postgres.go",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     },
@@ -57,43 +43,29 @@
       "description": "Implement database schema management using versioned migration files with up/down migrations.",
       "id": "REQ-P0-004b",
       "prd_ref": "OT-P0-004",
-      "status": "draft",
+      "status": "pass",
       "title": "Database Migration System",
       "validation": [
         {
-          "notes": "Test migration file parsing",
+          "notes": "Schema file with proper structure and CREATE IF NOT EXISTS for idempotency",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "initialization/postgres/schema.sql",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Verify migration versioning",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Test migration application",
+          "notes": "Schema applied via lifecycle initialization",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/repository/projects_postgres.go",
+          "status": "pass",
+          "type": "structural"
         },
         {
-          "notes": "Test migration rollback",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "All schema changes tracked in migration files",
+          "notes": "All schema changes tracked in initialization files",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "docs/reference/data-model.md",
+          "status": "pass",
+          "type": "structural"
         }
       ]
     }

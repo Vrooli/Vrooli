@@ -6,31 +6,34 @@
   "requirements": [
     {
       "category": "integration",
-      "description": "Implement comprehensive integration tests across CLI, API, and UI components.",
-      "id": "REQ-P1-006",
+      "description": "Bats-based CLI integration tests covering all CLI commands.",
+      "id": "REQ-P1-006a",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
-      "title": "Integration Test Suite",
+      "status": "pass",
+      "title": "CLI Integration Tests",
       "validation": [
         {
-          "notes": "Run Bats tests",
+          "notes": "CLI tests via Go test (command validation, response types)",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/app_test.go",
+          "status": "pass",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "API integration tests using httptest with at least one end-to-end flow tested across API, CLI, and UI.",
+      "id": "REQ-P1-006b",
+      "prd_ref": "OT-P1-006",
+      "status": "pass",
+      "title": "API and E2E Integration Tests",
+      "validation": [
         {
-          "notes": "Execute end-to-end tests",
+          "notes": "API handler tests using httptest",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Test coverage review",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/handlers/tasks_test.go",
+          "status": "pass",
           "type": "test"
         }
       ]

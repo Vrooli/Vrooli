@@ -1,5 +1,20 @@
 // DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md#ui-test-utilities
 // Test data factories for creating mock data
+//
+// IMPORTANT: Types are imported from lib/api.ts to maintain a single source of truth.
+// This prevents type drift between production code and test utilities.
+
+import type {
+  HealthResponse,
+  Task,
+  Project,
+  Note,
+  PaginationMeta,
+  ListResponse,
+} from '../lib/api';
+
+// Re-export types for convenient test imports
+export type { HealthResponse, Task, Project, Note, PaginationMeta, ListResponse };
 
 /**
  * Creates a mock health response matching the API's actual response shape.
@@ -11,12 +26,6 @@ export function createMockHealthResponse(overrides: Partial<HealthResponse> = {}
     timestamp: new Date().toISOString(),
     ...overrides,
   };
-}
-
-export interface HealthResponse {
-  status: string;
-  service: string;
-  timestamp: string;
 }
 
 /**
@@ -35,18 +44,6 @@ export function createMockTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-export interface Task {
-  id: string;
-  project_id?: string;
-  title: string;
-  description?: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'archived';
-  priority: 1 | 2 | 3;
-  due_date?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 /**
  * Creates a mock project.
  */
@@ -57,22 +54,10 @@ export function createMockProject(overrides: Partial<Project> = {}): Project {
     description: 'A test project description',
     status: 'active',
     color: '#3498db',
-    task_count: 0,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
   };
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  status: 'active' | 'paused' | 'complete' | 'archived';
-  color?: string;
-  task_count?: number;
-  created_at: string;
-  updated_at: string;
 }
 
 /**
@@ -90,21 +75,12 @@ export function createMockNote(overrides: Partial<Note> = {}): Note {
   };
 }
 
-export interface Note {
-  id: string;
-  task_id: string;
-  content: string;
-  author?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 /**
  * Creates a mock list response with pagination.
  */
 export function createMockListResponse<T>(
   data: T[],
-  pagination: Partial<Pagination> = {}
+  pagination: Partial<PaginationMeta> = {}
 ): ListResponse<T> {
   return {
     data,
@@ -115,15 +91,4 @@ export function createMockListResponse<T>(
       ...pagination,
     },
   };
-}
-
-export interface Pagination {
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface ListResponse<T> {
-  data: T[];
-  pagination: Pagination;
 }
