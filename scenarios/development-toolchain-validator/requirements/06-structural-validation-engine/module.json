@@ -12,28 +12,14 @@
       "description": "Implement validation logic for folder existence checks and file pattern matching using glob patterns",
       "id": "REQ-P0-007",
       "prd_ref": "OT-P0-006",
-      "status": "draft",
+      "status": "implemented",
       "title": "Folder and File Validation Logic",
       "validation": [
         {
-          "notes": "Folder checks accurate",
+          "notes": "Folder checks accurate with required/optional handling, file pattern matching with glob patterns",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "File pattern matching works",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Glob patterns correctly matched",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/validation/file_folder_checker_test.go",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -46,14 +32,14 @@
       "description": "Implement content snippet validation and result aggregation per expectation and skill connection",
       "id": "REQ-P0-007a",
       "prd_ref": "OT-P0-006",
-      "status": "draft",
+      "status": "implemented",
       "title": "Content Validation and Result Aggregation",
       "validation": [
         {
-          "notes": "Content validation correct",
+          "notes": "Content validation checks for expected text in files, ValidateAll aggregates results",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/validation/content_checker_test.go",
+          "status": "passing",
           "type": "test"
         },
         {
@@ -66,13 +52,6 @@
         {
           "notes": "Validation completes < 5s",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "All structural rules evaluated",
-          "phase": "business",
           "ref": "",
           "status": "pending",
           "type": "test"

@@ -20,7 +20,7 @@
 
 ## Test Gaps
 
-- **Validation domain tests**: The `domain/validation/` package has no tests. This domain is `draft` status (REQ-P0-007, REQ-P0-007a, REQ-P0-008, REQ-P0-008a) and not yet implemented.
+- **Validation domain handlers**: The `domain/validation/` package now has structural checker and CLI executor implementations with 91.0% coverage, but no HTTP handlers yet for running validations via API.
 - **Report domain tests**: The `domain/report/` package has no tests. This domain is `draft` status (REQ-P0-010) and not yet implemented.
 - **Expectation handler response body validation**: Some tests check HTTP status but not response body content. Added tests for InvalidJSON error responses (2026-03-11).
 - **CLI test coverage**: CLI tests cover reference and connection commands with 53.1% coverage. Expectation/validation CLI commands are not yet implemented (REQ-P0-011a pending).
@@ -33,3 +33,5 @@
 - ~~**Testutil coverage at 40.3%**: Missing tests for DecodeJSONResponse and factory builder methods.~~ **RESOLVED (2026-03-11)**: Added `TestDecodeJSONResponse`, `TestReferenceFactory` (9 subtests), `TestCreateInputFactory` (7 subtests). Coverage improved 40.3% → 90.3%.
 - ~~**Expectation domain coverage at 76.8%**: Missing tests for GetByID, Delete, and CLI operations.~~ **RESOLVED (2026-03-11)**: Added 12 new tests covering GetStructuralByID, DeleteStructural, GetCLIByID, ListCLI, DeleteCLI, DeleteCLIByConnection, WithConfig, plus validation failure tests. Coverage improved 76.8% → 98.2%.
 - ~~**CLI coverage at 32.4%**: CLI tests covered command routing but limited coverage for create/update/get/delete/drift validation flows.~~ **IMPROVED (2026-03-11)**: Added 23 new CLI tests covering alias commands, create field validation (all 4 required fields), update field validation, get/delete validation, connection connect/get/disconnect/drift validation. Coverage improved 32.4% → 53.1%.
+- ~~**Validation domain tests**: The `domain/validation/` package has no tests.~~ **RESOLVED (2026-03-11)**: Implemented structural validation engine with `model.go` (validation types), `structural_checker.go` (file/folder/content validation), and comprehensive `structural_checker_test.go` (25+ tests). Coverage: 89.4%. REQ-P0-007/REQ-P0-007a status updated from `draft` to `implemented`.
+- ~~**CLI tool validation**: The CLI executor for running assertions against tool output (OT-P0-007) is not yet implemented.~~ **RESOLVED (2026-03-11)**: Implemented CLI executor with `cli_executor.go` (command execution with timeout/sandboxing, JSON parsing, JSONPath extraction, all 10 assertion operators). Split tests: `cli_command_test.go` (REQ-P0-008, 8 tests) and `cli_assertion_test.go` (REQ-P0-008a, 12 tests). Coverage: 91.0%. REQ-P0-008/REQ-P0-008a status updated from `draft` to `implemented`.

@@ -30,9 +30,9 @@
       "title": "API and E2E Integration Tests",
       "validation": [
         {
-          "notes": "API handler tests using httptest",
+          "notes": "Dedicated integration tests for CRUD workflow and error consistency",
           "phase": "integration",
-          "ref": "api/handlers/tasks_test.go",
+          "ref": "api/handlers/integration_test.go",
           "status": "pass",
           "type": "test"
         }

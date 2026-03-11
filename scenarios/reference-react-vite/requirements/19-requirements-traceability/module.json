@@ -30,9 +30,9 @@
       "title": "Test-Requirement Linking",
       "validation": [
         {
-          "notes": "Requirement tags in test files",
+          "notes": "Dedicated traceability tests demonstrating requirement tagging pattern",
           "phase": "unit",
-          "ref": "api/handlers/tasks_test.go",
+          "ref": "api/handlers/traceability_test.go",
           "status": "pass",
           "type": "structural"
         }

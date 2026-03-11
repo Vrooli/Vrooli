@@ -8,7 +8,7 @@ This document tracks known issues, tech debt, and deferred work for future agent
 
 | ID | Component | Description | Severity | Added |
 |----|-----------|-------------|----------|-------|
-| P009 | Scoring | Completeness score 45/100, target is 96+ | 4/5 | 2026-03-11 |
+| P009 | Scoring | Completeness score 47/100, target is 96+ | 4/5 | 2026-03-11 |
 
 ### Medium Priority
 
@@ -22,7 +22,6 @@ This document tracks known issues, tech debt, and deferred work for future agent
 | ID | Component | Description | Severity | Added |
 |----|-----------|-------------|----------|-------|
 | P011 | Auditor | 4 PRD-related auditor violations (read-only file) | 2/5 | 2026-03-11 |
-| P012 | Validation | Monolithic test file penalty (2 points) - tasks_test.go validates 4 requirements | 2/5 | 2026-03-11 |
 
 ## Tech Debt
 
@@ -75,7 +74,8 @@ This document tracks known issues, tech debt, and deferred work for future agent
 | P008 | 1:1 requirement mapping penalty | Decomposed to 40 requirements across 20 modules (0% 1:1 mapping) | 2026-03-11 |
 | R003 | Type duplication in UI | Consolidated types in api.ts, factories.ts imports from canonical source | 2026-03-11 |
 | R004 | meta vs pagination field mismatch | Fixed api.ts to use pagination matching actual API response | 2026-03-11 |
+| P012 | Monolithic test file penalty (2 points) | Split tasks_test.go into focused test files: filtering_test.go, integration_test.go, traceability_test.go | 2026-03-11 |
 
 ## Last Updated
 
-2026-03-11 - Synced with current implementation state (Phase 15: Spec Sync)
+2026-03-11 - Phase 16 Test Suite Strengthening (monolithic test penalty eliminated)

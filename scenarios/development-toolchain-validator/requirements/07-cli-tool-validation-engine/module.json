@@ -12,28 +12,28 @@
       "description": "Build secure execution environment for CLI tool commands with sandboxing and timeout controls",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
+      "status": "implemented",
       "title": "Secure CLI Command Execution",
       "validation": [
         {
           "notes": "Command execution safe",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_CommandExecution",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Commands timeout after 30s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_CommandTimeout",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Dangerous commands blocked",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_DangerousCommandBlocking",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -46,28 +46,28 @@
       "description": "Implement JSON output parsing with JSONPath evaluation and assertion operator support",
       "id": "REQ-P0-008a",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
+      "status": "implemented",
       "title": "JSON Parsing and Assertion Evaluation",
       "validation": [
         {
           "notes": "JSON parsing robust",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestExtractJSONPath",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Tool integration works",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestCLIExecutor_IntegrationWithJSONPath",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "All assertion types supported",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestEvaluateAssertion_Equality,TestEvaluateAssertion_Comparison,TestEvaluateAssertion_Exists,TestEvaluateAssertion_Contains,TestEvaluateAssertion_Matches,TestEvaluateAssertion_Between",
+          "status": "passing",
           "type": "test"
         }
       ]

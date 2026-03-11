@@ -30,9 +30,9 @@
       "title": "Filtering and Sorting",
       "validation": [
         {
-          "notes": "Verify filtering behavior (status, priority, project_id)",
+          "notes": "Dedicated filtering tests (status, priority, project_id, combined)",
           "phase": "integration",
-          "ref": "api/handlers/tasks_test.go",
+          "ref": "api/handlers/filtering_test.go",
           "status": "pass",
           "type": "test"
         }
