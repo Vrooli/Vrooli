@@ -2474,6 +2474,7 @@ export default function App() {
           scenarioSlug={reviewState?.slug ?? ""}
           repoId={repoId}
           fileStats={reviewState?.fileStats}
+          onChangeScenario={(slug) => setReviewState({ slug })}
         />
       </div>
     );
@@ -2695,6 +2696,7 @@ export default function App() {
         scenarioSlug={reviewState?.slug ?? ""}
         repoId={repoId}
         fileStats={reviewState?.fileStats}
+        onChangeScenario={(slug) => setReviewState({ slug })}
       />
     </div>
   );

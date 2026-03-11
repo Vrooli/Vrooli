@@ -1878,7 +1878,7 @@ export interface AgentRejectRequest {
   reason?: string;
 }
 
-export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary";
+export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary" | "scenario-quality";
 
 export interface AgentContextItem {
   kind: AgentContextKind;
@@ -2000,6 +2000,26 @@ export async function rejectAgentRun(
     body: JSON.stringify(request),
   });
   return handleResponse<AgentRun>(res);
+}
+
+// ============================================================================
+// Scenario Listing
+// ============================================================================
+
+export interface ScenarioInfo {
+  name: string;
+  display_name: string;
+  description: string;
+  status: "running" | "stopped";
+  health_status: string | null;
+  tags: string[];
+  runtime: string;
+}
+
+export async function fetchScenarios(): Promise<ScenarioInfo[]> {
+  const url = buildApiUrl("/scenarios", { baseUrl: API_BASE });
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
+  return handleResponse<ScenarioInfo[]>(res);
 }
 
 export async function stopAgentRun(runId: string, repoId?: string): Promise<AgentRun> {

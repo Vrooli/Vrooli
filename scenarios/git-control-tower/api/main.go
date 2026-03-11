@@ -49,6 +49,7 @@ type Server struct {
 	testGenieClient      *TestGenieClient
 	tidinessClient       *TidinessManagerClient
 	agentManagerClient   *AgentManagerClient
+	scenarioLocator      *ScenarioLocator
 }
 
 // NewServer initializes configuration, database, and routes
@@ -139,6 +140,7 @@ func NewServer() (*Server, error) {
 	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
 	srv.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	srv.agentManagerClient = NewAgentManagerClient(120 * time.Second)
+	srv.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
@@ -195,6 +197,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/search/content", s.handleContentSearch).Methods("GET")
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios", s.handleScenarioList).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints

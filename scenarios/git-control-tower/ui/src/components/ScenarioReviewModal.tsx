@@ -9,7 +9,8 @@ import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileSta
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
-import { testFailureContextItems, codeQualityContextItems } from "../lib/agentContext";
+import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
+import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
 type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality" | "agent";
 
@@ -19,10 +20,12 @@ interface ScenarioReviewModalProps {
   scenarioSlug: string;
   repoId?: string | null;
   fileStats?: RepoFileStats;
+  onChangeScenario?: (slug: string) => void;
 }
 
-export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fileStats }: ScenarioReviewModalProps) {
+export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fileStats, onChangeScenario }: ScenarioReviewModalProps) {
   const isMobile = useIsMobile();
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const capturesQuery = useVisualCaptures(scenarioSlug, isOpen, repoId);
   const triggerCapture = useTriggerVisualCapture(repoId);
@@ -121,6 +124,8 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
           isCapturing={isCapturing}
           onCapture={() => triggerCapture.mutate(scenarioSlug)}
           fileStats={fileStats}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={addAgentContext}
         />
       ) : activeTab === "metrics" ? (
         fileStats ? <AggregateMetricsContent fileStats={fileStats} /> : null
@@ -201,9 +206,20 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
           <div className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-slate-400" />
             <div>
-              <h2 className="font-semibold text-slate-100 text-base">
-                {scenarioSlug}
-              </h2>
+              {onChangeScenario ? (
+                <button
+                  type="button"
+                  onClick={() => setIsPickerOpen(true)}
+                  className="font-semibold text-slate-100 text-base hover:text-blue-400 cursor-pointer flex items-center gap-1 transition-colors"
+                >
+                  {scenarioSlug}
+                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                </button>
+              ) : (
+                <h2 className="font-semibold text-slate-100 text-base">
+                  {scenarioSlug}
+                </h2>
+              )}
               {after && (
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   Last captured: {new Date(after.createdAt).toLocaleString()}
@@ -245,6 +261,15 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
             Done
           </Button>
         </div>
+        <ScenarioPickerModal
+          isOpen={isPickerOpen}
+          onClose={() => setIsPickerOpen(false)}
+          currentScenario={scenarioSlug}
+          onSelect={(slug) => {
+            setIsPickerOpen(false);
+            onChangeScenario?.(slug);
+          }}
+        />
       </div>
     );
   }
@@ -262,9 +287,20 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
           <div className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-slate-400" />
             <div>
-              <h2 className="font-semibold text-slate-100 text-sm">
-                {scenarioSlug}
-              </h2>
+              {onChangeScenario ? (
+                <button
+                  type="button"
+                  onClick={() => setIsPickerOpen(true)}
+                  className="font-semibold text-slate-100 text-sm hover:text-blue-400 cursor-pointer flex items-center gap-1 transition-colors"
+                >
+                  {scenarioSlug}
+                  <ChevronDown className="h-3 w-3 text-slate-500" />
+                </button>
+              ) : (
+                <h2 className="font-semibold text-slate-100 text-sm">
+                  {scenarioSlug}
+                </h2>
+              )}
               {after && (
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   Last captured: {new Date(after.createdAt).toLocaleString()}
@@ -301,6 +337,15 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
         {captureBanner}
         {tabNav(false)}
         {tabContent}
+        <ScenarioPickerModal
+          isOpen={isPickerOpen}
+          onClose={() => setIsPickerOpen(false)}
+          currentScenario={scenarioSlug}
+          onSelect={(slug) => {
+            setIsPickerOpen(false);
+            onChangeScenario?.(slug);
+          }}
+        />
       </div>
     </div>
   );
@@ -467,6 +512,8 @@ function OverviewTab({
   isCapturing,
   onCapture,
   fileStats,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   after?: SnapshotSetMeta;
   scenarioSlug: string;
@@ -477,6 +524,8 @@ function OverviewTab({
   isCapturing: boolean;
   onCapture: () => void;
   fileStats?: RepoFileStats;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
@@ -524,7 +573,12 @@ function OverviewTab({
         if (!agg || agg.totalFiles === 0) return null;
         return (
           <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-            <h3 className="text-xs font-medium text-slate-400 mb-3">Change Summary</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-medium text-slate-400">Change Summary</h3>
+              {agentManagerAvailable && onAttachToAgent && (
+                <AttachToAgentButton onClick={() => onAttachToAgent(changeSummaryContextItem(fileStats))} />
+              )}
+            </div>
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1 text-emerald-500 text-sm font-medium">
                 <Plus className="h-3.5 w-3.5" />
@@ -586,7 +640,17 @@ function OverviewTab({
 
       {/* Test Status Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="text-xs font-medium text-slate-400 mb-3">Test Status</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-medium text-slate-400">Test Status</h3>
+          {agentManagerAvailable && onAttachToAgent && latestTest && !latestTest.success && (
+            <AttachToAgentButton onClick={() => {
+              const failedPhases = latestTest.phases.filter(p => p.status === "failed");
+              for (const item of testFailureContextItems(failedPhases)) {
+                onAttachToAgent(item);
+              }
+            }} />
+          )}
+        </div>
         {!testGenieAvailable ? (
           <p className="text-xs text-slate-500">Test Genie not available</p>
         ) : testExecutions.isLoading ? (
@@ -627,7 +691,12 @@ function OverviewTab({
 
       {/* Code Quality Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="text-xs font-medium text-slate-400 mb-3">Code Quality</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-medium text-slate-400">Code Quality</h3>
+          {agentManagerAvailable && onAttachToAgent && tidinessScore.data && hasBeenScanned && tidinessScore.data.violations > 0 && (
+            <AttachToAgentButton onClick={() => onAttachToAgent(scenarioQualityContextItem(tidinessScore.data as { score: number; violations: number }))} />
+          )}
+        </div>
         {!tidinessAvailable ? (
           <p className="text-xs text-slate-500">Tidiness Manager not available</p>
         ) : tidinessScore.isLoading ? (
@@ -1440,6 +1509,8 @@ function CodeQualityTab({
         <ScenarioWideView
           scoreData={tidinessScore.data}
           isLoading={tidinessScore.isLoading}
+          agentManagerAvailable={agentManagerAvailable}
+          onAttachToAgent={onAttachToAgent}
         />
       )}
     </div>
@@ -1508,12 +1579,12 @@ function ChangedFilesView({
         <div className="space-y-1">
           {Array.from(issuesByFile.entries()).map(([filePath, fileIssues]) => (
             <div key={filePath} className="rounded border border-slate-800/50 bg-slate-900/30">
-              <button
-                type="button"
-                onClick={() => setExpandedFile(expandedFile === filePath ? null : filePath)}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-slate-800/30"
-              >
-                <div className="flex items-center gap-2">
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setExpandedFile(expandedFile === filePath ? null : filePath)}
+                  className="flex-1 flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-slate-800/30"
+                >
                   {expandedFile === filePath ? (
                     <ChevronDown className="h-3 w-3 text-slate-500" />
                   ) : (
@@ -1521,8 +1592,17 @@ function ChangedFilesView({
                   )}
                   <code className="text-slate-200">{filePath}</code>
                   <span className="text-slate-500">({fileIssues.length} issue{fileIssues.length !== 1 ? "s" : ""})</span>
-                </div>
-              </button>
+                </button>
+                {agentManagerAvailable && onAttachToAgent && (
+                  <div className="pr-2">
+                    <AttachToAgentButton onClick={() => {
+                      for (const item of codeQualityContextItems(fileIssues)) {
+                        onAttachToAgent(item);
+                      }
+                    }} />
+                  </div>
+                )}
+              </div>
               {expandedFile === filePath && (
                 <div className="px-3 pb-3 pt-1 border-t border-slate-800/30 space-y-1.5">
                   {fileIssues.map(issue => (
@@ -1556,6 +1636,8 @@ function ChangedFilesView({
 function ScenarioWideView({
   scoreData,
   isLoading,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   scoreData?: {
     score: number;
@@ -1578,6 +1660,8 @@ function ScenarioWideView({
     };
   } | null;
   isLoading: boolean;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   if (isLoading) {
     return (
@@ -1620,7 +1704,12 @@ function ScenarioWideView({
         </div>
         <div className="flex justify-between text-xs">
           <span className="text-slate-400">Violations</span>
-          <span className="text-slate-200">{scoreData.violations}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-200">{scoreData.violations}</span>
+            {agentManagerAvailable && onAttachToAgent && scoreData.violations > 0 && (
+              <AttachToAgentButton onClick={() => onAttachToAgent(scenarioQualityContextItem(scoreData))} />
+            )}
+          </div>
         </div>
       </div>
 

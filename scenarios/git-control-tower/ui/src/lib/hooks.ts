@@ -61,6 +61,7 @@ import {
   fetchTidinessStaleness,
   triggerTidinessLightScan,
   fetchTidinessScenarioDetail,
+  fetchScenarios,
   fetchAgentProfiles,
   createAgentRun,
   fetchAgentRuns,
@@ -131,6 +132,7 @@ import {
   type AgentContinueRequest,
   type AgentApproveRequest,
   type AgentRejectRequest,
+  type ScenarioInfo,
 } from "./api";
 
 export const queryKeys = {
@@ -184,6 +186,7 @@ export const queryKeys = {
     ["repo", "tidiness-staleness", repoId ?? "default", scenarioName] as const,
   tidinessScenarioDetail: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-scenario", repoId ?? "default", scenarioName] as const,
+  scenarios: ["scenarios"] as const,
   agentProfiles: ["agent", "profiles"] as const,
   agentRuns: (slug: string, repoId?: string | null) =>
     ["agent", "runs", repoId ?? "default", slug] as const,
@@ -897,6 +900,15 @@ function agentPollingInterval(status?: AgentRunStatus): number | false {
   if (AGENT_ACTIVE_STATUSES.includes(status)) return 2_000;
   if (status === "needs_review") return 5_000;
   return false; // terminal states: complete, failed, cancelled
+}
+
+export function useScenarios(enabled = true) {
+  return useQuery<ScenarioInfo[], Error>({
+    queryKey: queryKeys.scenarios,
+    queryFn: fetchScenarios,
+    enabled,
+    staleTime: 30_000,
+  });
 }
 
 export function useAgentProfiles(enabled = true) {

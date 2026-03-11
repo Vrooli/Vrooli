@@ -90,6 +90,45 @@ export function changeSummaryContextItem(fileStats: RepoFileStats): AgentContext
   };
 }
 
+/** Build a context item from scenario-wide quality data. */
+export function scenarioQualityContextItem(scoreData: {
+  score: number;
+  violations: number;
+  breakdown?: {
+    lint_issues: number;
+    type_issues: number;
+    long_files: number;
+    complex_functions: number;
+    tech_debt_markers: number;
+    duplication_issues: number;
+  };
+}): AgentContextItem {
+  let md = `### Scenario Code Quality\n\n`;
+  md += `- **Score:** ${Math.round(scoreData.score)}/100\n`;
+  md += `- **Violations:** ${scoreData.violations}\n`;
+  if (scoreData.breakdown) {
+    md += `\n**Breakdown:**\n`;
+    const entries: [string, number][] = [
+      ["Lint issues", scoreData.breakdown.lint_issues],
+      ["Type issues", scoreData.breakdown.type_issues],
+      ["Long files", scoreData.breakdown.long_files],
+      ["Complex functions", scoreData.breakdown.complex_functions],
+      ["Tech debt markers", scoreData.breakdown.tech_debt_markers],
+      ["Duplication", scoreData.breakdown.duplication_issues],
+    ];
+    for (const [label, value] of entries) {
+      if (value > 0) md += `- ${label}: ${value}\n`;
+    }
+  }
+
+  return {
+    kind: "scenario-quality" as const,
+    id: "scenario-quality",
+    label: `Code Quality: ${Math.round(scoreData.score)}/100 (${scoreData.violations} violations)`,
+    markdown: md,
+  };
+}
+
 /** Compose a full prompt from user message and attached context items. */
 export function composePrompt(message: string, contextItems: AgentContextItem[]): string {
   let prompt = message.trim();
