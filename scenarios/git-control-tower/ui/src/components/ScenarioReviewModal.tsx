@@ -3,13 +3,13 @@ import { createPortal } from "react-dom";
 import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution } from "../lib/hooks";
+import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats } from "../lib/api";
+import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 
-type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests";
+type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality";
 
 interface ScenarioReviewModalProps {
   isOpen: boolean;
@@ -32,6 +32,9 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
   const testGenieAvailable = capabilities.data?.capabilities?.some(
     c => c.id === "test-genie" && c.status === "available"
   ) ?? false;
+  const tidinessAvailable = capabilities.data?.capabilities?.some(
+    c => c.id === "tidiness-manager" && c.status === "available"
+  ) ?? false;
 
   if (!isOpen) return null;
 
@@ -48,10 +51,15 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
     screenshots: "Screenshots",
     videos: "Videos",
     tests: "Tests",
+    "code-quality": "Code Quality",
   };
 
   const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
-    tab => tab !== "metrics" || fileStats
+    tab => {
+      if (tab === "metrics") return Boolean(fileStats);
+      if (tab === "code-quality") return tidinessAvailable;
+      return true;
+    }
   );
 
   const captureBanner = isCapturing && (
@@ -89,6 +97,7 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
           repoId={repoId}
           basAvailable={basAvailable}
           testGenieAvailable={testGenieAvailable}
+          tidinessAvailable={tidinessAvailable}
           isCapturing={isCapturing}
           onCapture={() => triggerCapture.mutate(scenarioSlug)}
           fileStats={fileStats}
@@ -129,11 +138,18 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fil
             onCapture={() => triggerCapture.mutate(scenarioSlug)}
           />
         )
-      ) : (
+      ) : activeTab === "tests" ? (
         <TestsTab
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           testGenieAvailable={testGenieAvailable}
+        />
+      ) : (
+        <CodeQualityTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          tidinessAvailable={tidinessAvailable}
+          fileStats={fileStats}
         />
       )}
     </div>
@@ -414,6 +430,7 @@ function OverviewTab({
   repoId,
   basAvailable,
   testGenieAvailable,
+  tidinessAvailable,
   isCapturing,
   onCapture,
   fileStats,
@@ -423,22 +440,29 @@ function OverviewTab({
   repoId?: string | null;
   basAvailable: boolean;
   testGenieAvailable: boolean;
+  tidinessAvailable: boolean;
   isCapturing: boolean;
   onCapture: () => void;
   fileStats?: RepoFileStats;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
+  const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
+  const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
 
   // Readiness logic
   const hasScreenshots = after && after.screenshotCount > 0;
   const hasTests = Boolean(latestTest);
   const testsPass = latestTest?.success ?? false;
+  const qualityScore = tidinessScore.data?.score ?? null;
+  const hasBeenScanned = Boolean(tidinessStaleness.data?.last_scan_at) ||
+    (tidinessStaleness.data ? !tidinessStaleness.data.stale_reason?.includes("no scans") : false);
+  const qualityOk = hasBeenScanned && qualityScore !== null && qualityScore >= 60;
 
   let readiness: "green" | "yellow" | "red" = "red";
-  if (hasScreenshots && hasTests && testsPass) {
+  if (hasScreenshots && hasTests && testsPass && qualityOk) {
     readiness = "green";
-  } else if (hasScreenshots || hasTests) {
+  } else if (hasScreenshots || hasTests || qualityOk) {
     readiness = "yellow";
   }
 
@@ -565,6 +589,69 @@ function OverviewTab({
               </div>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Code Quality Card */}
+      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+        <h3 className="text-xs font-medium text-slate-400 mb-3">Code Quality</h3>
+        {!tidinessAvailable ? (
+          <p className="text-xs text-slate-500">Tidiness Manager not available</p>
+        ) : tidinessScore.isLoading ? (
+          <div className="h-12 animate-pulse bg-slate-800 rounded" />
+        ) : tidinessScore.error ? (
+          <p className="text-xs text-slate-500">No quality data available</p>
+        ) : tidinessScore.data ? (
+          !hasBeenScanned ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Not yet scanned</p>
+              <p className="text-[11px] text-slate-600">Open the Code Quality tab to run a scan</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className={`h-4 w-4 rounded-full flex items-center justify-center ${
+                  tidinessScore.data.score >= 70 ? "bg-emerald-500" :
+                  tidinessScore.data.score >= 40 ? "bg-amber-500" : "bg-red-500"
+                }`}>
+                  <span className="text-[8px] font-bold text-white">
+                    {Math.round(tidinessScore.data.score)}
+                  </span>
+                </div>
+                <span className={`text-xs font-medium ${
+                  tidinessScore.data.score >= 70 ? "text-emerald-300" :
+                  tidinessScore.data.score >= 40 ? "text-amber-300" : "text-red-300"
+                }`}>
+                  {tidinessScore.data.score >= 70 ? "Good" :
+                   tidinessScore.data.score >= 40 ? "Fair" : "Poor"}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Score</span>
+                <span className="text-slate-200">{Math.round(tidinessScore.data.score)}/100</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Violations</span>
+                <span className="text-slate-200">{tidinessScore.data.violations}</span>
+              </div>
+              {tidinessStaleness.data?.last_scan_at && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400">Last scan</span>
+                  <span className="text-slate-200">{formatRelativeTime(tidinessStaleness.data.last_scan_at)}</span>
+                </div>
+              )}
+              {tidinessStaleness.data?.is_stale && (
+                <div className="flex items-start gap-2 mt-2 p-2 rounded bg-amber-950/30 border border-amber-900/40">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-300">
+                    {formatStalenessMessage(tidinessStaleness.data)}
+                  </p>
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          <p className="text-xs text-slate-500">No quality data available</p>
         )}
       </div>
     </div>
@@ -1112,6 +1199,421 @@ function PhaseRow({
 }
 
 // ============================================================================
+// Code Quality Tab
+// ============================================================================
+
+function CodeQualityTab({
+  scenarioSlug,
+  repoId,
+  tidinessAvailable,
+  fileStats,
+}: {
+  scenarioSlug: string;
+  repoId?: string | null;
+  tidinessAvailable: boolean;
+  fileStats?: RepoFileStats;
+}) {
+  const [view, setView] = useState<"changed" | "scenario">("changed");
+  const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
+  const tidinessIssues = useTidinessIssues(scenarioSlug, undefined, tidinessAvailable, repoId);
+  const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
+  const triggerScan = useTriggerTidinessScan(repoId);
+
+  if (!tidinessAvailable) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+        <p className="text-sm">Tidiness Manager is not available</p>
+        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
+          Start the tidiness-manager scenario to view code quality data
+        </p>
+      </div>
+    );
+  }
+
+  // Use staleness as source of truth for "has been scanned" — more reliable than score.last_scan
+  const stalenessLoaded = !tidinessStaleness.isLoading;
+  const neverScanned = stalenessLoaded && (
+    !tidinessStaleness.data?.last_scan_at &&
+    tidinessStaleness.data?.stale_reason?.includes("no scans")
+  );
+  const isScanning = triggerScan.isPending;
+  const scanResult = triggerScan.data;
+
+  // Get changed file paths (scenario-relative)
+  const changedFiles = useMemo(() => {
+    if (!fileStats) return [];
+    const prefix = `scenarios/${scenarioSlug}/`;
+    return Object.keys(fileStats).map(p =>
+      p.startsWith(prefix) ? p.slice(prefix.length) : p
+    );
+  }, [fileStats, scenarioSlug]);
+
+  // Filter issues to changed files
+  const changedFileIssues = useMemo(() => {
+    if (!tidinessIssues.data || changedFiles.length === 0) return [];
+    return tidinessIssues.data.filter(issue =>
+      changedFiles.includes(issue.file_path)
+    );
+  }, [tidinessIssues.data, changedFiles]);
+
+  // Group issues by file
+  const issuesByFile = useMemo(() => {
+    const map = new Map<string, TidinessIssue[]>();
+    for (const issue of changedFileIssues) {
+      const existing = map.get(issue.file_path) ?? [];
+      existing.push(issue);
+      map.set(issue.file_path, existing);
+    }
+    return map;
+  }, [changedFileIssues]);
+
+  // Never-scanned state: show a prominent CTA
+  if (neverScanned) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+        <p className="text-sm font-medium text-slate-400">No scan data yet</p>
+        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
+          Run a scan to analyze code quality for this scenario
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => triggerScan.mutate({
+            scenarioName: scenarioSlug,
+            incremental: false,
+          })}
+          disabled={isScanning}
+          className="mt-4 gap-1.5"
+        >
+          {isScanning ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Play className="h-3.5 w-3.5" />
+          )}
+          {isScanning ? "Scanning..." : "Run Scan"}
+        </Button>
+        {scanResult && (
+          <ScanResultSummary result={scanResult} />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Staleness banner */}
+      {tidinessStaleness.data?.is_stale && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
+          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-300">
+            {formatStalenessMessage(tidinessStaleness.data)}
+          </p>
+        </div>
+      )}
+
+      {/* Last scan info */}
+      {tidinessStaleness.data?.last_scan_at && !tidinessStaleness.data?.is_stale && (
+        <p className="text-[11px] text-slate-500">
+          Last scanned {formatRelativeTime(tidinessStaleness.data.last_scan_at)}
+          {tidinessScore.data?.metrics?.total_files ? ` · ${tidinessScore.data.metrics.total_files} files` : ""}
+        </p>
+      )}
+
+      {/* View toggle + scan button */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setView("changed")}
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+              view === "changed"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Changed Files
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("scenario")}
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+              view === "scenario"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Full Scenario
+          </button>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => triggerScan.mutate({
+            scenarioName: scenarioSlug,
+            incremental: true,
+          })}
+          disabled={isScanning}
+          className="h-7 text-xs gap-1"
+        >
+          {isScanning ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+          Scan
+        </Button>
+      </div>
+
+      {/* In-progress banner */}
+      {isScanning && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-950/50 border border-blue-900/50 rounded-lg text-blue-300 text-xs">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Scanning...
+        </div>
+      )}
+
+      {/* Scan result summary */}
+      {scanResult && !isScanning && (
+        <ScanResultSummary result={scanResult} />
+      )}
+
+      {view === "changed" ? (
+        <ChangedFilesView
+          issues={changedFileIssues}
+          issuesByFile={issuesByFile}
+          changedFiles={changedFiles}
+          scoreData={tidinessScore.data}
+          isLoading={tidinessIssues.isLoading}
+        />
+      ) : (
+        <ScenarioWideView
+          scoreData={tidinessScore.data}
+          isLoading={tidinessScore.isLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChangedFilesView({
+  issues,
+  issuesByFile,
+  changedFiles,
+  scoreData,
+  isLoading,
+}: {
+  issues: TidinessIssue[];
+  issuesByFile: Map<string, TidinessIssue[]>;
+  changedFiles: string[];
+  scoreData?: { score: number; violations: number } | null;
+  isLoading: boolean;
+}) {
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-16 animate-pulse bg-slate-800 rounded" />
+        <div className="h-16 animate-pulse bg-slate-800 rounded" />
+      </div>
+    );
+  }
+
+  if (changedFiles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-slate-500">
+        <p className="text-sm">No changed files to analyze</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Scenario-wide score badge for context */}
+      {scoreData && (
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span>Scenario score:</span>
+          <span className={`font-medium ${
+            scoreData.score >= 70 ? "text-emerald-400" :
+            scoreData.score >= 40 ? "text-amber-400" : "text-red-400"
+          }`}>
+            {Math.round(scoreData.score)}/100
+          </span>
+        </div>
+      )}
+
+      {issues.length === 0 ? (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs text-emerald-300 font-medium">No issues in changed files</span>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {Array.from(issuesByFile.entries()).map(([filePath, fileIssues]) => (
+            <div key={filePath} className="rounded border border-slate-800/50 bg-slate-900/30">
+              <button
+                type="button"
+                onClick={() => setExpandedFile(expandedFile === filePath ? null : filePath)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs cursor-pointer hover:bg-slate-800/30"
+              >
+                <div className="flex items-center gap-2">
+                  {expandedFile === filePath ? (
+                    <ChevronDown className="h-3 w-3 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 text-slate-500" />
+                  )}
+                  <code className="text-slate-200">{filePath}</code>
+                  <span className="text-slate-500">({fileIssues.length} issue{fileIssues.length !== 1 ? "s" : ""})</span>
+                </div>
+              </button>
+              {expandedFile === filePath && (
+                <div className="px-3 pb-3 pt-1 border-t border-slate-800/30 space-y-1.5">
+                  {fileIssues.map(issue => (
+                    <div key={issue.id} className="flex items-start gap-2 text-[11px]">
+                      <div className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${
+                        issue.severity === "critical" || issue.severity === "high" ? "bg-red-500" :
+                        issue.severity === "medium" ? "bg-amber-500" : "bg-blue-500"
+                      }`} />
+                      <div className="min-w-0">
+                        <span className="text-slate-500">{issue.category}:</span>{" "}
+                        <span className="text-slate-300">{issue.title}</span>
+                        {issue.line_number != null && (
+                          <span className="text-slate-600 ml-1">L:{issue.line_number}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScenarioWideView({
+  scoreData,
+  isLoading,
+}: {
+  scoreData?: {
+    score: number;
+    violations: number;
+    breakdown?: {
+      lint_issues: number;
+      type_issues: number;
+      long_files: number;
+      complex_functions: number;
+      tech_debt_markers: number;
+      duplication_issues: number;
+    };
+    metrics?: {
+      total_files: number;
+      total_lines: number;
+      avg_file_length: number;
+      max_complexity: number;
+      avg_complexity: number;
+      duplication_pct: number;
+    };
+  } | null;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse bg-slate-800 rounded" />
+        <div className="h-32 animate-pulse bg-slate-800 rounded" />
+      </div>
+    );
+  }
+
+  if (!scoreData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-slate-500">
+        <p className="text-sm">No quality data available</p>
+        <p className="text-xs mt-1">Run a scan to generate quality metrics</p>
+      </div>
+    );
+  }
+
+  const scoreColor = scoreData.score >= 70 ? "bg-emerald-500" :
+    scoreData.score >= 40 ? "bg-amber-500" : "bg-red-500";
+  const scoreTextColor = scoreData.score >= 70 ? "text-emerald-300" :
+    scoreData.score >= 40 ? "text-amber-300" : "text-red-300";
+
+  return (
+    <div className="space-y-4">
+      {/* Score bar */}
+      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className={`text-2xl font-bold ${scoreTextColor}`}>
+            {Math.round(scoreData.score)}
+          </span>
+          <span className="text-xs text-slate-500">/100</span>
+        </div>
+        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${scoreColor}`}
+            style={{ width: `${Math.min(100, Math.max(0, scoreData.score))}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-slate-400">Violations</span>
+          <span className="text-slate-200">{scoreData.violations}</span>
+        </div>
+      </div>
+
+      {/* Breakdown */}
+      {scoreData.breakdown && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <h4 className="text-xs font-medium text-slate-400 mb-3">Breakdown</h4>
+          <div className="space-y-2">
+            {([
+              ["Lint issues", scoreData.breakdown.lint_issues],
+              ["Type issues", scoreData.breakdown.type_issues],
+              ["Long files", scoreData.breakdown.long_files],
+              ["Complex functions", scoreData.breakdown.complex_functions],
+              ["Tech debt markers", scoreData.breakdown.tech_debt_markers],
+              ["Duplication", scoreData.breakdown.duplication_issues],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="flex justify-between text-xs">
+                <span className="text-slate-400">{label}</span>
+                <span className={value > 0 ? "text-slate-200" : "text-slate-600"}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Metrics */}
+      {scoreData.metrics && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <h4 className="text-xs font-medium text-slate-400 mb-3">Metrics</h4>
+          <div className="space-y-2">
+            {([
+              ["Total files", String(scoreData.metrics.total_files)],
+              ["Total lines", scoreData.metrics.total_lines.toLocaleString()],
+              ["Avg file length", String(Math.round(scoreData.metrics.avg_file_length))],
+              ["Max complexity", String(scoreData.metrics.max_complexity)],
+              ["Avg complexity", scoreData.metrics.avg_complexity.toFixed(1)],
+              ["Duplication", `${scoreData.metrics.duplication_pct.toFixed(1)}%`],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="flex justify-between text-xs">
+                <span className="text-slate-400">{label}</span>
+                <span className="text-slate-200">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -1128,4 +1630,56 @@ function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+}
+
+function formatRelativeTime(isoString: string): string {
+  const date = new Date(isoString);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  if (diffMs < 0) return "just now";
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
+
+function formatStalenessMessage(staleness: TidinessStalenessInfo): string {
+  const parts: string[] = [];
+  if (staleness.stale_reason) {
+    parts.push(staleness.stale_reason);
+  } else {
+    parts.push("Quality data may be stale");
+  }
+  if (staleness.last_scan_at) {
+    parts.push(`Last scan: ${formatRelativeTime(staleness.last_scan_at)}`);
+  }
+  if (staleness.modified_files && staleness.modified_files > 0 && !staleness.stale_reason?.includes("file")) {
+    parts.push(`${staleness.modified_files} file${staleness.modified_files !== 1 ? "s" : ""} changed`);
+  }
+  return parts.join(" · ");
+}
+
+function ScanResultSummary({ result }: { result: TidinessLightScanResult }) {
+  const durationSec = (result.duration_ms / 1000).toFixed(1);
+  const totalIssues = result.lint_issues + result.type_issues;
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-xs text-slate-300 mt-2">
+      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+      <span>
+        Scanned {result.total_files} files ({result.total_lines.toLocaleString()} lines) in {durationSec}s
+        {" — "}
+        {totalIssues === 0 ? (
+          <span className="text-emerald-400">no issues found</span>
+        ) : (
+          <span className="text-amber-400">
+            {result.lint_issues} lint, {result.type_issues} type, {result.long_files_count} long file{result.long_files_count !== 1 ? "s" : ""}
+          </span>
+        )}
+      </span>
+    </div>
+  );
 }

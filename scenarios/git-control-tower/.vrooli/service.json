@@ -21,6 +21,10 @@
       "test-genie": {
         "description": "Automated test execution and reporting for scenarios",
         "required": false
+      },
+      "tidiness-manager": {
+        "description": "Code quality analysis and tidiness scoring for scenarios",
+        "required": false
       }
     }
   },

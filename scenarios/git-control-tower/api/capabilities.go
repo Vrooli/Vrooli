@@ -72,6 +72,14 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "test-genie",
 		Features:       []string{"Test execution", "Test history", "Phase-based testing"},
 	},
+	{
+		ID:             "tidiness-manager",
+		Name:           "Tidiness Manager",
+		Description:    "Code quality scoring, lint/type issues, and file metrics",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "tidiness-manager",
+		Features:       []string{"Code quality score", "Lint/type issues", "File metrics", "Light scanning"},
+	},
 }
 
 // CapabilityRegistry tracks dependency availability with caching.

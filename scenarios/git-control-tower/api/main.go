@@ -47,6 +47,7 @@ type Server struct {
 	visualCaptureStorage *VisualCaptureStorage
 	periodicCapture      *PeriodicCapture
 	testGenieClient      *TestGenieClient
+	tidinessClient       *TidinessManagerClient
 }
 
 // NewServer initializes configuration, database, and routes
@@ -107,6 +108,10 @@ func NewServer() (*Server, error) {
 				Slug:   "test-genie",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
+			"tidiness-manager": &ScenarioChecker{
+				Slug:   "tidiness-manager",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
 		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
@@ -127,6 +132,7 @@ func NewServer() (*Server, error) {
 
 	srv.basClient = NewBrowserAutomationClient(30 * time.Second)
 	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
+	srv.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
@@ -206,6 +212,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/test-execution", s.handleTestExecution).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/test-executions", s.handleTestExecutionList).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/test-executions/{id}", s.handleTestExecutionDetail).Methods("GET")
+
+	// Tidiness-manager endpoints
+	s.router.HandleFunc("/api/v1/repo/tidiness-score", s.handleTidinessScore).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/tidiness-issues", s.handleTidinessIssues).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/tidiness-staleness", s.handleTidinessStaleness).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/tidiness-scan", s.handleTidinessLightScan).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/tidiness-scenario", s.handleTidinessScenarioDetail).Methods("GET")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")
