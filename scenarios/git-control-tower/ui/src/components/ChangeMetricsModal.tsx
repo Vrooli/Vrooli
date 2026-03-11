@@ -109,7 +109,7 @@ function DensityBar({ density }: { density?: number }) {
   );
 }
 
-function MetricRow({
+export function MetricRow({
   label,
   value,
   testId,
@@ -128,7 +128,7 @@ function MetricRow({
   );
 }
 
-function CategoryRow({
+export function CategoryRow({
   label,
   additions,
   deletions,
@@ -161,6 +161,117 @@ function EnhancedLoadingRow() {
     <div className="flex items-center gap-2 py-1" data-testid="enhanced-loading">
       <Loader2 className="h-3 w-3 animate-spin text-slate-500" />
       <span className="text-xs text-slate-500">Loading detailed metrics…</span>
+    </div>
+  );
+}
+
+/** Reusable aggregate metrics content for embedding in other modals. */
+export function AggregateMetricsContent({ fileStats }: { fileStats: RepoFileStats }) {
+  const aggregate = useMemo(() => aggregateFileStats(fileStats), [fileStats]);
+  const stagedCat = useMemo(() => categoryStats(fileStats?.staged), [fileStats]);
+  const unstagedCat = useMemo(() => categoryStats(fileStats?.unstaged), [fileStats]);
+  const untrackedCat = useMemo(() => categoryStats(fileStats?.untracked), [fileStats]);
+
+  if (!aggregate) return null;
+
+  const { totalAdditions: additions, totalDeletions: deletions, totalNetLines: netLines } = aggregate;
+
+  return (
+    <div className="space-y-4" data-testid="aggregate-metrics-content">
+      {/* Summary */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          Summary
+        </h3>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1 text-emerald-500 text-sm font-medium">
+            <Plus className="h-3.5 w-3.5" />
+            {additions}
+          </span>
+          <span className="flex items-center gap-1 text-red-500 text-sm font-medium">
+            <Minus className="h-3.5 w-3.5" />
+            {deletions}
+          </span>
+          <span
+            className="text-sm font-medium text-blue-400"
+            data-testid="metric-net-lines"
+          >
+            net {formatNetLines(netLines)}
+          </span>
+        </div>
+      </div>
+
+      {/* Breakdown */}
+      <div className="space-y-2 border-t border-slate-800 pt-3">
+        <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          Breakdown
+        </h3>
+        <MetricRow
+          label="Files"
+          value={`${aggregate.totalFiles}${aggregate.binaryCount > 0 ? ` (${aggregate.binaryCount} binary)` : ""}${aggregate.renameCount > 0 ? ` (${aggregate.renameCount} renamed)` : ""}`}
+          testId="metric-total-files"
+        />
+        {Object.keys(aggregate.fileTypeBreakdown).length > 0 && (
+          <MetricRow
+            label="File types"
+            value={formatFileTypeBreakdown(aggregate.fileTypeBreakdown)}
+            testId="metric-file-types"
+          />
+        )}
+        {aggregate.testFileCount > 0 && (
+          <MetricRow
+            label="Test files"
+            value={aggregate.testFileCount}
+            testId="metric-test-files"
+          />
+        )}
+        {aggregate.testToCodeRatio > 0 && (
+          <MetricRow
+            label="Test-to-code ratio"
+            value={`${(aggregate.testToCodeRatio * 100).toFixed(0)}%`}
+            testId="metric-test-to-code-ratio"
+          />
+        )}
+        {aggregate.newFileCount > 0 && (
+          <MetricRow
+            label="New files"
+            value={aggregate.newFileCount}
+            testId="metric-new-file-count"
+          />
+        )}
+        {aggregate.deletedFileCount > 0 && (
+          <MetricRow
+            label="Deleted files"
+            value={aggregate.deletedFileCount}
+            testId="metric-deleted-file-count"
+          />
+        )}
+        {aggregate.churnRatio > 0 && (
+          <MetricRow
+            label="Churn"
+            value={`${(aggregate.churnRatio * 100).toFixed(0)}% ${churnLabel(aggregate.churnRatio)}`}
+            testId="metric-churn"
+          />
+        )}
+        {aggregate.totalFiles >= 3 && (
+          <MetricRow
+            label={`Top ${aggregate.paretoTopN} file(s)`}
+            value={`${aggregate.paretoPercent}% of changes`}
+            testId="metric-concentration"
+          />
+        )}
+        <div className="space-y-0.5 border-t border-slate-800/60 pt-2 mt-2">
+          {stagedCat && (
+            <CategoryRow label="Staged" {...stagedCat} />
+          )}
+          {unstagedCat && (
+            <CategoryRow label="Unstaged" {...unstagedCat} />
+          )}
+          {untrackedCat && (
+            <CategoryRow label="Untracked" {...untrackedCat} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

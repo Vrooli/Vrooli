@@ -5,20 +5,16 @@ interface ReviewButtonProps {
   scenarioSlug: string;
   repoId?: string | null;
   onViewReport: () => void;
+  fileCount?: number;
 }
 
-export function ReviewButton({ scenarioSlug, repoId, onViewReport }: ReviewButtonProps) {
+export function ReviewButton({ scenarioSlug, repoId, onViewReport, fileCount }: ReviewButtonProps) {
   const capabilities = useCapabilities();
   const triggerCapture = useTriggerVisualCapture(repoId);
 
   const basAvailable = capabilities.data?.capabilities?.some(
     c => c.id === "browser-automation-studio" && c.status === "available"
   ) ?? false;
-  const testGenieAvailable = capabilities.data?.capabilities?.some(
-    c => c.id === "test-genie" && c.status === "available"
-  ) ?? false;
-
-  if (!basAvailable && !testGenieAvailable) return null;
 
   const isCapturing = triggerCapture.isPending;
 
@@ -43,7 +39,10 @@ export function ReviewButton({ scenarioSlug, repoId, onViewReport }: ReviewButto
       {isCapturing ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
-        <ClipboardCheck className="h-3.5 w-3.5" />
+        <>
+          {fileCount !== undefined && <span>{fileCount} files</span>}
+          <ClipboardCheck className="h-3.5 w-3.5" />
+        </>
       )}
     </button>
   );

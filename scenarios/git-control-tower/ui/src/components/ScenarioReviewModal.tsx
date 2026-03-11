@@ -1,22 +1,25 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult } from "../lib/api";
+import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats } from "../lib/api";
+import { AggregateMetricsContent } from "./ChangeMetricsModal";
+import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 
-type Tab = "overview" | "screenshots" | "videos" | "tests";
+type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests";
 
 interface ScenarioReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   scenarioSlug: string;
   repoId?: string | null;
+  fileStats?: RepoFileStats;
 }
 
-export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: ScenarioReviewModalProps) {
+export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId, fileStats }: ScenarioReviewModalProps) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const capturesQuery = useVisualCaptures(scenarioSlug, isOpen, repoId);
@@ -41,10 +44,15 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
 
   const tabLabels: Record<Tab, string> = {
     overview: "Overview",
+    metrics: "Metrics",
     screenshots: "Screenshots",
     videos: "Videos",
     tests: "Tests",
   };
+
+  const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
+    tab => tab !== "metrics" || fileStats
+  );
 
   const captureBanner = isCapturing && (
     <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50 text-blue-300 text-xs">
@@ -55,7 +63,7 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
 
   const tabNav = (mobile: boolean) => (
     <div className="flex border-b border-slate-800 px-4">
-      {(Object.keys(tabLabels) as Tab[]).map((tab) => (
+      {visibleTabs.map((tab) => (
         <button
           key={tab}
           type="button"
@@ -83,7 +91,10 @@ export function ScenarioReviewModal({ isOpen, onClose, scenarioSlug, repoId }: S
           testGenieAvailable={testGenieAvailable}
           isCapturing={isCapturing}
           onCapture={() => triggerCapture.mutate(scenarioSlug)}
+          fileStats={fileStats}
         />
+      ) : activeTab === "metrics" ? (
+        fileStats ? <AggregateMetricsContent fileStats={fileStats} /> : null
       ) : activeTab === "screenshots" ? (
         capturesQuery.isLoading ? (
           <div className="space-y-4">
@@ -405,6 +416,7 @@ function OverviewTab({
   testGenieAvailable,
   isCapturing,
   onCapture,
+  fileStats,
 }: {
   after?: SnapshotSetMeta;
   scenarioSlug: string;
@@ -413,6 +425,7 @@ function OverviewTab({
   testGenieAvailable: boolean;
   isCapturing: boolean;
   onCapture: () => void;
+  fileStats?: RepoFileStats;
 }) {
   const testExecutions = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
@@ -447,6 +460,33 @@ function OverviewTab({
         <div className={`h-3 w-3 rounded-full ${readinessColors[readiness]}`} />
         <span className="text-sm font-medium text-slate-200">{readinessLabels[readiness]}</span>
       </div>
+
+      {/* Change Summary Card */}
+      {fileStats && (() => {
+        const agg = aggregateFileStats(fileStats);
+        if (!agg || agg.totalFiles === 0) return null;
+        return (
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <h3 className="text-xs font-medium text-slate-400 mb-3">Change Summary</h3>
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1 text-emerald-500 text-sm font-medium">
+                <Plus className="h-3.5 w-3.5" />
+                {agg.totalAdditions}
+              </span>
+              <span className="flex items-center gap-1 text-red-500 text-sm font-medium">
+                <Minus className="h-3.5 w-3.5" />
+                {agg.totalDeletions}
+              </span>
+              <span className="text-sm font-medium text-blue-400">
+                net {formatNetLines(agg.totalNetLines)}
+              </span>
+            </div>
+            <div className="mt-2 text-xs text-slate-400">
+              {agg.totalFiles} file{agg.totalFiles !== 1 ? "s" : ""} changed
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Visual Status Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
@@ -575,19 +615,10 @@ function ScreenshotsTab({
   const afterPages = after.pages ?? [];
   const currentPage = afterPages[selectedPage] ?? "/";
 
-  // Build lightbox items: all pages for the "after" capture, then all for "before" if present
+  // Build lightbox items: "before" first (matching left side), then "after" (matching right side)
   const lightboxItems: LightboxItem[] = [];
-  for (const page of afterPages) {
-    const filename = sanitizePagePath(page) + ".png";
-    lightboxItems.push({
-      label: before ? `After: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
-      sublabel: new Date(after.createdAt).toLocaleString(),
-      type: "image",
-      url: buildCaptureScreenshotUrl(after.id, scenarioSlug, filename),
-    });
-  }
+  const beforePages = before?.pages ?? [];
   if (before) {
-    const beforePages = before.pages ?? [];
     for (const page of beforePages) {
       const filename = sanitizePagePath(page) + ".png";
       lightboxItems.push({
@@ -598,10 +629,19 @@ function ScreenshotsTab({
       });
     }
   }
+  for (const page of afterPages) {
+    const filename = sanitizePagePath(page) + ".png";
+    lightboxItems.push({
+      label: before ? `After: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
+      sublabel: new Date(after.createdAt).toLocaleString(),
+      type: "image",
+      url: buildCaptureScreenshotUrl(after.id, scenarioSlug, filename),
+    });
+  }
 
   // Map click targets to lightbox indices
-  const afterIndex = (pageIdx: number) => pageIdx;
-  const beforeIndex = (pageIdx: number) => afterPages.length + pageIdx;
+  const beforeIndex = (pageIdx: number) => pageIdx;
+  const afterIndex = (pageIdx: number) => beforePages.length + pageIdx;
 
   return (
     <div className="space-y-4">
@@ -767,14 +807,6 @@ function VideosTab({
   }
 
   const lightboxItems: LightboxItem[] = [];
-  const afterVideoUrl = buildCaptureVideoUrl(after.id, scenarioSlug, "recording.webm");
-  lightboxItems.push({
-    label: before ? "After" : "Current",
-    sublabel: new Date(after.createdAt).toLocaleString(),
-    type: "video",
-    url: afterVideoUrl,
-  });
-
   const beforeVideoUrl = before && before.videoCount > 0
     ? buildCaptureVideoUrl(before.id, scenarioSlug, "recording.webm")
     : null;
@@ -786,6 +818,15 @@ function VideosTab({
       url: beforeVideoUrl,
     });
   }
+  const afterVideoUrl = buildCaptureVideoUrl(after.id, scenarioSlug, "recording.webm");
+  lightboxItems.push({
+    label: before ? "After" : "Current",
+    sublabel: new Date(after.createdAt).toLocaleString(),
+    type: "video",
+    url: afterVideoUrl,
+  });
+
+  const afterLightboxIndex = beforeVideoUrl ? 1 : 0;
 
   return (
     <>
@@ -795,7 +836,7 @@ function VideosTab({
             <p className="text-xs font-medium text-slate-400 mb-2">Before</p>
             <div
               className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
-              onClick={() => setLightboxIndex(1)}
+              onClick={() => setLightboxIndex(0)}
             >
               <video
                 controls
@@ -811,7 +852,7 @@ function VideosTab({
           </p>
           <div
             className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
-            onClick={() => setLightboxIndex(0)}
+            onClick={() => setLightboxIndex(afterLightboxIndex)}
           >
             <video
               controls

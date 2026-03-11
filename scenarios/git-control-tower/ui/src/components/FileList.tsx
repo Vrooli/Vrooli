@@ -120,7 +120,7 @@ interface FileListProps {
   onBlameFile?: (path: string) => void;
   repoId?: string | null;
   mobileSelectionMode?: boolean;
-  onOpenReview?: (scenarioSlug: string) => void;
+  onOpenReview?: (scenarioSlug: string, fileStats?: RepoFileStats) => void;
   onEnterSelectionMode?: (path: string, staged: boolean) => void;
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
@@ -1605,22 +1605,33 @@ export function FileList({
                             </div>
                           </button>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <button
-                              type="button"
-                              className="hover:underline decoration-slate-600 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openGroupMetrics(group.files, group.label);
-                              }}
-                            >
-                              {groupCount} files
-                            </button>
-                            {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) && (
+                            {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) ? (
                               <ReviewButton
                                 scenarioSlug={group.displayPrefix.split("/")[1] ?? ""}
                                 repoId={repoId}
-                                onViewReport={() => onOpenReview(group.displayPrefix?.split("/")[1] ?? "")}
+                                fileCount={groupCount}
+                                onViewReport={() => {
+                                  const allPaths = [
+                                    ...(group.files.conflicts ?? []),
+                                    ...(group.files.staged ?? []),
+                                    ...(group.files.unstaged ?? []),
+                                    ...(group.files.untracked ?? []),
+                                  ];
+                                  const filtered = filterFileStats(allPaths, fileStats);
+                                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "", filtered);
+                                }}
                               />
+                            ) : (
+                              <button
+                                type="button"
+                                className="hover:underline decoration-slate-600 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openGroupMetrics(group.files, group.label);
+                                }}
+                              >
+                                {groupCount} files
+                              </button>
                             )}
                             {!isGroupCollapsed &&
                               stageable.length > 0 &&
