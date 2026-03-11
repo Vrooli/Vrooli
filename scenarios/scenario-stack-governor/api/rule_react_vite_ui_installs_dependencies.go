@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioName string) RuleResult {
+func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
 	start := time.Now()
-	result := RuleResult{
+	result = RuleResult{
 		RuleID:    "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
 		StartedAt: start,
 	}
@@ -121,10 +121,12 @@ func hasUIInstallIgnoreWorkspace(serviceJSONPath string) (bool, string) {
 		if run == "" {
 			continue
 		}
-		if strings.Contains(run, "pnpm install") && strings.Contains(run, "ui") {
+		name, _ := step["name"].(string)
+		isUIRelated := strings.Contains(run, "ui") || strings.Contains(name, "ui")
+		// Track any package manager install step related to ui.
+		if (strings.Contains(run, "pnpm install") || strings.Contains(run, "npm install")) && isUIRelated {
 			best = run
-			// Require ignore-workspace because workspace-mode installs can skip local node_modules.
-			if strings.Contains(run, "--ignore-workspace") {
+			if strings.Contains(run, "pnpm install") && strings.Contains(run, "--ignore-workspace") {
 				return true, run
 			}
 		}

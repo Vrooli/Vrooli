@@ -21,6 +21,12 @@ type customTarget struct {
 	prerequisites []string
 }
 
+// customVariable represents a non-canonical variable definition extracted from an existing Makefile.
+type customVariable struct {
+	name       string // e.g. "API_URL"
+	definition string // full line: "API_URL ?= http://localhost:3000"
+}
+
 // FixMakefileAll orchestrates the Makefile fix for a single scenario and returns
 // one FixResult per MAKEFILE_* rule ID.
 func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun bool) []FixResult {
@@ -32,19 +38,26 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 	// Read existing content (may not exist).
 	existingContent, _ := os.ReadFile(makefilePath)
 
-	// Extract custom targets from existing Makefile.
+	// Extract custom targets and variables from existing Makefile.
 	var customs []customTarget
+	var customVars []customVariable
 	if len(existingContent) > 0 {
 		customs = extractCustomTargets(string(existingContent))
+		customVars = extractCustomVariables(string(existingContent))
 	}
 
 	// Generate canonical Makefile.
 	canonical := generateCanonicalMakefile(scenarioName)
 
-	// Merge custom targets into canonical output.
+	// Merge custom variables into canonical output.
 	output := canonical
+	if len(customVars) > 0 {
+		output = mergeCustomVariables(output, customVars)
+	}
+
+	// Merge custom targets into canonical output.
 	if len(customs) > 0 {
-		output = mergeCustomTargets(canonical, customs)
+		output = mergeCustomTargets(output, customs)
 	}
 
 	// Determine changes.
@@ -53,6 +66,9 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 		changes = append(changes, FixChange{Type: "generated", Detail: "Created canonical Makefile from template"})
 	} else if string(existingContent) != output {
 		changes = append(changes, FixChange{Type: "replaced", Detail: "Replaced Makefile with canonical version"})
+	}
+	for _, v := range customVars {
+		changes = append(changes, FixChange{Type: "preserved_variable", Detail: fmt.Sprintf("Preserved custom variable '%s'", v.name)})
 	}
 	for _, c := range customs {
 		changes = append(changes, FixChange{Type: "preserved_custom", Detail: fmt.Sprintf("Preserved custom target '%s'", c.name)})
@@ -198,6 +214,104 @@ func extractCustomTargets(content string) []customTarget {
 	flush()
 
 	return customs
+}
+
+// canonicalVariableSet returns variable names that are part of the canonical template.
+var canonicalVariableSet = map[string]struct{}{
+	"SCENARIO_NAME": {},
+	"GREEN":         {},
+	"YELLOW":        {},
+	"BLUE":          {},
+	"RED":           {},
+	"RESET":         {},
+}
+
+// varAssignRegexp matches Make variable assignments: VAR_NAME := value, VAR_NAME ?= value, VAR_NAME = value
+var varAssignRegexp = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)\s*(?:\?=|:=|=)\s*(.*)$`)
+
+// extractCustomVariables parses an existing Makefile and returns variable definitions
+// that are NOT in the canonical set.
+func extractCustomVariables(content string) []customVariable {
+	lines := strings.Split(content, "\n")
+	var vars []customVariable
+
+	for _, raw := range lines {
+		// Skip recipe lines (start with tab).
+		if strings.HasPrefix(raw, "\t") {
+			continue
+		}
+
+		trimmed := strings.TrimSpace(raw)
+
+		// Skip empty lines, comments, .PHONY, .DEFAULT_GOAL.
+		if trimmed == "" ||
+			strings.HasPrefix(trimmed, "#") ||
+			strings.HasPrefix(trimmed, ".PHONY") ||
+			strings.HasPrefix(trimmed, ".DEFAULT_GOAL") {
+			continue
+		}
+
+		matches := varAssignRegexp.FindStringSubmatch(trimmed)
+		if len(matches) < 2 {
+			continue
+		}
+		name := matches[1]
+
+		// Skip canonical variables.
+		if _, isCanonical := canonicalVariableSet[name]; isCanonical {
+			continue
+		}
+
+		vars = append(vars, customVariable{
+			name:       name,
+			definition: raw,
+		})
+	}
+
+	return vars
+}
+
+// mergeCustomVariables inserts custom variable definitions into the canonical Makefile.
+// They are inserted after SCENARIO_NAME and before the color palette (before GREEN := ...).
+func mergeCustomVariables(canonical string, vars []customVariable) string {
+	lines := strings.Split(canonical, "\n")
+
+	// Find the GREEN line (first color variable) to insert before it.
+	insertIdx := -1
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "GREEN :=") {
+			insertIdx = i
+			break
+		}
+	}
+
+	if insertIdx < 0 {
+		// Fallback: insert after SCENARIO_NAME line.
+		for i, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "SCENARIO_NAME :=") {
+				insertIdx = i + 1
+				break
+			}
+		}
+	}
+
+	if insertIdx < 0 {
+		insertIdx = len(lines)
+	}
+
+	// Build the custom variable lines.
+	var customLines []string
+	for _, v := range vars {
+		customLines = append(customLines, v.definition)
+	}
+	customLines = append(customLines, "") // blank separator after custom vars
+
+	result := make([]string, 0, len(lines)+len(customLines))
+	result = append(result, lines[:insertIdx]...)
+	result = append(result, customLines...)
+	result = append(result, lines[insertIdx:]...)
+
+	return strings.Join(result, "\n")
 }
 
 // mergeCustomTargets inserts custom targets into the canonical Makefile output.

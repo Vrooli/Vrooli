@@ -47,9 +47,9 @@ var (
 )
 
 // RunMakefileStructure runs the structure check rule against scenario Makefiles.
-func RunMakefileStructure(ctx context.Context, repoRoot, scenarioName string) RuleResult {
+func RunMakefileStructure(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
 	start := time.Now()
-	result := RuleResult{
+	result = RuleResult{
 		RuleID:    "MAKEFILE_STRUCTURE",
 		StartedAt: start,
 	}
@@ -395,7 +395,7 @@ func structureValidateOrdering(data structureMakefileData, path string) []Makefi
 
 	if data.scenarioLine > 0 && firstColorLine > 0 {
 		for i := data.scenarioLine; i < firstColorLine-1; i++ {
-			if !structureIsCommentOrBlank(data.lines[i]) {
+			if !structureIsCommentBlankOrVariable(data.lines[i]) {
 				violations = append(violations, MakefileStructureViolation{
 					Severity: "high",
 					Message:  "Color palette must immediately follow SCENARIO_NAME declaration",
@@ -417,7 +417,7 @@ func structureValidateOrdering(data structureMakefileData, path string) []Makefi
 			})
 		} else {
 			for i := lastColorLine; i < data.helpLine-1; i++ {
-				if !structureIsCommentOrBlank(data.lines[i]) {
+				if !structureIsCommentBlankOrVariable(data.lines[i]) {
 					violations = append(violations, MakefileStructureViolation{
 						Severity: "high",
 						Message:  "No additional directives allowed between color palette and help target",
@@ -702,4 +702,15 @@ func structureIsCommentOrBlank(line string) bool {
 		return true
 	}
 	return strings.HasPrefix(trimmed, "#")
+}
+
+// structureIsCommentBlankOrVariable returns true if a line is a comment, blank, or a variable assignment.
+// This is used for gap checks that should allow custom variable definitions.
+func structureIsCommentBlankOrVariable(line string) bool {
+	if structureIsCommentOrBlank(line) {
+		return true
+	}
+	trimmed := strings.TrimSpace(line)
+	// Match variable assignments: VAR = val, VAR := val, VAR ?= val
+	return varAssignRegexp.MatchString(trimmed)
 }

@@ -357,3 +357,80 @@ func TestIntegration_FixApplyNoDiff(t *testing.T) {
 		}
 	}
 }
+
+// TestIntegration_RunPassedAndFinishedAtSet verifies that rules correctly set
+// Passed=true and FinishedAt when there are no findings. This was broken when
+// rule functions used unnamed return values with defer (Bug 1).
+func TestIntegration_RunPassedAndFinishedAtSet(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "passed-test"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	// Write a valid canonical Makefile so all MAKEFILE_* rules pass.
+	canonical := generateCanonicalMakefile(scenarioName)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(canonical), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/run", RunRequest{ScenarioNames: []string{scenarioName}})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var runResp RunResponse
+	decodeJSON(t, resp, &runResp)
+
+	for _, r := range runResp.Results {
+		if len(r.Findings) > 0 {
+			continue // only check rules that should pass
+		}
+		if !r.Passed {
+			t.Errorf("rule %s: Passed should be true when findings is empty (named return value bug)", r.RuleID)
+		}
+		if r.FinishedAt.IsZero() {
+			t.Errorf("rule %s: FinishedAt should be set (named return value bug)", r.RuleID)
+		}
+	}
+}
+
+// TestIntegration_RunFailedPassedIsFalse verifies that rules with findings
+// correctly set Passed=false.
+func TestIntegration_RunFailedPassedIsFalse(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "failed-test"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	// Write a broken Makefile to trigger findings.
+	broken := "# Wrong\nhelp:\n\t@echo help\n"
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(broken), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/run", RunRequest{ScenarioNames: []string{scenarioName}})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var runResp RunResponse
+	decodeJSON(t, resp, &runResp)
+
+	for _, r := range runResp.Results {
+		if len(r.Findings) == 0 {
+			continue
+		}
+		if r.Passed {
+			t.Errorf("rule %s: Passed should be false when there are %d findings", r.RuleID, len(r.Findings))
+		}
+		if r.FinishedAt.IsZero() {
+			t.Errorf("rule %s: FinishedAt should be set even on failure", r.RuleID)
+		}
+	}
+}

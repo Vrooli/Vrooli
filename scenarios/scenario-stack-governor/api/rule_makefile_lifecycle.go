@@ -31,9 +31,9 @@ type lifecycleMakefileData struct {
 var lifecycleTargetRegexp = regexp.MustCompile(`^([A-Za-z0-9_.-]+)\s*:(.*)$`)
 
 // RunMakefileLifecycle runs the lifecycle check rule against scenario Makefiles.
-func RunMakefileLifecycle(ctx context.Context, repoRoot, scenarioName string) RuleResult {
+func RunMakefileLifecycle(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
 	start := time.Now()
-	result := RuleResult{
+	result = RuleResult{
 		RuleID:    "MAKEFILE_LIFECYCLE",
 		StartedAt: start,
 	}

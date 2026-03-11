@@ -47,9 +47,9 @@ func newQualityRequirement(message string, patterns ...string) qualityRequiremen
 }
 
 // RunMakefileQuality runs the quality check rule against scenario Makefiles.
-func RunMakefileQuality(ctx context.Context, repoRoot, scenarioName string) RuleResult {
+func RunMakefileQuality(ctx context.Context, repoRoot, scenarioName string) (result RuleResult) {
 	start := time.Now()
-	result := RuleResult{
+	result = RuleResult{
 		RuleID:    "MAKEFILE_QUALITY",
 		StartedAt: start,
 	}

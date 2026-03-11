@@ -325,3 +325,209 @@ dev: start
 		t.Error("canonical/shortcut targets should not be extracted")
 	}
 }
+
+func TestFixMakefile_PreservesCustomVariables(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "custom-vars"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a Makefile with a custom variable and a custom target that references it.
+	existing := generateCanonicalMakefile(scenarioName)
+	existing = strings.Replace(existing, "RESET := \\033[0m",
+		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	existing = strings.Replace(existing, "# Development shortcuts",
+		`export-variants: ## Export variant data
+	@echo "Exporting to $(API_URL)..."
+
+# Development shortcuts`, 1)
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	FixMakefileAll(t.Context(), root, scenarioName, false)
+
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+	output := string(content)
+
+	if !strings.Contains(output, "API_URL ?= http://localhost:3000") {
+		t.Error("expected custom variable 'API_URL' to be preserved")
+	}
+	if !strings.Contains(output, "export-variants") {
+		t.Error("expected custom target 'export-variants' to be preserved")
+	}
+}
+
+func TestFixMakefile_PreservesCustomVariablesWithCustomTargets(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "vars-and-targets"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a Makefile with both custom variables and custom targets.
+	existing := generateCanonicalMakefile(scenarioName)
+	existing = strings.Replace(existing, "RESET := \\033[0m",
+		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000\nCUSTOM_FLAG := true", 1)
+	existing = strings.Replace(existing, "# Development shortcuts",
+		`export-variants: ## Export variant data
+	@echo "Exporting to $(API_URL) with flag $(CUSTOM_FLAG)..."
+
+# Development shortcuts`, 1)
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	FixMakefileAll(t.Context(), root, scenarioName, false)
+
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+	output := string(content)
+
+	if !strings.Contains(output, "API_URL ?= http://localhost:3000") {
+		t.Error("expected custom variable 'API_URL' to be preserved")
+	}
+	if !strings.Contains(output, "CUSTOM_FLAG := true") {
+		t.Error("expected custom variable 'CUSTOM_FLAG' to be preserved")
+	}
+	if !strings.Contains(output, "export-variants") {
+		t.Error("expected custom target 'export-variants' to be preserved")
+	}
+
+	// Variables should come before the custom targets.
+	apiURLIdx := strings.Index(output, "API_URL ?=")
+	exportIdx := strings.Index(output, "export-variants:")
+	if apiURLIdx > exportIdx {
+		t.Error("expected custom variables to appear before custom targets")
+	}
+}
+
+func TestExtractCustomVariables(t *testing.T) {
+	content := `SCENARIO_NAME := my-scenario
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
+
+API_URL ?= http://localhost:3000
+CUSTOM_FLAG := true
+
+.DEFAULT_GOAL := help
+
+help: ## Help
+	@echo "help"
+
+deploy: ## Deploy
+	@echo "Deploying to $(API_URL)"
+`
+	vars := extractCustomVariables(content)
+
+	names := map[string]bool{}
+	for _, v := range vars {
+		names[v.name] = true
+	}
+
+	if !names["API_URL"] {
+		t.Error("expected API_URL to be extracted")
+	}
+	if !names["CUSTOM_FLAG"] {
+		t.Error("expected CUSTOM_FLAG to be extracted")
+	}
+	if names["SCENARIO_NAME"] {
+		t.Error("SCENARIO_NAME should not be extracted (canonical)")
+	}
+	if names["GREEN"] {
+		t.Error("GREEN should not be extracted (canonical)")
+	}
+	if names["RESET"] {
+		t.Error("RESET should not be extracted (canonical)")
+	}
+
+	// Verify full definition is captured.
+	for _, v := range vars {
+		if v.name == "API_URL" && v.definition != "API_URL ?= http://localhost:3000" {
+			t.Errorf("expected full definition, got %q", v.definition)
+		}
+	}
+}
+
+func TestFixMakefile_CustomVarsIdempotent(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "vars-idempotent"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a Makefile with custom variables.
+	existing := generateCanonicalMakefile(scenarioName)
+	existing = strings.Replace(existing, "RESET := \\033[0m",
+		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// First fix.
+	FixMakefileAll(t.Context(), root, scenarioName, false)
+	first, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+
+	// Second fix.
+	FixMakefileAll(t.Context(), root, scenarioName, false)
+	second, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+
+	if string(first) != string(second) {
+		t.Error("expected idempotent output with custom variables, but second fix produced different content")
+	}
+}
+
+func TestFixMakefile_CustomVarsPassChecks(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "vars-checks"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a Makefile with custom variables and targets.
+	existing := generateCanonicalMakefile(scenarioName)
+	existing = strings.Replace(existing, "RESET := \\033[0m",
+		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	existing = strings.Replace(existing, "# Development shortcuts",
+		`deploy: ## Deploy to production
+	@echo "Deploying to $(API_URL)..."
+
+# Development shortcuts`, 1)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	FixMakefileAll(t.Context(), root, scenarioName, false)
+
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+
+	structureViolations, _ := CheckMakefileStructure(string(content), "Makefile")
+	if len(structureViolations) != 0 {
+		for _, v := range structureViolations {
+			t.Errorf("structure violation: %s (line %d)", v.Message, v.Line)
+		}
+	}
+
+	lifecycleViolations, _ := CheckMakefileLifecycle(string(content), "Makefile")
+	if len(lifecycleViolations) != 0 {
+		for _, v := range lifecycleViolations {
+			t.Errorf("lifecycle violation: %s (line %d)", v.Message, v.Line)
+		}
+	}
+
+	qualityViolations, _ := CheckMakefileQuality(string(content), "Makefile")
+	if len(qualityViolations) != 0 {
+		for _, v := range qualityViolations {
+			t.Errorf("quality violation: %s (line %d)", v.Message, v.Line)
+		}
+	}
+}
