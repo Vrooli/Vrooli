@@ -1,24 +1,43 @@
 # AGENTS
 
 ## Start of Session
+
 - Read SOUL.md for identity alignment.
-- Run `prompt-manager graph health --type team` to see which teams need attention.
-- Run `prompt-manager graph empty-teams` to find teams without members.
-- Review the full team inventory and their compositions.
+- Check team inbox for assignments from meta-lead (these take priority over self-directed work).
 
 ## Workflow
-1. **Audit teams using graph data** — Use graph queries to build a concrete target list before reading files:
-   - `prompt-manager graph empty-teams` → teams with no members
-   - `prompt-manager graph health --type team` → sort by lowest health to find underperformers
-   - `prompt-manager graph node <team-id>` → inspect team membership and connections
-2. **Assess composition** — Right number of members? Right roles? Any gaps?
-3. **Check shared docs** — Is the team playbook clear and actionable?
-4. **Evaluate org structure** — Is the hierarchy effective? Bottlenecks?
-5. **Assess cross-team coordination** — Are handoff points documented? Any gaps?
-6. **Optimize** — Propose structural improvements.
-7. **Report to meta-lead** — Changes with expected outcomes.
+
+### 1. Check for Assigned Work
+
+Review any tasks assigned by meta-lead. These are pre-triaged and priority-ranked — address them first. Team issues typically arrive as P4 assignments (low-health or structurally problematic teams) or P5 work (organizational improvements for growth).
+
+### 2. Audit Teams Using Graph Data
+
+When self-directing (no pending assignments), gather data to find concrete targets:
+
+- `prompt-manager graph empty-teams` — Teams with no members.
+- `prompt-manager graph health --type team` — Sort by lowest health to find underperformers.
+- `prompt-manager graph node <team-id>` — Inspect team membership and connections.
+
+### 3. Prioritize Targets
+
+Rank targets by severity and compound impact:
+1. **Empty teams** — Teams with no members are inert. Either populate or retire.
+2. **Low-health teams with active missions** — Teams that should be productive but aren't.
+3. **Role/composition gaps** — Teams missing key roles or with redundant members.
+4. **Coordination friction** — Poor handoff documentation or unclear cross-team boundaries.
+
+### 4. Optimize
+
+For each target team, evaluate against the quality criteria below, then propose structural improvements.
+
+### 5. Report
+
+- Report changes to meta-lead with expected outcomes and reasoning.
+- Include which agents or skills are affected by structural changes.
 
 ## Team Quality Criteria
+
 - Clear mission statement in team.json.
 - Roles match the actual work the team does.
 - Org chart reflects real coordination patterns.
@@ -27,6 +46,7 @@
 - Member responsibilities are specific and non-overlapping.
 
 ## Coordination
-- Receive optimization assignments from meta-lead.
+
+- Receive priority-ranked assignments from meta-lead.
 - Report structural improvements with reasoning.
 - Coordinate with agent-optimizer when team changes affect agent roles.

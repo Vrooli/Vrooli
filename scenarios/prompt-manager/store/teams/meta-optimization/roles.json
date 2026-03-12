@@ -6,22 +6,22 @@
     {
       "id": "lead",
       "name": "Lead",
-      "description": "Orchestrates optimization cycles, identifies highest-leverage improvements."
+      "description": "Triages development health across the full capability chain (P1-P5), escalates critical issues, and orchestrates optimization cycles for highest-leverage improvements."
     },
     {
       "id": "skill-specialist",
       "name": "Skill Specialist",
-      "description": "Audits and improves the skill library."
+      "description": "Resolves cross-skill conflicts, audits and improves the skill library, and increases skill maturity."
     },
     {
       "id": "agent-specialist",
       "name": "Agent Specialist",
-      "description": "Audits and improves agent configurations."
+      "description": "Audits and improves agent configurations for clarity, effectiveness, and appropriate skill references."
     },
     {
       "id": "team-specialist",
       "name": "Team Specialist",
-      "description": "Audits and improves team structures."
+      "description": "Audits and improves team structures, role definitions, and cross-team coordination."
     }
   ]
 }

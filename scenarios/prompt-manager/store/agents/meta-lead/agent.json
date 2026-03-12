@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "meta-lead",
   "displayName": "Meta Lead",
-  "description": "Orchestrates optimization cycles for Skills, Agents, and Teams to increase system-wide capability.",
+  "description": "Triages development health across Vrooli's capability chain and orchestrates optimization of skills, agents, and teams for maximum compound impact.",
   "status": "active",
   "appearance": {
     "body": "#D97706",
@@ -14,6 +14,8 @@
     "meta",
     "optimization",
     "orchestration",
+    "triage",
+    "health-monitoring",
     "recursive-improvement"
   ],
   "fileOrder": [
@@ -21,7 +23,7 @@
     "AGENTS.md",
     "TOOLS.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-09T12:00:00Z"
+  "updatedAt": "2026-03-11T00:00:00Z"
 }

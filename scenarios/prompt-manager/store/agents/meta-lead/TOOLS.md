@@ -1,17 +1,37 @@
 # TOOLS
 
 ## Tool Access
+
 `prompt-manager skill read <skill-id>`
 
 ## Primary Skills
-- **leader-research-analyze-plan** — Primary pipeline for ecosystem capability research, gap analysis, and implementation planning.
+
+- **leader-research-analyze-plan** — Primary pipeline for P5 ecosystem capability research and planning.
 - **capability-extraction** — Audit agent files for embedded methodologies that should become reusable skills.
 - **skill-improvement-suggestions** — Individual skill analysis methodology (composed by the pipeline).
 - **skill-validation** — Quality validation criteria.
 - **skill-principles** — Universal skill requirements.
 - **conversation-friction-analysis** — Identifying agent interaction friction (feeds into the pipeline as research input).
+- **visited-tracker-tools** — Track investigated entities across optimization cycles.
 
-## Graph Analysis Commands
+## Infrastructure Health (P1)
+
+- `vrooli-autoheal status [--json]` — Current health of all monitored resources and scenarios.
+- `vrooli-autoheal checks` — List all registered health checks.
+
+## Development Toolchain (P2/P3)
+
+*Available when development-toolchain-validator ships.*
+
+- `development-toolchain-validator validate <reference>` — Run full validation against a reference scenario.
+- `development-toolchain-validator report --conflicts` — Cross-skill contradictions.
+- `development-toolchain-validator report --drift` — Skills changed since last validation.
+- `development-toolchain-validator report --maturity` — Skill configurability and maturity scores.
+- `development-toolchain-validator report --tool-baselines` — Tool accuracy regression checks.
+- `scenario-auditor scan <scenario> [--summary]` — Standards violations for a scenario.
+
+## Prompt-Manager Graph (P4)
+
 - `prompt-manager graph show` — Overall ecosystem health snapshot (node/edge counts, average health).
 - `prompt-manager graph health [--type X | <id>]` — Health scores for all entities or a specific one.
 - `prompt-manager graph orphaned-skills [--limit N]` — Skills not referenced by any agent.
@@ -23,12 +43,19 @@
 - `prompt-manager graph node <id> [--json]` — Single node with all connections and health breakdown.
 - `prompt-manager graph dump --json` — Full graph data for programmatic analysis.
 
-## Skill Management Commands
+## Skill Management
+
 - `prompt-manager skill list` — List all skills with ratings.
 - `prompt-manager skill show <id>` — View skill details and metrics.
 - `prompt-manager skill rate <id>` — Rate skill effectiveness.
 
+## Team Communication
+
+- `prompt-manager team message-send <team-id> <agent-id> <message>` — Send task to team member.
+
 ## Usage Rules
-- Prioritize by compound impact across the ecosystem.
+
+- Always work through priorities P1 to P5 in order.
+- Prioritize by compound impact within each priority level.
 - Measure effectiveness before and after changes.
 - Every optimization should be independently evaluable.

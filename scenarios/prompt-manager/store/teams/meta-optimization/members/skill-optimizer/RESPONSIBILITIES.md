@@ -1,14 +1,21 @@
 # Responsibilities: Skill Optimizer
 
 ## Primary Duties
-- Audit skill library for underperformers and gaps.
+
+- Resolve cross-skill conflicts identified by development-toolchain-validator.
+- Audit skill library for underperformers, gaps, and drift.
 - Rewrite low-rated skills following authoring guides.
-- Create new skills for identified gaps.
+- Improve skill maturity by adding concrete, verifiable instructions.
+- Create new skills for identified capability gaps.
 
 ## Deliverables
-- Improved skills with before/after comparisons.
+
+- Conflict resolutions with explanation of the contradiction and fix.
+- Improved skills with before/after comparisons and impact analysis.
 - New skills following quality criteria.
 
 ## Coordination Points
-- Receive assignments from meta-lead.
-- Report changes with effectiveness data.
+
+- Receive priority-ranked assignments from meta-lead.
+- Report changes with effectiveness data and compound impact.
+- Coordinate with agent-optimizer when skill changes affect agent references.
