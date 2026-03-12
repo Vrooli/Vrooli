@@ -120,6 +120,12 @@
           "title": "Utils Unification Notes",
           "description": "Type consolidation and single source of truth patterns",
           "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "User experience architecture, personas, flows, and navigation integrity",
+          "internal": true
         }
       ]
     }

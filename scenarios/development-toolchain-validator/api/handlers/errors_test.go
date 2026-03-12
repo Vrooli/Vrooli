@@ -1,5 +1,6 @@
 // DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md#handler-tests
 // [REQ:REQ-P0-002] Reference Scenario API Endpoints - Error mapping tests
+// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store - Error mapping tests
 package handlers
 
 import (
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/skill"
 	apierrors "development-toolchain-validator/internal/errors"
 )
 
@@ -335,5 +337,172 @@ func TestErrorWithCause(t *testing.T) {
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("WriteStructuredError() status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connection Error Mapping Tests
+// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TestMapSkillDomainError tests skill domain error mapping to API errors.
+func TestMapSkillDomainError(t *testing.T) {
+	tests := []struct {
+		name          string
+		err           error
+		cfg           SkillErrorMappingConfig
+		wantStatus    int
+		wantCategory  apierrors.Category
+		wantInMessage string
+	}{
+		{
+			name: "connection_not_found",
+			err:  skill.ErrNotFound,
+			cfg: SkillErrorMappingConfig{
+				ConnectionID: "conn-123",
+			},
+			wantStatus:    http.StatusNotFound,
+			wantCategory:  apierrors.CategoryNotFound,
+			wantInMessage: "not found",
+		},
+		{
+			name: "invalid_skill_id",
+			err:  skill.ErrInvalidSkillID,
+			cfg: SkillErrorMappingConfig{
+				SkillID: "Bad-Skill",
+			},
+			wantStatus:    http.StatusBadRequest,
+			wantCategory:  apierrors.CategoryValidation,
+			wantInMessage: "Skill ID",
+		},
+		{
+			name:          "invalid_reference_id",
+			err:           skill.ErrInvalidReferenceID,
+			cfg:           SkillErrorMappingConfig{},
+			wantStatus:    http.StatusBadRequest,
+			wantCategory:  apierrors.CategoryValidation,
+			wantInMessage: "Reference ID",
+		},
+		{
+			name: "connection_exists",
+			err:  skill.ErrConnectionExists,
+			cfg: SkillErrorMappingConfig{
+				ReferenceID: "ref-123",
+				SkillID:     "skill-abc",
+			},
+			wantStatus:    http.StatusConflict,
+			wantCategory:  apierrors.CategoryConflict,
+			wantInMessage: "already exists",
+		},
+		{
+			name:          "unknown_error",
+			err:           errors.New("some unexpected error"),
+			cfg:           SkillErrorMappingConfig{},
+			wantStatus:    http.StatusInternalServerError,
+			wantCategory:  apierrors.CategoryInternal,
+			wantInMessage: "unexpected",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			apiErr := MapSkillDomainError(tc.err, tc.cfg)
+
+			if apiErr.ToHTTPStatus() != tc.wantStatus {
+				t.Errorf("MapSkillDomainError() status = %d, want %d", apiErr.ToHTTPStatus(), tc.wantStatus)
+			}
+
+			if apiErr.Category != tc.wantCategory {
+				t.Errorf("MapSkillDomainError() category = %v, want %v", apiErr.Category, tc.wantCategory)
+			}
+
+			if tc.wantInMessage != "" && !strings.Contains(apiErr.Message, tc.wantInMessage) {
+				t.Errorf("MapSkillDomainError() message %q should contain %q", apiErr.Message, tc.wantInMessage)
+			}
+		})
+	}
+}
+
+// TestHandleConnectError tests the connect error handler.
+func TestHandleConnectError(t *testing.T) {
+	tests := []struct {
+		name        string
+		err         error
+		referenceID string
+		skillID     string
+		wantStatus  int
+	}{
+		{
+			name:        "invalid_skill_id",
+			err:         skill.ErrInvalidSkillID,
+			referenceID: "ref-1",
+			skillID:     "Bad",
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "invalid_reference_id",
+			err:         skill.ErrInvalidReferenceID,
+			referenceID: "",
+			skillID:     "skill-1",
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "connection_exists",
+			err:         skill.ErrConnectionExists,
+			referenceID: "ref-1",
+			skillID:     "skill-1",
+			wantStatus:  http.StatusConflict,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			status, msg := HandleConnectError(tc.err, tc.referenceID, tc.skillID)
+
+			if status != tc.wantStatus {
+				t.Errorf("HandleConnectError() status = %d, want %d", status, tc.wantStatus)
+			}
+
+			if msg == "" {
+				t.Error("HandleConnectError() message should not be empty")
+			}
+		})
+	}
+}
+
+// TestHandleConnectionGetError tests the connection get error handler.
+func TestHandleConnectionGetError(t *testing.T) {
+	tests := []struct {
+		name         string
+		err          error
+		connectionID string
+		wantStatus   int
+	}{
+		{
+			name:         "not_found",
+			err:          skill.ErrNotFound,
+			connectionID: "conn-123",
+			wantStatus:   http.StatusNotFound,
+		},
+		{
+			name:         "unknown_error",
+			err:          errors.New("some error"),
+			connectionID: "conn-456",
+			wantStatus:   http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			status, msg := HandleConnectionGetError(tc.err, tc.connectionID)
+
+			if status != tc.wantStatus {
+				t.Errorf("HandleConnectionGetError() status = %d, want %d", status, tc.wantStatus)
+			}
+
+			if msg == "" {
+				t.Error("HandleConnectionGetError() message should not be empty")
+			}
+		})
 	}
 }

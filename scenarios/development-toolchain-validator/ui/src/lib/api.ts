@@ -49,21 +49,96 @@ export interface ApiError {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Request Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Decision boundary: Error handling for all API requests
+// - If response is not ok, extract error message from body or use fallback
+// - Error messages are user-facing, so keep them informative
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RequestOptions<T> {
+  /** HTTP method (default: GET) */
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  /** Request body for POST/PATCH */
+  body?: unknown;
+  /** Fallback error message when API error extraction fails */
+  errorContext: string;
+  /** Transform successful response (default: return response as-is) */
+  transform?: (data: unknown) => T;
+}
+
+/**
+ * Centralized request helper that consolidates error handling.
+ *
+ * This is the single responsibility point for:
+ * - Building URLs with correct base
+ * - Setting headers (Content-Type, cache control)
+ * - Extracting error messages from failed responses
+ * - Optional response transformation
+ */
+async function apiRequest<T>(
+  path: string,
+  options: RequestOptions<T>
+): Promise<T> {
+  const { method = "GET", body, errorContext, transform } = options;
+
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    cache: method === "GET" ? "no-store" : undefined
+  };
+
+  if (body !== undefined) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(url, fetchOptions);
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
+    throw new Error(errorBody.error ?? `${errorContext}: ${res.status}`);
+  }
+
+  // For DELETE, no body expected
+  if (method === "DELETE") {
+    return undefined as T;
+  }
+
+  const data = await res.json();
+  return transform ? transform(data) : data as T;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connections
+// [REQ:P0-003] Skill Connection Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SkillConnection {
+  id: string;
+  reference_id: string;
+  skill_id: string;
+  skill_version?: string;
+  skill_content_hash?: string;
+  connected_at: string;
+  updated_at: string;
+}
+
+export interface SkillConnectionListResponse {
+  connections: SkillConnection[];
+  count: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Health
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function fetchHealth(): Promise<HealthResponse> {
-  const url = buildApiUrl("/health", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+export function fetchHealth(): Promise<HealthResponse> {
+  return apiRequest<HealthResponse>("/health", {
+    errorContext: "API health check failed"
   });
-
-  if (!res.ok) {
-    throw new Error(`API health check failed: ${res.status}`);
-  }
-
-  return res.json() as Promise<HealthResponse>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,94 +146,62 @@ export async function fetchHealth(): Promise<HealthResponse> {
 // [REQ:P0-002] Reference Scenario API Endpoints
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function fetchReferences(template?: string): Promise<Reference[]> {
+export function fetchReferences(template?: string): Promise<Reference[]> {
   const params = template ? `?template=${encodeURIComponent(template)}` : "";
-  const url = buildApiUrl(`/references${params}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+  return apiRequest<Reference[]>(`/references${params}`, {
+    errorContext: "Failed to fetch references",
+    transform: (data) => (data as ReferenceListResponse).references ?? []
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to fetch references: ${res.status}`);
-  }
-
-  const data = await res.json() as ReferenceListResponse;
-  return data.references ?? [];
 }
 
-export async function fetchReferenceById(id: string): Promise<Reference> {
-  const url = buildApiUrl(`/references/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+export function fetchReferenceById(id: string): Promise<Reference> {
+  return apiRequest<Reference>(`/references/${encodeURIComponent(id)}`, {
+    errorContext: "Failed to fetch reference"
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to fetch reference: ${res.status}`);
-  }
-
-  return res.json() as Promise<Reference>;
 }
 
-export async function fetchReferenceBySlug(slug: string): Promise<Reference> {
-  const url = buildApiUrl(`/references/by-slug/${encodeURIComponent(slug)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+export function fetchReferenceBySlug(slug: string): Promise<Reference> {
+  return apiRequest<Reference>(`/references/by-slug/${encodeURIComponent(slug)}`, {
+    errorContext: "Failed to fetch reference"
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to fetch reference: ${res.status}`);
-  }
-
-  return res.json() as Promise<Reference>;
 }
 
-export async function createReference(input: CreateReferenceInput): Promise<Reference> {
-  const url = buildApiUrl("/references", { baseUrl: API_BASE });
-  const res = await fetch(url, {
+export function createReference(input: CreateReferenceInput): Promise<Reference> {
+  return apiRequest<Reference>("/references", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input)
+    body: input,
+    errorContext: "Failed to create reference"
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to create reference: ${res.status}`);
-  }
-
-  return res.json() as Promise<Reference>;
 }
 
-export async function updateReference(id: string, input: UpdateReferenceInput): Promise<Reference> {
-  const url = buildApiUrl(`/references/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
+export function updateReference(id: string, input: UpdateReferenceInput): Promise<Reference> {
+  return apiRequest<Reference>(`/references/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input)
+    body: input,
+    errorContext: "Failed to update reference"
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to update reference: ${res.status}`);
-  }
-
-  return res.json() as Promise<Reference>;
 }
 
-export async function deleteReference(id: string): Promise<void> {
-  const url = buildApiUrl(`/references/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
+export function deleteReference(id: string): Promise<void> {
+  return apiRequest<void>(`/references/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" }
+    errorContext: "Failed to delete reference"
   });
+}
 
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ error: "Unknown error" })) as ApiError;
-    throw new Error(errorBody.error ?? `Failed to delete reference: ${res.status}`);
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connections - API operations
+// [REQ:P0-003] Skill Connection Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function fetchConnections(referenceId?: string): Promise<SkillConnection[]> {
+  const params = referenceId ? `?reference_id=${encodeURIComponent(referenceId)}` : "";
+  return apiRequest<SkillConnection[]>(`/connections${params}`, {
+    errorContext: "Failed to fetch connections",
+    transform: (data) => (data as SkillConnectionListResponse).connections ?? []
+  });
+}
+
+export function fetchConnectionsByReference(referenceId: string): Promise<SkillConnection[]> {
+  return fetchConnections(referenceId);
 }

@@ -1,14 +1,20 @@
 // DOC: docs/reference/api-endpoints.md#skill-connections
 // DOC: docs/internal/SEAMS.md#api-handlers--domain-services
 // DOC: docs/internal/SEAMS.md#error-semantics
+// DOC: docs/internal/SEAMS.md#decision-skill-error-mapping
 //
 // Package handlers implements HTTP request handling.
+//
+// Skill Connection Handler:
+// - Uses centralized error mapping via HandleConnectError/HandleConnectionGetError
+// - Supports dry-run mode via X-Dry-Run header for validation without persistence
+// - All mutating operations (Connect, Update, Disconnect) support dry-run
+//
 // [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store
 package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
@@ -74,7 +80,7 @@ func (h *SkillHandler) Connect(w http.ResponseWriter, r *http.Request) {
 	// Dry-run: validate input and return realistic response without persistence
 	if isDryRun(r) {
 		if err := h.service.ValidateConnect(r.Context(), input); err != nil {
-			status, msg := h.handleConnectError(err, input.SkillID)
+			status, msg := HandleConnectError(err, input.ReferenceID, input.SkillID)
 			writeError(w, status, msg)
 			return
 		}
@@ -100,7 +106,7 @@ func (h *SkillHandler) Connect(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := h.service.Connect(r.Context(), input)
 	if err != nil {
-		status, msg := h.handleConnectError(err, input.SkillID)
+		status, msg := HandleConnectError(err, input.ReferenceID, input.SkillID)
 		writeError(w, status, msg)
 		return
 	}
@@ -114,7 +120,7 @@ func (h *SkillHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		status, msg := h.handleGetError(err, id)
+		status, msg := HandleConnectionGetError(err, id)
 		writeError(w, status, msg)
 		return
 	}
@@ -130,7 +136,7 @@ func (h *SkillHandler) GetByReferenceAndSkill(w http.ResponseWriter, r *http.Req
 
 	conn, err := h.service.GetByReferenceAndSkill(r.Context(), referenceID, skillID)
 	if err != nil {
-		status, msg := h.handleGetError(err, referenceID+"/"+skillID)
+		status, msg := HandleConnectionGetError(err, referenceID+"/"+skillID)
 		writeError(w, status, msg)
 		return
 	}
@@ -152,7 +158,7 @@ func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Dry-run: validate input and return realistic response without persistence
 	if isDryRun(r) {
 		if err := h.service.ValidateUpdate(r.Context(), id, input); err != nil {
-			status, msg := h.handleGetError(err, id)
+			status, msg := HandleConnectionGetError(err, id)
 			writeError(w, status, msg)
 			return
 		}
@@ -160,7 +166,7 @@ func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 		// Get the existing connection to build a realistic response
 		existing, err := h.service.GetByID(r.Context(), id)
 		if err != nil {
-			status, msg := h.handleGetError(err, id)
+			status, msg := HandleConnectionGetError(err, id)
 			writeError(w, status, msg)
 			return
 		}
@@ -186,7 +192,7 @@ func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := h.service.Update(r.Context(), id, input)
 	if err != nil {
-		status, msg := h.handleGetError(err, id)
+		status, msg := HandleConnectionGetError(err, id)
 		writeError(w, status, msg)
 		return
 	}
@@ -203,7 +209,7 @@ func (h *SkillHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 	if isDryRun(r) {
 		_, err := h.service.GetByID(r.Context(), id)
 		if err != nil {
-			status, msg := h.handleGetError(err, id)
+			status, msg := HandleConnectionGetError(err, id)
 			writeError(w, status, msg)
 			return
 		}
@@ -217,7 +223,7 @@ func (h *SkillHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.Disconnect(r.Context(), id); err != nil {
-		status, msg := h.handleGetError(err, id)
+		status, msg := HandleConnectionGetError(err, id)
 		writeError(w, status, msg)
 		return
 	}
@@ -235,7 +241,7 @@ func (h *SkillHandler) DisconnectByReferenceAndSkill(w http.ResponseWriter, r *h
 	if isDryRun(r) {
 		_, err := h.service.GetByReferenceAndSkill(r.Context(), referenceID, skillID)
 		if err != nil {
-			status, msg := h.handleGetError(err, referenceID+"/"+skillID)
+			status, msg := HandleConnectionGetError(err, referenceID+"/"+skillID)
 			writeError(w, status, msg)
 			return
 		}
@@ -249,7 +255,7 @@ func (h *SkillHandler) DisconnectByReferenceAndSkill(w http.ResponseWriter, r *h
 	}
 
 	if err := h.service.DisconnectByReferenceAndSkill(r.Context(), referenceID, skillID); err != nil {
-		status, msg := h.handleGetError(err, referenceID+"/"+skillID)
+		status, msg := HandleConnectionGetError(err, referenceID+"/"+skillID)
 		writeError(w, status, msg)
 		return
 	}
@@ -273,32 +279,10 @@ func (h *SkillHandler) CheckDrift(w http.ResponseWriter, r *http.Request) {
 
 	status, err := h.service.CheckDrift(r.Context(), id, input.CurrentVersion, input.CurrentHash)
 	if err != nil {
-		httpStatus, msg := h.handleGetError(err, id)
+		httpStatus, msg := HandleConnectionGetError(err, id)
 		writeError(w, httpStatus, msg)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, status)
-}
-
-// handleConnectError maps connect errors to HTTP status and message.
-func (h *SkillHandler) handleConnectError(err error, skillID string) (int, string) {
-	switch {
-	case errors.Is(err, skill.ErrInvalidSkillID):
-		return http.StatusBadRequest, "Invalid skill ID format. Must start with a letter and contain only lowercase letters, numbers, and hyphens."
-	case errors.Is(err, skill.ErrInvalidReferenceID):
-		return http.StatusBadRequest, "Invalid or missing reference ID."
-	case errors.Is(err, skill.ErrConnectionExists):
-		return http.StatusConflict, "Connection already exists for this reference-skill pair."
-	default:
-		return http.StatusInternalServerError, "Failed to connect skill"
-	}
-}
-
-// handleGetError maps get/delete errors to HTTP status and message.
-func (h *SkillHandler) handleGetError(err error, identifier string) (int, string) {
-	if errors.Is(err, skill.ErrNotFound) {
-		return http.StatusNotFound, "Connection not found: " + identifier
-	}
-	return http.StatusInternalServerError, "Internal server error"
 }

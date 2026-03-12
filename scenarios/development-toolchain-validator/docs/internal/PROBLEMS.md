@@ -18,6 +18,10 @@
 
 - **Operational target 1:1 mapping penalty**: 76% of operational targets have 1:1 requirement mapping, causing an 8pt scoring penalty. The requirements structure mirrors the PRD targets too closely. To resolve: consolidate related requirement modules under shared operational targets (e.g., combine reference registry + skill connection under a "Core Data Layer" target, or validation domains under "Validation Engine"). This requires requirements restructuring and index.json updates.
 
+- **Missing expectation postgres repositories**: The expectation domain has service/handler/tests but no postgres repository implementation (`infrastructure/postgres/expectation_repo.go`). The service constructor requires `StructuralRepository` and `CLIRepository` implementations. Until these are created, the expectation API endpoints cannot be wired up in main.go. The handler tests use mocks. Priority: P1 (needed before expectation API is functional).
+
+- ~~**UI has no routing**~~: **RESOLVED (2026-03-11)**: Implemented React Router with Dashboard and ReferenceDetail pages. Route count: 2, has_routing: true.
+
 ## Test Gaps
 
 - **Validation domain handlers**: The `domain/validation/` package now has structural checker and CLI executor implementations with 91.0% coverage, but no HTTP handlers yet for running validations via API.
@@ -27,6 +31,8 @@
 
 ## Resolved Tech Debt
 
+- ~~**No UI tests**: The UI had no test files at all.~~ **RESOLVED (2026-03-11)**: Added comprehensive UI test infrastructure with `jsdom`, test setup file, and 33 tests covering api.ts (19 tests: health, reference CRUD, skill connections, error handling) and utils.ts (14 tests: cn(), formatDate, formatRelativeDate).
+- ~~**Missing skill repository tests**: The `infrastructure/postgres/skill_repo.go` had no tests.~~ **RESOLVED (2026-03-11)**: Added `skill_repo_test.go` with 3 test functions (`TestNewSkillRepository`, `TestSkillRepository_MethodSignatures`, `TestSkillRepository_HelperFunctions`) mirroring the reference repo test pattern.
 - ~~**Missing expectation handler tests**: GetByID and Delete handler tests missing.~~ **RESOLVED (2026-03-11)**: Added `TestExpectationHandler_GetStructural`, `TestExpectationHandler_GetCLI`, `TestExpectationHandler_DeleteStructural`, `TestExpectationHandler_DeleteCLI`, plus InvalidJSON and filter tests. Added proper [REQ:ID] header tags. Test count: 396→411 API tests.
 - ~~**Monolithic test file**: One test file validates 4+ requirements, causing a 2pt penalty.~~ **RESOLVED (2026-03-11)**: Split `api/domain/skill/service_test.go` into `connection_service_test.go` (REQ-P0-003) and `drift_service_test.go` (REQ-P0-004). Updated requirement module refs accordingly.
 - ~~**Handlers coverage below target**: Coverage at 62.9% was below 80% target.~~ **RESOLVED (2026-03-11)**: Added `errors_test.go`, dry-run tests for all mutating endpoints, `TestNewReferenceHandlerWithConfig`, `TestReferenceHandler_Create_DryRun`, `TestReferenceHandler_Update_DryRun`, `TestReferenceHandler_Delete_DryRun`, `TestReferenceHandler_Update_PartialFields`. Coverage improved 62.9% → 90.9% (exceeds 80% target).
@@ -35,3 +41,5 @@
 - ~~**CLI coverage at 32.4%**: CLI tests covered command routing but limited coverage for create/update/get/delete/drift validation flows.~~ **IMPROVED (2026-03-11)**: Added 23 new CLI tests covering alias commands, create field validation (all 4 required fields), update field validation, get/delete validation, connection connect/get/disconnect/drift validation. Coverage improved 32.4% → 53.1%.
 - ~~**Validation domain tests**: The `domain/validation/` package has no tests.~~ **RESOLVED (2026-03-11)**: Implemented structural validation engine with `model.go` (validation types), `structural_checker.go` (file/folder/content validation), and comprehensive `structural_checker_test.go` (25+ tests). Coverage: 89.4%. REQ-P0-007/REQ-P0-007a status updated from `draft` to `implemented`.
 - ~~**CLI tool validation**: The CLI executor for running assertions against tool output (OT-P0-007) is not yet implemented.~~ **RESOLVED (2026-03-11)**: Implemented CLI executor with `cli_executor.go` (command execution with timeout/sandboxing, JSON parsing, JSONPath extraction, all 10 assertion operators). Split tests: `cli_command_test.go` (REQ-P0-008, 8 tests) and `cli_assertion_test.go` (REQ-P0-008a, 12 tests). Coverage: 91.0%. REQ-P0-008/REQ-P0-008a status updated from `draft` to `implemented`.
+- ~~**Skill handler not wired in main.go**: The skill domain had service, repository, and handler implementations but the handler was never registered in main.go routes, causing `/api/v1/connections` to return 404.~~ **RESOLVED (2026-03-11)**: Added skill handler registration to main.go:setupRoutes(). Connection API now functional. Fixed CLI tests that assumed API unavailability.
+- ~~**Missing skill connection test factories**: Testutil package only had reference factories.~~ **RESOLVED (2026-03-11)**: Added `ConnectionFactory` and `ConnectInputFactory` to `api/internal/testutil/fixtures.go` with full builder pattern support. Added 14 new tests covering all factory methods. Testutil coverage maintained at 90%+.

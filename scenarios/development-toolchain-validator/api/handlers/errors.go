@@ -35,6 +35,7 @@ import (
 	"net/http"
 
 	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/skill"
 	apierrors "development-toolchain-validator/internal/errors"
 )
 
@@ -164,6 +165,64 @@ func HandleCreateError(err error, cfg ErrorMappingConfig) (int, string) {
 func HandleGetError(err error, resourceID string) (int, string) {
 	cfg := ErrorMappingConfig{ResourceID: resourceID}
 	apiErr := MapDomainError(err, cfg)
+	logError(apiErr)
+	return apiErr.ToHTTPStatus(), apiErr.Message
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connection Error Mapping
+// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store - Error handling
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SkillErrorMappingConfig provides context for skill error mapping.
+type SkillErrorMappingConfig struct {
+	// ConnectionID is the connection identifier (for not-found errors)
+	ConnectionID string
+	// ReferenceID is the reference identifier (for validation/conflict errors)
+	ReferenceID string
+	// SkillID is the skill identifier (for validation errors)
+	SkillID string
+}
+
+// MapSkillDomainError converts skill domain errors to structured API errors.
+// This centralizes the mapping from skill domain semantics to API semantics.
+func MapSkillDomainError(err error, cfg SkillErrorMappingConfig) *apierrors.Error {
+	switch {
+	case errors.Is(err, skill.ErrNotFound):
+		return apierrors.ConnectionNotFound(cfg.ConnectionID)
+
+	case errors.Is(err, skill.ErrInvalidSkillID):
+		return apierrors.InvalidSkillID(cfg.SkillID)
+
+	case errors.Is(err, skill.ErrInvalidReferenceID):
+		return apierrors.InvalidReferenceID()
+
+	case errors.Is(err, skill.ErrConnectionExists):
+		return apierrors.ConnectionExists(cfg.ReferenceID, cfg.SkillID)
+
+	default:
+		// Unknown errors become internal errors
+		return apierrors.Internal("An unexpected error occurred").WithCause(err)
+	}
+}
+
+// HandleConnectError processes errors from the Connect operation.
+// Returns the HTTP status and message for backward compatibility.
+func HandleConnectError(err error, referenceID, skillID string) (int, string) {
+	cfg := SkillErrorMappingConfig{
+		ReferenceID: referenceID,
+		SkillID:     skillID,
+	}
+	apiErr := MapSkillDomainError(err, cfg)
+	logError(apiErr)
+	return apiErr.ToHTTPStatus(), apiErr.Message
+}
+
+// HandleConnectionGetError processes errors from connection Get/Delete operations.
+// Returns the HTTP status and message for backward compatibility.
+func HandleConnectionGetError(err error, connectionID string) (int, string) {
+	cfg := SkillErrorMappingConfig{ConnectionID: connectionID}
+	apiErr := MapSkillDomainError(err, cfg)
 	logError(apiErr)
 	return apiErr.ToHTTPStatus(), apiErr.Message
 }

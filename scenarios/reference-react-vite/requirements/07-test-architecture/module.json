@@ -6,48 +6,104 @@
   "requirements": [
     {
       "category": "core",
+      "children": [
+        "REQ-P0-007a",
+        "REQ-P0-007b"
+      ],
+      "description": "Complete test architecture with co-located tests and centralized infrastructure.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "Test Architecture"
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-007a-1",
+        "REQ-P0-007a-2"
+      ],
       "description": "Implement co-located unit tests alongside production code with 80% minimum code coverage across API and UI.",
       "id": "REQ-P0-007a",
       "prd_ref": "OT-P0-007",
-      "status": "pass",
-      "title": "Co-located Unit Tests",
+      "status": "passed",
+      "title": "Co-located Unit Tests"
+    },
+    {
+      "category": "core",
+      "description": "Go unit tests co-located with source files in _test.go pattern.",
+      "id": "REQ-P0-007a-1",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "Go Test Co-location",
       "validation": [
         {
           "notes": "Go test file locations",
           "phase": "unit",
           "ref": "api/domain/tasks/task_test.go",
-          "status": "pass",
+          "status": "passed",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "TypeScript tests co-located with components in .test.tsx pattern.",
+      "id": "REQ-P0-007a-2",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "TypeScript Test Co-location",
+      "validation": [
         {
           "notes": "UI test infrastructure",
           "phase": "integration",
           "ref": "ui/src/test-utils/setup.ts",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
         }
       ]
     },
     {
       "category": "core",
+      "children": [
+        "REQ-P0-007b-1",
+        "REQ-P0-007b-2"
+      ],
       "description": "Centralized test helpers and mocks with Testcontainers setup for database testing.",
       "id": "REQ-P0-007b",
       "prd_ref": "OT-P0-007",
-      "status": "pass",
-      "title": "Test Infrastructure",
+      "status": "passed",
+      "title": "Test Infrastructure"
+    },
+    {
+      "category": "core",
+      "description": "Test helper utilities for HTTP assertions, JSON decoding, and request building.",
+      "id": "REQ-P0-007b-1",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "Test Helpers",
       "validation": [
         {
           "notes": "Test helper organization",
           "phase": "unit",
           "ref": "api/internal/testutil/helpers.go",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
-        },
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Mock repository implementations for isolated handler testing.",
+      "id": "REQ-P0-007b-2",
+      "prd_ref": "OT-P0-007",
+      "status": "passed",
+      "title": "Mock Repositories",
+      "validation": [
         {
           "notes": "Mock repository infrastructure",
           "phase": "integration",
           "ref": "api/internal/mocks/repository.go",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
         }
       ]

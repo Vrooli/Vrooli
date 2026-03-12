@@ -140,6 +140,52 @@ func (m *mockCLIRepository) DeleteByConnection(_ context.Context, connectionID s
 	return nil
 }
 
+// errorMockStructuralRepository always returns an error on List.
+type errorMockStructuralRepository struct{}
+
+func (e *errorMockStructuralRepository) Create(_ context.Context, _ expectation.CreateStructuralInput) (*expectation.StructuralExpectation, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockStructuralRepository) GetByID(_ context.Context, _ string) (*expectation.StructuralExpectation, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockStructuralRepository) List(_ context.Context, _ expectation.ListOptions) ([]*expectation.StructuralExpectation, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockStructuralRepository) Delete(_ context.Context, _ string) error {
+	return expectation.ErrNotFound
+}
+func (e *errorMockStructuralRepository) DeleteByConnection(_ context.Context, _ string) error {
+	return expectation.ErrNotFound
+}
+
+// errorMockCLIRepository always returns an error on List.
+type errorMockCLIRepository struct{}
+
+func (e *errorMockCLIRepository) Create(_ context.Context, _ expectation.CreateCLIInput) (*expectation.CLIAssertion, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockCLIRepository) GetByID(_ context.Context, _ string) (*expectation.CLIAssertion, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockCLIRepository) List(_ context.Context, _ expectation.ListOptions) ([]*expectation.CLIAssertion, error) {
+	return nil, expectation.ErrNotFound
+}
+func (e *errorMockCLIRepository) Delete(_ context.Context, _ string) error {
+	return expectation.ErrNotFound
+}
+func (e *errorMockCLIRepository) DeleteByConnection(_ context.Context, _ string) error {
+	return expectation.ErrNotFound
+}
+
+// newErrorExpectationHandler creates a handler that returns errors for list operations.
+func newErrorExpectationHandler() *ExpectationHandler {
+	structRepo := &errorMockStructuralRepository{}
+	cliRepo := &errorMockCLIRepository{}
+	svc := expectation.NewService(structRepo, cliRepo)
+	return NewExpectationHandler(svc)
+}
+
 // TestExpectationHandler_CreateStructural tests structural expectation creation.
 // [REQ:REQ-P0-004] Structural Expectation Config
 func TestExpectationHandler_CreateStructural(t *testing.T) {
@@ -323,6 +369,36 @@ func TestExpectationHandler_ListCLI(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("ListCLI() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+}
+
+// TestExpectationHandler_ListStructural_Error tests error handling for listing structural expectations.
+// [REQ:REQ-P0-004] Structural Expectation Config
+func TestExpectationHandler_ListStructural_Error(t *testing.T) {
+	handler := newErrorExpectationHandler()
+
+	req := httptest.NewRequest(http.MethodGet, "/expectations/structural", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ListStructural(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("ListStructural() error case status = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+}
+
+// TestExpectationHandler_ListCLI_Error tests error handling for listing CLI assertions.
+// [REQ:REQ-P0-005] CLI Tool Expectation Config
+func TestExpectationHandler_ListCLI_Error(t *testing.T) {
+	handler := newErrorExpectationHandler()
+
+	req := httptest.NewRequest(http.MethodGet, "/expectations/cli", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ListCLI(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("ListCLI() error case status = %d, want %d", rr.Code, http.StatusInternalServerError)
 	}
 }
 
@@ -756,6 +832,124 @@ func TestExpectationHandler_ListCLI_WithConnectionFilter(t *testing.T) {
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
+	}
+}
+
+// TestExpectationHandler_CreateStructural_ValidationErrors tests all validation error types.
+// [REQ:REQ-P0-004] Structural Expectation Config
+func TestExpectationHandler_CreateStructural_ValidationErrors(t *testing.T) {
+	handler := newTestExpectationHandler()
+
+	tests := []struct {
+		name           string
+		input          expectation.CreateStructuralInput
+		wantStatus     int
+		wantMsgContain string
+		category       string
+	}{
+		{
+			name: "invalid_type",
+			input: expectation.CreateStructuralInput{
+				ConnectionID: "conn-123",
+				Type:         expectation.ExpectationType("invalid_type"),
+				Pattern:      "api/domain",
+			},
+			wantStatus:     http.StatusBadRequest,
+			wantMsgContain: "Invalid expectation type",
+			category:       "error",
+		},
+		{
+			name: "empty_pattern",
+			input: expectation.CreateStructuralInput{
+				ConnectionID: "conn-123",
+				Type:         expectation.TypeFile,
+				Pattern:      "",
+			},
+			wantStatus:     http.StatusBadRequest,
+			wantMsgContain: "Invalid pattern",
+			category:       "error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(tc.input)
+			req := httptest.NewRequest(http.MethodPost, "/expectations/structural", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Dry-Run", "true")
+			rr := httptest.NewRecorder()
+
+			handler.CreateStructural(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Errorf("CreateStructural() status = %d, want %d, body: %s", rr.Code, tc.wantStatus, rr.Body.String())
+			}
+
+			if tc.wantMsgContain != "" && !bytes.Contains(rr.Body.Bytes(), []byte(tc.wantMsgContain)) {
+				t.Errorf("CreateStructural() body should contain %q, got: %s", tc.wantMsgContain, rr.Body.String())
+			}
+		})
+	}
+}
+
+// TestExpectationHandler_CreateCLI_ValidationErrors tests all CLI validation error types.
+// [REQ:REQ-P0-005] CLI Tool Expectation Config
+func TestExpectationHandler_CreateCLI_ValidationErrors(t *testing.T) {
+	handler := newTestExpectationHandler()
+
+	tests := []struct {
+		name           string
+		input          expectation.CreateCLIInput
+		wantStatus     int
+		wantMsgContain string
+		category       string
+	}{
+		{
+			name: "invalid_operator",
+			input: expectation.CreateCLIInput{
+				ConnectionID:  "conn-123",
+				Command:       "echo test",
+				JSONPath:      "$.result",
+				Operator:      expectation.AssertionOperator("invalid_op"),
+				ExpectedValue: 0,
+			},
+			wantStatus:     http.StatusBadRequest,
+			wantMsgContain: "Invalid assertion operator",
+			category:       "error",
+		},
+		{
+			name: "empty_command",
+			input: expectation.CreateCLIInput{
+				ConnectionID:  "conn-123",
+				Command:       "",
+				JSONPath:      "$.result",
+				Operator:      expectation.OpEq,
+				ExpectedValue: 0,
+			},
+			wantStatus:     http.StatusBadRequest,
+			wantMsgContain: "Invalid CLI command",
+			category:       "error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(tc.input)
+			req := httptest.NewRequest(http.MethodPost, "/expectations/cli", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Dry-Run", "true")
+			rr := httptest.NewRecorder()
+
+			handler.CreateCLI(rr, req)
+
+			if rr.Code != tc.wantStatus {
+				t.Errorf("CreateCLI() status = %d, want %d, body: %s", rr.Code, tc.wantStatus, rr.Body.String())
+			}
+
+			if tc.wantMsgContain != "" && !bytes.Contains(rr.Body.Bytes(), []byte(tc.wantMsgContain)) {
+				t.Errorf("CreateCLI() body should contain %q, got: %s", tc.wantMsgContain, rr.Body.String())
+			}
+		})
 	}
 }
 

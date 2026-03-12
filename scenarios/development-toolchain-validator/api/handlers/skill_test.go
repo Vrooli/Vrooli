@@ -77,6 +77,15 @@ func TestSkillHandler_List(t *testing.T) {
 			wantStatus: http.StatusOK,
 			category:   "happy_path",
 		},
+		{
+			name: "list_error",
+			path: "/api/v1/connections",
+			setupMock: func(m *mocks.MockSkillRepository) {
+				m.WithListError(skill.ErrNotFound)
+			},
+			wantStatus: http.StatusInternalServerError,
+			category:   "error",
+		},
 	}
 
 	for _, tc := range tests {

@@ -6,34 +6,104 @@
   "requirements": [
     {
       "category": "core",
+      "children": [
+        "REQ-P0-011a",
+        "REQ-P0-011b"
+      ],
+      "description": "Complete test-genie phase compliance across all 11 phases.",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "passed",
+      "title": "Test-Genie All-Pass"
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-011a-1",
+        "REQ-P0-011a-2"
+      ],
       "description": "Pass all structural and lint test-genie phases: structure, standards, dependencies, lint, docs.",
       "id": "REQ-P0-011a",
       "prd_ref": "OT-P0-011",
-      "status": "pass",
-      "title": "Structural Test Phases",
+      "status": "passed",
+      "title": "Structural Test Phases"
+    },
+    {
+      "category": "core",
+      "description": "README and required documentation files present.",
+      "id": "REQ-P0-011a-1",
+      "prd_ref": "OT-P0-011",
+      "status": "passed",
+      "title": "Documentation Structure",
       "validation": [
         {
           "notes": "Structure phase passes - README present",
           "phase": "unit",
           "ref": "README.md",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
         }
       ]
     },
     {
       "category": "core",
+      "description": "Dependencies properly declared and installed.",
+      "id": "REQ-P0-011a-2",
+      "prd_ref": "OT-P0-011",
+      "status": "passed",
+      "title": "Dependency Declaration",
+      "validation": [
+        {
+          "notes": "UI dependencies in package.json",
+          "phase": "dependencies",
+          "ref": "ui/package.json",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-011b-1",
+        "REQ-P0-011b-2"
+      ],
       "description": "Pass all functional test-genie phases: smoke, unit, integration, playbooks, business, performance.",
       "id": "REQ-P0-011b",
       "prd_ref": "OT-P0-011",
-      "status": "pass",
-      "title": "Functional Test Phases",
+      "status": "passed",
+      "title": "Functional Test Phases"
+    },
+    {
+      "category": "core",
+      "description": "Go API unit tests pass.",
+      "id": "REQ-P0-011b-1",
+      "prd_ref": "OT-P0-011",
+      "status": "passed",
+      "title": "Go Unit Tests",
       "validation": [
         {
-          "notes": "Unit tests pass (100+ Go, 30 TS)",
+          "notes": "Unit tests pass (100+ Go)",
           "phase": "integration",
           "ref": "api/domain/projects/project_test.go",
-          "status": "pass",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "TypeScript UI tests pass.",
+      "id": "REQ-P0-011b-2",
+      "prd_ref": "OT-P0-011",
+      "status": "passed",
+      "title": "TypeScript Unit Tests",
+      "validation": [
+        {
+          "notes": "UI tests pass (148 tests)",
+          "phase": "unit",
+          "ref": "ui/src/App.test.tsx",
+          "status": "passed",
           "type": "test"
         }
       ]

@@ -93,7 +93,7 @@ Client → POST /api/v1/tasks/{id}/notes
 ## Natural Boundaries
 
 ### Presentation Layer
-**Location**: [CODE: api/handlers/]
+**Location**: `api/handlers/` (see [tasks.go](../../api/handlers/tasks.go))
 
 Handles HTTP request/response translation. Does NOT contain business logic.
 
@@ -105,7 +105,7 @@ Responsibilities:
 - Handle pagination metadata
 
 ### Domain Layer
-**Location**: [CODE: api/domain/]
+**Location**: `api/domain/` (see [tasks/task.go](../../api/domain/tasks/task.go))
 
 Contains business rules and entity definitions. Does NOT know about HTTP or databases.
 
@@ -115,7 +115,7 @@ Responsibilities:
 - Implement business rule methods (e.g., status transitions)
 
 ### Data Access Layer
-**Location**: [CODE: api/repository/]
+**Location**: `api/repository/` (see [repository.go](../../api/repository/repository.go))
 
 Handles database operations. Does NOT contain business logic.
 

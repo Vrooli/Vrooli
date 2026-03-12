@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, FolderKanban, AlertCircle, Pause, CheckCircle, Archive } from "lucide-react";
+import { Plus, Trash2, FolderKanban, AlertCircle, Pause, CheckCircle, Archive, ChevronRight } from "lucide-react";
 import { fetchProjects, createProject, updateProject, deleteProject, type Project } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -85,13 +86,16 @@ function ProjectCard({
       style={{ borderLeftColor: borderColor, borderLeftWidth: "4px" }}
     >
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="font-medium">{project.name}</h3>
+        <Link to={`/projects/${project.id}`} className="flex-1 min-w-0 group">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium group-hover:text-blue-400 transition-colors truncate">{project.name}</h3>
+            <ChevronRight className="h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </div>
           {project.description && (
-            <p className="mt-1 text-sm text-slate-400">{project.description}</p>
+            <p className="mt-1 text-sm text-slate-400 truncate">{project.description}</p>
           )}
-        </div>
-        <div className="flex items-center gap-2">
+        </Link>
+        <div className="flex items-center gap-2 ml-2">
           <button
             onClick={cycleStatus}
             disabled={isUpdating}

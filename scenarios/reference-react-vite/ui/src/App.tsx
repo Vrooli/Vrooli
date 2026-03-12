@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Tasks } from "./pages/Tasks";
+import { TaskDetail } from "./pages/TaskDetail";
 import { Projects } from "./pages/Projects";
+import { ProjectDetail } from "./pages/ProjectDetail";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 /**
@@ -11,7 +13,9 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
  * Routes:
  * - / : Dashboard overview
  * - /tasks : Task list and management
+ * - /tasks/:id : Task detail with notes
  * - /projects : Project list and management
+ * - /projects/:id : Project detail with associated tasks
  *
  * [REQ:P0-006a] React component architecture with proper routing
  */
@@ -35,7 +39,9 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>

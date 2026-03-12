@@ -285,3 +285,31 @@ func InvalidRequestBody(parseErr string) *Error {
 	return Validation("invalid_request_body", "Could not parse request body").
 		WithDetails("parse_error", parseErr)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skill Connection Domain Errors
+// [REQ:REQ-P0-003] Prompt-Manager Skill Connection Store - Error definitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ConnectionNotFound returns a not-found error for skill connections.
+func ConnectionNotFound(id string) *Error {
+	return NotFound("connection", id)
+}
+
+// InvalidSkillID returns a validation error for invalid skill ID format.
+func InvalidSkillID(skillID string) *Error {
+	return Validation("invalid_skill_id", "Skill ID must start with a letter and contain only lowercase letters, numbers, and hyphens").
+		WithDetails("provided", skillID)
+}
+
+// InvalidReferenceID returns a validation error for missing/invalid reference ID.
+func InvalidReferenceID() *Error {
+	return Validation("invalid_reference_id", "Reference ID is required and must be a valid UUID")
+}
+
+// ConnectionExists returns a conflict error for duplicate connections.
+func ConnectionExists(referenceID, skillID string) *Error {
+	return Conflict("connection_exists", "A connection already exists for this reference-skill pair").
+		WithDetails("reference_id", referenceID).
+		WithDetails("skill_id", skillID)
+}

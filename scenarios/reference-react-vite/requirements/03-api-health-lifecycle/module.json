@@ -6,55 +6,111 @@
   "requirements": [
     {
       "category": "api",
+      "children": [
+        "REQ-P0-003a",
+        "REQ-P0-003b"
+      ],
+      "description": "Complete API health and lifecycle management system.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "API Health & Lifecycle"
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-003a-1",
+        "REQ-P0-003a-2"
+      ],
       "description": "Implement /health endpoint that checks all system dependencies and returns appropriate status with response time under 500ms.",
       "id": "REQ-P0-003a",
       "prd_ref": "OT-P0-003",
-      "status": "pass",
-      "title": "Health Check Endpoint",
+      "status": "passed",
+      "title": "Health Check Endpoint"
+    },
+    {
+      "category": "api",
+      "description": "Health endpoint checks database connectivity status.",
+      "id": "REQ-P0-003a-1",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Database Health Check",
       "validation": [
         {
-          "notes": "Test health check dependency status reporting",
+          "notes": "Health check response parsing",
           "phase": "unit",
-          "ref": "cli/app_test.go",
-          "status": "pass",
-          "type": "test"
-        },
-        {
-          "notes": "Health check configuration defined",
-          "phase": "performance",
-          "ref": ".vrooli/endpoints.json",
-          "status": "pass",
+          "ref": "cli/app.go",
+          "status": "passed",
           "type": "structural"
         },
         {
-          "notes": "All critical dependencies reported in health check (postgres)",
+          "notes": "Health check handler implementation",
           "phase": "business",
-          "ref": "api/main.go",
-          "status": "pass",
+          "ref": "api/handlers/health.go",
+          "status": "passed",
           "type": "structural"
         }
       ]
     },
     {
       "category": "api",
+      "description": "Health endpoint configuration for monitoring integration.",
+      "id": "REQ-P0-003a-2",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Health Configuration",
+      "validation": [
+        {
+          "notes": "Health check configuration defined",
+          "phase": "performance",
+          "ref": ".vrooli/endpoints.json",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-003b-1",
+        "REQ-P0-003b-2"
+      ],
       "description": "Implement graceful shutdown with connection draining and proper signal handling (SIGTERM/SIGINT).",
       "id": "REQ-P0-003b",
       "prd_ref": "OT-P0-003",
-      "status": "pass",
-      "title": "Graceful Shutdown",
+      "status": "passed",
+      "title": "Graceful Shutdown"
+    },
+    {
+      "category": "api",
+      "description": "SIGTERM/SIGINT signal handling for clean process termination.",
+      "id": "REQ-P0-003b-1",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Signal Handling",
       "validation": [
         {
-          "notes": "Signal handling for SIGTERM/SIGINT in main.go",
+          "notes": "Signal handling documented in architecture",
           "phase": "unit",
-          "ref": "api/main.go",
-          "status": "pass",
+          "ref": "docs/internal/TEMPORAL-FLOWS.md",
+          "status": "passed",
           "type": "structural"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Context-based request cancellation on shutdown.",
+      "id": "REQ-P0-003b-2",
+      "prd_ref": "OT-P0-003",
+      "status": "passed",
+      "title": "Connection Draining",
+      "validation": [
         {
           "notes": "Graceful shutdown behavior with context cancellation",
           "phase": "integration",
           "ref": "docs/concepts/ARCHITECTURE.md",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
         }
       ]

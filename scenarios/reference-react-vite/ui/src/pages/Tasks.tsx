@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, CheckCircle2, Circle, Clock, AlertCircle, Archive } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Circle, Clock, AlertCircle, Archive, ChevronRight } from "lucide-react";
 import { fetchTasks, createTask, updateTask, deleteTask, type Task } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -100,12 +101,16 @@ function TaskItem({
         >
           <StatusIcon className={`h-5 w-5 ${statusColors[task.status]}`} />
         </button>
-        <div>
-          <p className={task.status === "completed" ? "text-slate-500 line-through" : ""}>
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/tasks/${task.id}`}
+            className={`hover:underline ${task.status === "completed" ? "text-slate-500 line-through" : ""}`}
+            data-testid={`task-link-${task.id}`}
+          >
             {task.title}
-          </p>
+          </Link>
           {task.description && (
-            <p className="mt-0.5 text-sm text-slate-500">{task.description}</p>
+            <p className="mt-0.5 text-sm text-slate-500 truncate">{task.description}</p>
           )}
         </div>
       </div>
@@ -125,6 +130,14 @@ function TaskItem({
         >
           <Trash2 className="h-4 w-4" />
         </button>
+        <Link
+          to={`/tasks/${task.id}`}
+          className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+          data-testid={`task-detail-link-${task.id}`}
+          title="View details"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Link>
       </div>
     </div>
   );

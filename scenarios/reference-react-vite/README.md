@@ -51,8 +51,8 @@ cd scenarios/reference-react-vite && make start
 
 ## Related
 
-- [development-toolchain-validator](../development-toolchain-validator/) — Validates this reference against steer skills
-- [prompt-manager](../prompt-manager/) — Source of steer skills this reference implements
+- [development-toolchain-validator](../development-toolchain-validator/README.md) — Validates this reference against steer skills
+- [prompt-manager](../prompt-manager/README.md) — Source of steer skills this reference implements
 - [PRD](PRD.md) — Full product requirements
 
 ## Progress & Issues

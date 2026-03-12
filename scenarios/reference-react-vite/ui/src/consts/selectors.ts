@@ -326,6 +326,60 @@ const literalSelectors: LiteralSelectorTree = {
     backdrop: "confirm-dialog-backdrop",
     confirmButton: "confirm-dialog-confirm",
     cancelButton: "confirm-dialog-cancel"
+  },
+  taskDetail: {
+    page: "task-detail-page",
+    loading: "task-detail-loading",
+    error: "task-detail-error",
+    card: "task-detail-card",
+    backLink: "back-to-tasks",
+    editButton: "edit-task",
+    deleteButton: "delete-task",
+    statusToggle: "task-detail-status-toggle",
+    priority: "task-priority",
+    status: "task-status",
+    dueDate: "task-due-date",
+    created: "task-created",
+    editTitleInput: "edit-title-input",
+    editDescriptionInput: "edit-description-input",
+    saveEditButton: "save-edit",
+    cancelEditButton: "cancel-edit"
+  },
+  notes: {
+    section: "notes-section",
+    form: "note-form",
+    input: "note-input",
+    submitButton: "note-submit",
+    loading: "notes-loading",
+    error: "notes-error",
+    empty: "notes-empty",
+    list: "notes-list",
+    count: "notes-count",
+    createError: "note-create-error"
+  },
+  projectDetail: {
+    page: "project-detail-page",
+    loading: "project-detail-loading",
+    error: "project-detail-error",
+    card: "project-detail-card",
+    backLink: "back-to-projects",
+    editButton: "edit-project",
+    deleteButton: "delete-project",
+    statusToggle: "project-detail-status-toggle",
+    color: "project-color",
+    status: "project-status",
+    created: "project-created",
+    editNameInput: "edit-name-input",
+    editDescriptionInput: "edit-description-input",
+    saveEditButton: "save-edit",
+    cancelEditButton: "cancel-edit",
+    tasksSection: "project-tasks-section",
+    tasksLoading: "project-tasks-loading",
+    tasksError: "project-tasks-error",
+    tasksEmpty: "project-tasks-empty",
+    tasksList: "project-tasks-list",
+    tasksCount: "project-tasks-count",
+    viewAllTasks: "view-all-tasks"
   }
 };
 
@@ -366,6 +420,25 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     deleteById: _defineDynamicSelector({
       description: "Project delete button by ID",
       testIdPattern: "project-delete-${id}",
+      params: { id: { type: "string" } }
+    })
+  },
+  notes: {
+    itemById: _defineDynamicSelector({
+      description: "Note item by ID",
+      testIdPattern: "note-item-${id}",
+      params: { id: { type: "string" } }
+    }),
+    deleteById: _defineDynamicSelector({
+      description: "Note delete button by ID",
+      testIdPattern: "note-delete-${id}",
+      params: { id: { type: "string" } }
+    })
+  },
+  projectDetail: {
+    taskById: _defineDynamicSelector({
+      description: "Project task item by ID",
+      testIdPattern: "project-task-${id}",
       params: { id: { type: "string" } }
     })
   }

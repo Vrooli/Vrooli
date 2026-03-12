@@ -276,25 +276,53 @@ const literalSelectors: LiteralSelectorTree = {
     title: "dashboard-title",
     healthStatus: "dashboard-health-status",
     refreshButton: "dashboard-refresh-button",
+    backButton: "dashboard-back-button",
     referenceCount: "dashboard-reference-count",
     emptyState: "dashboard-empty-state",
+    emptyCommand: "dashboard-empty-command",
     loadingState: "dashboard-loading-state",
-    errorState: "dashboard-error-state"
+    errorState: "dashboard-error-state",
+    errorCommand: "dashboard-error-command"
   },
   // Reference list selectors
   references: {
     list: "references-list",
     createButton: "references-create-button",
     filterSelect: "references-filter-select"
+  },
+  // Reference detail page selectors
+  referenceDetail: {
+    backButton: "reference-detail-back-button",
+    title: "reference-detail-title",
+    refreshButton: "reference-detail-refresh-button",
+    healthStatus: "reference-detail-health-status",
+    loading: "reference-detail-loading",
+    error: "reference-detail-error",
+    connectCommand: "reference-connect-command"
+  },
+  // CLI commands selectors
+  cliCommands: {
+    update: "cli-update-command",
+    connect: "cli-connect-command",
+    validate: "cli-validate-command"
+  },
+  // Connection list selectors
+  connections: {
+    // Connection cards use dynamic selectors below
   }
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  // Dynamic reference card selectors
+  // Dynamic reference card selectors (dashboard)
   references: {
     cardBySlug: defineDynamicSelector({
       description: "Reference card filtered by slug",
       testIdPattern: "reference-card-${slug}",
+      params: { slug: { type: "string" } }
+    }),
+    cardLink: defineDynamicSelector({
+      description: "Reference card link to detail page",
+      testIdPattern: "reference-card-link-${slug}",
       params: { slug: { type: "string" } }
     }),
     cardTemplate: defineDynamicSelector({
@@ -306,6 +334,42 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: "Path display on reference card",
       testIdPattern: "reference-path-${slug}",
       params: { slug: { type: "string" } }
+    }),
+    connectionCount: defineDynamicSelector({
+      description: "Connection count badge on reference card",
+      testIdPattern: "reference-connection-count-${slug}",
+      params: { slug: { type: "string" } }
+    })
+  },
+  // Dynamic reference detail page selectors
+  referenceDetail: {
+    info: defineDynamicSelector({
+      description: "Reference info section on detail page",
+      testIdPattern: "reference-detail-info-${slug}",
+      params: { slug: { type: "string" } }
+    }),
+    connections: defineDynamicSelector({
+      description: "Connections section on detail page",
+      testIdPattern: "reference-detail-connections-${slug}",
+      params: { slug: { type: "string" } }
+    }),
+    connectionsLoading: defineDynamicSelector({
+      description: "Loading state for connections on detail page",
+      testIdPattern: "reference-connections-loading-${slug}",
+      params: { slug: { type: "string" } }
+    }),
+    noConnections: defineDynamicSelector({
+      description: "Empty state for no connections on detail page",
+      testIdPattern: "reference-no-connections-${slug}",
+      params: { slug: { type: "string" } }
+    })
+  },
+  // Dynamic connection card selectors
+  connections: {
+    cardBySkillId: defineDynamicSelector({
+      description: "Connection card filtered by skill ID",
+      testIdPattern: "connection-card-${skillId}",
+      params: { skillId: { type: "string" } }
     })
   }
 };

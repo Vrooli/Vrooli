@@ -341,9 +341,7 @@ func (a *App) cmdRefList(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return writeJSONOutput(resp)
 	}
 
 	if len(resp.References) == 0 {
@@ -388,9 +386,7 @@ func (a *App) cmdRefGet(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(ref)
+		return writeJSONOutput(ref)
 	}
 
 	fmt.Printf("ID: %s\n", ref.ID)
@@ -443,9 +439,7 @@ func (a *App) cmdRefCreate(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(ref)
+		return writeJSONOutput(ref)
 	}
 
 	fmt.Printf("Created reference: %s [%s]\n", ref.Slug, ref.ID)
@@ -496,9 +490,7 @@ func (a *App) cmdRefUpdate(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(ref)
+		return writeJSONOutput(ref)
 	}
 
 	fmt.Printf("Updated reference: %s [%s]\n", ref.Slug, ref.ID)
@@ -524,9 +516,7 @@ func (a *App) cmdRefDelete(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(map[string]interface{}{
+		return writeJSONOutput(map[string]interface{}{
 			"success": true,
 			"deleted": refID,
 		})
@@ -668,9 +658,7 @@ func (a *App) cmdConnList(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return writeJSONOutput(resp)
 	}
 
 	if len(resp.Connections) == 0 {
@@ -709,9 +697,7 @@ func (a *App) cmdConnGet(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(conn)
+		return writeJSONOutput(conn)
 	}
 
 	fmt.Printf("ID: %s\n", conn.ID)
@@ -763,9 +749,7 @@ func (a *App) cmdConnConnect(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(conn)
+		return writeJSONOutput(conn)
 	}
 
 	fmt.Printf("Connected skill: %s to %s [%s]\n", conn.SkillID, conn.ReferenceID, conn.ID)
@@ -792,9 +776,7 @@ func (a *App) cmdConnDisconnect(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(map[string]interface{}{
+		return writeJSONOutput(map[string]interface{}{
 			"success":      true,
 			"disconnected": connID,
 		})
@@ -835,9 +817,7 @@ func (a *App) cmdConnDrift(args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(status)
+		return writeJSONOutput(status)
 	}
 
 	fmt.Printf("Skill: %s\n", status.SkillID)
@@ -871,4 +851,12 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// writeJSONOutput writes data as indented JSON to stdout.
+// This consolidates the repeated JSON output pattern across commands.
+func writeJSONOutput(data interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(data)
 }

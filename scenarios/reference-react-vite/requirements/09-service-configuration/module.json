@@ -6,34 +6,104 @@
   "requirements": [
     {
       "category": "core",
+      "children": [
+        "REQ-P0-009a",
+        "REQ-P0-009b"
+      ],
+      "description": "Complete service configuration with ports, lifecycle, and health checks.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "passed",
+      "title": "Service Configuration"
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-009a-1",
+        "REQ-P0-009a-2"
+      ],
       "description": "Service.json with correct port ranges (API 15000-19999, UI 35000-39999) and proper resource declarations.",
       "id": "REQ-P0-009a",
       "prd_ref": "OT-P0-009",
-      "status": "pass",
-      "title": "Port and Resource Configuration",
+      "status": "passed",
+      "title": "Port and Resource Configuration"
+    },
+    {
+      "category": "core",
+      "description": "Port allocation within scenario port ranges.",
+      "id": "REQ-P0-009a-1",
+      "prd_ref": "OT-P0-009",
+      "status": "passed",
+      "title": "Port Ranges",
       "validation": [
         {
-          "notes": "Validate JSON schema and port configuration",
+          "notes": "Validate port configuration",
           "phase": "unit",
           "ref": ".vrooli/testing.json",
-          "status": "pass",
+          "status": "passed",
           "type": "structural"
         }
       ]
     },
     {
       "category": "core",
+      "description": "Resource dependencies declared (postgres).",
+      "id": "REQ-P0-009a-2",
+      "prd_ref": "OT-P0-009",
+      "status": "passed",
+      "title": "Resource Dependencies",
+      "validation": [
+        {
+          "notes": "Resource dependencies in service.json",
+          "phase": "integration",
+          "ref": ".vrooli/service.json",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-009b-1",
+        "REQ-P0-009b-2"
+      ],
       "description": "Complete lifecycle commands (setup/develop/test/production/stop) with health checks.",
       "id": "REQ-P0-009b",
       "prd_ref": "OT-P0-009",
-      "status": "pass",
-      "title": "Lifecycle Completeness",
+      "status": "passed",
+      "title": "Lifecycle Completeness"
+    },
+    {
+      "category": "core",
+      "description": "Makefile targets for all lifecycle phases.",
+      "id": "REQ-P0-009b-1",
+      "prd_ref": "OT-P0-009",
+      "status": "passed",
+      "title": "Lifecycle Commands",
       "validation": [
         {
           "notes": "Lifecycle commands defined in Makefile",
           "phase": "integration",
           "ref": "Makefile",
-          "status": "pass",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Health check endpoints for API and UI services.",
+      "id": "REQ-P0-009b-2",
+      "prd_ref": "OT-P0-009",
+      "status": "passed",
+      "title": "Health Checks",
+      "validation": [
+        {
+          "notes": "Health check configuration",
+          "phase": "performance",
+          "ref": ".vrooli/endpoints.json",
+          "status": "passed",
           "type": "structural"
         }
       ]
