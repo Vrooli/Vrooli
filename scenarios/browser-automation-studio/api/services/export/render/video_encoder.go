@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	_ "image/jpeg" // register JPEG decoder for probeImageDimensions
+	_ "image/png"  // register PNG decoder for probeImageDimensions
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -60,20 +64,22 @@ func (e *FFmpegEncoder) assembleVideo(ctx context.Context, pattern string, fps i
 		fps = 25
 	}
 
-	// Build video filter - start with padding for even dimensions
-	vf := "pad=ceil(iw/2)*2:ceil(ih/2)*2"
-
-	// Add watermark if provided
-	if watermarkText != "" {
-		// Escape special characters for FFmpeg drawtext filter
-		escaped := escapeFFmpegText(watermarkText)
-		// Add semi-transparent watermark in bottom-right corner
-		// fontsize=16, white text with black shadow, 50% opacity
-		vf += fmt.Sprintf(",drawtext=text='%s':fontsize=16:fontcolor=white@0.5:shadowcolor=black@0.5:shadowx=1:shadowy=1:x=w-tw-10:y=h-th-10", escaped)
+	// Probe multiple frames to determine the most common (mode) dimensions.
+	// Using only frame-00000 caused bottom-of-frame flickering when the first
+	// frame had atypical dimensions (e.g., Chrome "controlled by automation"
+	// info bar adds ~50px height). By sampling several frames and picking the
+	// mode, we ensure outlier frames are normalized instead of dictating the
+	// target.
+	targetW, targetH, probeErr := probeModeDimensions(pattern)
+	if probeErr != nil {
+		return fmt.Errorf("failed to probe frame dimensions: %w", probeErr)
 	}
 
-	// Add pixel format conversion
-	vf += ",format=yuv420p"
+	// Round up to even dimensions for H.264 compatibility.
+	targetW = ceilEven(targetW)
+	targetH = ceilEven(targetH)
+
+	vf := buildAssemblyFilterChain(watermarkText, targetW, targetH)
 
 	args := []string{
 		"-y",
@@ -97,6 +103,143 @@ func (e *FFmpegEncoder) assembleVideo(ctx context.Context, pattern string, fps i
 		return fmt.Errorf("ffmpeg sequence assembly failed: %w (%s)", err, stderr.String())
 	}
 	return nil
+}
+
+// buildAssemblyFilterChain constructs the FFmpeg video filter chain for frame
+// sequence assembly. The chain normalizes inconsistent frame dimensions (which
+// cause bottom-of-frame flickering), ensures H.264-compatible even dimensions,
+// and optionally overlays a watermark.
+//
+// targetW and targetH must be positive even integers (use ceilEven to prepare).
+//
+// Filter order:
+//  1. scale: normalize all frames to fill target dimensions (handles
+//     inconsistent capture sizes from viewport changes or CDP screencast)
+//  2. crop: trim any overflow to exact target dimensions
+//  3. drawtext (optional): semi-transparent watermark in bottom-right
+//  4. format: convert to yuv420p for broad player compatibility
+//
+// Why increase+crop instead of decrease+pad:
+// Frames captured via CDP screencast or polling can vary by 10-50px due to
+// scrollbar appearance, browser chrome changes, or compositor timing. The
+// previous approach (decrease+pad) left shorter frames at their original size
+// and filled the gap with black, causing visible flickering at the bottom of
+// the video. The increase+crop approach scales UP to fill the target so every
+// frame covers the full area, then crops any slight overflow. The cropping is
+// imperceptible (a few pixels at most) and eliminates flickering entirely.
+func buildAssemblyFilterChain(watermarkText string, targetW, targetH int) string {
+	// Scale all frames to fill the target dimensions. force_original_aspect_ratio=increase
+	// ensures the smaller dimension is scaled to match the target, and the larger
+	// dimension may slightly overflow. This guarantees no frame is ever smaller
+	// than the target — eliminating black padding that caused flickering.
+	filters := []string{
+		fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase", targetW, targetH),
+	}
+
+	// Crop to exact target dimensions, centered. Any overflow from the increase
+	// scaling is trimmed equally from both edges. For typical dimension
+	// mismatches (10-50px from scrollbar/chrome changes), the cropped content
+	// is imperceptible.
+	filters = append(filters, fmt.Sprintf("crop=%d:%d:(iw-%d)/2:(ih-%d)/2", targetW, targetH, targetW, targetH))
+
+	if watermarkText != "" {
+		escaped := escapeFFmpegText(watermarkText)
+		filters = append(filters, fmt.Sprintf(
+			"drawtext=text='%s':fontsize=16:fontcolor=white@0.5:shadowcolor=black@0.5:shadowx=1:shadowy=1:x=w-tw-10:y=h-th-10",
+			escaped,
+		))
+	}
+
+	filters = append(filters, "format=yuv420p")
+	return strings.Join(filters, ",")
+}
+
+// probeImageDimensions reads the width and height from an image file without
+// decoding the full pixel data. Supports JPEG and PNG.
+func probeImageDimensions(path string) (width, height int, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close()
+
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		return 0, 0, err
+	}
+	return cfg.Width, cfg.Height, nil
+}
+
+// dimKey is a comparable key for width×height pairs.
+type dimKey struct{ w, h int }
+
+// probeModeDimensions samples multiple frames from a sequence and returns the
+// most common (mode) dimensions. This prevents the first frame from dictating
+// the target when it has atypical dimensions (e.g., browser info bar adding
+// ~50px during startup). If no clear mode exists, the smallest dimensions are
+// used to favour cropping (imperceptible) over scaling (causes content shift).
+//
+// Sampling strategy: probe frames 0–9 plus logarithmic samples beyond that.
+// For short sequences this probes every frame; for long sequences it stays O(1).
+func probeModeDimensions(pattern string) (width, height int, err error) {
+	// Collect dimensions from available frames.
+	counts := make(map[dimKey]int)
+	var lastGood dimKey
+
+	// Always try the first 10 frames, then sample at exponential intervals.
+	indices := make([]int, 0, 20)
+	for i := 0; i < 10; i++ {
+		indices = append(indices, i)
+	}
+	for step := 10; step < 100000; step *= 2 {
+		indices = append(indices, step)
+	}
+
+	for _, idx := range indices {
+		path := fmt.Sprintf(pattern, idx)
+		w, h, probeErr := probeImageDimensions(path)
+		if probeErr != nil {
+			if idx == 0 {
+				// First frame must exist — fail fast.
+				return 0, 0, fmt.Errorf("first frame (%s): %w", path, probeErr)
+			}
+			// Frame doesn't exist (past end of sequence) or is corrupt — skip.
+			continue
+		}
+		key := dimKey{w, h}
+		counts[key]++
+		lastGood = key
+	}
+
+	if len(counts) == 0 {
+		return 0, 0, fmt.Errorf("no readable frames found matching pattern %s", pattern)
+	}
+
+	// If all sampled frames share the same dimensions, fast path.
+	if len(counts) == 1 {
+		return lastGood.w, lastGood.h, nil
+	}
+
+	// Pick the mode (most common dimensions). On ties, prefer smaller
+	// dimensions so that outlier frames are cropped (imperceptible) rather
+	// than scaled up (causes visible content shift / flicker).
+	var best dimKey
+	bestCount := 0
+	for key, count := range counts {
+		if count > bestCount ||
+			(count == bestCount && (key.w*key.h < best.w*best.h)) {
+			best = key
+			bestCount = count
+		}
+	}
+
+	return best.w, best.h, nil
+}
+
+// ceilEven rounds n up to the nearest even integer.
+// H.264 requires even dimensions for both width and height.
+func ceilEven(n int) int {
+	return (n + 1) &^ 1
 }
 
 // escapeFFmpegText escapes special characters for FFmpeg drawtext filter.
@@ -135,11 +278,18 @@ func (e *FFmpegEncoder) ConvertToGIF(ctx context.Context, inputPath, outputPath 
 }
 
 // ConvertToMP4 transcodes a video file to MP4 (H.264).
+// Uses scale+crop (not pad) to ensure even dimensions without adding black
+// bars, consistent with AssembleVideoFromSequence.
 func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath string) error {
+	// Scale to nearest even dimensions (ceil to even), then crop to exact.
+	// This avoids the black-bar padding that caused flickering.
+	vf := "scale=ceil(iw/2)*2:ceil(ih/2)*2:force_original_aspect_ratio=increase," +
+		"crop=ceil(iw/2)*2:ceil(ih/2)*2:(iw-ceil(iw/2)*2)/2:(ih-ceil(ih/2)*2)/2," +
+		"format=yuv420p"
 	args := []string{
 		"-y",
 		"-i", inputPath,
-		"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p",
+		"-vf", vf,
 		"-c:v", "libx264",
 		"-profile:v", "high",
 		"-level", "4.1",

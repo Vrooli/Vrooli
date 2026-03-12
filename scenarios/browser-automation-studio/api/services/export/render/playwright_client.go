@@ -16,8 +16,8 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
-	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
@@ -210,7 +210,7 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		}
 
 		screenshotAction, err := buildAction("screenshot", map[string]any{
-			"fullPage": true,
+			"fullPage": false,
 		})
 		if err != nil {
 			return nil, err

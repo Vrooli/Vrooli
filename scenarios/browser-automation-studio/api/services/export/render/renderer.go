@@ -173,7 +173,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 	}
 
 	written := 0
-	for idx, frame := range capture.Frames {
+	for _, frame := range capture.Frames {
 		data := strings.TrimSpace(frame.Data)
 		if data == "" {
 			continue
@@ -181,12 +181,15 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 		decoded, decodeErr := base64.StdEncoding.DecodeString(data)
 		if decodeErr != nil {
 			cleanup()
-			return nil, fmt.Errorf("failed to decode captured frame %d: %w", idx, decodeErr)
+			return nil, fmt.Errorf("failed to decode captured frame %d: %w", written, decodeErr)
 		}
-		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", idx))
+		// Use `written` (not loop index) to produce a contiguous sequence.
+		// FFmpeg's image2 demuxer reads frame-00000, frame-00001, ... and stops
+		// at the first gap, so skipped (empty) frames must not leave holes.
+		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", written))
 		if err := os.WriteFile(filePath, decoded, 0o644); err != nil {
 			cleanup()
-			return nil, fmt.Errorf("failed to persist captured frame %d: %w", idx, err)
+			return nil, fmt.Errorf("failed to persist captured frame %d: %w", written, err)
 		}
 		written++
 	}

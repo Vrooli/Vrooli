@@ -1245,7 +1245,7 @@ function WorkflowsTab({
 
       {/* Results table — shows whichever role is selected */}
       {viewedResult && viewedResult.workflowResults.length > 0 && (
-        <div className="border border-slate-800 rounded-lg overflow-hidden">
+        <div className="border border-slate-800 rounded-lg overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-800/50">
