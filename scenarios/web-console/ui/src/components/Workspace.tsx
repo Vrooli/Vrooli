@@ -73,7 +73,7 @@ export default function Workspace() {
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
-  const { keyboardHeight } = useVirtualKeyboard();
+  useVirtualKeyboard();
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
@@ -460,7 +460,10 @@ export default function Workspace() {
   });
 
   return (
-    <div className="flex h-screen flex-col bg-wc-surface-base text-wc-text-primary">
+    <div
+      className="flex flex-col bg-wc-surface-base text-wc-text-primary"
+      style={{ height: 'calc(100vh - var(--wc-kb-height, 0px))' }}
+    >
       {/* Floating toolbar */}
       <FloatingToolbar
         onOpenSessions={() => store.setSessionsModalOpen(true)}
@@ -563,15 +566,8 @@ export default function Workspace() {
         </div>
       )}
 
-      {/* Bottom bar — offset for virtual keyboard on mobile */}
-      <div
-        className="shrink-0 transition-transform duration-150"
-        style={
-          keyboardHeight > 0
-            ? { transform: `translateY(-${keyboardHeight}px)` }
-            : undefined
-        }
-      >
+      {/* Bottom bar */}
+      <div className="shrink-0">
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}

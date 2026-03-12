@@ -380,7 +380,12 @@ export function useTerminalTouch({
             x: touch.clientX,
             y: touch.clientY,
           };
-          // Single-tap: focus terminal
+          // Single-tap: focus terminal.
+          // preventDefault suppresses the synthetic click the browser would
+          // fire ~300ms later.  By that time the virtual keyboard has opened
+          // and the terminal container has shrunk, so the click coordinates
+          // may land outside the terminal and blur it.
+          e.preventDefault();
           term.focus();
         }
       } else if (g.type === "scrolling") {
