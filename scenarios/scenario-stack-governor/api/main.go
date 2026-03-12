@@ -100,6 +100,10 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
+	if err := ValidateRuleRegistry(); err != nil {
+		log.Fatalf("rule registry validation failed: %v", err)
+	}
+
 	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)

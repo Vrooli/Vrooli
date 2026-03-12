@@ -42,14 +42,29 @@ func TestGoCliRule_NoCLIsFound(t *testing.T) {
 
 	result := RunGoCliWorkspaceIndependence(t.Context(), root, "")
 
-	if result.Passed {
-		t.Error("expected passed=false when no CLIs found (warn finding)")
+	// When no Go CLIs exist, the rule should pass (no findings).
+	// This is not a violation — it just means the rule doesn't apply.
+	if !result.Passed {
+		t.Errorf("expected passed=true when no CLIs found, got false; findings: %+v", result.Findings)
 	}
-	if len(result.Findings) != 1 {
-		t.Fatalf("expected 1 finding, got %d", len(result.Findings))
+	if len(result.Findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(result.Findings))
 	}
-	if result.Findings[0].Level != "warn" {
-		t.Errorf("expected warn level, got %s", result.Findings[0].Level)
+}
+
+func TestGoCliRule_NoCLIsPerScenario(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	// Create a scenario directory with no CLI.
+	mkdirAll(t, filepath.Join(root, "scenarios", "no-cli-scenario"))
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, "no-cli-scenario")
+
+	// A scenario without a Go CLI should pass — the rule doesn't apply.
+	if !result.Passed {
+		t.Errorf("expected passed=true for scenario without CLI, got false; findings: %+v", result.Findings)
+	}
+	if len(result.Findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(result.Findings))
 	}
 }
 
@@ -157,41 +172,128 @@ func TestGoCliRule_CancelledContextReportsError(t *testing.T) {
 	}
 }
 
-func TestGoCliRule_TimeoutSentinelWhenNoFindings(t *testing.T) {
-	// Directly test the sentinel logic: if ctx is cancelled and
-	// the builds didn't produce findings (e.g. they all returned
-	// nil errors despite timeout), the sentinel should fire.
-	// We simulate this by pointing at a repo with no CLI modules
-	// that match a specific (non-existent) scenario name, but
-	// with ctx already cancelled.
+func TestGoCliRule_BuildTimeoutReportsSpecificError(t *testing.T) {
+	// When a build times out, the finding should clearly indicate
+	// timeout rather than a generic build failure.
 	root := setupRuleGoCliTestRepo(t)
+	writeCliModule(t, root, "timeout-specific")
 
-	// Create a scenario with a cli/go.mod so the glob matches,
-	// but the scenario name filter won't match, forcing an empty
-	// goMods list → the "no CLIs found" warn fires instead.
-	// That's not exactly the sentinel path.
-	//
-	// Instead, test the sentinel path directly by checking that
-	// the function handles timeout correctly for actual builds.
-	// With a cancelled context and actual modules, the build fails
-	// and produces findings — which is the correct behavior.
-	// The sentinel is a safety net for the edge case where builds
-	// somehow return nil error despite context cancellation.
-	writeCliModule(t, root, "sentinel-test")
-
+	// Use a cancelled context to simulate timeout.
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	result := RunGoCliWorkspaceIndependence(ctx, root, "sentinel-test")
+	result := RunGoCliWorkspaceIndependence(ctx, root, "timeout-specific")
 
-	// With cancelled ctx, go build fails → error finding exists.
-	// The sentinel only fires if ctx.Err() != nil AND no findings.
-	// Either way, the rule must not pass and must have findings.
 	if result.Passed {
 		t.Error("expected passed=false")
 	}
 	if len(result.Findings) == 0 {
 		t.Fatal("expected findings on cancelled context")
+	}
+	// Should have an error-level finding.
+	hasError := false
+	for _, f := range result.Findings {
+		if f.Level == "error" {
+			hasError = true
+			break
+		}
+	}
+	if !hasError {
+		t.Errorf("expected error-level finding, got: %+v", result.Findings)
+	}
+}
+
+func TestGoCliRule_ReplacePathValidation_ValidPath(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "valid-replace"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, filepath.Join(scenarioDir, "cli"))
+	mkdirAll(t, filepath.Join(scenarioDir, "api"))
+
+	// Write api/go.mod.
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"),
+		[]byte("module example.com/valid-replace/api\n\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// CLI go.mod with a valid replace pointing to an existing directory.
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
+		[]byte("module example.com/valid-replace/cli\n\ngo 1.25\n\nreplace example.com/valid-replace/api => ../api\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"),
+		[]byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	// No warnings expected — the replace path is valid.
+	for _, f := range result.Findings {
+		if f.Level == "warn" && strings.Contains(f.Message, "non-existent path") {
+			t.Errorf("unexpected replace path warning: %s", f.Message)
+		}
+	}
+}
+
+func TestGoCliRule_ReplacePathValidation_BrokenPath(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "broken-replace"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, filepath.Join(scenarioDir, "cli"))
+	// Intentionally do NOT create the api directory.
+
+	// CLI go.mod with a replace pointing to a non-existent directory.
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
+		[]byte("module example.com/broken-replace/cli\n\ngo 1.25\n\nreplace example.com/broken-replace/api => ../api\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"),
+		[]byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	// Should have a warning about the broken replace path.
+	found := false
+	for _, f := range result.Findings {
+		if f.Level == "warn" && strings.Contains(f.Message, "non-existent path") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected warning about non-existent replace path")
+	}
+}
+
+func TestGoCliRule_ReplacePathValidation_RemoteModule(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "remote-replace"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, filepath.Join(scenarioDir, "cli"))
+
+	// CLI go.mod with a non-local replace (module path, not filesystem).
+	// This should NOT trigger path validation.
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
+		[]byte("module example.com/remote/cli\n\ngo 1.25\n\nreplace example.com/old => example.com/new v1.0.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"),
+		[]byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	for _, f := range result.Findings {
+		if strings.Contains(f.Message, "non-existent path") {
+			t.Errorf("should not warn about remote module replace: %s", f.Message)
+		}
 	}
 }
 

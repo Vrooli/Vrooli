@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -275,18 +276,22 @@ func TestIntegration_FixPreservesCustomTargets(t *testing.T) {
 	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
 	mkdirAll(t, scenarioDir)
 
-	// Start with a canonical Makefile and inject custom targets.
-	existing := generateCanonicalMakefile(scenarioName)
-	existing = strings.Replace(existing, "# Development shortcuts",
-		`deploy: ## Deploy to production
+	// Start with a BROKEN Makefile that has custom targets — the fix should
+	// regenerate canonical structure while preserving the custom targets.
+	broken := `# Wrong Header
+
+.PHONY: help deploy migrate
+
+help:
+	@echo "help"
+
+deploy: ## Deploy to production
 	@echo "Deploying..."
 
 migrate: ## Run database migrations
 	@echo "Migrating..."
-
-# Development shortcuts`, 1)
-
-	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(broken), 0o644); err != nil {
 		t.Fatalf("write Makefile: %v", err)
 	}
 
@@ -326,6 +331,47 @@ migrate: ## Run database migrations
 	}
 	if !foundPreserved {
 		t.Error("expected preserved_custom changes in fix results")
+	}
+}
+
+// TestIntegration_FixSkipsPassingMakefile verifies that a Makefile that already
+// passes all checks is not modified by the fix endpoint.
+func TestIntegration_FixSkipsPassingMakefile(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "passing-makefile"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	// Write a canonical Makefile that passes all checks.
+	canonical := generateCanonicalMakefile(scenarioName)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(canonical), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/fix", FixRequest{
+		ScenarioNames: []string{scenarioName},
+		RuleIDs:       []string{"MAKEFILE_STRUCTURE", "MAKEFILE_LIFECYCLE", "MAKEFILE_QUALITY"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var fixResp FixResponse
+	decodeJSON(t, resp, &fixResp)
+
+	for _, r := range fixResp.Results {
+		if r.Fixed {
+			t.Errorf("rule %s: expected fixed=false for already-passing Makefile", r.RuleID)
+		}
+	}
+
+	// File should be unchanged.
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "Makefile"))
+	if string(content) != canonical {
+		t.Error("expected Makefile to be unchanged when already passing")
 	}
 }
 
@@ -397,6 +443,146 @@ func TestIntegration_RunPassedAndFinishedAtSet(t *testing.T) {
 	}
 }
 
+// TestIntegration_RunComputesCounts verifies that error_count and warn_count
+// are correctly populated in rule results.
+func TestIntegration_RunComputesCounts(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "counts-test"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	// Write a broken Makefile to trigger findings.
+	broken := "# Wrong\nhelp:\n\t@echo help\n"
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(broken), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/run", RunRequest{ScenarioNames: []string{scenarioName}})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var runResp RunResponse
+	decodeJSON(t, resp, &runResp)
+
+	for _, r := range runResp.Results {
+		// Manually count expected values.
+		expectedErrors := 0
+		expectedWarns := 0
+		for _, f := range r.Findings {
+			switch f.Level {
+			case "error":
+				expectedErrors++
+			case "warn":
+				expectedWarns++
+			}
+		}
+		if r.ErrorCount != expectedErrors {
+			t.Errorf("rule %s: error_count=%d, expected %d", r.RuleID, r.ErrorCount, expectedErrors)
+		}
+		if r.WarnCount != expectedWarns {
+			t.Errorf("rule %s: warn_count=%d, expected %d", r.RuleID, r.WarnCount, expectedWarns)
+		}
+	}
+}
+
+// TestIntegration_RunCountsPassingRuleZero verifies that passing rules have
+// error_count=0 and warn_count=0.
+func TestIntegration_RunCountsPassingRuleZero(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "counts-pass"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	canonical := generateCanonicalMakefile(scenarioName)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(canonical), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/run", RunRequest{ScenarioNames: []string{scenarioName}})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var runResp RunResponse
+	decodeJSON(t, resp, &runResp)
+
+	for _, r := range runResp.Results {
+		if len(r.Findings) == 0 {
+			if r.ErrorCount != 0 {
+				t.Errorf("rule %s: expected error_count=0 for passing rule, got %d", r.RuleID, r.ErrorCount)
+			}
+			if r.WarnCount != 0 {
+				t.Errorf("rule %s: expected warn_count=0 for passing rule, got %d", r.RuleID, r.WarnCount)
+			}
+		}
+	}
+}
+
+// TestIntegration_FixPerRuleDryRun verifies that dry-run fix returns per-rule
+// Diff only for rules that have violations.
+func TestIntegration_FixPerRuleDryRun(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "per-rule-dryrun"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	// Write a canonical Makefile but break only the lifecycle (wrong start command).
+	existing := generateCanonicalMakefile(scenarioName)
+	existing = strings.Replace(existing,
+		`@vrooli scenario start $(SCENARIO_NAME)`,
+		`@vrooli scenario run $(SCENARIO_NAME)`, 1)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/fix", FixRequest{
+		ScenarioNames: []string{scenarioName},
+		RuleIDs:       []string{"MAKEFILE_STRUCTURE", "MAKEFILE_LIFECYCLE", "MAKEFILE_QUALITY"},
+		DryRun:        true,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var fixResp FixResponse
+	decodeJSON(t, resp, &fixResp)
+
+	for _, r := range fixResp.Results {
+		switch r.RuleID {
+		case "MAKEFILE_LIFECYCLE":
+			if !r.Fixed {
+				t.Error("LIFECYCLE: expected fixed=true")
+			}
+			if r.Diff == nil {
+				t.Error("LIFECYCLE: expected Diff populated in dry-run")
+			}
+		case "MAKEFILE_STRUCTURE":
+			// Structure may or may not be violated depending on whether
+			// the start command change affects structure checks.
+			if !r.Fixed && r.Diff != nil {
+				t.Error("STRUCTURE: if fixed=false, Diff should be nil")
+			}
+		case "MAKEFILE_QUALITY":
+			if r.Fixed {
+				t.Error("QUALITY: expected fixed=false (quality targets are correct)")
+			}
+			if r.Diff != nil {
+				t.Error("QUALITY: expected nil Diff")
+			}
+		}
+	}
+}
+
 // TestIntegration_RunFailedPassedIsFalse verifies that rules with findings
 // correctly set Passed=false.
 func TestIntegration_RunFailedPassedIsFalse(t *testing.T) {
@@ -432,5 +618,111 @@ func TestIntegration_RunFailedPassedIsFalse(t *testing.T) {
 		if r.FinishedAt.IsZero() {
 			t.Errorf("rule %s: FinishedAt should be set even on failure", r.RuleID)
 		}
+	}
+}
+
+// TestIntegration_RunRejectsInvalidJSON verifies that POST /run with invalid
+// JSON returns a 400 error instead of silently using defaults.
+func TestIntegration_RunRejectsInvalidJSON(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Post(ts.URL+"/api/v1/run", "application/json", strings.NewReader("{invalid"))
+	if err != nil {
+		t.Fatalf("POST /run: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+// TestIntegration_FixPanicRecovery verifies that a panicking fixer doesn't crash
+// the server — instead it returns an error in the FixResult.
+func TestIntegration_FixPanicRecovery(t *testing.T) {
+	entry := RuleEntry{
+		Definition: RuleDefinition{ID: "PANIC_TEST", Fixable: true},
+		Fixer: func(ctx context.Context, repoRoot, scenario string, dryRun bool) []FixResult {
+			panic("intentional test panic")
+		},
+	}
+
+	results := callFixerSafe(t.Context(), entry, "/tmp", "test-scenario", false)
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	r := results[0]
+	if r.Fixed {
+		t.Error("expected fixed=false after panic")
+	}
+	if r.Error == "" {
+		t.Error("expected error message after panic")
+	}
+	if !strings.Contains(r.Error, "fixer panicked") {
+		t.Errorf("expected 'fixer panicked' in error, got: %s", r.Error)
+	}
+	if r.ScenarioName != "test-scenario" {
+		t.Errorf("expected scenario name 'test-scenario', got: %s", r.ScenarioName)
+	}
+}
+
+// TestIntegration_RunTimedOutField verifies that RunResponse includes TimedOut field.
+func TestIntegration_RunTimedOutField(t *testing.T) {
+	srv, root := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	scenarioName := "timeout-test"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	canonical := generateCanonicalMakefile(scenarioName)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(canonical), 0o644); err != nil {
+		t.Fatalf("write Makefile: %v", err)
+	}
+
+	resp := postJSON(t, ts, "/api/v1/run", RunRequest{ScenarioNames: []string{scenarioName}})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var runResp RunResponse
+	decodeJSON(t, resp, &runResp)
+
+	// Under normal conditions, TimedOut should be false.
+	if runResp.TimedOut {
+		t.Error("expected TimedOut=false for normal run")
+	}
+}
+
+// TestRegistryConsistency verifies that every rule in AllRules has a non-nil
+// Runner and that Fixable rules have a non-nil Fixer. This prevents the old
+// bug where adding a rule to the definitions but forgetting to add a runner
+// caused silent skipping.
+func TestRegistryConsistency(t *testing.T) {
+	for _, entry := range AllRules() {
+		if entry.Runner == nil {
+			t.Errorf("rule %s has nil Runner", entry.Definition.ID)
+		}
+		if entry.Definition.Fixable && entry.Fixer == nil {
+			t.Errorf("rule %s is marked Fixable but has nil Fixer", entry.Definition.ID)
+		}
+		if !entry.Definition.Fixable && entry.Fixer != nil {
+			t.Errorf("rule %s is not Fixable but has a Fixer set", entry.Definition.ID)
+		}
+		if entry.Definition.ID == "" {
+			t.Error("found rule with empty ID")
+		}
+	}
+
+	// Verify no duplicate IDs.
+	seen := map[string]bool{}
+	for _, entry := range AllRules() {
+		if seen[entry.Definition.ID] {
+			t.Errorf("duplicate rule ID: %s", entry.Definition.ID)
+		}
+		seen[entry.Definition.ID] = true
 	}
 }

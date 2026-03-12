@@ -70,6 +70,8 @@ export type RuleResult = {
   started_at: string;
   finished_at: string;
   findings?: Finding[];
+  error_count: number;
+  warn_count: number;
 };
 export type RunResponse = { repo_root: string; results: RuleResult[] };
 

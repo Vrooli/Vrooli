@@ -495,21 +495,34 @@ func structureValidateShortcuts(data structureMakefileData, path string) []Makef
 		}
 	}
 
+	// After the shortcuts comment, only shortcut aliases and comments/blanks
+	// are expected. Non-alias targets (with recipes or complex bodies) should
+	// be placed before the shortcuts section, not after it.
 	for i := data.shortcutsCommentLine + 1; i < len(data.lines); i++ {
 		trimmed := strings.TrimSpace(data.lines[i])
-		if trimmed == "" {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 		if _, ok := shortcutLines[i+1]; ok {
 			continue
 		}
-		violations = append(violations, MakefileStructureViolation{
-			Severity: "high",
-			Message:  "Shortcut targets must be the final content in the Makefile",
-			FilePath: path,
-			Line:     i + 1,
-		})
-		break
+		// Allow target definition lines (they'll be validated as shortcuts
+		// if they were parsed into shortcutTargets). Only flag non-target,
+		// non-blank, non-comment lines that aren't part of a shortcut.
+		if structureTargetRegexp.MatchString(trimmed) {
+			continue
+		}
+		// Recipe lines (tab-prefixed) for non-shortcut targets after the
+		// shortcuts comment indicate misplaced content.
+		if strings.HasPrefix(data.lines[i], "\t") {
+			violations = append(violations, MakefileStructureViolation{
+				Severity: "high",
+				Message:  "Recipe content after '# Development shortcuts' must be shortcut aliases only — move complex targets before the shortcuts section",
+				FilePath: path,
+				Line:     i + 1,
+			})
+			break
+		}
 	}
 
 	return violations

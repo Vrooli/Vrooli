@@ -262,7 +262,22 @@ func (req qualityRequirement) satisfied(recipe []string) bool {
 	if len(req.patterns) == 0 {
 		return true
 	}
-	joined := strings.Join(recipe, "\n")
+	// Filter out comment-only recipe lines before matching, so patterns
+	// only match actual executable code, not comments that happen to
+	// contain the right keywords.
+	var executableLines []string
+	for _, line := range recipe {
+		stripped := strings.TrimSpace(line)
+		// Strip Make recipe prefixes (@, -, +) to find the actual command.
+		for len(stripped) > 0 && (stripped[0] == '@' || stripped[0] == '-' || stripped[0] == '+') {
+			stripped = strings.TrimSpace(stripped[1:])
+		}
+		if strings.HasPrefix(stripped, "#") {
+			continue
+		}
+		executableLines = append(executableLines, line)
+	}
+	joined := strings.Join(executableLines, "\n")
 	for _, pattern := range req.patterns {
 		if pattern.MatchString(joined) {
 			return true
@@ -307,11 +322,16 @@ func qualityFindLine(lines []string, needle string) int {
 	return 1
 }
 
+// goDir matches either "api" or "cli" as the Go source directory.
+// Scenarios may have only an api/, only a cli/, or both — the quality rule
+// accepts either directory as a valid guard target.
+const goDirPattern = `(?:api|cli)`
+
 func qualityLintGoRequirements() []qualityRequirement {
 	return []qualityRequirement{
-		newQualityRequirement("lint-go target must guard execution with an api directory check", `-d\s+api`),
-		newQualityRequirement("lint-go target must inspect Go sources before linting", `find\s+api\s+-name`, `api/go\.mod`, `\[[^\]]*-d\s+api[^\]]*\]`, `test\s+-d\s+api`, `ls\s+api`, `stat\s+api`),
-		newQualityRequirement("lint-go target must lint from within the api directory", `cd\s+api[^\n]*golangci-lint`, `\(cd\s+api`),
+		newQualityRequirement("lint-go target must guard execution with a Go directory check", `-d\s+`+goDirPattern),
+		newQualityRequirement("lint-go target must inspect Go sources before linting", `find\s+`+goDirPattern+`\s+-name`, goDirPattern+`/go\.mod`, `\[[^\]]*-d\s+`+goDirPattern+`[^\]]*\]`, `test\s+-d\s+`+goDirPattern, `ls\s+`+goDirPattern, `stat\s+`+goDirPattern),
+		newQualityRequirement("lint-go target must lint from within the Go directory", `cd\s+`+goDirPattern+`[^\n]*golangci-lint`, `\(cd\s+`+goDirPattern),
 		newQualityRequirement("lint-go target must invoke golangci-lint", `golangci-lint\s+run`),
 		newQualityRequirement("lint-go target must handle missing golangci-lint gracefully", `go\s+vet\s+\.\/\.\.`, `go\s+test[^\n]*-vet`, `command\s+-v\s+golangci-lint`, `which\s+golangci-lint`, `hash\s+golangci-lint`, `type\s+golangci-lint`, `exit\s+1`, `false`, `return\s+1`),
 	}
@@ -319,9 +339,9 @@ func qualityLintGoRequirements() []qualityRequirement {
 
 func qualityFmtGoRequirements() []qualityRequirement {
 	return []qualityRequirement{
-		newQualityRequirement("fmt-go target must guard execution with an api directory check", `-d\s+api`),
-		newQualityRequirement("fmt-go target must inspect Go sources before formatting", `find\s+api\s+-name`, `api/go\.mod`, `\[[^\]]*-d\s+api[^\]]*\]`, `test\s+-d\s+api`, `ls\s+api`, `stat\s+api`),
-		newQualityRequirement("fmt-go target must run formatting from within the api directory", `cd\s+api[^\n]*gofumpt`, `cd\s+api[^\n]*go\s+fmt`, `cd\s+api[^\n]*gofmt`, `\(cd\s+api`),
+		newQualityRequirement("fmt-go target must guard execution with a Go directory check", `-d\s+`+goDirPattern),
+		newQualityRequirement("fmt-go target must inspect Go sources before formatting", `find\s+`+goDirPattern+`\s+-name`, goDirPattern+`/go\.mod`, `\[[^\]]*-d\s+`+goDirPattern+`[^\]]*\]`, `test\s+-d\s+`+goDirPattern, `ls\s+`+goDirPattern, `stat\s+`+goDirPattern),
+		newQualityRequirement("fmt-go target must run formatting from within the Go directory", `cd\s+`+goDirPattern+`[^\n]*gofumpt`, `cd\s+`+goDirPattern+`[^\n]*go\s+fmt`, `cd\s+`+goDirPattern+`[^\n]*gofmt`, `\(cd\s+`+goDirPattern),
 		newQualityRequirement("fmt-go target must invoke gofumpt when available", `gofumpt`),
 		newQualityRequirement("fmt-go target must handle missing gofumpt gracefully", `gofmt`, `go\s+fmt`, `command\s+-v\s+gofumpt`, `which\s+gofumpt`, `hash\s+gofumpt`, `type\s+gofumpt`, `exit\s+1`, `false`, `return\s+1`),
 	}

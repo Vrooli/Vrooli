@@ -73,7 +73,18 @@ func RunMakefileLifecycle(ctx context.Context, repoRoot, scenarioName string) (r
 			continue
 		}
 
-		violations, _ := CheckMakefileLifecycle(string(content), path)
+		violations, err := CheckMakefileLifecycle(string(content), path)
+		if err != nil {
+			result.Findings = append(result.Findings, Finding{
+				Level:        "error",
+				Message:      fmt.Sprintf("failed to check lifecycle in %s: %v", path, err),
+				ScenarioName: scenSlug,
+				Evidence: []Evidence{
+					{Type: "file", Ref: path},
+				},
+			})
+			continue
+		}
 		for _, v := range violations {
 			result.Findings = append(result.Findings, Finding{
 				Level:        "error",
@@ -350,7 +361,10 @@ func lifecycleMatchStatusCommand(tokens []string) bool {
 }
 
 func lifecycleMatchLogsCommand(tokens []string) bool {
-	if len(tokens) != 6 {
+	// Require at least 5 tokens: vrooli scenario logs $(SCENARIO_NAME) --tail=50
+	// or 6 tokens: vrooli scenario logs $(SCENARIO_NAME) --tail 50
+	// Allow additional flags (e.g. --follow) after the required ones.
+	if len(tokens) < 5 {
 		return false
 	}
 	if tokens[0] != "vrooli" || tokens[1] != "scenario" || tokens[2] != "logs" {
@@ -359,14 +373,20 @@ func lifecycleMatchLogsCommand(tokens []string) bool {
 	if !lifecycleMatchesScenarioToken(tokens[3]) {
 		return false
 	}
-	if tokens[4] != "--tail" {
-		return false
+	// Accept both "--tail 50" (two tokens) and "--tail=50" (one token).
+	if tokens[4] == "--tail=50" {
+		return true
 	}
-	return tokens[5] == "50"
+	if len(tokens) >= 6 && tokens[4] == "--tail" && tokens[5] == "50" {
+		return true
+	}
+	return false
 }
 
 func lifecycleMatchScenarioVerb(tokens []string, verb string) bool {
-	if len(tokens) != 4 {
+	// Require at least 4 tokens: vrooli scenario <verb> $(SCENARIO_NAME)
+	// Allow additional flags (e.g. --detach) after the required ones.
+	if len(tokens) < 4 {
 		return false
 	}
 	if tokens[0] != "vrooli" || tokens[1] != "scenario" || tokens[2] != verb {

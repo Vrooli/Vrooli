@@ -60,29 +60,70 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 		output = mergeCustomTargets(output, customs)
 	}
 
-	// Determine changes.
-	var changes []FixChange
-	if len(existingContent) == 0 {
-		changes = append(changes, FixChange{Type: "generated", Detail: "Created canonical Makefile from template"})
-	} else if string(existingContent) != output {
-		changes = append(changes, FixChange{Type: "replaced", Detail: "Replaced Makefile with canonical version"})
-	}
-	for _, v := range customVars {
-		changes = append(changes, FixChange{Type: "preserved_variable", Detail: fmt.Sprintf("Preserved custom variable '%s'", v.name)})
-	}
-	for _, c := range customs {
-		changes = append(changes, FixChange{Type: "preserved_custom", Detail: fmt.Sprintf("Preserved custom target '%s'", c.name)})
+	// Check which rules have violations against the existing content.
+	var structureViolations []MakefileStructureViolation
+	var lifecycleViolations []MakefileLifecycleViolation
+	var qualityViolations []MakefileQualityViolation
+	if len(existingContent) > 0 {
+		structureViolations, _ = CheckMakefileStructure(string(existingContent), makefilePath)
+		lifecycleViolations, _ = CheckMakefileLifecycle(string(existingContent), makefilePath)
+		qualityViolations, _ = CheckMakefileQuality(string(existingContent), makefilePath)
 	}
 
-	fixed := len(changes) > 0 && (len(existingContent) == 0 || string(existingContent) != output)
+	// Build per-rule results.
+	isNew := len(existingContent) == 0
+	contentChanged := isNew || string(existingContent) != output
 
-	var diff *FileDiff
-	if dryRun && fixed {
-		diff = &FileDiff{Before: string(existingContent), After: output}
+	// Determine per-rule fix status.
+	ruleNeedsFix := map[string]bool{
+		"MAKEFILE_STRUCTURE": isNew || len(structureViolations) > 0,
+		"MAKEFILE_LIFECYCLE": isNew || len(lifecycleViolations) > 0,
+		"MAKEFILE_QUALITY":   isNew || len(qualityViolations) > 0,
 	}
 
-	// Write if not dry-run and there are changes.
-	if fixed && !dryRun {
+	// Build per-rule changes.
+	type ruleChanges struct {
+		fixed   bool
+		changes []FixChange
+	}
+	perRule := make(map[string]ruleChanges)
+	for _, id := range ruleIDs {
+		needsFix := ruleNeedsFix[id] && contentChanged
+		var ruleSpecificChanges []FixChange
+		if needsFix {
+			if isNew {
+				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "generated", Detail: "Created canonical Makefile from template"})
+			} else {
+				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "replaced", Detail: "Replaced Makefile with canonical version"})
+			}
+			for _, v := range customVars {
+				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "preserved_variable", Detail: fmt.Sprintf("Preserved custom variable '%s'", v.name)})
+			}
+			for _, c := range customs {
+				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "preserved_custom", Detail: fmt.Sprintf("Preserved custom target '%s'", c.name)})
+			}
+		}
+		perRule[id] = ruleChanges{fixed: needsFix, changes: ruleSpecificChanges}
+	}
+
+	// Write if any rule needs fixing and not dry-run.
+	anyFixed := false
+	for _, rc := range perRule {
+		if rc.fixed {
+			anyFixed = true
+			break
+		}
+	}
+
+	// Validate the generated Makefile passes the rules it's supposed to fix.
+	// This catches merge/template bugs before writing a broken file.
+	if anyFixed {
+		if vErr := validateGeneratedMakefile(output, makefilePath); vErr != "" {
+			return errorResults(ruleIDs, scenarioName, makefilePath, fmt.Errorf("generated Makefile failed self-validation: %s", vErr))
+		}
+	}
+
+	if anyFixed && !dryRun {
 		if err := os.MkdirAll(filepath.Dir(makefilePath), 0o755); err != nil {
 			return errorResults(ruleIDs, scenarioName, makefilePath, err)
 		}
@@ -94,13 +135,18 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 	// Return one result per rule.
 	results := make([]FixResult, 0, len(ruleIDs))
 	for _, id := range ruleIDs {
+		rc := perRule[id]
+		var ruleDiff *FileDiff
+		if dryRun && rc.fixed {
+			ruleDiff = &FileDiff{Before: string(existingContent), After: output}
+		}
 		results = append(results, FixResult{
 			ScenarioName: scenarioName,
 			RuleID:       id,
-			Fixed:        fixed,
+			Fixed:        rc.fixed,
 			FilePath:     makefilePath,
-			Changes:      changes,
-			Diff:         diff,
+			Changes:      rc.changes,
+			Diff:         ruleDiff,
 		})
 	}
 	return results
@@ -128,13 +174,67 @@ func scenarioSlugToTitle(slug string) string {
 
 var targetLineRegexp = regexp.MustCompile(`^([A-Za-z0-9_.-]+)\s*:(.*)$`)
 
+// joinContinuationLines merges lines ending with backslash (\) into single logical lines.
+// When a non-recipe line ends with \, subsequent lines are treated as continuations
+// regardless of their indentation, until a line without trailing \ is found.
+// Recipe lines (starting with tab) that are NOT part of a continuation are passed through as-is.
+func joinContinuationLines(lines []string) []string {
+	var result []string
+	var builder strings.Builder
+	inContinuation := false
+
+	for _, raw := range lines {
+		// If we're in a continuation, this line is part of it regardless of prefix.
+		if inContinuation {
+			builder.WriteByte(' ')
+			trimmed := strings.TrimRight(strings.TrimSpace(raw), " \t")
+			if strings.HasSuffix(trimmed, "\\") {
+				builder.WriteString(strings.TrimSuffix(trimmed, "\\"))
+				// Still in continuation.
+			} else {
+				builder.WriteString(trimmed)
+				result = append(result, builder.String())
+				builder.Reset()
+				inContinuation = false
+			}
+			continue
+		}
+
+		// Not in continuation. Check if this line starts one.
+		trimmedRight := strings.TrimRight(raw, " \t")
+		if strings.HasSuffix(trimmedRight, "\\") {
+			// Recipe lines starting with tab that end with \ are part of recipe
+			// continuation — pass them through individually (recipes handle their
+			// own continuations via the shell).
+			if strings.HasPrefix(raw, "\t") {
+				result = append(result, raw)
+				continue
+			}
+			// Non-recipe line starts a continuation.
+			inContinuation = true
+			builder.WriteString(strings.TrimSuffix(trimmedRight, "\\"))
+			continue
+		}
+
+		result = append(result, raw)
+	}
+
+	if builder.Len() > 0 {
+		result = append(result, builder.String())
+	}
+
+	return result
+}
+
 // extractCustomTargets parses an existing Makefile and returns targets not in the canonical set.
 func extractCustomTargets(content string) []customTarget {
 	canonical := canonicalTargetSet()
 	// Also exclude common shortcut targets that appear in the shortcuts section.
 	shortcuts := map[string]struct{}{"dev": {}, "restart": {}, "rebuild": {}}
 
-	lines := strings.Split(content, "\n")
+	// Join continuation lines so multi-line target definitions and prerequisites
+	// are properly parsed as single logical lines.
+	lines := joinContinuationLines(strings.Split(content, "\n"))
 	var customs []customTarget
 	var currentTarget string
 	var currentDef string
@@ -230,9 +330,10 @@ var canonicalVariableSet = map[string]struct{}{
 var varAssignRegexp = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)\s*(?:\?=|:=|=)\s*(.*)$`)
 
 // extractCustomVariables parses an existing Makefile and returns variable definitions
-// that are NOT in the canonical set.
+// that are NOT in the canonical set. Handles multi-line assignments (backslash continuations).
 func extractCustomVariables(content string) []customVariable {
-	lines := strings.Split(content, "\n")
+	// Join continuation lines so multi-line variable assignments are captured as one definition.
+	lines := joinContinuationLines(strings.Split(content, "\n"))
 	var vars []customVariable
 
 	for _, raw := range lines {
@@ -350,25 +451,63 @@ func mergeCustomTargets(canonical string, customs []customTarget) string {
 
 	// Update .PHONY to include custom target names.
 	output := strings.Join(lines, "\n")
-	for _, c := range customs {
-		if !strings.Contains(output, c.name) {
-			continue
-		}
-		// Find the .PHONY line and append custom target name.
-		phonyIdx := strings.Index(output, ".PHONY:")
-		if phonyIdx == -1 {
-			continue
-		}
+	phonyIdx := strings.Index(output, ".PHONY:")
+	if phonyIdx != -1 {
 		eol := strings.Index(output[phonyIdx:], "\n")
+		var phonyLine string
 		if eol == -1 {
-			output += " " + c.name
+			phonyLine = output[phonyIdx:]
 		} else {
-			pos := phonyIdx + eol
-			output = output[:pos] + " " + c.name + output[pos:]
+			phonyLine = output[phonyIdx : phonyIdx+eol]
+		}
+		phonyTargets := strings.Fields(phonyLine)
+
+		var toAdd []string
+		for _, c := range customs {
+			// Check if the target name is already in the .PHONY line.
+			// Use word-level matching to avoid substring false positives
+			// (e.g. "foo" matching "foobar").
+			alreadyPresent := false
+			for _, t := range phonyTargets {
+				if t == c.name {
+					alreadyPresent = true
+					break
+				}
+			}
+			if !alreadyPresent {
+				toAdd = append(toAdd, c.name)
+			}
+		}
+
+		if len(toAdd) > 0 {
+			suffix := " " + strings.Join(toAdd, " ")
+			if eol == -1 {
+				output += suffix
+			} else {
+				pos := phonyIdx + eol
+				output = output[:pos] + suffix + output[pos:]
+			}
 		}
 	}
 
 	return output
+}
+
+// validateGeneratedMakefile runs the three Makefile check rules against the
+// generated content and returns a description of the first violation found,
+// or empty string if all checks pass. This guards against template or merge
+// bugs producing an invalid Makefile.
+func validateGeneratedMakefile(content, path string) string {
+	if sv, _ := CheckMakefileStructure(content, path); len(sv) > 0 {
+		return fmt.Sprintf("STRUCTURE: %s (line %d)", sv[0].Message, sv[0].Line)
+	}
+	if lv, _ := CheckMakefileLifecycle(content, path); len(lv) > 0 {
+		return fmt.Sprintf("LIFECYCLE: %s (line %d)", lv[0].Message, lv[0].Line)
+	}
+	if qv, _ := CheckMakefileQuality(content, path); len(qv) > 0 {
+		return fmt.Sprintf("QUALITY: %s (line %d)", qv[0].Message, qv[0].Line)
+	}
+	return ""
 }
 
 func errorResults(ruleIDs []string, scenarioName, filePath string, err error) []FixResult {

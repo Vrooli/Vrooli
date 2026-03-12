@@ -19,6 +19,19 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 	scenarioDir := filepath.Join(repoRoot, "scenarios", scenarioName)
 	serviceJSONPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 
+	// Only fix scenarios that actually have a UI (ui/package.json).
+	// Without this guard, the fix would blindly add a UI install step to
+	// scenarios that have no UI directory, which would fail at runtime.
+	uiPackageJSON := filepath.Join(scenarioDir, "ui", "package.json")
+	if !fileExists(uiPackageJSON) {
+		return []FixResult{{
+			ScenarioName: scenarioName,
+			RuleID:       ruleID,
+			Fixed:        false,
+			FilePath:     serviceJSONPath,
+		}}
+	}
+
 	if !fileExists(serviceJSONPath) {
 		return []FixResult{{
 			ScenarioName: scenarioName,
@@ -39,6 +52,7 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 			Error:        err.Error(),
 		}}
 	}
+	originalRaw := string(raw)
 
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -113,8 +127,7 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 
 		// Phase 3: Neither pnpm nor npm found — add new step.
 		if !npmFound {
-			newStepJSON := fmt.Sprintf("{\n      \"name\": \"install-ui-deps\",\n      \"run\": %q\n    }", desiredRun)
-			raw = insertStepInRaw(raw, newStepJSON, lifecycle, setup, stepsAny)
+			raw = insertStepInRaw(raw, desiredRun, lifecycle, setup, stepsAny)
 			changes = append(changes, FixChange{
 				Type:   "added_step",
 				Detail: "Added setup step: " + desiredRun,
@@ -131,13 +144,23 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 		}}
 	}
 
+	// Verify the patched JSON is still valid before writing. String-level
+	// patching can produce invalid JSON if the replacement doesn't match the
+	// exact encoding used in the file.
+	var verifyDoc map[string]any
+	if err := json.Unmarshal(raw, &verifyDoc); err != nil {
+		return []FixResult{{
+			ScenarioName: scenarioName,
+			RuleID:       ruleID,
+			Fixed:        false,
+			FilePath:     serviceJSONPath,
+			Error:        fmt.Sprintf("patched service.json is invalid JSON (bug in fixer): %v", err),
+		}}
+	}
+
 	var diff *FileDiff
 	if dryRun {
-		diff = &FileDiff{Before: string(raw[:0:0]), After: string(raw)}
-		// Re-read original for Before.
-		origBytes, _ := os.ReadFile(serviceJSONPath)
-		diff.Before = string(origBytes)
-		diff.After = string(raw)
+		diff = &FileDiff{Before: originalRaw, After: string(raw)}
 	} else {
 		if err := os.WriteFile(serviceJSONPath, raw, 0o644); err != nil {
 			return []FixResult{{
@@ -188,32 +211,39 @@ func replaceRunInRaw(raw []byte, oldRun, newRun string) []byte {
 	return []byte(strings.Replace(text, oldLiteral, newLiteral, 1))
 }
 
-// insertStepInRaw inserts a new step JSON into the steps array within the raw
-// JSON bytes. If no steps array exists, it falls back to a full marshal.
-func insertStepInRaw(raw []byte, newStepJSON string, lifecycle, setup map[string]any, stepsAny []any) []byte {
+// insertStepInRaw inserts a new install-ui-deps step into the steps array
+// within the raw JSON bytes. desiredRun is the run command string.
+// If no steps array exists, it falls back to a full marshal.
+func insertStepInRaw(raw []byte, desiredRun string, lifecycle, setup map[string]any, stepsAny []any) []byte {
 	text := string(raw)
 
 	if stepsAny != nil && len(stepsAny) > 0 {
-		// Find the closing bracket of the steps array.
-		// We look for the pattern where the steps array ends.
 		stepsClose := findStepsArrayClose(text)
-		if stepsClose >= 0 {
-			// Insert before the closing bracket, adding a comma after the last element.
+		indent := detectStepIndent(text)
+		// Only attempt string-level insertion when we can detect indentation
+		// (i.e. the JSON is multi-line). Compact JSON falls through to marshal.
+		if stepsClose >= 0 && indent != "" {
+			closingIndent := detectClosingBracketIndent(text, stepsClose)
+			propIndent := indent + "  "
+			stepJSON := "{\n" + propIndent + `"name": "install-ui-deps",` + "\n" + propIndent + `"run": ` + fmt.Sprintf("%q", desiredRun) + "\n" + indent + "}"
+
 			before := text[:stepsClose]
 			after := text[stepsClose:]
-			// Trim trailing whitespace before the ] to find insertion point.
 			trimmed := strings.TrimRight(before, " \t\n\r")
-			whitespace := before[len(trimmed):]
-			result := trimmed + ",\n    " + newStepJSON + whitespace + after
+			result := trimmed + ",\n" + indent + stepJSON + "\n" + closingIndent + after
 			return []byte(result)
 		}
 	} else if stepsAny != nil {
-		// Empty steps array — find "steps": [] and insert inside.
 		stepsClose := findStepsArrayClose(text)
-		if stepsClose >= 0 {
+		indent := detectStepIndent(text)
+		if stepsClose >= 0 && indent != "" {
+			closingIndent := detectClosingBracketIndent(text, stepsClose)
+			propIndent := indent + "  "
+			stepJSON := "{\n" + propIndent + `"name": "install-ui-deps",` + "\n" + propIndent + `"run": ` + fmt.Sprintf("%q", desiredRun) + "\n" + indent + "}"
+
 			before := text[:stepsClose]
 			after := text[stepsClose:]
-			result := before + "\n    " + newStepJSON + "\n  " + after
+			result := before + "\n" + indent + stepJSON + "\n" + closingIndent + after
 			return []byte(result)
 		}
 	}
@@ -229,7 +259,7 @@ func insertStepInRaw(raw []byte, newStepJSON string, lifecycle, setup map[string
 	_ = json.Unmarshal(raw, &doc)
 	newStep := map[string]any{
 		"name": "install-ui-deps",
-		"run":  "cd ui && pnpm install --ignore-workspace",
+		"run":  desiredRun,
 	}
 	stepsAny = append(stepsAny, newStep)
 	if setup["steps"] == nil {
@@ -242,6 +272,48 @@ func insertStepInRaw(raw []byte, newStepJSON string, lifecycle, setup map[string
 	doc["lifecycle"] = lifecycle
 	afterBytes, _ := json.MarshalIndent(doc, "", "  ")
 	return append(afterBytes, '\n')
+}
+
+// detectStepIndent returns the whitespace prefix used for step objects inside the
+// "steps" array. It scans for the first `{` after the `"steps"` key and returns
+// everything between the preceding newline and that brace.
+// Returns empty string if the text has no newlines (compact JSON).
+func detectStepIndent(text string) string {
+	idx := strings.Index(text, `"steps"`)
+	if idx < 0 {
+		return "        " // 8-space default
+	}
+	// Find the first '{' after "steps".
+	rest := text[idx:]
+	braceIdx := strings.Index(rest, "{")
+	if braceIdx < 0 {
+		return "        "
+	}
+	abs := idx + braceIdx
+	// Walk backwards from the '{' to the preceding newline.
+	start := abs
+	for start > 0 && text[start-1] != '\n' {
+		start--
+	}
+	indent := text[start:abs]
+	// If we hit the start of the string without finding a newline, the JSON
+	// is compact (no newlines). Return empty to signal the caller should use
+	// the marshal fallback.
+	if start == 0 && !strings.ContainsRune(indent, '\n') && strings.ContainsAny(indent, `"{}[],:`) {
+		return ""
+	}
+	return indent
+}
+
+// detectClosingBracketIndent returns the whitespace that should precede the
+// closing ']' of the steps array. It looks at the whitespace before the ']'
+// at the given position.
+func detectClosingBracketIndent(text string, closingPos int) string {
+	start := closingPos
+	for start > 0 && text[start-1] != '\n' {
+		start--
+	}
+	return text[start:closingPos]
 }
 
 // findStepsArrayClose returns the index of the ']' that closes the "steps" array.

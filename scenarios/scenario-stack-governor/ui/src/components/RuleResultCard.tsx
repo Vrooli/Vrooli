@@ -37,9 +37,9 @@ export function RuleResultCard({
   onToggleDryRun: () => void;
 }) {
   const findings = result.findings || [];
-  const errorCount = findings.filter((f) => f.level === "error").length;
-  const warnCount = findings.filter((f) => f.level === "warn").length;
-  const infoCount = findings.filter((f) => f.level === "info").length;
+  const errorCount = result.error_count;
+  const warnCount = result.warn_count;
+  const infoCount = findings.length - errorCount - warnCount;
   const scenarioGroups = groupByScenario(findings);
   const scenarioNames = [...scenarioGroups.keys()].filter((k) => k !== "(all)");
   const fixable = ruleDefinition?.fixable ?? false;

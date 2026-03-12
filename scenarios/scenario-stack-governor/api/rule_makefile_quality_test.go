@@ -99,15 +99,17 @@ check: fmt lint test
 }
 
 func TestCheckMakefileQuality_LintCliDirectory(t *testing.T) {
+	// CLI-only scenarios should pass quality checks — both api/ and cli/ are
+	// valid Go source directories.
 	content := `fmt: fmt-go fmt-ui
 
 fmt-go:
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
 		echo "Formatting Go code..."; \
 		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
+			cd cli && gofumpt -w .; \
 		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
+			cd cli && gofmt -w .; \
 		fi; \
 		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
 	fi
@@ -134,18 +136,10 @@ check: fmt lint test
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(violations) < 3 {
-		t.Fatalf("expected at least 3 violations for cli-directory lint-go, got %d", len(violations))
-	}
-	found := false
-	for _, v := range violations {
-		if strings.Contains(v.Message, "lint-go target must guard execution with an api directory check") {
-			found = true
-			break
+	if len(violations) != 0 {
+		for _, v := range violations {
+			t.Errorf("unexpected violation at line %d: %s", v.Line, v.Message)
 		}
-	}
-	if !found {
-		t.Error("expected violation about api directory guard")
 	}
 }
 
@@ -216,6 +210,82 @@ check: ## Run full quality gates
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
+`
+	violations, err := CheckMakefileQuality(content, "Makefile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(violations) != 0 {
+		for _, v := range violations {
+			t.Errorf("unexpected violation at line %d: %s", v.Line, v.Message)
+		}
+	}
+}
+
+func TestCheckMakefileQuality_CommentOnlyRecipe(t *testing.T) {
+	// All quality patterns appear in comments only — this should NOT pass.
+	content := `fmt: fmt-go fmt-ui
+
+fmt-go:
+	@# if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then
+	@# cd api && gofumpt -w .
+	@# gofmt -w .
+	@echo "Go formatting disabled"
+
+lint: lint-go lint-ui
+
+lint-go:
+	@# if [ -d api ] && find api -name "*.go" | head -1 | grep -q .
+	@# cd api && golangci-lint run ./...
+	@# go vet ./...
+	@echo "Go linting disabled"
+
+lint-ui:
+	@echo "UI lint not configured"
+
+check: fmt lint test
+`
+	violations, err := CheckMakefileQuality(content, "Makefile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should have violations because the patterns are only in comments.
+	if len(violations) == 0 {
+		t.Error("expected violations when patterns only appear in comments")
+	}
+}
+
+func TestCheckMakefileQuality_CommentAndCode(t *testing.T) {
+	// Both comments with patterns and actual code — should pass.
+	content := `fmt: fmt-go fmt-ui
+
+fmt-go:
+	@# This target formats Go code using gofumpt
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "Formatting Go code..."; \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+		fi; \
+	fi
+
+lint: lint-go lint-ui
+
+lint-go:
+	@# Lint Go code with golangci-lint, fallback to go vet
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run ./...; \
+		else \
+			cd api && go vet ./...; \
+		fi; \
+	fi
+
+lint-ui:
+	@echo "UI lint not configured"
+
+check: fmt lint test
 `
 	violations, err := CheckMakefileQuality(content, "Makefile")
 	if err != nil {

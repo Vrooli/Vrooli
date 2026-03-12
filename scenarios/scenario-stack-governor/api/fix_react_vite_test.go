@@ -20,6 +20,11 @@ func setupReactViteTestDir(t *testing.T, scenarioName string) (repoRoot string, 
 		t.Fatal(err)
 	}
 
+	// The fix requires ui/package.json to exist (matching the rule check behavior).
+	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "package.json"), []byte(`{"name":"test"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	return root, filepath.Join(scenarioDir, ".vrooli", "service.json")
 }
 
@@ -385,6 +390,61 @@ func TestHasUIInstallIgnoreWorkspace_NpmInstallShowsInEvidence(t *testing.T) {
 	}
 }
 
+// TestCheckUIInstall_MalformedLifecycle verifies that a service.json with a
+// malformed lifecycle structure (e.g., null or wrong type) returns a parseErr
+// rather than silently passing.
+func TestCheckUIInstall_MalformedLifecycle(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		wantErr string
+	}{
+		{
+			name:    "lifecycle_null",
+			content: `{"lifecycle": null}`,
+			wantErr: "lifecycle field is not an object",
+		},
+		{
+			name:    "lifecycle_string",
+			content: `{"lifecycle": "broken"}`,
+			wantErr: "lifecycle field is not an object",
+		},
+		{
+			name:    "lifecycle_missing",
+			content: `{"version": "1.0.0"}`,
+			wantErr: "lifecycle field missing",
+		},
+		{
+			name:    "setup_null",
+			content: `{"lifecycle": {"setup": null}}`,
+			wantErr: "lifecycle.setup field is not an object",
+		},
+		{
+			name:    "steps_string",
+			content: `{"lifecycle": {"setup": {"steps": "not-array"}}}`,
+			wantErr: "lifecycle.setup.steps field is not an array",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, sjPath := setupReactViteTestDir(t, "malformed-"+tt.name)
+			writeServiceJSONRaw(t, sjPath, tt.content)
+
+			result := checkUIInstall(sjPath)
+			if result.parseErr == "" {
+				t.Fatal("expected parseErr to be set")
+			}
+			if !strings.Contains(result.parseErr, tt.wantErr) {
+				t.Errorf("expected parseErr containing %q, got %q", tt.wantErr, result.parseErr)
+			}
+			if result.ok {
+				t.Error("expected ok=false for malformed structure")
+			}
+		})
+	}
+}
+
 func TestHasUIInstallIgnoreWorkspace_NpmInstallByName(t *testing.T) {
 	// Step name contains "ui" but run doesn't — should still be detected.
 	_, sjPath := setupReactViteTestDir(t, "test-npm-name")
@@ -405,6 +465,65 @@ func TestHasUIInstallIgnoreWorkspace_NpmInstallByName(t *testing.T) {
 	}
 	if evidence == "" {
 		t.Error("expected non-empty evidence for npm install step with ui in name")
+	}
+}
+
+func TestFixReactVite_SkipsNonUIScenario(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "no-ui-scenario"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	// Create scenario with service.json but NO ui/package.json.
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeServiceJSON(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), map[string]any{
+		"lifecycle": map[string]any{
+			"setup": map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "build-api",
+						"run":  "cd api && go build ./...",
+					},
+				},
+			},
+		},
+	})
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Fixed {
+		t.Error("expected fixed=false for scenario without ui/package.json")
+	}
+	if results[0].Error != "" {
+		t.Errorf("expected no error, got: %s", results[0].Error)
+	}
+
+	// Verify service.json was NOT modified (no UI install step added).
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if strings.Contains(string(content), "pnpm install") {
+		t.Error("service.json should not have been modified for non-UI scenario")
+	}
+}
+
+func TestFixReactVite_SkipsNoUIDirectory(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "no-ui-dir"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	// Create scenario with no ui/ directory at all.
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Fixed {
+		t.Error("expected fixed=false for scenario without ui/ directory")
 	}
 }
 
@@ -452,5 +571,263 @@ func TestFixReactVite_DryRunDoesNotWrite(t *testing.T) {
 	}
 	if !strings.Contains(results[0].Diff.After, "--ignore-workspace") {
 		t.Error("expected Diff.After to contain '--ignore-workspace'")
+	}
+}
+
+// TestFixReactVite_InsertedStepMatchesExistingIndentation verifies that when a
+// new step is added (Phase 3), the inserted JSON matches the indentation of
+// existing steps rather than using hardcoded whitespace.
+func TestFixReactVite_InsertedStepMatchesExistingIndentation(t *testing.T) {
+	scenarioName := "test-indent"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	// Write with 8-space indentation for step objects (realistic service.json).
+	rawJSON := `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build ./...",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Ready'",
+          "description": "Display info"
+        }
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	text := string(content)
+
+	// The new step should be valid JSON.
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("inserted step produced invalid JSON: %v\nContent:\n%s", err, text)
+	}
+
+	// The new step's opening brace should have the same indentation as existing steps.
+	// Existing steps start with 8 spaces of indent.
+	if !strings.Contains(text, "install-ui-deps") {
+		t.Fatal("expected install-ui-deps step to be added")
+	}
+
+	// Find the line with "install-ui-deps" and check its indentation matches
+	// existing step names.
+	lines := strings.Split(text, "\n")
+	var existingStepIndent, newStepIndent string
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.Contains(trimmed, `"name": "build-api"`) {
+			existingStepIndent = line[:len(line)-len(trimmed)]
+		}
+		if strings.Contains(trimmed, `"name": "install-ui-deps"`) {
+			newStepIndent = line[:len(line)-len(trimmed)]
+		}
+	}
+	if existingStepIndent == "" {
+		t.Fatal("could not find existing step indentation")
+	}
+	if newStepIndent == "" {
+		t.Fatal("could not find new step indentation")
+	}
+	if existingStepIndent != newStepIndent {
+		t.Errorf("indentation mismatch: existing step uses %q, new step uses %q",
+			existingStepIndent, newStepIndent)
+	}
+}
+
+// TestFixReactVite_InsertedStepValidJSON verifies that inserting a step into
+// various JSON structures always produces valid JSON.
+func TestFixReactVite_InsertedStepValidJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawJSON string
+	}{
+		{
+			name:    "compact_steps",
+			rawJSON: `{"lifecycle":{"setup":{"steps":[{"name":"build","run":"go build"}]}}}`,
+		},
+		{
+			name: "2_space_indent",
+			rawJSON: `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "build", "run": "go build"}
+      ]
+    }
+  }
+}`,
+		},
+		{
+			name: "4_space_indent",
+			rawJSON: `{
+    "lifecycle": {
+        "setup": {
+            "steps": [
+                {"name": "build", "run": "go build"}
+            ]
+        }
+    }
+}`,
+		},
+		{
+			name: "many_existing_steps",
+			rawJSON: `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh"},
+        {"name": "build-api", "run": "cd api && go build ."},
+        {"name": "setup-db", "run": "scripts/setup-db.sh"},
+        {"name": "seed-data", "run": "scripts/seed.sh"},
+        {"name": "show-urls", "run": "echo ready"}
+      ]
+    }
+  }
+}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scenarioName := "test-valid-json-" + tt.name
+			root, sjPath := setupReactViteTestDir(t, scenarioName)
+			writeServiceJSONRaw(t, sjPath, tt.rawJSON)
+
+			results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+			if !results[0].Fixed {
+				t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+			}
+
+			content, _ := os.ReadFile(sjPath)
+			var doc map[string]any
+			if err := json.Unmarshal(content, &doc); err != nil {
+				t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+			}
+
+			// Verify the step was actually added.
+			lifecycle, _ := doc["lifecycle"].(map[string]any)
+			setup, _ := lifecycle["setup"].(map[string]any)
+			steps, _ := setup["steps"].([]any)
+			found := false
+			for _, s := range steps {
+				step, _ := s.(map[string]any)
+				if step["name"] == "install-ui-deps" {
+					found = true
+					if step["run"] != "cd ui && pnpm install --ignore-workspace" {
+						t.Errorf("unexpected run value: %v", step["run"])
+					}
+				}
+			}
+			if !found {
+				t.Error("install-ui-deps step not found in parsed JSON")
+			}
+		})
+	}
+}
+
+// TestFixReactVite_NullLifecycleRecovery verifies the fixer handles a
+// service.json with lifecycle: null by constructing the correct structure
+// via marshal fallback.
+func TestFixReactVite_NullLifecycleRecovery(t *testing.T) {
+	scenarioName := "test-null-lifecycle"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	writeServiceJSONRaw(t, sjPath, `{"lifecycle": null}`)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	// The fixer should reconstruct the lifecycle structure and add the step.
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	if !strings.Contains(string(content), "pnpm install --ignore-workspace") {
+		t.Error("expected pnpm install step in fixed service.json")
+	}
+
+	// Verify the output is valid JSON.
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Errorf("fixed service.json is invalid JSON: %v", err)
+	}
+}
+
+// TestFixReactVite_InvalidJSON verifies the fixer returns an error for
+// completely unparseable JSON.
+func TestFixReactVite_InvalidJSON(t *testing.T) {
+	scenarioName := "test-bad-json"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	writeServiceJSONRaw(t, sjPath, `{not valid json}`)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Fixed {
+		t.Error("expected fixed=false for invalid JSON")
+	}
+	if results[0].Error == "" {
+		t.Error("expected error message for invalid JSON")
+	}
+}
+
+// TestDetectStepIndent verifies indentation detection for various formats.
+func TestDetectStepIndent(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		expected string
+	}{
+		{
+			name:     "8_space_indent",
+			text:     `  "steps": [` + "\n" + `        {"name": "build"}`,
+			expected: "        ",
+		},
+		{
+			name:     "4_space_indent",
+			text:     `  "steps": [` + "\n" + `    {"name": "build"}`,
+			expected: "    ",
+		},
+		{
+			name:     "tab_indent",
+			text:     `  "steps": [` + "\n" + "\t\t" + `{"name": "build"}`,
+			expected: "\t\t",
+		},
+		{
+			name:     "no_steps_key",
+			text:     `{"lifecycle": {}}`,
+			expected: "        ", // 8-space default fallback
+		},
+		{
+			name:     "compact_json",
+			text:     `{"lifecycle":{"setup":{"steps":[{"name":"build"}]}}}`,
+			expected: "", // empty = compact JSON, signal to use marshal fallback
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := detectStepIndent(tt.text)
+			if got != tt.expected {
+				t.Errorf("expected indent %q, got %q", tt.expected, got)
+			}
+		})
 	}
 }

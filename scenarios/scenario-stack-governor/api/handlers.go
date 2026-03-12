@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -67,7 +68,12 @@ func (s *Server) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRunRules(w http.ResponseWriter, r *http.Request) {
 	var req RunRequest
-	_ = json.NewDecoder(r.Body).Decode(&req) // optional
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid json body")
+			return
+		}
+	}
 
 	cfg, err := s.configStore.Load(r.Context())
 	if err != nil {
@@ -81,7 +87,17 @@ func (s *Server) handleRunRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	// Scale the global timeout by the number of scenarios and rules to avoid
+	// starvation when running many scenarios. Each scenario gets up to 2 minutes
+	// per rule, capped at a 10-minute global maximum.
+	globalTimeout := time.Duration(len(req.ScenarioNames)) * 2 * time.Minute
+	if globalTimeout < 2*time.Minute {
+		globalTimeout = 2 * time.Minute
+	}
+	if globalTimeout > 10*time.Minute {
+		globalTimeout = 10 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), globalTimeout)
 	defer cancel()
 
 	// If no specific scenarios requested, run against all (pass "").
@@ -90,30 +106,23 @@ func (s *Server) handleRunRules(w http.ResponseWriter, r *http.Request) {
 		scenarioNames = []string{""}
 	}
 
-	type ruleRunner func(ctx context.Context, repoRoot, scenarioName string) RuleResult
-
-	runners := map[string]ruleRunner{
-		"GO_CLI_WORKSPACE_INDEPENDENCE":       RunGoCliWorkspaceIndependence,
-		"REACT_VITE_UI_INSTALLS_DEPENDENCIES": RunReactViteUIInstallsDependencies,
-		"MAKEFILE_STRUCTURE":                  RunMakefileStructure,
-		"MAKEFILE_LIFECYCLE":                  RunMakefileLifecycle,
-		"MAKEFILE_QUALITY":                    RunMakefileQuality,
-	}
-
+	var timedOut bool
 	results := []RuleResult{}
-	for _, rule := range AllRuleDefinitions() {
-		if !cfg.EnabledRules[rule.ID] {
+	for _, entry := range AllRules() {
+		if !cfg.EnabledRules[entry.Definition.ID] {
 			continue
 		}
-		runner, ok := runners[rule.ID]
-		if !ok {
-			continue
+
+		// Check if context has been cancelled (timeout).
+		if ctx.Err() != nil {
+			timedOut = true
+			break
 		}
 
 		// Merge results across all requested scenarios into one RuleResult per rule.
 		var merged RuleResult
 		for i, name := range scenarioNames {
-			res := runner(ctx, repoRoot, strings.TrimSpace(name))
+			res := entry.Runner(ctx, repoRoot, strings.TrimSpace(name))
 			if i == 0 {
 				merged = res
 			} else {
@@ -124,12 +133,14 @@ func (s *Server) handleRunRules(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		merged.ComputeCounts()
 		results = append(results, merged)
 	}
 
 	writeJSON(w, http.StatusOK, RunResponse{
 		RepoRoot: repoRoot,
 		Results:  results,
+		TimedOut: timedOut,
 	})
 }
 
@@ -175,7 +186,15 @@ func (s *Server) handleFix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	// Scale timeout: 2 minutes per scenario, capped at 10 minutes.
+	fixTimeout := time.Duration(len(req.ScenarioNames)) * 2 * time.Minute
+	if fixTimeout < 2*time.Minute {
+		fixTimeout = 2 * time.Minute
+	}
+	if fixTimeout > 10*time.Minute {
+		fixTimeout = 10 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), fixTimeout)
 	defer cancel()
 
 	// Determine which rule IDs are requested (default: all fixable).
@@ -187,24 +206,19 @@ func (s *Server) handleFix(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check which fixable rule categories are requested.
-	makefileRuleIDs := []string{"MAKEFILE_STRUCTURE", "MAKEFILE_LIFECYCLE", "MAKEFILE_QUALITY"}
-	wantMakefile := len(requested) == 0 // default: all fixable
-	wantGoCli := len(requested) == 0
-	wantReactVite := len(requested) == 0
-	if !wantMakefile || !wantGoCli || !wantReactVite {
-		for _, id := range makefileRuleIDs {
-			if _, ok := requested[id]; ok {
-				wantMakefile = true
-				break
+	// Build the set of fixable entries to run.
+	allRules := AllRules()
+	var entriesToFix []RuleEntry
+	for _, entry := range allRules {
+		if entry.Fixer == nil {
+			continue
+		}
+		if len(requested) > 0 {
+			if _, ok := requested[entry.Definition.ID]; !ok {
+				continue
 			}
 		}
-		if _, ok := requested["GO_CLI_WORKSPACE_INDEPENDENCE"]; ok {
-			wantGoCli = true
-		}
-		if _, ok := requested["REACT_VITE_UI_INSTALLS_DEPENDENCIES"]; ok {
-			wantReactVite = true
-		}
+		entriesToFix = append(entriesToFix, entry)
 	}
 
 	var results []FixResult
@@ -213,14 +227,22 @@ func (s *Server) handleFix(w http.ResponseWriter, r *http.Request) {
 		if name == "" {
 			continue
 		}
-		if wantMakefile {
-			results = append(results, FixMakefileAll(ctx, repoRoot, name, req.DryRun)...)
-		}
-		if wantGoCli {
-			results = append(results, FixGoCliWorkspaceIndependence(ctx, repoRoot, name, req.DryRun)...)
-		}
-		if wantReactVite {
-			results = append(results, FixReactViteUIInstallsDependencies(ctx, repoRoot, name, req.DryRun)...)
+
+		// Track which fixer groups have already been called for this scenario
+		// to avoid calling shared fixers (like FixMakefileAll) multiple times.
+		calledGroups := map[string]struct{}{}
+
+		for _, entry := range entriesToFix {
+			if entry.FixerGroup != "" {
+				if _, done := calledGroups[entry.FixerGroup]; done {
+					// Already called this fixer group for this scenario; skip.
+					continue
+				}
+				calledGroups[entry.FixerGroup] = struct{}{}
+			}
+
+			fixResults := callFixerSafe(ctx, entry, repoRoot, name, req.DryRun)
+			results = append(results, fixResults...)
 		}
 	}
 
@@ -239,6 +261,22 @@ func (s *Server) handleFix(w http.ResponseWriter, r *http.Request) {
 		RepoRoot: repoRoot,
 		Results:  results,
 	})
+}
+
+// callFixerSafe calls a fixer with panic recovery so a single fixer panic
+// doesn't crash the server. On panic, it returns a FixResult with the error.
+func callFixerSafe(ctx context.Context, entry RuleEntry, repoRoot, scenarioName string, dryRun bool) (results []FixResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			results = []FixResult{{
+				ScenarioName: scenarioName,
+				RuleID:       entry.Definition.ID,
+				Fixed:        false,
+				Error:        fmt.Sprintf("fixer panicked: %v", r),
+			}}
+		}
+	}()
+	return entry.Fixer(ctx, repoRoot, scenarioName, dryRun)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

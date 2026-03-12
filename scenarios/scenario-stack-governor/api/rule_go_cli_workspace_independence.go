@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -44,10 +45,9 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 
 	sort.Strings(goMods)
 	if len(goMods) == 0 {
-		result.Findings = append(result.Findings, Finding{
-			Level:   "warn",
-			Message: "no Go-based scenario CLIs found under scenarios/*/cli/go.mod",
-		})
+		// No Go CLIs found. For per-scenario runs this is expected (most
+		// scenarios don't have a Go CLI), so we return no findings and
+		// let the rule pass. For full-repo runs it simply means none exist.
 		return result
 	}
 
@@ -61,19 +61,32 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 			name := filepath.Base(filepath.Dir(moduleDir)) // scenario slug
 			buildCtx, cancel := context.WithTimeout(gCtx, 3*time.Minute)
 			out, buildErr := runGoBuild(buildCtx, moduleDir)
+			wasTimeout := buildCtx.Err() == context.DeadlineExceeded
 			cancel()
 			if buildErr != nil {
 				mu.Lock()
-				result.Findings = append(result.Findings, Finding{
-					Level:        "error",
-					Message:      fmt.Sprintf("%s: `GOWORK=off go build ./...` failed", name),
-					ScenarioName: name,
-					Evidence: []Evidence{
-						{Type: "path", Ref: moduleDir},
-						{Type: "command", Ref: "GOWORK=off go build ./..."},
-						{Type: "note", Detail: out},
-					},
-				})
+				if wasTimeout {
+					result.Findings = append(result.Findings, Finding{
+						Level:        "error",
+						Message:      fmt.Sprintf("%s: build timed out after 3 minutes", name),
+						ScenarioName: name,
+						Evidence: []Evidence{
+							{Type: "path", Ref: moduleDir},
+							{Type: "command", Ref: "GOWORK=off go build ./..."},
+						},
+					})
+				} else {
+					result.Findings = append(result.Findings, Finding{
+						Level:        "error",
+						Message:      fmt.Sprintf("%s: `GOWORK=off go build ./...` failed", name),
+						ScenarioName: name,
+						Evidence: []Evidence{
+							{Type: "path", Ref: moduleDir},
+							{Type: "command", Ref: "GOWORK=off go build ./..."},
+							{Type: "note", Detail: out},
+						},
+					})
+				}
 				mu.Unlock()
 			}
 			return nil
@@ -81,16 +94,9 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	}
 	_ = g.Wait()
 
-	// If the parent context timed out before we could collect findings, add a sentinel.
-	if ctx.Err() != nil && len(result.Findings) == 0 {
-		result.Findings = append(result.Findings, Finding{
-			Level:   "error",
-			Message: fmt.Sprintf("rule timed out after %s before builds could complete", time.Since(start).Truncate(time.Second)),
-		})
-	}
-
 	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot, cleanedScenario)...)
 	result.Findings = append(result.Findings, checkProtoReplaceForCliModules(repoRoot, cleanedScenario)...)
+	result.Findings = append(result.Findings, checkReplaceDirectivePaths(repoRoot, cleanedScenario)...)
 	return result
 }
 
@@ -116,7 +122,10 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 	if strings.TrimSpace(scenarioName) != "" {
 		glob = filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenarioName), "cli", "go.mod")
 	}
-	cliGoMods, _ := filepath.Glob(glob)
+	cliGoMods, err := filepath.Glob(glob)
+	if err != nil {
+		return []Finding{{Level: "error", Message: fmt.Sprintf("failed to glob CLI go.mod files: %v", err)}}
+	}
 	sort.Strings(cliGoMods)
 
 	for _, cliGoMod := range cliGoMods {
@@ -127,7 +136,7 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 			continue
 		}
 
-		apiModule := parseGoModuleLine(apiGoMod)
+		apiModule := parseGoModModule(apiGoMod)
 		if apiModule == "" {
 			continue
 		}
@@ -154,21 +163,18 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 			continue
 		}
 
-		cliModule := parseGoModuleLine(cliGoMod)
+		cliModule := parseGoModModule(cliGoMod)
 		if cliModule == "" {
 			cliModule = filepath.Base(scenarioDir) + "/cli"
 		}
 
-		raw, _ := os.ReadFile(cliGoMod)
-		text := string(raw)
-		expectReplace := fmt.Sprintf("replace %s => ../api", apiModule)
-		expectRequire := fmt.Sprintf("\t%s ", apiModule)
+		cliModFile := parseGoModFile(cliGoMod)
 
 		missing := []string{}
-		if !strings.Contains(text, expectReplace) {
-			missing = append(missing, expectReplace)
+		if !goModFileHasReplace(cliModFile, apiModule) {
+			missing = append(missing, fmt.Sprintf("replace %s => ../api", apiModule))
 		}
-		if !strings.Contains(text, expectRequire) && !strings.Contains(text, "\n"+apiModule+" ") {
+		if !goModFileHasRequire(cliModFile, apiModule) {
 			missing = append(missing, "require "+apiModule+" v0.0.0 (or similar)")
 		}
 
@@ -195,19 +201,41 @@ func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
 	if strings.TrimSpace(scenarioName) != "" {
 		glob = filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenarioName), "cli", "go.mod")
 	}
-	cliGoMods, _ := filepath.Glob(glob)
+	cliGoMods, err := filepath.Glob(glob)
+	if err != nil {
+		return []Finding{{Level: "error", Message: fmt.Sprintf("failed to glob CLI go.mod files: %v", err)}}
+	}
 	sort.Strings(cliGoMods)
 
+	const protoModule = "github.com/vrooli/vrooli/packages/proto"
+
 	for _, cliGoMod := range cliGoMods {
-		raw, err := os.ReadFile(cliGoMod)
-		if err != nil {
+		modFile := parseGoModFile(cliGoMod)
+		if modFile == nil {
 			continue
 		}
-		text := string(raw)
-		if !strings.Contains(text, "github.com/vrooli/vrooli/packages/proto") {
-			continue
+
+		// Check if proto is referenced (in require or anywhere in the parsed module).
+		hasProto := false
+		for _, req := range modFile.Require {
+			if req.Mod.Path == protoModule {
+				hasProto = true
+				break
+			}
 		}
-		if strings.Contains(text, "replace github.com/vrooli/vrooli/packages/proto =>") {
+		if !hasProto {
+			// Also check raw text for proto references (could be in replace without require).
+			raw, err := os.ReadFile(cliGoMod)
+			if err != nil {
+				continue
+			}
+			if !strings.Contains(string(raw), protoModule) {
+				continue
+			}
+			hasProto = true
+		}
+
+		if goModFileHasReplace(modFile, protoModule) {
 			continue
 		}
 
@@ -226,16 +254,105 @@ func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
 	return findings
 }
 
-func parseGoModuleLine(goModPath string) string {
-	b, err := os.ReadFile(goModPath)
-	if err != nil {
+// parseGoModModule extracts the module path from a go.mod file using golang.org/x/mod/modfile.
+func parseGoModModule(goModPath string) string {
+	f := parseGoModFile(goModPath)
+	if f == nil || f.Module == nil {
 		return ""
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "module "))
+	return f.Module.Mod.Path
+}
+
+// parseGoModFile parses a go.mod file into a structured representation.
+func parseGoModFile(goModPath string) *modfile.File {
+	b, err := os.ReadFile(goModPath)
+	if err != nil {
+		return nil
+	}
+	f, err := modfile.Parse(goModPath, b, nil)
+	if err != nil {
+		return nil
+	}
+	return f
+}
+
+// goModFileHasReplace checks if the parsed go.mod has a replace directive for the given module.
+func goModFileHasReplace(f *modfile.File, module string) bool {
+	if f == nil {
+		return false
+	}
+	for _, rep := range f.Replace {
+		if rep.Old.Path == module {
+			return true
 		}
 	}
-	return ""
+	return false
+}
+
+// goModFileHasRequire checks if the parsed go.mod has a require directive for the given module.
+func goModFileHasRequire(f *modfile.File, module string) bool {
+	if f == nil {
+		return false
+	}
+	for _, req := range f.Require {
+		if req.Mod.Path == module {
+			return true
+		}
+	}
+	return false
+}
+
+// checkReplaceDirectivePaths validates that local replace directives in CLI go.mod
+// files point to directories that actually exist on disk.
+func checkReplaceDirectivePaths(repoRoot, scenarioName string) []Finding {
+	var findings []Finding
+
+	glob := filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod")
+	if strings.TrimSpace(scenarioName) != "" {
+		glob = filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenarioName), "cli", "go.mod")
+	}
+	cliGoMods, err := filepath.Glob(glob)
+	if err != nil {
+		return []Finding{{Level: "error", Message: fmt.Sprintf("failed to glob CLI go.mod files: %v", err)}}
+	}
+	sort.Strings(cliGoMods)
+
+	for _, cliGoMod := range cliGoMods {
+		modFile := parseGoModFile(cliGoMod)
+		if modFile == nil {
+			continue
+		}
+
+		scenSlug := filepath.Base(filepath.Dir(filepath.Dir(cliGoMod)))
+		cliDir := filepath.Dir(cliGoMod)
+
+		for _, rep := range modFile.Replace {
+			// Only check local (relative path) replacements.
+			if rep.New.Path == "" || !isLocalReplacePath(rep.New.Path) {
+				continue
+			}
+
+			targetDir := filepath.Join(cliDir, rep.New.Path)
+			if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+				findings = append(findings, Finding{
+					Level:        "warn",
+					Message:      fmt.Sprintf("replace directive for %s points to non-existent path: %s", rep.Old.Path, rep.New.Path),
+					ScenarioName: scenSlug,
+					Evidence: []Evidence{
+						{Type: "file", Ref: cliGoMod},
+						{Type: "path", Ref: targetDir},
+						{Type: "note", Detail: "The target directory does not exist. Check that the relative path is correct and the dependency is present."},
+					},
+				})
+			}
+		}
+	}
+
+	return findings
+}
+
+// isLocalReplacePath returns true if the path is a relative filesystem path
+// (used for local module replacements) rather than a module path.
+func isLocalReplacePath(p string) bool {
+	return strings.HasPrefix(p, ".") || strings.HasPrefix(p, "/")
 }
