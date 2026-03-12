@@ -1,6 +1,6 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Maximize2, Minimize2, SendHorizontal } from "lucide-react";
 import { TOOLBAR_KEYS, type ToolbarKey } from "../consts/toolbar-keys";
 import { cn } from "../lib/classnames";
@@ -20,6 +20,11 @@ const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
 
 type SendStatus = "sent" | "queued" | "idle";
 
+export interface MobileToolbarHandle {
+  /** Append text to the command input (used by voice transcription on mobile). */
+  appendText: (text: string) => void;
+}
+
 interface MobileToolbarProps {
   /** Callback to inject input into the active terminal. Returns true if sent immediately. */
   onInput: (data: string) => boolean;
@@ -32,10 +37,11 @@ interface MobileToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
-  onVoiceToggle?: () => void;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => void;
 }
 
-export default function MobileToolbar({
+export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
   visible = true,
   voiceSupported,
@@ -43,9 +49,19 @@ export default function MobileToolbar({
   voiceTranscribing,
   voiceError,
   voiceLevel,
-  onVoiceToggle,
-}: MobileToolbarProps) {
+  onVoiceStart,
+  onVoiceStop,
+}, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence();
+
+  useImperativeHandle(ref, () => ({
+    appendText: (text: string) => {
+      setInputValue(prev => {
+        const needsSpace = prev.length > 0 && !prev.endsWith(" ");
+        return prev + (needsSpace ? " " : "") + text;
+      });
+    },
+  }), [setInputValue]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
@@ -128,7 +144,8 @@ export default function MobileToolbar({
             placeholder="Type command…"
             className={cn(
               "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
-              expanded ? "overflow-y-auto" : "overflow-hidden",
+              "overflow-y-auto",
+              !expanded && "overflow-x-hidden",
             )}
             style={{
               lineHeight: `${LINE_HEIGHT_PX}px`,
@@ -181,17 +198,18 @@ export default function MobileToolbar({
             </button>
           ))}
         </div>
-        {voiceSupported && onVoiceToggle && (
+        {voiceSupported && onVoiceStart && onVoiceStop && (
           <VoiceMicButton
             supported={voiceSupported}
             isRecording={voiceRecording ?? false}
             isTranscribing={voiceTranscribing ?? false}
             error={voiceError ?? null}
             audioLevel={voiceLevel}
-            onToggle={onVoiceToggle}
+            onStart={onVoiceStart}
+            onStop={onVoiceStop}
           />
         )}
       </div>
     </div>
   );
-}
+});

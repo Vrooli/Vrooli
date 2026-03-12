@@ -23,6 +23,7 @@ import TerminalHeader from "./TerminalHeader";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
+import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
 import FloatingToolbar from "./FloatingToolbar";
 import WorkspaceMinimap from "./WorkspaceMinimap";
@@ -73,6 +74,7 @@ export default function Workspace() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   const { keyboardHeight } = useVirtualKeyboard();
+  const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const pendingActivePaneRef = useRef<string | null>(null);
@@ -208,14 +210,23 @@ export default function Workspace() {
     [sendToActiveTerminal, store.activePane],
   );
 
-  const voiceInput = useVoiceInput(handleSendToTerminal);
-
-  const handleVoiceToggle = useCallback(() => {
-    if (voiceInput.isRecording) {
-      voiceInput.stopRecording();
+  const handleVoiceTranscript = useCallback((text: string) => {
+    if (isMobile) {
+      // On mobile, inject into the toolbar text box for review before sending
+      mobileToolbarRef.current?.appendText(text);
     } else {
-      voiceInput.startRecording();
+      handleSendToTerminal(text);
     }
+  }, [isMobile, handleSendToTerminal]);
+
+  const voiceInput = useVoiceInput(handleVoiceTranscript);
+
+  const handleVoiceStart = useCallback(() => {
+    voiceInput.startRecording();
+  }, [voiceInput]);
+
+  const handleVoiceStop = useCallback(() => {
+    voiceInput.stopRecording();
   }, [voiceInput]);
 
   // --- Resize logic ---
@@ -463,7 +474,8 @@ export default function Workspace() {
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
-        onVoiceToggle={handleVoiceToggle}
+        onVoiceStart={handleVoiceStart}
+        onVoiceStop={handleVoiceStop}
       />
 
       {/* Error banner */}
@@ -562,13 +574,15 @@ export default function Workspace() {
       >
         {/* Mobile toolbar */}
         <MobileToolbar
+          ref={mobileToolbarRef}
           onInput={handleSendToTerminal}
           voiceSupported={voiceInput.supported}
           voiceRecording={voiceInput.isRecording}
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
-          onVoiceToggle={handleVoiceToggle}
+          onVoiceStart={handleVoiceStart}
+          onVoiceStop={handleVoiceStop}
         />
       </div>
 

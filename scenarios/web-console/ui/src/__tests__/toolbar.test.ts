@@ -12,9 +12,11 @@ describe("MobileToolbar component", () => {
     expect(labels).toContain("Ctrl+Z");
   });
 
-  it("component module exports default function", async () => {
+  it("component module exports default component", async () => {
     const mod = await import("../components/MobileToolbar");
-    expect(typeof mod.default).toBe("function");
+    // forwardRef wraps the component as an object with $$typeof and render
+    expect(mod.default).toBeTruthy();
+    expect(typeof mod.default === "function" || typeof mod.default === "object").toBe(true);
   });
 
   it("all keys have valid input sequences", () => {

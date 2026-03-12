@@ -269,7 +269,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
   }, []);
 
-  // Detect available backend on mount
+  // Detect available backend on mount — no mic permission request.
+  // The provider is created lazily on first startRecording().
   useEffect(() => {
     if (!voiceEnabled) {
       setState((s) => ({ ...s, supported: false, backend: "none" }));
@@ -278,24 +279,14 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
     let cancelled = false;
     (async () => {
+      // Check if Whisper is available via capabilities API
       try {
         const caps = await fetchCapabilities();
         if (cancelled) return;
         const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
         if (whisper?.status === "available") {
-          const provider = new WhisperProvider();
-          try {
-            await provider.init();
-            if (cancelled) {
-              provider.dispose();
-              return;
-            }
-            providerRef.current = provider;
-            setState((s) => ({ ...s, supported: true, backend: "whisper" }));
-            return;
-          } catch {
-            // Mic permission denied, fall through to web speech
-          }
+          setState((s) => ({ ...s, supported: true, backend: "whisper" }));
+          return;
         }
       } catch {
         // Capabilities fetch failed, fall through
@@ -303,24 +294,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
       if (cancelled) return;
 
-      // Try Web Speech API — request mic permission first so the browser
-      // actually prompts the user (SpeechRecognition.start() does not trigger
-      // the prompt and silently fails with "not-allowed" without it).
+      // Check if Web Speech API is available (no mic request needed)
       const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
       if (Ctor) {
-        const provider = new WebSpeechProvider();
-        try {
-          await provider.init();
-          if (cancelled) {
-            provider.dispose();
-            return;
-          }
-          providerRef.current = provider;
-          setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
-          return;
-        } catch {
-          // Mic permission denied
-        }
+        setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
+        return;
       }
 
       setState((s) => ({ ...s, supported: false, backend: "none" }));
@@ -337,9 +315,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   }, [voiceEnabled]);
 
   const startRecording = useCallback(async () => {
-    const provider = providerRef.current;
-    if (!provider || state.isRecording) return;
+    if (state.isRecording) return;
 
+    // Lazily create provider on first use
+    if (!providerRef.current) {
+      if (state.backend === "whisper") {
+        providerRef.current = new WhisperProvider();
+      } else if (state.backend === "web-speech") {
+        providerRef.current = new WebSpeechProvider();
+      } else {
+        return;
+      }
+    }
+
+    const provider = providerRef.current;
     provider.onResult = (text) => {
       stopLevelMonitor();
       setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error: null, audioLevel: 0 }));
@@ -350,12 +339,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error, audioLevel: 0 }));
     };
 
-    setState((s) => ({ ...s, isRecording: true, error: null }));
+    // Clear previous error but don't set isRecording yet — provider.start()
+    // may trigger a permission prompt. We only show recording state after
+    // the mic is actually acquired.
+    setState((s) => ({ ...s, error: null }));
     await provider.start();
 
+    // If start() failed (e.g. permission denied), onError already set state.
+    // Check if the mic stream was acquired before entering recording state.
     const stream = provider.getStream();
-    if (stream) startLevelMonitor(stream);
-  }, [state.isRecording, startLevelMonitor, stopLevelMonitor]);
+    if (stream) {
+      setState((s) => ({ ...s, isRecording: true }));
+      startLevelMonitor(stream);
+    }
+  }, [state.isRecording, state.backend, startLevelMonitor, stopLevelMonitor]);
 
   const stopRecording = useCallback(() => {
     const provider = providerRef.current;

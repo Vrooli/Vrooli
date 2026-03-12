@@ -8,7 +8,8 @@ describe("VoiceMicButton", () => {
     isRecording: false,
     isTranscribing: false,
     error: null as string | null,
-    onToggle: vi.fn(),
+    onStart: vi.fn(),
+    onStop: vi.fn(),
   };
 
   beforeEach(() => {
@@ -53,11 +54,21 @@ describe("VoiceMicButton", () => {
     expect(btn.title).toContain("Mic permission denied");
   });
 
-  it("calls onToggle on click", () => {
-    const onToggle = vi.fn();
-    render(<VoiceMicButton {...defaultProps} onToggle={onToggle} />);
+  it("calls onStart on pointer down when idle", () => {
+    const onStart = vi.fn();
+    render(<VoiceMicButton {...defaultProps} onStart={onStart} />);
     const btn = screen.getByTestId("voice-mic-btn");
-    fireEvent.click(btn);
-    expect(onToggle).toHaveBeenCalledOnce();
+    fireEvent.pointerDown(btn);
+    expect(onStart).toHaveBeenCalledOnce();
+  });
+
+  it("calls onStop on pointer up when already recording (tap-to-stop)", () => {
+    const onStop = vi.fn();
+    render(<VoiceMicButton {...defaultProps} isRecording={true} onStop={onStop} />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    // Simulate press on already-recording button
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onStop).toHaveBeenCalledOnce();
   });
 });

@@ -1,7 +1,10 @@
-import { useRef, useLayoutEffect, useState } from "react";
+import { useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mic, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/classnames";
+
+/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
+const LONG_PRESS_MS = 300;
 
 interface VoiceMicButtonProps {
   supported: boolean;
@@ -10,7 +13,8 @@ interface VoiceMicButtonProps {
   error: string | null;
   /** 0–1 audio level for live mic visualization */
   audioLevel?: number;
-  onToggle: () => void;
+  onStart: () => void;
+  onStop: () => void;
 }
 
 /** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
@@ -59,20 +63,46 @@ export default function VoiceMicButton({
   isTranscribing,
   error,
   audioLevel = 0,
-  onToggle,
+  onStart,
+  onStop,
 }: VoiceMicButtonProps) {
   if (!supported) return null;
 
   const hasError = error !== null && !isRecording && !isTranscribing;
   const btnRef = useRef<HTMLButtonElement>(null);
+  const pressStartRef = useRef(0);
+  const wasRecordingRef = useRef(false);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    pressStartRef.current = Date.now();
+    wasRecordingRef.current = isRecording;
+    if (!isRecording && !isTranscribing) {
+      onStart();
+    }
+  }, [isRecording, isTranscribing, onStart]);
+
+  const handlePointerUp = useCallback(() => {
+    if (!isRecording) return;
+    const duration = Date.now() - pressStartRef.current;
+    if (wasRecordingRef.current) {
+      // Was already recording before this press — tap to stop
+      onStop();
+    } else if (duration >= LONG_PRESS_MS) {
+      // Long press — stop on release (push-to-talk)
+      onStop();
+    }
+    // Short press on fresh start — keep recording (tap-to-toggle)
+  }, [isRecording, onStop]);
 
   return (
     <div className="relative shrink-0">
       <button
         ref={btnRef}
         data-testid="voice-mic-btn"
-        onPointerDown={(e) => e.preventDefault()}
-        onClick={onToggle}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         className={cn(
           "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
           isRecording

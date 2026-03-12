@@ -52,8 +52,12 @@ interface FloatingToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
-  onVoiceToggle?: () => void;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => void;
 }
+
+/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
+const VOICE_LONG_PRESS_MS = 300;
 
 export default function FloatingToolbar({
   onOpenSessions,
@@ -67,7 +71,8 @@ export default function FloatingToolbar({
   voiceTranscribing,
   voiceError,
   voiceLevel = 0,
-  onVoiceToggle,
+  onVoiceStart,
+  onVoiceStop,
 }: FloatingToolbarProps) {
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
@@ -165,6 +170,29 @@ export default function FloatingToolbar({
     onLongPress: onOpenLauncher,
   });
 
+  // Voice button long-press logic
+  const voicePressStartRef = useRef(0);
+  const voiceWasRecordingRef = useRef(false);
+
+  const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent toolbar drag
+    voicePressStartRef.current = Date.now();
+    voiceWasRecordingRef.current = !!voiceRecording;
+    if (!voiceRecording && !voiceTranscribing) {
+      onVoiceStart?.();
+    }
+  }, [voiceRecording, voiceTranscribing, onVoiceStart]);
+
+  const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (!voiceRecording) return;
+    const duration = Date.now() - voicePressStartRef.current;
+    if (voiceWasRecordingRef.current || duration >= VOICE_LONG_PRESS_MS) {
+      onVoiceStop?.();
+    }
+  }, [voiceRecording, onVoiceStop]);
+
   // The dock tab indicator — renders on the visible edge
   const dockTab = docked ? (
     <div
@@ -221,21 +249,23 @@ export default function FloatingToolbar({
       >
         <Sparkles className="h-4 w-4" />
       </Button>
-      {voiceSupported && onVoiceToggle && (
+      {voiceSupported && onVoiceStart && onVoiceStop && (
         <Button
           data-testid="toolbar-voice"
           variant="ghost"
           size="icon"
           className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceError ? "text-amber-400" : ""}`}
-          onClick={onVoiceToggle}
+          onPointerDown={handleVoicePointerDown}
+          onPointerUp={handleVoicePointerUp}
+          onPointerCancel={handleVoicePointerUp}
           title={
             voiceRecording
-              ? "Recording... tap to stop"
+              ? "Recording... tap to stop, or hold to talk"
               : voiceTranscribing
                 ? "Transcribing..."
                 : voiceError
                   ? `Voice error: ${voiceError}`
-                  : "Voice input"
+                  : "Tap to record, hold to talk"
           }
           tabIndex={docked ? -1 : undefined}
         >
