@@ -95,6 +95,23 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline" }), [triggerCapture, scenarioSlug]);
   const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture" }), [triggerCapture, scenarioSlug]);
 
+  // Workflow captures (mirrors screenshot capture pattern)
+  const workflowCapturesQuery = useWorkflowCaptures(scenarioSlug, true, repoId);
+  const triggerWorkflow = useTriggerWorkflowCapture(repoId);
+  // Show all workflow captures (both complete and failed) — unlike screenshots,
+  // failed workflow captures still have useful per-workflow error details to display.
+  const workflowCaptures = workflowCapturesQuery.data?.captures ?? [];
+  const workflowBaseline = workflowCaptures.find(c => c.role === "baseline");
+  const workflowCapture = workflowCaptures.find(c => c.role === "capture");
+  const workflowStaleness = workflowCapturesQuery.data?.staleness;
+  const isRunningWorkflows = triggerWorkflow.isPending;
+  const handleWorkflowBaseline = useCallback((executionModes: ExecutionMode[]) => {
+    triggerWorkflow.mutate({ scenarioSlug, mode: "baseline", executionModes });
+  }, [triggerWorkflow, scenarioSlug]);
+  const handleWorkflowCapture = useCallback((executionModes: ExecutionMode[]) => {
+    triggerWorkflow.mutate({ scenarioSlug, mode: "capture", executionModes });
+  }, [triggerWorkflow, scenarioSlug]);
+
   const tabLabels: Record<Tab, string> = {
     overview: "Overview",
     metrics: "Metrics",
@@ -184,9 +201,14 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
         )
       ) : activeTab === "workflows" ? (
         <WorkflowsTab
+          baseline={workflowBaseline}
+          capture={workflowCapture}
+          captureStaleness={workflowStaleness}
           scenarioSlug={scenarioSlug}
-          repoId={repoId}
           basAvailable={basAvailable}
+          isRunning={isRunningWorkflows}
+          onBaseline={handleWorkflowBaseline}
+          onCapture={handleWorkflowCapture}
         />
       ) : activeTab === "tests" ? (
         <TestsTab
@@ -1005,50 +1027,58 @@ const STATUS_ICONS: Record<string, typeof CheckCircle2> = {
 };
 
 function WorkflowsTab({
+  baseline,
+  capture,
+  captureStaleness,
   scenarioSlug,
-  repoId,
   basAvailable,
+  isRunning,
+  onBaseline,
+  onCapture,
 }: {
+  baseline?: WorkflowCaptureResult;
+  capture?: WorkflowCaptureResult;
+  captureStaleness?: import("../lib/api").SnapshotStalenessInfo;
   scenarioSlug: string;
-  repoId?: string | null;
   basAvailable: boolean;
+  isRunning: boolean;
+  onBaseline: (executionModes: ExecutionMode[]) => void;
+  onCapture: (executionModes: ExecutionMode[]) => void;
 }) {
-  const capturesQuery = useWorkflowCaptures(scenarioSlug, true, repoId);
-  const triggerCapture = useTriggerWorkflowCapture(repoId);
   const [selectedModes, setSelectedModes] = useState<Set<ExecutionMode>>(new Set(["observer"]));
-  const [selectedRole, setSelectedRole] = useState<"baseline" | "capture">("capture");
   const [lightboxIndex, setLightboxIndex] = useState(-1);
-
-  const captures = capturesQuery.data?.captures ?? [];
-  const roleCaptures = captures.filter(c => c.role === selectedRole);
-  const latestCapture = roleCaptures[0] ?? null;
+  // Which role's results to show in the table ("capture" by default, toggle to "baseline")
+  const [viewRole, setViewRole] = useState<"baseline" | "capture">("capture");
+  // Which rows are expanded to show error details
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const toggleMode = useCallback((mode: ExecutionMode) => {
     setSelectedModes(prev => {
       const next = new Set(prev);
-      if (next.has(mode)) {
-        next.delete(mode);
-      } else {
-        next.add(mode);
-      }
+      if (next.has(mode)) next.delete(mode);
+      else next.add(mode);
       return next;
     });
   }, []);
 
-  const handleRunWorkflows = useCallback(() => {
-    triggerCapture.mutate({
-      scenarioSlug,
-      mode: selectedRole,
-      executionModes: Array.from(selectedModes),
+  const toggleExpanded = useCallback((idx: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
     });
-  }, [triggerCapture, scenarioSlug, selectedRole, selectedModes]);
+  }, []);
 
-  const isRunning = triggerCapture.isPending;
+  const modesArray = Array.from(selectedModes);
 
-  // Build lightbox items from latest capture videos
+  // Which result to display: user-selected role, falling back to whatever exists
+  const viewedResult = viewRole === "capture" ? (capture ?? baseline) : (baseline ?? capture);
+
+  // Build lightbox items from viewed result videos
   const lightboxItems: LightboxItem[] = [];
-  if (latestCapture) {
-    for (const wfResult of latestCapture.workflowResults) {
+  if (viewedResult) {
+    for (const wfResult of viewedResult.workflowResults) {
       if (wfResult.videoCount > 0 && wfResult.executionId) {
         for (let i = 0; i < wfResult.videoCount; i++) {
           const filename = `${sanitizePagePath(wfResult.workflowName)}_${i}.webm`;
@@ -1056,106 +1086,170 @@ function WorkflowsTab({
             label: wfResult.workflowName,
             sublabel: `${wfResult.executionMode} - ${wfResult.status}`,
             type: "video",
-            url: buildWorkflowVideoUrl(latestCapture.id, scenarioSlug, filename),
+            url: buildWorkflowVideoUrl(viewedResult.id, scenarioSlug, filename),
           });
         }
       }
     }
   }
 
-  // Summary counts
-  const passed = latestCapture?.workflowResults.filter(r => r.status === "passed").length ?? 0;
-  const failed = latestCapture?.workflowResults.filter(r => r.status === "failed" || r.status === "error").length ?? 0;
-  const skipped = latestCapture?.workflowResults.filter(r => r.status === "skipped").length ?? 0;
+  // Summary counts for a given result
+  const summarize = (result: WorkflowCaptureResult) => ({
+    passed: result.workflowResults.filter(r => r.status === "passed").length,
+    failed: result.workflowResults.filter(r => r.status === "failed" || r.status === "error").length,
+    skipped: result.workflowResults.filter(r => r.status === "skipped").length,
+  });
 
-  if (!basAvailable) {
+  // No captures at all — empty state
+  if (!baseline && !capture) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">Browser Automation Studio is not available.</p>
+        <Play className="h-8 w-8 mb-3 opacity-50" />
+        <p className="text-sm">No workflow captures yet</p>
+        <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing workflow results</p>
+        {basAvailable ? (
+          <>
+            <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onBaseline(modesArray)}
+              disabled={isRunning || selectedModes.size === 0}
+              className="h-7 text-xs gap-1 mt-2"
+            >
+              {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+              Set Baseline
+            </Button>
+          </>
+        ) : (
+          <p className="text-xs">Browser Automation Studio is not available</p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">Role:</span>
-          {(["baseline", "capture"] as const).map(role => (
-            <button
-              key={role}
-              type="button"
-              onClick={() => setSelectedRole(role)}
-              className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
-                selectedRole === role
-                  ? "bg-blue-900/50 text-blue-300 border border-blue-700/50"
-                  : "text-slate-400 hover:text-slate-200 border border-slate-700"
-              }`}
-            >
-              {role}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">Modes:</span>
-          {(["observer", "mutating", "destructive"] as ExecutionMode[]).map(mode => (
-            <label key={mode} className="flex items-center gap-1 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedModes.has(mode)}
-                onChange={() => toggleMode(mode)}
-                className="rounded border-slate-600"
-              />
-              <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[mode]}`}>
-                {mode}
-              </span>
-            </label>
-          ))}
-        </div>
+      {/* Action buttons + execution mode selector */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Button
           variant="outline"
           size="sm"
-          onClick={handleRunWorkflows}
+          onClick={() => onBaseline(modesArray)}
           disabled={isRunning || selectedModes.size === 0}
           className="h-7 text-xs gap-1"
         >
-          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-          Run Workflows
+          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+          {baseline ? "Reset Baseline" : "Set Baseline"}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onCapture(modesArray)}
+          disabled={isRunning || selectedModes.size === 0}
+          className="h-7 text-xs gap-1"
+        >
+          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+          {capture ? "Re-capture" : "Capture"}
+        </Button>
+        <div className="ml-auto">
+          <ExecutionModeSelector selectedModes={selectedModes} onToggle={toggleMode} />
+        </div>
       </div>
 
-      {/* Summary bar */}
-      {latestCapture && (
-        <div className="flex items-center gap-4 px-3 py-2 bg-slate-800/50 rounded text-xs">
-          <span className="text-green-400">{passed} passed</span>
-          <span className="text-red-400">{failed} failed</span>
-          <span className="text-slate-400">{skipped} skipped</span>
-          <span className="text-slate-500 ml-auto">
-            {new Date(latestCapture.createdAt).toLocaleString()}
-          </span>
+      {/* Staleness warning */}
+      {captureStaleness?.isStale && capture && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
+          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-300">
+            Files have changed since this capture. Re-capture to see the latest workflow results.
+          </p>
         </div>
       )}
 
-      {/* Loading state */}
-      {capturesQuery.isLoading && (
-        <div className="h-32 animate-pulse bg-slate-800 rounded" />
-      )}
-
-      {/* Empty state */}
-      {!capturesQuery.isLoading && !latestCapture && (
-        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-          <p className="text-sm">No workflow captures yet for this role.</p>
-          <p className="text-xs mt-1">Click "Run Workflows" to execute BAS workflows and capture videos.</p>
+      {/* Status message when only baseline exists */}
+      {baseline && !capture && (
+        <div className="text-xs text-slate-500 bg-slate-900/50 rounded px-3 py-2">
+          Baseline set. Capture to compare workflow results against it.
         </div>
       )}
 
-      {/* Results table */}
-      {latestCapture && latestCapture.workflowResults.length > 0 && (
+      {/* Summary bars — clickable to toggle which role's detail is shown */}
+      {baseline && capture ? (
+        <div className="space-y-1">
+          {[capture, baseline].map((result) => {
+            const role = result === capture ? "capture" : "baseline";
+            const s = summarize(result);
+            const isViewed = viewedResult === result;
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setViewRole(role)}
+                className={`w-full flex items-center gap-4 px-3 py-2 rounded text-xs transition-colors text-left ${
+                  isViewed ? "bg-slate-800/50 ring-1 ring-slate-600" : "bg-slate-800/30 hover:bg-slate-800/40"
+                }`}
+              >
+                <span className="text-slate-300 font-medium capitalize">{role}</span>
+                {role === "capture" && captureStaleness?.isStale && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-900/50 text-amber-300">
+                    Stale
+                  </span>
+                )}
+                {result.status === "failed" && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/50 text-red-300">
+                    Failed
+                  </span>
+                )}
+                <span className="text-green-400">{s.passed} passed</span>
+                <span className="text-red-400">{s.failed} failed</span>
+                <span className="text-slate-400">{s.skipped} skipped</span>
+                <span className="text-slate-500 ml-auto">
+                  {new Date(result.createdAt).toLocaleString()}
+                </span>
+                {isViewed && <ChevronRight className="h-3 w-3 text-blue-400" />}
+              </button>
+            );
+          })}
+        </div>
+      ) : viewedResult && (() => {
+        const s = summarize(viewedResult);
+        return (
+          <div className="flex items-center gap-4 px-3 py-2 bg-slate-800/50 rounded text-xs">
+            <span className="text-slate-300 font-medium capitalize">{viewedResult.role}</span>
+            {viewedResult.status === "failed" && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/50 text-red-300">
+                Failed
+              </span>
+            )}
+            <span className="text-green-400">{s.passed} passed</span>
+            <span className="text-red-400">{s.failed} failed</span>
+            <span className="text-slate-400">{s.skipped} skipped</span>
+            <span className="text-slate-500 ml-auto">
+              {new Date(viewedResult.createdAt).toLocaleString()}
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* Overall capture error */}
+      {viewedResult?.error && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/30 border border-red-900/40">
+          <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-red-300 mb-1">Capture error</p>
+            <pre className="text-[11px] text-red-200/80 whitespace-pre-wrap break-words font-mono">{viewedResult.error}</pre>
+          </div>
+        </div>
+      )}
+
+      {/* Results table — shows whichever role is selected */}
+      {viewedResult && viewedResult.workflowResults.length > 0 && (
         <div className="border border-slate-800 rounded-lg overflow-hidden">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-800/50">
+                <th className="w-5 px-1 py-2"></th>
                 <th className="text-left px-3 py-2 text-slate-400 font-medium">Workflow</th>
                 <th className="text-left px-3 py-2 text-slate-400 font-medium">Mode</th>
                 <th className="text-center px-3 py-2 text-slate-400 font-medium">Status</th>
@@ -1164,13 +1258,14 @@ function WorkflowsTab({
               </tr>
             </thead>
             <tbody>
-              {latestCapture.workflowResults.map((wfr, idx) => {
+              {viewedResult.workflowResults.map((wfr, idx) => {
                 const StatusIcon = STATUS_ICONS[wfr.status] ?? AlertTriangle;
                 const statusColor = wfr.status === "passed" ? "text-green-400"
                   : wfr.status === "failed" || wfr.status === "error" ? "text-red-400"
                   : "text-slate-500";
+                const hasError = !!wfr.error;
+                const isExpanded = expandedRows.has(idx);
 
-                // Find lightbox index for this workflow's first video
                 let videoLightboxIdx = -1;
                 if (wfr.videoCount > 0) {
                   videoLightboxIdx = lightboxItems.findIndex(
@@ -1179,7 +1274,10 @@ function WorkflowsTab({
                 }
 
                 return (
-                  <tr key={idx} className="border-t border-slate-800/50 hover:bg-slate-800/30">
+                  <tr key={idx} className={`border-t border-slate-800/50 ${hasError ? "cursor-pointer" : ""} hover:bg-slate-800/30`} onClick={hasError ? () => toggleExpanded(idx) : undefined}>
+                    <td className="px-1 py-2 text-center">
+                      {hasError && (isExpanded ? <ChevronDown className="h-3 w-3 text-slate-500 inline" /> : <ChevronRight className="h-3 w-3 text-slate-500 inline" />)}
+                    </td>
                     <td className="px-3 py-2 text-slate-200 max-w-[200px] truncate" title={wfr.workflowName}>
                       {wfr.workflowName}
                     </td>
@@ -1198,7 +1296,7 @@ function WorkflowsTab({
                       {wfr.videoCount > 0 && videoLightboxIdx >= 0 ? (
                         <button
                           type="button"
-                          onClick={() => setLightboxIndex(videoLightboxIdx)}
+                          onClick={(e) => { e.stopPropagation(); setLightboxIndex(videoLightboxIdx); }}
                           className="text-blue-400 hover:text-blue-300 text-[10px] underline"
                         >
                           Watch
@@ -1212,16 +1310,45 @@ function WorkflowsTab({
               })}
             </tbody>
           </table>
+          {/* Expanded error details rendered outside table for proper layout */}
+          {viewedResult.workflowResults.map((wfr, idx) =>
+            expandedRows.has(idx) && wfr.error ? (
+              <div key={`err-${idx}`} className="px-4 py-2 bg-red-950/20 border-t border-red-900/30">
+                <p className="text-[10px] text-slate-400 mb-1">{wfr.workflowName} — error details</p>
+                <pre className="text-[11px] text-red-200/80 whitespace-pre-wrap break-words font-mono max-h-48 overflow-y-auto">{wfr.error}</pre>
+              </div>
+            ) : null
+          )}
         </div>
       )}
 
-      {/* Video lightbox */}
       <MediaLightbox
         items={lightboxItems}
         initialIndex={lightboxIndex}
         isOpen={lightboxIndex >= 0}
         onClose={() => setLightboxIndex(-1)}
       />
+    </div>
+  );
+}
+
+function ExecutionModeSelector({ selectedModes, onToggle }: { selectedModes: Set<ExecutionMode>; onToggle: (mode: ExecutionMode) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-slate-400">Modes:</span>
+      {(["observer", "mutating", "destructive"] as ExecutionMode[]).map(mode => (
+        <label key={mode} className="flex items-center gap-1 text-xs cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selectedModes.has(mode)}
+            onChange={() => onToggle(mode)}
+            className="rounded border-slate-600"
+          />
+          <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[mode]}`}>
+            {mode}
+          </span>
+        </label>
+      ))}
     </div>
   );
 }

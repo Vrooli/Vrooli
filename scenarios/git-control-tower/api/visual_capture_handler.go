@@ -259,10 +259,21 @@ func (s *Server) handleWorkflowCaptureList(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	hctx.Resp.OK(map[string]interface{}{
+	resp := map[string]interface{}{
 		"captures": captures,
 		"total":    len(captures),
-	})
+	}
+
+	// Compute staleness for the most recent capture-role workflow result
+	for _, c := range captures {
+		if c.Role == "capture" {
+			staleness := CheckCaptureStaleness(hctx.RepoDir, slug, c.CreatedAt)
+			resp["staleness"] = staleness
+			break
+		}
+	}
+
+	hctx.Resp.OK(resp)
 }
 
 // handleWorkflowCaptureDetail handles GET /api/v1/repo/workflow-captures/{id}?scenarioSlug=...

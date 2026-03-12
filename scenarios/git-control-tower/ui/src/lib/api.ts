@@ -1530,6 +1530,7 @@ export interface WorkflowCaptureResult {
 export interface WorkflowCaptureListResponse {
   captures: WorkflowCaptureResult[];
   total: number;
+  staleness?: SnapshotStalenessInfo;
 }
 
 export interface WorkflowCaptureDetailResponse {
