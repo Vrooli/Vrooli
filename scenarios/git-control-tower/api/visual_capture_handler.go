@@ -10,7 +10,7 @@ import (
 
 // handleVisualCapture handles POST /api/v1/repo/visual-capture
 func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -53,7 +53,7 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 
 // handleVisualCaptureList handles GET /api/v1/repo/visual-captures?scenarioSlug=...
 func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -90,7 +90,7 @@ func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request)
 
 // handleVisualCaptureDetail handles GET /api/v1/repo/visual-captures/{id}?scenarioSlug=...
 func (s *Server) handleVisualCaptureDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -115,7 +115,7 @@ func (s *Server) handleVisualCaptureDetail(w http.ResponseWriter, r *http.Reques
 
 // handleVisualCaptureScreenshot handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}
 func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -150,7 +150,7 @@ func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Re
 
 // handleVisualCaptureVideo handles GET /api/v1/repo/visual-captures/{id}/video/{filename}
 func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -185,7 +185,7 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 
 // handleVisualCaptureStorageStats handles GET /api/v1/repo/visual-capture-storage
 func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -202,7 +202,7 @@ func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.
 
 // handleVisualCaptureDelete handles DELETE /api/v1/repo/visual-captures/{id}?scenarioSlug=...
 func (s *Server) handleVisualCaptureDelete(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -229,7 +229,7 @@ func (s *Server) handleVisualCaptureDelete(w http.ResponseWriter, r *http.Reques
 
 // handleVisualCaptureClearAll handles DELETE /api/v1/repo/visual-capture-storage
 func (s *Server) handleVisualCaptureClearAll(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}

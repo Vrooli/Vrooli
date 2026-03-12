@@ -11,7 +11,7 @@ import (
 
 // handleTestExecution handles POST /api/v1/repo/test-execution
 func (s *Server) handleTestExecution(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 600*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 600*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -43,7 +43,7 @@ func (s *Server) handleTestExecution(w http.ResponseWriter, r *http.Request) {
 
 // handleTestExecutionList handles GET /api/v1/repo/test-executions?scenarioName=...&limit=...
 func (s *Server) handleTestExecutionList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -84,7 +84,7 @@ func (s *Server) handleTestExecutionList(w http.ResponseWriter, r *http.Request)
 
 // handleTestExecutionDetail handles GET /api/v1/repo/test-executions/{id}
 func (s *Server) handleTestExecutionDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}

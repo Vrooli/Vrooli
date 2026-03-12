@@ -86,6 +86,7 @@ func TestPeriodicCapture_StartStop(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	p.Start()

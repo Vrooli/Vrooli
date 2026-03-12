@@ -21,6 +21,7 @@ type PeriodicCapture struct {
 	storage      *VisualCaptureStorage
 	repos        *RepoService
 	git          GitRunner
+	repoLock     *RepoLock
 	fs           FileIO
 	mu           sync.Mutex
 	cancel       context.CancelFunc
@@ -35,6 +36,7 @@ func NewPeriodicCapture(
 	storage *VisualCaptureStorage,
 	repos *RepoService,
 	git GitRunner,
+	repoLock *RepoLock,
 ) *PeriodicCapture {
 	if config.Interval == 0 {
 		config.Interval = 1 * time.Hour
@@ -49,6 +51,7 @@ func NewPeriodicCapture(
 		storage:      storage,
 		repos:        repos,
 		git:          git,
+		repoLock:     repoLock,
 		fs:           OSFileIO{},
 	}
 }
@@ -108,11 +111,29 @@ func (p *PeriodicCapture) tick(ctx context.Context) {
 		return
 	}
 
+	// Acquire per-repo lock to avoid .git/index.lock contention with
+	// concurrent HTTP handlers that may be staging, committing, etc.
+	var unlock func()
+	if p.repoLock != nil {
+		var lockErr error
+		unlock, lockErr = p.repoLock.Acquire(ctx, active.Path)
+		if lockErr != nil {
+			log.Printf("periodic capture: lock acquisition timed out for %s: %v", active.Path, lockErr)
+			return
+		}
+	}
+
 	// Get repo status to find changed scenarios
 	status, err := GetRepoStatus(ctx, RepoStatusDeps{
 		Git:     p.git,
 		RepoDir: active.Path,
 	})
+
+	// Release the lock before the (potentially slow) BAS capture loop.
+	if unlock != nil {
+		unlock()
+	}
+
 	if err != nil {
 		log.Printf("periodic capture: failed to get repo status: %v", err)
 		return

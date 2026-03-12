@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -23,9 +24,15 @@ type HandlerContext struct {
 // RepoOperation creates a HandlerContext for repository operations.
 // Returns nil and writes an error response if the repository cannot be resolved.
 //
+// When a non-nil RepoLock is provided, the lock for the resolved repository is
+// acquired before returning. The lock is automatically released when Cancel is
+// called (which every handler must defer). This serializes git operations and
+// prevents .git/index.lock contention between concurrent requests and background
+// goroutines.
+//
 // DECISION BOUNDARY: This is where we determine if a request has a valid repository context.
 // All repo-dependent handlers should use this to ensure consistent error handling.
-func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, timeout time.Duration) *HandlerContext {
+func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos *RepoService, repoLock *RepoLock, timeout time.Duration) *HandlerContext {
 	resp := NewResponse(w)
 
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
@@ -64,13 +71,31 @@ func RepoOperation(w http.ResponseWriter, r *http.Request, git GitRunner, repos 
 		}
 	}
 
+	// Acquire the per-repo lock to serialize git index operations.
+	var unlock func()
+	if repoLock != nil {
+		var lockErr error
+		unlock, lockErr = repoLock.Acquire(ctx, repoDir)
+		if lockErr != nil {
+			cancel()
+			log.Printf("repo lock acquisition timed out for %s: %v", repoDir, lockErr)
+			resp.Error(http.StatusServiceUnavailable, "repository is busy, please retry")
+			return nil
+		}
+	}
+
 	return &HandlerContext{
 		Git:     git,
 		RepoDir: repoDir,
 		RepoID:  repoID,
 		Ctx:     ctx,
 		Resp:    resp,
-		Cancel:  cancel,
+		Cancel: func() {
+			cancel()
+			if unlock != nil {
+				unlock()
+			}
+		},
 	}
 }
 

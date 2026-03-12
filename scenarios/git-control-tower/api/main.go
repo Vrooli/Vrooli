@@ -36,6 +36,7 @@ type Server struct {
 	db                   *sql.DB
 	router               *mux.Router
 	git                  GitRunner
+	repoLock             *RepoLock
 	audit                AuditLogger
 	sandbox              *WorkspaceSandboxClient
 	capabilities         *CapabilityRegistry
@@ -91,11 +92,12 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config:  cfg,
-		db:      db,
-		router:  mux.NewRouter(),
-		git:     &ExecGitRunner{GitPath: "git"},
-		audit:   auditLogger,
+		config:   cfg,
+		db:       db,
+		router:   mux.NewRouter(),
+		git:      &ExecGitRunner{GitPath: "git"},
+		repoLock: NewRepoLock(),
+		audit:    auditLogger,
 		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
 		capabilities: NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{
 			"workspace-sandbox": &ScenarioChecker{
@@ -162,7 +164,7 @@ func NewServer() (*Server, error) {
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
-	}, srv.capabilities, srv.basClient, srv.visualCaptureStorage, srv.repos, srv.git)
+	}, srv.capabilities, srv.basClient, srv.visualCaptureStorage, srv.repos, srv.git, srv.repoLock)
 	srv.periodicCapture.Start()
 
 	srv.setupRoutes()
@@ -277,7 +279,7 @@ func (s *Server) Router() http.Handler {
 // by the health package with Critical priority.
 
 func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -296,7 +298,7 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -333,7 +335,7 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
 func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -386,7 +388,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
 func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -440,7 +442,7 @@ func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -495,7 +497,7 @@ func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
 
 // [REQ:GCT-OT-P0-005] Commit composition API
 func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -555,7 +557,7 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 
 // [REQ:GCT-OT-P0-006] Push/pull status
 func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -583,7 +585,7 @@ func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleDiscard handles POST /api/v1/repo/discard
 func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -640,7 +642,7 @@ func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
 
 // handleIgnore handles POST /api/v1/repo/ignore
 func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -696,7 +698,7 @@ func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
 
 // handlePush handles POST /api/v1/repo/push
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -749,7 +751,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 
 // handlePull handles POST /api/v1/repo/pull
 func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -803,7 +805,7 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 
 // handleUpstreamAction handles POST /api/v1/repo/upstream-action
 func (s *Server) handleUpstreamAction(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 60*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 60*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -873,7 +875,7 @@ func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 
 // handleListCredentials handles GET /api/v1/credentials
 func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -894,7 +896,7 @@ func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
 
 // handleSaveCredential handles POST /api/v1/credentials
 func (s *Server) handleSaveCredential(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -951,7 +953,7 @@ func (s *Server) handleDeleteCredential(w http.ResponseWriter, r *http.Request) 
 
 // handleTestCredential handles POST /api/v1/credentials/test
 func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -977,7 +979,7 @@ func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateRemoteURL handles POST /api/v1/repo/remote/url
 func (s *Server) handleUpdateRemoteURL(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -1141,7 +1143,7 @@ func (s *Server) groupingConfigPath(repoID int64) (string, error) {
 }
 
 func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -1163,7 +1165,7 @@ func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 5*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 5*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -1189,7 +1191,7 @@ func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleGitignoreHealth(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -1218,7 +1220,7 @@ func (s *Server) handleGitignoreHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGitignoreMove(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, 10*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
 	if hctx == nil {
 		return
 	}
