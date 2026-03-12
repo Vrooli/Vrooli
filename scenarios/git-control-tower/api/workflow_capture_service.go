@@ -122,7 +122,11 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 
 			// Download each video
 			for i, vid := range videosResp.Videos {
-				data, _, fetchErr := deps.BAS.GetVideoData(ctx, execResp.ExecutionID, vid.ArtifactID)
+				if vid.StorageURL == "" {
+					log.Printf("WARNING: no storage URL for video %s in %s", vid.ArtifactID, wf.Name)
+					continue
+				}
+				data, _, fetchErr := deps.BAS.GetVideoData(ctx, vid.StorageURL)
 				if fetchErr != nil {
 					log.Printf("WARNING: failed to fetch video %s for %s: %v", vid.ArtifactID, wf.Name, fetchErr)
 					continue

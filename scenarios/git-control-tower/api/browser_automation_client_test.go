@@ -290,7 +290,7 @@ func TestBASClient_GetVideoData(t *testing.T) {
 
 	videoBytes := []byte("fake-video-data")
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/executions/exec-789/recorded-videos/vid-1", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/recordings/assets/exec-789/artifacts/videos/vid-1.webm", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
@@ -305,7 +305,7 @@ func TestBASClient_GetVideoData(t *testing.T) {
 		resolver:   discovery.NewStaticResolver(server.URL),
 	}
 
-	data, contentType, err := client.GetVideoData(context.Background(), "exec-789", "vid-1")
+	data, contentType, err := client.GetVideoData(context.Background(), "/api/v1/recordings/assets/exec-789/artifacts/videos/vid-1.webm")
 	if err != nil {
 		t.Fatalf("GetVideoData returned error: %v", err)
 	}

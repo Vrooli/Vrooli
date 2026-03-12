@@ -115,9 +115,9 @@ func (c *BrowserAutomationClient) GetRecordedVideos(ctx context.Context, executi
 	return &result, nil
 }
 
-// GetVideoData fetches raw video bytes and content-type for a specific artifact.
-func (c *BrowserAutomationClient) GetVideoData(ctx context.Context, executionID, artifactID string) ([]byte, string, error) {
-	return c.doRaw(ctx, "/api/v1/executions/"+executionID+"/recorded-videos/"+artifactID)
+// GetVideoData fetches raw video bytes and content-type using the artifact's storage URL.
+func (c *BrowserAutomationClient) GetVideoData(ctx context.Context, storageURL string) ([]byte, string, error) {
+	return c.doRaw(ctx, storageURL)
 }
 
 func (c *BrowserAutomationClient) resolveBaseURL(ctx context.Context) (string, error) {
