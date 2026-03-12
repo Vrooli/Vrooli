@@ -131,6 +131,15 @@ func NormalizeWorkflowSettings(flowDef map[string]any) {
 	normalizeViewportSettings(settings)
 }
 
+// executionModeMapping maps human-friendly short-form execution_mode values
+// to their proto ExecutionMode enum names. Workflow JSON files use the short
+// form ("observer") for readability; protojson requires the full enum name.
+var executionModeMapping = map[string]string{
+	"observer":    "EXECUTION_MODE_OBSERVER",
+	"mutating":    "EXECUTION_MODE_MUTATING",
+	"destructive": "EXECUTION_MODE_DESTRUCTIVE",
+}
+
 // NormalizeWorkflowDefinitionV2 applies V2 compatibility transformations to a workflow definition.
 // This handles both settings normalization and node-level transformations.
 //
@@ -139,6 +148,7 @@ func NormalizeWorkflowSettings(flowDef map[string]any) {
 //   - Removes defaultStepTimeoutMs
 //   - Converts V1 nodes (type+data) to V2 format (action oneof)
 //   - Wraps subflow args into JsonValue oneof shape
+//   - Maps short-form execution_mode values to proto enum names
 func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 	// Normalize settings
 	settings, ok := doc["settings"].(map[string]any)
@@ -146,9 +156,20 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		normalizeViewportSettings(settings)
 	}
 
-	// Remove non-proto metadata fields (used by test-genie/playbooks metadata)
+	// Normalize metadata
 	if metadata, ok := doc["metadata"].(map[string]any); ok && metadata != nil {
+		// Remove non-proto metadata fields (used by test-genie/playbooks metadata)
 		delete(metadata, "reset")
+
+		// Map short-form execution_mode to proto enum name.
+		// Check both snake_case and camelCase since normalizeProtoJSONKeys runs later.
+		for _, key := range []string{"execution_mode", "executionMode"} {
+			if val, ok := metadata[key].(string); ok {
+				if mapped, found := executionModeMapping[val]; found {
+					metadata[key] = mapped
+				}
+			}
+		}
 	}
 
 	// Normalize nodes

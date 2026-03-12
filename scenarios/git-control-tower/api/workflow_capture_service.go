@@ -61,6 +61,9 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 		log.Printf("WARNING: workflow capture cleanup failed for %s: %v", req.ScenarioSlug, err)
 	}
 
+	// Compute scenario root so BAS can resolve @selector/ references via selectors.manifest.json
+	scenarioRoot := filepath.Join(deps.RepoDir, "scenarios", req.ScenarioSlug)
+
 	var results []WorkflowExecutionResult
 	var totalSize int64
 	videos := map[string][]byte{}
@@ -75,14 +78,15 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 
 		start := time.Now()
 
-		// Execute the workflow via BAS
+		// Execute the workflow via BAS (adhoc endpoint returns immediately)
 		execResp, err := deps.BAS.ExecuteAdhocWorkflow(ctx, BASExecuteAdhocRequest{
-			FlowDefinition:    wf.Definition,
-			WaitForCompletion: true,
-		})
-		wfResult.DurationMs = time.Since(start).Milliseconds()
-
+			FlowDefinition: wf.Definition,
+			Parameters: map[string]interface{}{
+				"project_root": scenarioRoot,
+			},
+		}, true)
 		if err != nil {
+			wfResult.DurationMs = time.Since(start).Milliseconds()
 			wfResult.Status = "error"
 			wfResult.Error = err.Error()
 			results = append(results, wfResult)
@@ -91,9 +95,20 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 
 		wfResult.ExecutionID = execResp.ExecutionID
 
-		if execResp.Status == "failed" || execResp.Error != "" {
+		// Poll until the execution completes (adhoc endpoint doesn't wait)
+		detail, pollErr := deps.BAS.PollExecutionCompletion(ctx, execResp.ExecutionID, 500*time.Millisecond)
+		wfResult.DurationMs = time.Since(start).Milliseconds()
+
+		if pollErr != nil {
+			wfResult.Status = "error"
+			wfResult.Error = fmt.Sprintf("poll completion: %v", pollErr)
+			results = append(results, wfResult)
+			continue
+		}
+
+		if detail.Status != "EXECUTION_STATUS_COMPLETED" {
 			wfResult.Status = "failed"
-			wfResult.Error = execResp.Error
+			wfResult.Error = detail.Error
 		}
 
 		// Fetch recorded videos

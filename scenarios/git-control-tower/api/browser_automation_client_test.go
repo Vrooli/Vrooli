@@ -100,14 +100,115 @@ func TestBASClient_ExecuteAdhocWorkflow(t *testing.T) {
 	}
 
 	resp, err := client.ExecuteAdhocWorkflow(context.Background(), BASExecuteAdhocRequest{
-		FlowDefinition:    json.RawMessage(`{"steps":[]}`),
-		WaitForCompletion: true,
-	})
+		FlowDefinition: json.RawMessage(`{"steps":[]}`),
+	}, false)
 	if err != nil {
 		t.Fatalf("ExecuteAdhocWorkflow returned error: %v", err)
 	}
 	if resp.ExecutionID != "exec-123" {
 		t.Errorf("expected execution ID exec-123, got %s", resp.ExecutionID)
+	}
+}
+
+func TestBASClient_ExecuteAdhocWorkflow_RequiresVideo(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/workflows/execute-adhoc", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("requires_video") != "true" {
+			t.Errorf("expected requires_video=true query param, got %s", r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(BASExecuteResponse{
+			ExecutionID: "exec-vid",
+			Status:      "running",
+		})
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		resolver:   discovery.NewStaticResolver(server.URL),
+	}
+
+	resp, err := client.ExecuteAdhocWorkflow(context.Background(), BASExecuteAdhocRequest{
+		FlowDefinition: json.RawMessage(`{"steps":[]}`),
+	}, true)
+	if err != nil {
+		t.Fatalf("ExecuteAdhocWorkflow returned error: %v", err)
+	}
+	if resp.ExecutionID != "exec-vid" {
+		t.Errorf("expected execution ID exec-vid, got %s", resp.ExecutionID)
+	}
+}
+
+func TestBASClient_PollExecutionCompletion(t *testing.T) {
+	t.Parallel()
+
+	callCount := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/executions/exec-poll", func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.Header().Set("Content-Type", "application/json")
+		status := "EXECUTION_STATUS_RUNNING"
+		if callCount >= 3 {
+			status = "EXECUTION_STATUS_COMPLETED"
+		}
+		_ = json.NewEncoder(w).Encode(BASExecutionDetail{
+			ExecutionID: "exec-poll",
+			Status:      status,
+		})
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		resolver:   discovery.NewStaticResolver(server.URL),
+	}
+
+	detail, err := client.PollExecutionCompletion(context.Background(), "exec-poll", 10*time.Millisecond)
+	if err != nil {
+		t.Fatalf("PollExecutionCompletion returned error: %v", err)
+	}
+	if detail.Status != "EXECUTION_STATUS_COMPLETED" {
+		t.Errorf("expected COMPLETED status, got %s", detail.Status)
+	}
+	if callCount < 3 {
+		t.Errorf("expected at least 3 poll calls, got %d", callCount)
+	}
+}
+
+func TestBASClient_PollExecutionCompletion_Failed(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/executions/exec-fail", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(BASExecutionDetail{
+			ExecutionID: "exec-fail",
+			Status:      "EXECUTION_STATUS_FAILED",
+			Error:       "step timed out",
+		})
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		resolver:   discovery.NewStaticResolver(server.URL),
+	}
+
+	detail, err := client.PollExecutionCompletion(context.Background(), "exec-fail", 10*time.Millisecond)
+	if err != nil {
+		t.Fatalf("PollExecutionCompletion returned error: %v", err)
+	}
+	if detail.Status != "EXECUTION_STATUS_FAILED" {
+		t.Errorf("expected FAILED status, got %s", detail.Status)
+	}
+	if detail.Error != "step timed out" {
+		t.Errorf("expected error 'step timed out', got %s", detail.Error)
 	}
 }
 

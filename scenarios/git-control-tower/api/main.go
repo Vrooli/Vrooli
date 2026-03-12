@@ -1295,7 +1295,8 @@ func main() {
 	}
 
 	if err := server.Run(server.Config{
-		Handler: srv.Router(),
+		Handler:      srv.Router(),
+		WriteTimeout: 5 * time.Minute, // workflow captures poll BAS and can take several minutes
 		Cleanup: func(ctx context.Context) error {
 			srv.periodicCapture.Stop()
 			return srv.db.Close()

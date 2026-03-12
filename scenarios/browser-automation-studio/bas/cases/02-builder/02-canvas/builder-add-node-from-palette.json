@@ -60,7 +60,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -125,7 +126,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() => { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "nodePalettePosition"
         },
         "metadata": {
@@ -138,7 +139,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
+          "expression": "(() => { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
           "store_result": "canvasDropPosition"
         },
         "metadata": {
@@ -181,7 +182,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) \u0026\u0026 Number.isFinite(final) \u0026\u0026 final \u003e initial; })()",
+          "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
           "store_result": "nodeWasAdded"
         },
         "metadata": {

@@ -50,13 +50,15 @@ type Issue struct {
 
 // Stats describe the validated workflow.
 type Stats struct {
-	NodeCount            int  `json:"node_count"`
-	EdgeCount            int  `json:"edge_count"`
-	SelectorCount        int  `json:"selector_count"`
-	UniqueSelectorCount  int  `json:"unique_selector_count"`
-	ElementWaitCount     int  `json:"element_wait_count"`
-	HasMetadata          bool `json:"has_metadata"`
-	HasExecutionViewport bool `json:"has_execution_viewport"`
+	NodeCount            int    `json:"node_count"`
+	EdgeCount            int    `json:"edge_count"`
+	SelectorCount        int    `json:"selector_count"`
+	UniqueSelectorCount  int    `json:"unique_selector_count"`
+	ElementWaitCount     int    `json:"element_wait_count"`
+	HasMetadata          bool   `json:"has_metadata"`
+	HasExecutionViewport bool   `json:"has_execution_viewport"`
+	HasExecutionMode     bool   `json:"has_execution_mode"`
+	ExecutionMode        string `json:"execution_mode,omitempty"`
 }
 
 // Result is returned after validation.

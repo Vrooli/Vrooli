@@ -39,13 +39,60 @@ func (c *BrowserAutomationClient) CaptureScreenshot(ctx context.Context, url str
 }
 
 // ExecuteAdhocWorkflow calls POST /api/v1/workflows/execute-adhoc on BAS.
-func (c *BrowserAutomationClient) ExecuteAdhocWorkflow(ctx context.Context, req BASExecuteAdhocRequest) (*BASExecuteResponse, error) {
+// The adhoc endpoint always returns immediately — callers must poll for completion.
+func (c *BrowserAutomationClient) ExecuteAdhocWorkflow(ctx context.Context, req BASExecuteAdhocRequest, requiresVideo bool) (*BASExecuteResponse, error) {
+	path := "/api/v1/workflows/execute-adhoc"
+	if requiresVideo {
+		path += "?requires_video=true"
+	}
 	var result BASExecuteResponse
-	err := c.doJSON(ctx, "/api/v1/workflows/execute-adhoc", req, &result)
+	err := c.doJSON(ctx, path, req, &result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, nil
+}
+
+// GetExecutionStatus calls GET /api/v1/executions/{id} on BAS.
+func (c *BrowserAutomationClient) GetExecutionStatus(ctx context.Context, executionID string) (*BASExecutionDetail, error) {
+	var result BASExecutionDetail
+	err := c.doGet(ctx, "/api/v1/executions/"+executionID, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// PollExecutionCompletion polls BAS until the execution reaches a terminal
+// status (completed, failed, cancelled) or the context is cancelled.
+func (c *BrowserAutomationClient) PollExecutionCompletion(ctx context.Context, executionID string, pollInterval time.Duration) (*BASExecutionDetail, error) {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			detail, err := c.GetExecutionStatus(ctx, executionID)
+			if err != nil {
+				return nil, fmt.Errorf("poll execution %s: %w", executionID, err)
+			}
+			if isTerminalBASStatus(detail.Status) {
+				return detail, nil
+			}
+		}
+	}
+}
+
+// isTerminalBASStatus returns true for BAS execution statuses that indicate completion.
+func isTerminalBASStatus(status string) bool {
+	switch status {
+	case "EXECUTION_STATUS_COMPLETED", "EXECUTION_STATUS_FAILED", "EXECUTION_STATUS_CANCELLED":
+		return true
+	default:
+		return false
+	}
 }
 
 // GetScreenshots calls GET /api/v1/executions/{id}/screenshots on BAS.

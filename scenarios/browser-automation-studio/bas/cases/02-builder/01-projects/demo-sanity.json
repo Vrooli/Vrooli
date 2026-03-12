@@ -12,7 +12,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "2"
+    "version": "2",
+    "execution_mode": "observer"
   },
   "nodes": [
     {

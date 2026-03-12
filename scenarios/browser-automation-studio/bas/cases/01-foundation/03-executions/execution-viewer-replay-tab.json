@@ -60,7 +60,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -148,7 +149,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
+          "expression": "(() => { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
           "store_result": "hasReplayTab"
         },
         "metadata": {
@@ -180,7 +181,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length \u003e 0 || timeline !== null; })()",
+          "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
           "store_result": "hasReplayContent"
         },
         "metadata": {
@@ -193,7 +194,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length \u003e 0; })()",
+          "expression": "(() => { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length > 0; })()",
           "store_result": "hasScreenshots"
         },
         "metadata": {
@@ -206,7 +207,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { return document.querySelector('@selector/replay.player') !== null; })()",
+          "expression": "(() => { return document.querySelector('@selector/replay.player') !== null; })()",
           "store_result": "hasTimelineControls"
         },
         "metadata": {

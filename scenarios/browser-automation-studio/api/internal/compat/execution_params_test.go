@@ -182,6 +182,90 @@ func TestNormalizeNodeV1ToV2_AssertNode(t *testing.T) {
 	}
 }
 
+func TestNormalizeWorkflowDefinitionV2_ExecutionModeMapping(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"observer short form", "observer", "EXECUTION_MODE_OBSERVER"},
+		{"mutating short form", "mutating", "EXECUTION_MODE_MUTATING"},
+		{"destructive short form", "destructive", "EXECUTION_MODE_DESTRUCTIVE"},
+		{"already full enum name", "EXECUTION_MODE_OBSERVER", "EXECUTION_MODE_OBSERVER"},
+		{"unknown value passes through", "custom", "custom"},
+		{"empty string passes through", "", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := map[string]any{
+				"metadata": map[string]any{
+					"execution_mode": tc.input,
+				},
+			}
+
+			NormalizeWorkflowDefinitionV2(doc)
+
+			metadata := doc["metadata"].(map[string]any)
+			got := metadata["execution_mode"]
+			if got != tc.expected {
+				t.Errorf("execution_mode: got %q, want %q", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeWorkflowDefinitionV2_ExecutionModeCamelCase(t *testing.T) {
+	// When the field is already in camelCase (e.g., from a pre-normalized payload)
+	doc := map[string]any{
+		"metadata": map[string]any{
+			"executionMode": "observer",
+		},
+	}
+
+	NormalizeWorkflowDefinitionV2(doc)
+
+	metadata := doc["metadata"].(map[string]any)
+	got := metadata["executionMode"]
+	if got != "EXECUTION_MODE_OBSERVER" {
+		t.Errorf("executionMode: got %q, want %q", got, "EXECUTION_MODE_OBSERVER")
+	}
+}
+
+func TestNormalizeExecuteAdhocRequest_WithExecutionMode(t *testing.T) {
+	// End-to-end: a realistic workflow with short-form execution_mode
+	// should be normalized so protojson accepts it.
+	body := []byte(`{
+		"flow_definition": {
+			"metadata": {
+				"name": "test-workflow",
+				"description": "Test workflow",
+				"execution_mode": "observer"
+			},
+			"nodes": [],
+			"edges": []
+		},
+		"wait_for_completion": true
+	}`)
+
+	result, err := NormalizeExecuteAdhocRequest(body)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(result, &parsed); err != nil {
+		t.Fatalf("failed to parse result: %v", err)
+	}
+
+	flowDef := parsed["flowDefinition"].(map[string]any)
+	metadata := flowDef["metadata"].(map[string]any)
+	got := metadata["executionMode"]
+	if got != "EXECUTION_MODE_OBSERVER" {
+		t.Errorf("executionMode: got %q, want %q", got, "EXECUTION_MODE_OBSERVER")
+	}
+}
+
 func TestNormalizeWorkflowDefinitionV2_MixedNodes(t *testing.T) {
 	// Workflow with both V1 and V2 nodes
 	doc := map[string]any{

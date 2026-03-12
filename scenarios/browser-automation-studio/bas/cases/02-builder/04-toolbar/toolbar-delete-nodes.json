@@ -42,7 +42,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -136,7 +137,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final \u003c initial; })()",
+          "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
           "store_result": "nodeWasDeleted"
         },
         "metadata": {

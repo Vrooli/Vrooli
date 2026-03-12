@@ -1290,7 +1290,7 @@ function WorkflowsTab({
                       <StatusIcon className={`h-3.5 w-3.5 inline ${statusColor}`} />
                     </td>
                     <td className="px-3 py-2 text-right text-slate-400">
-                      {wfr.durationMs > 0 ? formatDuration(wfr.durationMs) : "-"}
+                      {wfr.durationMs > 0 ? formatDuration(Math.round(wfr.durationMs / 1000)) : "-"}
                     </td>
                     <td className="px-3 py-2 text-center">
                       {wfr.videoCount > 0 && videoLightboxIdx >= 0 ? (

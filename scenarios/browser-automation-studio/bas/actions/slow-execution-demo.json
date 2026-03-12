@@ -6,7 +6,8 @@
       "fixture_id": "slow-execution-demo",
       "reset": "none",
       "version": "1"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

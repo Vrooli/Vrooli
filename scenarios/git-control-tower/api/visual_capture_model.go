@@ -26,14 +26,21 @@ type BASScreenshotResponse struct {
 }
 
 type BASExecuteAdhocRequest struct {
-	FlowDefinition    json.RawMessage        `json:"flow_definition"`
-	WaitForCompletion bool                   `json:"wait_for_completion"`
-	Parameters        map[string]interface{} `json:"parameters,omitempty"`
-	Metadata          map[string]string      `json:"metadata,omitempty"`
+	FlowDefinition json.RawMessage        `json:"flow_definition"`
+	Parameters     map[string]interface{} `json:"parameters,omitempty"`
+	Metadata       map[string]string      `json:"metadata,omitempty"`
 }
 
 type BASExecuteResponse struct {
 	ExecutionID string `json:"execution_id"`
+	Status      string `json:"status"`
+	Error       string `json:"error,omitempty"`
+}
+
+// BASExecutionDetail is the subset of GET /api/v1/executions/{id} we need for polling.
+// BAS responds with protobuf JSON (lowerCamelCase field names).
+type BASExecutionDetail struct {
+	ExecutionID string `json:"executionId"`
 	Status      string `json:"status"`
 	Error       string `json:"error,omitempty"`
 }
@@ -168,8 +175,8 @@ type BASRecordedVideosResponse struct {
 
 type WorkflowCaptureRequest struct {
 	ScenarioSlug   string      `json:"scenarioSlug"`
-	Mode           string      `json:"mode,omitempty"`           // "baseline" | "capture" (default: "capture")
-	TriggerType    string      `json:"triggerType,omitempty"`    // "manual" (default)
+	Mode           string      `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
+	TriggerType    string      `json:"triggerType,omitempty"` // "manual" (default)
 	Viewport       BASViewport `json:"viewport,omitempty"`
 	ExecutionModes []string    `json:"executionModes,omitempty"` // filter: ["observer"], ["observer","mutating"], etc.
 }

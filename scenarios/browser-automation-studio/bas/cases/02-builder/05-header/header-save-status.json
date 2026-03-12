@@ -60,7 +60,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -191,7 +192,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
+          "expression": "(() => { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
           "store_result": "saveStatus"
         },
         "metadata": {

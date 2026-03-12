@@ -66,7 +66,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -104,7 +105,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelectorAll('.react-flow__node').length \u003e= 2",
+          "expression": "document.querySelectorAll('.react-flow__node').length >= 2",
           "store_result": "hasMultipleNodes"
         },
         "metadata": {
@@ -130,7 +131,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() => { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "firstNodeHandle"
         },
         "metadata": {
@@ -143,7 +144,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length \u003c 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length < 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "secondNodeHandle"
         },
         "metadata": {
@@ -202,7 +203,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const initial = Number(${@store/initialEdgeCount} || 0); const final = Number(${@store/finalEdgeCount} || 0); return Number.isFinite(initial) \u0026\u0026 Number.isFinite(final) \u0026\u0026 final \u003e initial; })()",
+          "expression": "(() => { const initial = Number(${@store/initialEdgeCount} || 0); const final = Number(${@store/finalEdgeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
           "store_result": "connectionWasAdded"
         },
         "metadata": {

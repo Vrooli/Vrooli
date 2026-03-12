@@ -36,7 +36,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -115,7 +116,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final \u003e initial; })()",
+          "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
           "store_result": "nodeDuplicated"
         },
         "metadata": {

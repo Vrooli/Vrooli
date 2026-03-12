@@ -189,7 +189,9 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 
 // handleWorkflowCapture handles POST /api/v1/repo/workflow-capture
 func (s *Server) handleWorkflowCapture(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 300*time.Second)
+	// Pass nil for repoLock — workflow captures don't touch git, and holding the
+	// lock for minutes while polling BAS would block all other repo operations.
+	hctx := RepoOperation(w, r, s.git, s.repos, nil, 300*time.Second)
 	if hctx == nil {
 		return
 	}

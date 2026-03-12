@@ -9,7 +9,8 @@
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier to load\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project to load before entering the builder\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Folder path for the seeded project\"}]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [
@@ -20,20 +21,32 @@
         "subflow": {
           "workflow_path": "actions/open-demo-project.json",
           "args": {
-            "projectId": { "string_value": "${@params/projectId}" },
-            "projectName": { "string_value": "${@params/projectName}" },
-            "projectFolder": { "string_value": "${@params/projectFolder}" }
+            "projectId": {
+              "string_value": "${@params/projectId}"
+            },
+            "projectName": {
+              "string_value": "${@params/projectName}"
+            },
+            "projectFolder": {
+              "string_value": "${@params/projectFolder}"
+            }
           }
         },
-        "metadata": { "label": "Open Demo project" }
+        "metadata": {
+          "label": "Open Demo project"
+        }
       }
     },
     {
       "id": "fixture-click-new-workflow",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workflows.newButton" },
-        "metadata": { "label": "Click New Workflow" }
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Click New Workflow"
+        }
       },
       "execution_settings": {
         "timeout_ms": 15000,
@@ -47,8 +60,12 @@
       "id": "fixture-switch-to-manual",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/ai.modal.switchToManualButton" },
-        "metadata": { "label": "Switch to manual builder" }
+        "click": {
+          "selector": "@selector/ai.modal.switchToManualButton"
+        },
+        "metadata": {
+          "label": "Switch to manual builder"
+        }
       },
       "execution_settings": {
         "timeout_ms": 5000,
@@ -69,7 +86,9 @@
           "timeout_ms": 15000,
           "failure_message": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
         },
-        "metadata": { "label": "Builder fully initialized and interactive" }
+        "metadata": {
+          "label": "Builder fully initialized and interactive"
+        }
       }
     }
   ],

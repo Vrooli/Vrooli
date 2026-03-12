@@ -96,7 +96,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {

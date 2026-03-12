@@ -36,7 +36,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -95,7 +96,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
           "store_result": "zoomedInLevel"
         },
         "metadata": {
@@ -126,7 +127,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
           "store_result": "zoomedOutLevel"
         },
         "metadata": {

@@ -4,6 +4,7 @@
   "name": "happy-path-new-user",
   "folder_path": "/flows/01-new-user",
   "description": "Complete new user journey: Create project → Create workflow → Execute → View results. This validates the primary use case and marketing demo flow.",
+  "execution_mode": "mutating",
   "tags": [
     "reset:full"
   ],
