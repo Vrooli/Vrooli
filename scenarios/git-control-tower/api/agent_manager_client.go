@@ -123,6 +123,49 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*AgentR
 	return &result, nil
 }
 
+type ensureProfileDefaults struct {
+	Name                 string `json:"name"`
+	ProfileKey           string `json:"profileKey"`
+	Description          string `json:"description,omitempty"`
+	RunnerType           int    `json:"runnerType,omitempty"`
+	MaxTurns             int    `json:"maxTurns,omitempty"`
+	SkipPermissionPrompt bool   `json:"skipPermissionPrompt,omitempty"`
+}
+
+type ensureProfileRequest struct {
+	ProfileKey     string                 `json:"profileKey"`
+	Defaults       *ensureProfileDefaults `json:"defaults,omitempty"`
+	UpdateExisting bool                   `json:"updateExisting"`
+}
+
+type ensureProfileResponse struct {
+	Profile *AgentProfile `json:"profile"`
+	Created bool          `json:"created"`
+	Updated bool          `json:"updated"`
+}
+
+// EnsureDefaultProfile creates (or confirms existence of) the default
+// git-control-tower-reviewer profile in agent-manager.
+func (c *AgentManagerClient) EnsureDefaultProfile(ctx context.Context) (*ensureProfileResponse, error) {
+	req := ensureProfileRequest{
+		ProfileKey: "git-control-tower-reviewer",
+		Defaults: &ensureProfileDefaults{
+			Name:                 "Git Control Tower Reviewer",
+			ProfileKey:           "git-control-tower-reviewer",
+			Description:          "Default profile for git-control-tower scenario reviews",
+			RunnerType:           1, // RUNNER_TYPE_CLAUDE_CODE
+			MaxTurns:             50,
+			SkipPermissionPrompt: true,
+		},
+		UpdateExisting: false,
+	}
+	var result ensureProfileResponse
+	if err := c.doJSON(ctx, "/api/v1/profiles/ensure", req, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // ListRuns calls GET /api/v1/runs on agent-manager.
 func (c *AgentManagerClient) ListRuns(ctx context.Context, scopePrefix string, limit int) (*AgentRunListResponse, error) {
 	path := fmt.Sprintf("/api/v1/runs?scopePrefix=%s&limit=%d", scopePrefix, limit)

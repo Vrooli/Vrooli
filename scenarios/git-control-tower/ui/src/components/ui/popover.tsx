@@ -5,9 +5,11 @@ interface PopoverProps {
   children: ReactNode;
   /** Alignment relative to trigger */
   align?: "start" | "center" | "end";
+  /** Direction the popover opens */
+  direction?: "down" | "up";
 }
 
-export function Popover({ trigger, children, align = "center" }: PopoverProps) {
+export function Popover({ trigger, children, align = "center", direction = "down" }: PopoverProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,7 @@ export function Popover({ trigger, children, align = "center" }: PopoverProps) {
       </button>
       {open && (
         <div
-          className={`absolute top-full mt-2 z-50 min-w-[200px] rounded-lg border border-slate-700 bg-slate-900 shadow-xl ${alignClass}`}
+          className={`absolute ${direction === "up" ? "bottom-full mb-2" : "top-full mt-2"} z-50 min-w-[200px] rounded-lg border border-slate-700 bg-slate-900 shadow-xl ${alignClass}`}
           role="dialog"
         >
           {children}

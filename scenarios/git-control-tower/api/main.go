@@ -114,7 +114,7 @@ func NewServer() (*Server, error) {
 				Slug:   "tidiness-manager",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
-		"agent-manager": &ScenarioChecker{
+			"agent-manager": &ScenarioChecker{
 				Slug:   "agent-manager",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
@@ -140,6 +140,24 @@ func NewServer() (*Server, error) {
 	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
 	srv.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	srv.agentManagerClient = NewAgentManagerClient(120 * time.Second)
+
+	// Best-effort: ensure the default agent profile exists once agent-manager is reachable.
+	go func() {
+		for i := 0; i < 10; i++ {
+			time.Sleep(time.Duration(i*5+5) * time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			if srv.capabilities.IsAvailable(ctx, "agent-manager") {
+				if _, err := srv.agentManagerClient.EnsureDefaultProfile(ctx); err != nil {
+					log.Printf("warn: ensure default agent profile: %v", err)
+				} else {
+					cancel()
+					return
+				}
+			}
+			cancel()
+		}
+	}()
+
 	srv.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{

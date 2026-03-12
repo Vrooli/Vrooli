@@ -108,7 +108,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   );
 
   const tabContent = (
-    <div className="flex-1 overflow-y-auto px-4 py-4">
+    <div className={`flex-1 ${activeTab === "agent" ? "flex flex-col overflow-hidden" : "overflow-y-auto px-4 py-4"}`}>
       {activeTab === "overview" ? (
         <OverviewTab
           after={after}
@@ -182,8 +182,12 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           repoId={repoId}
           agentManagerAvailable={agentManagerAvailable}
           contextItems={agentContext}
+          onAddContext={addAgentContext}
           onRemoveContext={removeAgentContext}
           onClearContext={clearAgentContext}
+          testGenieAvailable={testGenieAvailable}
+          tidinessAvailable={tidinessAvailable}
+          fileStats={fileStats}
         />
       )}
     </div>
