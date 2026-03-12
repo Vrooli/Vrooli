@@ -30,7 +30,7 @@ interface WorkspaceState {
 }
 
 interface WorkspaceActions {
-  addPane: (sessionId: string, name: string) => void;
+  addPane: (sessionId: string, name: string, activate?: boolean) => void;
   removePane: (sessionId: string) => void;
   renamePaneById: (sessionId: string, name: string) => void;
   setPaneColor: (sessionId: string, color: string) => void;
@@ -71,14 +71,17 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
 
-      addPane: (sessionId, name) =>
+      addPane: (sessionId, name, activate) =>
         set((state) => {
-          if (state.panes.some((p) => p.sessionId === sessionId)) return state;
+          if (state.panes.some((p) => p.sessionId === sessionId)) {
+            return activate ? { activePane: sessionId } : state;
+          }
           return {
             panes: [
               ...state.panes,
               { sessionId, name, headerColor: state.defaultHeaderColor, themeId: state.defaultThemeId, fontSize: state.defaultFontSize },
             ],
+            ...(activate ? { activePane: sessionId } : {}),
           };
         }),
 
@@ -149,6 +152,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     {
       name: "wc-workspace",
       partialize: (state) => ({
+        activePane: state.activePane,
         panes: state.panes,
         columnFractions: state.columnFractions,
         rowFractions: state.rowFractions,

@@ -216,6 +216,12 @@ export default function TabBar({
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
                 }
+                // Activate tab immediately on pointer-up rather than waiting
+                // for onClick, which mobile browsers may delay or suppress
+                // when the element is inside a scrollable container.
+                if (!longPressFired.current && !isDragging) {
+                  setActivePane(pane.sessionId);
+                }
               }}
               onPointerCancel={() => {
                 if (longPressTimer.current) {

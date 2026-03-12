@@ -74,6 +74,7 @@ export default function Workspace() {
   const { keyboardHeight } = useVirtualKeyboard();
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const pendingActivePaneRef = useRef<string | null>(null);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -141,10 +142,12 @@ export default function Workspace() {
     const sessionIds = new Set(sessionPanes.map((p) => p.session.id));
     const storeIds = new Set(store.panes.map((p) => p.sessionId));
 
-    // Add new sessions to store
+    // Add new sessions to store (auto-activate if user just created it)
     for (const sp of sessionPanes) {
       if (!storeIds.has(sp.session.id)) {
-        store.addPane(sp.session.id, sp.session.shell ?? "terminal");
+        const shouldActivate = pendingActivePaneRef.current === sp.session.id;
+        if (shouldActivate) pendingActivePaneRef.current = null;
+        store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate);
       }
     }
     // Remove deleted sessions from store (only after hydration)
@@ -157,9 +160,11 @@ export default function Workspace() {
     }
   }, [sessionPanes, store, isHydrated]);
 
-  // Auto-set active pane if none is set
+  // Auto-set active pane if none is set or the persisted value is stale
   useEffect(() => {
-    if (store.activePane === null && store.panes.length > 0) {
+    if (store.panes.length === 0) return;
+    const activePaneExists = store.activePane !== null && store.panes.some((p) => p.sessionId === store.activePane);
+    if (!activePaneExists) {
       const lastPane = store.panes[store.panes.length - 1];
       if (lastPane) store.setActivePane(lastPane.sessionId);
     }
@@ -173,13 +178,13 @@ export default function Workspace() {
       const session = await launchSession(command);
       if (session) {
         setLauncherOpen(false);
-        // In tab mode, auto-activate the newly created session
-        if (store.displayMode === "tabs") {
-          store.setActivePane(session.id);
-        }
+        // Mark session for auto-activation. The reconciliation effect
+        // will add the pane and activate it atomically in a single
+        // zustand set(), avoiding cross-system state races.
+        pendingActivePaneRef.current = session.id;
       }
     },
-    [launchSession, store],
+    [launchSession],
   );
 
   const handleRetry = useCallback(() => {
@@ -475,7 +480,7 @@ export default function Workspace() {
                 key={paneMeta.sessionId}
                 data-testid={`tab-pane-${paneMeta.sessionId}`}
                 className="absolute inset-0 flex flex-col"
-                style={{ display: isActive ? "flex" : "none" }}
+                style={{ visibility: isActive ? "visible" : "hidden" }}
               >
                 <div className="flex-1 min-h-0">
                   <ErrorBoundary region="terminal">
