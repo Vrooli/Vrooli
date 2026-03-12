@@ -218,6 +218,12 @@
         "required": true,
         "description": "Primary relational data store",
         "schema": "web-console"
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": false,
+        "required": false,
+        "description": "Speech-to-text transcription for voice input"
       }
     }
   }

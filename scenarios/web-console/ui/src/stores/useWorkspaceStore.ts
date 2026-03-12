@@ -24,6 +24,8 @@ interface WorkspaceState {
   settingsModalOpen: boolean;
   sessionsModalOpen: boolean;
   aiModalOpen: boolean;
+  voiceEnabled: boolean;
+  voiceShortcut: string;
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
@@ -46,6 +48,8 @@ interface WorkspaceActions {
   setSettingsModalOpen: (open: boolean) => void;
   setSessionsModalOpen: (open: boolean) => void;
   setAiModalOpen: (open: boolean) => void;
+  setVoiceEnabled: (enabled: boolean) => void;
+  setVoiceShortcut: (shortcut: string) => void;
   setDefaultHeaderColor: (color: string) => void;
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
@@ -67,6 +71,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       settingsModalOpen: false,
       sessionsModalOpen: false,
       aiModalOpen: false,
+      voiceEnabled: true,
+      voiceShortcut: "Ctrl+Shift+Space",
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
@@ -142,6 +148,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
+      setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
+      setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
       setDefaultHeaderColor: (color) => set({ defaultHeaderColor: color }),
       setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
       setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
@@ -151,6 +159,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version === 0) {
+          // Alt+Space is intercepted by Linux window managers before
+          // reaching the browser — migrate to a shortcut that works.
+          if (state.voiceShortcut === "Alt+Space") {
+            state.voiceShortcut = "Ctrl+Shift+Space";
+          }
+        }
+        return state as WorkspaceState & WorkspaceActions;
+      },
       partialize: (state) => ({
         activePane: state.activePane,
         panes: state.panes,
@@ -158,6 +178,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         rowFractions: state.rowFractions,
         isMinimapVisible: state.isMinimapVisible,
         displayMode: state.displayMode,
+        voiceEnabled: state.voiceEnabled,
+        voiceShortcut: state.voiceShortcut,
         defaultHeaderColor: state.defaultHeaderColor,
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,

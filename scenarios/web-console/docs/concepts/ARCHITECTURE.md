@@ -61,6 +61,17 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
 
+### Voice Input
+
+1. User presses Alt+Space (desktop) or taps mic button (mobile toolbar)
+2. `useVoiceInput` hook in [CODE: ui/src/hooks/useVoiceInput.ts] calls `getUserMedia()` → starts `MediaRecorder`
+3. User releases key / taps stop → recording stops
+4. Hook checks transcription backend (determined on mount via `GET /api/v1/capabilities`):
+   - **Whisper available**: POST audio blob to `/api/v1/voice/transcribe` → API in [CODE: api/voice_transcribe.go] proxies to Whisper (`localhost:8090/asr`)
+   - **Whisper unavailable**: Falls back to browser Web Speech API (Chromium only)
+   - **Neither available**: Voice input disabled, mic button hidden
+5. Transcribed text injected into terminal via existing `sendInput()` path
+
 ### Error Handling
 
 All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR-SEMANTICS.md) for the full contract.

@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import { Maximize2, Minimize2, SendHorizontal } from "lucide-react";
 import { TOOLBAR_KEYS, type ToolbarKey } from "../consts/toolbar-keys";
 import { cn } from "../lib/classnames";
+import VoiceMicButton from "./VoiceMicButton";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
 
@@ -24,11 +25,22 @@ interface MobileToolbarProps {
   onInput: (data: string) => boolean;
   /** Whether the toolbar is visible. */
   visible?: boolean;
+  // Voice input props (optional - hidden when undefined)
+  voiceSupported?: boolean;
+  voiceRecording?: boolean;
+  voiceTranscribing?: boolean;
+  voiceError?: string | null;
+  onVoiceToggle?: () => void;
 }
 
 export default function MobileToolbar({
   onInput,
   visible = true,
+  voiceSupported,
+  voiceRecording,
+  voiceTranscribing,
+  voiceError,
+  onVoiceToggle,
 }: MobileToolbarProps) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -149,21 +161,32 @@ export default function MobileToolbar({
         </button>
       </div>
       {/* Toolbar keys row */}
-      <div className="flex items-center gap-0.5 overflow-x-auto px-1 py-1 touch-manipulation">
-        {TOOLBAR_KEYS.map((key) => (
-          <button
-            key={key.label}
-            data-testid={`toolbar-key-${slugify(key.label)}`}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => handleKey(key)}
-            className={cn(
-              "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-              key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
-            )}
-          >
-            {key.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-0.5 px-1 py-1 touch-manipulation">
+        <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
+          {TOOLBAR_KEYS.map((key) => (
+            <button
+              key={key.label}
+              data-testid={`toolbar-key-${slugify(key.label)}`}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => handleKey(key)}
+              className={cn(
+                "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
+                key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
+              )}
+            >
+              {key.label}
+            </button>
+          ))}
+        </div>
+        {voiceSupported && onVoiceToggle && (
+          <VoiceMicButton
+            supported={voiceSupported}
+            isRecording={voiceRecording ?? false}
+            isTranscribing={voiceTranscribing ?? false}
+            error={voiceError ?? null}
+            onToggle={onVoiceToggle}
+          />
+        )}
       </div>
     </div>
   );

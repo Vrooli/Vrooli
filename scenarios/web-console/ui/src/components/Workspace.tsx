@@ -5,6 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { Plus } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
+import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
@@ -206,6 +207,16 @@ export default function Workspace() {
     },
     [sendToActiveTerminal, store.activePane],
   );
+
+  const voiceInput = useVoiceInput(handleSendToTerminal);
+
+  const handleVoiceToggle = useCallback(() => {
+    if (voiceInput.isRecording) {
+      voiceInput.stopRecording();
+    } else {
+      voiceInput.startRecording();
+    }
+  }, [voiceInput]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -425,6 +436,8 @@ export default function Workspace() {
               sessionId={paneMeta.sessionId}
               onExit={handleExit}
               onReady={() => handleTerminalReady(paneMeta.sessionId)}
+              onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
+              onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -488,6 +501,8 @@ export default function Workspace() {
                       sessionId={paneMeta.sessionId}
                       onExit={handleExit}
                       onReady={() => handleTerminalReady(paneMeta.sessionId)}
+                      onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
+                      onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }
@@ -540,7 +555,14 @@ export default function Workspace() {
         }
       >
         {/* Mobile toolbar */}
-        <MobileToolbar onInput={handleSendToTerminal} />
+        <MobileToolbar
+          onInput={handleSendToTerminal}
+          voiceSupported={voiceInput.supported}
+          voiceRecording={voiceInput.isRecording}
+          voiceTranscribing={voiceInput.isTranscribing}
+          voiceError={voiceInput.error}
+          onVoiceToggle={handleVoiceToggle}
+        />
       </div>
 
       {/* Terminal Launcher */}

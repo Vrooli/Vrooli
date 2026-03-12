@@ -124,6 +124,30 @@ Last updated: 2026-02-20
 
 **Benefits**: Reduced global mocking, lower test setup coupling, and easier behavior-focused tests for loading, refresh, toggle, and error states.
 
+### Voice Input Provider Seam (UI)
+**File**: `ui/src/hooks/useVoiceInput.ts`
+**Purpose**: Decouple transcription backend selection from recording lifecycle, enabling testable voice input with swappable providers.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
+| `WebSpeechProvider` | Uses browser SpeechRecognition API | Mock `window.SpeechRecognition` |
+| `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError` callbacks | Same interface, deterministic behavior |
+| `MediaDevicesAdapter` | `navigator.mediaDevices.getUserMedia()` | Mock that resolves/rejects for permission tests |
+
+**Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses.
+
+### Capability Registry Seam (API)
+**File**: `api/capabilities.go`, `api/capabilities_checkers.go`
+**Purpose**: Decouple capability detection from specific service health checks, enabling testable capability discovery.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `StatusChecker` interface | `ResourceChecker` pings Whisper at localhost:8090 | httptest server returning configurable status |
+| `CapabilityRegistry` | Caches results with 30s TTL | Inject mock checkers, verify caching behavior |
+
+**Benefits**: New capabilities can be added by implementing `StatusChecker` and registering in the registry. Tests verify caching and fallback without network calls.
+
 ## Boundary Violations Fixed
 
 ### Phase 2 (2026-02-19) — Responsibility Boundaries

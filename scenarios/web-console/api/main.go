@@ -48,16 +48,17 @@ func initSchema(db *sql.DB) error {
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
-	db          *sql.DB
-	router      *mux.Router
-	sessions    *SessionManager
-	events      *EventLogger
-	metrics     *Metrics
-	aiChain     *AIProviderChain
-	shortcuts   ShortcutStore
-	aiConfig    AIConfigStore
-	sweeper     *ExpirationSweeper
-	idempotency *idempotencyCache // replay-safe session creation
+	db           *sql.DB
+	router       *mux.Router
+	sessions     *SessionManager
+	events       *EventLogger
+	metrics      *Metrics
+	aiChain      *AIProviderChain
+	shortcuts    ShortcutStore
+	aiConfig     AIConfigStore
+	sweeper      *ExpirationSweeper
+	idempotency  *idempotencyCache // replay-safe session creation
+	capabilities *CapabilityRegistry
 }
 
 // NewServer initializes database, session manager, and routes.
@@ -83,6 +84,13 @@ func NewServer(db *sql.DB) *Server {
 		sweeper:     NewExpirationSweeper(sessions, events, metrics),
 		idempotency: newIdempotencyCache(),
 	}
+	checkers := map[string]StatusChecker{
+		"whisper-stt": &ResourceChecker{
+			URL:    "http://localhost:8090/",
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+	}
+	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)
 	srv.sweeper.Start()
 	srv.setupRoutes()
 	return srv
@@ -132,6 +140,10 @@ func (s *Server) setupRoutes() {
 
 	// Events endpoint - [REQ:P1-004a]
 	s.router.HandleFunc("/api/v1/events", s.handleEvents).Methods("GET")
+
+	// Voice input capabilities
+	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/transcribe", s.handleVoiceTranscribe).Methods("POST")
 }
 
 // Handler returns the router wrapped with panic-recovery middleware so that

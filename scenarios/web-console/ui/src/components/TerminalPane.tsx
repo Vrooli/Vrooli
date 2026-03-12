@@ -9,11 +9,14 @@ import { useTerminalSocket } from "../hooks/useTerminalSocket";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from "../consts/config";
+import { parseShortcut, matchesShortcut } from "../lib/shortcutParser";
 
 interface TerminalPaneProps {
   sessionId: string;
   onExit?: (sessionId: string) => void;
   onReady?: () => void;
+  onVoiceStart?: () => void;
+  onVoiceStop?: () => void;
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
@@ -24,7 +27,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
@@ -110,6 +113,33 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       if (!terminal) return;
       terminal.options.theme = paneTheme;
     }, [paneTheme, terminal]);
+
+    // Intercept configurable voice shortcut via capture-phase DOM listener.
+    // attachCustomKeyEventHandler fires too late — the browser processes
+    // shortcuts like Alt+Space before xterm's handler runs. A capture-phase
+    // listener on the container intercepts early enough to preventDefault().
+    const voiceShortcut = useWorkspaceStore((s) => s.voiceShortcut);
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container || !onVoiceStart || !onVoiceStop) return;
+      const parsed = parseShortcut(voiceShortcut);
+      if (!parsed) return;
+
+      const handler = (event: KeyboardEvent) => {
+        if (!matchesShortcut(event, parsed)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.type === "keydown") onVoiceStart();
+        if (event.type === "keyup") onVoiceStop();
+      };
+
+      container.addEventListener("keydown", handler, { capture: true });
+      container.addEventListener("keyup", handler, { capture: true });
+      return () => {
+        container.removeEventListener("keydown", handler, { capture: true });
+        container.removeEventListener("keyup", handler, { capture: true });
+      };
+    }, [onVoiceStart, onVoiceStop, voiceShortcut]);
 
     // Handle container resize -> fit terminal -> notify server.
     // Throttled via requestAnimationFrame to avoid flooding the WebSocket

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   LayoutGrid,
   LayoutList,
+  Keyboard,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -24,6 +25,7 @@ import {
   deleteShortcutProfile,
   toErrorInfo,
 } from "../lib/api";
+import { formatShortcutFromEvent } from "../lib/shortcutParser";
 
 function ShortcutEditor({
   profile,
@@ -157,6 +159,11 @@ export default function SettingsModal() {
   const setDefaultHeaderColor = useWorkspaceStore((s) => s.setDefaultHeaderColor);
   const setDefaultThemeId = useWorkspaceStore((s) => s.setDefaultThemeId);
   const setDefaultFontSize = useWorkspaceStore((s) => s.setDefaultFontSize);
+  const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
+  const setVoiceEnabled = useWorkspaceStore((s) => s.setVoiceEnabled);
+  const voiceShortcut = useWorkspaceStore((s) => s.voiceShortcut);
+  const setVoiceShortcut = useWorkspaceStore((s) => s.setVoiceShortcut);
+  const [recordingShortcut, setRecordingShortcut] = useState(false);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -409,6 +416,74 @@ export default function SettingsModal() {
                   </button>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* Section: Voice Input */}
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
+              Voice Input
+            </h3>
+            <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-wc-text-secondary">Enabled</span>
+                <button
+                  data-testid="voice-enabled-toggle"
+                  role="switch"
+                  aria-checked={voiceEnabled}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    voiceEnabled ? "bg-wc-accent" : "bg-wc-surface-base"
+                  }`}
+                  onClick={() => setVoiceEnabled(!voiceEnabled)}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                      voiceEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-wc-text-secondary">Shortcut</span>
+                <div className="flex items-center gap-1.5">
+                  {recordingShortcut ? (
+                    <span
+                      data-testid="voice-shortcut-recording"
+                      className="text-xs font-mono text-wc-accent bg-wc-surface-base px-2 py-0.5 rounded border border-wc-accent animate-pulse"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        // Ignore lone modifier presses
+                        if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+                        e.preventDefault();
+                        const shortcut = formatShortcutFromEvent(e.nativeEvent);
+                        setVoiceShortcut(shortcut);
+                        setRecordingShortcut(false);
+                      }}
+                      onBlur={() => setRecordingShortcut(false)}
+                      ref={(el) => el?.focus()}
+                    >
+                      Press a key combo...
+                    </span>
+                  ) : (
+                    <span
+                      data-testid="voice-shortcut-display"
+                      className="text-xs font-mono text-wc-text-muted bg-wc-surface-base px-2 py-0.5 rounded"
+                    >
+                      {voiceShortcut}
+                    </span>
+                  )}
+                  <Button
+                    data-testid="voice-shortcut-change"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setRecordingShortcut(true)}
+                    title="Change shortcut"
+                  >
+                    <Keyboard className="h-3 w-3 text-wc-text-faint" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </section>
 

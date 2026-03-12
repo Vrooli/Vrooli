@@ -1,0 +1,157 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func serverWithCapability(available bool) *Server {
+	status := StatusUnavailable
+	if available {
+		status = StatusAvailable
+	}
+	checker := &fakeChecker{status: status, message: "test"}
+	reg := NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{"whisper-stt": checker}, time.Minute)
+	return &Server{capabilities: reg}
+}
+
+func buildMultipartRequest(t *testing.T, fieldName, fileName string, content []byte) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	part, err := writer.CreateFormFile(fieldName, fileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+	req := httptest.NewRequest("POST", "/api/v1/voice/transcribe", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req
+}
+
+func TestVoiceTranscribe_WhisperUnavailable(t *testing.T) {
+	srv := serverWithCapability(false)
+	req := httptest.NewRequest("POST", "/api/v1/voice/transcribe", nil)
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusServiceUnavailable)
+	}
+
+	var resp ErrorResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Code != "voice_unavailable" {
+		t.Errorf("code = %q, want %q", resp.Code, "voice_unavailable")
+	}
+}
+
+func TestVoiceTranscribe_MissingAudioFile(t *testing.T) {
+	srv := serverWithCapability(true)
+
+	// Send a multipart form without the audio_file field
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	_ = writer.WriteField("other_field", "value")
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/v1/voice/transcribe", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+
+	var resp ErrorResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Code != "invalid_body" {
+		t.Errorf("code = %q, want %q", resp.Code, "invalid_body")
+	}
+}
+
+func TestVoiceTranscribe_Success(t *testing.T) {
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify it received multipart form with audio_file
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Errorf("whisper mock: parse form: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_, _, err := r.FormFile("audio_file")
+		if err != nil {
+			t.Errorf("whisper mock: missing audio_file: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": "hello world"})
+	}))
+	defer whisper.Close()
+
+	origURL := whisperURL
+	whisperURL = whisper.URL + "/asr?output=json&language=en"
+	defer func() { whisperURL = origURL }()
+
+	srv := serverWithCapability(true)
+	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio data"))
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["text"] != "hello world" {
+		t.Errorf("text = %q, want %q", resp["text"], "hello world")
+	}
+}
+
+func TestVoiceTranscribe_WhisperError(t *testing.T) {
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer whisper.Close()
+
+	origURL := whisperURL
+	whisperURL = whisper.URL + "/asr?output=json&language=en"
+	defer func() { whisperURL = origURL }()
+
+	srv := serverWithCapability(true)
+	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio data"))
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusBadGateway {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadGateway)
+	}
+
+	var resp ErrorResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Code != "voice_transcribe_failed" {
+		t.Errorf("code = %q, want %q", resp.Code, "voice_transcribe_failed")
+	}
+}

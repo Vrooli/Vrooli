@@ -338,3 +338,48 @@ export function buildSessionWsUrl(sessionId: string): string {
   const wsBase = apiBaseToWsBase(API_BASE);
   return buildWsUrl(`/sessions/${sessionId}/ws`, { baseUrl: wsBase });
 }
+
+// Voice input capabilities
+export interface CapabilityState {
+  id: string;
+  name: string;
+  description: string;
+  dependencyKind: string;
+  dependencySlug: string;
+  features: string[];
+  status: "available" | "unavailable" | "unknown";
+  message?: string;
+  checkedAt?: string;
+}
+
+export interface CapabilitiesResponse {
+  capabilities: CapabilityState[];
+  timestamp: string;
+}
+
+export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
+  const url = buildApiUrl("/capabilities", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to fetch capabilities");
+  }
+  return (await res.json()) as CapabilitiesResponse;
+}
+
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  const url = buildApiUrl("/voice/transcribe", { baseUrl: API_BASE });
+  const formData = new FormData();
+  formData.append("audio_file", audioBlob, "recording.webm");
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Voice transcription failed");
+  }
+  const data = (await res.json()) as { text: string };
+  return data.text;
+}

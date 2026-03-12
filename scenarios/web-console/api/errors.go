@@ -122,6 +122,22 @@ var errorCatalog = map[string]appError{
 		Message:  "Invalid expiration policy",
 		Recovery: "Use mode 'never', 'preset' (with 1h/8h/24h), or 'custom' (with a Go duration like 30m)",
 	},
+	"voice_unavailable": {
+		Status:   http.StatusServiceUnavailable,
+		Code:     "voice_unavailable",
+		Category: "dependency",
+		Message:  "Voice transcription is currently unavailable",
+		Recovery: "Ensure Whisper is running (resource whisper on port 8090)",
+		Retry:    true,
+	},
+	"voice_transcribe_failed": {
+		Status:   http.StatusBadGateway,
+		Code:     "voice_transcribe_failed",
+		Category: "dependency",
+		Message:  "Voice transcription request failed",
+		Recovery: "Try again. If the problem persists, check Whisper logs.",
+		Retry:    true,
+	},
 }
 
 // writeJSON encodes data as a JSON response with the given HTTP status code.
