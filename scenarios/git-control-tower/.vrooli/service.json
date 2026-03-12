@@ -25,6 +25,10 @@
       "tidiness-manager": {
         "description": "Code quality analysis and tidiness scoring for scenarios",
         "required": false
+      },
+      "agent-manager": {
+        "description": "AI agent orchestration and run management",
+        "required": false
       }
     }
   },

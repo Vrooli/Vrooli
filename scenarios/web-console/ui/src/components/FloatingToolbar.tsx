@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { List, Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { List, Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Mic, Loader2, AlertCircle } from "lucide-react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
@@ -45,6 +45,14 @@ interface FloatingToolbarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   isCreating: boolean;
+  // Voice input (optional — hidden when not provided)
+  voiceSupported?: boolean;
+  voiceRecording?: boolean;
+  voiceTranscribing?: boolean;
+  voiceError?: string | null;
+  /** 0–1 audio level for live mic visualization */
+  voiceLevel?: number;
+  onVoiceToggle?: () => void;
 }
 
 export default function FloatingToolbar({
@@ -54,6 +62,12 @@ export default function FloatingToolbar({
   onNewTerminal,
   onOpenLauncher,
   isCreating,
+  voiceSupported,
+  voiceRecording,
+  voiceTranscribing,
+  voiceError,
+  voiceLevel = 0,
+  onVoiceToggle,
 }: FloatingToolbarProps) {
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
@@ -207,6 +221,40 @@ export default function FloatingToolbar({
       >
         <Sparkles className="h-4 w-4" />
       </Button>
+      {voiceSupported && onVoiceToggle && (
+        <Button
+          data-testid="toolbar-voice"
+          variant="ghost"
+          size="icon"
+          className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceError ? "text-amber-400" : ""}`}
+          onClick={onVoiceToggle}
+          title={
+            voiceRecording
+              ? "Recording... tap to stop"
+              : voiceTranscribing
+                ? "Transcribing..."
+                : voiceError
+                  ? `Voice error: ${voiceError}`
+                  : "Voice input"
+          }
+          tabIndex={docked ? -1 : undefined}
+        >
+          {/* Audio level fill — rises from bottom */}
+          {voiceRecording && (
+            <span
+              className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
+              style={{ height: `${Math.round(voiceLevel * 100)}%` }}
+            />
+          )}
+          {voiceTranscribing ? (
+            <Loader2 className="h-4 w-4 animate-spin relative" />
+          ) : voiceError ? (
+            <AlertCircle className="h-4 w-4 relative" />
+          ) : (
+            <Mic className="h-4 w-4 relative" />
+          )}
+        </Button>
+      )}
       <Button
         data-testid="toolbar-new"
         variant="ghost"

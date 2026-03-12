@@ -23,13 +23,21 @@ func (s *Server) handleAgentProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.ListProfiles(hctx.Ctx)
+	wireResp, err := s.agentManagerClient.ListProfiles(hctx.Ctx)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	profiles := make([]AgentProfile, 0, len(wireResp.Profiles))
+	for i := range wireResp.Profiles {
+		profiles = append(profiles, wireProfileToAPI(&wireResp.Profiles[i]))
+	}
+
+	hctx.Resp.OK(AgentProfileListResponse{
+		Profiles: profiles,
+		Total:    wireResp.Total,
+	})
 }
 
 // handleAgentRunCreate handles POST /api/v1/agent/run.
@@ -62,24 +70,27 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Step 1: Create a Task
 	taskResp, err := s.agentManagerClient.CreateTask(hctx.Ctx, agentTaskCreateRequest{
-		Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
-		Description: req.Prompt,
-		ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
+		Task: agentTaskData{
+			Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
+			Description: req.Prompt,
+			ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
+		},
 	})
 	if err != nil {
 		hctx.Resp.InternalError(fmt.Sprintf("create task: %s", err.Error()))
 		return
 	}
 
-	// Step 2: Create a Run
+	// Step 2: Create a Run (with tag for filtering)
 	runReq := agentRunCreateInternalRequest{
-		TaskID:  taskResp.ID,
-		RunMode: "sandboxed",
+		TaskID:  taskResp.Task.ID,
+		RunMode: 1, // RUN_MODE_SANDBOXED
+		Tag:     fmt.Sprintf("gct-%s", req.ScenarioSlug),
 	}
 	if req.ProfileID != "" {
 		runReq.AgentProfileID = req.ProfileID
 	} else if req.ProfileKey != "" {
-		runReq.ProfileRef = req.ProfileKey
+		runReq.ProfileRef = &agentProfileRef{ProfileKey: req.ProfileKey}
 	}
 
 	runResp, err := s.agentManagerClient.CreateRun(hctx.Ctx, runReq)
@@ -89,8 +100,8 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hctx.Resp.OK(AgentRunCreateResponse{
-		RunID:  runResp.ID,
-		TaskID: taskResp.ID,
+		RunID:  runResp.Run.ID,
+		TaskID: taskResp.Task.ID,
 	})
 }
 
@@ -126,14 +137,22 @@ func (s *Server) handleAgentRunList(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	scopePrefix := fmt.Sprintf("scenarios/%s/", scenarioSlug)
-	result, err := s.agentManagerClient.ListRuns(hctx.Ctx, scopePrefix, limit)
+	tagPrefix := fmt.Sprintf("gct-%s", scenarioSlug)
+	wireResp, err := s.agentManagerClient.ListRuns(hctx.Ctx, tagPrefix, limit)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	runs := make([]AgentRun, 0, len(wireResp.Runs))
+	for i := range wireResp.Runs {
+		runs = append(runs, wireRunToAPI(&wireResp.Runs[i]))
+	}
+
+	hctx.Resp.OK(AgentRunListResponse{
+		Runs:  runs,
+		Total: wireResp.Total,
+	})
 }
 
 // handleAgentRunDetail proxies GET /api/v1/agent/runs/{id} to agent-manager.
@@ -156,13 +175,14 @@ func (s *Server) handleAgentRunDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.GetRun(hctx.Ctx, id)
+	wireResp, err := s.agentManagerClient.GetRun(hctx.Ctx, id)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	apiRun := wireRunToAPI(&wireResp.Run)
+	hctx.Resp.OK(apiRun)
 }
 
 // handleAgentRunEvents proxies GET /api/v1/agent/runs/{id}/events to agent-manager.
@@ -208,13 +228,20 @@ func (s *Server) handleAgentRunEvents(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	result, err := s.agentManagerClient.GetRunEvents(hctx.Ctx, id, afterSequence, limit)
+	wireResp, err := s.agentManagerClient.GetRunEvents(hctx.Ctx, id, afterSequence, limit)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	events := make([]AgentRunEvent, 0, len(wireResp.Events))
+	for i := range wireResp.Events {
+		events = append(events, wireRunEventToAPI(&wireResp.Events[i]))
+	}
+
+	hctx.Resp.OK(AgentRunEventsResponse{
+		Events: events,
+	})
 }
 
 // handleAgentRunDiff proxies GET /api/v1/agent/runs/{id}/diff to agent-manager.
@@ -237,13 +264,23 @@ func (s *Server) handleAgentRunDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.GetRunDiff(hctx.Ctx, id)
+	wireResp, err := s.agentManagerClient.GetRunDiff(hctx.Ctx, id)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	resp := AgentRunDiffResponse{RunID: id}
+	if wireResp.Diff != nil {
+		resp.Content = wireResp.Diff.Content
+		files := make([]AgentRunDiffFile, 0, len(wireResp.Diff.Files))
+		for i := range wireResp.Diff.Files {
+			files = append(files, wireFileDiffToAPI(&wireResp.Diff.Files[i]))
+		}
+		resp.Files = files
+	}
+
+	hctx.Resp.OK(resp)
 }
 
 // handleAgentRunContinue proxies POST /api/v1/agent/runs/{id}/continue to agent-manager.
@@ -271,13 +308,21 @@ func (s *Server) handleAgentRunContinue(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, err := s.agentManagerClient.ContinueRun(hctx.Ctx, id, req)
+	wireResp, err := s.agentManagerClient.ContinueRun(hctx.Ctx, id, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	resp := AgentContinueResponse{
+		Success: wireResp.Success,
+	}
+	if wireResp.Run != nil {
+		apiRun := wireRunToAPI(wireResp.Run)
+		resp.Run = &apiRun
+	}
+
+	hctx.Resp.OK(resp)
 }
 
 // handleAgentRunApprove proxies POST /api/v1/agent/runs/{id}/approve to agent-manager.
@@ -305,13 +350,21 @@ func (s *Server) handleAgentRunApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.ApproveRun(hctx.Ctx, id, req)
+	wireResp, err := s.agentManagerClient.ApproveRun(hctx.Ctx, id, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	resp := AgentApproveResponse{}
+	if wireResp.Result != nil {
+		resp.Success = wireResp.Result.Success
+		resp.FilesApplied = wireResp.Result.FilesApplied
+		resp.CommitHash = wireResp.Result.CommitHash
+		resp.Message = wireResp.Result.Message
+	}
+
+	hctx.Resp.OK(resp)
 }
 
 // handleAgentRunReject proxies POST /api/v1/agent/runs/{id}/reject to agent-manager.
@@ -339,13 +392,15 @@ func (s *Server) handleAgentRunReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.RejectRun(hctx.Ctx, id, req)
+	wireResp, err := s.agentManagerClient.RejectRun(hctx.Ctx, id, req)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	hctx.Resp.OK(AgentRejectResponse{
+		Status: wireResp.Status,
+	})
 }
 
 // handleAgentRunStop proxies POST /api/v1/agent/runs/{id}/stop to agent-manager.
@@ -368,11 +423,13 @@ func (s *Server) handleAgentRunStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.agentManagerClient.StopRun(hctx.Ctx, id)
+	wireResp, err := s.agentManagerClient.StopRun(hctx.Ctx, id)
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
 		return
 	}
 
-	hctx.Resp.OK(result)
+	hctx.Resp.OK(AgentStopResponse{
+		Status: wireResp.Status,
+	})
 }

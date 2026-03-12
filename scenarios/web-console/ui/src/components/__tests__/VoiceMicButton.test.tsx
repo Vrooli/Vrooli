@@ -31,10 +31,13 @@ describe("VoiceMicButton", () => {
   });
 
   it("shows recording state", () => {
-    render(<VoiceMicButton {...defaultProps} isRecording={true} />);
+    render(<VoiceMicButton {...defaultProps} isRecording={true} audioLevel={0.5} />);
     const btn = screen.getByTestId("voice-mic-btn");
     expect(btn.className).toContain("border-red-500");
-    expect(btn.querySelector(".animate-pulse")).toBeTruthy();
+    // Audio level fill bar should be present
+    const fill = btn.querySelector("span[style]");
+    expect(fill).toBeTruthy();
+    expect((fill as HTMLElement).style.height).toBe("50%");
   });
 
   it("shows transcribing state", () => {

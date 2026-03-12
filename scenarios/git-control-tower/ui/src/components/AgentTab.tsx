@@ -29,14 +29,16 @@ import {
 } from "../lib/hooks";
 import { composePrompt } from "../lib/agentContext";
 import { ContextPickerPopover } from "./ContextPickerPopover";
-import type {
-  AgentContextItem,
-  AgentRunEvent,
-  AgentRunStatus,
-  AgentRunDiffFile,
-  AgentRunSummary,
-  AgentRunActions,
-  RepoFileStats,
+import {
+  RUN_STATUS,
+  ACTIVE_STATUSES,
+  type AgentContextItem,
+  type AgentRunEvent,
+  type AgentRunStatus,
+  type AgentRunDiffFile,
+  type AgentRunSummary,
+  type AgentRunActions,
+  type RepoFileStats,
 } from "../lib/api";
 
 const AGENT_PROFILE_KEY = "gct.agent.defaultProfileId";
@@ -186,7 +188,7 @@ function buildChatMessages(
   }
 
   // Append diff + action-prompt when needs_review
-  if (activeRun?.status === "needs_review" && activeRun.actions && runId) {
+  if (activeRun?.status === RUN_STATUS.NEEDS_REVIEW && activeRun.actions && runId) {
     if (diffFiles && diffFiles.length > 0) {
       messages.push({ type: "diff", files: diffFiles, runId, actions: activeRun.actions });
     }
@@ -231,8 +233,8 @@ export function AgentTab({
   const runs = useAgentRuns(scenarioSlug, agentManagerAvailable, repoId);
   const activeRun = useAgentRun(activeRunId, agentManagerAvailable, repoId);
 
-  const isActiveRun = activeRun.data && ["pending", "starting", "running", "needs_review"].includes(activeRun.data.status);
-  const shouldPollDiff = activeRun.data?.status === "needs_review" && agentManagerAvailable;
+  const isActiveRun = activeRun.data && ([...ACTIVE_STATUSES, RUN_STATUS.NEEDS_REVIEW] as string[]).includes(activeRun.data.status);
+  const shouldPollDiff = activeRun.data?.status === RUN_STATUS.NEEDS_REVIEW && agentManagerAvailable;
   const runEvents = useAgentRunEvents(activeRunId, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId);
   const runDiff = useAgentRunDiff(activeRunId, shouldPollDiff, repoId);
 
@@ -246,7 +248,7 @@ export function AgentTab({
   useEffect(() => {
     if (!activeRunId && runs.data?.runs?.length) {
       const active = runs.data.runs.find((r) =>
-        ["pending", "starting", "running", "needs_review"].includes(r.status)
+        ([...ACTIVE_STATUSES, RUN_STATUS.NEEDS_REVIEW] as string[]).includes(r.status)
       );
       if (active) setActiveRunId(active.id);
     }
@@ -389,13 +391,13 @@ export function AgentTab({
     );
   }
 
-  const isRunning = activeRun.data && ["pending", "starting", "running"].includes(activeRun.data.status);
+  const isRunning = activeRun.data && (ACTIVE_STATUSES as readonly string[]).includes(activeRun.data.status);
   const canContinue = activeRun.data?.actions?.canContinue ?? false;
   const isCreating = createRun.isPending;
   const isContinuing = continueRun.isPending;
 
   // Determine input behavior
-  const canSendNew = !activeRunId || (!isActiveRun && activeRun.data?.status !== "needs_review");
+  const canSendNew = !activeRunId || (!isActiveRun && activeRun.data?.status !== RUN_STATUS.NEEDS_REVIEW);
   const inputDisabled = isRunning || isCreating || isContinuing;
   const placeholder = isRunning
     ? "Agent is working..."
@@ -477,7 +479,7 @@ export function AgentTab({
               Stop
             </Button>
           )}
-          {!isActiveRun && activeRunId && activeRun.data?.status !== "needs_review" && (
+          {!isActiveRun && activeRunId && activeRun.data?.status !== RUN_STATUS.NEEDS_REVIEW && (
             <Button
               variant="outline"
               size="sm"
@@ -747,15 +749,18 @@ function SummaryCard({ summary }: { summary: AgentRunSummary }) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
       <h4 className="text-xs font-medium text-slate-400 mb-2">Summary</h4>
-      {summary.description && (
-        <p className="text-xs text-slate-300 mb-2">{summary.description}</p>
-      )}
       <div className="flex gap-4 text-[11px] text-slate-400">
-        <span>Modified: {summary.filesModified}</span>
-        <span>Created: {summary.filesCreated}</span>
-        <span>Deleted: {summary.filesDeleted}</span>
+        <span>Modified: {summary.filesModified?.length ?? 0}</span>
+        <span>Created: {summary.filesCreated?.length ?? 0}</span>
+        <span>Deleted: {summary.filesDeleted?.length ?? 0}</span>
         {summary.tokensUsed != null && (
           <span>Tokens: {summary.tokensUsed.toLocaleString()}</span>
+        )}
+        {summary.turnsUsed != null && (
+          <span>Turns: {summary.turnsUsed}</span>
+        )}
+        {summary.costEstimate != null && summary.costEstimate > 0 && (
+          <span>Cost: ${summary.costEstimate.toFixed(2)}</span>
         )}
       </div>
     </div>
@@ -789,8 +794,8 @@ function DiffSection({ files, isLoading }: { files: AgentRunDiffFile[]; isLoadin
           <div className="flex items-center justify-between mb-1">
             <code className="text-xs text-slate-300">{file.path}</code>
             <div className="flex items-center gap-2 text-[11px]">
-              <span className={`${file.status === "added" ? "text-emerald-400" : file.status === "deleted" ? "text-red-400" : "text-blue-400"}`}>
-                {file.status}
+              <span className={`${file.changeType === "added" ? "text-emerald-400" : file.changeType === "deleted" ? "text-red-400" : "text-blue-400"}`}>
+                {file.changeType}
               </span>
               <span className="text-emerald-500">+{file.additions}</span>
               <span className="text-red-500">-{file.deletions}</span>

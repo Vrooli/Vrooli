@@ -1766,16 +1766,31 @@ export async function fetchTidinessScenarioDetail(
 
 // ── Agent Manager types ──────────────────────────────────────────────
 
+export const RUN_STATUS = {
+  PENDING: "pending",
+  STARTING: "starting",
+  RUNNING: "running",
+  NEEDS_REVIEW: "needs_review",
+  COMPLETE: "complete",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+} as const;
+export type AgentRunStatus = typeof RUN_STATUS[keyof typeof RUN_STATUS];
+export const ACTIVE_STATUSES: AgentRunStatus[] = [RUN_STATUS.PENDING, RUN_STATUS.STARTING, RUN_STATUS.RUNNING];
+export const TERMINAL_STATUSES: AgentRunStatus[] = [RUN_STATUS.COMPLETE, RUN_STATUS.FAILED, RUN_STATUS.CANCELLED];
+
 export interface AgentProfile {
   id: string;
   key?: string;
   name: string;
   description?: string;
   model?: string;
+  runnerType?: string;
 }
 
 export interface AgentProfileListResponse {
   profiles: AgentProfile[];
+  total: number;
 }
 
 export interface AgentRunRequest {
@@ -1790,52 +1805,51 @@ export interface AgentRunCreateResponse {
   taskId: string;
 }
 
-export type AgentRunStatus =
-  | "pending"
-  | "starting"
-  | "running"
-  | "needs_review"
-  | "complete"
-  | "failed"
-  | "cancelled";
-
 export interface AgentRunSummary {
-  description?: string;
-  filesModified: number;
-  filesCreated: number;
-  filesDeleted: number;
+  filesModified?: string[];
+  filesCreated?: string[];
+  filesDeleted?: string[];
   tokensUsed?: number;
-  costEstimate?: string;
+  turnsUsed?: number;
+  costEstimate?: number;
 }
 
 export interface AgentRunActions {
+  canInvestigate?: boolean;
+  canApplyInvestigation?: boolean;
+  canDelete?: boolean;
   canStop: boolean;
+  canRetry: boolean;
   canContinue: boolean;
   canApprove: boolean;
   canReject: boolean;
-  canRetry: boolean;
+  canReview?: boolean;
+  canExtractRecommendations?: boolean;
+  canRegenerateRecommendations?: boolean;
 }
 
 export interface AgentRun {
   id: string;
   taskId?: string;
+  sessionId?: string;
   status: AgentRunStatus;
   phase?: string;
   progressPercent?: number;
   errorMsg?: string;
+  approvalState?: string;
   summary?: AgentRunSummary;
   actions?: AgentRunActions;
   createdAt: string;
   startedAt?: string;
-  completedAt?: string;
+  endedAt?: string;
 }
 
 export interface AgentRunListResponse {
   runs: AgentRun[];
-  count: number;
+  total: number;
 }
 
-export type AgentEventType = "message" | "tool_call" | "tool_result" | "error" | "status_change";
+export type AgentEventType = "message" | "tool_call" | "tool_result" | "error" | "status_change" | "log" | "progress";
 
 export interface AgentRunEvent {
   id: string;
@@ -1848,19 +1862,20 @@ export interface AgentRunEvent {
 
 export interface AgentRunEventsResponse {
   events: AgentRunEvent[];
-  count: number;
 }
 
 export interface AgentRunDiffFile {
   path: string;
-  status: string;
+  changeType: string;
   additions: number;
   deletions: number;
+  isBinary?: boolean;
   patch?: string;
 }
 
 export interface AgentRunDiffResponse {
   runId: string;
+  content?: string;
   files: AgentRunDiffFile[];
 }
 
@@ -1868,14 +1883,34 @@ export interface AgentContinueRequest {
   message: string;
 }
 
+export interface AgentContinueResponse {
+  success: boolean;
+  run?: AgentRun;
+}
+
 export interface AgentApproveRequest {
   actor?: string;
   commitMsg?: string;
 }
 
+export interface AgentApproveResponse {
+  success: boolean;
+  filesApplied?: number;
+  commitHash?: string;
+  message?: string;
+}
+
 export interface AgentRejectRequest {
   actor?: string;
   reason?: string;
+}
+
+export interface AgentRejectResponse {
+  status: string;
+}
+
+export interface AgentStopResponse {
+  status: string;
 }
 
 export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary" | "scenario-quality";
@@ -1964,42 +1999,42 @@ export async function continueAgentRun(
   runId: string,
   request: AgentContinueRequest,
   repoId?: string
-): Promise<AgentRun> {
+): Promise<AgentContinueResponse> {
   const url = buildApiUrl(`/agent/runs/${runId}/continue`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request),
   });
-  return handleResponse<AgentRun>(res);
+  return handleResponse<AgentContinueResponse>(res);
 }
 
 export async function approveAgentRun(
   runId: string,
   request: AgentApproveRequest,
   repoId?: string
-): Promise<AgentRun> {
+): Promise<AgentApproveResponse> {
   const url = buildApiUrl(`/agent/runs/${runId}/approve`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request),
   });
-  return handleResponse<AgentRun>(res);
+  return handleResponse<AgentApproveResponse>(res);
 }
 
 export async function rejectAgentRun(
   runId: string,
   request: AgentRejectRequest,
   repoId?: string
-): Promise<AgentRun> {
+): Promise<AgentRejectResponse> {
   const url = buildApiUrl(`/agent/runs/${runId}/reject`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request),
   });
-  return handleResponse<AgentRun>(res);
+  return handleResponse<AgentRejectResponse>(res);
 }
 
 // ============================================================================
@@ -2022,12 +2057,12 @@ export async function fetchScenarios(): Promise<ScenarioInfo[]> {
   return handleResponse<ScenarioInfo[]>(res);
 }
 
-export async function stopAgentRun(runId: string, repoId?: string): Promise<AgentRun> {
+export async function stopAgentRun(runId: string, repoId?: string): Promise<AgentStopResponse> {
   const url = buildApiUrl(`/agent/runs/${runId}/stop`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify({}),
   });
-  return handleResponse<AgentRun>(res);
+  return handleResponse<AgentStopResponse>(res);
 }

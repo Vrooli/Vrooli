@@ -30,6 +30,8 @@ interface MobileToolbarProps {
   voiceRecording?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
+  /** 0–1 audio level for live mic visualization */
+  voiceLevel?: number;
   onVoiceToggle?: () => void;
 }
 
@@ -40,6 +42,7 @@ export default function MobileToolbar({
   voiceRecording,
   voiceTranscribing,
   voiceError,
+  voiceLevel,
   onVoiceToggle,
 }: MobileToolbarProps) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence();
@@ -184,6 +187,7 @@ export default function MobileToolbar({
             isRecording={voiceRecording ?? false}
             isTranscribing={voiceTranscribing ?? false}
             error={voiceError ?? null}
+            audioLevel={voiceLevel}
             onToggle={onVoiceToggle}
           />
         )}

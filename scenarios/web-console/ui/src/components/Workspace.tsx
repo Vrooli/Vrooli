@@ -458,6 +458,12 @@ export default function Workspace() {
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
         isCreating={isCreating}
+        voiceSupported={voiceInput.supported}
+        voiceRecording={voiceInput.isRecording}
+        voiceTranscribing={voiceInput.isTranscribing}
+        voiceError={voiceInput.error}
+        voiceLevel={voiceInput.audioLevel}
+        onVoiceToggle={handleVoiceToggle}
       />
 
       {/* Error banner */}
@@ -561,6 +567,7 @@ export default function Workspace() {
           voiceRecording={voiceInput.isRecording}
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
+          voiceLevel={voiceInput.audioLevel}
           onVoiceToggle={handleVoiceToggle}
         />
       </div>

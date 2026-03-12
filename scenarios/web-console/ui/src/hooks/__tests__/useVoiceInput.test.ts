@@ -85,6 +85,7 @@ describe("useVoiceInput", () => {
   it("falls back to web-speech when whisper unavailable", async () => {
     mockCapabilities(false);
     installSpeechRecognition();
+    mockMediaDevices(true);
 
     const onTranscript = vi.fn();
     // Dynamic import so vi.mock is applied

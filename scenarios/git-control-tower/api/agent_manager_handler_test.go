@@ -13,7 +13,7 @@ func TestHandleAgentRunList_Empty(t *testing.T) {
 	resp := NewResponse(rr)
 	resp.OK(&AgentRunListResponse{
 		Runs:  []AgentRun{},
-		Count: 0,
+		Total: 0,
 	})
 
 	if rr.Code != http.StatusOK {
@@ -62,7 +62,7 @@ func TestHandleAgentRunDiff_Response(t *testing.T) {
 	resp.OK(AgentRunDiffResponse{
 		RunID: "run-001",
 		Files: []AgentRunDiffFile{
-			{Path: "main.go", Status: "modified", Additions: 10, Deletions: 3},
+			{Path: "main.go", ChangeType: "modified", Additions: 10, Deletions: 3},
 		},
 	})
 
@@ -80,7 +80,6 @@ func TestHandleAgentRunEvents_Response(t *testing.T) {
 		Events: []AgentRunEvent{
 			{ID: "evt-1", RunID: "run-001", Sequence: 1, EventType: "message"},
 		},
-		Count: 1,
 	})
 
 	if rr.Code != http.StatusOK {

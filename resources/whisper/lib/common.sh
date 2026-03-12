@@ -8,6 +8,10 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
+# Source defaults first (messages reference config variables like WHISPER_PORT)
+source "${var_RESOURCES_DIR}/whisper/config/defaults.sh"
+defaults::export_config
+
 # Source messages
 source "${var_RESOURCES_DIR}/whisper/config/messages.sh"
 messages::export_messages

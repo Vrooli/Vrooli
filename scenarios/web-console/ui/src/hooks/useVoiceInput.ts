@@ -70,11 +70,14 @@ export interface VoiceInputState {
   isRecording: boolean;
   isTranscribing: boolean;
   error: string | null;
+  /** 0–1 audio level from the microphone while recording */
+  audioLevel: number;
 }
 
 interface TranscriptionProvider {
   start(): void;
   stop(): void;
+  getStream(): MediaStream | null;
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
 }
@@ -88,6 +91,10 @@ class WhisperProvider implements TranscriptionProvider {
 
   async init(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+
+  getStream(): MediaStream | null {
+    return this.stream;
   }
 
   start(): void {
@@ -130,8 +137,18 @@ class WhisperProvider implements TranscriptionProvider {
 
 class WebSpeechProvider implements TranscriptionProvider {
   private recognition: SpeechRecognitionInstance | null = null;
+  private micStream: MediaStream | null = null;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
+
+  /** Request mic permission upfront so the browser prompts the user. */
+  async init(): Promise<void> {
+    this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+
+  getStream(): MediaStream | null {
+    return this.micStream;
+  }
 
   start(): void {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -159,6 +176,12 @@ class WebSpeechProvider implements TranscriptionProvider {
     this.recognition?.stop();
     this.recognition = null;
   }
+
+  dispose(): void {
+    this.stop();
+    this.micStream?.getTracks().forEach((t) => t.stop());
+    this.micStream = null;
+  }
 }
 
 export function useVoiceInput(onTranscript: (text: string) => void) {
@@ -169,11 +192,60 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     isRecording: false,
     isTranscribing: false,
     error: null,
+    audioLevel: 0,
   });
 
   const providerRef = useRef<TranscriptionProvider | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
+
+  // Audio level monitoring refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number>(0);
+
+  const startLevelMonitor = useCallback((stream: MediaStream) => {
+    try {
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        // Compute RMS level normalized to 0–1
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        // Scale up for visibility (RMS of speech is typically 0.05–0.3)
+        const level = Math.min(1, rms * 4);
+        setState((s) => {
+          if (Math.abs(s.audioLevel - level) < 0.01) return s;
+          return { ...s, audioLevel: level };
+        });
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    } catch {
+      // AudioContext not available — no level monitoring
+    }
+  }, []);
+
+  const stopLevelMonitor = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+    setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
+  }, []);
 
   // Detect available backend on mount
   useEffect(() => {
@@ -209,12 +281,24 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
       if (cancelled) return;
 
-      // Try Web Speech API
+      // Try Web Speech API — request mic permission first so the browser
+      // actually prompts the user (SpeechRecognition.start() does not trigger
+      // the prompt and silently fails with "not-allowed" without it).
       const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
       if (Ctor) {
-        providerRef.current = new WebSpeechProvider();
-        setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
-        return;
+        const provider = new WebSpeechProvider();
+        try {
+          await provider.init();
+          if (cancelled) {
+            provider.dispose();
+            return;
+          }
+          providerRef.current = provider;
+          setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
+          return;
+        } catch {
+          // Mic permission denied
+        }
       }
 
       setState((s) => ({ ...s, supported: false, backend: "none" }));
@@ -222,8 +306,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
     return () => {
       cancelled = true;
-      if (providerRef.current instanceof WhisperProvider) {
-        providerRef.current.dispose();
+      const provider = providerRef.current;
+      if (provider instanceof WhisperProvider || provider instanceof WebSpeechProvider) {
+        provider.dispose();
       }
       providerRef.current = null;
     };
@@ -234,28 +319,35 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     if (!provider || state.isRecording) return;
 
     provider.onResult = (text) => {
-      setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error: null }));
+      stopLevelMonitor();
+      setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error: null, audioLevel: 0 }));
       onTranscriptRef.current(text);
     };
     provider.onError = (error) => {
-      setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error }));
+      stopLevelMonitor();
+      setState((s) => ({ ...s, isRecording: false, isTranscribing: false, error, audioLevel: 0 }));
     };
 
     setState((s) => ({ ...s, isRecording: true, error: null }));
     provider.start();
-  }, [state.isRecording]);
+
+    const stream = provider.getStream();
+    if (stream) startLevelMonitor(stream);
+  }, [state.isRecording, startLevelMonitor, stopLevelMonitor]);
 
   const stopRecording = useCallback(() => {
     const provider = providerRef.current;
     if (!provider || !state.isRecording) return;
 
+    stopLevelMonitor();
     setState((s) => ({
       ...s,
       isRecording: false,
       isTranscribing: state.backend === "whisper",
+      audioLevel: 0,
     }));
     provider.stop();
-  }, [state.isRecording, state.backend]);
+  }, [state.isRecording, state.backend, stopLevelMonitor]);
 
   return {
     ...state,

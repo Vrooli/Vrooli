@@ -9,6 +9,9 @@ import {
   LayoutGrid,
   LayoutList,
   Keyboard,
+  CheckCircle,
+  Circle,
+  RefreshCw,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -20,9 +23,11 @@ import FontSizeStepper from "./appearance/FontSizeStepper";
 import {
   type ShortcutProfile,
   type ShortcutEntry,
+  type CapabilityState,
   listShortcutProfiles,
   upsertShortcutProfile,
   deleteShortcutProfile,
+  fetchCapabilities,
   toErrorInfo,
 } from "../lib/api";
 import { formatShortcutFromEvent } from "../lib/shortcutParser";
@@ -164,6 +169,35 @@ export default function SettingsModal() {
   const voiceShortcut = useWorkspaceStore((s) => s.voiceShortcut);
   const setVoiceShortcut = useWorkspaceStore((s) => s.setVoiceShortcut);
   const [recordingShortcut, setRecordingShortcut] = useState(false);
+
+  // Voice capability status
+  const [voiceCaps, setVoiceCaps] = useState<CapabilityState[]>([]);
+  const [voiceCapsLoading, setVoiceCapsLoading] = useState(false);
+  const [voiceCapsError, setVoiceCapsError] = useState<string | null>(null);
+  const hasWebSpeech = typeof window !== "undefined" &&
+    !!("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const loadVoiceCaps = useCallback(async (signal?: { cancelled: boolean }) => {
+    setVoiceCapsLoading(true);
+    setVoiceCapsError(null);
+    try {
+      const data = await fetchCapabilities();
+      if (signal?.cancelled) return;
+      setVoiceCaps(data.capabilities);
+    } catch (err) {
+      if (signal?.cancelled) return;
+      setVoiceCapsError(toErrorInfo(err).message);
+    } finally {
+      if (!signal?.cancelled) setVoiceCapsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!settingsModalOpen) return;
+    const signal = { cancelled: false };
+    loadVoiceCaps(signal);
+    return () => { signal.cancelled = true; };
+  }, [settingsModalOpen, loadVoiceCaps]);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -483,6 +517,64 @@ export default function SettingsModal() {
                     <Keyboard className="h-3 w-3 text-wc-text-faint" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Backend status */}
+              <div className="border-t border-wc-default pt-2 mt-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-medium text-wc-text-muted uppercase tracking-wider">Backends</span>
+                  <Button
+                    data-testid="voice-caps-refresh"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={() => loadVoiceCaps()}
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`h-3 w-3 text-wc-text-faint ${voiceCapsLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                {voiceCapsError && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-wc-error-detail mb-1">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    {voiceCapsError}
+                  </div>
+                )}
+                <div className="space-y-1">
+                  {voiceCaps.filter((c) => c.features.includes("voice-input")).map((cap) => (
+                    <div key={cap.id} className="flex items-center gap-1.5 text-[11px]">
+                      {cap.status === "available" ? (
+                        <CheckCircle className="h-3 w-3 shrink-0 text-green-400" />
+                      ) : (
+                        <Circle className="h-3 w-3 shrink-0 text-wc-text-faint" />
+                      )}
+                      <span className={cap.status === "available" ? "text-wc-text-secondary" : "text-wc-text-faint"}>
+                        {cap.name}
+                      </span>
+                      <span className={`ml-auto ${cap.status === "available" ? "text-green-400" : "text-wc-text-faint"}`}>
+                        {cap.status}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    {hasWebSpeech ? (
+                      <CheckCircle className="h-3 w-3 shrink-0 text-green-400" />
+                    ) : (
+                      <Circle className="h-3 w-3 shrink-0 text-wc-text-faint" />
+                    )}
+                    <span className={hasWebSpeech ? "text-wc-text-secondary" : "text-wc-text-faint"}>
+                      Web Speech API
+                    </span>
+                    <span className={`ml-auto ${hasWebSpeech ? "text-green-400" : "text-wc-text-faint"}`}>
+                      {hasWebSpeech ? "available" : "unavailable"}
+                    </span>
+                  </div>
+                </div>
+                {!voiceCapsLoading && voiceCaps.every((c) => c.status !== "available") && !hasWebSpeech && (
+                  <p className="mt-1.5 text-[10px] text-amber-400">
+                    No transcription backend available. Install Whisper or use a Chromium-based browser for Web Speech API.
+                  </p>
+                )}
               </div>
             </div>
           </section>

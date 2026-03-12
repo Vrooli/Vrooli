@@ -125,14 +125,19 @@ import {
   type AgentRunRequest,
   type AgentRunCreateResponse,
   type AgentRun,
-  type AgentRunStatus,
   type AgentRunListResponse,
   type AgentRunEventsResponse,
   type AgentRunDiffResponse,
   type AgentContinueRequest,
+  type AgentContinueResponse,
   type AgentApproveRequest,
+  type AgentApproveResponse,
   type AgentRejectRequest,
+  type AgentRejectResponse,
+  type AgentStopResponse,
   type ScenarioInfo,
+  ACTIVE_STATUSES,
+  RUN_STATUS,
 } from "./api";
 
 export const queryKeys = {
@@ -893,12 +898,10 @@ export function useTidinessScenarioDetail(scenarioName: string, enabled = true, 
 
 // ── Agent Manager hooks ──────────────────────────────────────────────
 
-const AGENT_ACTIVE_STATUSES: AgentRunStatus[] = ["pending", "starting", "running"];
-
-function agentPollingInterval(status?: AgentRunStatus): number | false {
+function agentPollingInterval(status?: string): number | false {
   if (!status) return false;
-  if (AGENT_ACTIVE_STATUSES.includes(status)) return 2_000;
-  if (status === "needs_review") return 5_000;
+  if ((ACTIVE_STATUSES as readonly string[]).includes(status)) return 2_000;
+  if (status === RUN_STATUS.NEEDS_REVIEW) return 5_000;
   return false; // terminal states: complete, failed, cancelled
 }
 
@@ -973,7 +976,7 @@ export function useCreateAgentRun(repoId?: string | null) {
 
 export function useContinueAgentRun(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<AgentRun, Error, { runId: string; request: AgentContinueRequest }>({
+  return useMutation<AgentContinueResponse, Error, { runId: string; request: AgentContinueRequest }>({
     mutationFn: ({ runId, request }) => continueAgentRun(runId, request, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
@@ -983,7 +986,7 @@ export function useContinueAgentRun(repoId?: string | null) {
 
 export function useApproveAgentRun(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<AgentRun, Error, { runId: string; request: AgentApproveRequest }>({
+  return useMutation<AgentApproveResponse, Error, { runId: string; request: AgentApproveRequest }>({
     mutationFn: ({ runId, request }) => approveAgentRun(runId, request, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
@@ -994,7 +997,7 @@ export function useApproveAgentRun(repoId?: string | null) {
 
 export function useRejectAgentRun(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<AgentRun, Error, { runId: string; request: AgentRejectRequest }>({
+  return useMutation<AgentRejectResponse, Error, { runId: string; request: AgentRejectRequest }>({
     mutationFn: ({ runId, request }) => rejectAgentRun(runId, request, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
@@ -1004,7 +1007,7 @@ export function useRejectAgentRun(repoId?: string | null) {
 
 export function useStopAgentRun(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<AgentRun, Error, string>({
+  return useMutation<AgentStopResponse, Error, string>({
     mutationFn: (runId) => stopAgentRun(runId, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
