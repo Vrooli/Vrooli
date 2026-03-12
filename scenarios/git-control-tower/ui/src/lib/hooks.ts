@@ -53,6 +53,8 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
+  triggerWorkflowCapture,
+  fetchWorkflowCaptures,
   triggerTestExecution,
   fetchTestExecutions,
   fetchTestExecution,
@@ -116,6 +118,9 @@ import {
   type SnapshotSetMeta,
   type SnapshotSetDetail,
   type CaptureStorageStats,
+  type WorkflowCaptureResult,
+  type WorkflowCaptureListResponse,
+  type ExecutionMode,
   type TidinessScoreResponse,
   type TidinessIssue,
   type TidinessStalenessInfo,
@@ -179,6 +184,8 @@ export const queryKeys = {
     ["repo", "visual-captures", repoId ?? "default", "detail", id, slug] as const,
   captureStorage: (repoId?: string | null) =>
     ["repo", "visual-capture-storage", repoId ?? "default"] as const,
+  workflowCaptures: (slug: string, repoId?: string | null) =>
+    ["repo", "workflow-captures", repoId ?? "default", slug] as const,
   testExecutions: (scenarioName: string, repoId?: string | null) =>
     ["repo", "test-executions", repoId ?? "default", scenarioName] as const,
   testExecution: (id: string, repoId?: string | null) =>
@@ -798,6 +805,29 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
     mutationFn: () => clearAllCaptureStorage(repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.captureStorage(repoId) });
+    },
+  });
+}
+
+// ============================================================================
+// Workflow Capture Hooks
+// ============================================================================
+
+export function useWorkflowCaptures(slug: string, enabled = true, repoId?: string | null) {
+  return useQuery<WorkflowCaptureListResponse, Error>({
+    queryKey: queryKeys.workflowCaptures(slug, repoId),
+    queryFn: () => fetchWorkflowCaptures(slug, repoId ?? undefined),
+    enabled: enabled && Boolean(slug),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useTriggerWorkflowCapture(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<WorkflowCaptureResult, Error, { scenarioSlug: string; mode: "baseline" | "capture"; executionModes: ExecutionMode[] }>({
+    mutationFn: ({ scenarioSlug, mode, executionModes }) => triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined),
+    onSuccess: (_data, { scenarioSlug }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflowCaptures(scenarioSlug, repoId) });
     },
   });
 }

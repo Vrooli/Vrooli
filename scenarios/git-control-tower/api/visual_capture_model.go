@@ -149,3 +149,49 @@ type LighthouseConfig struct {
 	Enabled bool             `json:"enabled"`
 	Pages   []LighthousePage `json:"pages"`
 }
+
+// BAS Recorded Videos Types
+
+type BASVideoArtifact struct {
+	ArtifactID  string `json:"artifact_id"`
+	StorageURL  string `json:"storage_url"`
+	ContentType string `json:"content_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+}
+
+type BASRecordedVideosResponse struct {
+	ExecutionID string             `json:"execution_id"`
+	Videos      []BASVideoArtifact `json:"videos"`
+}
+
+// Workflow Capture Types
+
+type WorkflowCaptureRequest struct {
+	ScenarioSlug   string      `json:"scenarioSlug"`
+	Mode           string      `json:"mode,omitempty"`           // "baseline" | "capture" (default: "capture")
+	TriggerType    string      `json:"triggerType,omitempty"`    // "manual" (default)
+	Viewport       BASViewport `json:"viewport,omitempty"`
+	ExecutionModes []string    `json:"executionModes,omitempty"` // filter: ["observer"], ["observer","mutating"], etc.
+}
+
+type WorkflowExecutionResult struct {
+	WorkflowName  string `json:"workflowName"`
+	ExecutionMode string `json:"executionMode"`
+	ExecutionID   string `json:"executionId,omitempty"`
+	Status        string `json:"status"` // "passed" | "failed" | "skipped" | "error"
+	Error         string `json:"error,omitempty"`
+	DurationMs    int64  `json:"durationMs"`
+	VideoCount    int    `json:"videoCount"`
+	VideoStatus   string `json:"videoStatus,omitempty"` // "captured" | "failed" | "none"
+}
+
+type WorkflowCaptureResult struct {
+	ID              string                    `json:"id"`
+	ScenarioSlug    string                    `json:"scenarioSlug"`
+	Role            string                    `json:"role"` // "baseline" | "capture"
+	WorkflowResults []WorkflowExecutionResult `json:"workflowResults"`
+	CreatedAt       time.Time                 `json:"createdAt"`
+	Status          string                    `json:"status"` // "complete" | "failed"
+	Error           string                    `json:"error,omitempty"`
+	SizeBytes       int64                     `json:"sizeBytes"`
+}

@@ -100,6 +100,10 @@ func (p *PeriodicCapture) run(ctx context.Context) {
 }
 
 func (p *PeriodicCapture) tick(ctx context.Context) {
+	// DESIGN DECISION: Periodic timer captures screenshots ONLY.
+	// Workflow execution is too heavy for background periodic runs.
+	// Workflows are triggered manually via POST /api/v1/repo/workflow-capture.
+
 	// Check BAS availability
 	if !p.capabilities.IsAvailable(ctx, "browser-automation-studio") {
 		return

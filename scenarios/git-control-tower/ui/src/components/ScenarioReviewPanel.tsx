@@ -3,28 +3,34 @@ import { createPortal } from "react-dom";
 import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan } from "../lib/hooks";
-import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem } from "../lib/api";
+import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture } from "../lib/hooks";
+import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl } from "../lib/api";
+import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
-type Tab = "overview" | "metrics" | "screenshots" | "videos" | "tests" | "code-quality" | "agent";
+type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "agent";
 
 interface ScenarioReviewPanelProps {
   scenarioSlug: string;
   repoId?: string | null;
   fileStats?: RepoFileStats;
   onChangeScenario: (slug: string) => void;
+  activeTab?: Tab;
+  onActiveTabChange?: (tab: Tab) => void;
+  agentRunId?: string | null;
+  onAgentRunIdChange?: (id: string | null) => void;
   isMobile?: boolean;
 }
 
-export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, isMobile }: ScenarioReviewPanelProps) {
+export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [internalTab, setInternalTab] = useState<Tab>("overview");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = onActiveTabChange ?? setInternalTab;
   const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
 
   // Filter fileStats to only include files belonging to this scenario
@@ -93,7 +99,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     overview: "Overview",
     metrics: "Metrics",
     screenshots: "Screenshots",
-    videos: "Videos",
+    workflows: "Workflows",
     tests: "Tests",
     "code-quality": "Code Quality",
     agent: "Agent",
@@ -176,21 +182,12 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             onCapture={handleCapture}
           />
         )
-      ) : activeTab === "videos" ? (
-        capturesQuery.isLoading ? (
-          <div className="h-48 animate-pulse bg-slate-800 rounded" />
-        ) : capturesQuery.error ? (
-          <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
-        ) : (
-          <VideosTab
-            baseline={baseline}
-            capture={capture}
-            scenarioSlug={scenarioSlug}
-            basAvailable={basAvailable}
-            isCapturing={isCapturing}
-            onCapture={handleCapture}
-          />
-        )
+      ) : activeTab === "workflows" ? (
+        <WorkflowsTab
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          basAvailable={basAvailable}
+        />
       ) : activeTab === "tests" ? (
         <TestsTab
           scenarioSlug={scenarioSlug}
@@ -220,6 +217,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
           fileStats={scenarioFileStats}
+          activeRunId={agentRunId}
+          onActiveRunIdChange={onAgentRunIdChange}
         />
       )}
     </div>
@@ -989,117 +988,241 @@ function ScreenshotImage({
 }
 
 // ============================================================================
-// Videos Tab
+// Workflows Tab
 // ============================================================================
 
-function VideosTab({
-  baseline,
-  capture,
+const EXECUTION_MODE_COLORS: Record<ExecutionMode, string> = {
+  observer: "bg-green-900/50 text-green-300 border-green-700/50",
+  mutating: "bg-yellow-900/50 text-yellow-300 border-yellow-700/50",
+  destructive: "bg-red-900/50 text-red-300 border-red-700/50",
+};
+
+const STATUS_ICONS: Record<string, typeof CheckCircle2> = {
+  passed: CheckCircle2,
+  failed: XCircle,
+  skipped: Minus,
+  error: AlertTriangle,
+};
+
+function WorkflowsTab({
   scenarioSlug,
+  repoId,
   basAvailable,
-  isCapturing,
-  onCapture,
 }: {
-  baseline?: SnapshotSetMeta;
-  capture?: SnapshotSetMeta;
   scenarioSlug: string;
+  repoId?: string | null;
   basAvailable: boolean;
-  isCapturing: boolean;
-  onCapture: () => void;
 }) {
+  const capturesQuery = useWorkflowCaptures(scenarioSlug, true, repoId);
+  const triggerCapture = useTriggerWorkflowCapture(repoId);
+  const [selectedModes, setSelectedModes] = useState<Set<ExecutionMode>>(new Set(["observer"]));
+  const [selectedRole, setSelectedRole] = useState<"baseline" | "capture">("capture");
   const [lightboxIndex, setLightboxIndex] = useState(-1);
-  const latestSnapshot = capture ?? baseline;
 
-  if (!latestSnapshot || latestSnapshot.videoCount === 0) {
-    const reason = latestSnapshot?.videoStatus === "not_implemented"
-      ? "Video recording is not yet supported. Screenshots are available."
-      : latestSnapshot?.videoStatus === "failed"
-      ? "Video recording failed during capture."
-      : !latestSnapshot
-      ? "No captures yet"
-      : "No videos were recorded for this capture.";
+  const captures = capturesQuery.data?.captures ?? [];
+  const roleCaptures = captures.filter(c => c.role === selectedRole);
+  const latestCapture = roleCaptures[0] ?? null;
 
+  const toggleMode = useCallback((mode: ExecutionMode) => {
+    setSelectedModes(prev => {
+      const next = new Set(prev);
+      if (next.has(mode)) {
+        next.delete(mode);
+      } else {
+        next.add(mode);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleRunWorkflows = useCallback(() => {
+    triggerCapture.mutate({
+      scenarioSlug,
+      mode: selectedRole,
+      executionModes: Array.from(selectedModes),
+    });
+  }, [triggerCapture, scenarioSlug, selectedRole, selectedModes]);
+
+  const isRunning = triggerCapture.isPending;
+
+  // Build lightbox items from latest capture videos
+  const lightboxItems: LightboxItem[] = [];
+  if (latestCapture) {
+    for (const wfResult of latestCapture.workflowResults) {
+      if (wfResult.videoCount > 0 && wfResult.executionId) {
+        for (let i = 0; i < wfResult.videoCount; i++) {
+          const filename = `${sanitizePagePath(wfResult.workflowName)}_${i}.webm`;
+          lightboxItems.push({
+            label: wfResult.workflowName,
+            sublabel: `${wfResult.executionMode} - ${wfResult.status}`,
+            type: "video",
+            url: buildWorkflowVideoUrl(latestCapture.id, scenarioSlug, filename),
+          });
+        }
+      }
+    }
+  }
+
+  // Summary counts
+  const passed = latestCapture?.workflowResults.filter(r => r.status === "passed").length ?? 0;
+  const failed = latestCapture?.workflowResults.filter(r => r.status === "failed" || r.status === "error").length ?? 0;
+  const skipped = latestCapture?.workflowResults.filter(r => r.status === "skipped").length ?? 0;
+
+  if (!basAvailable) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">{reason}</p>
-        {basAvailable && !latestSnapshot && (
-          <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="mt-3 h-7 text-xs gap-1">
-            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-            Capture
-          </Button>
-        )}
+        <p className="text-sm">Browser Automation Studio is not available.</p>
       </div>
     );
   }
 
-  const lightboxItems: LightboxItem[] = [];
-  const baselineVideoUrl = baseline && baseline.videoCount > 0
-    ? buildCaptureVideoUrl(baseline.id, scenarioSlug, "recording.webm")
-    : null;
-  if (baseline && baselineVideoUrl) {
-    lightboxItems.push({
-      label: "Baseline",
-      sublabel: new Date(baseline.createdAt).toLocaleString(),
-      type: "video",
-      url: baselineVideoUrl,
-    });
-  }
-  if (capture) {
-    const captureVideoUrl = buildCaptureVideoUrl(capture.id, scenarioSlug, "recording.webm");
-    lightboxItems.push({
-      label: baseline ? "Capture" : "Current",
-      sublabel: new Date(capture.createdAt).toLocaleString(),
-      type: "video",
-      url: captureVideoUrl,
-    });
-  }
-
-  const captureVideoUrl = capture ? buildCaptureVideoUrl(capture.id, scenarioSlug, "recording.webm") : null;
-  const captureLightboxIndex = baselineVideoUrl ? 1 : 0;
-
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        {baselineVideoUrl && (
-          <div>
-            <p className="text-xs font-medium text-slate-400 mb-2">Baseline</p>
-            <div
-              className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
-              onClick={() => setLightboxIndex(0)}
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Role:</span>
+          {(["baseline", "capture"] as const).map(role => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => setSelectedRole(role)}
+              className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
+                selectedRole === role
+                  ? "bg-blue-900/50 text-blue-300 border border-blue-700/50"
+                  : "text-slate-400 hover:text-slate-200 border border-slate-700"
+              }`}
             >
-              <video
-                controls
-                src={baselineVideoUrl}
-                className="w-full rounded-lg border border-slate-800"
+              {role}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Modes:</span>
+          {(["observer", "mutating", "destructive"] as ExecutionMode[]).map(mode => (
+            <label key={mode} className="flex items-center gap-1 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedModes.has(mode)}
+                onChange={() => toggleMode(mode)}
+                className="rounded border-slate-600"
               />
-            </div>
-          </div>
-        )}
-        {captureVideoUrl && (
-          <div>
-            <p className="text-xs font-medium text-slate-400 mb-2">
-              {baseline ? "Capture" : "Current"}
-            </p>
-            <div
-              className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
-              onClick={() => setLightboxIndex(captureLightboxIndex)}
-            >
-              <video
-                controls
-                src={captureVideoUrl}
-                className="w-full rounded-lg border border-slate-800"
-              />
-            </div>
-          </div>
-        )}
+              <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[mode]}`}>
+                {mode}
+              </span>
+            </label>
+          ))}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRunWorkflows}
+          disabled={isRunning || selectedModes.size === 0}
+          className="h-7 text-xs gap-1"
+        >
+          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+          Run Workflows
+        </Button>
       </div>
+
+      {/* Summary bar */}
+      {latestCapture && (
+        <div className="flex items-center gap-4 px-3 py-2 bg-slate-800/50 rounded text-xs">
+          <span className="text-green-400">{passed} passed</span>
+          <span className="text-red-400">{failed} failed</span>
+          <span className="text-slate-400">{skipped} skipped</span>
+          <span className="text-slate-500 ml-auto">
+            {new Date(latestCapture.createdAt).toLocaleString()}
+          </span>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {capturesQuery.isLoading && (
+        <div className="h-32 animate-pulse bg-slate-800 rounded" />
+      )}
+
+      {/* Empty state */}
+      {!capturesQuery.isLoading && !latestCapture && (
+        <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+          <p className="text-sm">No workflow captures yet for this role.</p>
+          <p className="text-xs mt-1">Click "Run Workflows" to execute BAS workflows and capture videos.</p>
+        </div>
+      )}
+
+      {/* Results table */}
+      {latestCapture && latestCapture.workflowResults.length > 0 && (
+        <div className="border border-slate-800 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-800/50">
+                <th className="text-left px-3 py-2 text-slate-400 font-medium">Workflow</th>
+                <th className="text-left px-3 py-2 text-slate-400 font-medium">Mode</th>
+                <th className="text-center px-3 py-2 text-slate-400 font-medium">Status</th>
+                <th className="text-right px-3 py-2 text-slate-400 font-medium">Duration</th>
+                <th className="text-center px-3 py-2 text-slate-400 font-medium">Video</th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestCapture.workflowResults.map((wfr, idx) => {
+                const StatusIcon = STATUS_ICONS[wfr.status] ?? AlertTriangle;
+                const statusColor = wfr.status === "passed" ? "text-green-400"
+                  : wfr.status === "failed" || wfr.status === "error" ? "text-red-400"
+                  : "text-slate-500";
+
+                // Find lightbox index for this workflow's first video
+                let videoLightboxIdx = -1;
+                if (wfr.videoCount > 0) {
+                  videoLightboxIdx = lightboxItems.findIndex(
+                    item => item.label === wfr.workflowName
+                  );
+                }
+
+                return (
+                  <tr key={idx} className="border-t border-slate-800/50 hover:bg-slate-800/30">
+                    <td className="px-3 py-2 text-slate-200 max-w-[200px] truncate" title={wfr.workflowName}>
+                      {wfr.workflowName}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`px-1.5 py-0.5 rounded border text-[10px] ${EXECUTION_MODE_COLORS[wfr.executionMode as ExecutionMode] ?? "text-slate-400"}`}>
+                        {wfr.executionMode}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <StatusIcon className={`h-3.5 w-3.5 inline ${statusColor}`} />
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-400">
+                      {wfr.durationMs > 0 ? formatDuration(wfr.durationMs) : "-"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {wfr.videoCount > 0 && videoLightboxIdx >= 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setLightboxIndex(videoLightboxIdx)}
+                          className="text-blue-400 hover:text-blue-300 text-[10px] underline"
+                        >
+                          Watch
+                        </button>
+                      ) : (
+                        <span className="text-slate-600">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Video lightbox */}
       <MediaLightbox
         items={lightboxItems}
         initialIndex={lightboxIndex}
         isOpen={lightboxIndex >= 0}
         onClose={() => setLightboxIndex(-1)}
       />
-    </>
+    </div>
   );
 }
 

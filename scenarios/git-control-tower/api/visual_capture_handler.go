@@ -183,6 +183,178 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// ============================================================================
+// Workflow Capture Handlers
+// ============================================================================
+
+// handleWorkflowCapture handles POST /api/v1/repo/workflow-capture
+func (s *Server) handleWorkflowCapture(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 300*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	if !s.capabilities.IsAvailable(hctx.Ctx, "browser-automation-studio") {
+		hctx.Resp.ServiceUnavailable("browser-automation-studio is not available")
+		return
+	}
+
+	var req WorkflowCaptureRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	if strings.TrimSpace(req.ScenarioSlug) == "" {
+		hctx.Resp.BadRequest("scenarioSlug is required")
+		return
+	}
+
+	if req.Mode != "" && req.Mode != CaptureModeBaseline && req.Mode != CaptureModeCapture {
+		hctx.Resp.BadRequest("mode must be \"baseline\" or \"capture\"")
+		return
+	}
+
+	// Validate execution modes
+	validModes := map[string]bool{"observer": true, "mutating": true, "destructive": true}
+	for _, m := range req.ExecutionModes {
+		if !validModes[m] {
+			hctx.Resp.BadRequest("invalid executionMode: " + m + "; must be observer, mutating, or destructive")
+			return
+		}
+	}
+
+	result, err := CaptureWorkflows(hctx.Ctx, WorkflowCaptureDeps{
+		BAS:     s.basClient,
+		Storage: s.visualCaptureStorage,
+		FS:      OSFileIO{},
+		RepoDir: hctx.RepoDir,
+		RepoID:  hctx.RepoID,
+	}, req)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(result)
+}
+
+// handleWorkflowCaptureList handles GET /api/v1/repo/workflow-captures?scenarioSlug=...
+func (s *Server) handleWorkflowCaptureList(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
+	if slug == "" {
+		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
+		return
+	}
+
+	captures, err := s.visualCaptureStorage.ListWorkflowCaptures(hctx.RepoID, slug)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(map[string]interface{}{
+		"captures": captures,
+		"total":    len(captures),
+	})
+}
+
+// handleWorkflowCaptureDetail handles GET /api/v1/repo/workflow-captures/{id}?scenarioSlug=...
+func (s *Server) handleWorkflowCaptureDetail(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
+	if slug == "" {
+		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
+		return
+	}
+
+	result, videos, err := s.visualCaptureStorage.GetWorkflowCapture(hctx.RepoID, slug, id)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(map[string]interface{}{
+		"capture": result,
+		"videos":  videos,
+	})
+}
+
+// handleWorkflowCaptureVideo handles GET /api/v1/repo/workflow-captures/{id}/video/{filename}?scenarioSlug=...
+func (s *Server) handleWorkflowCaptureVideo(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+	filename := vars["filename"]
+	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
+	if slug == "" {
+		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
+		return
+	}
+
+	data, err := s.visualCaptureStorage.GetWorkflowVideo(hctx.RepoID, slug, id, filename)
+	if err != nil {
+		if strings.Contains(err.Error(), "path traversal") {
+			hctx.Resp.BadRequest(err.Error())
+			return
+		}
+		hctx.Resp.NotFound("video not found")
+		return
+	}
+
+	w.Header().Set("Content-Type", "video/webm")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	if _, err := w.Write(data); err != nil {
+		hctx.Resp.InternalError("failed to write video response")
+		return
+	}
+}
+
+// handleWorkflowCaptureDelete handles DELETE /api/v1/repo/workflow-captures/{id}?scenarioSlug=...
+func (s *Server) handleWorkflowCaptureDelete(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
+	if slug == "" {
+		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
+		return
+	}
+
+	if err := s.visualCaptureStorage.DeleteWorkflowCapture(hctx.RepoID, slug, id); err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(map[string]interface{}{
+		"deleted": true,
+		"id":      id,
+	})
+}
+
 // handleVisualCaptureStorageStats handles GET /api/v1/repo/visual-capture-storage
 func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 10*time.Second)

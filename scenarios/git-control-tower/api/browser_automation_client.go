@@ -58,6 +58,21 @@ func (c *BrowserAutomationClient) GetScreenshots(ctx context.Context, executionI
 	return &result, nil
 }
 
+// GetRecordedVideos calls GET /api/v1/executions/{id}/recorded-videos on BAS.
+func (c *BrowserAutomationClient) GetRecordedVideos(ctx context.Context, executionID string) (*BASRecordedVideosResponse, error) {
+	var result BASRecordedVideosResponse
+	err := c.doGet(ctx, "/api/v1/executions/"+executionID+"/recorded-videos", &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// GetVideoData fetches raw video bytes and content-type for a specific artifact.
+func (c *BrowserAutomationClient) GetVideoData(ctx context.Context, executionID, artifactID string) ([]byte, string, error) {
+	return c.doRaw(ctx, "/api/v1/executions/"+executionID+"/recorded-videos/"+artifactID)
+}
+
 func (c *BrowserAutomationClient) resolveBaseURL(ctx context.Context) (string, error) {
 	if c.resolver != nil {
 		return c.resolver.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
@@ -125,6 +140,34 @@ func (c *BrowserAutomationClient) doGet(ctx context.Context, path string, result
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
+}
+
+func (c *BrowserAutomationClient) doRaw(ctx context.Context, path string) ([]byte, string, error) {
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("resolve BAS url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("BAS request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", parseBASError(resp)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("read response body: %w", err)
+	}
+	return data, resp.Header.Get("Content-Type"), nil
 }
 
 func parseBASError(resp *http.Response) error {

@@ -20,7 +20,7 @@ import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettin
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
 import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
-import type { UrlState } from "./hooks";
+import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
@@ -158,6 +158,8 @@ export default function App() {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
+  const [reviewTab, setReviewTab] = useState<ReviewTab>("overview");
+  const [agentRunId, setAgentRunId] = useState<string | null>(null);
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
@@ -243,19 +245,22 @@ export default function App() {
 
   // Track whether we've initialized from URL (prevents clearing URL on first render)
   const initializedFromUrlRef = useRef(false);
+  // Track whether URL specified a primary panel (prevents localStorage from overriding it)
+  const urlSetPrimaryRef = useRef(false);
 
   // URL state management - handle browser back/forward and initial state
   const handleUrlStateChange = useCallback((state: UrlState) => {
     if (state.file) {
+      const isAnyFile = state.anyFile === true;
       setSelectedFile(state.file);
       setSelectedIsStaged(state.staged ?? false);
       setSelectedIsUntracked(false);
       setSelectedFiles([]);
-      setIsViewingAnyFile(true);
+      setIsViewingAnyFile(isAnyFile);
       setViewingCommit(null);
-      // Default to source mode when viewing any file (unless mode is specified in URL)
+      // Default mode: "source" for anyFile, "diff" for changed files
       if (!state.mode) {
-        setViewMode("source");
+        setViewMode(isAnyFile ? "source" : "diff");
       }
     }
     if (state.mode) {
@@ -283,6 +288,12 @@ export default function App() {
     if (state.reviewScenario) {
       setReviewScenarioSlug(state.reviewScenario);
     }
+    if (state.reviewTab) {
+      setReviewTab(state.reviewTab);
+    }
+    if (state.agentRunId) {
+      setAgentRunId(state.agentRunId);
+    }
   }, []);
 
   const { updateState: updateUrlState } = useUrlState({
@@ -292,7 +303,10 @@ export default function App() {
   // Initialize state from URL on mount
   useEffect(() => {
     const initialState = parseUrlState(window.location.search);
-    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario) {
+    if (initialState.primary) {
+      urlSetPrimaryRef.current = true;
+    }
+    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId) {
       handleUrlStateChange(initialState);
     }
     // Mark as initialized so URL update effect can run
@@ -332,9 +346,18 @@ export default function App() {
     if (reviewScenarioSlug) {
       urlState.reviewScenario = reviewScenarioSlug;
     }
+    if (reviewTab && reviewTab !== "overview") {
+      urlState.reviewTab = reviewTab;
+    }
+    if (isViewingAnyFile) {
+      urlState.anyFile = true;
+    }
+    if (agentRunId) {
+      urlState.agentRunId = agentRunId;
+    }
 
     updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, updateUrlState]);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, reviewTab, isViewingAnyFile, agentRunId, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
@@ -1494,14 +1517,19 @@ export default function App() {
         ? storedPreset
         : "classic"
     );
-    setPrimaryPanel(
-      storedPrimary === "changes" ||
-        storedPrimary === "history" ||
-        storedPrimary === "commit" ||
-        storedPrimary === "diff"
-        ? storedPrimary
-        : "diff"
-    );
+    if (!urlSetPrimaryRef.current) {
+      setPrimaryPanel(
+        storedPrimary === "changes" ||
+          storedPrimary === "history" ||
+          storedPrimary === "commit" ||
+          storedPrimary === "diff" ||
+          storedPrimary === "review"
+          ? storedPrimary
+          : "diff"
+      );
+    }
+    // Clear the URL override flag — localStorage can take over for future repo switches
+    urlSetPrimaryRef.current = false;
     if (Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
       setStackHeight(storedStackHeight);
     }
@@ -1990,6 +2018,10 @@ export default function App() {
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
             onChangeScenario={setReviewScenarioSlug}
+            activeTab={reviewTab}
+            onActiveTabChange={setReviewTab}
+            agentRunId={agentRunId}
+            onAgentRunIdChange={setAgentRunId}
           />
         );
       case "diff":
@@ -2275,6 +2307,10 @@ export default function App() {
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
             onChangeScenario={setReviewScenarioSlug}
+            activeTab={reviewTab}
+            onActiveTabChange={setReviewTab}
+            agentRunId={agentRunId}
+            onAgentRunIdChange={setAgentRunId}
             isMobile
           />
         );

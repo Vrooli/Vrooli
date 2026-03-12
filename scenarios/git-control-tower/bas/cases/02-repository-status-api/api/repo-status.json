@@ -2,9 +2,18 @@
   "metadata": {
     "name": "Repository Status API",
     "description": "Validates /api/v1/repo/status returns branch + file change summary",
-    "tags": ["e2e", "api", "git", "status"],
-    "requirements": ["GCT-OT-P0-002A", "GCT-OT-P0-002B"],
-    "reset": "none"
+    "tags": [
+      "e2e",
+      "api",
+      "git",
+      "status"
+    ],
+    "requirements": [
+      "GCT-OT-P0-002A",
+      "GCT-OT-P0-002B"
+    ],
+    "reset": "none",
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [
@@ -19,16 +28,33 @@
           "Content-Type": "application/json"
         },
         "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.repo_dir"},
-          {"type": "json_path_exists", "path": "$.branch.head"},
-          {"type": "json_path_exists", "path": "$.files"},
-          {"type": "json_path_exists", "path": "$.summary"},
-          {"type": "json_path_exists", "path": "$.scopes"}
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.repo_dir"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.branch.head"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.files"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.summary"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.scopes"
+          }
         ]
       }
     }
   ],
   "edges": []
 }
-

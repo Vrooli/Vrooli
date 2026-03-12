@@ -106,6 +106,8 @@ interface AgentTabProps {
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
   fileStats?: RepoFileStats;
+  activeRunId?: string | null;
+  onActiveRunIdChange?: (id: string | null) => void;
 }
 
 // ── Build chat messages from events ─────────────────────────────────
@@ -211,12 +213,22 @@ export function AgentTab({
   testGenieAvailable,
   tidinessAvailable,
   fileStats,
+  activeRunId: controlledRunId,
+  onActiveRunIdChange,
 }: AgentTabProps) {
   const [message, setMessage] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
     try { return localStorage.getItem(AGENT_PROFILE_KEY) ?? ""; } catch { return ""; }
   });
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [internalRunId, setInternalRunId] = useState<string | null>(null);
+  const activeRunId = controlledRunId !== undefined ? controlledRunId : internalRunId;
+  const setActiveRunId = useCallback((id: string | null) => {
+    if (onActiveRunIdChange) {
+      onActiveRunIdChange(id);
+    } else {
+      setInternalRunId(id);
+    }
+  }, [onActiveRunIdChange]);
   const [events, setEvents] = useState<AgentRunEvent[]>([]);
   const [lastEventSequence, setLastEventSequence] = useState(0);
   const [sentMessages, setSentMessages] = useState<SentMessage[]>([]);

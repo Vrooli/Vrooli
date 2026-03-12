@@ -147,3 +147,71 @@ func TestBASClient_GetScreenshots(t *testing.T) {
 		t.Errorf("expected 2 screenshot entries, got %d", len(resp.Screenshots))
 	}
 }
+
+func TestBASClient_GetRecordedVideos(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/executions/exec-789/recorded-videos", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(BASRecordedVideosResponse{
+			ExecutionID: "exec-789",
+			Videos: []BASVideoArtifact{
+				{ArtifactID: "vid-1", ContentType: "video/webm", SizeBytes: 1024},
+			},
+		})
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		resolver:   discovery.NewStaticResolver(server.URL),
+	}
+
+	resp, err := client.GetRecordedVideos(context.Background(), "exec-789")
+	if err != nil {
+		t.Fatalf("GetRecordedVideos returned error: %v", err)
+	}
+	if resp.ExecutionID != "exec-789" {
+		t.Errorf("expected execution ID exec-789, got %s", resp.ExecutionID)
+	}
+	if len(resp.Videos) != 1 {
+		t.Errorf("expected 1 video, got %d", len(resp.Videos))
+	}
+}
+
+func TestBASClient_GetVideoData(t *testing.T) {
+	t.Parallel()
+
+	videoBytes := []byte("fake-video-data")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/executions/exec-789/recorded-videos/vid-1", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "video/webm")
+		_, _ = w.Write(videoBytes)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := &BrowserAutomationClient{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+		resolver:   discovery.NewStaticResolver(server.URL),
+	}
+
+	data, contentType, err := client.GetVideoData(context.Background(), "exec-789", "vid-1")
+	if err != nil {
+		t.Fatalf("GetVideoData returned error: %v", err)
+	}
+	if contentType != "video/webm" {
+		t.Errorf("expected content-type video/webm, got %s", contentType)
+	}
+	if string(data) != "fake-video-data" {
+		t.Errorf("unexpected video data: %s", string(data))
+	}
+}

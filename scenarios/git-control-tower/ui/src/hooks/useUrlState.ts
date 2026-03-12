@@ -1,6 +1,10 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { ViewMode } from "../lib/api";
 
+export type ReviewTab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "agent";
+
+const VALID_REVIEW_TABS: readonly string[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "agent"];
+
 /**
  * URL state parameters for deep linking
  */
@@ -19,6 +23,12 @@ export interface UrlState {
   primary?: string;
   /** Scenario slug for review panel */
   reviewScenario?: string;
+  /** Active tab within the review panel */
+  reviewTab?: ReviewTab;
+  /** Whether viewing an arbitrary file (not from the change list) */
+  anyFile?: boolean;
+  /** Agent run ID for the agent tab */
+  agentRunId?: string;
 }
 
 /**
@@ -65,6 +75,21 @@ export function parseUrlState(search: string): UrlState {
     state.reviewScenario = decodeURIComponent(reviewScenario);
   }
 
+  const reviewTab = params.get("reviewTab");
+  if (reviewTab && VALID_REVIEW_TABS.includes(reviewTab)) {
+    state.reviewTab = reviewTab as ReviewTab;
+  }
+
+  const anyFile = params.get("anyFile");
+  if (anyFile === "true") {
+    state.anyFile = true;
+  }
+
+  const agentRunId = params.get("agentRunId");
+  if (agentRunId) {
+    state.agentRunId = agentRunId;
+  }
+
   return state;
 }
 
@@ -100,6 +125,18 @@ export function buildUrlSearch(state: UrlState): string {
 
   if (state.reviewScenario) {
     params.set("reviewScenario", encodeURIComponent(state.reviewScenario));
+  }
+
+  if (state.reviewTab && state.reviewTab !== "overview") {
+    params.set("reviewTab", state.reviewTab);
+  }
+
+  if (state.anyFile === true) {
+    params.set("anyFile", "true");
+  }
+
+  if (state.agentRunId) {
+    params.set("agentRunId", state.agentRunId);
   }
 
   const search = params.toString();

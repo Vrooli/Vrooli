@@ -1500,6 +1500,88 @@ export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, fi
 }
 
 // ============================================================================
+// Workflow Capture Types
+// ============================================================================
+
+export type ExecutionMode = "observer" | "mutating" | "destructive";
+
+export interface WorkflowExecutionResult {
+  workflowName: string;
+  executionMode: ExecutionMode;
+  executionId?: string;
+  status: "passed" | "failed" | "skipped" | "error";
+  error?: string;
+  durationMs: number;
+  videoCount: number;
+  videoStatus?: "captured" | "failed" | "none";
+}
+
+export interface WorkflowCaptureResult {
+  id: string;
+  scenarioSlug: string;
+  role: SnapshotRole;
+  workflowResults: WorkflowExecutionResult[];
+  createdAt: string;
+  status: "complete" | "failed";
+  error?: string;
+  sizeBytes: number;
+}
+
+export interface WorkflowCaptureListResponse {
+  captures: WorkflowCaptureResult[];
+  total: number;
+}
+
+export interface WorkflowCaptureDetailResponse {
+  capture: WorkflowCaptureResult;
+  videos: SnapshotFile[];
+}
+
+// ============================================================================
+// Workflow Capture API Functions
+// ============================================================================
+
+export async function triggerWorkflowCapture(
+  scenarioSlug: string,
+  mode: CaptureMode = "capture",
+  executionModes: ExecutionMode[] = ["observer"],
+  repoId?: string
+): Promise<WorkflowCaptureResult> {
+  const url = buildApiUrl("/repo/workflow-capture", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify({ scenarioSlug, mode, executionModes })
+  });
+  return handleResponse<WorkflowCaptureResult>(res);
+}
+
+export async function fetchWorkflowCaptures(scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureListResponse> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/workflow-captures?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<WorkflowCaptureListResponse>(res);
+}
+
+export async function fetchWorkflowCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureDetailResponse> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<WorkflowCaptureDetailResponse>(res);
+}
+
+export function buildWorkflowVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
+  const params = new URLSearchParams({ scenarioSlug });
+  return buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
+}
+
+// ============================================================================
 // Test Execution Types (mirrors test-genie API)
 // ============================================================================
 

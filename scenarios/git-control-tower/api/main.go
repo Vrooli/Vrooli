@@ -237,6 +237,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
 
+	// Workflow capture endpoints
+	s.router.HandleFunc("/api/v1/repo/workflow-capture", s.handleWorkflowCapture).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/workflow-captures", s.handleWorkflowCaptureList).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}", s.handleWorkflowCaptureDetail).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}/video/{filename}", s.handleWorkflowCaptureVideo).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}", s.handleWorkflowCaptureDelete).Methods("DELETE")
+
 	// Test-genie endpoints
 	s.router.HandleFunc("/api/v1/repo/test-execution", s.handleTestExecution).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/test-executions", s.handleTestExecutionList).Methods("GET")
