@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

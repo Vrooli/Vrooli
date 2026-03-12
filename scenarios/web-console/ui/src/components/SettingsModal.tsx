@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Circle,
   RefreshCw,
+  Mic,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -176,6 +177,46 @@ export default function SettingsModal() {
   const [voiceCapsError, setVoiceCapsError] = useState<string | null>(null);
   const hasWebSpeech = typeof window !== "undefined" &&
     !!("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  // Microphone permission state
+  const [micPermission, setMicPermission] = useState<"granted" | "denied" | "prompt" | "unknown">("unknown");
+  const [micRequesting, setMicRequesting] = useState(false);
+
+  const checkMicPermission = useCallback(async () => {
+    try {
+      const result = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      setMicPermission(result.state as "granted" | "denied" | "prompt");
+      // Listen for changes (e.g. user changes permission in browser settings)
+      result.onchange = () => setMicPermission(result.state as "granted" | "denied" | "prompt");
+    } catch {
+      // Permissions API not supported — try getUserMedia to check
+      setMicPermission("unknown");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!settingsModalOpen) return;
+    checkMicPermission();
+  }, [settingsModalOpen, checkMicPermission]);
+
+  const requestMicPermission = useCallback(async () => {
+    setMicRequesting(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setMicPermission("granted");
+      // Re-initialize voice input by toggling voiceEnabled
+      if (voiceEnabled) {
+        setVoiceEnabled(false);
+        // Small delay so the useEffect cleanup runs before re-enabling
+        setTimeout(() => setVoiceEnabled(true), 50);
+      }
+    } catch {
+      setMicPermission("denied");
+    } finally {
+      setMicRequesting(false);
+    }
+  }, [voiceEnabled, setVoiceEnabled]);
 
   const loadVoiceCaps = useCallback(async (signal?: { cancelled: boolean }) => {
     setVoiceCapsLoading(true);
@@ -574,6 +615,52 @@ export default function SettingsModal() {
                   <p className="mt-1.5 text-[10px] text-amber-400">
                     No transcription backend available. Install Whisper or use a Chromium-based browser for Web Speech API.
                   </p>
+                )}
+              </div>
+
+              {/* Microphone permission status */}
+              <div className="border-t border-wc-default pt-2 mt-1">
+                <span className="text-[11px] font-medium text-wc-text-muted uppercase tracking-wider">Microphone</span>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                  {micPermission === "granted" ? (
+                    <>
+                      <CheckCircle className="h-3 w-3 shrink-0 text-green-400" />
+                      <span className="text-wc-text-secondary">Permission granted</span>
+                    </>
+                  ) : micPermission === "denied" ? (
+                    <>
+                      <AlertCircle className="h-3 w-3 shrink-0 text-red-400" />
+                      <span className="text-red-400">Permission denied</span>
+                    </>
+                  ) : micPermission === "prompt" ? (
+                    <>
+                      <Circle className="h-3 w-3 shrink-0 text-wc-text-faint" />
+                      <span className="text-wc-text-faint">Not yet requested</span>
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="h-3 w-3 shrink-0 text-wc-text-faint" />
+                      <span className="text-wc-text-faint">Unknown</span>
+                    </>
+                  )}
+                </div>
+                {micPermission === "denied" && (
+                  <p className="mt-1 text-[10px] text-wc-text-faint">
+                    Microphone access was blocked. Click the lock/site-settings icon in your browser&apos;s address bar to allow microphone access, then refresh.
+                  </p>
+                )}
+                {(micPermission === "prompt" || micPermission === "unknown") && (
+                  <Button
+                    data-testid="mic-request-permission"
+                    variant="outline"
+                    size="sm"
+                    className="mt-1.5 text-[11px] h-6"
+                    onClick={requestMicPermission}
+                    disabled={micRequesting}
+                  >
+                    <Mic className="mr-1 h-3 w-3" />
+                    {micRequesting ? "Requesting..." : "Allow microphone"}
+                  </Button>
                 )}
               </div>
             </div>

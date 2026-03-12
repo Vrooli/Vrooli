@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"REQ-P0-003b\", \"REQ-P0-003b-i\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,
@@ -28,25 +29,163 @@
         }
       }
     },
-    {"id":"open-workspace","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/open-workspace.json"},"metadata":{"label":"Open workspace"}}},
-    {"id":"reset-sessions","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/reset-sessions-best-effort.json"},"metadata":{"label":"Reset sessions (best effort)"}}},
-    {"id":"click-new-terminal","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/workspace.newTerminalButton"},"metadata":{"label":"Open launcher"}}},
-    {"id":"wait-launcher","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/launcher.dialog","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for launcher"}}},
-    {"id":"launch-empty-shell","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/launcher.emptyShell"},"metadata":{"label":"Launch empty shell"}}},
-    {"id":"wait-terminal-pane","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/terminal.pane","state":"WAIT_STATE_VISIBLE","timeout_ms":15000},"metadata":{"label":"Wait for terminal pane"}}},
-    {"id":"click-terminal-pane","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane']"},"metadata":{"label":"Activate terminal pane"}}},
-    {"id":"focus-xterm-textarea","action":{"type":"ACTION_TYPE_FOCUS","focus":{"selector":"[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea","timeout_ms":5000},"metadata":{"label":"Focus xterm input"}}},
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-workspace.json"
+        },
+        "metadata": {
+          "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "reset-sessions",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/reset-sessions-best-effort.json"
+        },
+        "metadata": {
+          "label": "Reset sessions (best effort)"
+        }
+      }
+    },
+    {
+      "id": "click-new-terminal",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.newTerminalButton"
+        },
+        "metadata": {
+          "label": "Open launcher"
+        }
+      }
+    },
+    {
+      "id": "wait-launcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/launcher.dialog",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for launcher"
+        }
+      }
+    },
+    {
+      "id": "launch-empty-shell",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/launcher.emptyShell"
+        },
+        "metadata": {
+          "label": "Launch empty shell"
+        }
+      }
+    },
+    {
+      "id": "wait-terminal-pane",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/terminal.pane",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for terminal pane"
+        }
+      }
+    },
+    {
+      "id": "click-terminal-pane",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane']"
+        },
+        "metadata": {
+          "label": "Activate terminal pane"
+        }
+      }
+    },
+    {
+      "id": "focus-xterm-textarea",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": {
+          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Focus xterm input"
+        }
+      }
+    },
     {
       "id": "send-delayed-command",
       "action": {
         "type": "ACTION_TYPE_KEYBOARD",
         "keyboard": {
           "keys": [
-            "e","c","h","o","Space","b","a","s","r","e","p","l","a","y","a","r","m","e","d",
-            "Space","&","&","Space",
-            "s","l","e","e","p","Space","2",
-            "Space","&","&","Space",
-            "e","c","h","o","Space","b","a","s","r","e","p","l","a","y","o","k",
+            "e",
+            "c",
+            "h",
+            "o",
+            "Space",
+            "b",
+            "a",
+            "s",
+            "r",
+            "e",
+            "p",
+            "l",
+            "a",
+            "y",
+            "a",
+            "r",
+            "m",
+            "e",
+            "d",
+            "Space",
+            "&",
+            "&",
+            "Space",
+            "s",
+            "l",
+            "e",
+            "e",
+            "p",
+            "Space",
+            "2",
+            "Space",
+            "&",
+            "&",
+            "Space",
+            "e",
+            "c",
+            "h",
+            "o",
+            "Space",
+            "b",
+            "a",
+            "s",
+            "r",
+            "e",
+            "p",
+            "l",
+            "a",
+            "y",
+            "o",
+            "k",
             "Enter"
           ]
         },
@@ -79,9 +218,44 @@
         }
       }
     },
-    {"id":"wait-output-while-offline","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":2600},"metadata":{"label":"Wait while disconnected"}}},
-    {"id":"reload-workspace-to-reconnect","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => { window.location.reload(); })()"},"metadata":{"label":"Reload workspace"}}},
-    {"id":"wait-workspace-after-reload","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/workspace.newTerminalButton","state":"WAIT_STATE_VISIBLE","timeout_ms":20000},"metadata":{"label":"Wait for workspace after reload"}}},
+    {
+      "id": "wait-output-while-offline",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2600
+        },
+        "metadata": {
+          "label": "Wait while disconnected"
+        }
+      }
+    },
+    {
+      "id": "reload-workspace-to-reconnect",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { window.location.reload(); })()"
+        },
+        "metadata": {
+          "label": "Reload workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-workspace-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.newTerminalButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for workspace after reload"
+        }
+      }
+    },
     {
       "id": "activate-restored-pane",
       "action": {
@@ -113,7 +287,27 @@
         "type": "ACTION_TYPE_KEYBOARD",
         "keyboard": {
           "keys": [
-            "e","c","h","o","Space","b","a","s","r","e","p","l","a","y","p","o","s","t","o","k","Enter"
+            "e",
+            "c",
+            "h",
+            "o",
+            "Space",
+            "b",
+            "a",
+            "s",
+            "r",
+            "e",
+            "p",
+            "l",
+            "a",
+            "y",
+            "p",
+            "o",
+            "s",
+            "t",
+            "o",
+            "k",
+            "Enter"
           ]
         },
         "metadata": {
@@ -133,33 +327,199 @@
         }
       }
     },
-    {"id":"assert-session-pane-restored","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-pane-present='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected original terminal session pane after reconnect"},"metadata":{"label":"Verify pane restored"}}},
-    {"id":"assert-replay-armed-seen","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-armed-after='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected first marker after reconnect"},"metadata":{"label":"Verify first marker"}}},
-    {"id":"assert-replay-success","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected delayed marker replay after reconnect"},"metadata":{"label":"Verify replay success"}}},
-    {"id":"assert-post-reconnect-stdin","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-replay-post-reconnect-ok='true']","mode":"ASSERTION_MODE_EXISTS","timeout_ms":5000,"failure_message":"Expected post-reconnect stdin command marker to confirm interactive terminal"},"metadata":{"label":"Verify post-reconnect stdin"}}}
+    {
+      "id": "assert-session-pane-restored",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-replay-pane-present='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected original terminal session pane after reconnect"
+        },
+        "metadata": {
+          "label": "Verify pane restored"
+        }
+      }
+    },
+    {
+      "id": "assert-replay-armed-seen",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-replay-armed-after='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected first marker after reconnect"
+        },
+        "metadata": {
+          "label": "Verify first marker"
+        }
+      }
+    },
+    {
+      "id": "assert-replay-success",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-replay-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected delayed marker replay after reconnect"
+        },
+        "metadata": {
+          "label": "Verify replay success"
+        }
+      }
+    },
+    {
+      "id": "assert-post-reconnect-stdin",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-replay-post-reconnect-ok='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected post-reconnect stdin command marker to confirm interactive terminal"
+        },
+        "metadata": {
+          "label": "Verify post-reconnect stdin"
+        }
+      }
+    }
   ],
   "edges": [
-    {"id":"e1","source":"navigate-workspace-root","target":"open-workspace","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e2","source":"open-workspace","target":"reset-sessions","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e3","source":"reset-sessions","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e4","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e5","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e6","source":"launch-empty-shell","target":"wait-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e7","source":"wait-terminal-pane","target":"click-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e8","source":"click-terminal-pane","target":"focus-xterm-textarea","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e9","source":"focus-xterm-textarea","target":"send-delayed-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e10","source":"send-delayed-command","target":"capture-session-before-disconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e11","source":"capture-session-before-disconnect","target":"disconnect-tracked-sockets","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e12","source":"disconnect-tracked-sockets","target":"wait-output-while-offline","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e13","source":"wait-output-while-offline","target":"reload-workspace-to-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e14","source":"reload-workspace-to-reconnect","target":"wait-workspace-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e15","source":"wait-workspace-after-reload","target":"activate-restored-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e16","source":"activate-restored-pane","target":"focus-xterm-after-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e17","source":"focus-xterm-after-reconnect","target":"send-post-reconnect-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e18","source":"send-post-reconnect-command","target":"evaluate-replay-after-reconnect","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e19","source":"evaluate-replay-after-reconnect","target":"assert-session-pane-restored","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e20","source":"assert-session-pane-restored","target":"assert-replay-armed-seen","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e21","source":"assert-replay-armed-seen","target":"assert-replay-success","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e22","source":"assert-replay-success","target":"assert-post-reconnect-stdin","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {
+      "id": "e1",
+      "source": "navigate-workspace-root",
+      "target": "open-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "open-workspace",
+      "target": "reset-sessions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "reset-sessions",
+      "target": "click-new-terminal",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "click-new-terminal",
+      "target": "wait-launcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "wait-launcher",
+      "target": "launch-empty-shell",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "launch-empty-shell",
+      "target": "wait-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-terminal-pane",
+      "target": "click-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-terminal-pane",
+      "target": "focus-xterm-textarea",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "focus-xterm-textarea",
+      "target": "send-delayed-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "send-delayed-command",
+      "target": "capture-session-before-disconnect",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "capture-session-before-disconnect",
+      "target": "disconnect-tracked-sockets",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "disconnect-tracked-sockets",
+      "target": "wait-output-while-offline",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "wait-output-while-offline",
+      "target": "reload-workspace-to-reconnect",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "reload-workspace-to-reconnect",
+      "target": "wait-workspace-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "wait-workspace-after-reload",
+      "target": "activate-restored-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "activate-restored-pane",
+      "target": "focus-xterm-after-reconnect",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "focus-xterm-after-reconnect",
+      "target": "send-post-reconnect-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e18",
+      "source": "send-post-reconnect-command",
+      "target": "evaluate-replay-after-reconnect",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "evaluate-replay-after-reconnect",
+      "target": "assert-session-pane-restored",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "assert-session-pane-restored",
+      "target": "assert-replay-armed-seen",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e21",
+      "source": "assert-replay-armed-seen",
+      "target": "assert-replay-success",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e22",
+      "source": "assert-replay-success",
+      "target": "assert-post-reconnect-stdin",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

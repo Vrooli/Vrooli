@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "parameters_json": "[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Command to execute in the launched terminal\"}]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [

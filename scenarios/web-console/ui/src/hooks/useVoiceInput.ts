@@ -75,7 +75,7 @@ export interface VoiceInputState {
 }
 
 interface TranscriptionProvider {
-  start(): void;
+  start(): void | Promise<void>;
   stop(): void;
   getStream(): MediaStream | null;
   onResult: ((text: string) => void) | null;
@@ -90,15 +90,24 @@ class WhisperProvider implements TranscriptionProvider {
   onError: ((error: string) => void) | null = null;
 
   async init(): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Request mic permission upfront. Release immediately — start() re-acquires.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
   }
 
   getStream(): MediaStream | null {
     return this.stream;
   }
 
-  start(): void {
-    if (!this.stream) return;
+  async start(): Promise<void> {
+    // Re-acquire stream each time so the mic indicator only shows during recording.
+    // Permission was already granted during init(), so this won't re-prompt.
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      this.onError?.("Microphone access denied");
+      return;
+    }
     this.chunks = [];
     this.mediaRecorder = new MediaRecorder(this.stream, {
       mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -126,6 +135,9 @@ class WhisperProvider implements TranscriptionProvider {
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
     }
+    // Release mic so the browser indicator turns off
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
   }
 
   dispose(): void {
@@ -143,17 +155,26 @@ class WebSpeechProvider implements TranscriptionProvider {
 
   /** Request mic permission upfront so the browser prompts the user. */
   async init(): Promise<void> {
-    this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Acquire and immediately release — just to trigger the permission prompt.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
   }
 
   getStream(): MediaStream | null {
     return this.micStream;
   }
 
-  start(): void {
+  async start(): Promise<void> {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) {
       this.onError?.("Web Speech API not available");
+      return;
+    }
+    // Acquire mic stream for audio level monitoring
+    try {
+      this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      this.onError?.("Microphone access denied");
       return;
     }
     this.recognition = new Ctor();
@@ -175,12 +196,13 @@ class WebSpeechProvider implements TranscriptionProvider {
   stop(): void {
     this.recognition?.stop();
     this.recognition = null;
+    // Release mic so the browser indicator turns off
+    this.micStream?.getTracks().forEach((t) => t.stop());
+    this.micStream = null;
   }
 
   dispose(): void {
     this.stop();
-    this.micStream?.getTracks().forEach((t) => t.stop());
-    this.micStream = null;
   }
 }
 
@@ -314,7 +336,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     };
   }, [voiceEnabled]);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     const provider = providerRef.current;
     if (!provider || state.isRecording) return;
 
@@ -329,7 +351,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     };
 
     setState((s) => ({ ...s, isRecording: true, error: null }));
-    provider.start();
+    await provider.start();
 
     const stream = provider.getStream();
     if (stream) startLevelMonitor(stream);

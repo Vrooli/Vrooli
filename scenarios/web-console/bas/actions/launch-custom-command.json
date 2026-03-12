@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "parameters_json": "[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Shell command to execute immediately after session launch\"}]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [

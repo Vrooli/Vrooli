@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"REQ-P0-003a\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,
@@ -135,8 +136,25 @@
         "type": "ACTION_TYPE_KEYBOARD",
         "keyboard": {
           "keys": [
-            "e","c","h","o","Space",
-            "b","a","s","s","t","d","i","n","l","i","v","e","o","k",
+            "e",
+            "c",
+            "h",
+            "o",
+            "Space",
+            "b",
+            "a",
+            "s",
+            "s",
+            "t",
+            "d",
+            "i",
+            "n",
+            "l",
+            "i",
+            "v",
+            "e",
+            "o",
+            "k",
             "Enter"
           ]
         },
@@ -254,22 +272,107 @@
     }
   ],
   "edges": [
-    {"id":"e1","source":"navigate-workspace-root","target":"open-workspace","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e2","source":"open-workspace","target":"reset-sessions","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e3","source":"reset-sessions","target":"click-new-terminal","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e4","source":"click-new-terminal","target":"wait-launcher","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e5","source":"wait-launcher","target":"launch-empty-shell","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e6","source":"launch-empty-shell","target":"wait-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e7","source":"wait-terminal-pane","target":"click-terminal-pane","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e8","source":"click-terminal-pane","target":"focus-xterm-textarea","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e9","source":"focus-xterm-textarea","target":"send-marker-command","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e10","source":"send-marker-command","target":"wait-marker-output","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e11","source":"wait-marker-output","target":"capture-session-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e12","source":"capture-session-before-reload","target":"assert-marker-before-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e13","source":"assert-marker-before-reload","target":"trigger-full-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e14","source":"trigger-full-reload","target":"wait-workspace-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e15","source":"wait-workspace-after-reload","target":"evaluate-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e16","source":"evaluate-session-after-reload","target":"assert-session-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e17","source":"assert-session-after-reload","target":"assert-marker-after-reload","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {
+      "id": "e1",
+      "source": "navigate-workspace-root",
+      "target": "open-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "open-workspace",
+      "target": "reset-sessions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "reset-sessions",
+      "target": "click-new-terminal",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "click-new-terminal",
+      "target": "wait-launcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "wait-launcher",
+      "target": "launch-empty-shell",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "launch-empty-shell",
+      "target": "wait-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-terminal-pane",
+      "target": "click-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-terminal-pane",
+      "target": "focus-xterm-textarea",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "focus-xterm-textarea",
+      "target": "send-marker-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "send-marker-command",
+      "target": "wait-marker-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "wait-marker-output",
+      "target": "capture-session-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "capture-session-before-reload",
+      "target": "assert-marker-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-marker-before-reload",
+      "target": "trigger-full-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "trigger-full-reload",
+      "target": "wait-workspace-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "wait-workspace-after-reload",
+      "target": "evaluate-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "evaluate-session-after-reload",
+      "target": "assert-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "assert-session-after-reload",
+      "target": "assert-marker-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

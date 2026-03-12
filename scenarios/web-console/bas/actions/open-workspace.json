@@ -4,7 +4,8 @@
     "description": "Navigate to web-console workspace and wait for launch control",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
