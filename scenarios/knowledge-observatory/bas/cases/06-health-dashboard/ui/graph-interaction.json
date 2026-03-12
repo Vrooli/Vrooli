@@ -3,7 +3,10 @@
     "description": "Verifies interactive knowledge graph component exists",
     "version": 1,
     "reset": "full",
-    "requirements": ["KO-HD-003"]
+    "requirements": [
+      "KO-HD-003"
+    ],
+    "execution_mode": "mutating"
   },
   "settings": {
     "executionViewport": {

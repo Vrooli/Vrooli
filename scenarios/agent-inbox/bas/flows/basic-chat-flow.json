@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"INBOX-LIST-001\", \"BUBBLE-001\", \"BUBBLE-002\", \"PERSIST-001\", \"PERSIST-002\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,
@@ -33,7 +34,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.container",
+          "selector": "@selector/app.container",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 5000
         },
@@ -47,7 +48,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.newChatButton"
+          "selector": "@selector/sidebar.newChatButton"
         },
         "metadata": {
           "label": "Create a new chat"
@@ -59,7 +60,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.messageInput",
+          "selector": "@selector/messageInput.input",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 3000
         },
@@ -73,7 +74,7 @@
       "action": {
         "type": "ACTION_TYPE_INPUT",
         "input": {
-          "selector": "@selector/inbox.messageInput",
+          "selector": "@selector/messageInput.input",
           "value": "Hello, this is a test message!"
         },
         "metadata": {
@@ -86,7 +87,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.sendMessageButton"
+          "selector": "@selector/messageInput.sendButton"
         },
         "metadata": {
           "label": "Send the message"
@@ -124,7 +125,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.chatList",
+          "selector": "@selector/chatListPanel.list",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 3000
         },
@@ -138,7 +139,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.toggleArchiveButton"
+          "selector": "@selector/chatHeader.toggleArchiveButton"
         },
         "metadata": {
           "label": "Archive the chat"
@@ -162,7 +163,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/inbox.chatList",
+          "selector": "@selector/chatListPanel.list",
           "mode": "ASSERTION_MODE_EXISTS",
           "timeout_ms": 5000,
           "failure_message": "Archived chat should appear in archived view"

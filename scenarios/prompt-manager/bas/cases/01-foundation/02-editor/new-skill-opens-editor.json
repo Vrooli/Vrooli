@@ -4,7 +4,8 @@
     "description": "Validate sidebar tabs and new skill action opens the editor",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

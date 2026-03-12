@@ -3,7 +3,10 @@
     "description": "Verifies health metrics visualization displays quality scores",
     "version": 1,
     "reset": "full",
-    "requirements": ["KO-HD-002"]
+    "requirements": [
+      "KO-HD-002"
+    ],
+    "execution_mode": "mutating"
   },
   "settings": {
     "executionViewport": {

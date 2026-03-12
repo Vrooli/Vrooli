@@ -4,7 +4,8 @@
     "description": "Validate saving and discarding skill edits updates editor state",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -414,33 +415,173 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-home", "target": "wait-sidebar", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-sidebar", "target": "wait-expand-all", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "wait-expand-all", "target": "click-expand-all", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "click-expand-all", "target": "wait-skill-row", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "wait-skill-row", "target": "open-first-skill", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e6", "source": "open-first-skill", "target": "wait-editor-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e7", "source": "wait-editor-header", "target": "wait-name-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e8", "source": "wait-name-display", "target": "store-original-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e9", "source": "store-original-name", "target": "store-updated-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e10", "source": "store-updated-name", "target": "click-name-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e11", "source": "click-name-display", "target": "wait-name-input", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e12", "source": "wait-name-input", "target": "update-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e13", "source": "update-name", "target": "assert-unsaved-visible", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e14", "source": "assert-unsaved-visible", "target": "click-save", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e15", "source": "click-save", "target": "wait-save", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e16", "source": "wait-save", "target": "assert-unsaved-cleared", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e17", "source": "assert-unsaved-cleared", "target": "assert-name-saved", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e18", "source": "assert-name-saved", "target": "store-discard-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e19", "source": "store-discard-name", "target": "click-name-display-again", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e20", "source": "click-name-display-again", "target": "wait-name-input-again", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e21", "source": "wait-name-input-again", "target": "update-name-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e22", "source": "update-name-discard", "target": "assert-unsaved-visible-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e23", "source": "assert-unsaved-visible-discard", "target": "open-actions-menu", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e24", "source": "open-actions-menu", "target": "wait-discard-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e25", "source": "wait-discard-action", "target": "click-discard-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e26", "source": "click-discard-action", "target": "wait-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e27", "source": "wait-discard", "target": "assert-unsaved-cleared-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e28", "source": "assert-unsaved-cleared-discard", "target": "assert-name-restored", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-sidebar",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-sidebar",
+      "target": "wait-expand-all",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-expand-all",
+      "target": "click-expand-all",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "click-expand-all",
+      "target": "wait-skill-row",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "wait-skill-row",
+      "target": "open-first-skill",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "open-first-skill",
+      "target": "wait-editor-header",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-editor-header",
+      "target": "wait-name-display",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "wait-name-display",
+      "target": "store-original-name",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "store-original-name",
+      "target": "store-updated-name",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "store-updated-name",
+      "target": "click-name-display",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "click-name-display",
+      "target": "wait-name-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "wait-name-input",
+      "target": "update-name",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "update-name",
+      "target": "assert-unsaved-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "assert-unsaved-visible",
+      "target": "click-save",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "click-save",
+      "target": "wait-save",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "wait-save",
+      "target": "assert-unsaved-cleared",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "assert-unsaved-cleared",
+      "target": "assert-name-saved",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e18",
+      "source": "assert-name-saved",
+      "target": "store-discard-name",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "store-discard-name",
+      "target": "click-name-display-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "click-name-display-again",
+      "target": "wait-name-input-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e21",
+      "source": "wait-name-input-again",
+      "target": "update-name-discard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e22",
+      "source": "update-name-discard",
+      "target": "assert-unsaved-visible-discard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e23",
+      "source": "assert-unsaved-visible-discard",
+      "target": "open-actions-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e24",
+      "source": "open-actions-menu",
+      "target": "wait-discard-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e25",
+      "source": "wait-discard-action",
+      "target": "click-discard-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e26",
+      "source": "click-discard-action",
+      "target": "wait-discard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e27",
+      "source": "wait-discard",
+      "target": "assert-unsaved-cleared-discard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e28",
+      "source": "assert-unsaved-cleared-discard",
+      "target": "assert-name-restored",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

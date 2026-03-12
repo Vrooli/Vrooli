@@ -3,7 +3,10 @@
     "description": "Verifies Knowledge Observatory dashboard loads with Matrix-style UI",
     "version": 1,
     "reset": "full",
-    "requirements": ["KO-HD-001"]
+    "requirements": [
+      "KO-HD-001"
+    ],
+    "execution_mode": "mutating"
   },
   "settings": {
     "executionViewport": {

@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"INBOX-LIST-002\", \"INBOX-LIST-003\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -33,9 +34,9 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.container",
+          "selector": "@selector/app.container",
           "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 5000
+          "timeout_ms": 10000
         },
         "metadata": {
           "label": "Wait for inbox container to load"
@@ -47,7 +48,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.newChatButton"
+          "selector": "@selector/sidebar.newChatButton"
         },
         "metadata": {
           "label": "Create a new chat for testing"
@@ -55,28 +56,56 @@
       }
     },
     {
-      "id": "wait-message-list",
+      "id": "wait-chat-view",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.messageList",
+          "selector": "@selector/chatView.container",
           "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 3000
+          "timeout_ms": 15000
         },
         "metadata": {
-          "label": "Wait for chat to open"
+          "label": "Wait for chat view to open"
         }
       }
     },
     {
-      "id": "click-nav-inbox",
+      "id": "wait-chat-header",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/chatView.header",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for chat header"
+        }
+      }
+    },
+    {
+      "id": "click-more-actions",
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/nav.inbox"
+          "selector": "@selector/chatHeader.moreActionsButton"
         },
         "metadata": {
-          "label": "Navigate back to inbox"
+          "label": "Open the more actions dropdown menu"
+        }
+      }
+    },
+    {
+      "id": "wait-dropdown-menu",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dropdown.menu",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for dropdown menu to appear"
         }
       }
     },
@@ -85,10 +114,10 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.toggleReadButton"
+          "selector": "@selector/chatHeader.toggleReadButton"
         },
         "metadata": {
-          "label": "Toggle read status"
+          "label": "Toggle read status via dropdown menu"
         }
       }
     },
@@ -97,9 +126,9 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/inbox.unreadIndicator",
+          "selector": "@selector/indicators.unread",
           "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 5000,
+          "timeout_ms": 10000,
           "failure_message": "Unread indicator should appear after toggling read status"
         },
         "metadata": {
@@ -124,23 +153,35 @@
     {
       "id": "e3",
       "source": "click-new-chat",
-      "target": "wait-message-list",
+      "target": "wait-chat-view",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "wait-message-list",
-      "target": "click-nav-inbox",
+      "source": "wait-chat-view",
+      "target": "wait-chat-header",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
-      "source": "click-nav-inbox",
-      "target": "click-toggle-read",
+      "source": "wait-chat-header",
+      "target": "click-more-actions",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
+      "source": "click-more-actions",
+      "target": "wait-dropdown-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-dropdown-menu",
+      "target": "click-toggle-read",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
       "source": "click-toggle-read",
       "target": "assert-unread-indicator",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"

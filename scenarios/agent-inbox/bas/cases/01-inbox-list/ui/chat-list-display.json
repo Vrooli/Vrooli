@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"INBOX-LIST-001\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -33,7 +34,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.container",
+          "selector": "@selector/app.container",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 5000
         },
@@ -47,7 +48,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/inbox.chatList",
+          "selector": "@selector/chatListPanel.list",
           "mode": "ASSERTION_MODE_VISIBLE",
           "timeout_ms": 5000,
           "failure_message": "Chat list should be visible"

@@ -7,7 +7,8 @@
       "requirements_json": "[\"VT-REQ-001\", \"VT-REQ-002\", \"VT-REQ-003\", \"VT-REQ-007\"]",
       "priority": "P0",
       "test_type": "e2e"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

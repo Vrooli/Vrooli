@@ -4,7 +4,8 @@
     "description": "Verifies browser-automation-studio dashboard loads correctly",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

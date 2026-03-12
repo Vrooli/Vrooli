@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"BUBBLE-001\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -33,9 +34,9 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.container",
+          "selector": "@selector/app.container",
           "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 5000
+          "timeout_ms": 10000
         },
         "metadata": {
           "label": "Wait for inbox container to load"
@@ -47,7 +48,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/inbox.newChatButton"
+          "selector": "@selector/sidebar.newChatButton"
         },
         "metadata": {
           "label": "Click new chat button"
@@ -55,13 +56,13 @@
       }
     },
     {
-      "id": "wait-message-list",
+      "id": "wait-chat-view",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/inbox.messageList",
+          "selector": "@selector/chatView.container",
           "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 3000
+          "timeout_ms": 15000
         },
         "metadata": {
           "label": "Wait for chat view to open"
@@ -73,9 +74,9 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/inbox.messageInput",
+          "selector": "@selector/messageInput.input",
           "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 5000,
+          "timeout_ms": 10000,
           "failure_message": "Message input should be visible in new chat"
         },
         "metadata": {
@@ -88,9 +89,9 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/inbox.sendMessageButton",
+          "selector": "@selector/messageInput.sendButton",
           "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 5000,
+          "timeout_ms": 10000,
           "failure_message": "Send button should be visible in new chat"
         },
         "metadata": {
@@ -115,12 +116,12 @@
     {
       "id": "e3",
       "source": "click-new-chat",
-      "target": "wait-message-list",
+      "target": "wait-chat-view",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "wait-message-list",
+      "source": "wait-chat-view",
       "target": "assert-message-input",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },

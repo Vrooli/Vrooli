@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CHART-P0-001-SCATTER\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

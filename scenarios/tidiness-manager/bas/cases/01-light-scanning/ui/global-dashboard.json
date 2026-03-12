@@ -1,12 +1,15 @@
 {
   "metadata": {
     "description": "[REQ:TM-UI-001] Verify global dashboard displays scenario table with key metrics",
-    "requirements": ["TM-UI-001"],
+    "requirements": [
+      "TM-UI-001"
+    ],
     "phase": "business",
     "surface": "ui",
     "capability": "01-light-scanning",
     "reset": "none",
-    "version": 1
+    "version": 1,
+    "execution_mode": "observer"
   },
   "settings": {
     "executionViewport": {

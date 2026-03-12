@@ -1,12 +1,15 @@
 {
   "metadata": {
     "description": "[REQ:TM-UI-006] Verify dark theme is applied consistently",
-    "requirements": ["TM-UI-006"],
+    "requirements": [
+      "TM-UI-006"
+    ],
     "phase": "business",
     "surface": "ui",
     "capability": "04-ui-dashboard",
     "reset": "none",
-    "version": 1
+    "version": 1,
+    "execution_mode": "observer"
   },
   "settings": {
     "executionViewport": {

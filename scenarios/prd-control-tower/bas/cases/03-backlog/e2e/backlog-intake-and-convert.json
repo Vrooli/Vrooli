@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"PCT-FUNC-003\", \"PCT-BACKLOG-INTAKE\", \"PCT-BACKLOG-PREVIEW\", \"PCT-BACKLOG-CONVERT\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

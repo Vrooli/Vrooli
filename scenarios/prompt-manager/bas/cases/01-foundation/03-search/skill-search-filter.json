@@ -4,7 +4,8 @@
     "description": "Validate skill search filters update the empty state",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

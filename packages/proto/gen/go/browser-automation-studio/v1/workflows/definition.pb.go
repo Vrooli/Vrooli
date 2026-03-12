@@ -23,6 +23,72 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ExecutionMode classifies a workflow's side-effect safety level.
+// Used by external systems (e.g. git-control-tower) to decide which
+// workflows are safe to auto-run without human confirmation.
+//
+//	observer    — read-only: navigate, screenshot, assert, extract, wait.
+//	              Safe to run anytime, anywhere, with zero risk of data mutation.
+//	mutating    — creates or modifies state in recoverable ways (login, form
+//	              fills, toggling settings). Safe in test/dev environments.
+//	destructive — deletes data, resets state, or causes changes that are hard
+//	              to reverse. Requires explicit human confirmation before execution.
+//
+// When in doubt, choose the MORE restrictive tier. The cost of over-classifying
+// (an extra confirmation click) is far lower than under-classifying (accidental
+// data loss).
+type ExecutionMode int32
+
+const (
+	ExecutionMode_EXECUTION_MODE_UNSPECIFIED ExecutionMode = 0
+	ExecutionMode_EXECUTION_MODE_OBSERVER    ExecutionMode = 1
+	ExecutionMode_EXECUTION_MODE_MUTATING    ExecutionMode = 2
+	ExecutionMode_EXECUTION_MODE_DESTRUCTIVE ExecutionMode = 3
+)
+
+// Enum value maps for ExecutionMode.
+var (
+	ExecutionMode_name = map[int32]string{
+		0: "EXECUTION_MODE_UNSPECIFIED",
+		1: "EXECUTION_MODE_OBSERVER",
+		2: "EXECUTION_MODE_MUTATING",
+		3: "EXECUTION_MODE_DESTRUCTIVE",
+	}
+	ExecutionMode_value = map[string]int32{
+		"EXECUTION_MODE_UNSPECIFIED": 0,
+		"EXECUTION_MODE_OBSERVER":    1,
+		"EXECUTION_MODE_MUTATING":    2,
+		"EXECUTION_MODE_DESTRUCTIVE": 3,
+	}
+)
+
+func (x ExecutionMode) Enum() *ExecutionMode {
+	p := new(ExecutionMode)
+	*p = x
+	return p
+}
+
+func (x ExecutionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExecutionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_workflows_definition_proto_enumTypes[0].Descriptor()
+}
+
+func (ExecutionMode) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_workflows_definition_proto_enumTypes[0]
+}
+
+func (x ExecutionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExecutionMode.Descriptor instead.
+func (ExecutionMode) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP(), []int{0}
+}
+
 // WorkflowDefinitionV2 is the canonical workflow storage format.
 //
 // @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
@@ -114,7 +180,9 @@ type WorkflowMetadataV2 struct {
 	// Requirement ID if generated from a requirement.
 	Requirement *string `protobuf:"bytes,5,opt,name=requirement,proto3,oneof" json:"requirement,omitempty"`
 	// Owner identifier.
-	Owner         *string `protobuf:"bytes,6,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	Owner *string `protobuf:"bytes,6,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	// Execution mode classifying side-effect safety level.
+	ExecutionMode ExecutionMode `protobuf:"varint,7,opt,name=execution_mode,json=executionMode,proto3,enum=browser_automation_studio.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -189,6 +257,13 @@ func (x *WorkflowMetadataV2) GetOwner() string {
 		return *x.Owner
 	}
 	return ""
+}
+
+func (x *WorkflowMetadataV2) GetExecutionMode() ExecutionMode {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 }
 
 // WorkflowSettingsV2 captures browser/execution configuration.
@@ -700,14 +775,15 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\bmetadata\x18\x01 \x01(\v20.browser_automation_studio.v1.WorkflowMetadataV2R\bmetadata\x12L\n" +
 	"\bsettings\x18\x02 \x01(\v20.browser_automation_studio.v1.WorkflowSettingsV2R\bsettings\x12B\n" +
 	"\x05nodes\x18\x03 \x03(\v2,.browser_automation_studio.v1.WorkflowNodeV2R\x05nodes\x12B\n" +
-	"\x05edges\x18\x04 \x03(\v2,.browser_automation_studio.v1.WorkflowEdgeV2R\x05edges\"\x85\x03\n" +
+	"\x05edges\x18\x04 \x03(\v2,.browser_automation_studio.v1.WorkflowEdgeV2R\x05edges\"\xd9\x03\n" +
 	"\x12WorkflowMetadataV2\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12T\n" +
 	"\x06labels\x18\x03 \x03(\v2<.browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntryR\x06labels\x12\x1d\n" +
 	"\aversion\x18\x04 \x01(\tH\x02R\aversion\x88\x01\x01\x12%\n" +
 	"\vrequirement\x18\x05 \x01(\tH\x03R\vrequirement\x88\x01\x01\x12\x19\n" +
-	"\x05owner\x18\x06 \x01(\tH\x04R\x05owner\x88\x01\x01\x1a9\n" +
+	"\x05owner\x18\x06 \x01(\tH\x04R\x05owner\x88\x01\x01\x12R\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2+.browser_automation_studio.v1.ExecutionModeR\rexecutionMode\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
@@ -787,7 +863,12 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\x05_typeB\b\n" +
 	"\x06_labelB\x10\n" +
 	"\x0e_source_handleB\x10\n" +
-	"\x0e_target_handleBaZ_github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows;workflowsb\x06proto3"
+	"\x0e_target_handle*\x89\x01\n" +
+	"\rExecutionMode\x12\x1e\n" +
+	"\x1aEXECUTION_MODE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17EXECUTION_MODE_OBSERVER\x10\x01\x12\x1b\n" +
+	"\x17EXECUTION_MODE_MUTATING\x10\x02\x12\x1e\n" +
+	"\x1aEXECUTION_MODE_DESTRUCTIVE\x10\x03BaZ_github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows;workflowsb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_workflows_definition_proto_rawDescOnce sync.Once
@@ -801,38 +882,41 @@ func file_browser_automation_studio_v1_workflows_definition_proto_rawDescGZIP() 
 	return file_browser_automation_studio_v1_workflows_definition_proto_rawDescData
 }
 
+var file_browser_automation_studio_v1_workflows_definition_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_browser_automation_studio_v1_workflows_definition_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_browser_automation_studio_v1_workflows_definition_proto_goTypes = []any{
-	(*WorkflowDefinitionV2)(nil),     // 0: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*WorkflowMetadataV2)(nil),       // 1: browser_automation_studio.v1.WorkflowMetadataV2
-	(*WorkflowSettingsV2)(nil),       // 2: browser_automation_studio.v1.WorkflowSettingsV2
-	(*WorkflowNodeV2)(nil),           // 3: browser_automation_studio.v1.WorkflowNodeV2
-	(*NodeExecutionSettings)(nil),    // 4: browser_automation_studio.v1.NodeExecutionSettings
-	(*ResilienceConfig)(nil),         // 5: browser_automation_studio.v1.ResilienceConfig
-	(*WorkflowEdgeV2)(nil),           // 6: browser_automation_studio.v1.WorkflowEdgeV2
-	nil,                              // 7: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	(*base.BrowserProfile)(nil),      // 8: browser_automation_studio.v1.BrowserProfile
-	(*actions.ActionDefinition)(nil), // 9: browser_automation_studio.v1.ActionDefinition
-	(*base.NodePosition)(nil),        // 10: browser_automation_studio.v1.NodePosition
-	(base.WorkflowEdgeType)(0),       // 11: browser_automation_studio.v1.WorkflowEdgeType
+	(ExecutionMode)(0),               // 0: browser_automation_studio.v1.ExecutionMode
+	(*WorkflowDefinitionV2)(nil),     // 1: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*WorkflowMetadataV2)(nil),       // 2: browser_automation_studio.v1.WorkflowMetadataV2
+	(*WorkflowSettingsV2)(nil),       // 3: browser_automation_studio.v1.WorkflowSettingsV2
+	(*WorkflowNodeV2)(nil),           // 4: browser_automation_studio.v1.WorkflowNodeV2
+	(*NodeExecutionSettings)(nil),    // 5: browser_automation_studio.v1.NodeExecutionSettings
+	(*ResilienceConfig)(nil),         // 6: browser_automation_studio.v1.ResilienceConfig
+	(*WorkflowEdgeV2)(nil),           // 7: browser_automation_studio.v1.WorkflowEdgeV2
+	nil,                              // 8: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	(*base.BrowserProfile)(nil),      // 9: browser_automation_studio.v1.BrowserProfile
+	(*actions.ActionDefinition)(nil), // 10: browser_automation_studio.v1.ActionDefinition
+	(*base.NodePosition)(nil),        // 11: browser_automation_studio.v1.NodePosition
+	(base.WorkflowEdgeType)(0),       // 12: browser_automation_studio.v1.WorkflowEdgeType
 }
 var file_browser_automation_studio_v1_workflows_definition_proto_depIdxs = []int32{
-	1,  // 0: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
-	2,  // 1: browser_automation_studio.v1.WorkflowDefinitionV2.settings:type_name -> browser_automation_studio.v1.WorkflowSettingsV2
-	3,  // 2: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
-	6,  // 3: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
-	7,  // 4: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	8,  // 5: browser_automation_studio.v1.WorkflowSettingsV2.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
-	9,  // 6: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	10, // 7: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
-	4,  // 8: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
-	5,  // 9: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
-	11, // 10: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2,  // 0: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
+	3,  // 1: browser_automation_studio.v1.WorkflowDefinitionV2.settings:type_name -> browser_automation_studio.v1.WorkflowSettingsV2
+	4,  // 2: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
+	7,  // 3: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
+	8,  // 4: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	0,  // 5: browser_automation_studio.v1.WorkflowMetadataV2.execution_mode:type_name -> browser_automation_studio.v1.ExecutionMode
+	9,  // 6: browser_automation_studio.v1.WorkflowSettingsV2.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
+	10, // 7: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	11, // 8: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
+	5,  // 9: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
+	6,  // 10: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
+	12, // 11: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflows_definition_proto_init() }
@@ -851,13 +935,14 @@ func file_browser_automation_studio_v1_workflows_definition_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflows_definition_proto_rawDesc), len(file_browser_automation_studio_v1_workflows_definition_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_browser_automation_studio_v1_workflows_definition_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_workflows_definition_proto_depIdxs,
+		EnumInfos:         file_browser_automation_studio_v1_workflows_definition_proto_enumTypes,
 		MessageInfos:      file_browser_automation_studio_v1_workflows_definition_proto_msgTypes,
 	}.Build()
 	File_browser_automation_studio_v1_workflows_definition_proto = out.File

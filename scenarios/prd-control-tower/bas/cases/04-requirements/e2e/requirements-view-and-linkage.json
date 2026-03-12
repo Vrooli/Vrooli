@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"PCT-FUNC-004\", \"PCT-REQ-PARSE\", \"PCT-REQ-TARGETS\", \"PCT-REQ-LINKAGE\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

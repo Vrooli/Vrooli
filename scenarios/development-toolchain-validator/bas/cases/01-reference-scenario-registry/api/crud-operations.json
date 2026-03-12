@@ -2,6 +2,7 @@
   "metadata": {
     "name": "crud-operations",
     "description": "Tests CRUD operations on the Reference Scenario Registry API endpoints",
+    "execution_mode": "destructive",
     "labels": {
       "reset": "database",
       "requirements_json": "[\"REQ-P0-001\", \"REQ-P0-002\"]"

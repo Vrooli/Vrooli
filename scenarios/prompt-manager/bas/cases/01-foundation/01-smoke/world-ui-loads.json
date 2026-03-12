@@ -4,7 +4,8 @@
     "description": "Smoke test: world canvas and environment controls render",
     "labels": {
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

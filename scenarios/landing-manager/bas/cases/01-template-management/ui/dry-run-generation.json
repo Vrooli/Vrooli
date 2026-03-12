@@ -1,8 +1,11 @@
 {
   "metadata": {
     "description": "Validates dry-run scenario generation (plan-only mode showing files to be written without actual generation)",
-    "requirements": ["TMPL-DRY-RUN"],
-    "reset": "none"
+    "requirements": [
+      "TMPL-DRY-RUN"
+    ],
+    "reset": "none",
+    "execution_mode": "observer"
   },
   "settings": {
     "executionViewport": {

@@ -1,9 +1,12 @@
 {
   "metadata": {
     "description": "Validates UI-based scenario promotion from staging (generated/) to production (scenarios/) without requiring terminal/file operations",
-    "requirements": ["TMPL-PROMOTION"],
+    "requirements": [
+      "TMPL-PROMOTION"
+    ],
     "reset": "none",
-    "executionTimeoutMs": 90000
+    "executionTimeoutMs": 90000,
+    "execution_mode": "observer"
   },
   "settings": {
     "executionViewport": {
@@ -127,15 +130,65 @@
     }
   ],
   "edges": [
-    { "id": "edge-0-1", "source": "navigate-factory", "target": "wait-for-form", "type": "smoothstep" },
-    { "id": "edge-0-2", "source": "wait-for-form", "target": "fill-name", "type": "smoothstep" },
-    { "id": "edge-0-3", "source": "fill-name", "target": "wait-after-name", "type": "smoothstep" },
-    { "id": "edge-0-4", "source": "wait-after-name", "target": "click-generate", "type": "smoothstep" },
-    { "id": "edge-0-5", "source": "click-generate", "target": "wait-for-generation", "type": "smoothstep" },
-    { "id": "edge-1", "source": "wait-for-generation", "target": "wait-for-generated-list", "type": "smoothstep" },
-    { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-promote-button-exists", "type": "smoothstep" },
-    { "id": "edge-3", "source": "assert-promote-button-exists", "target": "click-promote", "type": "smoothstep" },
-    { "id": "edge-4", "source": "click-promote", "target": "wait-for-confirmation", "type": "smoothstep" },
-    { "id": "edge-5", "source": "wait-for-confirmation", "target": "assert-promotion-result", "type": "smoothstep" }
+    {
+      "id": "edge-0-1",
+      "source": "navigate-factory",
+      "target": "wait-for-form",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-2",
+      "source": "wait-for-form",
+      "target": "fill-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-3",
+      "source": "fill-name",
+      "target": "wait-after-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-4",
+      "source": "wait-after-name",
+      "target": "click-generate",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-5",
+      "source": "click-generate",
+      "target": "wait-for-generation",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-1",
+      "source": "wait-for-generation",
+      "target": "wait-for-generated-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-2",
+      "source": "wait-for-generated-list",
+      "target": "assert-promote-button-exists",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-3",
+      "source": "assert-promote-button-exists",
+      "target": "click-promote",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-4",
+      "source": "click-promote",
+      "target": "wait-for-confirmation",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-5",
+      "source": "wait-for-confirmation",
+      "target": "assert-promotion-result",
+      "type": "smoothstep"
+    }
   ]
 }

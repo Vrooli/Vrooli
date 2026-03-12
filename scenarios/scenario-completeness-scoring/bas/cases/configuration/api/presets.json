@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"SCS-CFG-003\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -19,7 +20,9 @@
         "http_request": {
           "method": "GET",
           "url": "{{API_URL}}/api/v1/config/schema",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {
@@ -34,7 +37,9 @@
         "http_request": {
           "method": "GET",
           "url": "{{API_URL}}/api/v1/config",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {
@@ -49,7 +54,9 @@
         "http_request": {
           "method": "POST",
           "url": "{{API_URL}}/api/v1/config/reset",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {
