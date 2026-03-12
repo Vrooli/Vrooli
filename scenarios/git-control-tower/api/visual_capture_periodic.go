@@ -133,7 +133,11 @@ func (p *PeriodicCapture) tick(ctx context.Context) {
 			}
 		}
 
-		req := VisualCaptureRequest{ScenarioSlug: slug}
+		req := VisualCaptureRequest{
+			ScenarioSlug: slug,
+			Mode:         CaptureModeCapture,
+			TriggerType:  "periodic",
+		}
 		meta, err := CaptureScenario(ctx, VisualCaptureDeps{
 			BAS:     p.basClient,
 			Storage: p.storage,
@@ -145,7 +149,6 @@ func (p *PeriodicCapture) tick(ctx context.Context) {
 			log.Printf("periodic capture: failed for %s: %v", slug, err)
 			continue
 		}
-		meta.TriggerType = "periodic"
 		log.Printf("periodic capture: captured %s (%d screenshots)", slug, meta.ScreenshotCount)
 	}
 }

@@ -57,8 +57,22 @@ type BASScreenshotsResponse struct {
 
 // Visual Capture API Types
 
+// Snapshot roles distinguish the purpose of each capture.
+const (
+	SnapshotRoleBaseline = "baseline" // Reference point (the "Before")
+	SnapshotRoleCapture  = "capture"  // Comparison capture (the "After")
+)
+
+// Capture modes control how a new capture interacts with existing snapshots.
+const (
+	CaptureModeBaseline = "baseline" // Set new baseline, clear existing captures
+	CaptureModeCapture  = "capture"  // Capture current state for comparison against baseline
+)
+
 type VisualCaptureRequest struct {
 	ScenarioSlug string      `json:"scenarioSlug"`
+	Mode         string      `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
+	TriggerType  string      `json:"triggerType,omitempty"` // "manual" | "periodic" (default: "manual")
 	Viewport     BASViewport `json:"viewport,omitempty"`
 	Pages        []string    `json:"pages,omitempty"`
 }
@@ -66,6 +80,7 @@ type VisualCaptureRequest struct {
 type SnapshotSetMeta struct {
 	ID                  string    `json:"id"`
 	ScenarioSlug        string    `json:"scenarioSlug"`
+	Role                string    `json:"role"` // "baseline" | "capture"
 	CommitHash          string    `json:"commitHash,omitempty"`
 	TriggerType         string    `json:"triggerType"`
 	Pages               []string  `json:"pages"`
@@ -77,6 +92,23 @@ type SnapshotSetMeta struct {
 	Status              string    `json:"status"`
 	Error               string    `json:"error,omitempty"`
 	PageDiscoveryMethod string    `json:"pageDiscoveryMethod,omitempty"` // "lighthouse" | "fallback" | "explicit"
+}
+
+// SnapshotStalenessInfo describes whether the most recent capture is outdated
+// relative to the scenario's source files.
+type SnapshotStalenessInfo struct {
+	IsStale          bool       `json:"isStale"`
+	LastFileChange   *time.Time `json:"lastFileChange,omitempty"`
+	CaptureCreatedAt *time.Time `json:"captureCreatedAt,omitempty"`
+}
+
+// EffectiveRole returns the snapshot's role, defaulting to "capture" for
+// legacy snapshots that predate the role field.
+func (m SnapshotSetMeta) EffectiveRole() string {
+	if m.Role == "" {
+		return SnapshotRoleCapture
+	}
+	return m.Role
 }
 
 type SnapshotSetDetail struct {

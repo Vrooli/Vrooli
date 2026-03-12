@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X } from "lucide-react";
+import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem } from "../lib/api";
+import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
@@ -26,6 +26,27 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
+
+  // Filter fileStats to only include files belonging to this scenario
+  const scenarioFileStats = useMemo(() => {
+    if (!fileStats) return undefined;
+    const prefix = `scenarios/${scenarioSlug}/`;
+    const filterCategory = (cat?: Record<string, import("../lib/api").DiffStats>) => {
+      if (!cat) return undefined;
+      const filtered: Record<string, import("../lib/api").DiffStats> = {};
+      for (const [path, stats] of Object.entries(cat)) {
+        if (path.startsWith(prefix)) filtered[path] = stats;
+      }
+      return Object.keys(filtered).length > 0 ? filtered : undefined;
+    };
+    const result: RepoFileStats = {
+      staged: filterCategory(fileStats.staged),
+      unstaged: filterCategory(fileStats.unstaged),
+      untracked: filterCategory(fileStats.untracked),
+    };
+    if (!result.staged && !result.unstaged && !result.untracked) return undefined;
+    return result;
+  }, [fileStats, scenarioSlug]);
   const triggerCapture = useTriggerVisualCapture(repoId);
   const capabilities = useCapabilities();
 
@@ -57,10 +78,16 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
 
   const snapshots = capturesQuery.data?.snapshots ?? [];
   const completeSnapshots = snapshots.filter(s => s.status === "complete");
-  const after = completeSnapshots[0] as SnapshotSetMeta | undefined;
-  const before = completeSnapshots[1] as SnapshotSetMeta | undefined;
+  // Role-based before/after: baseline is "Before", capture is "After"
+  // Legacy snapshots without a role field are treated as captures
+  const effectiveRole = (s: SnapshotSetMeta) => s.role || "capture";
+  const baseline = completeSnapshots.find(s => effectiveRole(s) === "baseline");
+  const capture = completeSnapshots.find(s => effectiveRole(s) === "capture");
+  const captureStaleness = capturesQuery.data?.staleness;
 
   const isCapturing = triggerCapture.isPending;
+  const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline" }), [triggerCapture, scenarioSlug]);
+  const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture" }), [triggerCapture, scenarioSlug]);
 
   const tabLabels: Record<Tab, string> = {
     overview: "Overview",
@@ -74,7 +101,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
 
   const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
     tab => {
-      if (tab === "metrics") return Boolean(fileStats);
+      if (tab === "metrics") return Boolean(scenarioFileStats);
       if (tab === "code-quality") return tidinessAvailable;
       if (tab === "agent") return agentManagerAvailable;
       return true;
@@ -111,20 +138,23 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     <div className={`flex-1 ${activeTab === "agent" ? "flex flex-col overflow-hidden" : "overflow-y-auto px-4 py-4"}`}>
       {activeTab === "overview" ? (
         <OverviewTab
-          after={after}
+          baseline={baseline}
+          capture={capture}
+          captureStaleness={captureStaleness}
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           basAvailable={basAvailable}
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
           isCapturing={isCapturing}
-          onCapture={() => triggerCapture.mutate(scenarioSlug)}
-          fileStats={fileStats}
+          onBaseline={handleBaseline}
+          onCapture={handleCapture}
+          fileStats={scenarioFileStats}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
         />
       ) : activeTab === "metrics" ? (
-        fileStats ? <AggregateMetricsContent fileStats={fileStats} /> : null
+        scenarioFileStats ? <AggregateMetricsContent fileStats={scenarioFileStats} /> : null
       ) : activeTab === "screenshots" ? (
         capturesQuery.isLoading ? (
           <div className="space-y-4">
@@ -135,13 +165,15 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
         ) : (
           <ScreenshotsTab
-            before={before}
-            after={after}
+            baseline={baseline}
+            capture={capture}
+            captureStaleness={captureStaleness}
             scenarioSlug={scenarioSlug}
             isMobile={isMobile ?? false}
             basAvailable={basAvailable}
             isCapturing={isCapturing}
-            onCapture={() => triggerCapture.mutate(scenarioSlug)}
+            onBaseline={handleBaseline}
+            onCapture={handleCapture}
           />
         )
       ) : activeTab === "videos" ? (
@@ -151,12 +183,12 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
         ) : (
           <VideosTab
-            before={before}
-            after={after}
+            baseline={baseline}
+            capture={capture}
             scenarioSlug={scenarioSlug}
             basAvailable={basAvailable}
             isCapturing={isCapturing}
-            onCapture={() => triggerCapture.mutate(scenarioSlug)}
+            onCapture={handleCapture}
           />
         )
       ) : activeTab === "tests" ? (
@@ -172,7 +204,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           tidinessAvailable={tidinessAvailable}
-          fileStats={fileStats}
+          fileStats={scenarioFileStats}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
         />
@@ -187,7 +219,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           onClearContext={clearAgentContext}
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
-          fileStats={fileStats}
+          fileStats={scenarioFileStats}
         />
       )}
     </div>
@@ -233,27 +265,43 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             {scenarioSlug}
             <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
           </button>
-          {after && (
+          {(capture || baseline) && (
             <span className="text-[11px] text-slate-500 hidden sm:inline shrink-0">
-              Captured {new Date(after.createdAt).toLocaleString()}
+              {capture ? `Captured ${new Date(capture.createdAt).toLocaleString()}` : `Baseline ${new Date(baseline!.createdAt).toLocaleString()}`}
+              {captureStaleness?.isStale && <span className="ml-1 text-amber-500">(stale)</span>}
             </span>
           )}
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
           {basAvailable && (
-            <button
-              type="button"
-              className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
-              onClick={() => triggerCapture.mutate(scenarioSlug)}
-              disabled={isCapturing}
-              title="Re-capture screenshots"
-            >
-              {isCapturing ? (
-                <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
-              ) : (
-                <RefreshCw className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-              )}
-            </button>
+            <>
+              <button
+                type="button"
+                className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
+                onClick={handleBaseline}
+                disabled={isCapturing}
+                title="Set baseline (reset Before)"
+              >
+                {isCapturing ? (
+                  <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
+                ) : (
+                  <Anchor className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                )}
+              </button>
+              <button
+                type="button"
+                className={`${isMobile ? "h-11 w-11 touch-target" : "h-7 px-2"} inline-flex items-center justify-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors`}
+                onClick={handleCapture}
+                disabled={isCapturing}
+                title="Capture current state (After)"
+              >
+                {isCapturing ? (
+                  <Loader2 className={`${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} animate-spin`} />
+                ) : (
+                  <Camera className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                )}
+              </button>
+            </>
           )}
         </div>
       </CardHeader>
@@ -425,25 +473,31 @@ function MediaLightbox({
 // ============================================================================
 
 function OverviewTab({
-  after,
+  baseline,
+  capture,
+  captureStaleness,
   scenarioSlug,
   repoId,
   basAvailable,
   testGenieAvailable,
   tidinessAvailable,
   isCapturing,
+  onBaseline,
   onCapture,
   fileStats,
   agentManagerAvailable,
   onAttachToAgent,
 }: {
-  after?: SnapshotSetMeta;
+  baseline?: SnapshotSetMeta;
+  capture?: SnapshotSetMeta;
+  captureStaleness?: SnapshotStalenessInfo;
   scenarioSlug: string;
   repoId?: string | null;
   basAvailable: boolean;
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
   isCapturing: boolean;
+  onBaseline: () => void;
   onCapture: () => void;
   fileStats?: RepoFileStats;
   agentManagerAvailable?: boolean;
@@ -454,8 +508,9 @@ function OverviewTab({
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
 
-  // Readiness logic
-  const hasScreenshots = after && after.screenshotCount > 0;
+  // Readiness logic — either a baseline or capture counts as "has screenshots"
+  const latestSnapshot = capture ?? baseline;
+  const hasScreenshots = latestSnapshot && latestSnapshot.screenshotCount > 0;
   const hasTests = Boolean(latestTest);
   const testsPass = latestTest?.success ?? false;
   const qualityScore = tidinessScore.data?.score ?? null;
@@ -523,38 +578,58 @@ function OverviewTab({
 
       {/* Visual Status Card */}
       <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="text-xs font-medium text-slate-400 mb-3">Visual Status</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-medium text-slate-400">Visual Status</h3>
+          {captureStaleness?.isStale && (
+            <span className="text-[11px] text-amber-400 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Stale
+            </span>
+          )}
+        </div>
         {!basAvailable ? (
           <p className="text-xs text-slate-500">Browser Automation Studio not available</p>
-        ) : !after ? (
+        ) : !latestSnapshot ? (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">No captures yet</p>
-            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
-              {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-              Capture Screenshots
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
+                {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+                Set Baseline
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Last capture</span>
-              <span className="text-slate-200">{new Date(after.createdAt).toLocaleString()}</span>
-            </div>
+            {baseline && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Baseline</span>
+                <span className="text-slate-200">{new Date(baseline.createdAt).toLocaleString()}</span>
+              </div>
+            )}
+            {capture && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Capture{captureStaleness?.isStale ? " (stale)" : ""}</span>
+                <span className="text-slate-200">{new Date(capture.createdAt).toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Screenshots</span>
-              <span className="text-slate-200">{after.screenshotCount}</span>
+              <span className="text-slate-200">{latestSnapshot.screenshotCount}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Pages captured</span>
-              <span className="text-slate-200">{after.pages?.length ?? 0}</span>
-            </div>
-            {after.pageDiscoveryMethod === "fallback" && (
+            {latestSnapshot.pageDiscoveryMethod === "fallback" && (
               <div className="flex items-start gap-2 mt-2 p-2 rounded bg-amber-950/30 border border-amber-900/40">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-amber-300">
                   Pages discovered via fallback (root only). Add <code className="bg-slate-800 px-1 rounded">.vrooli/lighthouse.json</code> to capture all pages.
                 </p>
               </div>
+            )}
+            {!capture && baseline && (
+              <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1 mt-2">
+                {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                Capture Changes
+              </Button>
             )}
           </div>
         )}
@@ -687,77 +762,109 @@ function OverviewTab({
 // ============================================================================
 
 function ScreenshotsTab({
-  before,
-  after,
+  baseline,
+  capture,
+  captureStaleness,
   scenarioSlug,
   isMobile,
   basAvailable,
   isCapturing,
+  onBaseline,
   onCapture,
 }: {
-  before?: SnapshotSetMeta;
-  after?: SnapshotSetMeta;
+  baseline?: SnapshotSetMeta;
+  capture?: SnapshotSetMeta;
+  captureStaleness?: SnapshotStalenessInfo;
   scenarioSlug: string;
   isMobile: boolean;
   basAvailable: boolean;
   isCapturing: boolean;
+  onBaseline: () => void;
   onCapture: () => void;
 }) {
   const [selectedPage, setSelectedPage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
 
-  if (!after) {
+  // No snapshots at all
+  if (!baseline && !capture) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
         <ClipboardCheck className="h-8 w-8 mb-3 opacity-50" />
         <p className="text-sm">No captures yet</p>
+        <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing visual changes</p>
         {basAvailable ? (
-          <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="mt-3 h-7 text-xs gap-1">
-            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-            Capture Screenshots
+          <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
+            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+            Set Baseline
           </Button>
         ) : (
-          <p className="text-xs mt-1">Browser Automation Studio is not available</p>
+          <p className="text-xs">Browser Automation Studio is not available</p>
         )}
       </div>
     );
   }
 
-  const afterPages = after.pages ?? [];
-  const currentPage = afterPages[selectedPage] ?? "/";
+  // Use the most detailed snapshot for page navigation
+  const primarySnapshot = capture ?? baseline!;
+  const primaryPages = primarySnapshot.pages ?? [];
+  const currentPage = primaryPages[selectedPage] ?? "/";
 
-  // Build lightbox items: "before" first (matching left side), then "after" (matching right side)
+  // Build lightbox items: baseline first (left side), then capture (right side)
   const lightboxItems: LightboxItem[] = [];
-  const beforePages = before?.pages ?? [];
-  if (before) {
-    for (const page of beforePages) {
+  const baselinePages = baseline?.pages ?? [];
+  if (baseline) {
+    for (const page of baselinePages) {
       const filename = sanitizePagePath(page) + ".png";
       lightboxItems.push({
-        label: `Before: ${page === "/" ? "/ (Home)" : page}`,
-        sublabel: new Date(before.createdAt).toLocaleString(),
+        label: `Baseline: ${page === "/" ? "/ (Home)" : page}`,
+        sublabel: new Date(baseline.createdAt).toLocaleString(),
         type: "image",
-        url: buildCaptureScreenshotUrl(before.id, scenarioSlug, filename),
+        url: buildCaptureScreenshotUrl(baseline.id, scenarioSlug, filename),
       });
     }
   }
-  for (const page of afterPages) {
-    const filename = sanitizePagePath(page) + ".png";
-    lightboxItems.push({
-      label: before ? `After: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
-      sublabel: new Date(after.createdAt).toLocaleString(),
-      type: "image",
-      url: buildCaptureScreenshotUrl(after.id, scenarioSlug, filename),
-    });
+  if (capture) {
+    const capturePages = capture.pages ?? [];
+    for (const page of capturePages) {
+      const filename = sanitizePagePath(page) + ".png";
+      lightboxItems.push({
+        label: baseline ? `Capture: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
+        sublabel: new Date(capture.createdAt).toLocaleString(),
+        type: "image",
+        url: buildCaptureScreenshotUrl(capture.id, scenarioSlug, filename),
+      });
+    }
   }
 
-  // Map click targets to lightbox indices
-  const beforeIndex = (pageIdx: number) => pageIdx;
-  const afterIndex = (pageIdx: number) => beforePages.length + pageIdx;
+  const baselineIndex = (pageIdx: number) => pageIdx;
+  const captureIndex = (pageIdx: number) => baselinePages.length + pageIdx;
 
   return (
     <div className="space-y-4">
+      {/* Action buttons */}
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
+          {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Anchor className="h-3 w-3" />}
+          {baseline ? "Reset Baseline" : "Set Baseline"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
+          {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+          {capture ? "Re-capture" : "Capture"}
+        </Button>
+      </div>
+
+      {/* Staleness warning */}
+      {captureStaleness?.isStale && capture && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
+          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-300">
+            Files have changed since this capture. Re-capture to see the latest state.
+          </p>
+        </div>
+      )}
+
       {/* Fallback warning */}
-      {after.pageDiscoveryMethod === "fallback" && (
+      {primarySnapshot.pageDiscoveryMethod === "fallback" && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
           <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-300">
@@ -767,9 +874,9 @@ function ScreenshotsTab({
       )}
 
       {/* Page selector */}
-      {afterPages.length > 1 && (
+      {primaryPages.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto pb-2">
-          {afterPages.map((page, i) => (
+          {primaryPages.map((page, i) => (
             <button
               key={page}
               type="button"
@@ -792,45 +899,52 @@ function ScreenshotsTab({
         {currentPage === "/" && " (Home)"}
       </div>
 
-      {/* Comparison status */}
-      {!before && (
+      {/* Status message when only baseline exists */}
+      {baseline && !capture && (
         <div className="text-xs text-slate-500 bg-slate-900/50 rounded px-3 py-2">
-          Capture again to compare before/after
+          Baseline set. Capture to compare changes against it.
         </div>
       )}
 
       {/* Side-by-side or stacked screenshots */}
-      <div className={`gap-4 ${isMobile ? "space-y-4" : "grid grid-cols-2"}`}>
-        {before && (
+      <div className={`gap-4 ${isMobile ? "space-y-4" : baseline && capture ? "grid grid-cols-2" : ""}`}>
+        {baseline && capture && (
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-slate-400">Before</span>
+              <span className="text-xs font-medium text-slate-400">Baseline</span>
               <span className="text-[10px] text-slate-600">
-                {new Date(before.createdAt).toLocaleString()}
+                {new Date(baseline.createdAt).toLocaleString()}
               </span>
             </div>
             <ScreenshotImage
-              captureId={before.id}
+              captureId={baseline.id}
               scenarioSlug={scenarioSlug}
               pagePath={currentPage}
-              onClick={() => setLightboxIndex(beforeIndex(selectedPage))}
+              onClick={() => setLightboxIndex(baselineIndex(selectedPage))}
             />
           </div>
         )}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-slate-400">{before ? "After" : "Current"}</span>
-            {before && (
+            <span className="text-xs font-medium text-slate-400">
+              {capture ? (baseline ? "Capture" : "Current") : "Baseline"}
+            </span>
+            {captureStaleness?.isStale && capture && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-900/50 text-amber-300">
-                Changed
+                Stale
+              </span>
+            )}
+            {baseline && capture && (
+              <span className="text-[10px] text-slate-600">
+                {new Date(capture.createdAt).toLocaleString()}
               </span>
             )}
           </div>
           <ScreenshotImage
-            captureId={after.id}
+            captureId={primarySnapshot.id}
             scenarioSlug={scenarioSlug}
             pagePath={currentPage}
-            onClick={() => setLightboxIndex(afterIndex(selectedPage))}
+            onClick={() => setLightboxIndex(capture ? captureIndex(selectedPage) : baselineIndex(selectedPage))}
           />
         </div>
       </div>
@@ -879,38 +993,39 @@ function ScreenshotImage({
 // ============================================================================
 
 function VideosTab({
-  before,
-  after,
+  baseline,
+  capture,
   scenarioSlug,
   basAvailable,
   isCapturing,
   onCapture,
 }: {
-  before?: SnapshotSetMeta;
-  after?: SnapshotSetMeta;
+  baseline?: SnapshotSetMeta;
+  capture?: SnapshotSetMeta;
   scenarioSlug: string;
   basAvailable: boolean;
   isCapturing: boolean;
   onCapture: () => void;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const latestSnapshot = capture ?? baseline;
 
-  if (!after || after.videoCount === 0) {
-    const reason = after?.videoStatus === "not_implemented"
+  if (!latestSnapshot || latestSnapshot.videoCount === 0) {
+    const reason = latestSnapshot?.videoStatus === "not_implemented"
       ? "Video recording is not yet supported. Screenshots are available."
-      : after?.videoStatus === "failed"
+      : latestSnapshot?.videoStatus === "failed"
       ? "Video recording failed during capture."
-      : !after
+      : !latestSnapshot
       ? "No captures yet"
       : "No videos were recorded for this capture.";
 
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
         <p className="text-sm">{reason}</p>
-        {basAvailable && !after && (
+        {basAvailable && !latestSnapshot && (
           <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="mt-3 h-7 text-xs gap-1">
-            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-            Capture Screenshots
+            {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+            Capture
           </Button>
         )}
       </div>
@@ -918,60 +1033,65 @@ function VideosTab({
   }
 
   const lightboxItems: LightboxItem[] = [];
-  const beforeVideoUrl = before && before.videoCount > 0
-    ? buildCaptureVideoUrl(before.id, scenarioSlug, "recording.webm")
+  const baselineVideoUrl = baseline && baseline.videoCount > 0
+    ? buildCaptureVideoUrl(baseline.id, scenarioSlug, "recording.webm")
     : null;
-  if (before && beforeVideoUrl) {
+  if (baseline && baselineVideoUrl) {
     lightboxItems.push({
-      label: "Before",
-      sublabel: new Date(before.createdAt).toLocaleString(),
+      label: "Baseline",
+      sublabel: new Date(baseline.createdAt).toLocaleString(),
       type: "video",
-      url: beforeVideoUrl,
+      url: baselineVideoUrl,
     });
   }
-  const afterVideoUrl = buildCaptureVideoUrl(after.id, scenarioSlug, "recording.webm");
-  lightboxItems.push({
-    label: before ? "After" : "Current",
-    sublabel: new Date(after.createdAt).toLocaleString(),
-    type: "video",
-    url: afterVideoUrl,
-  });
+  if (capture) {
+    const captureVideoUrl = buildCaptureVideoUrl(capture.id, scenarioSlug, "recording.webm");
+    lightboxItems.push({
+      label: baseline ? "Capture" : "Current",
+      sublabel: new Date(capture.createdAt).toLocaleString(),
+      type: "video",
+      url: captureVideoUrl,
+    });
+  }
 
-  const afterLightboxIndex = beforeVideoUrl ? 1 : 0;
+  const captureVideoUrl = capture ? buildCaptureVideoUrl(capture.id, scenarioSlug, "recording.webm") : null;
+  const captureLightboxIndex = baselineVideoUrl ? 1 : 0;
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
-        {beforeVideoUrl && (
+        {baselineVideoUrl && (
           <div>
-            <p className="text-xs font-medium text-slate-400 mb-2">Before</p>
+            <p className="text-xs font-medium text-slate-400 mb-2">Baseline</p>
             <div
               className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
               onClick={() => setLightboxIndex(0)}
             >
               <video
                 controls
-                src={beforeVideoUrl}
+                src={baselineVideoUrl}
                 className="w-full rounded-lg border border-slate-800"
               />
             </div>
           </div>
         )}
-        <div>
-          <p className="text-xs font-medium text-slate-400 mb-2">
-            {before ? "After" : "Current"}
-          </p>
-          <div
-            className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
-            onClick={() => setLightboxIndex(afterLightboxIndex)}
-          >
-            <video
-              controls
-              src={afterVideoUrl}
-              className="w-full rounded-lg border border-slate-800"
-            />
+        {captureVideoUrl && (
+          <div>
+            <p className="text-xs font-medium text-slate-400 mb-2">
+              {baseline ? "Capture" : "Current"}
+            </p>
+            <div
+              className="cursor-pointer hover:ring-2 hover:ring-blue-500/50 rounded-lg transition-shadow"
+              onClick={() => setLightboxIndex(captureLightboxIndex)}
+            >
+              <video
+                controls
+                src={captureVideoUrl}
+                className="w-full rounded-lg border border-slate-800"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <MediaLightbox
         items={lightboxItems}

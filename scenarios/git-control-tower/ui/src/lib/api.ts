@@ -1375,6 +1375,14 @@ export async function deleteSSHKey(request: SSHDeleteKeyRequest): Promise<SSHDel
 
 export type CaptureTrigger = "periodic" | "post-commit" | "manual";
 export type CaptureStatus = "complete" | "failed";
+export type SnapshotRole = "baseline" | "capture";
+export type CaptureMode = "baseline" | "capture";
+
+export interface SnapshotStalenessInfo {
+  isStale: boolean;
+  lastFileChange?: string;
+  captureCreatedAt?: string;
+}
 
 export interface SnapshotFile {
   filename: string;
@@ -1388,6 +1396,7 @@ export interface SnapshotFile {
 export interface SnapshotSetMeta {
   id: string;
   scenarioSlug: string;
+  role: SnapshotRole;
   commitHash?: string;
   triggerType: CaptureTrigger;
   pages: string[];
@@ -1409,6 +1418,7 @@ export interface SnapshotSetDetail extends SnapshotSetMeta {
 export interface VisualCaptureListResponse {
   snapshots: SnapshotSetMeta[];
   total: number;
+  staleness?: SnapshotStalenessInfo;
 }
 
 export interface CaptureStorageStats {
@@ -1421,12 +1431,12 @@ export interface CaptureStorageStats {
 // Visual Capture API Functions
 // ============================================================================
 
-export async function triggerVisualCapture(scenarioSlug: string, repoId?: string): Promise<SnapshotSetMeta> {
+export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string): Promise<SnapshotSetMeta> {
   const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug })
+    body: JSON.stringify({ scenarioSlug, mode })
   });
   return handleResponse<SnapshotSetMeta>(res);
 }

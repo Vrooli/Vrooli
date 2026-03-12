@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -244,6 +245,131 @@ func TestStorage_Stats(t *testing.T) {
 	}
 	if len(stats.PerScenario) != 2 {
 		t.Errorf("expected 2 scenarios, got %d", len(stats.PerScenario))
+	}
+}
+
+func TestStorage_DeleteSnapshotsByRole(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	store := NewVisualCaptureStorage(testStorageResolver(t, dir), OSFileIO{})
+
+	// Save baseline + 2 captures
+	for _, m := range []SnapshotSetMeta{
+		{ID: "b1", ScenarioSlug: "s", Role: SnapshotRoleBaseline, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-2 * time.Minute), Status: "complete"},
+		{ID: "c1", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-1 * time.Minute), Status: "complete"},
+		{ID: "c2", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"},
+	} {
+		if err := store.SaveSnapshotSet(1, m, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+			t.Fatalf("save %s: %v", m.ID, err)
+		}
+	}
+
+	// Delete all captures — baseline should survive
+	if err := store.DeleteSnapshotsByRole(1, "s", SnapshotRoleCapture); err != nil {
+		t.Fatalf("DeleteSnapshotsByRole: %v", err)
+	}
+
+	list, err := store.ListSnapshotSets(1, "s")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 snapshot (baseline), got %d", len(list))
+	}
+	if list[0].ID != "b1" {
+		t.Errorf("expected baseline b1, got %s", list[0].ID)
+	}
+}
+
+func TestStorage_ClearScenarioSnapshots(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	store := NewVisualCaptureStorage(testStorageResolver(t, dir), OSFileIO{})
+
+	for _, id := range []string{"a", "b"} {
+		m := SnapshotSetMeta{ID: id, ScenarioSlug: "target", TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"}
+		if err := store.SaveSnapshotSet(1, m, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+			t.Fatalf("save: %v", err)
+		}
+	}
+	// Save to a different scenario
+	other := SnapshotSetMeta{ID: "x", ScenarioSlug: "other", TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"}
+	if err := store.SaveSnapshotSet(1, other, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+		t.Fatalf("save other: %v", err)
+	}
+
+	if err := store.ClearScenarioSnapshots(1, "target"); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+
+	list, _ := store.ListSnapshotSets(1, "target")
+	if len(list) != 0 {
+		t.Errorf("expected 0 target snapshots, got %d", len(list))
+	}
+	otherList, _ := store.ListSnapshotSets(1, "other")
+	if len(otherList) != 1 {
+		t.Errorf("expected other scenario untouched (1), got %d", len(otherList))
+	}
+}
+
+func TestStorage_RetentionPreservesBaseline(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	store := NewVisualCaptureStorage(testStorageResolver(t, dir), OSFileIO{})
+
+	// Save a baseline as the oldest snapshot
+	baseline := SnapshotSetMeta{
+		ID: "baseline", ScenarioSlug: "s", Role: SnapshotRoleBaseline,
+		TriggerType: "manual", ScreenshotCount: 1,
+		CreatedAt: time.Now().UTC().Add(-20 * time.Minute), Status: "complete",
+	}
+	if err := store.SaveSnapshotSet(1, baseline, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+		t.Fatalf("save baseline: %v", err)
+	}
+
+	// Save 11 captures (exceeds retention of 10 total)
+	for i := 0; i < 11; i++ {
+		m := SnapshotSetMeta{
+			ID: fmt.Sprintf("c%d", i), ScenarioSlug: "s", Role: SnapshotRoleCapture,
+			TriggerType: "manual", ScreenshotCount: 1,
+			CreatedAt: time.Now().UTC().Add(time.Duration(i) * time.Minute), Status: "complete",
+		}
+		if err := store.SaveSnapshotSet(1, m, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+			t.Fatalf("save c%d: %v", i, err)
+		}
+	}
+
+	list, err := store.ListSnapshotSets(1, "s")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+
+	// Baseline must survive retention regardless of age
+	foundBaseline := false
+	for _, m := range list {
+		if m.ID == "baseline" {
+			foundBaseline = true
+			break
+		}
+	}
+	if !foundBaseline {
+		t.Error("baseline was evicted by retention — it should be preserved")
+	}
+}
+
+func TestStorage_EffectiveRole_LegacySnapshots(t *testing.T) {
+	t.Parallel()
+
+	// Legacy snapshot without role field defaults to "capture"
+	legacy := SnapshotSetMeta{ID: "old", Role: ""}
+	if got := legacy.EffectiveRole(); got != SnapshotRoleCapture {
+		t.Errorf("expected legacy role %q, got %q", SnapshotRoleCapture, got)
+	}
+
+	// Explicit roles pass through
+	b := SnapshotSetMeta{Role: SnapshotRoleBaseline}
+	if got := b.EffectiveRole(); got != SnapshotRoleBaseline {
+		t.Errorf("expected %q, got %q", SnapshotRoleBaseline, got)
 	}
 }
 

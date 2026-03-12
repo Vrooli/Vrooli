@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,7 +24,21 @@ type VisualCaptureDeps struct {
 }
 
 // CaptureScenario orchestrates a full capture for one scenario.
+//
+// In baseline mode, all existing snapshots are cleared and the new capture
+// becomes the reference "Before" image. In capture mode (default), any
+// existing capture-role snapshot is replaced while the baseline is preserved.
 func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCaptureRequest) (*SnapshotSetMeta, error) {
+	mode := req.Mode
+	if mode == "" {
+		mode = CaptureModeCapture
+	}
+
+	triggerType := req.TriggerType
+	if triggerType == "" {
+		triggerType = "manual"
+	}
+
 	// Resolve scenario UI URL
 	uiURL, err := discovery.ResolveScenarioURL(ctx, req.ScenarioSlug, "UI_PORT")
 	if err != nil {
@@ -47,9 +62,6 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 	if viewport.Width == 0 || viewport.Height == 0 {
 		viewport = BASViewport{Width: 1280, Height: 720}
 	}
-
-	// Get current commit hash
-	commitHash := ""
 
 	snapshotID := fmt.Sprintf("%d", time.Now().UnixNano())
 	screenshots := map[string][]byte{}
@@ -84,11 +96,17 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		}
 	}
 
+	// Determine role from mode
+	role := SnapshotRoleCapture
+	if mode == CaptureModeBaseline {
+		role = SnapshotRoleBaseline
+	}
+
 	meta := SnapshotSetMeta{
 		ID:                  snapshotID,
 		ScenarioSlug:        req.ScenarioSlug,
-		CommitHash:          commitHash,
-		TriggerType:         "manual",
+		Role:                role,
+		TriggerType:         triggerType,
 		Pages:               capturedPages,
 		ScreenshotCount:     len(screenshots),
 		VideoCount:          0,
@@ -99,11 +117,72 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		PageDiscoveryMethod: discoveryMethod,
 	}
 
+	// Pre-capture cleanup based on mode
+	if err := prepareForCapture(deps.Storage, deps.RepoID, req.ScenarioSlug, mode); err != nil {
+		log.Printf("WARNING: pre-capture cleanup failed for %s: %v", req.ScenarioSlug, err)
+	}
+
 	if err := deps.Storage.SaveSnapshotSet(deps.RepoID, meta, screenshots, nil); err != nil {
 		return nil, fmt.Errorf("save snapshot set: %w", err)
 	}
 
 	return &meta, nil
+}
+
+// prepareForCapture handles snapshot cleanup before saving a new capture.
+//
+// Baseline mode: clears ALL existing snapshots (fresh start).
+// Capture mode: replaces existing capture-role snapshots (preserves baseline).
+func prepareForCapture(storage *VisualCaptureStorage, repoID int64, scenarioSlug, mode string) error {
+	switch mode {
+	case CaptureModeBaseline:
+		return storage.ClearScenarioSnapshots(repoID, scenarioSlug)
+	case CaptureModeCapture:
+		return storage.DeleteSnapshotsByRole(repoID, scenarioSlug, SnapshotRoleCapture)
+	default:
+		return nil
+	}
+}
+
+// CheckCaptureStaleness determines if the most recent capture for a scenario
+// is outdated by comparing its creation time against file modification times
+// in the scenario's source directory.
+func CheckCaptureStaleness(repoDir, scenarioSlug string, captureTime time.Time) *SnapshotStalenessInfo {
+	scenarioDir := filepath.Join(repoDir, "scenarios", scenarioSlug)
+
+	// Directories to skip during the walk
+	skipDirs := map[string]bool{
+		"node_modules": true, ".git": true, "dist": true, "build": true,
+		".next": true, "__pycache__": true, ".cache": true,
+	}
+
+	var latestMod time.Time
+	_ = filepath.Walk(scenarioDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if skipDirs[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.ModTime().After(latestMod) {
+			latestMod = info.ModTime()
+		}
+		return nil
+	})
+
+	if latestMod.IsZero() {
+		return &SnapshotStalenessInfo{IsStale: false}
+	}
+
+	isStale := latestMod.After(captureTime)
+	return &SnapshotStalenessInfo{
+		IsStale:          isStale,
+		LastFileChange:   &latestMod,
+		CaptureCreatedAt: &captureTime,
+	}
 }
 
 // discoverPages reads lighthouse.json from the scenario directory.

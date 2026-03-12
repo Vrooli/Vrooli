@@ -251,3 +251,109 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 		t.Error("second call should fail")
 	}
 }
+
+func TestPrepareForCapture_BaselineMode_ClearsAll(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	resolver := testStorageResolver(t, dir)
+	store := NewVisualCaptureStorage(resolver, OSFileIO{})
+
+	// Seed baseline + capture
+	for _, m := range []SnapshotSetMeta{
+		{ID: "b1", ScenarioSlug: "s", Role: SnapshotRoleBaseline, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-2 * time.Minute), Status: "complete"},
+		{ID: "c1", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"},
+	} {
+		if err := store.SaveSnapshotSet(1, m, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+			t.Fatalf("save %s: %v", m.ID, err)
+		}
+	}
+
+	if err := prepareForCapture(store, 1, "s", CaptureModeBaseline); err != nil {
+		t.Fatalf("prepareForCapture baseline: %v", err)
+	}
+
+	list, _ := store.ListSnapshotSets(1, "s")
+	if len(list) != 0 {
+		t.Errorf("expected all snapshots cleared for baseline mode, got %d", len(list))
+	}
+}
+
+func TestPrepareForCapture_CaptureMode_PreservesBaseline(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	resolver := testStorageResolver(t, dir)
+	store := NewVisualCaptureStorage(resolver, OSFileIO{})
+
+	for _, m := range []SnapshotSetMeta{
+		{ID: "b1", ScenarioSlug: "s", Role: SnapshotRoleBaseline, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-2 * time.Minute), Status: "complete"},
+		{ID: "c1", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"},
+	} {
+		if err := store.SaveSnapshotSet(1, m, map[string][]byte{"_root_.png": {0x89}}, nil); err != nil {
+			t.Fatalf("save %s: %v", m.ID, err)
+		}
+	}
+
+	if err := prepareForCapture(store, 1, "s", CaptureModeCapture); err != nil {
+		t.Fatalf("prepareForCapture capture: %v", err)
+	}
+
+	list, _ := store.ListSnapshotSets(1, "s")
+	if len(list) != 1 {
+		t.Fatalf("expected 1 snapshot (baseline preserved), got %d", len(list))
+	}
+	if list[0].ID != "b1" {
+		t.Errorf("expected baseline b1 preserved, got %s", list[0].ID)
+	}
+}
+
+func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Create scenario files
+	scenarioDir := filepath.Join(dir, "scenarios", "test-app", "ui", "src")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	filePath := filepath.Join(scenarioDir, "App.tsx")
+	if err := os.WriteFile(filePath, []byte("content"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Capture happened 1 second before the file was written
+	captureTime := time.Now().UTC().Add(-2 * time.Second)
+	result := CheckCaptureStaleness(dir, "test-app", captureTime)
+	if !result.IsStale {
+		t.Error("expected stale when file modified after capture")
+	}
+}
+
+func TestCheckCaptureStaleness_NotStale(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	scenarioDir := filepath.Join(dir, "scenarios", "test-app")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "main.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Capture happened well after the file was written
+	captureTime := time.Now().UTC().Add(1 * time.Minute)
+	result := CheckCaptureStaleness(dir, "test-app", captureTime)
+	if result.IsStale {
+		t.Error("expected not stale when capture is after file changes")
+	}
+}
+
+func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	result := CheckCaptureStaleness(dir, "nonexistent", time.Now().UTC())
+	if result.IsStale {
+		t.Error("expected not stale for nonexistent scenario dir")
+	}
+}

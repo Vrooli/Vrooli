@@ -765,9 +765,9 @@ export function useVisualCaptureDetail(id: string, slug: string, enabled = true,
 
 export function useTriggerVisualCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<SnapshotSetMeta, Error, string>({
-    mutationFn: (scenarioSlug: string) => triggerVisualCapture(scenarioSlug, repoId ?? undefined),
-    onSuccess: (_data, scenarioSlug) => {
+  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture" }>({
+    mutationFn: ({ scenarioSlug, mode }) => triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined),
+    onSuccess: (_data, { scenarioSlug }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.visualCaptures(scenarioSlug, repoId) });
     },
   });

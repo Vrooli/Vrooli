@@ -243,7 +243,42 @@ func (s *VisualCaptureStorage) DeleteSnapshotSet(repoID int64, scenarioSlug, sna
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	return s.deleteSnapshotSetLocked(repoID, scenarioSlug, snapshotID)
+}
+
+func (s *VisualCaptureStorage) deleteSnapshotSetLocked(repoID int64, scenarioSlug, snapshotID string) error {
 	dir, err := s.snapshotDir(repoID, scenarioSlug, snapshotID)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(dir)
+}
+
+// DeleteSnapshotsByRole removes all snapshots matching the given role.
+func (s *VisualCaptureStorage) DeleteSnapshotsByRole(repoID int64, scenarioSlug, role string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	metas, err := s.ListSnapshotSets(repoID, scenarioSlug)
+	if err != nil {
+		return err
+	}
+	for _, m := range metas {
+		if m.EffectiveRole() == role {
+			if err := s.deleteSnapshotSetLocked(repoID, scenarioSlug, m.ID); err != nil {
+				return fmt.Errorf("delete snapshot %s: %w", m.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
+// ClearScenarioSnapshots removes all snapshots for a specific scenario.
+func (s *VisualCaptureStorage) ClearScenarioSnapshots(repoID int64, scenarioSlug string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	dir, err := s.snapshotsDir(repoID, scenarioSlug)
 	if err != nil {
 		return err
 	}
@@ -312,7 +347,8 @@ func (s *VisualCaptureStorage) GetStorageStats(repoID int64) (*VisualCaptureStor
 	return stats, nil
 }
 
-// enforceRetentionLocked keeps at most max snapshots per scenario, deletes oldest.
+// enforceRetentionLocked keeps at most max snapshots per scenario, deleting
+// oldest non-baseline snapshots first. Baselines are never evicted by retention.
 // Caller must hold s.mu.
 func (s *VisualCaptureStorage) enforceRetentionLocked(repoID int64, scenarioSlug string, max int) error {
 	dir, err := s.snapshotsDir(repoID, scenarioSlug)
@@ -350,13 +386,22 @@ func (s *VisualCaptureStorage) enforceRetentionLocked(repoID int64, scenarioSlug
 		return nil
 	}
 
-	// Sort oldest first
+	// Sort oldest first, but put baselines at the end so they survive eviction
 	sort.Slice(metas, func(i, j int) bool {
+		iBaseline := metas[i].meta.EffectiveRole() == SnapshotRoleBaseline
+		jBaseline := metas[j].meta.EffectiveRole() == SnapshotRoleBaseline
+		if iBaseline != jBaseline {
+			return !iBaseline // non-baselines first (evicted first)
+		}
 		return metas[i].meta.CreatedAt.Before(metas[j].meta.CreatedAt)
 	})
 
 	toDelete := len(metas) - max
 	for i := 0; i < toDelete; i++ {
+		// Never evict baselines during retention
+		if metas[i].meta.EffectiveRole() == SnapshotRoleBaseline {
+			break
+		}
 		os.RemoveAll(filepath.Join(dir, metas[i].name))
 	}
 

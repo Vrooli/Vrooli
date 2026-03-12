@@ -31,6 +31,11 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Mode != "" && req.Mode != CaptureModeBaseline && req.Mode != CaptureModeCapture {
+		hctx.Resp.BadRequest("mode must be \"baseline\" or \"capture\"")
+		return
+	}
+
 	meta, err := CaptureScenario(hctx.Ctx, VisualCaptureDeps{
 		BAS:     s.basClient,
 		Storage: s.visualCaptureStorage,
@@ -66,10 +71,21 @@ func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	hctx.Resp.OK(map[string]interface{}{
+	resp := map[string]interface{}{
 		"snapshots": snapshots,
 		"total":     len(snapshots),
-	})
+	}
+
+	// Compute staleness for the most recent capture-role snapshot
+	for _, snap := range snapshots {
+		if snap.Status == "complete" && snap.EffectiveRole() == SnapshotRoleCapture {
+			staleness := CheckCaptureStaleness(hctx.RepoDir, slug, snap.CreatedAt)
+			resp["staleness"] = staleness
+			break
+		}
+	}
+
+	hctx.Resp.OK(resp)
 }
 
 // handleVisualCaptureDetail handles GET /api/v1/repo/visual-captures/{id}?scenarioSlug=...
