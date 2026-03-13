@@ -594,7 +594,7 @@ export default function App() {
   const createGroupingRule = useCallback(
     (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
       return {
-        id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `group-${prefix}`,
         label,
         prefixes: [prefix],
         mode: mode ?? "prefix"
@@ -621,7 +621,7 @@ export default function App() {
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
-              : `group-${Date.now()}-${index}`;
+              : `group-${prefixes[0] ?? index}`;
           return { id, label, prefixes, mode } as GroupingRule;
         })
         .filter((rule): rule is GroupingRule => Boolean(rule));
@@ -791,6 +791,10 @@ export default function App() {
               setSelectedIsStaged(true);
               setSelectedIsUntracked(false);
             }
+            // On mobile, return to Changes tab so user isn't stranded on empty diff
+            if (isMobile) {
+              setMobileActivePanel("changes");
+            }
             pathsToStage.forEach((stagedPath) => {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
@@ -813,7 +817,7 @@ export default function App() {
         }
       );
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
+    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleUnstageFile = useCallback(
@@ -833,6 +837,10 @@ export default function App() {
               setSelectedIsStaged(false);
               setSelectedIsUntracked(false);
             }
+            // On mobile, return to Changes tab so user isn't stranded on empty diff
+            if (isMobile) {
+              setMobileActivePanel("changes");
+            }
             pathsToUnstage.forEach((unstagedPath) => {
               queryClient.invalidateQueries({
                 queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
@@ -848,7 +856,7 @@ export default function App() {
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
+    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleStageAll = useCallback(() => {

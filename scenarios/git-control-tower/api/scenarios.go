@@ -12,13 +12,14 @@ import (
 
 // ScenarioInfo holds metadata about a single scenario.
 type ScenarioInfo struct {
-	Name         string   `json:"name"`
-	DisplayName  string   `json:"display_name"`
-	Description  string   `json:"description"`
-	Status       string   `json:"status"`
-	HealthStatus *string  `json:"health_status"`
-	Tags         []string `json:"tags"`
-	Runtime      string   `json:"runtime"`
+	Name         string         `json:"name"`
+	DisplayName  string         `json:"display_name"`
+	Description  string         `json:"description"`
+	Status       string         `json:"status"`
+	HealthStatus *string        `json:"health_status"`
+	Tags         []string       `json:"tags"`
+	Runtime      string         `json:"runtime"`
+	Ports        map[string]int `json:"ports"`
 }
 
 // ScenarioLocator discovers available scenarios via the vrooli CLI.
@@ -68,6 +69,9 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]ScenarioInfo, error) {
 		}
 		if s.Tags == nil {
 			s.Tags = []string{}
+		}
+		if s.Ports == nil {
+			s.Ports = map[string]int{}
 		}
 		scenarios = append(scenarios, s)
 	}

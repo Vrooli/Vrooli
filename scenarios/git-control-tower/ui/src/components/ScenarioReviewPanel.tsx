@@ -565,7 +565,36 @@ function OverviewTab({
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
   const scenarios = useScenarios();
   const scenarioInfo = scenarios.data?.find(s => s.name === scenarioSlug);
-  const proxyUrl = `${window.location.origin}/apps/${encodeURIComponent(scenarioSlug)}/proxy/`;
+  const proxyUrl = useMemo(() => {
+    const proxyPath = `/apps/${encodeURIComponent(scenarioSlug)}/proxy/`;
+    const { origin, pathname, hostname, protocol } = window.location;
+
+    // Case 1: Accessed through app-monitor's /proxy — origin IS app-monitor
+    if (pathname.includes("/proxy")) {
+      return `${origin}${proxyPath}`;
+    }
+
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
+
+    if (isLocal) {
+      // Case 2: Direct localhost — use app-monitor's local UI port
+      const appMonitor = scenarios.data?.find(s => s.name === "app-monitor");
+      const uiPort = appMonitor?.ports?.UI_PORT;
+      if (uiPort) {
+        return `${protocol}//localhost:${uiPort}${proxyPath}`;
+      }
+    } else {
+      // Case 3: Remote/tunnel (e.g. git-control-tower.itsagitime.com)
+      // Swap subdomain to app-monitor on the same domain
+      const parts = hostname.split(".");
+      if (parts.length >= 3) {
+        parts[0] = "app-monitor";
+        return `${protocol}//${parts.join(".")}${proxyPath}`;
+      }
+    }
+
+    return `${origin}${proxyPath}`;
+  }, [scenarioSlug, scenarios.data]);
 
   // Readiness logic — either a baseline or capture counts as "has screenshots"
   const latestSnapshot = capture ?? baseline;

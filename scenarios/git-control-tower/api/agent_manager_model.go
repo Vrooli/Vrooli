@@ -87,6 +87,7 @@ type wireRun struct {
 	Actions         *wireRunActions `json:"actions,omitempty"`
 	SessionID       string          `json:"session_id,omitempty"`
 	ApprovalState   string          `json:"approval_state,omitempty"`
+	PromptPreview   string          `json:"prompt_preview,omitempty"`
 	StartedAt       string          `json:"started_at,omitempty"`
 	EndedAt         string          `json:"ended_at,omitempty"`
 	CreatedAt       string          `json:"created_at,omitempty"`
@@ -331,6 +332,7 @@ type AgentRun struct {
 	ProgressPercent int              `json:"progressPercent,omitempty"`
 	ErrorMsg        string           `json:"errorMsg,omitempty"`
 	ApprovalState   string           `json:"approvalState,omitempty"`
+	PromptPreview   string           `json:"promptPreview,omitempty"`
 	Summary         *AgentRunSummary `json:"summary,omitempty"`
 	Actions         *AgentRunActions `json:"actions,omitempty"`
 	CreatedAt       string           `json:"createdAt"`
@@ -464,6 +466,7 @@ func wireRunToAPI(w *wireRun) AgentRun {
 		ProgressPercent: w.ProgressPercent,
 		ErrorMsg:        w.ErrorMsg,
 		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
+		PromptPreview:   w.PromptPreview,
 		Summary:         wireRunSummaryToAPI(w.Summary),
 		Actions:         wireRunActionsToAPI(w.Actions),
 		CreatedAt:       w.CreatedAt,

@@ -841,9 +841,14 @@ export function FileList({
   const [maxPathChars, setMaxPathChars] = useState(72);
   const [compactHeader, setCompactHeader] = useState(false);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
-    new Set(),
-  );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    const storageKey = `gct.collapsedGroups.${repoId ?? "default"}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) return new Set(JSON.parse(stored) as string[]);
+    } catch { /* ignore */ }
+    return new Set();
+  });
   const binarySet = useMemo(
     () => new Set(files?.binary ?? []),
     [files?.binary],
@@ -1084,9 +1089,13 @@ export function FileList({
       } else {
         next.add(groupId);
       }
+      const storageKey = `gct.collapsedGroups.${repoId ?? "default"}`;
+      try {
+        localStorage.setItem(storageKey, JSON.stringify([...next]));
+      } catch { /* ignore */ }
       return next;
     });
-  }, []);
+  }, [repoId]);
 
   useEffect(() => {
     if (!scrollAreaRef.current || typeof ResizeObserver === "undefined") return;
@@ -1147,6 +1156,12 @@ export function FileList({
 
   const groupedSections = useMemo(() => {
     if (!groupingActive) return [];
+    // Build a map from rule ID to its definition order so groups sort
+    // by rule position rather than by first-encounter order (which shifts
+    // when files move between staged/unstaged).
+    const ruleIndexMap = new Map<string, number>();
+    normalizedRules.forEach((rule, idx) => ruleIndexMap.set(rule.id, idx));
+
     const groupMap = new Map<
       string,
       {
@@ -1156,7 +1171,6 @@ export function FileList({
         files: Record<FileCategory, string[]>;
       }
     >();
-    const groupOrder: string[] = [];
     const ensureGroup = (id: string, label: string, displayPrefix: string) => {
       const existing = groupMap.get(id);
       const group = existing ?? {
@@ -1172,7 +1186,6 @@ export function FileList({
       };
       if (!existing) {
         groupMap.set(id, group);
-        groupOrder.push(id);
       }
       if (displayPrefix) {
         group.displayPrefixes.add(displayPrefix);
@@ -1220,10 +1233,8 @@ export function FileList({
     (files?.unstaged ?? []).forEach((file) => addFile(file, "unstaged"));
     (files?.untracked ?? []).forEach((file) => addFile(file, "untracked"));
 
-    const filledGroups = groupOrder
-      .map((id) => groupMap.get(id))
-      .filter((group): group is NonNullable<typeof group> => {
-        if (!group) return false;
+    const filledGroups = Array.from(groupMap.values())
+      .filter((group) => {
         return (
           group.files.conflicts.length +
             group.files.staged.length +
@@ -1231,6 +1242,16 @@ export function FileList({
             group.files.untracked.length >
           0
         );
+      })
+      .sort((a, b) => {
+        // Sort by rule definition order. For segment groups (id = "ruleId:segment"),
+        // use the parent rule's index, then sort alphabetically by segment.
+        const aRuleId = a.id.split(":")[0] ?? a.id;
+        const bRuleId = b.id.split(":")[0] ?? b.id;
+        const aIdx = ruleIndexMap.get(aRuleId) ?? Infinity;
+        const bIdx = ruleIndexMap.get(bRuleId) ?? Infinity;
+        if (aIdx !== bIdx) return aIdx - bIdx;
+        return a.label.localeCompare(b.label);
       });
     const hasOther =
       otherGroup.files.conflicts.length +

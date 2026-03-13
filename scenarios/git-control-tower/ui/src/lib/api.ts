@@ -1930,6 +1930,7 @@ export interface AgentRun {
   progressPercent?: number;
   errorMsg?: string;
   approvalState?: string;
+  promptPreview?: string;
   summary?: AgentRunSummary;
   actions?: AgentRunActions;
   createdAt: string;
@@ -2142,6 +2143,7 @@ export interface ScenarioInfo {
   health_status: string | null;
   tags: string[];
   runtime: string;
+  ports: Record<string, number>;
 }
 
 export async function fetchScenarios(): Promise<ScenarioInfo[]> {

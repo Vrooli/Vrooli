@@ -449,7 +449,7 @@ export function AgentTab({
                 {showRunHistory ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               </button>
               {showRunHistory && (
-                <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-52 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+                <div className="absolute top-full mt-1 left-0 z-50 w-80 max-h-52 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
                   {runs.data.runs.map((run) => (
                     <button
                       key={run.id}
@@ -460,15 +460,15 @@ export function AgentTab({
                         setLastEventSequence(0);
                         setShowRunHistory(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-800/60 ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-slate-800/60 ${
                         run.id === activeRunId ? "bg-slate-800" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={run.status} />
-                        <span className="text-slate-500 text-[11px]">{run.id.slice(0, 8)}</span>
-                      </div>
-                      <span className="text-[11px] text-slate-600">
+                      <StatusBadge status={run.status} />
+                      <span className="text-slate-400 text-[11px] truncate min-w-0 flex-1">
+                        {run.promptPreview || run.id.slice(0, 8)}
+                      </span>
+                      <span className="text-[11px] text-slate-600 shrink-0">
                         {new Date(run.createdAt).toLocaleTimeString()}
                       </span>
                     </button>

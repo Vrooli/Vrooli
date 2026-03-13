@@ -109,7 +109,10 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 			continue
 		}
 
-		pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, ssResp.Screenshots[0].Screenshot.Url)
+		// Use the last screenshot — BAS captures one per step, and the explicit
+		// ACTION_TYPE_SCREENSHOT step is always last in the workflow.
+		lastSS := ssResp.Screenshots[len(ssResp.Screenshots)-1]
+		pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, lastSS.Screenshot.Url)
 		pageCancel()
 		if err != nil {
 			log.Printf("WARNING: fetch screenshot data failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
