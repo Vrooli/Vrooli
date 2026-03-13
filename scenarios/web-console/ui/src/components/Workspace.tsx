@@ -66,6 +66,7 @@ export default function Workspace() {
     removePane: removeSessionPane,
     handleExit,
     sendToActiveTerminal,
+    focusActiveTerminal,
     registerTerminalRef,
   } = useSessionManager();
 
@@ -209,6 +210,10 @@ export default function Workspace() {
     },
     [sendToActiveTerminal, store.activePane],
   );
+
+  const handleFocusTerminal = useCallback(() => {
+    focusActiveTerminal(store.activePane ?? undefined);
+  }, [focusActiveTerminal, store.activePane]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {
@@ -572,6 +577,7 @@ export default function Workspace() {
         <MobileToolbar
           ref={mobileToolbarRef}
           onInput={handleSendToTerminal}
+          onFocusTerminal={handleFocusTerminal}
           voiceSupported={voiceInput.supported}
           voiceRecording={voiceInput.isRecording}
           voiceTranscribing={voiceInput.isTranscribing}

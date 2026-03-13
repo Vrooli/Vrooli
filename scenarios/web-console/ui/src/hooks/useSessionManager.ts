@@ -153,6 +153,16 @@ export function useSessionManager() {
     [panes],
   );
 
+  const focusActiveTerminal = useCallback(
+    (targetId?: string) => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (target) {
+        terminalRefs.current.get(target)?.focus();
+      }
+    },
+    [panes],
+  );
+
   const registerTerminalRef = useCallback(
     (sessionId: string, handle: TerminalPaneHandle | null) => {
       if (handle) {
@@ -178,6 +188,7 @@ export function useSessionManager() {
     removePane,
     handleExit,
     sendToActiveTerminal,
+    focusActiveTerminal,
     registerTerminalRef,
   };
 }

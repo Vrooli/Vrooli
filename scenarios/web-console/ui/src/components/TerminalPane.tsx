@@ -23,6 +23,8 @@ interface TerminalPaneProps {
 export interface TerminalPaneHandle {
   /** Send data to the terminal. Returns true if sent immediately, false if queued. */
   sendInput: (data: string) => boolean;
+  /** Focus the xterm.js terminal element. */
+  focus: () => void;
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
@@ -52,8 +54,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       onReady,
     });
 
-    // Expose sendInput for parent components (mobile toolbar, launcher shortcuts)
-    useImperativeHandle(ref, () => ({ sendInput }), [sendInput]);
+    // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
+    useImperativeHandle(ref, () => ({
+      sendInput,
+      focus: () => terminal?.focus(),
+    }), [sendInput, terminal]);
 
     const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
       terminal,

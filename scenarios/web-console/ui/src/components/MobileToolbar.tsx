@@ -28,6 +28,8 @@ export interface MobileToolbarHandle {
 interface MobileToolbarProps {
   /** Callback to inject input into the active terminal. Returns true if sent immediately. */
   onInput: (data: string) => boolean;
+  /** Move focus to the active terminal (e.g. after submitting a command). */
+  onFocusTerminal?: () => void;
   /** Whether the toolbar is visible. */
   visible?: boolean;
   // Voice input props (optional - hidden when undefined)
@@ -43,6 +45,7 @@ interface MobileToolbarProps {
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
+  onFocusTerminal,
   visible = true,
   voiceSupported,
   voiceRecording,
@@ -96,16 +99,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     }
   }, []);
 
-  const refocusTextarea = useCallback(() => {
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  }, []);
-
   const handleKey = useCallback(
     (key: ToolbarKey) => {
       onInput(key.input);
-      refocusTextarea();
+      // Don't refocus the textarea here. Toolbar keys (Esc, Tab, Ctrl-C, arrows, etc.)
+      // send escape sequences to the terminal — stealing focus back to the input
+      // would yank the user out of the terminal session they're actively controlling.
     },
-    [onInput, refocusTextarea],
+    [onInput],
   );
 
   const submitCommand = useCallback(() => {
@@ -119,8 +120,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     } else {
       showStatus("queued");
     }
-    refocusTextarea();
-  }, [inputValue, onInput, clearDraft, showStatus, refocusTextarea]);
+    // After submitting a command, focus the terminal so the user can
+    // immediately see and interact with the output.
+    onFocusTerminal?.();
+  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal]);
 
   if (!visible) return null;
 
