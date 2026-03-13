@@ -8,11 +8,12 @@ interface ClarifyQuestionFieldProps {
   index: number;
   onChange: (updated: IdeaClarificationQuestion) => void;
   testIdPrefix?: string;
+  disabled?: boolean;
 }
 
 const OTHER_VALUE = "__other__";
 
-export function ClarifyQuestionField({ question, index, onChange, testIdPrefix }: ClarifyQuestionFieldProps) {
+export function ClarifyQuestionField({ question, index, onChange, testIdPrefix, disabled }: ClarifyQuestionFieldProps) {
   const hasOptions = question.options && question.options.length > 0;
 
   // "Other" is selected when the answer doesn't match any predefined option
@@ -55,6 +56,7 @@ export function ClarifyQuestionField({ question, index, onChange, testIdPrefix }
             name={`clarify-${question.id}`}
             value={selectedRadio}
             onChange={handleRadioChange}
+            disabled={disabled}
             options={[
               ...question.options!.map((opt) => ({ value: opt, label: opt })),
               { value: OTHER_VALUE, label: "Other" },
@@ -67,6 +69,7 @@ export function ClarifyQuestionField({ question, index, onChange, testIdPrefix }
               onChange={(e) => onChange({ ...question, answer: e.target.value })}
               placeholder="Specify your answer..."
               rows={2}
+              disabled={disabled}
               data-testid={testId ? `${testId}-other-input` : undefined}
             />
           )}
@@ -78,6 +81,7 @@ export function ClarifyQuestionField({ question, index, onChange, testIdPrefix }
           placeholder="Your answer..."
           rows={2}
           className="mt-2"
+          disabled={disabled}
           data-testid={testId ? `${testId}-input` : undefined}
         />
       )}

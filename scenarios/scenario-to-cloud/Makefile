@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
+.PHONY: help start stop test logs status clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -46,7 +46,7 @@ stop: ## Stop this scenario
 
 dev: ## Start development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run scenario tests
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -119,6 +119,7 @@ check: ## Format, lint, and test code (pre-commit workflow)
 	@$(MAKE) test
 
 # Development shortcuts
+run: start
 r: run
 s: stop
 d: dev

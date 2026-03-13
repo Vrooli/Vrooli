@@ -1,10 +1,15 @@
 // DOC: docs/guides/idea-agent-workflow.md#phase-2-suggest
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, ChevronRight, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
+import {
+  getSuggestionSynthesisStatus,
+  computeSuggestionsSynthesisSummary,
+  type SynthesisStatus,
+} from "../../lib/idea-agent-files";
 import type { IdeaSuggestion, IdeaSuggestionDecision } from "../../types";
 
 interface IdeaSuggestionsPanelProps {
@@ -17,6 +22,8 @@ interface IdeaSuggestionsPanelProps {
   onAdd?: () => void;
   onEdit?: (suggestion: IdeaSuggestion) => void;
   onDelete?: (suggestionId: string) => void;
+  disabled?: boolean;
+  enhanceCount?: number;
 }
 
 const DECISION_OPTIONS: Array<{ value: IdeaSuggestionDecision; label: string }> = [
@@ -24,6 +31,12 @@ const DECISION_OPTIONS: Array<{ value: IdeaSuggestionDecision; label: string }> 
   { value: "rejected", label: "Reject" },
   { value: "pending", label: "Pending" },
 ];
+
+const SYNTHESIS_BADGE: Record<SynthesisStatus, { label: string; className: string }> = {
+  new: { label: "New", className: "bg-cyan-500/20 text-cyan-300" },
+  updated: { label: "Updated", className: "bg-amber-500/20 text-amber-300" },
+  incorporated: { label: "", className: "" },
+};
 
 export function IdeaSuggestionsPanel({
   suggestions = [],
@@ -35,6 +48,8 @@ export function IdeaSuggestionsPanel({
   onAdd,
   onEdit,
   onDelete,
+  disabled,
+  enhanceCount,
 }: IdeaSuggestionsPanelProps) {
   const [localSuggestions, setLocalSuggestions] = useState<IdeaSuggestion[]>(suggestions);
   const [expanded, setExpanded] = useState(true);
@@ -44,6 +59,10 @@ export function IdeaSuggestionsPanel({
   }, [suggestions]);
 
   const hasSuggestions = localSuggestions.length > 0;
+  const synthesisSummary = useMemo(
+    () => (enhanceCount && enhanceCount > 0 ? computeSuggestionsSynthesisSummary(localSuggestions) : null),
+    [localSuggestions, enhanceCount],
+  );
 
   // If parsing failed completely with no recovered items, show error-only card
   if (parseError && !hasSuggestions) {
@@ -77,6 +96,15 @@ export function IdeaSuggestionsPanel({
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
           {localSuggestions.length} suggestion{localSuggestions.length === 1 ? "" : "s"}
         </span>
+        {synthesisSummary && (
+          <span className="text-[11px] text-slate-500">
+            {synthesisSummary.incorporated > 0 && <>{synthesisSummary.incorporated} synthesized</>}
+            {synthesisSummary.incorporated > 0 && (synthesisSummary.updated > 0 || synthesisSummary.new > 0) && " · "}
+            {synthesisSummary.updated > 0 && <span className="text-amber-400">{synthesisSummary.updated} updated</span>}
+            {synthesisSummary.updated > 0 && synthesisSummary.new > 0 && " · "}
+            {synthesisSummary.new > 0 && <span className="text-cyan-400">{synthesisSummary.new} new</span>}
+          </span>
+        )}
         {onAdd && (
           <button
             type="button"
@@ -116,89 +144,109 @@ export function IdeaSuggestionsPanel({
 
           {hasSuggestions && (
             <div className="mt-4 space-y-4">
-              {localSuggestions.map((suggestion, index) => (
-                <div key={suggestion.id} className="rounded-lg border border-white/10 bg-slate-800/40 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-100">Suggestion {index + 1}</p>
-                    <div className="flex items-center gap-2">
-                      {onEdit && (
-                        <button
-                          type="button"
-                          onClick={() => onEdit(suggestion)}
-                          className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
-                          title="Edit suggestion"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          type="button"
-                          onClick={() => onDelete(suggestion.id)}
-                          className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
-                          title="Delete suggestion"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+              {localSuggestions.map((suggestion, index) => {
+                const status = enhanceCount && enhanceCount > 0 ? getSuggestionSynthesisStatus(suggestion) : null;
+                const badge = status ? SYNTHESIS_BADGE[status] : null;
+                return (
+                  <div key={suggestion.id} className="rounded-lg border border-white/10 bg-slate-800/40 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-slate-100">Suggestion {index + 1}</p>
+                        {badge && badge.label && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        {status === "incorporated" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {onEdit && (
+                          <button
+                            type="button"
+                            onClick={() => onEdit(suggestion)}
+                            className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
+                            title="Edit suggestion"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(suggestion.id)}
+                            className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
+                            title="Delete suggestion"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <Select
+                        value={suggestion.status ?? "pending"}
+                        onChange={(event) => {
+                          const s = event.target.value as IdeaSuggestionDecision;
+                          setLocalSuggestions((current) =>
+                            current.map((item) => (item.id === suggestion.id ? { ...item, status: s } : item))
+                          );
+                        }}
+                        variant="compact"
+                        disabled={disabled}
+                      >
+                        {DECISION_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
-                    <Select
-                      value={suggestion.status ?? "pending"}
+                    <textarea
+                      value={suggestion.suggestion ?? ""}
                       onChange={(event) => {
-                        const status = event.target.value as IdeaSuggestionDecision;
+                        const value = event.target.value;
                         setLocalSuggestions((current) =>
-                          current.map((item) => (item.id === suggestion.id ? { ...item, status } : item))
+                          current.map((item) => (item.id === suggestion.id ? { ...item, suggestion: value } : item))
                         );
                       }}
-                      variant="compact"
-                    >
-                      {DECISION_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
+                      disabled={disabled}
+                      className="mt-3 w-full rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      rows={3}
+                    />
+                    {suggestion.details && (
+                      <p className="mt-2 text-xs text-slate-400">{suggestion.details}</p>
+                    )}
                   </div>
-                  <textarea
-                    value={suggestion.suggestion ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setLocalSuggestions((current) =>
-                        current.map((item) => (item.id === suggestion.id ? { ...item, suggestion: value } : item))
-                      );
-                    }}
-                    className="mt-3 w-full rounded-md border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    rows={3}
-                  />
-                  {suggestion.details && (
-                    <p className="mt-2 text-xs text-slate-400">{suggestion.details}</p>
-                  )}
+                );
+              })}
+            </div>
+          )}
+
+          {!disabled && (
+            <>
+              {hasPending && hasSuggestions && (
+                <div className="mt-3 text-xs text-slate-400">
+                  Choose accept or reject for each suggestion before continuing.
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {hasPending && hasSuggestions && (
-            <div className="mt-3 text-xs text-slate-400">
-              Choose accept or reject for each suggestion before continuing.
-            </div>
-          )}
+              {submitError && (
+                <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {submitError}
+                </div>
+              )}
 
-          {submitError && (
-            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {submitError}
-            </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={() => onSubmit(localSuggestions)}
+                  disabled={isSubmitting || !hasSuggestions || hasPending}
+                  data-testid={selectors.backlogDetails.suggestionsSubmit}
+                >
+                  {isSubmitting ? "Submitting..." : "Save Decisions & Run Enhance"}
+                </Button>
+              </div>
+            </>
           )}
-
-          <div className="mt-4 flex justify-end">
-            <Button
-              onClick={() => onSubmit(localSuggestions)}
-              disabled={isSubmitting || !hasSuggestions || hasPending}
-              data-testid={selectors.backlogDetails.suggestionsSubmit}
-            >
-              {isSubmitting ? "Submitting..." : "Save Decisions & Run Enhance"}
-            </Button>
-          </div>
         </>
       )}
     </Card>

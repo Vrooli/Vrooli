@@ -1604,6 +1604,26 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Snapshot synthesis state / increment counters before spawning the agent.
+	itemDir := h.itemDir(kind, item.Name)
+	switch mode {
+	case ResearchModeEnhance:
+		if err := snapshotQuestionsForEnhance(filepath.Join(itemDir, "clarify", "questions.json")); err != nil {
+			log.Printf("[backlog] research: failed to snapshot questions for enhance: %v", err)
+		}
+		if err := snapshotSuggestionsForEnhance(filepath.Join(itemDir, "suggest", "suggestions.json")); err != nil {
+			log.Printf("[backlog] research: failed to snapshot suggestions for enhance: %v", err)
+		}
+	case ResearchModeClarify:
+		if err := incrementClarifyCount(filepath.Join(itemDir, "clarify", "questions.json")); err != nil {
+			log.Printf("[backlog] research: failed to increment clarify count: %v", err)
+		}
+	case ResearchModeSuggest:
+		if err := incrementSuggestCount(filepath.Join(itemDir, "suggest", "suggestions.json")); err != nil {
+			log.Printf("[backlog] research: failed to increment suggest count: %v", err)
+		}
+	}
+
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
 		Kind:        string(kind),
 		Name:        item.Name,

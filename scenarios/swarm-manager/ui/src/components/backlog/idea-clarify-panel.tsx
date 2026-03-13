@@ -1,10 +1,15 @@
 // DOC: docs/guides/idea-agent-workflow.md#phase-1-clarify
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, MessageSquareText, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, MessageSquareText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { ClarifyQuestionList } from "./clarify-question-list";
 import { selectors } from "../../consts/selectors";
+import {
+  getQuestionSynthesisStatus,
+  computeQuestionsSynthesisSummary,
+  type SynthesisStatus,
+} from "../../lib/idea-agent-files";
 import type { IdeaAgentMode, IdeaClarificationQuestion } from "../../types";
 
 type NextAction = IdeaAgentMode | "none";
@@ -19,6 +24,8 @@ interface IdeaClarifyPanelProps {
   onAdd?: () => void;
   onEdit?: (question: IdeaClarificationQuestion) => void;
   onDelete?: (questionId: string) => void;
+  disabled?: boolean;
+  enhanceCount?: number;
 }
 
 const NEXT_ACTION_OPTIONS: Array<{ value: NextAction; label: string; helper: string }> = [
@@ -39,6 +46,12 @@ const NEXT_ACTION_OPTIONS: Array<{ value: NextAction; label: string; helper: str
   },
 ];
 
+const SYNTHESIS_BADGE: Record<SynthesisStatus, { label: string; className: string }> = {
+  new: { label: "New", className: "bg-cyan-500/20 text-cyan-300" },
+  updated: { label: "Updated", className: "bg-amber-500/20 text-amber-300" },
+  incorporated: { label: "", className: "" },
+};
+
 export function IdeaClarifyPanel({
   questions = [],
   filePath,
@@ -49,6 +62,8 @@ export function IdeaClarifyPanel({
   onAdd,
   onEdit,
   onDelete,
+  disabled,
+  enhanceCount,
 }: IdeaClarifyPanelProps) {
   const [localQuestions, setLocalQuestions] = useState<IdeaClarificationQuestion[]>(questions);
   const [nextMode, setNextMode] = useState<NextAction>("none");
@@ -63,6 +78,10 @@ export function IdeaClarifyPanel({
   const selectionHelper = useMemo(
     () => NEXT_ACTION_OPTIONS.find((option) => option.value === nextMode)?.helper,
     [nextMode],
+  );
+  const synthesisSummary = useMemo(
+    () => (enhanceCount && enhanceCount > 0 ? computeQuestionsSynthesisSummary(localQuestions) : null),
+    [localQuestions, enhanceCount],
   );
 
   // If parsing failed completely with no recovered items, show error-only card
@@ -102,6 +121,15 @@ export function IdeaClarifyPanel({
         <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">
           {localQuestions.length} question{localQuestions.length === 1 ? "" : "s"}
         </span>
+        {synthesisSummary && (
+          <span className="text-[11px] text-slate-500">
+            {synthesisSummary.incorporated > 0 && <>{synthesisSummary.incorporated} synthesized</>}
+            {synthesisSummary.incorporated > 0 && (synthesisSummary.updated > 0 || synthesisSummary.new > 0) && " · "}
+            {synthesisSummary.updated > 0 && <span className="text-amber-400">{synthesisSummary.updated} updated</span>}
+            {synthesisSummary.updated > 0 && synthesisSummary.new > 0 && " · "}
+            {synthesisSummary.new > 0 && <span className="text-cyan-400">{synthesisSummary.new} new</span>}
+          </span>
+        )}
         {onAdd && (
           <button
             type="button"
@@ -141,91 +169,108 @@ export function IdeaClarifyPanel({
 
           {hasQuestions && (
             <div className="mt-4 space-y-3">
-              {localQuestions.map((q, idx) => (
-                <div key={q.id} className="relative">
-                  {(onEdit || onDelete) && (
-                    <div className="absolute right-2 top-2 flex gap-1">
-                      {onEdit && (
-                        <button
-                          type="button"
-                          onClick={() => onEdit(q)}
-                          className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
-                          title="Edit question"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          type="button"
-                          onClick={() => onDelete(q.id)}
-                          className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
-                          title="Delete question"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  <ClarifyQuestionList
-                    questions={[q]}
-                    onChange={(updated) => {
-                      setLocalQuestions((prev) =>
-                        prev.map((pq) => (pq.id === updated[0]?.id ? updated[0]! : pq))
-                      );
-                    }}
-                    testIdPrefix={`clarify-${idx}`}
-                  />
+              {localQuestions.map((q, idx) => {
+                const status = enhanceCount && enhanceCount > 0 ? getQuestionSynthesisStatus(q) : null;
+                const badge = status ? SYNTHESIS_BADGE[status] : null;
+                return (
+                  <div key={q.id} className="relative">
+                    {(onEdit || onDelete || (badge && badge.label)) && (
+                      <div className="absolute right-2 top-2 flex items-center gap-1">
+                        {badge && badge.label && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        {status === "incorporated" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        )}
+                        {onEdit && (
+                          <button
+                            type="button"
+                            onClick={() => onEdit(q)}
+                            className="rounded p-1 text-slate-500 hover:bg-slate-700 hover:text-slate-200"
+                            title="Edit question"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(q.id)}
+                            className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-300"
+                            title="Delete question"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <ClarifyQuestionList
+                      questions={[q]}
+                      onChange={(updated) => {
+                        setLocalQuestions((prev) =>
+                          prev.map((pq) => (pq.id === updated[0]?.id ? updated[0]! : pq))
+                        );
+                      }}
+                      testIdPrefix={`clarify-${idx}`}
+                      disabled={disabled}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!disabled && (
+            <>
+              <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/50 p-4">
+                <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
+                  What happens next?
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
+                  {NEXT_ACTION_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setNextMode(option.value)}
+                      data-testid={option.value === "none" ? selectors.backlogDetails.clarifyNextModeNone : undefined}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                        nextMode === option.value
+                          ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/50"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+                {selectionHelper && <p className="mt-2 text-xs text-slate-400">{selectionHelper}</p>}
+              </div>
 
-          <div className="mt-4 rounded-lg border border-white/10 bg-slate-800/50 p-4">
-            <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
-              What happens next?
-            </label>
-            <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
-              {NEXT_ACTION_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setNextMode(option.value)}
-                  data-testid={option.value === "none" ? selectors.backlogDetails.clarifyNextModeNone : undefined}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    nextMode === option.value
-                      ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/50"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                  }`}
+              {hasUnanswered && hasQuestions && nextMode !== "none" && (
+                <div className="mt-3 text-xs text-slate-400">
+                  Answer each question before running an agent.
+                </div>
+              )}
+
+              {submitError && (
+                <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {submitError}
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={() => onSubmit({ questions: localQuestions, nextMode })}
+                  disabled={isSubmitting || !hasQuestions || (hasUnanswered && nextMode !== "none")}
+                  data-testid={selectors.backlogDetails.clarifySubmit}
                 >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {selectionHelper && <p className="mt-2 text-xs text-slate-400">{selectionHelper}</p>}
-          </div>
-
-          {hasUnanswered && hasQuestions && nextMode !== "none" && (
-            <div className="mt-3 text-xs text-slate-400">
-              Answer each question before running an agent.
-            </div>
+                  {submitLabel}
+                </Button>
+              </div>
+            </>
           )}
-
-          {submitError && (
-            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {submitError}
-            </div>
-          )}
-
-          <div className="mt-4 flex justify-end">
-            <Button
-              onClick={() => onSubmit({ questions: localQuestions, nextMode })}
-              disabled={isSubmitting || !hasQuestions || (hasUnanswered && nextMode !== "none")}
-              data-testid={selectors.backlogDetails.clarifySubmit}
-            >
-              {submitLabel}
-            </Button>
-          </div>
         </>
       )}
     </Card>

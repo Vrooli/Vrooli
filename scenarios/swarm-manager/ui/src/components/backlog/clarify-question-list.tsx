@@ -5,9 +5,10 @@ interface ClarifyQuestionListProps {
   questions: IdeaClarificationQuestion[];
   onChange: (questions: IdeaClarificationQuestion[]) => void;
   testIdPrefix?: string;
+  disabled?: boolean;
 }
 
-export function ClarifyQuestionList({ questions, onChange, testIdPrefix }: ClarifyQuestionListProps) {
+export function ClarifyQuestionList({ questions, onChange, testIdPrefix, disabled }: ClarifyQuestionListProps) {
   const handleUpdate = (updated: IdeaClarificationQuestion) => {
     onChange(questions.map((q) => (q.id === updated.id ? updated : q)));
   };
@@ -21,6 +22,7 @@ export function ClarifyQuestionList({ questions, onChange, testIdPrefix }: Clari
           index={idx}
           onChange={handleUpdate}
           testIdPrefix={testIdPrefix}
+          disabled={disabled}
         />
       ))}
     </div>

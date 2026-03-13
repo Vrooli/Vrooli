@@ -4,6 +4,8 @@ import type {
   IdeaClarificationQuestion,
   IdeaSuggestion,
   IdeaSuggestionDecision,
+  QuestionLastSynthesis,
+  SuggestionLastSynthesis,
   BacklogFile,
 } from "../types";
 
@@ -29,6 +31,18 @@ const normalizeOptions = (raw: unknown): string[] | undefined => {
   return filtered.length > 0 ? filtered : undefined;
 };
 
+const normalizeLastSynthesisQuestion = (raw: unknown): QuestionLastSynthesis | undefined => {
+  if (!isRecord(raw)) return undefined;
+  if (typeof raw.answer !== "string" || typeof raw.round !== "number") return undefined;
+  return { answer: raw.answer, round: raw.round };
+};
+
+const normalizeLastSynthesisSuggestion = (raw: unknown): SuggestionLastSynthesis | undefined => {
+  if (!isRecord(raw)) return undefined;
+  if (typeof raw.status !== "string" || typeof raw.round !== "number") return undefined;
+  return { status: raw.status as IdeaSuggestionDecision, round: raw.round };
+};
+
 const normalizeQuestion = (item: unknown, index: number): IdeaClarificationQuestion | null => {
   if (typeof item === "string") {
     return { id: `q${index + 1}`, question: item, answer: "" };
@@ -39,11 +53,13 @@ const normalizeQuestion = (item: unknown, index: number): IdeaClarificationQuest
       return null;
     }
     const options = normalizeOptions(item.options);
+    const lastSynthesis = normalizeLastSynthesisQuestion(item.lastSynthesis);
     return {
       id: toString(item.id ?? `q${index + 1}`),
       question,
       ...(options ? { options } : {}),
       answer: typeof item.answer === "string" ? item.answer : "",
+      ...(lastSynthesis ? { lastSynthesis } : {}),
     };
   }
   return null;
@@ -62,12 +78,14 @@ const normalizeSuggestion = (item: unknown, index: number): IdeaSuggestion | nul
     const status = SUGGESTION_DECISIONS.includes(statusCandidate as IdeaSuggestionDecision)
       ? (statusCandidate as IdeaSuggestionDecision)
       : "pending";
+    const lastSynthesis = normalizeLastSynthesisSuggestion(item.lastSynthesis);
 
     return {
       id: toString(item.id ?? `s${index + 1}`),
       suggestion,
       details: toString(item.details ?? item.rationale ?? item.context),
       status,
+      ...(lastSynthesis ? { lastSynthesis } : {}),
     };
   }
   return null;
@@ -274,6 +292,46 @@ export function parseSuggestionsObject(content: Record<string, unknown> | null):
     .map((item, index) => normalizeSuggestion(item, index))
     .filter((item): item is IdeaSuggestion => Boolean(item));
   return { raw: content, suggestions };
+}
+
+// ---------------------------------------------------------------------------
+// Synthesis status helpers — used by UI panels to show per-item indicators.
+// ---------------------------------------------------------------------------
+
+export type SynthesisStatus = "new" | "updated" | "incorporated";
+
+export function getQuestionSynthesisStatus(q: IdeaClarificationQuestion): SynthesisStatus {
+  if (!q.lastSynthesis) return "new";
+  if (q.lastSynthesis.answer !== (q.answer ?? "")) return "updated";
+  return "incorporated";
+}
+
+export function getSuggestionSynthesisStatus(s: IdeaSuggestion): SynthesisStatus {
+  if (!s.lastSynthesis) return "new";
+  if (s.lastSynthesis.status !== (s.status ?? "pending")) return "updated";
+  return "incorporated";
+}
+
+export interface SynthesisSummary {
+  incorporated: number;
+  updated: number;
+  new: number;
+}
+
+export function computeQuestionsSynthesisSummary(questions: IdeaClarificationQuestion[]): SynthesisSummary {
+  const summary: SynthesisSummary = { incorporated: 0, updated: 0, new: 0 };
+  for (const q of questions) {
+    summary[getQuestionSynthesisStatus(q)]++;
+  }
+  return summary;
+}
+
+export function computeSuggestionsSynthesisSummary(suggestions: IdeaSuggestion[]): SynthesisSummary {
+  const summary: SynthesisSummary = { incorporated: 0, updated: 0, new: 0 };
+  for (const s of suggestions) {
+    summary[getSuggestionSynthesisStatus(s)]++;
+  }
+  return summary;
 }
 
 export function findBacklogFileByPath(files: BacklogFile[] | undefined, targetPath: string): BacklogFile | null {

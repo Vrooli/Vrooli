@@ -368,6 +368,11 @@ export function BacklogDetailsPage() {
         ? "Unable to load suggestions."
         : suggestionsParsed.error;
 
+  const LOCKED_STATUSES = new Set(["queued", "in_progress", "completed"]);
+  const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
+  const clarifyEnhanceCount = typeof clarifyParsed.raw?.enhanceCount === "number" ? clarifyParsed.raw.enhanceCount : 0;
+  const suggestionsEnhanceCount = typeof suggestionsParsed.raw?.enhanceCount === "number" ? suggestionsParsed.raw.enhanceCount : 0;
+
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
   const filesError = filesQueryError instanceof Error ? filesQueryError : null;
@@ -1317,6 +1322,7 @@ export function BacklogDetailsPage() {
           variant="outline"
           size="sm"
           onClick={() => setShowUpload(!showUpload)}
+          disabled={isLocked}
           data-testid="toggle-upload"
         >
           <Upload className="mr-2 h-4 w-4" />
@@ -1512,6 +1518,11 @@ export function BacklogDetailsPage() {
 
   const notesPanel = hasNotes ? (
     <div className="space-y-4">
+      {isLocked && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-sm text-amber-300">
+          This item is {item ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
+        </div>
+      )}
       {clarifyFile && (
         <IdeaClarifyPanel
           questions={clarifyParsed.questions}
@@ -1522,9 +1533,11 @@ export function BacklogDetailsPage() {
           onSubmit={({ questions, nextMode }) =>
             clarifyMutation.mutate({ questions, nextMode })
           }
-          onAdd={handleAddQuestion}
-          onEdit={handleEditQuestion}
-          onDelete={handleDeleteQuestion}
+          onAdd={isLocked ? undefined : handleAddQuestion}
+          onEdit={isLocked ? undefined : handleEditQuestion}
+          onDelete={isLocked ? undefined : handleDeleteQuestion}
+          disabled={isLocked}
+          enhanceCount={clarifyEnhanceCount}
         />
       )}
       {suggestionsFile && (
@@ -1535,9 +1548,11 @@ export function BacklogDetailsPage() {
           isSubmitting={suggestionsMutation.isPending}
           submitError={suggestionsError}
           onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
-          onAdd={handleAddSuggestion}
-          onEdit={handleEditSuggestion}
-          onDelete={handleDeleteSuggestion}
+          onAdd={isLocked ? undefined : handleAddSuggestion}
+          onEdit={isLocked ? undefined : handleEditSuggestion}
+          onDelete={isLocked ? undefined : handleDeleteSuggestion}
+          disabled={isLocked}
+          enhanceCount={suggestionsEnhanceCount}
         />
       )}
     </div>
@@ -1641,6 +1656,7 @@ export function BacklogDetailsPage() {
           size="sm"
           className={rowButtonClass}
           onClick={() => runAction(() => setShowAgentDialog(true))}
+          disabled={isLocked}
         >
           <Sparkles className="mr-2 h-4 w-4" />
           {agentLabel}
@@ -2048,6 +2064,7 @@ export function BacklogDetailsPage() {
                   size="sm"
                   className="hidden lg:inline-flex"
                   onClick={() => setShowAgentDialog(true)}
+                  disabled={isLocked}
                   data-testid={selectors.backlogDetails.agentButton}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />

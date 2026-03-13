@@ -12,15 +12,16 @@ export interface RadioGroupProps {
   options: RadioOption[];
   className?: string;
   testIdPrefix?: string;
+  disabled?: boolean;
 }
 
-export function RadioGroup({ name, value, onChange, options, className, testIdPrefix }: RadioGroupProps) {
+export function RadioGroup({ name, value, onChange, options, className, testIdPrefix, disabled }: RadioGroupProps) {
   return (
     <div className={cn("space-y-2", className)} role="radiogroup">
       {options.map((opt) => (
         <label
           key={opt.value}
-          className="flex items-center gap-2 text-sm text-slate-200 cursor-pointer"
+          className={cn("flex items-center gap-2 text-sm text-slate-200", disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}
           data-testid={testIdPrefix ? `${testIdPrefix}-${opt.value}` : undefined}
         >
           <input
@@ -29,6 +30,7 @@ export function RadioGroup({ name, value, onChange, options, className, testIdPr
             value={opt.value}
             checked={value === opt.value}
             onChange={() => onChange(opt.value)}
+            disabled={disabled}
             className="accent-cyan-500"
           />
           {opt.label}
