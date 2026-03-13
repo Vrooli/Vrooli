@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -22,6 +22,7 @@ import {
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
 import { getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
+import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -613,6 +614,7 @@ export function DiffViewer({
     clientHeight: 1
   });
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
@@ -940,143 +942,212 @@ export function DiffViewer({
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
-      <CardHeader className={`flex-row items-center justify-between space-y-0 ${isMobile ? "py-4 px-4" : "py-3"}`}>
-        <div className={`flex items-center min-w-0 ${isMobile ? "gap-2 flex-1" : "gap-3"}`}>
-          <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
-            <FileDiff className={`flex-shrink-0 text-slate-500 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
-            {selectedFile ? (
-              <span className={`font-mono truncate ${isMobile ? "text-sm" : "text-xs"}`}>{selectedFile}</span>
-            ) : (
-              <span className={isMobile ? "text-sm" : "text-xs"}>Diff Viewer</span>
-            )}
-          </CardTitle>
-          {selectedFile && (
-            <button
-              type="button"
-              className={`inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 ${
-                isMobile ? "h-10 w-10 touch-target" : "h-7 w-7"
-              }`}
-              onClick={handleCopyPath}
-              title={copied ? "Copied" : "Copy absolute path"}
-              aria-label="Copy absolute path"
-              data-testid="copy-absolute-path"
-            >
-              {copied ? (
-                <Check className={`text-emerald-300 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
+      <CardHeader className={`space-y-0 ${isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
+        {/* Row 1: Title + primary indicators */}
+        <div className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+          <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
+            <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
+              <FileDiff className={`flex-shrink-0 text-slate-500 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
+              {selectedFile ? (
+                <span className={`font-mono truncate ${isMobile ? "text-sm" : "text-xs"}`}>{selectedFile}</span>
               ) : (
-                <Copy className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                <span className={isMobile ? "text-sm" : "text-xs"}>Diff Viewer</span>
               )}
-            </button>
-          )}
-          {selectedFile && onShowRelatedFiles && (
-            <button
-              type="button"
-              className={`inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 ${
-                isMobile ? "h-10 w-10 touch-target" : "h-7 w-7"
-              }`}
-              onClick={() => onShowRelatedFiles(selectedFile)}
-              title="Related files"
-              aria-label="Show related files"
-              data-testid="related-files-button"
-            >
-              <Link2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-            </button>
-          )}
-          {selectedFile && !isMobile && (
-            isHistoryMode ? (
-              <Badge variant="warning">
-                {commitHash ? commitHash.substring(0, 7) : "history"}
-              </Badge>
-            ) : (
-              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-                {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
-              </Badge>
-            )
-          )}
+            </CardTitle>
+            {/* Desktop-only: inline copy/related buttons */}
+            {!isMobile && selectedFile && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                onClick={handleCopyPath}
+                title={copied ? "Copied" : "Copy absolute path"}
+                aria-label="Copy absolute path"
+                data-testid="copy-absolute-path"
+              >
+                {copied ? (
+                  <Check className="text-emerald-300 h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+            {!isMobile && selectedFile && onShowRelatedFiles && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                onClick={() => onShowRelatedFiles(selectedFile)}
+                title="Related files"
+                aria-label="Show related files"
+                data-testid="related-files-button"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {selectedFile && !isMobile && (
+              isHistoryMode ? (
+                <Badge variant="warning">
+                  {commitHash ? commitHash.substring(0, 7) : "history"}
+                </Badge>
+              ) : (
+                <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+                  {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
+                </Badge>
+              )
+            )}
+          </div>
+
+          {/* Right side of row 1 */}
+          <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+            {/* Mobile: badge + stats + overflow */}
+            {selectedFile && isMobile && (
+              isHistoryMode ? (
+                <Badge variant="warning">
+                  {commitHash ? commitHash.substring(0, 7) : "hist"}
+                </Badge>
+              ) : (
+                <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+                  {isUntracked ? "new" : isStaged ? "staged" : "mod"}
+                </Badge>
+              )
+            )}
+            {diff?.stats && diff.has_diff && viewMode !== "source" && (
+              <button
+                type="button"
+                className="flex items-center gap-2 hover:underline decoration-slate-600 cursor-pointer"
+                data-testid="diff-stats"
+                onClick={() => setMetricsOpen(true)}
+                aria-label="View change metrics"
+              >
+                <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+                  <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                  {diff.stats.additions}
+                </span>
+                <span className={`flex items-center gap-1 text-red-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+                  <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                  {diff.stats.deletions}
+                </span>
+              </button>
+            )}
+            {/* Mobile overflow menu trigger */}
+            {isMobile && selectedFile && (
+              <button
+                type="button"
+                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-800/70 active:bg-slate-700 touch-target"
+                onClick={() => setMobileActionsOpen(true)}
+                title="More actions"
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </button>
+            )}
+            {/* Desktop: view mode + edit/save buttons */}
+            {!isMobile && (
+              <>
+                {selectedFile && !isLoading && !error && (
+                  <ViewModeSelector
+                    mode={viewMode}
+                    onChange={onViewModeChange}
+                    compact={false}
+                    disabled={isLoading}
+                    filePath={selectedFile}
+                    hasDiff={!isReadOnly && diff?.has_diff}
+                  />
+                )}
+                {selectedFile && !isLoading && !error && canEdit && !isEditing && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleStartEditing}
+                    className="h-7 px-2"
+                    data-testid="start-editing-button"
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                {selectedFile && !isLoading && !error && isEditing && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelEditing}
+                      className="h-7 px-2"
+                      disabled={isSavingFile}
+                      data-testid="cancel-editing-button"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleSaveContent}
+                      className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700"
+                      disabled={isSavingFile || !isDirty}
+                      data-testid="save-file-button"
+                    >
+                      {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                      Save
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
-        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-          {/* View mode selector - only show when file is selected */}
-          {selectedFile && !isLoading && !error && (
+        {/* Row 2 (mobile only): View mode + edit actions */}
+        {isMobile && selectedFile && !isLoading && !error && (
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/50">
             <ViewModeSelector
               mode={viewMode}
               onChange={onViewModeChange}
-              compact={isMobile}
+              compact={true}
               disabled={isLoading}
               filePath={selectedFile}
               hasDiff={!isReadOnly && diff?.has_diff}
             />
-          )}
-          {selectedFile && !isLoading && !error && canEdit && !isEditing && (
-            <Button
-              variant="outline"
-              size={isMobile ? "sm" : "sm"}
-              onClick={handleStartEditing}
-              className={isMobile ? "h-9 px-3" : "h-7 px-2"}
-              data-testid="start-editing-button"
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1" />
-              Edit
-            </Button>
-          )}
-          {selectedFile && !isLoading && !error && isEditing && (
-            <>
+            <div className="flex-1" />
+            {canEdit && !isEditing && (
               <Button
                 variant="outline"
-                size={isMobile ? "sm" : "sm"}
-                onClick={handleCancelEditing}
-                className={isMobile ? "h-9 px-3" : "h-7 px-2"}
-                disabled={isSavingFile}
-                data-testid="cancel-editing-button"
+                size="sm"
+                onClick={handleStartEditing}
+                className="h-9 px-3"
+                data-testid="start-editing-button"
               >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Cancel
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                Edit
               </Button>
-              <Button
-                variant="default"
-                size={isMobile ? "sm" : "sm"}
-                onClick={handleSaveContent}
-                className={isMobile ? "h-9 px-3 bg-emerald-600 hover:bg-emerald-700" : "h-7 px-2 bg-emerald-600 hover:bg-emerald-700"}
-                disabled={isSavingFile || !isDirty}
-                data-testid="save-file-button"
-              >
-                {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-                Save
-              </Button>
-            </>
-          )}
-
-          {/* Mobile: show badge in header right */}
-          {selectedFile && isMobile && (
-            isHistoryMode ? (
-              <Badge variant="warning">
-                {commitHash ? commitHash.substring(0, 7) : "hist"}
-              </Badge>
-            ) : (
-              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-                {isUntracked ? "new" : isStaged ? "staged" : "mod"}
-              </Badge>
-            )
-          )}
-          {diff?.stats && diff.has_diff && viewMode !== "source" && (
-            <button
-              type="button"
-              className="flex items-center gap-2 hover:underline decoration-slate-600 cursor-pointer"
-              data-testid="diff-stats"
-              onClick={() => setMetricsOpen(true)}
-              aria-label="View change metrics"
-            >
-              <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-                {diff.stats.additions}
-              </span>
-              <span className={`flex items-center gap-1 text-red-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-                {diff.stats.deletions}
-              </span>
-            </button>
-          )}
-        </div>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEditing}
+                  className="h-9 px-3"
+                  disabled={isSavingFile}
+                  data-testid="cancel-editing-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveContent}
+                  className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={isSavingFile || !isDirty}
+                  data-testid="save-file-button"
+                >
+                  {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                  Save
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="flex-1 p-0 overflow-hidden relative">
@@ -1407,6 +1478,36 @@ export function DiffViewer({
         stats={diff?.stats}
         filePath={selectedFile}
       />
+      {/* Mobile overflow actions */}
+      {isMobile && (
+        <BottomSheet
+          isOpen={mobileActionsOpen}
+          onClose={() => setMobileActionsOpen(false)}
+          title="File Actions"
+        >
+          <div className="flex flex-col gap-1">
+            <BottomSheetAction
+              icon={copied ? <Check className="h-5 w-5 text-emerald-300" /> : <Copy className="h-5 w-5" />}
+              label={copied ? "Copied!" : "Copy absolute path"}
+              onClick={() => {
+                handleCopyPath();
+                setMobileActionsOpen(false);
+              }}
+            />
+            {onShowRelatedFiles && selectedFile && (
+              <BottomSheetAction
+                icon={<Link2 className="h-5 w-5" />}
+                label="Related files"
+                description="Find files related to this one"
+                onClick={() => {
+                  onShowRelatedFiles(selectedFile);
+                  setMobileActionsOpen(false);
+                }}
+              />
+            )}
+          </div>
+        </BottomSheet>
+      )}
     </Card>
   );
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera } from "lucide-react";
+import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera, ExternalLink, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture } from "../lib/hooks";
+import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture, useScenarios } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl } from "../lib/api";
 import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
@@ -197,6 +197,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             isCapturing={isCapturing}
             onBaseline={handleBaseline}
             onCapture={handleCapture}
+            mutationError={triggerCapture.error}
+            onDismissError={() => triggerCapture.reset()}
           />
         )
       ) : activeTab === "workflows" ? (
@@ -209,6 +211,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           isRunning={isRunningWorkflows}
           onBaseline={handleWorkflowBaseline}
           onCapture={handleWorkflowCapture}
+          mutationError={triggerWorkflow.error}
+          onDismissError={() => triggerWorkflow.reset()}
         />
       ) : activeTab === "tests" ? (
         <TestsTab
@@ -490,6 +494,37 @@ function MediaLightbox({
 }
 
 // ============================================================================
+// Shared UI Helpers
+// ============================================================================
+
+function MutationErrorBanner({ error, onDismiss }: { error: Error | null; onDismiss?: () => void }) {
+  if (!error) return null;
+  return (
+    <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/30 border border-red-900/40">
+      <AlertTriangle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
+      <p className="flex-1 text-xs text-red-300">{error.message}</p>
+      {onDismiss && (
+        <button type="button" onClick={onDismiss} className="text-red-400 hover:text-red-300 shrink-0" aria-label="Dismiss">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ServiceUnavailableBanner({ name, message }: { name: string; message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+      <AlertCircle className="h-8 w-8 mb-3 opacity-50" />
+      <p className="text-sm">{name} is not available</p>
+      {message && (
+        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">{message}</p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Overview Tab
 // ============================================================================
 
@@ -528,6 +563,9 @@ function OverviewTab({
   const latestTest = testExecutions.data?.items?.[0] as TestExecutionResult | undefined;
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
+  const scenarios = useScenarios();
+  const scenarioInfo = scenarios.data?.find(s => s.name === scenarioSlug);
+  const proxyUrl = `${window.location.origin}/apps/${encodeURIComponent(scenarioSlug)}/proxy/`;
 
   // Readiness logic — either a baseline or capture counts as "has screenshots"
   const latestSnapshot = capture ?? baseline;
@@ -559,6 +597,45 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
+      {/* Scenario Info Card */}
+      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-medium text-slate-400">Scenario</h3>
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${scenarioInfo?.status === "running" ? "bg-emerald-500" : "bg-slate-500"}`} />
+            <span className={`text-[11px] ${scenarioInfo?.status === "running" ? "text-emerald-400" : "text-slate-500"}`}>
+              {scenarioInfo?.status ?? "unknown"}
+            </span>
+          </div>
+        </div>
+        <p className="text-sm font-medium text-slate-200 mb-2">
+          {scenarioInfo?.display_name || scenarioSlug}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-500 truncate flex-1 font-mono">{proxyUrl}</span>
+          <a
+            href={proxyUrl}
+            target="_blank"
+            rel="noopener"
+            className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-colors shrink-0 ${
+              scenarioInfo?.status === "running"
+                ? "text-blue-400 border-blue-800 hover:bg-blue-950/50"
+                : "text-slate-600 border-slate-700 pointer-events-none opacity-50"
+            }`}
+            aria-label="Open scenario in new tab"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Open
+          </a>
+        </div>
+        {scenarioInfo?.health_status && scenarioInfo.health_status !== "healthy" && (
+          <div className="flex items-center gap-2 mt-2 text-[11px] text-amber-400">
+            <AlertTriangle className="h-3 w-3" />
+            {scenarioInfo.health_status}
+          </div>
+        )}
+      </div>
+
       {/* Readiness indicator */}
       <div className="flex items-center gap-2 mb-4">
         <div className={`h-3 w-3 rounded-full ${readinessColors[readiness]}`} />
@@ -609,7 +686,7 @@ function OverviewTab({
           )}
         </div>
         {!basAvailable ? (
-          <p className="text-xs text-slate-500">Browser Automation Studio not available</p>
+          <p className="text-xs text-slate-500">Start browser-automation-studio to enable visual captures</p>
         ) : !latestSnapshot ? (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">No captures yet</p>
@@ -670,7 +747,7 @@ function OverviewTab({
           )}
         </div>
         {!testGenieAvailable ? (
-          <p className="text-xs text-slate-500">Test Genie not available</p>
+          <p className="text-xs text-slate-500">Start test-genie to enable automated tests</p>
         ) : testExecutions.isLoading ? (
           <div className="h-12 animate-pulse bg-slate-800 rounded" />
         ) : !latestTest ? (
@@ -716,7 +793,7 @@ function OverviewTab({
           )}
         </div>
         {!tidinessAvailable ? (
-          <p className="text-xs text-slate-500">Tidiness Manager not available</p>
+          <p className="text-xs text-slate-500">Start tidiness-manager to view code quality data</p>
         ) : tidinessScore.isLoading ? (
           <div className="h-12 animate-pulse bg-slate-800 rounded" />
         ) : tidinessScore.error ? (
@@ -792,6 +869,8 @@ function ScreenshotsTab({
   isCapturing,
   onBaseline,
   onCapture,
+  mutationError,
+  onDismissError,
 }: {
   baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
@@ -802,6 +881,8 @@ function ScreenshotsTab({
   isCapturing: boolean;
   onBaseline: () => void;
   onCapture: () => void;
+  mutationError?: Error | null;
+  onDismissError?: () => void;
 }) {
   const [selectedPage, setSelectedPage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -819,7 +900,7 @@ function ScreenshotsTab({
             Set Baseline
           </Button>
         ) : (
-          <p className="text-xs">Browser Automation Studio is not available</p>
+          <p className="text-xs">Start browser-automation-studio to enable visual captures</p>
         )}
       </div>
     );
@@ -862,6 +943,7 @@ function ScreenshotsTab({
 
   return (
     <div className="space-y-4">
+      <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
       {/* Action buttons */}
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onBaseline} disabled={isCapturing} className="h-7 text-xs gap-1">
@@ -1035,6 +1117,8 @@ function WorkflowsTab({
   isRunning,
   onBaseline,
   onCapture,
+  mutationError,
+  onDismissError,
 }: {
   baseline?: WorkflowCaptureResult;
   capture?: WorkflowCaptureResult;
@@ -1044,6 +1128,8 @@ function WorkflowsTab({
   isRunning: boolean;
   onBaseline: (executionModes: ExecutionMode[]) => void;
   onCapture: (executionModes: ExecutionMode[]) => void;
+  mutationError?: Error | null;
+  onDismissError?: () => void;
 }) {
   const [selectedModes, setSelectedModes] = useState<Set<ExecutionMode>>(new Set(["observer"]));
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -1122,7 +1208,7 @@ function WorkflowsTab({
             </Button>
           </>
         ) : (
-          <p className="text-xs">Browser Automation Studio is not available</p>
+          <p className="text-xs">Start browser-automation-studio to enable workflow captures</p>
         )}
       </div>
     );
@@ -1130,6 +1216,7 @@ function WorkflowsTab({
 
   return (
     <div className="space-y-4">
+      <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
       {/* Action buttons + execution mode selector */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button
@@ -1375,14 +1462,7 @@ function TestsTab({
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
 
   if (!testGenieAvailable) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">Test Genie is not available</p>
-        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
-          Start the test-genie scenario to run automated tests
-        </p>
-      </div>
-    );
+    return <ServiceUnavailableBanner name="Test Genie" message="Start the test-genie scenario to run automated tests" />;
   }
 
   const isRunning = triggerTest.isPending;
@@ -1392,6 +1472,7 @@ function TestsTab({
 
   return (
     <div className="space-y-4">
+      <MutationErrorBanner error={triggerTest.error} onDismiss={() => triggerTest.reset()} />
       {/* Run Tests button */}
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-medium text-slate-400">Test Execution</h3>
@@ -1658,14 +1739,7 @@ function CodeQualityTab({
   }, [changedFileIssues]);
 
   if (!tidinessAvailable) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <p className="text-sm">Tidiness Manager is not available</p>
-        <p className="text-xs mt-2 text-slate-600 text-center max-w-sm">
-          Start the tidiness-manager scenario to view code quality data
-        </p>
-      </div>
-    );
+    return <ServiceUnavailableBanner name="Tidiness Manager" message="Start the tidiness-manager scenario to view code quality data" />;
   }
 
   // Use staleness as source of truth for "has been scanned" — more reliable than score.last_scan
@@ -1711,6 +1785,7 @@ function CodeQualityTab({
 
   return (
     <div className="space-y-4">
+      <MutationErrorBanner error={triggerScan.error} onDismiss={() => triggerScan.reset()} />
       {/* Staleness banner */}
       {tidinessStaleness.data?.is_stale && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">

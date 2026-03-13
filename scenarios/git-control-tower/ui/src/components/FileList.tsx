@@ -1116,7 +1116,7 @@ export function FileList({
     if (!cardRef.current || typeof ResizeObserver === "undefined") return;
     const update = () => {
       const width = cardRef.current?.clientWidth ?? 0;
-      setCompactHeader(width < 450);
+      setCompactHeader(width < 500);
     };
     update();
     const observer = new ResizeObserver(update);
@@ -1318,11 +1318,12 @@ export function FileList({
                 size="sm"
                 onClick={onStageAll}
                 disabled={isStaging}
-                className="min-w-0 whitespace-normal px-3"
+                className={compactHeader ? "h-7 w-7 p-0" : "min-w-0 whitespace-normal px-3"}
                 data-testid="stage-all-button"
+                title="Stage All"
               >
-                <Plus className="h-3 w-3 mr-1" />
-                Stage All
+                <Plus className="h-3 w-3" />
+                {!compactHeader && <span className="ml-1">Stage All</span>}
               </Button>
             )}
             {hasStaged && (
@@ -1331,11 +1332,12 @@ export function FileList({
                 size="sm"
                 onClick={onUnstageAll}
                 disabled={isStaging}
-                className="min-w-0 whitespace-normal px-3"
+                className={compactHeader ? "h-7 w-7 p-0" : "min-w-0 whitespace-normal px-3"}
                 data-testid="unstage-all-button"
+                title="Unstage All"
               >
-                <Minus className="h-3 w-3 mr-1" />
-                Unstage All
+                <Minus className="h-3 w-3" />
+                {!compactHeader && <span className="ml-1">Unstage All</span>}
               </Button>
             )}
             <ViewModeCycleButton
@@ -1556,9 +1558,10 @@ export function FileList({
                                   size="sm"
                                   onClick={() => onStagePaths(stageable)}
                                   disabled={isStaging}
-                                  className="h-7 px-2"
+                                  className={compactHeader ? "h-7 w-7 p-0" : "h-7 px-2"}
+                                  title="Stage All"
                                 >
-                                  Stage All
+                                  {compactHeader ? <Plus className="h-3 w-3" /> : "Stage All"}
                                 </Button>
                               )}
                             {!isGroupCollapsed &&
@@ -1569,9 +1572,10 @@ export function FileList({
                                   size="sm"
                                   onClick={() => setConfirmingGroup(group.id)}
                                   disabled={isDiscarding}
-                                  className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
+                                  className={`border-red-400/40 text-red-200 hover:bg-red-900/20 ${compactHeader ? "h-7 w-7 p-0" : "h-7 px-2"}`}
+                                  title="Discard All"
                                 >
-                                  Discard All
+                                  {compactHeader ? <Trash2 className="h-3 w-3" /> : "Discard All"}
                                 </Button>
                               )}
                           </div>

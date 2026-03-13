@@ -22,6 +22,26 @@ import (
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
+// viewportStabilizationScript is injected before capture begins to prevent
+// layout shifts that cause bottom-of-frame flickering in assembled videos.
+//
+// The root cause: when page content changes during playback, a vertical
+// scrollbar can appear or disappear, changing the viewport width by ~17px.
+// Each screenshot captures the page at its current width, so frames alternate
+// between two widths. The FFmpeg filter chain normalizes DIMENSIONS via scale,
+// but the page CONTENT was already rendered at different widths — elements
+// shift horizontally, and the bottom ~50px (where content reflow accumulates)
+// flickers visibly. No post-processing filter can fix content that was
+// captured in different positions.
+//
+// The fix: force a permanent scrollbar so the viewport width never changes.
+const viewportStabilizationScript = `(function(){` +
+	`var s=document.createElement('style');` +
+	`s.id='bas-viewport-stabilize';` +
+	`s.textContent='html{overflow-y:scroll!important}body{overflow-x:hidden!important}';` +
+	`document.head.appendChild(s);` +
+	`})();`
+
 // captureFrame represents a single captured frame.
 type captureFrame struct {
 	Index       int     `json:"index"`
@@ -179,8 +199,22 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		return nil, err
 	}
 
+	// Stabilize the viewport layout before any screenshots. Force a permanent
+	// scrollbar and hide horizontal overflow so that scrollbar appearance/
+	// disappearance during playback cannot change the viewport width. Without
+	// this, frames alternate between two widths (~17px scrollbar difference),
+	// and even though the assembly filter chain normalizes dimensions, the
+	// page CONTENT itself shifts horizontally — causing visible flickering
+	// that no post-processing filter can repair.
+	stabilizeAction, err := buildAction("evaluate", map[string]any{
+		"expression": viewportStabilizationScript,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	evaluateAction, err := buildAction("evaluate", map[string]any{
-		"script": script,
+		"expression": script,
 	})
 	if err != nil {
 		return nil, err
@@ -194,13 +228,18 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		},
 		{
 			Index:  1,
+			NodeID: "stabilize-viewport",
+			Action: stabilizeAction,
+		},
+		{
+			Index:  2,
 			NodeID: "inject",
 			Action: evaluateAction,
 		},
 	}
 
 	// Build wait/screenshot pairs for each frame
-	idx := 2
+	idx := 3
 	for i := 0; i < frameCount; i++ {
 		waitAction, err := buildAction("wait", map[string]any{
 			"ms": captureInterval,

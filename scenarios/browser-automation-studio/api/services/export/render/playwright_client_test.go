@@ -23,8 +23,8 @@ func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// navigate + evaluate + (ceil(5000/500)+1)=11 waits + 11 screenshots
-	if len(instr) != 2+(11*2) {
+	// navigate + stabilize-viewport + inject + (ceil(5000/500)+1)=11 waits + 11 screenshots
+	if len(instr) != 3+(11*2) {
 		t.Fatalf("unexpected instruction count: %d", len(instr))
 	}
 }
@@ -43,9 +43,9 @@ func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// clamp at 120 frames => 240 instructions + 2 initial
-	if len(instr) != 242 {
-		t.Fatalf("expected 242 instructions, got %d", len(instr))
+	// clamp at 120 frames => 240 instructions + 3 initial
+	if len(instr) != 243 {
+		t.Fatalf("expected 243 instructions, got %d", len(instr))
 	}
 }
 
@@ -114,12 +114,21 @@ func TestBuildPlaywrightCaptureInstructions_InitialInstructions(t *testing.T) {
 		t.Fatalf("first instruction should be navigate type, got %v", instr[0].Action.GetType())
 	}
 
-	// Second instruction must be evaluate (script injection)
-	if instr[1].NodeID != "inject" {
-		t.Fatalf("second instruction should be inject, got %q", instr[1].NodeID)
+	// Second instruction must be stabilize-viewport (CSS injection to prevent
+	// scrollbar-induced layout shifts that cause bottom-of-frame flickering)
+	if instr[1].NodeID != "stabilize-viewport" {
+		t.Fatalf("second instruction should be stabilize-viewport, got %q", instr[1].NodeID)
 	}
 	if instr[1].Action.GetType() != basactions.ActionType_ACTION_TYPE_EVALUATE {
-		t.Fatalf("second instruction should be evaluate type, got %v", instr[1].Action.GetType())
+		t.Fatalf("stabilize-viewport should be evaluate type, got %v", instr[1].Action.GetType())
+	}
+
+	// Third instruction must be inject (render spec)
+	if instr[2].NodeID != "inject" {
+		t.Fatalf("third instruction should be inject, got %q", instr[2].NodeID)
+	}
+	if instr[2].Action.GetType() != basactions.ActionType_ACTION_TYPE_EVALUATE {
+		t.Fatalf("inject should be evaluate type, got %v", instr[2].Action.GetType())
 	}
 }
 
@@ -134,8 +143,8 @@ func TestBuildPlaywrightCaptureInstructions_WaitScreenshotAlternation(t *testing
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// After the 2 initial instructions, pairs should alternate: wait, screenshot
-	for i := 2; i < len(instr); i += 2 {
+	// After the 3 initial instructions, pairs should alternate: wait, screenshot
+	for i := 3; i < len(instr); i += 2 {
 		if !strings.HasPrefix(instr[i].NodeID, "wait-") {
 			t.Fatalf("instruction %d should be wait, got %q", i, instr[i].NodeID)
 		}
@@ -156,7 +165,123 @@ func TestBuildPlaywrightCaptureInstructions_DefaultDuration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(instr) < 4 {
-		t.Fatalf("expected at least navigate + evaluate + 1 wait/screenshot pair, got %d instructions", len(instr))
+	if len(instr) < 5 {
+		t.Fatalf("expected at least navigate + stabilize + inject + 1 wait/screenshot pair, got %d instructions", len(instr))
+	}
+}
+
+func TestBuildPlaywrightCaptureInstructions_NegativeCaptureInterval(t *testing.T) {
+	spec := &ReplayMovieSpec{
+		Summary:  export.ExportSummary{TotalDurationMs: 5000},
+		Playback: export.ExportPlayback{FrameIntervalMs: 100},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+	// Negative interval should be treated as default (1000ms), not panic or error
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, -500)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(instr) < 5 {
+		t.Fatalf("expected at least navigate + stabilize + inject + 1 wait/screenshot pair, got %d instructions", len(instr))
+	}
+}
+
+func TestBuildPlaywrightCaptureInstructions_FallbackDuration(t *testing.T) {
+	// When TotalDurationMs is 0 but DurationMs is set, should use DurationMs
+	spec := &ReplayMovieSpec{
+		Summary:  export.ExportSummary{TotalDurationMs: 0},
+		Playback: export.ExportPlayback{DurationMs: 3000, FrameIntervalMs: 1000},
+		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+	}
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// ceil(3000/1000)+1 = 4 screenshot pairs + 3 initial = 11
+	if len(instr) != 11 {
+		t.Fatalf("expected 11 instructions with DurationMs fallback, got %d", len(instr))
+	}
+}
+
+// TestBuildPlaywrightCaptureInstructions_ViewportStabilization verifies that
+// the capture instructions inject CSS to force a permanent scrollbar BEFORE
+// the render spec is injected. This prevents scrollbar appearance/disappearance
+// during playback from changing the viewport width, which causes content shifts
+// that manifest as bottom-of-frame flickering in assembled videos.
+func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) {
+	spec := &ReplayMovieSpec{
+		Summary:  export.ExportSummary{TotalDurationMs: 1000},
+		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
+		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+	}
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Find the stabilize-viewport instruction
+	found := false
+	for _, inst := range instr {
+		if inst.NodeID != "stabilize-viewport" {
+			continue
+		}
+		found = true
+
+		if inst.Action == nil {
+			t.Fatal("stabilize-viewport has nil action")
+		}
+		params := inst.Action.GetEvaluate()
+		if params == nil {
+			t.Fatal("stabilize-viewport has nil evaluate params")
+		}
+
+		script := params.GetExpression()
+
+		// Must force permanent vertical scrollbar
+		if !strings.Contains(script, "overflow-y:scroll") {
+			t.Fatalf("stabilization script must force overflow-y:scroll, got: %s", script)
+		}
+
+		// Must hide horizontal overflow to prevent horizontal layout shifts
+		if !strings.Contains(script, "overflow-x:hidden") {
+			t.Fatalf("stabilization script must hide overflow-x, got: %s", script)
+		}
+
+		break
+	}
+
+	if !found {
+		t.Fatal("no stabilize-viewport instruction found")
+	}
+
+	// Stabilize must come BEFORE inject (render spec)
+	stabilizeIdx := -1
+	injectIdx := -1
+	for i, inst := range instr {
+		if inst.NodeID == "stabilize-viewport" {
+			stabilizeIdx = i
+		}
+		if inst.NodeID == "inject" {
+			injectIdx = i
+		}
+	}
+	if stabilizeIdx >= injectIdx {
+		t.Fatalf("stabilize-viewport (idx %d) must come before inject (idx %d)", stabilizeIdx, injectIdx)
+	}
+}
+
+func TestBuildPlaywrightCaptureInstructions_SingleFrame(t *testing.T) {
+	spec := &ReplayMovieSpec{
+		Summary:  export.ExportSummary{TotalDurationMs: 100},
+		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Very short duration: ceil(100/1000)+1 = 2 screenshot pairs + 3 initial = 7
+	if len(instr) < 5 {
+		t.Fatalf("expected at least 5 instructions for minimal capture, got %d", len(instr))
 	}
 }

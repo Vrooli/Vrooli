@@ -329,6 +329,120 @@ func TestRenderCapture_DefaultFPS(t *testing.T) {
 	}
 }
 
+func TestRenderCapture_InvalidBase64Frame(t *testing.T) {
+	client := &stubCaptureClient{
+		response: &captureResponse{
+			Success: true,
+			FPS:     10,
+			Width:   320,
+			Height:  240,
+			Frames: []captureFrame{
+				{Index: 0, Data: "not-valid-base64!!!"},
+			},
+		},
+	}
+
+	r := newTestRenderer(t)
+	r.captureClient = client
+	r.videoEncoder = &MockVideoEncoder{}
+
+	spec := &ReplayMovieSpec{
+		Playback: export.ExportPlayback{FrameIntervalMs: 100},
+		Summary:  export.ExportSummary{TotalDurationMs: 100},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+
+	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
+	if err == nil {
+		t.Fatal("expected error for invalid base64 frame data")
+	}
+}
+
+func TestRenderCapture_CancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // immediately cancel
+
+	client := &stubCaptureClient{
+		err: ctx.Err(),
+	}
+
+	r := newTestRenderer(t)
+	r.captureClient = client
+
+	spec := &ReplayMovieSpec{
+		Playback: export.ExportPlayback{FrameIntervalMs: 100},
+		Summary:  export.ExportSummary{TotalDurationMs: 100},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+
+	_, err := r.renderCapture(ctx, spec, RenderFormatMP4, "test.mp4", 100)
+	if err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}
+
+func TestRenderCapture_EncoderError(t *testing.T) {
+	validFrame := makeJPEGBase64(t, 320, 240)
+
+	client := &stubCaptureClient{
+		response: &captureResponse{
+			Success: true,
+			FPS:     10,
+			Width:   320,
+			Height:  240,
+			Frames: []captureFrame{
+				{Index: 0, Data: validFrame},
+			},
+		},
+	}
+
+	r := newTestRenderer(t)
+	r.captureClient = client
+	r.videoEncoder = &MockVideoEncoder{AssembleVideoErr: fmt.Errorf("encoder failed")}
+
+	spec := &ReplayMovieSpec{
+		Playback: export.ExportPlayback{FrameIntervalMs: 100},
+		Summary:  export.ExportSummary{TotalDurationMs: 100},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+
+	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
+	if err == nil {
+		t.Fatal("expected error when encoder fails")
+	}
+}
+
+func TestRenderCapture_GIFConversionError(t *testing.T) {
+	validFrame := makeJPEGBase64(t, 320, 240)
+
+	client := &stubCaptureClient{
+		response: &captureResponse{
+			Success: true,
+			FPS:     10,
+			Width:   320,
+			Height:  240,
+			Frames: []captureFrame{
+				{Index: 0, Data: validFrame},
+			},
+		},
+	}
+
+	r := newTestRenderer(t)
+	r.captureClient = client
+	r.videoEncoder = &MockVideoEncoder{ConvertGIFErr: fmt.Errorf("gif conversion failed")}
+
+	spec := &ReplayMovieSpec{
+		Playback: export.ExportPlayback{FrameIntervalMs: 100},
+		Summary:  export.ExportSummary{TotalDurationMs: 100},
+		Frames:   []export.ExportFrame{{DurationMs: 100}},
+	}
+
+	_, err := r.renderCapture(t.Context(), spec, RenderFormatGIF, "test.gif", 100)
+	if err == nil {
+		t.Fatal("expected error when GIF conversion fails")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // RenderedMedia cleanup
 // ---------------------------------------------------------------------------

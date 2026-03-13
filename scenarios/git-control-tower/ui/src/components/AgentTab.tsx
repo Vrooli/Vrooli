@@ -479,6 +479,19 @@ export function AgentTab({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {activeRun.data?.summary && (
+            <div className="flex items-center gap-3 text-[11px] text-slate-400 mr-2">
+              {activeRun.data.summary.tokensUsed != null && (
+                <span>{activeRun.data.summary.tokensUsed.toLocaleString()} tok</span>
+              )}
+              {activeRun.data.summary.turnsUsed != null && (
+                <span>{activeRun.data.summary.turnsUsed} turns</span>
+              )}
+              {activeRun.data.summary.costEstimate != null && activeRun.data.summary.costEstimate > 0 && (
+                <span>${activeRun.data.summary.costEstimate.toFixed(2)}</span>
+              )}
+            </div>
+          )}
           {activeRun.data?.actions?.canStop && (
             <Button
               variant="outline"
@@ -530,7 +543,7 @@ export function AgentTab({
             case "tool-group":
               return <ToolGroupBubble key={idx} tools={msg.tools} timestamp={msg.timestamp} />;
             case "status":
-              return <StatusPill key={idx} status={msg.status} phase={msg.phase} />;
+              return null;
             case "error":
               return <ErrorBubble key={idx} text={msg.text} />;
             case "summary":
@@ -733,17 +746,6 @@ function ToolGroupBubble({ tools, timestamp }: { tools: { name: string; result?:
   );
 }
 
-function StatusPill({ status, phase }: { status: AgentRunStatus; phase?: string }) {
-  return (
-    <div className="flex justify-center py-1">
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50">
-        <StatusBadge status={status} />
-        {phase && <span className="text-[11px] text-slate-500">{phase}</span>}
-      </div>
-    </div>
-  );
-}
-
 function ErrorBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-start gap-2">
@@ -765,15 +767,6 @@ function SummaryCard({ summary }: { summary: AgentRunSummary }) {
         <span>Modified: {summary.filesModified?.length ?? 0}</span>
         <span>Created: {summary.filesCreated?.length ?? 0}</span>
         <span>Deleted: {summary.filesDeleted?.length ?? 0}</span>
-        {summary.tokensUsed != null && (
-          <span>Tokens: {summary.tokensUsed.toLocaleString()}</span>
-        )}
-        {summary.turnsUsed != null && (
-          <span>Turns: {summary.turnsUsed}</span>
-        )}
-        {summary.costEstimate != null && summary.costEstimate > 0 && (
-          <span>Cost: ${summary.costEstimate.toFixed(2)}</span>
-        )}
       </div>
     </div>
   );

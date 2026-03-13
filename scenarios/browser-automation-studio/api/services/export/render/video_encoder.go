@@ -113,34 +113,47 @@ func (e *FFmpegEncoder) assembleVideo(ctx context.Context, pattern string, fps i
 // targetW and targetH must be positive even integers (use ceilEven to prepare).
 //
 // Filter order:
-//  1. scale: normalize all frames to fill target dimensions (handles
-//     inconsistent capture sizes from viewport changes or CDP screencast)
-//  2. crop: trim any overflow to exact target dimensions
+//  1. crop (height only): remove top overflow from browser chrome (info bars)
+//     without any scaling — preserving pixel-perfect vertical alignment
+//  2. scale: force exact target dimensions — handles width variation (scrollbar
+//     ±17px) via imperceptible horizontal stretch without coupling to height
 //  3. drawtext (optional): semi-transparent watermark in bottom-right
 //  4. format: convert to yuv420p for broad player compatibility
 //
-// Why increase+crop instead of decrease+pad:
-// Frames captured via CDP screencast or polling can vary by 10-50px due to
-// scrollbar appearance, browser chrome changes, or compositor timing. The
-// previous approach (decrease+pad) left shorter frames at their original size
-// and filled the gap with black, causing visible flickering at the bottom of
-// the video. The increase+crop approach scales UP to fill the target so every
-// frame covers the full area, then crops any slight overflow. The cropping is
-// imperceptible (a few pixels at most) and eliminates flickering entirely.
+// Why crop-then-force-scale instead of scale=increase+crop:
+// The previous approach used scale with force_original_aspect_ratio=increase,
+// which coupled width and height: when a scrollbar appeared (reducing width by
+// ~17px), the frame was scaled UP proportionally, increasing height by ~10px.
+// The bottom-anchored crop then removed the top 10px, but the scaled content
+// was shifted DOWN relative to non-scrollbar frames — causing ~10px of content
+// at the bottom to alternate between visible and invisible (flickering).
+//
+// The new approach decouples the axes:
+//   - Height variation (info bars, ~50px at top) is handled by CROPPING from
+//     the top (pixel-perfect, no content shift)
+//   - Width variation (scrollbar, ~17px) is handled by force-scaling to exact
+//     target width (~1.3% stretch, imperceptible, no height coupling)
+//   - Frames shorter than target are scaled up vertically (rare, <2% stretch)
 func buildAssemblyFilterChain(watermarkText string, targetW, targetH int) string {
-	// Scale all frames to fill the target dimensions. force_original_aspect_ratio=increase
-	// ensures the smaller dimension is scaled to match the target, and the larger
-	// dimension may slightly overflow. This guarantees no frame is ever smaller
-	// than the target — eliminating black padding that caused flickering.
+	// Crop height only: remove top overflow (info bars, browser chrome) without
+	// any scaling. Bottom-anchored so page content stays aligned at the bottom.
+	// For frames at target height: ih-targetH=0, min(ih,targetH)=targetH → no-op.
+	// For taller frames (info bar): removes top overflow, keeps page content.
+	// For shorter frames: min(ih,targetH)=ih, offset=0 → no-op (scale handles it).
+	// Width is NOT cropped — force scaling handles width variation instead.
+	//
+	// Note: commas within FFmpeg expressions must be escaped as \, to avoid
+	// being parsed as filter separators.
 	filters := []string{
-		fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase", targetW, targetH),
+		fmt.Sprintf("crop=iw:min(ih\\,%d):0:max(ih-%d\\,0)", targetH, targetH),
 	}
 
-	// Crop to exact target dimensions, centered. Any overflow from the increase
-	// scaling is trimmed equally from both edges. For typical dimension
-	// mismatches (10-50px from scrollbar/chrome changes), the cropped content
-	// is imperceptible.
-	filters = append(filters, fmt.Sprintf("crop=%d:%d:(iw-%d)/2:(ih-%d)/2", targetW, targetH, targetW, targetH))
+	// Force scale to exact target dimensions. This handles width variation
+	// (scrollbar ±17px) via slight horizontal stretch (~1.3%, imperceptible)
+	// WITHOUT coupling width changes to height — eliminating the vertical
+	// content shift that caused bottom-of-frame flickering. Frames shorter
+	// than target are stretched vertically (rare edge case, <2% distortion).
+	filters = append(filters, fmt.Sprintf("scale=%d:%d", targetW, targetH))
 
 	if watermarkText != "" {
 		escaped := escapeFFmpegText(watermarkText)
@@ -170,21 +183,28 @@ func probeImageDimensions(path string) (width, height int, err error) {
 	return cfg.Width, cfg.Height, nil
 }
 
-// dimKey is a comparable key for width×height pairs.
-type dimKey struct{ w, h int }
-
 // probeModeDimensions samples multiple frames from a sequence and returns the
-// most common (mode) dimensions. This prevents the first frame from dictating
-// the target when it has atypical dimensions (e.g., browser info bar adding
-// ~50px during startup). If no clear mode exists, the smallest dimensions are
-// used to favour cropping (imperceptible) over scaling (causes content shift).
+// most common (mode) width and height, computed independently. This prevents
+// the first frame from dictating the target when it has atypical dimensions
+// (e.g., browser info bar adding ~50px height during startup, or scrollbar
+// changing width by ~17px).
+//
+// Width and height modes are computed separately because they vary from
+// independent sources: width changes from scrollbar appearance/disappearance,
+// while height changes from browser chrome (info bars). Computing them as a
+// joint (w,h) pair can pick outlier dimensions when both vary simultaneously.
+//
+// On ties, the smaller dimension wins to favour cropping (imperceptible) over
+// scaling up (causes visible content shift / flicker).
 //
 // Sampling strategy: probe frames 0–9 plus logarithmic samples beyond that.
 // For short sequences this probes every frame; for long sequences it stays O(1).
 func probeModeDimensions(pattern string) (width, height int, err error) {
-	// Collect dimensions from available frames.
-	counts := make(map[dimKey]int)
-	var lastGood dimKey
+	// Collect dimensions from available frames — independently for each axis.
+	widthCounts := make(map[int]int)
+	heightCounts := make(map[int]int)
+	var lastW, lastH int
+	total := 0
 
 	// Always try the first 10 frames, then sample at exponential intervals.
 	indices := make([]int, 0, 20)
@@ -206,34 +226,41 @@ func probeModeDimensions(pattern string) (width, height int, err error) {
 			// Frame doesn't exist (past end of sequence) or is corrupt — skip.
 			continue
 		}
-		key := dimKey{w, h}
-		counts[key]++
-		lastGood = key
+		widthCounts[w]++
+		heightCounts[h]++
+		lastW = w
+		lastH = h
+		total++
 	}
 
-	if len(counts) == 0 {
+	if total == 0 {
 		return 0, 0, fmt.Errorf("no readable frames found matching pattern %s", pattern)
 	}
 
-	// If all sampled frames share the same dimensions, fast path.
-	if len(counts) == 1 {
-		return lastGood.w, lastGood.h, nil
-	}
+	return modeValue(widthCounts, lastW), modeValue(heightCounts, lastH), nil
+}
 
-	// Pick the mode (most common dimensions). On ties, prefer smaller
-	// dimensions so that outlier frames are cropped (imperceptible) rather
-	// than scaled up (causes visible content shift / flicker).
-	var best dimKey
+// modeValue returns the most common value from counts. On ties, the smaller
+// value wins (cropping a larger frame is imperceptible; scaling up a smaller
+// frame causes visible content shift). fallback is returned when counts is
+// empty (shouldn't happen in practice).
+func modeValue(counts map[int]int, fallback int) int {
+	if len(counts) == 1 {
+		return fallback
+	}
+	best := 0
 	bestCount := 0
-	for key, count := range counts {
+	for val, count := range counts {
 		if count > bestCount ||
-			(count == bestCount && (key.w*key.h < best.w*best.h)) {
-			best = key
+			(count == bestCount && val < best) {
+			best = val
 			bestCount = count
 		}
 	}
-
-	return best.w, best.h, nil
+	if bestCount == 0 {
+		return fallback
+	}
+	return best
 }
 
 // ceilEven rounds n up to the nearest even integer.
@@ -278,13 +305,15 @@ func (e *FFmpegEncoder) ConvertToGIF(ctx context.Context, inputPath, outputPath 
 }
 
 // ConvertToMP4 transcodes a video file to MP4 (H.264).
-// Uses scale+crop (not pad) to ensure even dimensions without adding black
-// bars, consistent with AssembleVideoFromSequence.
+// Rounds dimensions up to even (H.264 requirement) without using
+// force_original_aspect_ratio or pad — both of which cause flickering
+// artifacts (see buildAssemblyFilterChain for the full explanation).
 func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath string) error {
-	// Scale to nearest even dimensions (ceil to even), then crop to exact.
-	// This avoids the black-bar padding that caused flickering.
-	vf := "scale=ceil(iw/2)*2:ceil(ih/2)*2:force_original_aspect_ratio=increase," +
-		"crop=ceil(iw/2)*2:ceil(ih/2)*2:(iw-ceil(iw/2)*2)/2:(ih-ceil(ih/2)*2)/2," +
+	// Round each dimension up to even independently. For already-even input
+	// (the common case) this is a no-op. For odd input, the ≤1px stretch is
+	// imperceptible and avoids the cross-dimensional coupling that
+	// force_original_aspect_ratio=increase introduces.
+	vf := "scale=ceil(iw/2)*2:ceil(ih/2)*2," +
 		"format=yuv420p"
 	args := []string{
 		"-y",
