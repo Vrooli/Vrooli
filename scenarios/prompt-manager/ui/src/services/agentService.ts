@@ -25,6 +25,7 @@ import type {
   PromptPreviewResponse,
   StructuredPromptPreviewResponse,
   AgentTeamMembership,
+  TeamPromptMatrixResponse,
 } from '@/lib/schemas'
 
 // Create cache for agents list
@@ -196,6 +197,13 @@ export async function previewAgentPrompt(agentId: string, teamId?: string): Prom
  */
 export async function previewAgentPromptStructured(agentId: string, teamId?: string): Promise<StructuredPromptPreviewResponse> {
   return api.previewPromptStructured(agentId, teamId)
+}
+
+/**
+ * Get the prompt matrix for all agents in a team.
+ */
+export async function getTeamPromptMatrix(teamId: string): Promise<TeamPromptMatrixResponse> {
+  return api.getTeamPromptMatrix(teamId)
 }
 
 /**

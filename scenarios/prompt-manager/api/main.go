@@ -463,6 +463,7 @@ func main() {
 	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
 	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
 	v1.HandleFunc("/prompt-preview-structured", heartbeatHandlers.PreviewPromptStructured).Methods("POST")
+	v1.HandleFunc("/teams/{id}/prompt-matrix", heartbeatHandlers.PreviewPromptMatrix).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")

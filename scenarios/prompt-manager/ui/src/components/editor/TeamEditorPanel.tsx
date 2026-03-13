@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen } from 'lucide-react'
+import { Menu, X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -31,7 +31,7 @@ import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
-import { TeamInfoTab, TeamFilesTab } from './teamTabs'
+import { TeamInfoTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
 
 // ============================================================================
 // Types
@@ -468,6 +468,7 @@ export function TeamEditorPanel({
               label={`Members (${memberCount})`}
             />
             <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
+            <TabTrigger value="prompts" icon={<Eye className="h-4 w-4" />} label="Prompts" />
           </Tabs.List>
         )}
 
@@ -589,6 +590,16 @@ export function TeamEditorPanel({
               highlightRequest={highlightRequest}
               onHighlightHandled={onHighlightHandled}
               className="h-full min-h-0"
+            />
+          </Tabs.Content>
+
+          <Tabs.Content
+            value="prompts"
+            className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
+          >
+            <TeamPromptMatrixTab
+              teamId={team.id}
+              onNavigateToMember={handleNavigateToMember}
             />
           </Tabs.Content>
         </div>

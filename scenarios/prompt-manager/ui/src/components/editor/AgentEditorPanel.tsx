@@ -279,8 +279,8 @@ export function AgentEditorPanel({
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
-          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
           <TabTrigger value="prompt" icon={<Eye className="h-4 w-4" />} label="Prompt" />
+          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
         {/* Tab Content */}

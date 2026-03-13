@@ -157,3 +157,17 @@ type StructuredPromptPreviewResponse struct {
 	TeamID   string          `json:"teamId,omitempty"`
 	Sections []PromptSection `json:"sections"`
 }
+
+// TeamPromptMatrixEntry holds the structured prompt for a single team member.
+type TeamPromptMatrixEntry struct {
+	AgentID     string          `json:"agentId"`
+	DisplayName string          `json:"displayName"`
+	Sections    []PromptSection `json:"sections"`
+	Error       string          `json:"error,omitempty"`
+}
+
+// TeamPromptMatrixResponse is the API response for the team prompt matrix endpoint.
+type TeamPromptMatrixResponse struct {
+	TeamID  string                  `json:"teamId"`
+	Entries []TeamPromptMatrixEntry `json:"entries"`
+}

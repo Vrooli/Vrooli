@@ -20,6 +20,7 @@ import { toast } from '@/hooks/use-toast'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
+import { MemberPromptPreview } from './MemberPromptPreview'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { ToastAction } from '@/components/ui/toast'
@@ -28,9 +29,9 @@ import { ToastAction } from '@/components/ui/toast'
 // Types
 // ============================================================================
 
-export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline'
+export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline' | 'prompt'
 
-type ActiveTab = 'overview' | 'pipeline'
+type ActiveTab = 'overview' | 'pipeline' | 'prompt'
 
 interface MemberDetailPanelProps {
   team: TeamDetails
@@ -98,9 +99,11 @@ export function MemberDetailPanel({
   // Running agent state from shared store
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
 
-  // Local state — only 2 tabs now
+  // Local state — 3 tabs: overview, pipeline, prompt
   const [activeSection, setActiveSection] = useState<ActiveTab>(
-    initialSection === 'pipeline' ? 'pipeline' : 'overview'
+    initialSection === 'pipeline' ? 'pipeline'
+      : initialSection === 'prompt' ? 'prompt'
+        : 'overview'
   )
 
   // Sync when a navigation request arrives (e.g. clicking a heartbeat in Info tab).
@@ -456,6 +459,18 @@ export function MemberDetailPanel({
         >
           Pipeline
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('prompt')}
+          className={cn(
+            'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+            activeSection === 'prompt'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Prompt
+        </button>
       </div>
 
       {/* Content */}
@@ -704,6 +719,15 @@ Describe what this agent is responsible for in this team..."
               }, 50)
             }}
             onNavigateToAgentFiles={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
+          />
+        )}
+
+        {/* Prompt preview section */}
+        {activeSection === 'prompt' && (
+          <MemberPromptPreview
+            teamId={team.id}
+            agentId={member.agentId}
+            onNavigateToFile={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
           />
         )}
       </div>

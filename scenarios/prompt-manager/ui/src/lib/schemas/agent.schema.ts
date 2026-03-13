@@ -254,6 +254,26 @@ export const StructuredPromptPreviewResponseSchema = z.object({
 export type StructuredPromptPreviewResponse = z.infer<typeof StructuredPromptPreviewResponseSchema>
 
 /**
+ * A single entry in the team prompt matrix (one agent's structured prompt).
+ */
+export const TeamPromptMatrixEntrySchema = z.object({
+  agentId: z.string(),
+  displayName: z.string(),
+  sections: z.array(PromptSectionSchema),
+  error: z.string().optional(),
+})
+export type TeamPromptMatrixEntry = z.infer<typeof TeamPromptMatrixEntrySchema>
+
+/**
+ * Response for GET /teams/{id}/prompt-matrix — all agents' prompts in one call.
+ */
+export const TeamPromptMatrixResponseSchema = z.object({
+  teamId: z.string(),
+  entries: z.array(TeamPromptMatrixEntrySchema),
+})
+export type TeamPromptMatrixResponse = z.infer<typeof TeamPromptMatrixResponseSchema>
+
+/**
  * Agent team membership schemas for /agents/{id}/teams endpoint.
  */
 export const AgentTeamMembershipSchema = z.object({

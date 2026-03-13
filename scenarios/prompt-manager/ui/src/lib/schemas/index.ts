@@ -88,6 +88,8 @@ export {
   PromptPreviewResponseSchema,
   PromptSectionSchema,
   StructuredPromptPreviewResponseSchema,
+  TeamPromptMatrixEntrySchema,
+  TeamPromptMatrixResponseSchema,
   AgentTeamMembershipSchema,
   AgentTeamsResponseSchema,
   DEFAULT_AGENT_COLORS,
@@ -112,6 +114,8 @@ export {
   type PromptPreviewResponse,
   type PromptSection,
   type StructuredPromptPreviewResponse,
+  type TeamPromptMatrixEntry,
+  type TeamPromptMatrixResponse,
   type AgentTeamMembership,
   type AgentTeamsResponse,
 } from './agent.schema'

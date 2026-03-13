@@ -52,6 +52,7 @@ import {
   AgentFileTemplateListResponseSchema,
   PromptPreviewResponseSchema,
   StructuredPromptPreviewResponseSchema,
+  TeamPromptMatrixResponseSchema,
   AgentTeamsResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
@@ -104,6 +105,7 @@ import {
   type AgentFileTemplateListResponse,
   type PromptPreviewResponse,
   type StructuredPromptPreviewResponse,
+  type TeamPromptMatrixResponse,
   type AgentTeamsResponse,
   type AISearchResponse,
   type AISearchStatus,
@@ -660,6 +662,14 @@ class ApiClient {
         body: JSON.stringify({ agentId, teamId }),
       },
       StructuredPromptPreviewResponseSchema
+    )
+  }
+
+  async getTeamPromptMatrix(teamId: string): Promise<TeamPromptMatrixResponse> {
+    return this.request<TeamPromptMatrixResponse>(
+      `/teams/${encodeURIComponent(teamId)}/prompt-matrix`,
+      { method: 'GET' },
+      TeamPromptMatrixResponseSchema,
     )
   }
 

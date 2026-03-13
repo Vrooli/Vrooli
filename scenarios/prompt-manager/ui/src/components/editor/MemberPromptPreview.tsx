@@ -1,45 +1,29 @@
 /**
- * PromptTab - Annotated prompt assembly view.
+ * MemberPromptPreview - Shows the assembled prompt for one team member.
  *
- * Shows the fully constructed prompt as labeled, collapsible section cards.
- * Each card identifies its source (agent file, team doc, generated) and
- * provides navigation back to the editable source.
+ * Simpler than PromptTab: no team selector (team is fixed from context),
+ * no unsaved-changes warning. Reuses SectionCard for display.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Copy,
-  Code,
-  FileText,
-  RefreshCw,
-} from 'lucide-react'
+import { Copy, Code, FileText, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
-import type { Agent } from '@/types/agent'
-import type { PromptSection, AgentTeamMembership } from '@/lib/schemas'
+import type { PromptSection } from '@/lib/schemas'
 import * as agentService from '@/services/agentService'
-import { SectionCard } from './SectionCard'
+import { SectionCard } from './tabs/SectionCard'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-interface PromptTabProps {
-  agent: Agent
-  hasUnsavedChanges?: boolean
-  /** Switch to Files tab and highlight a specific file */
+interface MemberPromptPreviewProps {
+  teamId: string
+  agentId: string
   onNavigateToFile?: (filePath: string) => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export function PromptTab({
-  agent,
-  hasUnsavedChanges = false,
+export function MemberPromptPreview({
+  teamId,
+  agentId,
   onNavigateToFile,
-}: PromptTabProps) {
+}: MemberPromptPreviewProps) {
   const [sections, setSections] = useState<PromptSection[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,30 +32,11 @@ export function PromptTab({
     () => new Set(),
   )
 
-  // Team selector
-  const [memberships, setMemberships] = useState<AgentTeamMembership[]>([])
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
-
-  // Load team memberships
-  useEffect(() => {
-    let cancelled = false
-    void agentService.getAgentTeams(agent.id).then((result) => {
-      if (!cancelled) setMemberships(result)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [agent.id])
-
-  // Load structured prompt
   const loadSections = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await agentService.previewAgentPromptStructured(
-        agent.id,
-        selectedTeamId || undefined,
-      )
+      const response = await agentService.previewAgentPromptStructured(agentId, teamId)
       setSections(response.sections)
     } catch {
       setSections([])
@@ -79,13 +44,12 @@ export function PromptTab({
     } finally {
       setIsLoading(false)
     }
-  }, [agent.id, selectedTeamId])
+  }, [agentId, teamId])
 
   useEffect(() => {
     void loadSections()
   }, [loadSections])
 
-  // Derived
   const totalChars = useMemo(
     () => sections.reduce((sum, s) => sum + s.content.length, 0),
     [sections],
@@ -111,40 +75,18 @@ export function PromptTab({
     })
   }, [])
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
-    <div className="flex h-full flex-col space-y-3">
+    <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Team selector */}
-        {memberships.length > 0 && (
-          <select
-            value={selectedTeamId}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="rounded-md border border-border bg-muted px-2 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">Agent only</option>
-            {memberships.map((m) => (
-              <option key={m.teamId} value={m.teamId}>
-                {m.teamDisplayName}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="flex-1" />
 
-        {/* Char count */}
         {sections.length > 0 && (
           <span className="text-[11px] text-muted-foreground tabular-nums">
             {totalChars.toLocaleString()} chars
           </span>
         )}
 
-        {/* View mode toggle */}
         <div className="flex items-center rounded-md border border-border">
           <button
             type="button"
@@ -174,7 +116,6 @@ export function PromptTab({
           </button>
         </div>
 
-        {/* Refresh */}
         <button
           type="button"
           onClick={() => void loadSections()}
@@ -189,7 +130,6 @@ export function PromptTab({
           Refresh
         </button>
 
-        {/* Copy all */}
         <button
           type="button"
           onClick={() => void handleCopyAll()}
@@ -205,15 +145,8 @@ export function PromptTab({
         </button>
       </div>
 
-      {/* Unsaved warning */}
-      {hasUnsavedChanges && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200/90">
-          Preview uses last saved files. Save changes to update.
-        </div>
-      )}
-
       {/* Section cards */}
-      <div className="min-h-0 flex-1 overflow-y-auto space-y-2 pb-2">
+      <div className="space-y-2">
         {isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
             Building prompt preview…
@@ -243,4 +176,3 @@ export function PromptTab({
     </div>
   )
 }
-

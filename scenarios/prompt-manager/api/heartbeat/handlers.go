@@ -171,6 +171,57 @@ func (h *Handlers) PreviewPromptStructured(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+// PreviewPromptMatrix handles GET /teams/{id}/prompt-matrix - returns structured prompts for every member.
+func (h *Handlers) PreviewPromptMatrix(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	teamID := mux.Vars(r)["id"]
+
+	// Validate team exists
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "team not found", http.StatusNotFound)
+		return
+	}
+
+	// List members
+	members, err := h.relationStore.ListTeamMembers(ctx, teamID)
+	if err != nil {
+		http.Error(w, "failed to list team members", http.StatusInternalServerError)
+		return
+	}
+
+	entries := make([]TeamPromptMatrixEntry, 0, len(members))
+	for _, m := range members {
+		entry := TeamPromptMatrixEntry{AgentID: m.AgentID}
+
+		// Resolve display name
+		if ag, err := h.agentStore.Get(ctx, m.AgentID); err == nil && ag.DisplayName != "" {
+			entry.DisplayName = ag.DisplayName
+		} else {
+			entry.DisplayName = m.AgentID
+		}
+
+		// Build structured prompt
+		if h.executor == nil {
+			entry.Error = "executor not configured"
+		} else {
+			sections, err := h.executor.BuildPromptStructured(ctx, teamID, m.AgentID)
+			if err != nil {
+				entry.Error = err.Error()
+			} else {
+				entry.Sections = sections
+			}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(TeamPromptMatrixResponse{
+		TeamID:  teamID,
+		Entries: entries,
+	})
+}
+
 // GetHeartbeat handles GET /teams/{id}/heartbeats/{agentId} - gets heartbeat config
 func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
