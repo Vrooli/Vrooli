@@ -3,6 +3,8 @@ import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../lib/api";
 import { ANSI } from "../lib/ansi";
 import { LocalEchoController } from "../lib/localEcho";
+import { applyModifiers } from "../consts/toolbar-keys";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/SEAMS.md#websocket-factory-seam-ui
@@ -296,8 +298,19 @@ export function useTerminalSocket({
     let visibilityListenerRef: (() => void) | null = null;
     connect();
 
-    // Terminal input -> WebSocket stdin (with local echo for printable chars)
-    const inputDisposable = terminal.onData((data) => {
+    // Terminal input -> WebSocket stdin (with local echo for printable chars).
+    // When mobile toolbar modifier toggles are active, apply them to the input
+    // before sending. Reading from the store directly (not via subscription)
+    // ensures we always see the latest modifier state.
+    const inputDisposable = terminal.onData((rawData) => {
+      const mods = useWorkspaceStore.getState().modifiers;
+      const hasModifier = mods.ctrl || mods.alt || mods.shift;
+      let data = rawData;
+      if (hasModifier) {
+        const { data: modified } = applyModifiers(rawData, mods);
+        data = modified;
+        useWorkspaceStore.getState().clearModifiers();
+      }
       const echo = localEcho.handleInput(data);
       if (echo) terminal.write(echo);
       const ws = wsRef.current;

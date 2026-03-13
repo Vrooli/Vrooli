@@ -51,7 +51,19 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sessionId,
       terminal,
       onExit,
-      onReady,
+      onReady: () => {
+        // After socket connects and replay completes, re-fit to ensure
+        // dimensions match this client's actual container size.
+        requestAnimationFrame(() => {
+          const fit = fitRef.current;
+          if (!fit || !terminal) return;
+          fit.fit();
+          if (terminal.cols > 0 && terminal.rows > 0) {
+            sendResize(terminal.cols, terminal.rows);
+          }
+        });
+        onReady?.();
+      },
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
@@ -105,13 +117,37 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps -- Initial font size only; font updates handled by separate effect
     }, []);
 
+    // Fit terminal while preserving scroll position when the user is scrolled
+    // up in history. xterm.js Buffer.resize() adjusts ydisp to keep the cursor
+    // visible, which yanks users back to the bottom if they were reading
+    // scrollback. We save the offset-from-bottom before fit() and restore it.
+    const scrollAwareFit = useCallback(() => {
+      const fit = fitRef.current;
+      if (!fit || !terminal) return;
+
+      const buf = terminal.buffer.active;
+      const offsetFromBottom = buf.baseY - buf.viewportY;
+
+      fit.fit();
+
+      // Restore scroll position only if user was scrolled up (not at bottom)
+      if (offsetFromBottom > 0) {
+        const newBuf = terminal.buffer.active;
+        const targetY = Math.max(0, newBuf.baseY - offsetFromBottom);
+        const drift = targetY - newBuf.viewportY;
+        if (drift !== 0) {
+          terminal.scrollLines(drift);
+        }
+      }
+    }, [terminal]);
+
     // React to font size changes from store
     useEffect(() => {
       if (!terminal || !fitRef.current) return;
       terminal.options.fontSize = paneFontSize;
-      fitRef.current.fit();
+      scrollAwareFit();
       sendResize(terminal.cols, terminal.rows);
-    }, [paneFontSize, terminal, sendResize]);
+    }, [paneFontSize, terminal, sendResize, scrollAwareFit]);
 
     // React to theme changes from store
     useEffect(() => {
@@ -151,15 +187,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // with resize messages during continuous drag/resize operations.
     useEffect(() => {
       const container = containerRef.current;
-      const fit = fitRef.current;
-      if (!container || !terminal || !fit) return;
+      if (!container || !terminal || !fitRef.current) return;
 
       let rafId: number | null = null;
       const resizeObserver = new ResizeObserver(() => {
         if (rafId !== null) return; // Already scheduled
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          fit.fit();
+          scrollAwareFit();
           sendResize(terminal.cols, terminal.rows);
         });
       });
@@ -169,7 +204,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         resizeObserver.disconnect();
         if (rafId !== null) cancelAnimationFrame(rafId);
       };
-    }, [terminal, sendResize]);
+    }, [terminal, sendResize, scrollAwareFit]);
 
     return (
       <div

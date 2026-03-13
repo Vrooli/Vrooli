@@ -3,7 +3,7 @@
 
 SCENARIO_NAME := time-tools
 
-.PHONY: help run test logs stop status clean
+.PHONY: help start run test logs stop status clean
 
 # Default target
 help:
@@ -12,7 +12,8 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  run     - Start the time-tools scenario"
+	@echo "  start   - Start the time-tools scenario"
+	@echo "  run     - Alias for start"
 	@echo "  test    - Run scenario tests"
 	@echo "  logs    - View scenario logs"
 	@echo "  stop    - Stop the scenario"
@@ -20,9 +21,11 @@ help:
 	@echo "  clean   - Clean up scenario resources"
 
 # Start the scenario
-run:
+start:
 	@echo "Starting $(SCENARIO_NAME) scenario..."
-	vrooli scenario run $(SCENARIO_NAME)
+	vrooli scenario start $(SCENARIO_NAME)
+
+run: start
 
 # Run tests
 test:

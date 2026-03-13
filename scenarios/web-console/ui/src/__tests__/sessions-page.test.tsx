@@ -13,6 +13,7 @@ const mockSession: SessionInfo = {
   cols: 80,
   rows: 24,
   policy: { mode: "never" },
+  busy: false,
 };
 
 const mockSessionWithPolicy: SessionInfo = {

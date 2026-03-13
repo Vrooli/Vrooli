@@ -491,3 +491,13 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	defer s.mu.Unlock()
 	return s.Cols, s.Rows
 }
+
+// HasChildProcess reports whether the shell has any running child processes.
+func (s *Session) HasChildProcess() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.processExited {
+		return false
+	}
+	return s.pty.HasChildProcess()
+}

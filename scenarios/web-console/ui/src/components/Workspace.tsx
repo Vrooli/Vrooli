@@ -16,6 +16,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
+import { getSession } from "../lib/api";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -30,6 +31,7 @@ import WorkspaceMinimap from "./WorkspaceMinimap";
 import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
+import ConfirmCloseDialog from "./ConfirmCloseDialog";
 import TabBar from "./TabBar";
 
 type ActiveResize = {
@@ -64,7 +66,7 @@ export default function Workspace() {
     launchSession,
     handleTerminalReady,
     removePane: removeSessionPane,
-    handleExit,
+    handleExit: sessionHandleExit,
     sendToActiveTerminal,
     focusActiveTerminal,
     registerTerminalRef,
@@ -79,6 +81,8 @@ export default function Workspace() {
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const pendingActivePaneRef = useRef<string | null>(null);
+  const [pendingClose, setPendingClose] = useState<string | null>(null);
+  const exitedSessionsRef = useRef<Set<string>>(new Set());
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -196,13 +200,53 @@ export default function Workspace() {
     handleLaunch();
   }, [clearError, handleLaunch]);
 
-  const handleRemovePane = useCallback(
+  const doRemovePane = useCallback(
     (sessionId: string) => {
       removeSessionPane(sessionId);
       store.removePane(sessionId);
+      exitedSessionsRef.current.delete(sessionId);
+      try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
     [removeSessionPane, store],
   );
+
+  const handleRequestClose = useCallback(
+    async (sessionId: string) => {
+      // Skip confirmation for sessions whose process already exited
+      if (exitedSessionsRef.current.has(sessionId)) {
+        doRemovePane(sessionId);
+        return;
+      }
+      // Ask the server whether the shell has a running child process
+      try {
+        const info = await getSession(sessionId);
+        if (!info.busy) {
+          doRemovePane(sessionId);
+          return;
+        }
+      } catch {
+        // If the fetch fails (e.g. session already gone), close without dialog
+        doRemovePane(sessionId);
+        return;
+      }
+      setPendingClose(sessionId);
+    },
+    [doRemovePane],
+  );
+
+  const handleConfirmClose = useCallback(() => {
+    if (pendingClose) doRemovePane(pendingClose);
+    setPendingClose(null);
+  }, [pendingClose, doRemovePane]);
+
+  const handleCancelClose = useCallback(() => {
+    setPendingClose(null);
+  }, []);
+
+  const handleExit = useCallback((sessionId: string) => {
+    exitedSessionsRef.current.add(sessionId);
+    sessionHandleExit(sessionId);
+  }, [sessionHandleExit]);
 
   const handleSendToTerminal = useCallback(
     (data: string): boolean => {
@@ -214,6 +258,14 @@ export default function Workspace() {
   const handleFocusTerminal = useCallback(() => {
     focusActiveTerminal(store.activePane ?? undefined);
   }, [focusActiveTerminal, store.activePane]);
+
+  // Auto-focus the terminal when the active tab changes
+  useEffect(() => {
+    if (!store.activePane) return;
+    // Don't steal focus from open modals
+    if (store.settingsModalOpen || store.sessionsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
+    focusActiveTerminal(store.activePane);
+  }, [store.activePane, store.settingsModalOpen, store.sessionsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {
@@ -442,7 +494,7 @@ export default function Workspace() {
           name={paneMeta.name}
           headerColor={paneMeta.headerColor}
           isActive={store.activePane === paneMeta.sessionId}
-          onClose={() => handleRemovePane(paneMeta.sessionId)}
+          onClose={() => handleRequestClose(paneMeta.sessionId)}
           onFocus={() => store.setActivePane(paneMeta.sessionId)}
           onDragStart={startArrangeDrag}
         />
@@ -503,7 +555,7 @@ export default function Workspace() {
           activePane={store.activePane}
           onNewTerminal={() => handleLaunch()}
           onOpenLauncher={openLauncher}
-          onClosePane={handleRemovePane}
+          onClosePane={handleRequestClose}
           isCreating={isCreating}
         />
       )}
@@ -578,6 +630,7 @@ export default function Workspace() {
           ref={mobileToolbarRef}
           onInput={handleSendToTerminal}
           onFocusTerminal={handleFocusTerminal}
+          activeSessionId={store.activePane}
           voiceSupported={voiceInput.supported}
           voiceRecording={voiceInput.isRecording}
           voiceTranscribing={voiceInput.isTranscribing}
@@ -599,7 +652,7 @@ export default function Workspace() {
       {/* Sessions Modal */}
       <SessionsModal
         sessions={sessionPanes}
-        onDeleteSession={handleRemovePane}
+        onDeleteSession={handleRequestClose}
       />
 
       {/* Settings Modal */}
@@ -610,6 +663,14 @@ export default function Workspace() {
 
       {/* AI Modal */}
       <AiInput onExecute={handleSendToTerminal} />
+
+      {/* Close confirmation dialog */}
+      <ConfirmCloseDialog
+        open={pendingClose !== null}
+        sessionName={store.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal"}
+        onConfirm={handleConfirmClose}
+        onCancel={handleCancelClose}
+      />
     </div>
   );
 }

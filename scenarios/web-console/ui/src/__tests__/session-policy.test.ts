@@ -121,6 +121,7 @@ describe("Policy types", () => {
       cols: 80,
       rows: 24,
       policy: { mode: "never" },
+      busy: false,
     };
     expect(session.policy.mode).toBe("never");
   });

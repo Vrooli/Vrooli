@@ -212,6 +212,7 @@ export function makeSessions(
       cols: 80,
       rows: 24,
       policy: { mode: "never" as const },
+      busy: false,
     },
   }));
 }
@@ -229,6 +230,7 @@ export function createMockSession(
     cols: 80,
     rows: 24,
     policy: { mode: "never" as const },
+    busy: false,
     ...overrides,
   };
 }

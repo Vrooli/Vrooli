@@ -21,6 +21,7 @@ export interface SessionInfo {
   cols: number;
   rows: number;
   policy: ExpirationPolicy;
+  busy: boolean;
 }
 
 export interface PolicyResponse {
@@ -138,6 +139,18 @@ export async function listSessions(): Promise<SessionInfo[]> {
     throw await extractAPIError(res, "Failed to list sessions");
   }
   return (await res.json()) as SessionInfo[];
+}
+
+export async function getSession(id: string): Promise<SessionInfo> {
+  const url = buildApiUrl(`/sessions/${id}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to get session");
+  }
+  return (await res.json()) as SessionInfo;
 }
 
 export async function deleteSession(id: string): Promise<void> {

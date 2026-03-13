@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,6 +24,9 @@ type PTY interface {
 	// Call only after Read returns an error (process exited). Returns -1 if
 	// the exit code cannot be determined.
 	ExitCode() int
+	// HasChildProcess reports whether the shell process has any child
+	// processes running (e.g. a script, interactive program, etc.).
+	HasChildProcess() bool
 }
 
 // PTYFactory creates a PTY-backed process for the given shell and terminal size.
@@ -58,6 +62,18 @@ func (p *realPTY) ExitCode() int {
 		return -1
 	}
 	return 0
+}
+
+func (p *realPTY) HasChildProcess() bool {
+	if p.cmd.Process == nil {
+		return false
+	}
+	childrenPath := fmt.Sprintf("/proc/%d/task/%d/children", p.cmd.Process.Pid, p.cmd.Process.Pid)
+	data, err := os.ReadFile(childrenPath)
+	if err != nil {
+		return false
+	}
+	return len(bytes.TrimSpace(data)) > 0
 }
 
 // defaultPTYFactory starts a real shell process with a PTY.

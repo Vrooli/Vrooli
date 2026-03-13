@@ -2,7 +2,8 @@
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Maximize2, Minimize2, SendHorizontal } from "lucide-react";
-import { TOOLBAR_KEYS, type ToolbarKey } from "../consts/toolbar-keys";
+import { TOOLBAR_KEYS, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import VoiceMicButton from "./VoiceMicButton";
 import { slugify } from "../lib/slugify";
@@ -30,6 +31,8 @@ interface MobileToolbarProps {
   onInput: (data: string) => boolean;
   /** Move focus to the active terminal (e.g. after submitting a command). */
   onFocusTerminal?: () => void;
+  /** Active session ID for per-tab draft persistence. */
+  activeSessionId?: string | null;
   /** Whether the toolbar is visible. */
   visible?: boolean;
   // Voice input props (optional - hidden when undefined)
@@ -46,6 +49,7 @@ interface MobileToolbarProps {
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
   onFocusTerminal,
+  activeSessionId,
   visible = true,
   voiceSupported,
   voiceRecording,
@@ -55,7 +59,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceStart,
   onVoiceStop,
 }, ref) {
-  const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence();
+  const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
@@ -68,6 +72,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
+  const modifiers = useWorkspaceStore((s) => s.modifiers);
+  const toggleModifier = useWorkspaceStore((s) => s.toggleModifier);
+  const clearModifiers = useWorkspaceStore((s) => s.clearModifiers);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear status timer on unmount
@@ -101,19 +108,36 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 
   const handleKey = useCallback(
     (key: ToolbarKey) => {
-      onInput(key.input);
+      const mods = useWorkspaceStore.getState().modifiers;
+      const { data, consumed } = applyModifiers(key.input, mods);
+      onInput(data);
+      if (consumed) clearModifiers();
       // Don't refocus the textarea here. Toolbar keys (Esc, Tab, Ctrl-C, arrows, etc.)
       // send escape sequences to the terminal — stealing focus back to the input
       // would yank the user out of the terminal session they're actively controlling.
     },
-    [onInput],
+    [onInput, clearModifiers],
   );
 
   const submitCommand = useCallback(() => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
 
-    const sent = onInput(inputValue + "\n");
+    const mods = useWorkspaceStore.getState().modifiers;
+    const hasModifier = mods.ctrl || mods.alt || mods.shift;
+    let dataToSend: string;
+
+    if (hasModifier) {
+      // With modifiers active, apply them to the input text character by character
+      // (useful for combos like Ctrl+C, Ctrl+Alt+2, etc.)
+      const { data } = applyModifiers(inputValue, mods);
+      dataToSend = data;
+      clearModifiers();
+    } else {
+      dataToSend = inputValue + "\n";
+    }
+
+    const sent = onInput(dataToSend);
     if (sent) {
       clearDraft();
       showStatus("sent");
@@ -123,7 +147,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal]);
+  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers]);
 
   if (!visible) return null;
 
@@ -185,6 +209,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       </div>
       {/* Toolbar keys row */}
       <div className="flex items-center gap-0.5 px-1 py-1 touch-manipulation">
+        {/* Modifier toggle buttons */}
+        {(["ctrl", "alt", "shift"] as const).map((mod) => (
+          <button
+            key={mod}
+            data-testid={`toolbar-mod-${mod}`}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => toggleModifier(mod)}
+            className={cn(
+              "shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition touch-manipulation",
+              modifiers[mod]
+                ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
+            )}
+          >
+            {mod.charAt(0).toUpperCase() + mod.slice(1)}
+          </button>
+        ))}
+        <div className="w-px h-4 bg-wc-default shrink-0" />
         <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
           {TOOLBAR_KEYS.map((key) => (
             <button

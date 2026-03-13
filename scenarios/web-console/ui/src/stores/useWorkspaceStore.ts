@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
+import type { ModifierState } from "../consts/toolbar-keys";
 
 export interface PaneMetadata {
   sessionId: string;
@@ -29,6 +30,8 @@ interface WorkspaceState {
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
+  /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
+  modifiers: ModifierState;
 }
 
 interface WorkspaceActions {
@@ -54,6 +57,8 @@ interface WorkspaceActions {
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
   resetLayout: () => void;
+  toggleModifier: (key: keyof ModifierState) => void;
+  clearModifiers: () => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -76,6 +81,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
+      modifiers: { ctrl: false, alt: false, shift: false },
 
       addPane: (sessionId, name, activate) =>
         set((state) => {
@@ -156,6 +162,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),
+      toggleModifier: (key) =>
+        set((state) => ({ modifiers: { ...state.modifiers, [key]: !state.modifiers[key] } })),
+      clearModifiers: () =>
+        set({ modifiers: { ctrl: false, alt: false, shift: false } }),
     }),
     {
       name: "wc-workspace",

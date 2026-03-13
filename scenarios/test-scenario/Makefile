@@ -1,7 +1,9 @@
-.PHONY: run test test-unit test-integration test-performance test-dependencies test-business logs stop clean
+.PHONY: start run test test-unit test-integration test-performance test-dependencies test-business logs stop clean
 
-run:
+start:
 	@echo "Starting test-scenario"
+
+run: start
 
 test:
 	test-genie execute test-scenario --preset comprehensive

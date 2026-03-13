@@ -86,6 +86,7 @@ type SessionResponse struct {
 	Cols      int              `json:"cols"`
 	Rows      int              `json:"rows"`
 	Policy    ExpirationPolicy `json:"policy"`
+	Busy      bool             `json:"busy"`
 }
 
 // sessionToResponse converts an internal Session to the JSON-safe response
@@ -99,6 +100,7 @@ func sessionToResponse(s *Session) SessionResponse {
 		Cols:      int(s.Cols),
 		Rows:      int(s.Rows),
 		Policy:    s.GetPolicy(),
+		Busy:      s.HasChildProcess(),
 	}
 }
 

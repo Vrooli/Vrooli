@@ -59,6 +59,7 @@ const makeSession = (id: string): SessionInfo => ({
   cols: 80,
   rows: 24,
   policy: { mode: "never" },
+  busy: false,
 });
 
 describe("SessionsModal", () => {

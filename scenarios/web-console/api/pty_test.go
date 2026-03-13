@@ -116,10 +116,10 @@ func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
 	got := filterClaudeEnv(env)
 
 	expected := map[string]bool{
-		"HOME=/home/user":       true,
-		"TERM=xterm-256color":   true,
-		"SHELL=/bin/bash":       true,
-		"LANGUAGE=en_US":        true,
+		"HOME=/home/user":     true,
+		"TERM=xterm-256color": true,
+		"SHELL=/bin/bash":     true,
+		"LANGUAGE=en_US":      true,
 	}
 
 	for _, v := range got {
@@ -211,6 +211,10 @@ func (f *fakePTY) ExitCode() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.exitCode
+}
+
+func (f *fakePTY) HasChildProcess() bool {
+	return false
 }
 
 func (f *fakePTY) SetExitCode(code int) {

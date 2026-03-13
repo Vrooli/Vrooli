@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -28,9 +27,13 @@ export default function TabBar({
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
 
-  // Long-press detection for opening appearance modal on tabs
+  // Long-press detection for opening appearance modal on tabs.
+  // The timer sets longPressReady; the modal only opens on pointerUp
+  // so that drag gestures take priority over long-press.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
+  const longPressReady = useRef(false);
+  const longPressPaneId = useRef<string | null>(null);
 
   const plusHandlers = useLongPress({
     onPress: onNewTerminal,
@@ -45,6 +48,18 @@ export default function TabBar({
     paneId: string;
     dropIndex: number;
   } | null>(null);
+
+  // Pending drag: tracks pointer-down position before movement threshold is met
+  const dragStartRef = useRef<{
+    paneId: string;
+    x: number;
+    y: number;
+    pointerId: number;
+    target: HTMLElement;
+  } | null>(null);
+
+  /** Movement threshold (px) before a pointer-down becomes a drag. */
+  const DRAG_THRESHOLD = 5;
 
   // Auto-scroll active tab into view
   useEffect(() => {
@@ -105,23 +120,42 @@ export default function TabBar({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [displayMode, panes, activePane, setActivePane, onClosePane]);
 
-  // Tab drag-to-reorder using pointer capture
-  const startTabDrag = useCallback(
-    (paneId: string, e: ReactPointerEvent) => {
+  // Initiate actual drag once movement exceeds threshold
+  const commitDrag = useCallback(
+    (paneId: string, target: HTMLElement, pointerId: number) => {
+      // Cancel any pending long-press when drag starts
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      longPressReady.current = false;
+      longPressPaneId.current = null;
+
       const idx = panes.findIndex((p) => p.sessionId === paneId);
       if (idx === -1) return;
-      e.preventDefault();
-      e.stopPropagation();
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      target.setPointerCapture(pointerId);
       setDragState({ paneId, dropIndex: idx });
     },
     [panes],
   );
 
+  // Global pointermove/pointerup to detect drag threshold and manage active drag
   useEffect(() => {
-    if (dragState === null) return;
-
     const handleMove = (e: PointerEvent) => {
+      // Check if we need to promote a pending drag
+      const pending = dragStartRef.current;
+      if (pending && e.pointerId === pending.pointerId) {
+        const dx = e.clientX - pending.x;
+        const dy = e.clientY - pending.y;
+        if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+          commitDrag(pending.paneId, pending.target, pending.pointerId);
+          dragStartRef.current = null;
+        }
+        return;
+      }
+
+      // Update drop target for active drag
+      if (dragState === null) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const tabEl = el?.closest("[data-tab-index]");
       if (tabEl) {
@@ -135,6 +169,7 @@ export default function TabBar({
     };
 
     const handleUp = () => {
+      dragStartRef.current = null;
       setDragState((prev) => {
         if (prev) movePaneToIndex(prev.paneId, prev.dropIndex);
         return null;
@@ -149,7 +184,7 @@ export default function TabBar({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [dragState, movePaneToIndex]);
+  }, [dragState, movePaneToIndex, commitDrag]);
 
   const isDragging = dragState !== null;
 
@@ -186,7 +221,11 @@ export default function TabBar({
                 isBeingDragged && "opacity-40",
                 isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
               )}
-              onClick={() => setActivePane(pane.sessionId)}
+              onClick={() => {
+                // Suppress click if a drag just completed
+                if (isDragging) return;
+                setActivePane(pane.sessionId);
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 if (longPressTimer.current) {
@@ -197,17 +236,33 @@ export default function TabBar({
                 setAppearanceModalPane(pane.sessionId);
               }}
               onPointerDown={(e) => {
-                // Ctrl+left-click starts drag reorder
-                if (e.button === 0 && e.ctrlKey) {
-                  startTabDrag(pane.sessionId, e);
+                // Left-click on mouse: start tracking for drag threshold
+                if (e.button === 0 && e.pointerType === "mouse") {
+                  dragStartRef.current = {
+                    paneId: pane.sessionId,
+                    x: e.clientX,
+                    y: e.clientY,
+                    pointerId: e.pointerId,
+                    target: e.currentTarget as HTMLElement,
+                  };
                   return;
                 }
-                // Start long-press timer for touch/pen
+                // Start long-press timer for touch/pen.
+                // Sets longPressReady flag; modal opens on pointerUp so
+                // drag gestures can cancel the long-press.
                 if (e.pointerType !== "mouse" && e.button === 0) {
                   longPressFired.current = false;
+                  longPressReady.current = false;
+                  longPressPaneId.current = pane.sessionId;
+                  dragStartRef.current = {
+                    paneId: pane.sessionId,
+                    x: e.clientX,
+                    y: e.clientY,
+                    pointerId: e.pointerId,
+                    target: e.currentTarget as HTMLElement,
+                  };
                   longPressTimer.current = setTimeout(() => {
-                    longPressFired.current = true;
-                    setAppearanceModalPane(pane.sessionId);
+                    longPressReady.current = true;
                   }, 500);
                 }
               }}
@@ -216,6 +271,16 @@ export default function TabBar({
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
                 }
+                // Long-press ready + no drag: open appearance modal on touch-up
+                if (longPressReady.current && !isDragging && longPressPaneId.current) {
+                  longPressFired.current = true;
+                  longPressReady.current = false;
+                  setAppearanceModalPane(longPressPaneId.current);
+                  longPressPaneId.current = null;
+                  return;
+                }
+                longPressReady.current = false;
+                longPressPaneId.current = null;
                 // Activate tab immediately on pointer-up rather than waiting
                 // for onClick, which mobile browsers may delay or suppress
                 // when the element is inside a scrollable container.
@@ -228,6 +293,9 @@ export default function TabBar({
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
                 }
+                longPressReady.current = false;
+                longPressPaneId.current = null;
+                dragStartRef.current = null;
               }}
             >
               {/* Color indicator */}
