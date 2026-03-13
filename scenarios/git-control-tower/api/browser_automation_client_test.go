@@ -11,29 +11,17 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-func TestBASClient_CaptureScreenshot(t *testing.T) {
+func TestBASClient_GetScreenshotData(t *testing.T) {
 	t.Parallel()
 
+	pngBytes := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/preview-screenshot", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
+	mux.HandleFunc("/api/v1/screenshots/artifacts/ss-1.png", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
 		}
-		var req BASScreenshotRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Errorf("decode request: %v", err)
-		}
-		if req.URL != "http://localhost:3000/" {
-			t.Errorf("unexpected URL: %s", req.URL)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
-			Screenshot:     "data:image/png;base64,iVBORw0KGgo=",
-			URL:            req.URL,
-			DurationMS:     150,
-			ViewportWidth:  1280,
-			ViewportHeight: 720,
-		})
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(pngBytes)
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -43,25 +31,25 @@ func TestBASClient_CaptureScreenshot(t *testing.T) {
 		resolver:   discovery.NewStaticResolver(server.URL),
 	}
 
-	resp, err := client.CaptureScreenshot(context.Background(), "http://localhost:3000/", BASViewport{Width: 1280, Height: 720})
+	data, contentType, err := client.GetScreenshotData(context.Background(), "/api/v1/screenshots/artifacts/ss-1.png")
 	if err != nil {
-		t.Fatalf("CaptureScreenshot returned error: %v", err)
+		t.Fatalf("GetScreenshotData returned error: %v", err)
 	}
-	if resp.Screenshot == "" {
-		t.Error("expected non-empty screenshot data")
+	if contentType != "image/png" {
+		t.Errorf("expected content-type image/png, got %s", contentType)
 	}
-	if resp.ViewportWidth != 1280 {
-		t.Errorf("expected viewport width 1280, got %d", resp.ViewportWidth)
+	if len(data) != len(pngBytes) {
+		t.Errorf("expected %d bytes, got %d", len(pngBytes), len(data))
 	}
 }
 
-func TestBASClient_CaptureScreenshot_ServerError(t *testing.T) {
+func TestBASClient_GetScreenshotData_ServerError(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/preview-screenshot", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/api/v1/screenshots/artifacts/ss-1.png", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -71,7 +59,7 @@ func TestBASClient_CaptureScreenshot_ServerError(t *testing.T) {
 		resolver:   discovery.NewStaticResolver(server.URL),
 	}
 
-	_, err := client.CaptureScreenshot(context.Background(), "http://localhost:3000/", BASViewport{Width: 1280, Height: 720})
+	_, _, err := client.GetScreenshotData(context.Background(), "/api/v1/screenshots/artifacts/ss-1.png")
 	if err == nil {
 		t.Fatal("expected error for 500 response")
 	}

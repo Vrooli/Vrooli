@@ -149,7 +149,7 @@ func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
 // handleSaveFileContent handles PUT /api/v1/repo/files/content
 // Saves text content to an existing file with optimistic concurrency support.
 func (s *Server) handleSaveFileContent(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoOperation(w, r, s.git, s.repos, s.repoLock, 30*time.Second)
+	hctx := RepoOperation(w, r, s.git, s.repos, nil, 30*time.Second)
 	if hctx == nil {
 		return
 	}

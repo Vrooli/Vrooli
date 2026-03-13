@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/vrooli/api-core/discovery"
 )
 
 // VisualCaptureDeps holds dependencies for visual capture orchestration.
@@ -39,12 +36,6 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		triggerType = "manual"
 	}
 
-	// Resolve scenario UI URL
-	uiURL, err := discovery.ResolveScenarioURL(ctx, req.ScenarioSlug, "UI_PORT")
-	if err != nil {
-		return nil, fmt.Errorf("resolve UI URL for %s: %w", req.ScenarioSlug, err)
-	}
-
 	// Discover pages
 	var pages []LighthousePage
 	var discoveryMethod string
@@ -69,17 +60,60 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 	var captureErr string
 
 	for _, page := range pages {
-		pageURL := strings.TrimRight(uiURL, "/") + page.Path
-		resp, err := deps.BAS.CaptureScreenshot(ctx, pageURL, viewport)
+		pageCtx, pageCancel := context.WithTimeout(ctx, 60*time.Second)
+
+		wfJSON, err := buildScreenshotWorkflow(req.ScenarioSlug, page, viewport)
 		if err != nil {
-			log.Printf("WARNING: screenshot failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			pageCancel()
+			log.Printf("WARNING: build workflow failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
 			captureErr = err.Error()
 			continue
 		}
 
-		pngData, err := decodeBase64DataURI(resp.Screenshot)
+		execResp, err := deps.BAS.ExecuteAdhocWorkflow(pageCtx, BASExecuteAdhocRequest{
+			FlowDefinition: wfJSON,
+		}, false)
 		if err != nil {
-			log.Printf("WARNING: decode failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			pageCancel()
+			log.Printf("WARNING: execute workflow failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			captureErr = err.Error()
+			continue
+		}
+
+		detail, err := deps.BAS.PollExecutionCompletion(pageCtx, execResp.ExecutionID, 500*time.Millisecond)
+		if err != nil {
+			pageCancel()
+			log.Printf("WARNING: poll failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			captureErr = err.Error()
+			continue
+		}
+		if detail.Status != "EXECUTION_STATUS_COMPLETED" {
+			pageCancel()
+			errMsg := fmt.Sprintf("execution %s for %s%s: %s", detail.Status, req.ScenarioSlug, page.Path, detail.Error)
+			log.Printf("WARNING: %s", errMsg)
+			captureErr = errMsg
+			continue
+		}
+
+		ssResp, err := deps.BAS.GetScreenshots(pageCtx, execResp.ExecutionID)
+		if err != nil {
+			pageCancel()
+			log.Printf("WARNING: get screenshots failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			captureErr = err.Error()
+			continue
+		}
+		if len(ssResp.Screenshots) == 0 {
+			pageCancel()
+			log.Printf("WARNING: no screenshots returned for %s%s", req.ScenarioSlug, page.Path)
+			captureErr = "no screenshots returned"
+			continue
+		}
+
+		pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, ssResp.Screenshots[0].Screenshot.Url)
+		pageCancel()
+		if err != nil {
+			log.Printf("WARNING: fetch screenshot data failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
+			captureErr = err.Error()
 			continue
 		}
 
@@ -127,6 +161,111 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 	}
 
 	return &meta, nil
+}
+
+// buildScreenshotWorkflow creates an inline BAS workflow JSON that navigates to
+// a scenario page and takes a full-page screenshot.
+func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, viewport BASViewport) (json.RawMessage, error) {
+	nodes := []map[string]interface{}{
+		{
+			"id": "navigate",
+			"action": map[string]interface{}{
+				"type":     "ACTION_TYPE_NAVIGATE",
+				"navigate": buildNavigateParams(scenarioSlug, page),
+				"metadata": map[string]interface{}{
+					"label": "Navigate to " + page.Path,
+				},
+			},
+		},
+	}
+
+	// After navigation, poll until all loading spinners (.animate-spin) have
+	// cleared. SPAs like React fire networkidle after the initial bundle but
+	// before data-fetching API calls complete, so an explicit settle check is
+	// needed to avoid capturing half-loaded pages.
+	nodes = append(nodes, map[string]interface{}{
+		"id": "wait-settled",
+		"action": map[string]interface{}{
+			"type": "ACTION_TYPE_EVALUATE",
+			"evaluate": map[string]interface{}{
+				"expression": settleExpression(page.WaitForSelector),
+			},
+			"metadata": map[string]interface{}{
+				"label": "Wait for page to settle",
+			},
+		},
+	})
+
+	edges := []map[string]interface{}{
+		{
+			"id":     "e-nav-settle",
+			"source": "navigate",
+			"target": "wait-settled",
+			"type":   "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+		},
+	}
+
+	nodes = append(nodes, map[string]interface{}{
+		"id": "screenshot",
+		"action": map[string]interface{}{
+			"type": "ACTION_TYPE_SCREENSHOT",
+			"screenshot": map[string]interface{}{
+				"full_page": true,
+			},
+			"metadata": map[string]interface{}{
+				"label": "Capture full-page screenshot",
+			},
+		},
+	})
+	edges = append(edges, map[string]interface{}{
+		"id":     "e-screenshot",
+		"source": "wait-settled",
+		"target": "screenshot",
+		"type":   "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+	})
+
+	workflow := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name":        fmt.Sprintf("screenshot-%s-%s", scenarioSlug, sanitizeFilename(page.Path)),
+			"description": fmt.Sprintf("Capture screenshot of %s %s", scenarioSlug, page.Path),
+		},
+		"settings": map[string]interface{}{
+			"viewport_width":  viewport.Width,
+			"viewport_height": viewport.Height,
+		},
+		"nodes": nodes,
+		"edges": edges,
+	}
+
+	return json.Marshal(workflow)
+}
+
+// settleExpression returns a JavaScript expression that polls until the page
+// has no loading spinners (.animate-spin elements). If waitForSelector is
+// provided, it additionally waits for that element to be visible.
+func settleExpression(waitForSelector string) string {
+	selectorCheck := ""
+	if waitForSelector != "" {
+		selectorCheck = fmt.Sprintf(
+			` const el = document.querySelector(%q); if (!el || el.offsetParent === null) continue;`,
+			waitForSelector,
+		)
+	}
+	return fmt.Sprintf(
+		`(async () => { const deadline = Date.now() + 15000; while (Date.now() < deadline) { const spinners = document.querySelectorAll(".animate-spin"); if (spinners.length === 0) {%s return "settled"; } await new Promise(r => setTimeout(r, 250)); } throw new Error("Page did not settle within 15s"); })()`,
+		selectorCheck,
+	)
+}
+
+// buildNavigateParams creates the navigate action parameters.
+func buildNavigateParams(scenarioSlug string, page LighthousePage) map[string]interface{} {
+	return map[string]interface{}{
+		"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+		"scenario":         scenarioSlug,
+		"scenario_path":    page.Path,
+		"wait_until":       "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+		"timeout_ms":       30000,
+	}
 }
 
 // prepareForCapture handles snapshot cleanup before saving a new capture.
@@ -225,18 +364,4 @@ func sanitizeFilename(pagePath string) string {
 	s = strings.TrimSuffix(s, "/")
 	s = strings.ReplaceAll(s, "/", "_")
 	return "_" + s + "_"
-}
-
-// decodeBase64DataURI strips the data URI prefix and decodes base64.
-func decodeBase64DataURI(dataURI string) ([]byte, error) {
-	// Strip "data:image/png;base64," or similar prefix
-	idx := strings.Index(dataURI, ",")
-	if idx >= 0 {
-		dataURI = dataURI[idx+1:]
-	}
-	data, err := base64.StdEncoding.DecodeString(dataURI)
-	if err != nil {
-		return nil, fmt.Errorf("base64 decode: %w", err)
-	}
-	return data, nil
 }

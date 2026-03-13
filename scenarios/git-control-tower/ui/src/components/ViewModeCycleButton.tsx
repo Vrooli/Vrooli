@@ -6,6 +6,7 @@ interface ViewModeCycleButtonProps {
   mode: FileViewMode;
   onCycle: () => void;
   groupingAvailable: boolean;
+  compact?: boolean;
 }
 
 const modeConfig: Record<
@@ -36,6 +37,7 @@ export const ViewModeCycleButton = memo(function ViewModeCycleButton({
   mode,
   onCycle,
   groupingAvailable,
+  compact,
 }: ViewModeCycleButtonProps) {
   const { Icon, color, label, nextLabel } = modeConfig[mode];
 
@@ -53,12 +55,12 @@ export const ViewModeCycleButton = memo(function ViewModeCycleButton({
     <button
       type="button"
       onClick={onCycle}
-      className={`h-9 w-9 inline-flex items-center justify-center rounded-full border transition-colors ${color}`}
+      className={`${compact ? "h-7 w-7" : "h-9 w-9"} inline-flex items-center justify-center rounded-full border transition-colors ${color}`}
       title={tooltip}
       aria-label={tooltip}
       data-testid="view-mode-cycle-button"
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={compact ? "h-3 w-3" : "h-4 w-4"} />
     </button>
   );
 });

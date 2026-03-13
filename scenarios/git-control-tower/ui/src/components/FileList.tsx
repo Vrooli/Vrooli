@@ -1344,6 +1344,7 @@ export function FileList({
               mode={fileViewMode}
               onCycle={handleCycleViewMode}
               groupingAvailable={groupingAvailable}
+              compact={compactHeader}
             />
           </div>
         </CardHeader>

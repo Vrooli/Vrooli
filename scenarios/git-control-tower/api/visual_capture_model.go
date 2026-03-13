@@ -12,19 +12,6 @@ type BASViewport struct {
 	Height int `json:"height"`
 }
 
-type BASScreenshotRequest struct {
-	URL      string      `json:"url"`
-	Viewport BASViewport `json:"viewport"`
-}
-
-type BASScreenshotResponse struct {
-	Screenshot     string `json:"screenshot"`
-	URL            string `json:"url"`
-	DurationMS     int    `json:"duration_ms"`
-	ViewportWidth  int    `json:"viewportWidth"`
-	ViewportHeight int    `json:"viewportHeight"`
-}
-
 type BASExecuteAdhocRequest struct {
 	FlowDefinition json.RawMessage        `json:"flow_definition"`
 	Parameters     map[string]interface{} `json:"parameters,omitempty"`
@@ -47,10 +34,12 @@ type BASExecutionDetail struct {
 
 type BASExecutionScreenshot struct {
 	Screenshot struct {
-		Data     string `json:"data"`
-		MimeType string `json:"mime_type"`
-		Width    int    `json:"width"`
-		Height   int    `json:"height"`
+		ArtifactID   string `json:"artifact_id"`
+		Url          string `json:"url"`
+		ThumbnailUrl string `json:"thumbnail_url"`
+		ContentType  string `json:"content_type"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
 	} `json:"screenshot"`
 	StepIndex int    `json:"step_index"`
 	StepLabel string `json:"step_label"`

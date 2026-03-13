@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,20 +54,7 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/preview-screenshot" {
-			pngData := base64.StdEncoding.EncodeToString([]byte{0x89, 0x50, 0x4E, 0x47})
-			_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
-				Screenshot:     "data:image/png;base64," + pngData,
-				URL:            "http://localhost:3000/",
-				DurationMS:     100,
-				ViewportWidth:  1280,
-				ViewportHeight: 720,
-			})
-			return
-		}
-		w.WriteHeader(404)
-	})
+	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
 
 	// Create lighthouse.json
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
@@ -86,10 +75,6 @@ func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(lhDir, "lighthouse.json"), lhData, 0o644); err != nil {
 		t.Fatalf("write lighthouse.json: %v", err)
 	}
-
-	// We need to mock the UI URL resolution - use the BAS server URL as a stand-in
-	// since CaptureScenario calls discovery.ResolveScenarioURL which won't work in tests.
-	// Instead, test the helper functions directly.
 
 	pages := discoverPages(deps.FS, deps.RepoDir, "test-app")
 	if len(pages) != 2 {
@@ -177,78 +162,284 @@ func TestSanitizeFilename(t *testing.T) {
 	}
 }
 
-func TestDecodeBase64DataURI(t *testing.T) {
-	t.Parallel()
-
-	// Valid data URI
-	original := []byte{0x89, 0x50, 0x4E, 0x47}
-	encoded := "data:image/png;base64," + base64.StdEncoding.EncodeToString(original)
-	decoded, err := decodeBase64DataURI(encoded)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(decoded) != len(original) {
-		t.Errorf("expected %d bytes, got %d", len(original), len(decoded))
-	}
-
-	// Raw base64 without prefix
-	rawEncoded := base64.StdEncoding.EncodeToString(original)
-	decoded2, err := decodeBase64DataURI(rawEncoded)
-	if err != nil {
-		t.Fatalf("unexpected error for raw base64: %v", err)
-	}
-	if len(decoded2) != len(original) {
-		t.Errorf("expected %d bytes, got %d", len(original), len(decoded2))
-	}
-
-	// Invalid base64
-	_, err = decodeBase64DataURI("data:image/png;base64,not-valid-base64!!!")
-	if err == nil {
-		t.Error("expected error for invalid base64")
-	}
-}
-
 func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 	t.Parallel()
 
-	callCount := 0
+	var execCount int32
 	deps, _ := testCaptureSetup(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/preview-screenshot" {
-			callCount++
-			if callCount == 1 {
-				// First call succeeds
-				pngData := base64.StdEncoding.EncodeToString([]byte{0x89, 0x50})
-				_ = json.NewEncoder(w).Encode(BASScreenshotResponse{
-					Screenshot: "data:image/png;base64," + pngData,
-				})
+		switch {
+		case r.URL.Path == "/api/v1/workflows/execute-adhoc" && r.Method == http.MethodPost:
+			n := atomic.AddInt32(&execCount, 1)
+			_ = json.NewEncoder(w).Encode(BASExecuteResponse{
+				ExecutionID: fmt.Sprintf("exec-%d", n),
+				Status:      "running",
+			})
+
+		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/") && strings.HasSuffix(r.URL.Path, "/screenshots"):
+			execID := strings.TrimPrefix(r.URL.Path, "/api/v1/executions/")
+			execID = strings.TrimSuffix(execID, "/screenshots")
+			if execID == "exec-2" {
+				// Second page returns no screenshots (simulate failure)
+				_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{Total: 0})
 				return
 			}
-			// Second call fails
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "browser crashed"})
-			return
+			_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{
+				Screenshots: []BASExecutionScreenshot{
+					{Screenshot: struct {
+						ArtifactID   string `json:"artifact_id"`
+						Url          string `json:"url"`
+						ThumbnailUrl string `json:"thumbnail_url"`
+						ContentType  string `json:"content_type"`
+						Width        int    `json:"width"`
+						Height       int    `json:"height"`
+					}{Url: "/api/v1/screenshots/artifacts/ss-1.png", ContentType: "image/png", Width: 1280, Height: 720}},
+				},
+				Total: 1,
+			})
+
+		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/"):
+			_ = json.NewEncoder(w).Encode(BASExecutionDetail{
+				ExecutionID: strings.TrimPrefix(r.URL.Path, "/api/v1/executions/"),
+				Status:      "EXECUTION_STATUS_COMPLETED",
+			})
+
+		case r.URL.Path == "/api/v1/screenshots/artifacts/ss-1.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
+
+		default:
+			w.WriteHeader(404)
 		}
-		w.WriteHeader(404)
 	})
 
-	// Test that partial failure doesn't prevent saving what succeeded
-	// We test this through the BAS client directly since CaptureScenario
-	// needs discovery which isn't available in unit tests
-	ctx := context.Background()
-
-	// First call should succeed
-	resp, err := deps.BAS.CaptureScreenshot(ctx, "http://test/", BASViewport{Width: 1280, Height: 720})
+	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
+		ScenarioSlug: "test-app",
+		Pages:        []string{"/", "/about"},
+	})
 	if err != nil {
-		t.Fatalf("first call should succeed: %v", err)
+		t.Fatalf("CaptureScenario returned error: %v", err)
 	}
-	if resp.Screenshot == "" {
-		t.Error("expected screenshot data")
+	if meta.ScreenshotCount != 1 {
+		t.Errorf("expected 1 screenshot (partial), got %d", meta.ScreenshotCount)
+	}
+	if meta.Status != "complete" {
+		t.Errorf("expected status complete, got %s", meta.Status)
+	}
+}
+
+func TestCaptureScenario_FullFlow(t *testing.T) {
+	t.Parallel()
+
+	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
+
+	// Create lighthouse.json with two pages
+	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
+	if err := os.MkdirAll(lhDir, 0o755); err != nil {
+		t.Fatalf("create lighthouse dir: %v", err)
+	}
+	lhConfig := LighthouseConfig{
+		Enabled: true,
+		Pages: []LighthousePage{
+			{ID: "home", Path: "/", Label: "Home"},
+			{ID: "settings", Path: "/settings", Label: "Settings"},
+		},
+	}
+	lhData, _ := json.Marshal(lhConfig)
+	if err := os.WriteFile(filepath.Join(lhDir, "lighthouse.json"), lhData, 0o644); err != nil {
+		t.Fatalf("write lighthouse.json: %v", err)
 	}
 
-	// Second call should fail
-	_, err = deps.BAS.CaptureScreenshot(ctx, "http://test/about", BASViewport{Width: 1280, Height: 720})
-	if err == nil {
-		t.Error("second call should fail")
+	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
+		ScenarioSlug: "test-app",
+		Mode:         CaptureModeBaseline,
+	})
+	if err != nil {
+		t.Fatalf("CaptureScenario returned error: %v", err)
+	}
+	if meta.Status != "complete" {
+		t.Errorf("expected status complete, got %s (error: %s)", meta.Status, meta.Error)
+	}
+	if meta.ScreenshotCount != 2 {
+		t.Errorf("expected 2 screenshots, got %d", meta.ScreenshotCount)
+	}
+	if meta.Role != SnapshotRoleBaseline {
+		t.Errorf("expected role baseline, got %s", meta.Role)
+	}
+	if meta.PageDiscoveryMethod != "lighthouse" {
+		t.Errorf("expected discovery method lighthouse, got %s", meta.PageDiscoveryMethod)
+	}
+	if len(meta.Pages) != 2 {
+		t.Errorf("expected 2 captured pages, got %d", len(meta.Pages))
+	}
+}
+
+func TestBuildScreenshotWorkflow(t *testing.T) {
+	t.Parallel()
+
+	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, BASViewport{Width: 1920, Height: 1080})
+	if err != nil {
+		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
+	}
+
+	var wf map[string]interface{}
+	if err := json.Unmarshal(wfJSON, &wf); err != nil {
+		t.Fatalf("failed to unmarshal workflow JSON: %v", err)
+	}
+
+	// Check settings
+	settings := wf["settings"].(map[string]interface{})
+	if int(settings["viewport_width"].(float64)) != 1920 {
+		t.Errorf("expected viewport_width 1920, got %v", settings["viewport_width"])
+	}
+
+	// Always 3 nodes: navigate → wait-settled → screenshot
+	nodes := wf["nodes"].([]interface{})
+	if len(nodes) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(nodes))
+	}
+
+	// Navigate node
+	navNode := nodes[0].(map[string]interface{})
+	nav := navNode["action"].(map[string]interface{})["navigate"].(map[string]interface{})
+	if nav["scenario"] != "my-app" {
+		t.Errorf("expected scenario my-app, got %v", nav["scenario"])
+	}
+	if nav["scenario_path"] != "/dashboard" {
+		t.Errorf("expected scenario_path /dashboard, got %v", nav["scenario_path"])
+	}
+
+	// Settle node (evaluate with spinner poll)
+	settleNode := nodes[1].(map[string]interface{})
+	settleAction := settleNode["action"].(map[string]interface{})
+	if settleAction["type"] != "ACTION_TYPE_EVALUATE" {
+		t.Errorf("expected ACTION_TYPE_EVALUATE, got %v", settleAction["type"])
+	}
+	expr := settleAction["evaluate"].(map[string]interface{})["expression"].(string)
+	if !strings.Contains(expr, "animate-spin") {
+		t.Errorf("settle expression should check for animate-spin spinners")
+	}
+
+	// Screenshot node
+	ssNode := nodes[2].(map[string]interface{})
+	ssAction := ssNode["action"].(map[string]interface{})
+	if ssAction["type"] != "ACTION_TYPE_SCREENSHOT" {
+		t.Errorf("expected ACTION_TYPE_SCREENSHOT, got %v", ssAction["type"])
+	}
+
+	// Check edges: navigate→wait-settled→screenshot
+	edges := wf["edges"].([]interface{})
+	if len(edges) != 2 {
+		t.Fatalf("expected 2 edges, got %d", len(edges))
+	}
+	e1 := edges[0].(map[string]interface{})
+	if e1["source"] != "navigate" || e1["target"] != "wait-settled" {
+		t.Errorf("expected edge navigate->wait-settled, got %v->%v", e1["source"], e1["target"])
+	}
+	e2 := edges[1].(map[string]interface{})
+	if e2["source"] != "wait-settled" || e2["target"] != "screenshot" {
+		t.Errorf("expected edge wait-settled->screenshot, got %v->%v", e2["source"], e2["target"])
+	}
+}
+
+func TestBuildScreenshotWorkflow_WithWaitForSelector(t *testing.T) {
+	t.Parallel()
+
+	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/", Label: "Home", WaitForSelector: "[data-testid=\"main\"]"}, BASViewport{Width: 1280, Height: 720})
+	if err != nil {
+		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
+	}
+
+	var wf map[string]interface{}
+	if err := json.Unmarshal(wfJSON, &wf); err != nil {
+		t.Fatalf("failed to unmarshal workflow JSON: %v", err)
+	}
+
+	// Settle expression should include the selector check
+	nodes := wf["nodes"].([]interface{})
+	settleAction := nodes[1].(map[string]interface{})["action"].(map[string]interface{})
+	expr := settleAction["evaluate"].(map[string]interface{})["expression"].(string)
+	if !strings.Contains(expr, `data-testid`) {
+		t.Errorf("settle expression should include waitForSelector, got: %s", expr)
+	}
+}
+
+func TestSettleExpression(t *testing.T) {
+	t.Parallel()
+
+	// Without selector: just spinner check
+	expr := settleExpression("")
+	if !strings.Contains(expr, "animate-spin") {
+		t.Error("expected animate-spin check in expression")
+	}
+	if strings.Contains(expr, "querySelector") && strings.Contains(expr, "offsetParent") {
+		t.Error("expected no selector check when waitForSelector is empty")
+	}
+
+	// With selector: spinner check + selector visibility
+	expr = settleExpression("[data-testid=\"app\"]")
+	if !strings.Contains(expr, "animate-spin") {
+		t.Error("expected animate-spin check in expression")
+	}
+	if !strings.Contains(expr, `data-testid`) {
+		t.Error("expected selector in expression")
+	}
+	if !strings.Contains(expr, "offsetParent") {
+		t.Error("expected visibility check in expression")
+	}
+}
+
+// adhocWorkflowHandler returns an http.HandlerFunc that mocks all BAS endpoints
+// needed for CaptureScenario's adhoc workflow path. The optional failExecIDs set
+// causes those execution IDs to return FAILED status.
+func adhocWorkflowHandler(t *testing.T, failExecIDs map[string]bool) http.HandlerFunc {
+	t.Helper()
+	var execCount int32
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/workflows/execute-adhoc" && r.Method == http.MethodPost:
+			n := atomic.AddInt32(&execCount, 1)
+			_ = json.NewEncoder(w).Encode(BASExecuteResponse{
+				ExecutionID: fmt.Sprintf("exec-%d", n),
+				Status:      "running",
+			})
+
+		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/") && strings.HasSuffix(r.URL.Path, "/screenshots"):
+			_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{
+				Screenshots: []BASExecutionScreenshot{
+					{Screenshot: struct {
+						ArtifactID   string `json:"artifact_id"`
+						Url          string `json:"url"`
+						ThumbnailUrl string `json:"thumbnail_url"`
+						ContentType  string `json:"content_type"`
+						Width        int    `json:"width"`
+						Height       int    `json:"height"`
+					}{Url: "/api/v1/screenshots/artifacts/ss.png", ContentType: "image/png", Width: 1280, Height: 720}},
+				},
+				Total: 1,
+			})
+
+		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/"):
+			execID := strings.TrimPrefix(r.URL.Path, "/api/v1/executions/")
+			status := "EXECUTION_STATUS_COMPLETED"
+			errMsg := ""
+			if failExecIDs != nil && failExecIDs[execID] {
+				status = "EXECUTION_STATUS_FAILED"
+				errMsg = "step timed out"
+			}
+			_ = json.NewEncoder(w).Encode(BASExecutionDetail{
+				ExecutionID: execID,
+				Status:      status,
+				Error:       errMsg,
+			})
+
+		case r.URL.Path == "/api/v1/screenshots/artifacts/ss.png":
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
+
+		default:
+			w.WriteHeader(404)
+		}
 	}
 }
 

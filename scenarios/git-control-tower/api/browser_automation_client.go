@@ -25,17 +25,9 @@ func NewBrowserAutomationClient(timeout time.Duration) *BrowserAutomationClient 
 	}
 }
 
-// CaptureScreenshot calls POST /api/v1/preview-screenshot on BAS.
-func (c *BrowserAutomationClient) CaptureScreenshot(ctx context.Context, url string, viewport BASViewport) (*BASScreenshotResponse, error) {
-	var result BASScreenshotResponse
-	err := c.doJSON(ctx, "/api/v1/preview-screenshot", BASScreenshotRequest{
-		URL:      url,
-		Viewport: viewport,
-	}, &result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+// GetScreenshotData fetches raw screenshot bytes and content-type using the artifact's URL.
+func (c *BrowserAutomationClient) GetScreenshotData(ctx context.Context, screenshotURL string) ([]byte, string, error) {
+	return c.doRaw(ctx, screenshotURL)
 }
 
 // ExecuteAdhocWorkflow calls POST /api/v1/workflows/execute-adhoc on BAS.
