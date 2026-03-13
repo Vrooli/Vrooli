@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { LocalEchoController } from "../lib/localEcho";
 
+function fakeClock(startMs = 0) {
+  let now = startMs;
+  const clock = () => now;
+  clock.advance = (ms: number) => { now += ms; };
+  clock.set = (ms: number) => { now = ms; };
+  return clock;
+}
+
 describe("LocalEchoController", () => {
   let echo: LocalEchoController;
 
@@ -134,6 +142,96 @@ describe("LocalEchoController", () => {
       echo.enabled = false;
       echo.enabled = true;
       expect(echo.handleInput("a")).toBe("a");
+    });
+  });
+
+  describe("prediction aging", () => {
+    it("auto-resets stale predictions in handleInput", () => {
+      const clock = fakeClock(1000);
+      const ec = new LocalEchoController(clock);
+      ec.handleInput("a");
+      ec.handleInput("b");
+      expect(ec.pendingCount).toBe(2);
+
+      // Advance past MAX_PREDICTION_AGE_MS (2000ms)
+      clock.advance(2001);
+      ec.handleInput("c");
+      // Stale predictions cleared, only "c" remains
+      expect(ec.pendingCount).toBe(1);
+    });
+
+    it("discards stale predictions in processOutput", () => {
+      const clock = fakeClock(1000);
+      const ec = new LocalEchoController(clock);
+      ec.handleInput("a");
+      ec.handleInput("b");
+
+      clock.advance(2001);
+      // processOutput should discard stale predictions and pass through data unchanged
+      expect(ec.processOutput("xyz")).toBe("xyz");
+      expect(ec.pendingCount).toBe(0);
+    });
+
+    it("does not reset predictions within age limit", () => {
+      const clock = fakeClock(1000);
+      const ec = new LocalEchoController(clock);
+      ec.handleInput("a");
+      ec.handleInput("b");
+
+      clock.advance(1999);
+      // Within age limit — normal reconciliation
+      expect(ec.processOutput("ab")).toBe("");
+      expect(ec.pendingCount).toBe(0);
+    });
+
+    it("does not reset in handleInput within age limit", () => {
+      const clock = fakeClock(1000);
+      const ec = new LocalEchoController(clock);
+      ec.handleInput("a");
+      clock.advance(1999);
+      ec.handleInput("b");
+      expect(ec.pendingCount).toBe(2);
+    });
+  });
+
+  describe("prediction cap", () => {
+    it("stops echoing and resets when cap is reached", () => {
+      const ec = new LocalEchoController();
+      // Fill to the cap (32)
+      for (let i = 0; i < 32; i++) {
+        expect(ec.handleInput("a")).toBe("a");
+      }
+      expect(ec.pendingCount).toBe(32);
+
+      // 33rd input should hit cap, reset, and return null
+      expect(ec.handleInput("b")).toBeNull();
+      expect(ec.pendingCount).toBe(0);
+    });
+
+    it("can echo again after cap reset", () => {
+      const ec = new LocalEchoController();
+      for (let i = 0; i < 32; i++) {
+        ec.handleInput("a");
+      }
+      // Hit cap
+      ec.handleInput("b");
+      expect(ec.pendingCount).toBe(0);
+
+      // Should be able to echo again
+      expect(ec.handleInput("c")).toBe("c");
+      expect(ec.pendingCount).toBe(1);
+    });
+  });
+
+  describe("clock injection", () => {
+    it("accepts a custom clock for testability", () => {
+      const clock = fakeClock(5000);
+      const ec = new LocalEchoController(clock);
+      ec.handleInput("a");
+      expect(ec.pendingCount).toBe(1);
+
+      // Without advancing clock, predictions stay fresh
+      expect(ec.processOutput("a")).toBe("");
     });
   });
 });

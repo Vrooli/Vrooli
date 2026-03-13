@@ -137,6 +137,18 @@ Last updated: 2026-02-20
 
 **Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses.
 
+### LocalEcho Clock Seam (UI)
+**File**: `ui/src/lib/localEcho.ts`
+**Purpose**: Decouple time-dependent prediction aging from system clock for deterministic tests.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `clock` constructor param | `Date.now` (default) | Fake clock function with `advance()` / `set()` helpers |
+| Prediction aging | Predictions older than 2s auto-reset | Fake clock advances past threshold to trigger reset |
+| Pending cap | Max 32 pending predictions; echoing disabled at cap | Test sends 33+ predictions to verify overflow behavior |
+
+**Benefits**: Time-dependent local echo behavior (stale prediction reset, overflow cap) can be tested deterministically without real delays. The clock injection is a single constructor parameter with a sensible default.
+
 ### Capability Registry Seam (API)
 **File**: `api/capabilities.go`, `api/capabilities_checkers.go`
 **Purpose**: Decouple capability detection from specific service health checks, enabling testable capability discovery.
@@ -180,10 +192,11 @@ Last updated: 2026-02-20
 ## Remaining Ownership Issues
 
 1. ~~**Shortcut defaults hardcoded** in `TerminalLauncher.tsx`~~ — **Resolved Phase 8**: Extracted to `consts/shortcuts.ts`
-2. **No reconnect logic** — If WebSocket disconnects, no auto-reconnect. Should be a transport-layer concern in `useTerminalSocket`
+2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSocket` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
 3. **No session persistence** — In-memory only; SQLite backend is a P1 domain concern
 4. **No structured logging** — Simple `log.Printf` across API; should use structured logger at integration boundaries
 5. ~~**API client hardcoded in Workspace**~~ — **Resolved Phase 8**: Session lifecycle extracted to `useSessionManager` hook
+6. **Drop detection as transport concern** — Per-client frame drop counting with configurable threshold (`WC_DROP_NOTIFY_THRESHOLD`) sends `sync_warning` messages to affected clients
 
 ## Change Axes
 
@@ -407,6 +420,8 @@ The API uses a hybrid organization:
 | `exit` | Server→Client | Process exited; `code` field carries real exit code (0=clean, non-zero=failure) |
 | `error` | Server→Client | Runtime error with known recovery hints for common cases |
 | `pong` | Server→Client | Keepalive response confirming connection liveness |
+| `resize_info` | Server→Client | Informational: reports effective PTY size after resize (may differ from requested if other clients are larger) |
+| `sync_warning` | Server→Client | Data-loss notification: `dropped_frames` count indicates output frames the client missed due to slow consumption |
 
 **UI Feedback Surfaces:**
 | Component | Signal Type | Behavior |
@@ -424,5 +439,5 @@ The API uses a hybrid organization:
 1. **No event stream endpoint** — Events are polled via `GET /api/v1/events`. An SSE or WebSocket-based real-time event stream would enable live dashboards without polling. Low priority for single-user.
 2. **No structured logging** — API uses `log.Printf` (text). A structured logger (slog) would enable machine-parseable log aggregation. Documented in PROBLEMS.md, deferred.
 3. **No Prometheus/OpenTelemetry** — Metrics are JSON-only poll. External observability integration is a future concern.
-4. **WebSocket reconnect** — No auto-reconnect on disconnect. Documented as remaining ownership issue.
+4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSocket`.
 5. **Session delete from UI** — No confirmation feedback beyond the session disappearing from the list. Low priority.

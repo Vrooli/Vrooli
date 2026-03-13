@@ -15,22 +15,25 @@ import (
 // WebSocket message types for terminal I/O.
 // [REQ:P0-002b] WebSocket I/O Streaming
 const (
-	MsgTypeStdin  = "stdin"
-	MsgTypeStdout = "stdout"
-	MsgTypeResize = "resize"
-	MsgTypeExit   = "exit"
-	MsgTypeError  = "error"
-	MsgTypePing   = "ping"
-	MsgTypePong   = "pong"
+	MsgTypeStdin       = "stdin"
+	MsgTypeStdout      = "stdout"
+	MsgTypeResize      = "resize"
+	MsgTypeResizeInfo  = "resize_info"
+	MsgTypeExit        = "exit"
+	MsgTypeError       = "error"
+	MsgTypePing        = "ping"
+	MsgTypePong        = "pong"
+	MsgTypeSyncWarning = "sync_warning"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
 type TerminalMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data,omitempty"`
-	Cols int    `json:"cols,omitempty"`
-	Rows int    `json:"rows,omitempty"`
-	Code int    `json:"code,omitempty"`
+	Type          string `json:"type"`
+	Data          string `json:"data,omitempty"`
+	Cols          int    `json:"cols,omitempty"`
+	Rows          int    `json:"rows,omitempty"`
+	Code          int    `json:"code,omitempty"`
+	DroppedFrames int    `json:"dropped_frames,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -77,8 +80,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		s.metrics.ActiveConnections.Add(-1)
 	}()
 
-	// Subscribe to PTY output
-	outputCh := sess.Subscribe()
+	// Subscribe to PTY output with default dimensions (first resize message updates them)
+	outputCh, notifyCh := sess.Subscribe(s.sessions.cfg.DefaultCols, s.sessions.cfg.DefaultRows)
 	defer sess.Unsubscribe(outputCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
@@ -94,7 +97,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		writeMu.Unlock()
 	}
 
-	// Output forwarder: PTY output → WebSocket client
+	// Output forwarder: PTY output + drop notifications → WebSocket client
 	go func() {
 		defer func() {
 			// Close writerDone to signal the input loop — but only if it hasn't
@@ -106,22 +109,36 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				close(writerDone)
 			}
 		}()
-		for data := range outputCh {
-			writeMu.Lock()
-			err := conn.WriteJSON(TerminalMessage{
-				Type: MsgTypeStdout,
-				Data: string(data),
-			})
-			writeMu.Unlock()
-			s.metrics.WSMessagesSent.Add(1)
-			if err != nil {
-				return
+		for {
+			select {
+			case data, ok := <-outputCh:
+				if !ok {
+					// Channel closed = process exited; forward the real exit code
+					writeMu.Lock()
+					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
+					writeMu.Unlock()
+					return
+				}
+				writeMu.Lock()
+				err := conn.WriteJSON(TerminalMessage{
+					Type: MsgTypeStdout,
+					Data: string(data),
+				})
+				writeMu.Unlock()
+				s.metrics.WSMessagesSent.Add(1)
+				if err != nil {
+					return
+				}
+			case dropped := <-notifyCh:
+				writeMu.Lock()
+				_ = conn.WriteJSON(TerminalMessage{
+					Type:          MsgTypeSyncWarning,
+					DroppedFrames: dropped,
+				})
+				writeMu.Unlock()
+				s.metrics.WSMessagesSent.Add(1)
 			}
 		}
-		// Channel closed = process exited; forward the real exit code
-		writeMu.Lock()
-		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
-		writeMu.Unlock()
 	}()
 
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong
@@ -155,9 +172,15 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			}
 		case MsgTypeResize:
 			if msg.Cols > 0 && msg.Rows > 0 {
-				if err := s.sessions.Resize(sessionID, uint16(msg.Cols), uint16(msg.Rows)); err != nil {
-					log.Printf("ws[%s]: resize failed: %v", sessionID, err)
-				}
+				effCols, effRows := sess.ResizeClient(outputCh, uint16(msg.Cols), uint16(msg.Rows))
+				// Inform this client of the effective PTY size (may differ from requested)
+				writeMu.Lock()
+				_ = conn.WriteJSON(TerminalMessage{
+					Type: MsgTypeResizeInfo,
+					Cols: int(effCols),
+					Rows: int(effRows),
+				})
+				writeMu.Unlock()
 				// [REQ:P1-004a] Emit resize event
 				s.events.Emit(EventPaneResized, sessionID, map[string]string{
 					"cols": fmt.Sprintf("%d", msg.Cols),

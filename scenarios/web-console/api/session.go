@@ -28,6 +28,16 @@ var (
 	ErrPTYSpawnFailed = errors.New("PTY spawn failed")
 )
 
+// ClientInfo tracks per-client metadata for a subscribed WebSocket connection.
+// Each connected client has its own viewport dimensions so the session can
+// compute the effective PTY size as the maximum across all clients.
+type ClientInfo struct {
+	Cols          uint16
+	Rows          uint16
+	DroppedFrames int
+	NotifyCh      chan int // receives cumulative drop count when threshold crossed
+}
+
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
 // DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
 // Session represents a terminal session backed by a PTY process.
@@ -46,7 +56,7 @@ type Session struct {
 	// broadcasts to connected WebSocket clients while preserving bounded
 	// output history for reconnect and reload replay.
 	mu              sync.Mutex
-	clients         map[chan []byte]struct{}
+	clients         map[chan []byte]*ClientInfo
 	outputHistory   []byte
 	processExited   bool // set by readLoop when the PTY read returns an error
 	processExitCode int  // exit code from the PTY process (-1 if unknown)
@@ -56,6 +66,7 @@ type Session struct {
 	offlineBufferMax    int
 	ptyReadBuffer       int
 	clientChannelBuffer int
+	dropNotifyThreshold int
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
@@ -66,13 +77,16 @@ func (s *Session) Write(data []byte) (int, error) {
 	return s.pty.Write(data)
 }
 
-// Subscribe returns a channel that receives PTY output. Caller must call
-// Unsubscribe when done. Recent output history is replayed immediately,
-// prefixed with an SGR reset to clear any dangling color/attribute state
-// that may have been lost when the history buffer was trimmed.
+// Subscribe returns a channel that receives PTY output and a notification
+// channel that fires when dropped frames exceed the configured threshold.
+// Caller must call Unsubscribe when done. Recent output history is replayed
+// immediately, prefixed with an SGR reset to clear any dangling
+// color/attribute state that may have been lost when the history buffer
+// was trimmed.
 // [REQ:P0-003b] Reconnect State Restoration
-func (s *Session) Subscribe() chan []byte {
+func (s *Session) Subscribe(cols, rows uint16) (chan []byte, chan int) {
 	ch := make(chan []byte, s.clientChannelBuffer)
+	notifyCh := make(chan int, 1)
 	s.mu.Lock()
 	// Replay recent output history to reconnected clients.
 	// Prepend SGR reset so trimmed color-setting sequences don't
@@ -83,16 +97,63 @@ func (s *Session) Subscribe() chan []byte {
 		snapshot = append(snapshot, s.outputHistory...)
 		ch <- snapshot
 	}
-	s.clients[ch] = struct{}{}
+	s.clients[ch] = &ClientInfo{
+		Cols:     cols,
+		Rows:     rows,
+		NotifyCh: notifyCh,
+	}
+	s.recomputePTYSize()
 	s.mu.Unlock()
-	return ch
+	return ch, notifyCh
 }
 
-// Unsubscribe removes a client channel.
+// Unsubscribe removes a client channel and recomputes the effective PTY size.
 func (s *Session) Unsubscribe(ch chan []byte) {
 	s.mu.Lock()
 	delete(s.clients, ch)
+	s.recomputePTYSize()
 	s.mu.Unlock()
+}
+
+// ResizeClient updates a specific client's viewport dimensions and recomputes
+// the effective PTY size. Returns the effective (cols, rows) after recomputation.
+// [REQ:P0-002c] Terminal Resize Handling
+func (s *Session) ResizeClient(ch chan []byte, cols, rows uint16) (uint16, uint16) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if info, ok := s.clients[ch]; ok {
+		info.Cols = cols
+		info.Rows = rows
+	}
+	s.recomputePTYSize()
+	return s.Cols, s.Rows
+}
+
+// recomputePTYSize sets the PTY dimensions to the maximum across all connected
+// clients. Smaller clients rely on xterm.js reflow to handle the wider output.
+// Caller must hold s.mu.
+func (s *Session) recomputePTYSize() {
+	var maxCols, maxRows uint16
+	for _, info := range s.clients {
+		if info.Cols > maxCols {
+			maxCols = info.Cols
+		}
+		if info.Rows > maxRows {
+			maxRows = info.Rows
+		}
+	}
+	// Fall back to session creation defaults when no clients are connected
+	if maxCols == 0 {
+		maxCols = s.Cols
+	}
+	if maxRows == 0 {
+		maxRows = s.Rows
+	}
+	if maxCols != s.Cols || maxRows != s.Rows {
+		s.Cols = maxCols
+		s.Rows = maxRows
+		_ = s.pty.SetSize(maxCols, maxRows)
+	}
 }
 
 // GetPolicy returns the session's expiration policy.
@@ -224,6 +285,9 @@ func looksLikeMidSequence(buf []byte) bool {
 
 // broadcast fans out PTY output to all connected WebSocket clients while
 // preserving bounded output history for reconnect/reload replay.
+// Slow clients that can't keep up have frames dropped; when the cumulative
+// drop count crosses the configured threshold, a notification is sent on
+// the client's NotifyCh so the WebSocket handler can alert the user.
 func (s *Session) broadcast(data []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -234,11 +298,19 @@ func (s *Session) broadcast(data []byte) {
 	// Copy to avoid data races since buf is reused
 	cp := make([]byte, len(data))
 	copy(cp, data)
-	for ch := range s.clients {
+	for ch, info := range s.clients {
 		select {
 		case ch <- cp:
 		default:
 			// Client is slow, drop frame
+			info.DroppedFrames++
+			if s.dropNotifyThreshold > 0 && info.DroppedFrames%s.dropNotifyThreshold == 0 {
+				select {
+				case info.NotifyCh <- info.DroppedFrames:
+				default:
+					// Notification already pending
+				}
+			}
 		}
 	}
 }
@@ -349,11 +421,12 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		Rows:                rows,
 		pty:                 p,
 		policy:              DefaultPolicy(),
-		clients:             make(map[chan []byte]struct{}),
+		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		offlineBufferMax:    sm.cfg.OfflineBufferMax,
 		ptyReadBuffer:       sm.cfg.PTYReadBuffer,
 		clientChannelBuffer: sm.cfg.ClientChannelBuffer,
+		dropNotifyThreshold: sm.cfg.DropNotifyThreshold,
 	}
 
 	sm.mu.Lock()
@@ -412,19 +485,9 @@ func (sm *SessionManager) Delete(id string) error {
 	return nil
 }
 
-// Resize changes the terminal dimensions of a session.
-// [REQ:P0-002c] Terminal Resize Handling
-func (sm *SessionManager) Resize(id string, cols, rows uint16) error {
-	sm.mu.RLock()
-	sess, ok := sm.sessions[id]
-	sm.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("session %s not found", id)
-	}
-
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
-	sess.Cols = cols
-	sess.Rows = rows
-	return sess.pty.SetSize(cols, rows)
+// EffectiveSize returns the current PTY dimensions. Thread-safe.
+func (s *Session) EffectiveSize() (uint16, uint16) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Cols, s.Rows
 }

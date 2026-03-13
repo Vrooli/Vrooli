@@ -86,12 +86,34 @@ The UI provides contextual recovery hints for known WS error messages:
 | `Invalid message format` | "A malformed message was sent. This is usually harmless." |
 | `Terminal process is not accepting input` | "The terminal process has stopped. Close this pane and open a new terminal." |
 
+### Sync Warning (Data-Loss Notification)
+
+When a client's output channel falls behind (e.g. slow WebSocket consumer, network congestion), the server drops frames to prevent backpressure from blocking other clients. After the configured threshold (`WC_DROP_NOTIFY_THRESHOLD`, default 5) of dropped frames, a `sync_warning` message is sent:
+
+```json
+{"type": "sync_warning", "dropped_frames": 7}
+```
+
+The client renders a yellow warning in the terminal: `[Warning: 7 output frames dropped — terminal may be out of sync]`. This is informational, not an error — the session continues normally.
+
+### Resize Info (Informational)
+
+After a resize, the server sends the effective PTY dimensions back to the requesting client:
+
+```json
+{"type": "resize_info", "cols": 120, "rows": 40}
+```
+
+The effective size may differ from the requested size when multiple clients are connected (PTY = max of all clients). xterm.js handles reflow for smaller viewports automatically.
+
 ### WS Close Code Handling
 
 | Close Code | User Sees |
 |---|---|
 | 1000, 1001 (normal) | `[Disconnected]` (gray) |
-| Any other code | `[Connection lost]` (red) + recovery guidance |
+| Any other code (visible tab) | `[Connection lost, reconnecting...]` (gray) with auto-reconnect (exponential backoff, max 5 attempts) |
+| Any other code (hidden tab) | `[Connection lost while backgrounded — will reconnect when tab is active]` (gray) with deferred reconnect on `visibilitychange` |
+| Exhausted reconnect attempts | `[Connection lost]` (red) + "Open a new terminal if this persists" |
 
 ---
 
@@ -102,8 +124,11 @@ The UI provides contextual recovery hints for known WS error messages:
 | [CODE: ui/src/App.tsx] (health check) | API unreachable | Error screen | "Retry Connection" button |
 | [CODE: ui/src/components/Workspace.tsx] (create session) | Any API error | Dismissible error banner with message + recovery hint | "Try again" button if error is retryable |
 | [CODE: ui/src/components/Workspace.tsx] (create session) | Session limit (429) | Banner: "Close an existing session and try again" | Retry button shown |
-| [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (abnormal) | Red `[Connection lost]` + guidance | Close pane, open new terminal |
+| [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (abnormal, visible) | Gray `[Connection lost, reconnecting...]` + auto-reconnect | Automatic (exponential backoff, max 5 attempts) |
+| [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (abnormal, hidden) | Gray `[Connection lost while backgrounded]` + deferred reconnect | Automatic on tab visibility return |
+| [CODE: ui/src/hooks/useTerminalSocket.ts] | WS reconnect exhausted | Red `[Connection lost]` + guidance | Close pane, open new terminal |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (normal) | Gray `[Disconnected]` | — |
+| [CODE: ui/src/hooks/useTerminalSocket.ts] | Sync warning (dropped frames) | Yellow `[Warning: N output frames dropped]` | Reconnect to resync from history buffer |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | Server error msg | Red `[Error: ...]` + contextual recovery hint | Depends on error |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | Malformed WS JSON | Logged to console | Handler continues |
 | [CODE: ui/src/lib/api.ts] (all endpoints) | Structured JSON error | Throws `APIError` with code, category, recovery, retry | Caller inspects fields |
@@ -134,8 +159,8 @@ and show contextual actions (retry buttons, guidance text).
 
 ## Remaining Gaps (Future Work)
 
-1. **WebSocket reconnection** — No auto-reconnect on connection drop. User must close and reopen the pane.
-2. **Offline buffer overflow notification** — Server logs the overflow but doesn't signal the client. A future `warning` message type could notify the user that output was lost.
+1. ~~**WebSocket reconnection**~~ — **Resolved**: Auto-reconnect with exponential backoff (max 5 attempts) + visibility-aware deferral for backgrounded tabs.
+2. ~~**Offline buffer overflow notification**~~ — **Resolved**: Per-client drop counting with `sync_warning` WebSocket message at configurable threshold (`WC_DROP_NOTIFY_THRESHOLD`).
 3. **Session expiration** — Sessions never expire. Long-lived abandoned sessions leak memory.
 4. **TOCTOU in max sessions** — The RLock count check and subsequent Lock for insert have a small race window under extreme concurrency. Acceptable for single-user bounds.
 5. **WS handler test coverage** — `handleTerminalWS` has zero test coverage; error paths exist in code but have no automated verification. Requires a WebSocket test harness.

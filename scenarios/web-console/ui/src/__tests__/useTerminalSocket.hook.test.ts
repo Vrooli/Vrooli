@@ -360,4 +360,256 @@ describe("useTerminalSocket hook", () => {
     expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "resize", cols: 80, rows: 24 });
     expect(JSON.parse(fakeWs.sent[1] ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
   });
+
+  it("shows sync_warning with drop count in yellow", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() =>
+      fakeWs.triggerMessage({ type: "sync_warning", dropped_frames: 7 }),
+    );
+
+    const warningData = findWriteCall(terminal.write, "7 output frames dropped");
+    expect(warningData).toBeTruthy();
+    expect(warningData).toContain(ANSI.yellow);
+    expect(warningData).toContain("out of sync");
+  });
+
+  it("handles resize_info message without crashing", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    // resize_info is informational — should not write to terminal or throw
+    act(() =>
+      fakeWs.triggerMessage({ type: "resize_info", cols: 120, rows: 40 }),
+    );
+
+    const resizeData = findWriteCall(terminal.write, "resize");
+    expect(resizeData).toBeUndefined();
+  });
+
+  // --- Visibility-aware reconnection tests ---
+
+  it("defers reconnection when page is hidden on unclean close", () => {
+    vi.useFakeTimers();
+
+    // Simulate hidden page
+    Object.defineProperty(document, "visibilityState", {
+      value: "hidden",
+      writable: true,
+      configurable: true,
+    });
+
+    const addListenerSpy = vi.spyOn(document, "addEventListener");
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerClose(1006));
+
+    // Should NOT have attempted reconnection (no timer-based retry)
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(createSocket).toHaveBeenCalledTimes(1); // only the initial connection
+
+    // Should show backgrounded message
+    const bgMsg = findWriteCall(terminal.write, "will reconnect when tab is active");
+    expect(bgMsg).toBeTruthy();
+
+    // Should have registered a visibilitychange listener
+    expect(addListenerSpy).toHaveBeenCalledWith(
+      "visibilitychange",
+      expect.any(Function),
+    );
+
+    // Restore
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+    addListenerSpy.mockRestore();
+  });
+
+  it("reconnects when page becomes visible after background deferral", () => {
+    vi.useFakeTimers();
+
+    const sockets: FakeWebSocket[] = [];
+    let socketIdx = 0;
+    const multiFactory = vi.fn(() => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      socketIdx++;
+      return ws as unknown as WebSocket;
+    });
+
+    // Start hidden
+    Object.defineProperty(document, "visibilityState", {
+      value: "hidden",
+      writable: true,
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: multiFactory,
+      }),
+    );
+
+    const firstWs = sockets[0]!;
+    act(() => firstWs.triggerOpen());
+    act(() => firstWs.triggerClose(1006));
+
+    // Only initial connection so far
+    expect(multiFactory).toHaveBeenCalledTimes(1);
+
+    // Simulate tab becoming visible
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    // Should have created a new connection
+    expect(multiFactory).toHaveBeenCalledTimes(2);
+
+    // Restore
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("resets reconnect attempts on visibility return", () => {
+    vi.useFakeTimers();
+
+    const sockets: FakeWebSocket[] = [];
+    const multiFactory = vi.fn(() => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      return ws as unknown as WebSocket;
+    });
+
+    // Start visible — do some reconnect attempts first
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: multiFactory,
+      }),
+    );
+
+    const firstWs = sockets[0]!;
+    act(() => firstWs.triggerOpen());
+
+    // Do 3 failed reconnections to burn attempts
+    for (let i = 0; i < 3; i++) {
+      act(() => sockets[sockets.length - 1]!.triggerClose(1006));
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+    }
+
+    const connectionsBeforeHide = multiFactory.mock.calls.length;
+
+    // Now go hidden during a disconnect
+    Object.defineProperty(document, "visibilityState", {
+      value: "hidden",
+      writable: true,
+      configurable: true,
+    });
+    act(() => sockets[sockets.length - 1]!.triggerClose(1006));
+
+    // Come back visible — should reset attempts and reconnect
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    // A new connection should have been created
+    expect(multiFactory.mock.calls.length).toBeGreaterThan(connectionsBeforeHide);
+
+    // Restore
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("cleans up visibility listener on unmount", () => {
+    vi.useFakeTimers();
+
+    const removeListenerSpy = vi.spyOn(document, "removeEventListener");
+
+    // Start hidden
+    Object.defineProperty(document, "visibilityState", {
+      value: "hidden",
+      writable: true,
+      configurable: true,
+    });
+
+    const { unmount } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerClose(1006));
+
+    // Visibility listener should be registered
+    unmount();
+
+    // Should have cleaned up the listener
+    expect(removeListenerSpy).toHaveBeenCalledWith(
+      "visibilitychange",
+      expect.any(Function),
+    );
+
+    // Restore
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      writable: true,
+      configurable: true,
+    });
+    removeListenerSpy.mockRestore();
+  });
 });

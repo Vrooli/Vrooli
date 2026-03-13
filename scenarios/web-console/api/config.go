@@ -58,6 +58,12 @@ type Config struct {
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 64 | Range: 8–1024
 	ClientChannelBuffer int
 
+	// DropNotifyThreshold is the number of dropped output frames per client
+	// before a sync_warning notification is sent via the WebSocket. Lower
+	// values alert the user sooner; higher values reduce notification noise.
+	// Env: WC_DROP_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
+	DropNotifyThreshold int
+
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
 	// Fallback chain:
 	//   WC_DEFAULT_CWD -> PROJECT_ROOT -> SCENARIO_DIR -> inferred scenario dir -> current process cwd
@@ -76,6 +82,7 @@ func DefaultConfig() Config {
 		DefaultShell:        resolveShell(),
 		MaxSessions:         0,
 		ClientChannelBuffer: 64,
+		DropNotifyThreshold: 5,
 		DefaultCWD:          resolveWorkingDir(),
 	}
 }
@@ -92,6 +99,7 @@ func LoadConfig() Config {
 	cfg.DefaultRows = uint16(envInt("WC_DEFAULT_ROWS", int(cfg.DefaultRows), 5, 200))
 	cfg.MaxSessions = envInt("WC_MAX_SESSIONS", cfg.MaxSessions, 0, 1000)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
+	cfg.DropNotifyThreshold = envInt("WC_DROP_NOTIFY_THRESHOLD", cfg.DropNotifyThreshold, 1, 1000)
 
 	cfg.DefaultShell = resolveShell()
 	cfg.DefaultCWD = resolveWorkingDir()

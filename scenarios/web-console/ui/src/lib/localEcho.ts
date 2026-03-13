@@ -1,13 +1,29 @@
+/** Maximum time (ms) predictions can sit unmatched before auto-reset. */
+const MAX_PREDICTION_AGE_MS = 2000;
+
+/** Maximum pending predictions before auto-reset. */
+const MAX_PENDING_PREDICTIONS = 32;
+
 /**
  * Local echo controller for predictive terminal input display.
  *
  * Echoes printable characters immediately before the server round-trip
  * completes, then reconciles when the server response arrives. This
  * eliminates perceived keystroke latency, especially on mobile.
+ *
+ * Predictions auto-reset if they sit unmatched longer than
+ * MAX_PREDICTION_AGE_MS or exceed MAX_PENDING_PREDICTIONS, preventing
+ * stale predictions from suppressing legitimate server output.
  */
 export class LocalEchoController {
   private predicted: string[] = [];
   private _enabled = true;
+  private lastPredictionTime = 0;
+  private clock: () => number;
+
+  constructor(clock: () => number = Date.now) {
+    this.clock = clock;
+  }
 
   get enabled(): boolean {
     return this._enabled;
@@ -34,7 +50,21 @@ export class LocalEchoController {
     const code = data.charCodeAt(0);
     // Only echo printable ASCII (space through tilde)
     if (code < 0x20 || code === 0x7f) return null;
+
+    // Auto-reset stale predictions that were never matched
+    if (this.predicted.length > 0 &&
+        this.clock() - this.lastPredictionTime > MAX_PREDICTION_AGE_MS) {
+      this.predicted = [];
+    }
+
+    // Cap pending predictions to avoid unbounded growth
+    if (this.predicted.length >= MAX_PENDING_PREDICTIONS) {
+      this.predicted = [];
+      return null;
+    }
+
     this.predicted.push(data);
+    this.lastPredictionTime = this.clock();
     return data;
   }
 
@@ -42,12 +72,19 @@ export class LocalEchoController {
    * Reconciles server output against pending predictions.
    *
    * - No predictions → return data unchanged
+   * - Stale predictions → discard and return data unchanged
    * - Matching chars → consume predictions, suppress echoed chars
    * - Mismatch → erase remaining predictions with backspace sequences,
    *   then return the full server data
    */
   processOutput(data: string): string {
     if (this.predicted.length === 0) return data;
+
+    // Discard stale predictions — they are too old to trust
+    if (this.clock() - this.lastPredictionTime > MAX_PREDICTION_AGE_MS) {
+      this.predicted = [];
+      return data;
+    }
 
     let i = 0;
     // Walk through server data, consuming matching predictions

@@ -57,9 +57,18 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
 1. UI opens WebSocket to `/api/v1/sessions/{id}/ws`
 2. Server upgrades connection in [CODE: api/terminal_ws.go#handleTerminalWS]
 3. Two concurrent loops bridge browser ↔ PTY:
-   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client
+   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client (also forwards `sync_warning` from drop notification channel)
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
+
+### Multi-Client Resize Strategy
+
+When multiple clients (e.g. desktop and phone) connect to the same PTY session, each client tracks its own viewport dimensions via `ResizeClient()`. The PTY is sized to the **maximum** across all connected clients' columns and rows, ensuring no client's content is truncated. Clients with smaller viewports rely on xterm.js reflow to wrap content naturally.
+
+- `Subscribe(cols, rows)` registers a client with its initial dimensions
+- `ResizeClient(ch, cols, rows)` updates a client's dimensions and triggers `recomputePTYSize()`
+- `Unsubscribe(ch)` removes the client and shrinks the PTY if needed
+- When no clients are connected, the PTY retains the session's creation-time defaults
 
 ### Voice Input
 

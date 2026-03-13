@@ -16,7 +16,7 @@ import { LocalEchoController } from "../lib/localEcho";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "exit" | "error" | "ping" | "pong";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -25,6 +25,8 @@ export interface TerminalMessage {
   rows?: number;
   /** Process exit code (sent with "exit" messages). */
   code?: number;
+  /** Cumulative dropped frame count (sent with "sync_warning" messages). */
+  dropped_frames?: number;
 }
 
 /** Factory function for creating WebSocket connections. Override in tests. */
@@ -218,6 +220,18 @@ export function useTerminalSocket({
             }
             break;
           }
+          case "sync_warning": {
+            const dropped = msg.dropped_frames ?? 0;
+            terminal.write(
+              `\r\n${ANSI.yellow}[Warning: ${dropped} output frames dropped — terminal may be out of sync]${ANSI.reset}\r\n` +
+              `${ANSI.gray}  Reconnect to resync from history buffer.${ANSI.reset}\r\n`,
+            );
+            break;
+          }
+          case "resize_info":
+            // Informational: the server reports the effective PTY size.
+            // xterm.js handles reflow for smaller viewports automatically.
+            break;
         }
       };
 
@@ -230,15 +244,32 @@ export function useTerminalSocket({
           return;
         }
 
-        const isPageHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
-        if (isPageHidden) {
-          return;
-        }
-
         if (isCleanWsClose(event.code)) {
           terminal.write(
             `\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`,
           );
+          return;
+        }
+
+        // If the page is hidden (backgrounded browser tab, phone screen locked),
+        // defer reconnection until the tab becomes visible again. This prevents
+        // the stale-terminal problem where the old bail-out silently abandoned
+        // reconnection attempts.
+        const isPageHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+        if (isPageHidden) {
+          terminal.write(
+            `\r\n${ANSI.gray}[Connection lost while backgrounded — will reconnect when tab is active]${ANSI.reset}\r\n`,
+          );
+          const onVisible = () => {
+            if (document.visibilityState !== "visible") return;
+            document.removeEventListener("visibilitychange", onVisible);
+            visibilityListenerRef = null;
+            if (disposed) return;
+            reconnectAttempts = 0; // Fresh start on visibility return
+            connect();
+          };
+          document.addEventListener("visibilitychange", onVisible);
+          visibilityListenerRef = onVisible;
           return;
         }
 
@@ -262,6 +293,7 @@ export function useTerminalSocket({
       };
     };
 
+    let visibilityListenerRef: (() => void) | null = null;
     connect();
 
     // Terminal input -> WebSocket stdin (with local echo for printable chars)
@@ -281,6 +313,10 @@ export function useTerminalSocket({
       if (reconnectTimerRef.current !== null) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
+      }
+      if (visibilityListenerRef) {
+        document.removeEventListener("visibilitychange", visibilityListenerRef);
+        visibilityListenerRef = null;
       }
       inputDisposable.dispose();
       wsRef.current?.close();
