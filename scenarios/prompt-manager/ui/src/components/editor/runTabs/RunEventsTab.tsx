@@ -52,7 +52,7 @@ function toXmlNode(name: string, value: unknown, indent = 0): string {
     return `${pad}<${name}>\n${children}\n${pad}</${name}>`
   }
 
-  return `${pad}<${name}>${escapeXml(String(value))}</${name}>`
+  return `${pad}<${name}>${escapeXml(String(value as string | number | boolean))}</${name}>`
 }
 
 function runEventsToXml(events: RunEvent[]): string {
@@ -260,7 +260,7 @@ export function RunEventsTab({ runId, live, className }: RunEventsTabProps) {
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={handleCopyExport}
+              onClick={() => void handleCopyExport()}
               className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               Copy

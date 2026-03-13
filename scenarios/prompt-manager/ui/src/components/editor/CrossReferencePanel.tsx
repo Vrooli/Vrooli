@@ -78,7 +78,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
 
     void (async () => {
       const result = await getGraphNode(skillId)
-      if (cancelled) return
+      if (cancelled as boolean) return
 
       if (result) {
         // Find edges where this skill is the target (inbound references)
@@ -91,7 +91,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
           const sourceNode = await getGraphNode(sourceId)
           sourceNodeMap.set(sourceId, sourceNode)
         }))
-        if (cancelled) return
+        if (cancelled as boolean) return
 
         // For inbound edges, the 'from' is the entity that references us.
         const resolved: ResolvedRef[] = []

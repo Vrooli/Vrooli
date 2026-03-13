@@ -86,6 +86,8 @@ export {
   AgentFileCreateRequestSchema,
   AgentFileRenameRequestSchema,
   PromptPreviewResponseSchema,
+  PromptSectionSchema,
+  StructuredPromptPreviewResponseSchema,
   AgentTeamMembershipSchema,
   AgentTeamsResponseSchema,
   DEFAULT_AGENT_COLORS,
@@ -108,6 +110,8 @@ export {
   type AgentFileCreateRequest,
   type AgentFileRenameRequest,
   type PromptPreviewResponse,
+  type PromptSection,
+  type StructuredPromptPreviewResponse,
   type AgentTeamMembership,
   type AgentTeamsResponse,
 } from './agent.schema'

@@ -4,7 +4,7 @@
 SCENARIO_NAME := hello-desktop
 VROOLI_ROOT ?= $(HOME)/Vrooli
 
-.PHONY: help start stop status test logs clean build
+.PHONY: help start stop status test logs clean build run
 
 help:
 	@echo "Hello Desktop - Minimal Desktop Deployment Test"
@@ -56,3 +56,6 @@ deploy-desktop: build
 	@echo ""
 	@echo "3. Running deploy-desktop..."
 	deployment-manager deploy-desktop --profile hello-desktop-profile --dry-run
+
+# Development shortcuts
+run: start

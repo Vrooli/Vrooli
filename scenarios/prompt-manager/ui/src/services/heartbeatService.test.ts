@@ -144,11 +144,12 @@ describe('heartbeatService listRuns filters', () => {
     })
 
     expect(fetch).toHaveBeenCalledTimes(1)
-    const [url] = vi.mocked(fetch).mock.calls[0] ?? []
-    expect(String(url)).toContain('/runs?')
-    expect(String(url)).toContain('profile_key=prompt-manager-heartbeat')
-    expect(String(url)).toContain('task_id=task-123')
-    expect(String(url)).toContain('limit=10')
+    const callArgs = vi.mocked(fetch).mock.calls[0] ?? []
+    const url = String(callArgs[0] as string | URL)
+    expect(url).toContain('/runs?')
+    expect(url).toContain('profile_key=prompt-manager-heartbeat')
+    expect(url).toContain('task_id=task-123')
+    expect(url).toContain('limit=10')
   })
 })
 
@@ -171,8 +172,9 @@ describe('heartbeatService retryRun', () => {
 
     expect(resp.runId).toBe('run-2')
     expect(fetch).toHaveBeenCalledTimes(1)
-    const [url, opts] = vi.mocked(fetch).mock.calls[0] ?? []
-    expect(String(url)).toContain('/runs/run-1/retry')
-    expect((opts as RequestInit | undefined)?.method).toBe('POST')
+    const retryCallArgs = vi.mocked(fetch).mock.calls[0] ?? []
+    const retryUrl = String(retryCallArgs[0] as string | URL)
+    expect(retryUrl).toContain('/runs/run-1/retry')
+    expect((retryCallArgs[1] as RequestInit | undefined)?.method).toBe('POST')  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion -- vi.mocked returns unknown[]
   })
 })

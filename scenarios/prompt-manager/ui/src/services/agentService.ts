@@ -23,6 +23,7 @@ import type {
   AgentFileRenameRequest,
   AgentFileTemplate,
   PromptPreviewResponse,
+  StructuredPromptPreviewResponse,
   AgentTeamMembership,
 } from '@/lib/schemas'
 
@@ -188,6 +189,13 @@ export async function deleteAgentFile(agentId: string, path: string): Promise<vo
  */
 export async function previewAgentPrompt(agentId: string, teamId?: string): Promise<PromptPreviewResponse> {
   return api.previewPrompt(agentId, teamId)
+}
+
+/**
+ * Preview the constructed prompt for an agent as structured sections.
+ */
+export async function previewAgentPromptStructured(agentId: string, teamId?: string): Promise<StructuredPromptPreviewResponse> {
+  return api.previewPromptStructured(agentId, teamId)
 }
 
 /**

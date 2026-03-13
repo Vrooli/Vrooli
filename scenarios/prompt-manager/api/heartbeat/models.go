@@ -142,3 +142,18 @@ type PromptPreviewResponse struct {
 	TeamID  string `json:"teamId,omitempty"`
 	Prompt  string `json:"prompt"`
 }
+
+// PromptSection represents a single logical section of an assembled prompt.
+type PromptSection struct {
+	Kind       string `json:"kind"`
+	Label      string `json:"label"`
+	SourcePath string `json:"sourcePath,omitempty"`
+	Content    string `json:"content"`
+}
+
+// StructuredPromptPreviewResponse returns the assembled prompt as individual sections.
+type StructuredPromptPreviewResponse struct {
+	AgentID  string          `json:"agentId"`
+	TeamID   string          `json:"teamId,omitempty"`
+	Sections []PromptSection `json:"sections"`
+}

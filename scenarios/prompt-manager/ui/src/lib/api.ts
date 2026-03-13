@@ -51,6 +51,7 @@ import {
   AgentFileContentResponseSchema,
   AgentFileTemplateListResponseSchema,
   PromptPreviewResponseSchema,
+  StructuredPromptPreviewResponseSchema,
   AgentTeamsResponseSchema,
   AISearchResponseSchema,
   AISearchStatusSchema,
@@ -102,6 +103,7 @@ import {
   type AgentFileRenameRequest,
   type AgentFileTemplateListResponse,
   type PromptPreviewResponse,
+  type StructuredPromptPreviewResponse,
   type AgentTeamsResponse,
   type AISearchResponse,
   type AISearchStatus,
@@ -647,6 +649,17 @@ class ApiClient {
         body: JSON.stringify({ agentId, teamId }),
       },
       PromptPreviewResponseSchema
+    )
+  }
+
+  async previewPromptStructured(agentId: string, teamId?: string): Promise<StructuredPromptPreviewResponse> {
+    return this.request<StructuredPromptPreviewResponse>(
+      '/prompt-preview-structured',
+      {
+        method: 'POST',
+        body: JSON.stringify({ agentId, teamId }),
+      },
+      StructuredPromptPreviewResponseSchema
     )
   }
 

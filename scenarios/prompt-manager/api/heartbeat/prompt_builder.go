@@ -45,31 +45,64 @@ func (b *PromptBuilder) BuildContext(ctx context.Context, req PromptBuildRequest
 // buildSections is the shared implementation. When includeHeartbeat is false,
 // the HEARTBEAT.md section is omitted.
 func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildRequest, includeHeartbeat bool) (string, error) {
+	sections, err := b.buildSectionList(ctx, req, includeHeartbeat)
+	if err != nil {
+		return "", err
+	}
+
+	// Reassemble into the original flat string format.
+	// Adjacent agent-file sections are merged into a single block prefixed
+	// with "# Agent Files (Markdown)\n\n" for exact backward compatibility.
+	var parts []string
+	for i := 0; i < len(sections); i++ {
+		if sections[i].Kind == "agent-file" {
+			block := "# Agent Files (Markdown)\n\n"
+			for i < len(sections) && sections[i].Kind == "agent-file" {
+				block += sections[i].Content
+				i++
+			}
+			i-- // compensate for outer loop increment
+			parts = append(parts, block)
+		} else {
+			parts = append(parts, sections[i].Content)
+		}
+	}
+
+	if len(parts) == 0 {
+		return "", fmt.Errorf("no content available for heartbeat prompt")
+	}
+
+	return strings.Join(parts, "\n\n---\n\n"), nil
+}
+
+// buildSectionList returns the structured list of prompt sections.
+// This is the shared core used by both the flat-string and structured endpoints.
+func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildRequest, includeHeartbeat bool) ([]PromptSection, error) {
 	agentID := strings.TrimSpace(req.AgentID)
 	if agentID == "" {
-		return "", fmt.Errorf("agentId is required")
+		return nil, fmt.Errorf("agentId is required")
 	}
 	if b.agentStore == nil {
-		return "", fmt.Errorf("agent store is not configured")
+		return nil, fmt.Errorf("agent store is not configured")
 	}
 
 	agent, err := b.agentStore.Get(ctx, agentID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	teamID := strings.TrimSpace(req.TeamID)
 	includeTeam := teamID != ""
 	if includeTeam {
 		if b.teamStore == nil {
-			return "", fmt.Errorf("team store is not configured")
+			return nil, fmt.Errorf("team store is not configured")
 		}
 		if _, err := b.teamStore.Get(ctx, teamID); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	var parts []string
+	var sections []PromptSection
 
 	// 1. Agent markdown files (global personality + notes)
 	agentFiles, err := b.agentStore.ListFiles(ctx, agentID)
@@ -87,15 +120,18 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 		if len(markdownFiles) > 0 {
 			markdownFiles = orderAgentMarkdownFiles(markdownFiles, agent.FileOrder)
 
-			section := "# Agent Files (Markdown)\n\n"
 			for _, entry := range markdownFiles {
 				content, err := b.agentStore.ReadFile(ctx, agentID, entry.Path)
 				if err != nil {
 					continue
 				}
-				section += fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, content)
+				sections = append(sections, PromptSection{
+					Kind:       "agent-file",
+					Label:      entry.Path,
+					SourcePath: fmt.Sprintf("agents/%s/%s", agentID, entry.Path),
+					Content:    fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, content),
+				})
 			}
-			parts = append(parts, section)
 		}
 	}
 
@@ -103,41 +139,68 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 		// 2. Team member RESPONSIBILITIES.md
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
-			parts = append(parts, "# Team Responsibilities (RESPONSIBILITIES.md)\n\n"+responsibilities)
+			sections = append(sections, PromptSection{
+				Kind:       "team-responsibilities",
+				Label:      "RESPONSIBILITIES.md",
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID),
+				Content:    "# Team Responsibilities (RESPONSIBILITIES.md)\n\n" + responsibilities,
+			})
 		}
 
 		// 3. Team relationships + coordination commands
 		if section := b.buildRelationshipSection(ctx, teamID, agentID); section != "" {
-			parts = append(parts, section)
+			sections = append(sections, PromptSection{
+				Kind:    "team-relationships",
+				Label:   "Team Relationships",
+				Content: section,
+			})
 		}
 
 		// 3.5 Coordination skill reference
 		if coordSection := b.buildCoordinationSkillSection(ctx, teamID); coordSection != "" {
-			parts = append(parts, coordSection)
+			sections = append(sections, PromptSection{
+				Kind:    "team-coordination",
+				Label:   "Team Coordination",
+				Content: coordSection,
+			})
 		}
 
 		// 4. Team inbox messages
 		if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
-			parts = append(parts, section)
+			sections = append(sections, PromptSection{
+				Kind:    "team-inbox",
+				Label:   "Team Inbox",
+				Content: section,
+			})
 		}
 
 		// 5. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
 		if includeHeartbeat {
 			heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)
 			if err == nil && heartbeatInstructions != "" {
-				parts = append(parts, "# Heartbeat Task (HEARTBEAT.md)\n\n"+heartbeatInstructions)
+				sections = append(sections, PromptSection{
+					Kind:       "heartbeat-task",
+					Label:      "HEARTBEAT.md",
+					SourcePath: fmt.Sprintf("teams/%s/members/%s/HEARTBEAT.md", teamID, agentID),
+					Content:    "# Heartbeat Task (HEARTBEAT.md)\n\n" + heartbeatInstructions,
+				})
 			} else {
 				// No heartbeat instructions - use default task
-				parts = append(parts, "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.")
+				sections = append(sections, PromptSection{
+					Kind:    "heartbeat-task",
+					Label:   "Heartbeat Task",
+					Content: "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.",
+				})
 			}
 		}
 	}
 
-	if len(parts) == 0 {
-		return "", fmt.Errorf("no content available for heartbeat prompt")
-	}
+	return sections, nil
+}
 
-	return strings.Join(parts, "\n\n---\n\n"), nil
+// BuildStructured returns the prompt as a list of structured sections.
+func (b *PromptBuilder) BuildStructured(ctx context.Context, req PromptBuildRequest) ([]PromptSection, error) {
+	return b.buildSectionList(ctx, req, true)
 }
 
 func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) []store.AgentFileEntry {

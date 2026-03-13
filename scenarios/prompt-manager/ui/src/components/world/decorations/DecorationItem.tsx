@@ -67,7 +67,7 @@ export function DecorationItem({
       if (Array.isArray(child.material)) return
       if ((child.userData as { lowTierSimplified?: boolean }).lowTierSimplified) return
 
-      const source = child.material
+      const source = child.material as THREE.Material
       if (
         !(source instanceof THREE.MeshStandardMaterial) &&
         !(source instanceof THREE.MeshPhysicalMaterial)

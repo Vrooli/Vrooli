@@ -205,20 +205,7 @@ export function FPSOverlay({
     const payload = JSON.stringify(diagnosticsPayload, null, 2)
 
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(payload)
-      } else if (typeof document !== 'undefined') {
-        const ta = document.createElement('textarea')
-        ta.value = payload
-        ta.style.position = 'fixed'
-        ta.style.opacity = '0'
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-      } else {
-        throw new Error('Clipboard unavailable')
-      }
+      await navigator.clipboard.writeText(payload)
 
       setCopyState('copied')
     } catch {

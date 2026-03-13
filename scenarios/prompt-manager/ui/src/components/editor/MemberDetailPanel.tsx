@@ -595,7 +595,7 @@ export function MemberDetailPanel({
                             type="button"
                             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                             title="Open full run view"
-                            onClick={() => useSelectionStore.getState().setSelectedRunId(entry.runId!)}
+                            onClick={() => useSelectionStore.getState().setSelectedRunId(entry.runId ?? '')}
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>

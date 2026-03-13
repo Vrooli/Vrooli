@@ -402,14 +402,12 @@ export function SkillEditorPanel({
         </div>
 
         {/* Agent chat dialog */}
-        {currentSkill && (
-          <StartChatDialog
-            isOpen={showChatDialog}
-            onClose={() => setShowChatDialog(false)}
-            initialSkill={currentSkill}
-            allSkills={allSkills}
-          />
-        )}
+        <StartChatDialog
+          isOpen={showChatDialog}
+          onClose={() => setShowChatDialog(false)}
+          initialSkill={currentSkill}
+          allSkills={allSkills}
+        />
       </div>
     </div>
   )

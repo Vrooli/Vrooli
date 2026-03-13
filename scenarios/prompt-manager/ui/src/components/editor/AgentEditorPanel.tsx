@@ -7,12 +7,12 @@
  * Features:
  * - Header with close button, color badge, editable name, and status toggle
  * - Expandable description
- * - Tabbed interface: Files, Info
+ * - Tabbed interface: Files, Info, Prompt
  * - Dirty tracking with save/discard buttons
  * - Undo/redo support
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Menu, X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,10 +25,9 @@ import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
 import type { HighlightRequest } from '@/lib/highlight'
-import { InfoTab, FilesTab } from './tabs'
+import { InfoTab, FilesTab, PromptTab } from './tabs'
 import { AgentColorBadge } from '../shared/AgentColorBadge'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { AgentPromptPreviewDialog } from './AgentPromptPreviewDialog'
 
 interface AgentEditorPanelProps {
   /** Current agent being edited (for read-only metadata) */
@@ -77,6 +76,8 @@ interface AgentEditorPanelProps {
   highlightRequest?: HighlightRequest | null
   /** Called after highlight is applied (clears URL params) */
   onHighlightHandled?: () => void
+  /** Tab to open initially (e.g. 'prompt' from context menu) */
+  initialTab?: string
   /** Additional class names */
   className?: string
 }
@@ -111,17 +112,22 @@ export function AgentEditorPanel({
   isDeleting = false,
   highlightRequest,
   onHighlightHandled,
+  initialTab,
   className,
 }: AgentEditorPanelProps) {
   // TODO: Wire up save all button in the actions menu
   void _onSaveAll
   // Active tab state
-  const [activeTab, setActiveTab] = useState('files')
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'files')
   const isCompactHeader = useIsCompactHeader()
+
+  // Sync when initialTab changes (e.g. context menu → prompt tab)
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab)
+  }, [initialTab])
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
-  const [isPromptPreviewOpen, setIsPromptPreviewOpen] = useState(false)
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Empty state when no agent selected
@@ -222,12 +228,6 @@ export function AgentEditorPanel({
               </>
             )}
             <DropdownItem
-              onClick={() => setIsPromptPreviewOpen(true)}
-              disabled={isDeleting}
-              icon={<Eye className="h-4 w-4" />}
-              label="Preview prompt"
-            />
-            <DropdownItem
               onClick={onDuplicate}
               disabled={isSaving || isDeleting}
               icon={<Copy className="h-4 w-4" />}
@@ -280,6 +280,7 @@ export function AgentEditorPanel({
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
+          <TabTrigger value="prompt" icon={<Eye className="h-4 w-4" />} label="Prompt" />
         </Tabs.List>
 
         {/* Tab Content */}
@@ -310,16 +311,16 @@ export function AgentEditorPanel({
           <Tabs.Content value="info" className="h-full p-4">
             <InfoTab agent={agent} />
           </Tabs.Content>
+
+          <Tabs.Content value="prompt" className="h-full p-4">
+            <PromptTab
+              agent={agent}
+              hasUnsavedChanges={isDirty}
+              onNavigateToFile={() => setActiveTab('files')}
+            />
+          </Tabs.Content>
         </div>
       </Tabs.Root>
-
-      <AgentPromptPreviewDialog
-        isOpen={isPromptPreviewOpen}
-        onClose={() => setIsPromptPreviewOpen(false)}
-        agentId={agent.id}
-        agentName={formState.displayName || agent.displayName}
-        hasUnsavedChanges={isDirty}
-      />
     </div>
   )
 }

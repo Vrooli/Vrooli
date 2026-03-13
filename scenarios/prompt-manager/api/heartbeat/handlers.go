@@ -134,6 +134,43 @@ func (h *Handlers) PreviewPrompt(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// PreviewPromptStructured handles POST /prompt-preview-structured - returns the prompt as structured sections.
+func (h *Handlers) PreviewPromptStructured(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req PromptPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.AgentID) == "" {
+		http.Error(w, "agentId is required", http.StatusBadRequest)
+		return
+	}
+
+	if h.executor == nil {
+		http.Error(w, "Prompt preview not available", http.StatusInternalServerError)
+		return
+	}
+
+	sections, err := h.executor.BuildPromptStructured(ctx, req.TeamID, req.AgentID)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent or team not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(StructuredPromptPreviewResponse{
+		AgentID:  req.AgentID,
+		TeamID:   req.TeamID,
+		Sections: sections,
+	})
+}
+
 // GetHeartbeat handles GET /teams/{id}/heartbeats/{agentId} - gets heartbeat config
 func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

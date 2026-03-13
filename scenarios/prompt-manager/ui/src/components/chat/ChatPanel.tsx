@@ -35,12 +35,14 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
     return events
       .filter((e) => e.eventType === 'message')
       .map((e) => {
-        const role = String(e.data.role ?? '').toLowerCase()
+        const rawRole = typeof e.data.role === 'string' ? e.data.role : ''
+        const role = rawRole.toLowerCase()
         if (role !== 'user' && role !== 'assistant') return null
+        const rawContent = typeof e.data.content === 'string' ? e.data.content : ''
         return {
           id: e.id,
-          role: role as 'user' | 'assistant',
-          content: String(e.data.content ?? ''),
+          role,
+          content: rawContent,
           timestamp: new Date(e.timestamp),
         }
       })
@@ -81,7 +83,7 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      void handleSend()
     }
   }
 
@@ -178,7 +180,7 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
             />
             <button
               type="button"
-              onClick={handleSend}
+              onClick={() => void handleSend()}
               disabled={isSending || !input.trim()}
               className={cn(
                 'h-10 w-10 flex items-center justify-center rounded-lg',

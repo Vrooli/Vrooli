@@ -100,7 +100,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
           if (eventPollRef.current) clearInterval(eventPollRef.current)
           if (runPollRef.current) clearInterval(runPollRef.current)
           // One final event fetch
-          pollEvents()
+          void pollEvents()
         }
       } catch {
         // Silently handle polling errors
@@ -108,11 +108,11 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
     }
 
     // Initial fetches
-    pollEvents()
-    pollRun()
+    void pollEvents()
+    void pollRun()
 
-    eventPollRef.current = setInterval(pollEvents, 2000)
-    runPollRef.current = setInterval(pollRun, 5000)
+    eventPollRef.current = setInterval(() => void pollEvents(), 2000)
+    runPollRef.current = setInterval(() => void pollRun(), 5000)
   }, [])
 
   const handleStartChat = async () => {
@@ -185,7 +185,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
   const filteredSkills = allSkills.filter((s) => {
     if (!skillFilter) return true
     const lower = skillFilter.toLowerCase()
-    return s.name.toLowerCase().includes(lower) || (s.description ?? '').toLowerCase().includes(lower)
+    return s.name.toLowerCase().includes(lower) || s.description.toLowerCase().includes(lower)
   })
 
   return (
@@ -280,7 +280,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
             </button>
             <button
               type="button"
-              onClick={handleStartChat}
+              onClick={() => void handleStartChat()}
               disabled={!message.trim() || isLaunching}
               className={cn(
                 'px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors',

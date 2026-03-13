@@ -726,10 +726,20 @@ export function SkillManagerLayout() {
     setSelectedAgentId(agentId)
   }, [setSelectedAgentId])
 
-  // Context menu: open prompt preview for a specific agent (selects and opens editor)
+  // Context menu: open prompt preview for a specific agent (selects + switches to prompt tab)
+  const [agentEditorInitialTab, setAgentEditorInitialTab] = useState<string | undefined>(undefined)
   const handlePreviewPromptById = useCallback((agentId: string) => {
     setSelectedAgentId(agentId)
+    setAgentEditorInitialTab('prompt')
   }, [setSelectedAgentId])
+
+  // Clear the one-shot initial tab after it's been consumed by the editor
+  useEffect(() => {
+    if (agentEditorInitialTab) {
+      const timer = setTimeout(() => setAgentEditorInitialTab(undefined), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [agentEditorInitialTab])
 
   // Context menu: toggle team enabled/disabled
   const handleToggleTeamEnabled = useCallback(async (teamId: string) => {
@@ -1325,6 +1335,7 @@ export function SkillManagerLayout() {
                 isDeleting={isAgentDeleting}
                 highlightRequest={highlightRequest}
                 onHighlightHandled={handleHighlightHandled}
+                initialTab={agentEditorInitialTab}
                 className="h-full"
               />
             ) : (

@@ -224,6 +224,36 @@ export const PromptPreviewResponseSchema = z.object({
 export type PromptPreviewResponse = z.infer<typeof PromptPreviewResponseSchema>
 
 /**
+ * A single section of a structured prompt preview.
+ */
+export const PromptSectionSchema = z.object({
+  kind: z.enum([
+    'agent-file',
+    'team-responsibilities',
+    'team-relationships',
+    'team-coordination',
+    'team-inbox',
+    'heartbeat-task',
+  ]),
+  label: z.string(),
+  sourcePath: z.string().optional().default(''),
+  content: z.string(),
+})
+
+export type PromptSection = z.infer<typeof PromptSectionSchema>
+
+/**
+ * Structured prompt preview response for /prompt-preview-structured.
+ */
+export const StructuredPromptPreviewResponseSchema = z.object({
+  agentId: z.string(),
+  teamId: z.string().optional(),
+  sections: z.array(PromptSectionSchema),
+})
+
+export type StructuredPromptPreviewResponse = z.infer<typeof StructuredPromptPreviewResponseSchema>
+
+/**
  * Agent team membership schemas for /agents/{id}/teams endpoint.
  */
 export const AgentTeamMembershipSchema = z.object({

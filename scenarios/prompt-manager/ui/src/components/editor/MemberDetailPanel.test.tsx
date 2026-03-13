@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type React from 'react'
 import { MemberDetailPanel } from './MemberDetailPanel'
+import type { TeamDetails, TeamMember } from '@/types/team'
 import * as heartbeatService from '@/services/heartbeatService'
 import { useSelectionStore } from '@/stores/selectionStore'
 
@@ -60,8 +61,8 @@ describe('MemberDetailPanel', () => {
   it('shows Open Run CTA on heartbeat triggered toast', async () => {
     render(
       <MemberDetailPanel
-        team={{ id: 'team-1', displayName: 'Team', roles: [] } as any}
-        member={{ agentId: 'agent-1', displayName: 'Agent', status: 'active', roles: [] } as any}
+        team={{ id: 'team-1', displayName: 'Team', roles: [] } as unknown as TeamDetails}
+        member={{ agentId: 'agent-1', displayName: 'Agent', status: 'active', roles: [] } as unknown as TeamMember}
         onUpdateMember={vi.fn().mockResolvedValue({})}
         onRemoveMember={vi.fn().mockResolvedValue(undefined)}
         onClose={vi.fn()}

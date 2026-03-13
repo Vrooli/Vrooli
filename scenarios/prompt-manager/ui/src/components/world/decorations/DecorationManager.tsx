@@ -238,7 +238,7 @@ function TreeForestInstanced({
     <group name="tree-forest-instanced">
       {(Object.keys(instancesByType) as TreeType[]).map((type) => {
         const instances = instancesByType[type]
-        if (!instances || instances.length === 0) return null
+        if (instances.length === 0) return null
         return (
           <TreeInstancedGroup
             key={type}
@@ -418,12 +418,7 @@ export function DecorationManager({
     return { individualDecorations: individual, instancedTrees: instanced }
   }, [
     boostedTreeInteractiveDistance,
-    camera.position.x,
-    camera.position.z,
-    camera.quaternion.x,
-    camera.quaternion.y,
-    camera.quaternion.z,
-    camera.quaternion.w,
+    camera,
     decorationList,
     enableTreeInstancing,
     instancedMinForwardDot,

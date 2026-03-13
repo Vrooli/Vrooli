@@ -199,6 +199,17 @@ func (e *Executor) BuildPrompt(ctx context.Context, teamID, agentID string) (str
 	})
 }
 
+// BuildPromptStructured returns the prompt as structured sections.
+func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID string) ([]PromptSection, error) {
+	if e.promptBuilder == nil {
+		return nil, fmt.Errorf("prompt builder is not configured")
+	}
+	return e.promptBuilder.BuildStructured(ctx, PromptBuildRequest{
+		TeamID:  teamID,
+		AgentID: agentID,
+	})
+}
+
 // waitForCompletion polls for run completion and updates config
 func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID string, startedAt time.Time, logPath string) {
 	if e.runRegistry != nil {
