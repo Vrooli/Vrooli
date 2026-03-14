@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   backlogExport: "/backlog/export",
   backlogImport: "/backlog/import",
   backlogFeedbackSummary: "/backlog/feedback-summary",
+  backlogMaturitySummary: "/backlog/maturity-summary",
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
   scenarioFiles: (name: string) => `/scenarios/${name}/files`,

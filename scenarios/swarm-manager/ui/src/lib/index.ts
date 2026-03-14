@@ -60,6 +60,10 @@ export {
   findBacklogFileByPath,
 } from "./idea-agent-files";
 
+// Maturity computation
+export { computeMaturity, buildMaturityInputFromLocal } from "./maturity";
+export type { MaturityPhase, PhaseState, MaturityIndicatorData, MaturityInput } from "./maturity";
+
 // Execution Utilities
 export {
   EXECUTION_TAB_CONFIG,

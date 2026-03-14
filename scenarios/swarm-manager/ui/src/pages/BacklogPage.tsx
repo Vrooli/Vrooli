@@ -36,8 +36,10 @@ import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.cons
 import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
+import { computeMaturity, formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
+import type { MaturityInput } from "../lib";
 import { backlogService } from "../services";
+import type { MaturityItemSummary } from "../types";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
@@ -49,6 +51,7 @@ import {
 import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
+import { MaturityPhaseBar } from "../components/backlog/maturity-phase-bar";
 import { useBacklogStore } from "../stores";
 
 /** Statuses that indicate an item is "completed" and shouldn't appear in Continue Working */
@@ -144,6 +147,32 @@ export function BacklogPage() {
     staleTime: 60_000,
   });
   const feedbackSummary = feedbackSummaryQuery.data;
+
+  const maturityQuery = useQuery({
+    queryKey: ["backlog-maturity-summary"],
+    queryFn: () => backlogService.getMaturitySummary(),
+    staleTime: 60_000,
+  });
+  const maturityMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeMaturity>>();
+    if (!maturityQuery.data?.items) return map;
+    for (const item of maturityQuery.data.items) {
+      const input: MaturityInput = {
+        clarifyCount: item.clarify_count,
+        suggestCount: item.suggest_count,
+        enhanceCount: item.enhance_count,
+        questionsTotal: item.questions_total,
+        questionsAnswered: item.questions_answered,
+        suggestionsTotal: item.suggestions_total,
+        suggestionsDecided: item.suggestions_decided,
+        questionsNewOrUpdated: item.questions_new_or_updated,
+        suggestionsNewOrUpdated: item.suggestions_new_or_updated,
+        hasEnhanceSummary: item.has_enhance_summary,
+      };
+      map.set(`${item.kind}/${item.name}`, computeMaturity(input));
+    }
+    return map;
+  }, [maturityQuery.data]);
 
   const createMutation = useMutation({
     mutationFn: backlogService.create,
@@ -703,6 +732,12 @@ export function BacklogPage() {
                     maxTags={displayLimitsConfig.backlogCardMaxTags}
                     className="mt-3"
                   />
+                  {item.kind === "idea" && maturityMap.get(`${item.kind}/${item.name}`) && (
+                    <MaturityPhaseBar
+                      maturity={maturityMap.get(`${item.kind}/${item.name}`)!}
+                      className="mt-3"
+                    />
+                  )}
                   <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />

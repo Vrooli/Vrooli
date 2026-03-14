@@ -172,6 +172,32 @@ export interface IdeaAgentSuggestionsFile {
 }
 
 /**
+ * Maturity data for a single idea backlog item (from maturity-summary endpoint).
+ */
+export interface MaturityItemSummary {
+  kind: BacklogKind;
+  name: string;
+  title: string;
+  clarify_count: number;
+  suggest_count: number;
+  enhance_count: number;
+  questions_total: number;
+  questions_answered: number;
+  suggestions_total: number;
+  suggestions_decided: number;
+  questions_new_or_updated: number;
+  suggestions_new_or_updated: number;
+  has_enhance_summary: boolean;
+}
+
+/**
+ * Response from the maturity-summary endpoint.
+ */
+export interface MaturitySummaryResponse {
+  items: MaturityItemSummary[];
+}
+
+/**
  * Summary of pending feedback for a single backlog item.
  */
 export interface FeedbackItemSummary {

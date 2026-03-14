@@ -63,6 +63,7 @@ import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { IdeaClarifyPanel } from "../components/backlog/idea-clarify-panel";
 import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-panel";
+import { MaturityDetailsPanel } from "../components/backlog/maturity-details-panel";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
 import { TargetFormDialog } from "../components/backlog/target-form-dialog";
@@ -71,8 +72,10 @@ import { SuggestionFormDialog } from "../components/backlog/suggestion-form-dial
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import {
   buildClarifyQuestionsContent,
+  buildMaturityInputFromLocal,
   buildSuggestionsContent,
   cn,
+  computeMaturity,
   defaultQueryOptions,
   findBacklogFileByPath,
   formatRelativeTime,
@@ -82,6 +85,10 @@ import {
   parseClarifyQuestionsFile,
   parseSuggestionsFile,
 } from "../lib";
+import {
+  computeQuestionsSynthesisSummary,
+  computeSuggestionsSynthesisSummary,
+} from "../lib/idea-agent-files";
 import { backlogService } from "../services";
 import type { QueueResponse } from "../services";
 import { selectors } from "../consts/selectors";
@@ -372,6 +379,29 @@ export function BacklogDetailsPage() {
   const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
   const clarifyEnhanceCount = typeof clarifyParsed.raw?.enhanceCount === "number" ? clarifyParsed.raw.enhanceCount : 0;
   const suggestionsEnhanceCount = typeof suggestionsParsed.raw?.enhanceCount === "number" ? suggestionsParsed.raw.enhanceCount : 0;
+
+  const enhanceFile = useMemo(
+    () => (item?.kind === "idea" ? findBacklogFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.enhance) : null),
+    [files, item?.kind]
+  );
+
+  const maturityData = useMemo(() => {
+    if (item?.kind !== "idea") return null;
+    const qSynthesis = computeQuestionsSynthesisSummary(clarifyParsed.questions);
+    const sSynthesis = computeSuggestionsSynthesisSummary(suggestionsParsed.suggestions);
+    const input = buildMaturityInputFromLocal({
+      clarifyRaw: clarifyParsed.raw,
+      questionsCount: clarifyParsed.questions.length,
+      questionsAnsweredCount: clarifyParsed.questions.filter((q) => q.answer && q.answer.trim()).length,
+      questionsNewOrUpdated: qSynthesis.new + qSynthesis.updated,
+      suggestionsRaw: suggestionsParsed.raw,
+      suggestionsCount: suggestionsParsed.suggestions.length,
+      suggestionsDecidedCount: suggestionsParsed.suggestions.filter((s) => s.status && s.status !== "pending").length,
+      suggestionsNewOrUpdated: sSynthesis.new + sSynthesis.updated,
+      hasEnhanceSummary: !!enhanceFile,
+    });
+    return { maturity: computeMaturity(input), input };
+  }, [item?.kind, clarifyParsed, suggestionsParsed, enhanceFile]);
 
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
@@ -1013,7 +1043,7 @@ export function BacklogDetailsPage() {
     hasResearchOutput;
 
   const convertTarget = canConvert ? (item.researchTarget as BacklogKind) : null;
-  const hasNotes = Boolean(item?.kind === "idea" && (clarifyFile || suggestionsFile));
+  const hasNotes = Boolean(item?.kind === "idea" && (clarifyFile || suggestionsFile || maturityData));
   const searchResults = useMemo(
     () => collectMatchingFiles(files ?? [], fileSearch),
     [files, fileSearch]
@@ -1518,6 +1548,9 @@ export function BacklogDetailsPage() {
 
   const notesPanel = hasNotes ? (
     <div className="space-y-4">
+      {maturityData && (
+        <MaturityDetailsPanel maturity={maturityData.maturity} input={maturityData.input} />
+      )}
       {isLocked && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-sm text-amber-300">
           This item is {item ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
