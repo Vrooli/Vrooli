@@ -224,6 +224,10 @@ func (m *mockSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (m *mockSandboxProvider) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
+	return &sandbox.PathValidationResult{Path: path, Valid: true}, nil
+}
+
 // =============================================================================
 // EXECUTOR CONFIG TESTS
 // =============================================================================

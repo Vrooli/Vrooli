@@ -55,6 +55,10 @@ type Provider interface {
 
 	// IsAvailable checks if the sandbox provider is operational.
 	IsAvailable(ctx context.Context) (bool, string)
+
+	// ValidatePath checks whether a path exists, is a directory, and is within
+	// the given project root. Used for early input validation in the UI.
+	ValidatePath(ctx context.Context, path string, projectRoot string) (*PathValidationResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -180,6 +184,17 @@ type ApproveResult struct {
 	CommitHash string    `json:"commitHash,omitempty"`
 	AppliedAt  time.Time `json:"appliedAt"`
 	ErrorMsg   string    `json:"errorMsg,omitempty"`
+}
+
+// PathValidationResult contains the result of a path validation check.
+type PathValidationResult struct {
+	Path              string `json:"path"`
+	ProjectRoot       string `json:"projectRoot,omitempty"`
+	Valid             bool   `json:"valid"`
+	Exists            bool   `json:"exists,omitempty"`
+	IsDirectory       bool   `json:"isDirectory,omitempty"`
+	WithinProjectRoot bool   `json:"withinProjectRoot,omitempty"`
+	Error             string `json:"error,omitempty"`
 }
 
 // -----------------------------------------------------------------------------

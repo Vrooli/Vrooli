@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { HelpCircle, Plus, X } from "lucide-react";
+import { Check, HelpCircle, Loader2, Plus, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { cn } from "../lib/utils";
+import {
+  useProjectRootValidation,
+  useScopePathValidation,
+  type PathValidation,
+} from "../hooks/usePathValidation";
 
 interface ScopePathsManagerProps {
   /** The project root path - where the agent can look at code */
@@ -28,6 +33,40 @@ interface ScopePathsManagerProps {
   requireScopePaths?: boolean;
 }
 
+/** Renders an inline validation status indicator */
+function ValidationIndicator({ validation }: { validation: PathValidation }) {
+  if (validation.status === "idle") return null;
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      {validation.status === "validating" && (
+        <>
+          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Checking...</span>
+        </>
+      )}
+      {validation.status === "valid" && (
+        <>
+          <Check className="h-3 w-3 text-emerald-500" />
+          <span className="text-xs text-emerald-500">{validation.message}</span>
+        </>
+      )}
+      {validation.status === "invalid" && (
+        <>
+          <X className="h-3 w-3 text-destructive" />
+          <span className="text-xs text-destructive">{validation.message}</span>
+        </>
+      )}
+      {validation.status === "outside" && (
+        <>
+          <X className="h-3 w-3 text-destructive" />
+          <span className="text-xs text-destructive">{validation.message}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * ScopePathsManager is a reusable component for managing Project Root and multiple Scope Paths.
  *
@@ -49,6 +88,14 @@ export function ScopePathsManager({
   requireScopePaths = false,
 }: ScopePathsManagerProps) {
   const [scopePathInput, setScopePathInput] = useState("");
+
+  // Path validation hooks
+  const projectRootValidation = useProjectRootValidation(projectRoot);
+  const scopeInputValidation = useScopePathValidation(
+    scopePathInput,
+    projectRoot,
+    defaultProjectRoot
+  );
 
   const handleAddScopePath = () => {
     const trimmed = scopePathInput.trim();
@@ -97,7 +144,15 @@ export function ScopePathsManager({
             value={projectRoot}
             onChange={(e) => onProjectRootChange(e.target.value)}
             placeholder={defaultProjectRoot || "/path/to/project"}
+            className={cn(
+              projectRootValidation.status === "invalid"
+                ? "border-destructive focus-visible:ring-destructive"
+                : projectRootValidation.status === "valid"
+                ? "border-emerald-500 focus-visible:ring-emerald-500"
+                : ""
+            )}
           />
+          <ValidationIndicator validation={projectRootValidation} />
           {defaultProjectRoot && projectRoot === "" && (
             <p className="text-xs text-muted-foreground">
               Defaults to: <code className="bg-muted px-1 py-0.5 rounded">{defaultProjectRoot}</code>
@@ -129,18 +184,32 @@ export function ScopePathsManager({
             onChange={(e) => setScopePathInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={defaultScopePaths[0] || "e.g., /path/to/project/src"}
-            className="flex-1"
+            className={cn(
+              "flex-1",
+              scopeInputValidation.status === "invalid" ||
+                scopeInputValidation.status === "outside"
+                ? "border-destructive focus-visible:ring-destructive"
+                : scopeInputValidation.status === "valid"
+                ? "border-emerald-500 focus-visible:ring-emerald-500"
+                : ""
+            )}
           />
           <Button
             type="button"
             variant="secondary"
             onClick={handleAddScopePath}
-            disabled={!scopePathInput.trim()}
+            disabled={
+              !scopePathInput.trim() ||
+              scopeInputValidation.status === "invalid" ||
+              scopeInputValidation.status === "outside" ||
+              scopeInputValidation.status === "validating"
+            }
           >
             <Plus className="h-4 w-4 mr-1" />
             Add
           </Button>
         </div>
+        <ValidationIndicator validation={scopeInputValidation} />
 
         {/* Scope paths tags */}
         {scopePaths.length > 0 && (

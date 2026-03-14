@@ -110,6 +110,9 @@ type Service interface {
 	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
 	RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error
 
+	// --- Path Validation ---
+	ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error)
+
 	// --- Config Accessors ---
 	GetDefaultProjectRoot() string
 }
@@ -2060,6 +2063,14 @@ func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelr
 
 func (o *Orchestrator) GetDefaultProjectRoot() string {
 	return o.config.DefaultProjectRoot
+}
+
+// ValidatePath delegates path validation to the sandbox provider.
+func (o *Orchestrator) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
+	if o.sandbox == nil {
+		return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
+	}
+	return o.sandbox.ValidatePath(ctx, path, projectRoot)
 }
 
 // Status Operations

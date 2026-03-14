@@ -131,6 +131,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
 	r.HandleFunc("/api/v1/runner-models", h.UpdateRunnerModels).Methods("PUT")
 
+	// Path validation (proxied to workspace-sandbox)
+	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
+
 	// Maintenance endpoints
 	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
 
@@ -2438,4 +2441,27 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
 		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
+}
+
+// =============================================================================
+// PATH VALIDATION
+// =============================================================================
+
+// ValidatePath proxies path validation to workspace-sandbox.
+func (h *Handler) ValidatePath(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		writeSimpleError(w, r, "path", "path query parameter is required")
+		return
+	}
+
+	projectRoot := r.URL.Query().Get("projectRoot")
+
+	result, err := h.svc.ValidatePath(r.Context(), path, projectRoot)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }

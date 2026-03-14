@@ -352,6 +352,28 @@ func (p *WorkspaceSandboxProvider) IsAvailable(ctx context.Context) (bool, strin
 	return true, "workspace-sandbox is available"
 }
 
+// ValidatePath checks whether a path exists, is a directory, and is within the
+// project root by proxying to the workspace-sandbox /validate-path endpoint.
+func (p *WorkspaceSandboxProvider) ValidatePath(ctx context.Context, path string, projectRoot string) (*PathValidationResult, error) {
+	endpoint := "/validate-path?path=" + path
+	if projectRoot != "" {
+		endpoint += "&projectRoot=" + projectRoot
+	}
+
+	resp, err := p.doRequest(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("validate path request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result PathValidationResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode validate path response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // =============================================================================
 // HTTP Helpers
 // =============================================================================
