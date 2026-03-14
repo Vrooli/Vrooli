@@ -645,6 +645,100 @@ func (h *Handlers) RetryRun(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// ListTeamLogs handles GET /teams/{id}/heartbeats/logs - lists execution logs across all team members
+func (h *Handlers) ListTeamLogs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse pagination params
+	limit := 25
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	agentIDFilter := r.URL.Query().Get("agentId")
+
+	// Get team members
+	members, err := h.teamStore.GetMembers(ctx, teamID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get team members: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build agent display name lookup
+	agentNames := make(map[string]string, len(members))
+	for _, m := range members {
+		name := m.AgentID
+		if agent, err := h.agentStore.Get(ctx, m.AgentID); err == nil {
+			name = agent.DisplayName
+		}
+		agentNames[m.AgentID] = name
+	}
+
+	// Collect logs from each member (or just the filtered one)
+	var allEntries []TeamLogEntry
+	for _, m := range members {
+		if agentIDFilter != "" && m.AgentID != agentIDFilter {
+			continue
+		}
+		logs, err := h.teamStore.ListMemberLogs(ctx, teamID, m.AgentID)
+		if err != nil {
+			continue
+		}
+		for _, logFile := range logs {
+			timestamp := strings.TrimSuffix(logFile, ".log")
+			allEntries = append(allEntries, TeamLogEntry{
+				AgentID:          m.AgentID,
+				AgentDisplayName: agentNames[m.AgentID],
+				Filename:         logFile,
+				Timestamp:        timestamp,
+			})
+		}
+	}
+
+	// Sort by timestamp descending
+	sort.Slice(allEntries, func(i, j int) bool {
+		return allEntries[i].Timestamp > allEntries[j].Timestamp
+	})
+
+	total := len(allEntries)
+
+	// Apply pagination
+	if offset > len(allEntries) {
+		allEntries = nil
+	} else {
+		allEntries = allEntries[offset:]
+	}
+	if len(allEntries) > limit {
+		allEntries = allEntries[:limit]
+	}
+
+	hasMore := offset+len(allEntries) < total
+
+	resp := TeamLogListResponse{
+		TeamID:  teamID,
+		Logs:    allEntries,
+		Total:   total,
+		HasMore: hasMore,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // ListLogs handles GET /teams/{id}/heartbeats/{agentId}/logs - lists execution logs
 func (h *Handlers) ListLogs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

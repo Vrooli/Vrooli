@@ -17,7 +17,7 @@ func seedConfig(t *testing.T, storeDir string, cfg Config) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(storeDir, configFile), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(storeDir, configFile), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -183,7 +183,7 @@ func TestHandleGet(t *testing.T) {
 
 	t.Run("corrupt_file", func(t *testing.T) {
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, configFile), []byte("{invalid json"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, configFile), []byte("{invalid json"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 

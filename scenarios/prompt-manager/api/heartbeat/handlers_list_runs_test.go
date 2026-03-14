@@ -15,7 +15,7 @@ func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 			},
 		}).
 		WithListRunsResponse(&ListRunsResponse{
-			Runs: []*Run{{ID: "run-1", Status: "RUN_STATUS_COMPLETE"}},
+			Runs:  []*Run{{ID: "run-1", Status: "RUN_STATUS_COMPLETE"}},
 			Total: 1,
 		})
 

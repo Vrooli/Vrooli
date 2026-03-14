@@ -200,7 +200,6 @@ func TestStoreAdapter_SaveContent_SkillExists(t *testing.T) {
 
 	// ACT: Save content for existing skill
 	err := adapter.SaveContent("local", "existing-skill.md", "new content")
-
 	// ASSERT: Update should be called (content passed to store.Update)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -219,7 +218,6 @@ func TestStoreAdapter_SaveContent_SkillDoesNotExist_WritesToDisk(t *testing.T) {
 
 	// ACT: Save content for non-existent skill (pre-write during move)
 	err := adapter.SaveContent("core", "new-skill.md", "skill content here")
-
 	// ASSERT: Content should be written directly to disk
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -245,7 +243,6 @@ func TestStoreAdapter_GetContent_SkillExists(t *testing.T) {
 
 	// ACT: Get content for existing skill
 	content, err := adapter.GetContent("local", "my-skill.md")
-
 	// ASSERT: Should return content from store (empty in this mock)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -264,7 +261,6 @@ func TestStoreAdapter_GetContent_SkillDoesNotExist_ReadsFromDisk(t *testing.T) {
 
 	// ACT: Get content for skill that doesn't exist in store yet
 	content, err := adapter.GetContent("core", "pending-skill.md")
-
 	// ASSERT: Should fall back to reading from disk
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -344,7 +340,6 @@ func TestStoreAdapter_SaveContent_SkillExistsInDifferentPack_UsesUpdate(t *testi
 
 	// ACT: Save content (even to different pack)
 	err := adapter.SaveContent("core", "my-skill.md", "updated content")
-
 	// ASSERT: No error, and content NOT written directly to disk
 	// (it goes through store.Update instead)
 	if err != nil {
@@ -404,7 +399,6 @@ func TestStoreAdapter_GetContent_ExtractsIDFromFilename(t *testing.T) {
 
 			// ACT
 			content, err := adapter.GetContent("local", tc.filename)
-
 			// ASSERT
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
@@ -431,7 +425,6 @@ func TestStoreAdapter_FindByID(t *testing.T) {
 
 	// ACT
 	meta, folder, err := adapter.FindByID("test-skill")
-
 	// ASSERT
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -478,7 +471,6 @@ func TestStoreAdapter_GetAll(t *testing.T) {
 
 	// ACT
 	all, err := adapter.GetAll()
-
 	// ASSERT
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -498,7 +490,6 @@ func TestStoreAdapter_LoadMetadata_FiltersByPack(t *testing.T) {
 
 	// ACT
 	coreSkills, err := adapter.LoadMetadata("core")
-
 	// ASSERT
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -523,7 +514,6 @@ func TestStoreAdapter_Rename(t *testing.T) {
 
 	// ACT
 	meta, err := adapter.Rename("old-id", "new-id")
-
 	// ASSERT
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -570,7 +560,6 @@ func TestStoreAdapter_StatusDraftMapping(t *testing.T) {
 
 			// ACT
 			meta, _, err := adapter.FindByID("skill")
-
 			// ASSERT
 			if err != nil {
 				t.Fatalf("expected no error, got %v", err)
@@ -654,7 +643,6 @@ func TestStoreAdapter_SaveMetadata_OnlyUpdatesChangedSkills(t *testing.T) {
 			UpdatedAt:   "2024-01-10T00:00:00Z",
 		},
 	})
-
 	// ASSERT: Only the changed skill should have Update() called
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -713,7 +701,6 @@ func TestStoreAdapter_SaveMetadata_NoUpdatesWhenNothingChanged(t *testing.T) {
 			Draft:       true,
 		},
 	})
-
 	// ASSERT: No Update() calls
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -755,7 +742,6 @@ func TestStoreAdapter_SaveMetadata_AllChangedUpdatesAll(t *testing.T) {
 			File: "local/skill-2.md",
 		},
 	})
-
 	// ASSERT: Both updated
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

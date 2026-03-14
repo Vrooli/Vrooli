@@ -18,9 +18,9 @@ import (
 
 func TestNeedsReindex(t *testing.T) {
 	tests := []struct {
-		name          string
-		indexedCount  int
-		diskSkills    int
+		name         string
+		indexedCount int
+		diskSkills   int
 		wantNeedsIdx bool
 	}{
 		{"counts match", 60, 60, false},

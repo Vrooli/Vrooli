@@ -77,6 +77,21 @@ export interface LogContentResponse {
   content: string
 }
 
+export interface TeamLogEntry {
+  agentId: string
+  agentDisplayName: string
+  filename: string
+  timestamp: string
+  status?: string
+}
+
+export interface TeamLogListResponse {
+  teamId: string
+  logs: TeamLogEntry[]
+  total: number
+  hasMore: boolean
+}
+
 export interface MemberDocResponse {
   teamId: string
   agentId: string
@@ -333,6 +348,24 @@ export async function getLog(teamId: string, agentId: string, logId: string): Pr
     `/teams/${encodeURIComponent(teamId)}/heartbeats/${encodeURIComponent(agentId)}/logs/${encodeURIComponent(logId)}`
   )
   return response.content
+}
+
+/**
+ * List execution logs across all team members.
+ */
+export async function listTeamLogs(teamId: string, opts?: {
+  limit?: number
+  offset?: number
+  agentId?: string
+}): Promise<TeamLogListResponse> {
+  const params = new URLSearchParams()
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
+  if (opts?.agentId) params.set('agentId', opts.agentId)
+  const qs = params.toString()
+  return apiRequest<TeamLogListResponse>(
+    `/teams/${encodeURIComponent(teamId)}/heartbeats/logs${qs ? `?${qs}` : ''}`
+  )
 }
 
 // ============================================================================

@@ -35,15 +35,15 @@ type mockAgentClient struct {
 
 	stopRunErr error
 
-	continueRunErr               error
-	createInvestigationRunErr    error
-	createInvestigationApplyErr  error
+	continueRunErr              error
+	createInvestigationRunErr   error
+	createInvestigationApplyErr error
 
 	// Call tracking
-	createTaskCalls []*Task
-	createRunCalls  []*CreateRunRequest
-	getRunCalls     []string
-	stopRunCalls    []string
+	createTaskCalls    []*Task
+	createRunCalls     []*CreateRunRequest
+	getRunCalls        []string
+	stopRunCalls       []string
 	ensureProfileCalls []*EnsureProfileRequest
 	listRunsCalls      []ListRunsOptions
 }

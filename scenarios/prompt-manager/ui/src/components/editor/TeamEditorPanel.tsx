@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, Info, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye } from 'lucide-react'
+import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -31,7 +31,8 @@ import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
-import { TeamInfoTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
+import { TeamDashboardTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
+import { formatRelativePastTime } from '@/lib/timeUtils'
 
 // ============================================================================
 // Types
@@ -84,7 +85,7 @@ export function TeamEditorPanel({
   onAddMember,
   onUpdateMember,
   onRemoveMember,
-  onSetRoles,
+  onSetRoles: _onSetRoles,
   onClose,
   onOpenSidebar,
   onDelete,
@@ -96,6 +97,10 @@ export function TeamEditorPanel({
 }: TeamEditorPanelProps) {
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
+
+  // Dashboard health/activity state
+  const [teamHealth, setTeamHealth] = useState<'green' | 'yellow' | 'red' | 'gray'>('gray')
+  const [lastActiveAt, setLastActiveAt] = useState<string | null>(null)
 
   const isMobile = useIsMobile()
   const isCompactHeader = useIsCompactHeader()
@@ -365,14 +370,24 @@ export function TeamEditorPanel({
               {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
             </button>
 
-            {/* Team icon */}
-            <div className="flex-shrink-0">
+            {/* Team icon with health dot */}
+            <div className="flex-shrink-0 relative">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary/20">
                 <Users className="h-5 w-5 text-primary" />
               </div>
+              <span
+                className={cn(
+                  'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card',
+                  teamHealth === 'green' && 'bg-emerald-500',
+                  teamHealth === 'yellow' && 'bg-amber-500',
+                  teamHealth === 'red' && 'bg-red-500',
+                  teamHealth === 'gray' && 'bg-slate-500',
+                )}
+                title={teamHealth === 'green' ? 'Healthy' : teamHealth === 'yellow' ? 'Some failures' : teamHealth === 'red' ? 'Failing' : 'Disabled'}
+              />
             </div>
 
-            {/* Editable name */}
+            {/* Editable name + last active */}
             <div className="flex-1 min-w-0">
               <InlineEditableText
                 value={team.displayName}
@@ -380,6 +395,11 @@ export function TeamEditorPanel({
                 placeholder="Team name"
                 className="text-lg font-semibold"
               />
+              {lastActiveAt && (
+                <p className="text-[11px] text-muted-foreground -mt-0.5">
+                  Last active: {formatRelativePastTime(new Date(lastActiveAt))}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -461,7 +481,7 @@ export function TeamEditorPanel({
         {/* Tab List */}
         {!showDetailOnly && (
           <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
-            <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
+            <TabTrigger value="info" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
             <TabTrigger
               value="members"
               icon={<Users className="h-4 w-4" />}
@@ -578,7 +598,15 @@ export function TeamEditorPanel({
             value="info"
             className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden"
           >
-            <TeamInfoTab team={team} onSetRoles={onSetRoles} onUpdate={onUpdate} allAgents={allAgents} onNavigateToMemberHeartbeat={handleNavigateToMemberHeartbeat} onNavigateToMember={handleNavigateToMember} />
+            <TeamDashboardTab
+              team={team}
+              onUpdate={onUpdate}
+              allAgents={allAgents}
+              onNavigateToMemberHeartbeat={handleNavigateToMemberHeartbeat}
+              onNavigateToMember={handleNavigateToMember}
+              onHealthChange={setTeamHealth}
+              onLastActiveChange={setLastActiveAt}
+            />
           </Tabs.Content>
 
           <Tabs.Content

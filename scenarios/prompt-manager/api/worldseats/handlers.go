@@ -33,9 +33,11 @@ var knownTypes = map[string]bool{
 	"campfire":     true,
 }
 
-const maxSeatsPerType = 20
-const posMin = -10.0
-const posMax = 10.0
+const (
+	maxSeatsPerType = 20
+	posMin          = -10.0
+	posMax          = 10.0
+)
 
 const configFile = "world-seats.json"
 

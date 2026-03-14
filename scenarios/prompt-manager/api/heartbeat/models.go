@@ -71,6 +71,23 @@ type LogListResponse struct {
 	Logs    []LogEntry `json:"logs"`
 }
 
+// TeamLogEntry represents a log entry aggregated across team members
+type TeamLogEntry struct {
+	AgentID          string `json:"agentId"`
+	AgentDisplayName string `json:"agentDisplayName"`
+	Filename         string `json:"filename"`
+	Timestamp        string `json:"timestamp"`
+	Status           string `json:"status,omitempty"`
+}
+
+// TeamLogListResponse is the response for listing team-wide heartbeat logs
+type TeamLogListResponse struct {
+	TeamID  string         `json:"teamId"`
+	Logs    []TeamLogEntry `json:"logs"`
+	Total   int            `json:"total"`
+	HasMore bool           `json:"hasMore"`
+}
+
 // LogContentResponse is the response for getting log content
 type LogContentResponse struct {
 	TeamID   string `json:"teamId"`

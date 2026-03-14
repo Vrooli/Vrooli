@@ -93,7 +93,7 @@ export function TeamPromptMatrixTab({
 
   const toggleCell = useCallback((agentId: string, kind: string) => {
     setExpandedCell((prev) =>
-      prev?.agentId === agentId && prev?.kind === kind ? null : { agentId, kind },
+      prev?.agentId === agentId && prev.kind === kind ? null : { agentId, kind },
     )
   }, [])
 
