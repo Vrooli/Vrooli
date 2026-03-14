@@ -26,8 +26,16 @@ func (o *Orchestrator) attachRunActions(ctx context.Context, run *domain.Run) *d
 }
 
 func (o *Orchestrator) attachRunActionsList(ctx context.Context, runs []*domain.Run) []*domain.Run {
+	if len(runs) == 0 {
+		return runs
+	}
+	actx := o.runActionContext(ctx)
 	for _, run := range runs {
-		o.attachRunActions(ctx, run)
+		if run == nil {
+			continue
+		}
+		actions := domain.RunActionsFor(run, actx)
+		run.Actions = &actions
 	}
 	return runs
 }

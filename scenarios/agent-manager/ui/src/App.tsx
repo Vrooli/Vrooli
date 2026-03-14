@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
@@ -52,6 +52,27 @@ export default function App() {
   // Track runs that reached terminal state to skip redundant refetches
   const terminalRunIdsRef = useRef<Set<string>>(new Set());
 
+  // Debounce run refetches to coalesce rapid-fire WS updates (300ms)
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRunRefetch = useCallback(() => {
+    if (refetchTimerRef.current !== null) {
+      clearTimeout(refetchTimerRef.current);
+    }
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null;
+      runs.refetch();
+    }, 300);
+  }, [runs]);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (refetchTimerRef.current !== null) {
+        clearTimeout(refetchTimerRef.current);
+      }
+    };
+  }, []);
+
   const TERMINAL_STATUSES = [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED];
 
   const handleWebSocketMessage = useCallback(
@@ -68,7 +89,7 @@ export default function App() {
           if (isTerminal && message.runId) {
             terminalRunIdsRef.current.add(message.runId);
           }
-          runs.refetch();
+          debouncedRunRefetch();
           break;
         }
         case "run_event":
@@ -76,7 +97,7 @@ export default function App() {
           if (message.runId && terminalRunIdsRef.current.has(message.runId)) {
             break;
           }
-          runs.refetch();
+          debouncedRunRefetch();
           break;
         case "task_status":
           tasks.refetch();
@@ -88,7 +109,7 @@ export default function App() {
           break;
       }
     },
-    [runs, tasks]
+    [debouncedRunRefetch, tasks]
   );
 
   const ws = useWebSocket({

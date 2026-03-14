@@ -5,7 +5,7 @@
 #
 # Usage:
 #   make           - Show help
-#   make run       - Start this scenario
+#   make start     - Start this scenario
 #   make stop      - Stop this scenario  
 #   make dev       - Start in development mode with hot reload
 #   make test      - Run all tests
@@ -13,7 +13,7 @@
 #   make clean     - Clean build artifacts
 #   make db-reset  - Reset database (if applicable)
 
-.PHONY: help run stop dev test test-api test-ui logs status clean build db-reset db-migrate validate fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop dev test test-api test-ui logs status clean build db-reset db-migrate validate fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -45,12 +45,12 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) This is a TEMPLATE - copy to scenarios/your-name first!"
-	@echo "    Always use 'make run' or 'vrooli scenario run <name>' for actual scenarios"
+	@echo "    Always use 'make start' or 'vrooli scenario start <name>' for actual scenarios"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@echo "$(CYAN)Note: This is a comprehensive template for business applications$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -58,7 +58,7 @@ stop: ## Stop this scenario
 
 dev: ## Start in development mode with hot reload
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run all tests (API, UI, CLI)
 	@echo "$(BLUE)🧪 Running all tests for $(SCENARIO_NAME)...$(RESET)"
@@ -238,7 +238,8 @@ check: ## Format, lint, and test code (pre-commit workflow)
 	@$(MAKE) test
 
 # Development shortcuts
-r: run
+run: start
+r: start
 s: stop
 d: dev
 t: test

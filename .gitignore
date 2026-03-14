@@ -429,15 +429,6 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 /scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring
-scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop
-scenarios/test-scenario/api/test-scenario
-scenarios/text-tools/api/text-tools
-scenarios/vrooli-bridge/api/vrooli-bridge
-scenarios/time-tools/api/api
-scenarios/vrooli-assistant/api/vrooli-assistant
-scenarios/video-downloader/api/video-downloader
-scenarios/token-economy/api/api
-scenarios/tidiness-manager/api/tidiness-manager
 scenarios/browser-automation-studio/cli/cli
 scenarios/agent-manager/cli/agent-manager
 scenarios/git-control-tower/api/git-control-tower

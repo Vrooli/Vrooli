@@ -202,6 +202,80 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	created_at, updated_at`
 
+// listRunColumns contains the pruned column set for List() queries.
+// Omits heavy fields: summary, resolved_config, sandbox_config, sandbox_id,
+// recommendation_result, recommendation_error, recommendation_queued_at,
+// idempotency_key, last_checkpoint_id, last_heartbeat, diff_path, log_path,
+// approved_by, approved_at.
+const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
+	started_at, ended_at, phase, progress_percent,
+	error_msg, exit_code, approval_state,
+	changed_files, total_size_bytes, session_id,
+	source_run_ids, source_investigation_run_id,
+	recommendation_status, recommendation_attempts,
+	created_at, updated_at`
+
+// listRunLiteRow is the database row representation for the pruned list query.
+type listRunLiteRow struct {
+	ID                       uuid.UUID      `db:"id"`
+	TaskID                   uuid.UUID      `db:"task_id"`
+	AgentProfileID           NullableUUID   `db:"agent_profile_id"`
+	Tag                      string         `db:"tag"`
+	RunMode                  string         `db:"run_mode"`
+	Status                   string         `db:"status"`
+	StartedAt                NullableTime   `db:"started_at"`
+	EndedAt                  NullableTime   `db:"ended_at"`
+	Phase                    string         `db:"phase"`
+	ProgressPercent          int            `db:"progress_percent"`
+	ErrorMsg                 string         `db:"error_msg"`
+	ExitCode                 sql.NullInt32  `db:"exit_code"`
+	ApprovalState            string         `db:"approval_state"`
+	ChangedFiles             int            `db:"changed_files"`
+	TotalSizeBytes           int64          `db:"total_size_bytes"`
+	SessionID                sql.NullString `db:"session_id"`
+	SourceRunIDs             sql.NullString `db:"source_run_ids"`
+	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
+	RecommendationStatus     sql.NullString `db:"recommendation_status"`
+	RecommendationAttempts   int            `db:"recommendation_attempts"`
+	CreatedAt                SQLiteTime     `db:"created_at"`
+	UpdatedAt                SQLiteTime     `db:"updated_at"`
+	// Computed field from JOIN
+	PromptPreview sql.NullString `db:"prompt_preview"`
+}
+
+func (row *listRunLiteRow) toDomain() *domain.Run {
+	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
+	run := &domain.Run{
+		ID:                       row.ID,
+		TaskID:                   row.TaskID,
+		AgentProfileID:           row.AgentProfileID.ToPtr(),
+		Tag:                      row.Tag,
+		RunMode:                  domain.RunMode(row.RunMode),
+		Status:                   domain.RunStatus(row.Status),
+		StartedAt:                row.StartedAt.ToPtr(),
+		EndedAt:                  row.EndedAt.ToPtr(),
+		Phase:                    domain.RunPhase(row.Phase),
+		ProgressPercent:          row.ProgressPercent,
+		ErrorMsg:                 row.ErrorMsg,
+		ApprovalState:            domain.ApprovalState(row.ApprovalState),
+		ChangedFiles:             row.ChangedFiles,
+		TotalSizeBytes:           row.TotalSizeBytes,
+		SessionID:                row.SessionID.String,
+		SourceRunIDs:             sourceRunIDs,
+		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
+		RecommendationStatus:     domain.RecommendationStatus(row.RecommendationStatus.String),
+		RecommendationAttempts:   row.RecommendationAttempts,
+		PromptPreview:            row.PromptPreview.String,
+		CreatedAt:                row.CreatedAt.Time(),
+		UpdatedAt:                row.UpdatedAt.Time(),
+	}
+	if row.ExitCode.Valid {
+		exitCode := int(row.ExitCode.Int32)
+		run.ExitCode = &exitCode
+	}
+	return run
+}
+
 func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	if run.ID == uuid.Nil {
 		run.ID = uuid.New()
@@ -251,27 +325,27 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 	var args []interface{}
 
 	if filter.TaskID != nil {
-		conditions = append(conditions, "task_id = ?")
+		conditions = append(conditions, "runs.task_id = ?")
 		args = append(args, *filter.TaskID)
 	}
 	if filter.AgentProfileID != nil {
-		conditions = append(conditions, "agent_profile_id = ?")
+		conditions = append(conditions, "runs.agent_profile_id = ?")
 		args = append(args, *filter.AgentProfileID)
 	}
 	if filter.Status != nil {
-		conditions = append(conditions, "status = ?")
+		conditions = append(conditions, "runs.status = ?")
 		args = append(args, string(*filter.Status))
 	}
 	if filter.TagPrefix != "" {
-		conditions = append(conditions, "tag LIKE ?")
+		conditions = append(conditions, "runs.tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
 	}
 	if filter.InvestigatesRunID != nil {
-		conditions = append(conditions, "EXISTS (SELECT 1 FROM json_each(source_run_ids) WHERE json_each.value = ?)")
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM json_each(runs.source_run_ids) WHERE json_each.value = ?)")
 		args = append(args, (*filter.InvestigatesRunID).String())
 	}
 	if filter.AppliesInvestigationRunID != nil {
-		conditions = append(conditions, "source_investigation_run_id = ?")
+		conditions = append(conditions, "runs.source_investigation_run_id = ?")
 		args = append(args, *filter.AppliesInvestigationRunID)
 	}
 
@@ -280,12 +354,28 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 		whereClause = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	base := fmt.Sprintf("SELECT %s FROM runs%s ORDER BY created_at DESC", runColumns, whereClause)
+	// Use pruned column set — omits heavy fields (summary, resolved_config, etc.)
+	colList := strings.ReplaceAll(listRunColumns, "\n", "")
+	colList = strings.ReplaceAll(colList, "\t", " ")
+	// Prefix each column with "runs." for the JOIN
+	var prefixed []string
+	for _, col := range strings.Split(colList, ",") {
+		col = strings.TrimSpace(col)
+		if col != "" {
+			prefixed = append(prefixed, "runs."+col)
+		}
+	}
+
+	base := fmt.Sprintf(
+		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC",
+		strings.Join(prefixed, ", "),
+		whereClause,
+	)
 	queryWithPaging, pagingArgs := appendLimitOffset(base, filter.Limit, filter.Offset)
 	args = append(args, pagingArgs...)
 	query := queryWithPaging
 
-	var rows []runRow
+	var rows []listRunLiteRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return nil, wrapDBError("list", "Run", "", err)
 	}

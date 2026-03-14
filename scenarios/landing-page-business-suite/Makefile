@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop status test logs clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check export-variants sync-variants
+.PHONY: help start stop status test logs clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui check export-variants sync-variants
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -152,3 +152,6 @@ lint-ui: ## Lint UI code
 
 check: fmt lint test ## Run formatting, linting, and tests
 	@echo "$(GREEN)✓ All checks passed$(RESET)"
+
+# Development shortcuts
+run: start

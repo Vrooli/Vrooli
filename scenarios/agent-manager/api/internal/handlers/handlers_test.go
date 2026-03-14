@@ -1749,6 +1749,146 @@ func TestGetTask_NotFound(t *testing.T) {
 	}
 }
 
+// TestListRuns_IncludesPromptPreview verifies that listing runs includes
+// the first ~120 characters of the associated task description.
+func TestListRuns_IncludesPromptPreview(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	// Create a task with a known description (the user's prompt).
+	taskDesc := "Fix the failing auth tests in the login module and update the middleware"
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "test-task-preview",
+			Description: taskDesc,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create task: %d %s", rr.Code, rr.Body.String())
+	}
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+
+	// Create a profile for the run.
+	profile := createTestProfile(t, router)
+
+	// Create a run linked to that task.
+	profileID := profile.Id
+	tag := "gct-test-preview"
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         taskResp.Task.Id,
+		AgentProfileId: &profileID,
+		Tag:            &tag,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create run: %d %s", rr.Code, rr.Body.String())
+	}
+
+	// List runs and check for prompt_preview.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=gct-test-preview", nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list runs: %d %s", rr.Code, rr.Body.String())
+	}
+
+	var listResp apipb.ListRunsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &listResp)
+
+	if len(listResp.Runs) == 0 {
+		t.Fatal("expected at least one run")
+	}
+
+	got := listResp.Runs[0].PromptPreview
+	if got != taskDesc {
+		t.Errorf("expected prompt_preview %q, got %q", taskDesc, got)
+	}
+}
+
+// TestListRuns_OmitsHeavyFields verifies that the list endpoint returns nil for
+// heavy fields (summary, resolvedConfig) while GetRun returns them.
+func TestListRuns_OmitsHeavyFields(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	// Create profile and task
+	profile := createTestProfile(t, router)
+	taskDesc := "Heavy fields test task description"
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "heavy-fields-test",
+			Description: taskDesc,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create task: %d %s", rr.Code, rr.Body.String())
+	}
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+
+	// Create a run
+	profileID := profile.Id
+	tag := "heavy-test-tag"
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         taskResp.Task.Id,
+		AgentProfileId: &profileID,
+		Tag:            &tag,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create run: %d %s", rr.Code, rr.Body.String())
+	}
+	var createResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createResp)
+	runID := createResp.Run.Id
+
+	// List runs — heavy fields should be nil
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=heavy-test-tag", nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list runs: %d %s", rr.Code, rr.Body.String())
+	}
+	var listResp apipb.ListRunsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &listResp)
+
+	if len(listResp.Runs) == 0 {
+		t.Fatal("expected at least one run in list")
+	}
+	listedRun := listResp.Runs[0]
+	if listedRun.Summary != nil {
+		t.Errorf("List: expected nil Summary, got %+v", listedRun.Summary)
+	}
+	if listedRun.ResolvedConfig != nil {
+		t.Errorf("List: expected nil ResolvedConfig, got %+v", listedRun.ResolvedConfig)
+	}
+
+	// Get single run — should return whatever fields exist (not nil by design)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+runID, nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("get run: %d %s", rr.Code, rr.Body.String())
+	}
+	// Just verifying the Get endpoint works — newly created runs may not have
+	// summary/resolvedConfig set yet, but the endpoint should return the full object.
+}
+
 // Compile-time interface check
 var (
 	_ context.Context

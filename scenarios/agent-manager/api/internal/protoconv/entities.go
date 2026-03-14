@@ -224,6 +224,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 		LogPath:         r.LogPath,
 		ChangedFiles:    int32(r.ChangedFiles),
 		TotalSizeBytes:  r.TotalSizeBytes,
+		PromptPreview:   r.PromptPreview,
 		CreatedAt:       TimestampToProto(r.CreatedAt),
 		UpdatedAt:       TimestampToProto(r.UpdatedAt),
 	}

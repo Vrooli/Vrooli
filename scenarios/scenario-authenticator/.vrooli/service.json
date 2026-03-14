@@ -157,7 +157,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --frozen-lockfile --prod=false",
+          "run": "cd ui && pnpm install --ignore-workspace --frozen-lockfile --prod=false",
           "description": "Install UI dependencies"
         },
         {
