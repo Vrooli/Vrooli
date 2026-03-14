@@ -105,6 +105,7 @@ interface AgentTabProps {
   onClearContext: () => void;
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
+  auditorAvailable: boolean;
   fileStats?: RepoFileStats;
   activeRunId?: string | null;
   onActiveRunIdChange?: (id: string | null) => void;
@@ -212,6 +213,7 @@ export function AgentTab({
   onClearContext,
   testGenieAvailable,
   tidinessAvailable,
+  auditorAvailable,
   fileStats,
   activeRunId: controlledRunId,
   onActiveRunIdChange,
@@ -625,6 +627,7 @@ export function AgentTab({
           repoId={repoId}
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
+          auditorAvailable={auditorAvailable}
           fileStats={fileStats}
           contextItems={contextItems}
           onAddContext={onAddContext}

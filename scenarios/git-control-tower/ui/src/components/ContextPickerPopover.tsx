@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Popover } from "./ui/popover";
-import { Plus, CheckSquare, Square, AlertTriangle, ShieldCheck, FileText } from "lucide-react";
-import { useTestExecutions, useTidinessScore, useTidinessIssues } from "../lib/hooks";
-import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem } from "../lib/agentContext";
+import { Plus, CheckSquare, Square, AlertTriangle, ShieldCheck, FileText, Shield } from "lucide-react";
+import { useTestExecutions, useTidinessScore, useTidinessIssues, useAuditorViolations } from "../lib/hooks";
+import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
 import type { AgentContextItem, RepoFileStats } from "../lib/api";
 
 interface ContextPickerProps {
@@ -10,6 +10,7 @@ interface ContextPickerProps {
   repoId?: string | null;
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
+  auditorAvailable: boolean;
   fileStats?: RepoFileStats;
   contextItems: AgentContextItem[];
   onAddContext: (item: AgentContextItem) => void;
@@ -21,6 +22,7 @@ export function ContextPickerPopover({
   repoId,
   testGenieAvailable,
   tidinessAvailable,
+  auditorAvailable,
   fileStats,
   contextItems,
   onAddContext,
@@ -52,6 +54,19 @@ export function ContextPickerPopover({
     return codeQualityContextItems(tidinessIssues.data);
   }, [tidinessIssues.data]);
 
+  const auditorViolations = useAuditorViolations(scenarioSlug, auditorAvailable, repoId);
+  const violationsData = auditorViolations.data;
+
+  const ruleViolationItems = useMemo(() => {
+    if (!violationsData?.length) return [];
+    return ruleViolationContextItems(violationsData);
+  }, [violationsData]);
+
+  const rulesSummary = useMemo(() => {
+    if (!violationsData?.length) return null;
+    return rulesSummaryContextItem(violationsData);
+  }, [violationsData]);
+
   const isAttached = (id: string) => contextItems.some((c) => c.id === id);
 
   const toggle = (item: AgentContextItem) => {
@@ -62,7 +77,7 @@ export function ContextPickerPopover({
     }
   };
 
-  const hasAnyItems = !!(changeSummary || testItems.length || qualityItem || codeItems.length);
+  const hasAnyItems = !!(changeSummary || testItems.length || qualityItem || codeItems.length || rulesSummary || ruleViolationItems.length);
 
   return (
     <Popover
@@ -133,6 +148,36 @@ export function ContextPickerPopover({
             {codeItems.length > 10 && (
               <p className="text-[11px] text-slate-500 px-2 py-1">
                 +{codeItems.length - 10} more issues
+              </p>
+            )}
+          </Section>
+        )}
+
+        {/* Rules */}
+        {auditorAvailable && (
+          <Section icon={<Shield className="h-3 w-3" />} title="Rules">
+            {rulesSummary && (
+              <CheckItem
+                item={rulesSummary}
+                checked={isAttached(rulesSummary.id)}
+                onToggle={toggle}
+              />
+            )}
+            {ruleViolationItems.length > 0 ? (
+              ruleViolationItems.slice(0, 10).map((item) => (
+                <CheckItem
+                  key={item.id}
+                  item={item}
+                  checked={isAttached(item.id)}
+                  onToggle={toggle}
+                />
+              ))
+            ) : !rulesSummary ? (
+              <p className="text-[11px] text-slate-600 px-2 py-1">No data</p>
+            ) : null}
+            {ruleViolationItems.length > 10 && (
+              <p className="text-[11px] text-slate-500 px-2 py-1">
+                +{ruleViolationItems.length - 10} more violations
               </p>
             )}
           </Section>

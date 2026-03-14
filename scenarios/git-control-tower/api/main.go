@@ -50,6 +50,7 @@ type Server struct {
 	testGenieClient      *TestGenieClient
 	tidinessClient       *TidinessManagerClient
 	agentManagerClient   *AgentManagerClient
+	auditorClient        *AuditorClient
 	scenarioLocator      *ScenarioLocator
 }
 
@@ -120,6 +121,10 @@ func NewServer() (*Server, error) {
 				Slug:   "agent-manager",
 				Client: &http.Client{Timeout: 3 * time.Second},
 			},
+			"scenario-auditor": &ScenarioChecker{
+				Slug:   "scenario-auditor",
+				Client: &http.Client{Timeout: 3 * time.Second},
+			},
 		}, 30*time.Second),
 		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
@@ -142,6 +147,7 @@ func NewServer() (*Server, error) {
 	srv.testGenieClient = NewTestGenieClient(600 * time.Second)
 	srv.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	srv.agentManagerClient = NewAgentManagerClient(120 * time.Second)
+	srv.auditorClient = NewAuditorClient(120 * time.Second)
 
 	// Best-effort: ensure the default agent profile exists once agent-manager is reachable.
 	go func() {
@@ -267,6 +273,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/approve", s.handleAgentRunApprove).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/reject", s.handleAgentRunReject).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/stop", s.handleAgentRunStop).Methods("POST")
+
+	// Auditor endpoints
+	s.router.HandleFunc("/api/v1/repo/rules-run", s.handleAuditorRunCheck).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/rules-job/{jobId}", s.handleAuditorJobStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/rules", s.handleAuditorRules).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/rules-fix", s.handleAuditorFix).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/rules-violations", s.handleAuditorViolations).Methods("GET")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")

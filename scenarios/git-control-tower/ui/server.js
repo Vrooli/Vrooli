@@ -6,4 +6,5 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'git-control-tower',
   corsOrigins: '*',
+  embeddedProxy: true,
 })

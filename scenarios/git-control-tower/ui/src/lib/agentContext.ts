@@ -1,4 +1,4 @@
-import type { AgentContextItem } from "./api";
+import type { AgentContextItem, AuditorViolation, AuditorViolationSummary } from "./api";
 import type { TestPhaseResult, TidinessIssue, SnapshotSetMeta, RepoFileStats } from "./api";
 import { aggregateFileStats, formatNetLines } from "./metrics";
 
@@ -125,6 +125,59 @@ export function scenarioQualityContextItem(scoreData: {
     kind: "scenario-quality" as const,
     id: "scenario-quality",
     label: `Code Quality: ${Math.round(scoreData.score)}/100 (${scoreData.violations} violations)`,
+    markdown: md,
+  };
+}
+
+/** Build context items from auditor violations. */
+export function ruleViolationContextItems(violations: AuditorViolation[]): AgentContextItem[] {
+  return violations.map((v, i) => {
+    let md = `### Rule Violation: ${v.type}\n`;
+    md += `- **Severity:** ${v.severity}\n`;
+    md += `- **Title:** ${v.title}\n`;
+    if (v.file_path) {
+      md += `- **File:** \`${v.file_path}\``;
+      if (v.line_number) md += `:${v.line_number}`;
+      md += "\n";
+    }
+    if (v.description) md += `\n${v.description}\n`;
+    if (v.code_snippet) md += `\n\`\`\`\n${v.code_snippet}\n\`\`\`\n`;
+    if (v.recommendation) md += `\n**Recommendation:** ${v.recommendation}\n`;
+    if (v.source) md += `\n_Source: ${v.source}_\n`;
+
+    return {
+      kind: "rule-violation" as const,
+      id: `rule-${v.id || `${v.type}-${i}`}`,
+      label: `${v.severity}: ${v.type} — ${v.title.slice(0, 60)}`,
+      markdown: md,
+    };
+  });
+}
+
+/** Build a summary context item from auditor violations. */
+export function rulesSummaryContextItem(violations: AuditorViolation[], summary?: AuditorViolationSummary): AgentContextItem {
+  const total = summary?.total ?? violations.length;
+  const bySev = summary?.by_severity ?? {};
+  const high = bySev["high"] ?? violations.filter(v => v.severity === "high").length;
+  const medium = bySev["medium"] ?? violations.filter(v => v.severity === "medium").length;
+  const low = bySev["low"] ?? violations.filter(v => v.severity === "low").length;
+
+  let md = `### Standards Compliance Summary\n\n`;
+  md += `- **Total violations:** ${total}\n`;
+  md += `- **High:** ${high}\n`;
+  md += `- **Medium:** ${medium}\n`;
+  md += `- **Low:** ${low}\n`;
+  if (summary?.recommended_steps?.length) {
+    md += `\n**Recommended steps:**\n`;
+    for (const step of summary.recommended_steps) {
+      md += `- ${step}\n`;
+    }
+  }
+
+  return {
+    kind: "rules-summary" as const,
+    id: "rules-summary",
+    label: `Rules: ${total} violations (${high}H/${medium}M/${low}L)`,
     markdown: md,
   };
 }

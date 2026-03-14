@@ -88,6 +88,14 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "agent-manager",
 		Features:       []string{"Agent runs", "Multi-turn conversations", "Change approval"},
 	},
+	{
+		ID:             "scenario-auditor",
+		Name:           "Scenario Auditor",
+		Description:    "Standards compliance, rule violations, and automated fixes across all rule providers",
+		DependencyKind: DependencyScenario,
+		DependencySlug: "scenario-auditor",
+		Features:       []string{"Standards checks", "Rule violations", "Automated fixes", "Multi-source rules"},
+	},
 }
 
 // CapabilityRegistry tracks dependency availability with caching.

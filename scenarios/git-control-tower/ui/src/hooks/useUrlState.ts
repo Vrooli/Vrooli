@@ -1,9 +1,9 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { ViewMode } from "../lib/api";
 
-export type ReviewTab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "agent";
+export type ReviewTab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "agent";
 
-const VALID_REVIEW_TABS: readonly string[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "agent"];
+const VALID_REVIEW_TABS: readonly string[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "rules", "agent"];
 
 /**
  * URL state parameters for deep linking

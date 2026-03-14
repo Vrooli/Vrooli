@@ -74,6 +74,17 @@ import {
   approveAgentRun,
   rejectAgentRun,
   stopAgentRun,
+  startAuditorCheck,
+  pollAuditorJob,
+  fetchAuditorRules,
+  applyAuditorFix,
+  fetchAuditorViolations,
+  type AuditorCheckJobResponse,
+  type AuditorJobStatus,
+  type AuditorRulesListResponse,
+  type AuditorFixRequest,
+  type AuditorFixResponse,
+  type AuditorViolation,
   type CapabilitiesResponse,
   type TestExecutionRequest,
   type TestExecutionResult,
@@ -208,6 +219,14 @@ export const queryKeys = {
     ["agent", "runs", repoId ?? "default", "events", runId] as const,
   agentRunDiff: (runId: string, repoId?: string | null) =>
     ["agent", "runs", repoId ?? "default", "diff", runId] as const,
+  rulesRun: (scenarioName: string, repoId?: string | null) =>
+    ["repo", "rules-run", repoId ?? "default", scenarioName] as const,
+  rulesJob: (jobId: string, repoId?: string | null) =>
+    ["repo", "rules-job", repoId ?? "default", jobId] as const,
+  rulesList: (repoId?: string | null) =>
+    ["repo", "rules-list", repoId ?? "default"] as const,
+  rulesViolations: (scenarioName: string, repoId?: string | null) =>
+    ["repo", "rules-violations", repoId ?? "default", scenarioName] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";
@@ -1042,5 +1061,58 @@ export function useStopAgentRun(repoId?: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent", "runs"] });
     },
+  });
+}
+
+// ============================================================================
+// Auditor Hooks
+// ============================================================================
+
+export function useAuditorRules(enabled = true, repoId?: string | null) {
+  return useQuery<AuditorRulesListResponse, Error>({
+    queryKey: queryKeys.rulesList(repoId),
+    queryFn: () => fetchAuditorRules(repoId ?? undefined),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useStartAuditorCheck(repoId?: string | null) {
+  return useMutation<AuditorCheckJobResponse, Error, { scenarioName: string; checkType?: string }>({
+    mutationFn: ({ scenarioName, checkType }) =>
+      startAuditorCheck(scenarioName, checkType, repoId ?? undefined),
+  });
+}
+
+export function useAuditorJobStatus(jobId: string | null, repoId?: string | null) {
+  return useQuery<AuditorJobStatus, Error>({
+    queryKey: queryKeys.rulesJob(jobId ?? "", repoId),
+    queryFn: () => pollAuditorJob(jobId!, repoId ?? undefined),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (!status || status === "completed" || status === "failed") return false;
+      return 2_000;
+    },
+  });
+}
+
+export function useApplyAuditorFix(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<AuditorFixResponse, Error, AuditorFixRequest>({
+    mutationFn: (request) => applyAuditorFix(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repo", "rules-run"] });
+      queryClient.invalidateQueries({ queryKey: ["repo", "rules-violations"] });
+    },
+  });
+}
+
+export function useAuditorViolations(scenarioName: string, enabled = true, repoId?: string | null) {
+  return useQuery<AuditorViolation[], Error>({
+    queryKey: queryKeys.rulesViolations(scenarioName, repoId),
+    queryFn: () => fetchAuditorViolations(scenarioName, repoId ?? undefined),
+    enabled: enabled && Boolean(scenarioName),
+    staleTime: 30_000,
   });
 }

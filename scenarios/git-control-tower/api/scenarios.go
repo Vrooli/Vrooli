@@ -19,7 +19,6 @@ type ScenarioInfo struct {
 	HealthStatus *string        `json:"health_status"`
 	Tags         []string       `json:"tags"`
 	Runtime      string         `json:"runtime"`
-	Ports        map[string]int `json:"ports"`
 }
 
 // ScenarioLocator discovers available scenarios via the vrooli CLI.
@@ -69,9 +68,6 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]ScenarioInfo, error) {
 		}
 		if s.Tags == nil {
 			s.Tags = []string{}
-		}
-		if s.Ports == nil {
-			s.Ports = map[string]int{}
 		}
 		scenarios = append(scenarios, s)
 	}
