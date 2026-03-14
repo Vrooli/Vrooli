@@ -113,7 +113,6 @@ func (ld *LanguageDetector) DetectLanguages() (map[Language]*LanguageInfo, error
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, err
 		}

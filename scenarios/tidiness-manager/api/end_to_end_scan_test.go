@@ -41,13 +41,13 @@ func TestEndToEnd_LightScanViaAPI(t *testing.T) {
 type:
 	@echo "src/main.go:15:10: cannot use 'string' as type 'int'"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create source files
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -61,13 +61,13 @@ func main() {
 }
 ` + "\n// Padding\n" + string(bytes.Repeat([]byte("// comment\n"), 90))
 
-	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a long TypeScript file (> 400 lines to trigger long file flag)
 	uiSrcDir := filepath.Join(tmpDir, "ui", "src")
-	if err := os.MkdirAll(uiSrcDir, 0755); err != nil {
+	if err := os.MkdirAll(uiSrcDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -78,7 +78,7 @@ export default function App() {
 }
 ` + "\n// Padding to make file long\n" + string(bytes.Repeat([]byte("// very long comment line here\n"), 450))
 
-	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(longTsCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(longTsCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,8 +158,8 @@ export default function App() {
 	}
 
 	// Clean up test data
-	srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
-	srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
 }
 
 // [REQ:TM-LS-006,TM-LS-007,TM-LS-008] Integration test: Verify long file detection and performance requirements
@@ -169,7 +169,7 @@ func TestEndToEnd_LongFileDetectionAndPerformance(t *testing.T) {
 
 	// Create api/ directory (scanner looks for source files in standard locations)
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -183,7 +183,7 @@ func TestEndToEnd_LongFileDetectionAndPerformance(t *testing.T) {
 			content += "\n// Long file padding\n" + string(bytes.Repeat([]byte(fmt.Sprintf("// Long comment %d\n", i)), 450))
 		}
 
-		if err := os.WriteFile(filepath.Join(apiDir, fileName), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(apiDir, fileName), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -252,7 +252,7 @@ type:
 	@echo "src/test.ts:100:1: Type 'string' is not assignable to type 'number'"
 	@echo ""
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -294,8 +294,8 @@ type:
 	}
 
 	// Clean up
-	srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
-	srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
 }
 
 // [REQ:TM-LS-001,TM-LS-002] Integration test: Invalid request handling
@@ -356,7 +356,7 @@ func TestEndToEnd_ScanPerformanceMetrics(t *testing.T) {
 
 	// Create small scenario (10 files)
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -364,7 +364,7 @@ func TestEndToEnd_ScanPerformanceMetrics(t *testing.T) {
 		content := fmt.Sprintf("package main\n\n// File %d\nfunc f%d() {}\n", i, i)
 		content += string(bytes.Repeat([]byte(fmt.Sprintf("// Comment %d\n", i)), 50))
 
-		if err := os.WriteFile(filepath.Join(apiDir, fmt.Sprintf("file%02d.go", i)), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(apiDir, fmt.Sprintf("file%02d.go", i)), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -422,7 +422,7 @@ func TestEndToEnd_LargeParserOutput(t *testing.T) {
 	}
 
 	makefileContent := "lint:\n" + strings.Join(lintLines, "\n") + "\n\ntype:\n\t@echo \"No type errors\"\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -467,8 +467,8 @@ func TestEndToEnd_LargeParserOutput(t *testing.T) {
 	}
 
 	// Clean up
-	srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
-	srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM issues WHERE scenario = $1", tmpDir)
+	_, _ = srv.db.Exec("DELETE FROM scans WHERE scenario = $1", tmpDir)
 }
 
 // [REQ:TM-LS-007] Integration test: Timeout handling
@@ -480,7 +480,7 @@ func TestEndToEnd_ScanTimeout(t *testing.T) {
 	@sleep 120
 	@echo "Should timeout before this"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -517,7 +517,7 @@ func TestEndToEnd_MultiLanguageScenario(t *testing.T) {
 
 	// Create Go files
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	goCode := `package main
@@ -528,13 +528,13 @@ func main() {
 	fmt.Println("test")
 }
 `
-	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create TypeScript files
 	uiSrcDir := filepath.Join(tmpDir, "ui", "src")
-	if err := os.MkdirAll(uiSrcDir, 0755); err != nil {
+	if err := os.MkdirAll(uiSrcDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	tsCode := `import React from 'react';
@@ -543,7 +543,7 @@ export default function App() {
   return <div>App</div>;
 }
 `
-	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(tsCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(tsCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -556,7 +556,7 @@ def main():
 if __name__ == "__main__":
     main()
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "script.py"), []byte(pyCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "script.py"), []byte(pyCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

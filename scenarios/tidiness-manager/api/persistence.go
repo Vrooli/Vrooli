@@ -11,10 +11,8 @@ import (
 	"time"
 )
 
-var (
-	// ErrDuplicateIssue indicates an insert attempted to create a duplicate issue.
-	ErrDuplicateIssue = errors.New("duplicate issue")
-)
+// ErrDuplicateIssue indicates an insert attempted to create a duplicate issue.
+var ErrDuplicateIssue = errors.New("duplicate issue")
 
 // IssueCounts aggregates open issue counts by category for a scenario.
 type IssueCounts struct {
@@ -41,6 +39,22 @@ func NewTidinessStore(db *sql.DB) *TidinessStore {
 	return &TidinessStore{db: db}
 }
 
+// EnsureTypeSafetyColumns adds type-safety pattern columns to file_metrics if they don't exist
+func (ts *TidinessStore) EnsureTypeSafetyColumns(ctx context.Context) error {
+	columns := []string{
+		"ALTER TABLE file_metrics ADD COLUMN IF NOT EXISTS as_any_count INTEGER DEFAULT 0",
+		"ALTER TABLE file_metrics ADD COLUMN IF NOT EXISTS as_type_assertion_count INTEGER DEFAULT 0",
+		"ALTER TABLE file_metrics ADD COLUMN IF NOT EXISTS ts_ignore_count INTEGER DEFAULT 0",
+		"ALTER TABLE file_metrics ADD COLUMN IF NOT EXISTS non_null_assertion_count INTEGER DEFAULT 0",
+	}
+	for _, ddl := range columns {
+		if _, err := ts.db.ExecContext(ctx, ddl); err != nil {
+			return fmt.Errorf("failed to ensure type-safety columns: %w", err)
+		}
+	}
+	return nil
+}
+
 func (ts *TidinessStore) PersistDetailedFileMetrics(ctx context.Context, scenario string, metrics []DetailedFileMetrics) error {
 	if len(metrics) == 0 {
 		return nil
@@ -53,9 +67,10 @@ func (ts *TidinessStore) PersistDetailedFileMetrics(ctx context.Context, scenari
 			import_count, function_count, code_lines, comment_lines,
 			comment_to_code_ratio, has_test_file,
 			complexity_avg, complexity_max, duplication_pct,
+			as_any_count, as_type_assertion_count, ts_ignore_count, non_null_assertion_count,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP)
 		ON CONFLICT (scenario, file_path)
 		DO UPDATE SET
 			language = EXCLUDED.language,
@@ -73,6 +88,10 @@ func (ts *TidinessStore) PersistDetailedFileMetrics(ctx context.Context, scenari
 			complexity_avg = EXCLUDED.complexity_avg,
 			complexity_max = EXCLUDED.complexity_max,
 			duplication_pct = EXCLUDED.duplication_pct,
+			as_any_count = EXCLUDED.as_any_count,
+			as_type_assertion_count = EXCLUDED.as_type_assertion_count,
+			ts_ignore_count = EXCLUDED.ts_ignore_count,
+			non_null_assertion_count = EXCLUDED.non_null_assertion_count,
 			updated_at = CURRENT_TIMESTAMP
 	`
 
@@ -95,6 +114,10 @@ func (ts *TidinessStore) PersistDetailedFileMetrics(ctx context.Context, scenari
 			metric.ComplexityAvg,
 			metric.ComplexityMax,
 			metric.DuplicationPct,
+			metric.AsAnyCount,
+			metric.AsTypeAssertionCount,
+			metric.TsIgnoreCount,
+			metric.NonNullAssertionCount,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to persist detailed metrics for %s: %w", metric.FilePath, err)
@@ -269,7 +292,6 @@ func (ts *TidinessStore) InsertAgentIssue(ctx context.Context, payload AgentIssu
 		payload.AgentNotes, payload.RemediationSteps, payload.CampaignID,
 		payload.SessionID, payload.ResourceUsed,
 	).Scan(&id, &createdAt)
-
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
 			return 0, "", ErrDuplicateIssue
@@ -339,7 +361,7 @@ func (ts *TidinessStore) StoreLintTypeIssues(ctx context.Context, scenario strin
 	if err != nil {
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Use ON CONFLICT with the partial unique index (idx_issues_dedup)
 	// The index uses COALESCE to handle NULL line/column numbers
@@ -416,7 +438,8 @@ func (ts *TidinessStore) GetDetailedFileMetrics(ctx context.Context, scenario st
 			todo_count, fixme_count, hack_count,
 			import_count, function_count, code_lines, comment_lines,
 			comment_to_code_ratio, has_test_file,
-			complexity_avg, complexity_max, duplication_pct
+			complexity_avg, complexity_max, duplication_pct,
+			as_any_count, as_type_assertion_count, ts_ignore_count, non_null_assertion_count
 		FROM file_metrics
 		WHERE scenario = $1
 	`
@@ -441,6 +464,7 @@ func (ts *TidinessStore) GetDetailedFileMetrics(ctx context.Context, scenario st
 			&m.ImportCount, &m.FunctionCount, &m.CodeLines, &m.CommentLines,
 			&m.CommentRatio, &m.HasTestFile,
 			&complexityAvg, &complexityMax, &duplicationPct,
+			&m.AsAnyCount, &m.AsTypeAssertionCount, &m.TsIgnoreCount, &m.NonNullAssertionCount,
 		)
 		if err != nil {
 			continue // Skip rows with scan errors
@@ -477,11 +501,11 @@ func (ts *TidinessStore) GetDetailedFileMetrics(ctx context.Context, scenario st
 
 // StalenessInfo contains metadata about scan freshness
 type StalenessInfo struct {
-	LastScanAt       *string `json:"last_scan_at,omitempty"`
-	IsStale          bool    `json:"is_stale"`
-	ModifiedFiles    int     `json:"modified_files,omitempty"`
-	StaleReason      string  `json:"stale_reason,omitempty"`
-	RescanCommand    string  `json:"rescan_command,omitempty"`
+	LastScanAt    *string `json:"last_scan_at,omitempty"`
+	IsStale       bool    `json:"is_stale"`
+	ModifiedFiles int     `json:"modified_files,omitempty"`
+	StaleReason   string  `json:"stale_reason,omitempty"`
+	RescanCommand string  `json:"rescan_command,omitempty"`
 }
 
 // GetStalenessInfo checks if issues might be out-of-date for a scenario
@@ -548,7 +572,7 @@ func countModifiedFilesSince(scenarioPath string, since time.Time) int {
 		".py":  true,
 	}
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

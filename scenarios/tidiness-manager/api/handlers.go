@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -172,7 +174,7 @@ func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Re
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // respondError writes an error response
@@ -280,6 +282,141 @@ func (s *Server) persistFileMetrics(ctx context.Context, scenario string, metric
 		return fmt.Errorf("store not initialized")
 	}
 	return s.store.PersistFileMetrics(ctx, scenario, metrics)
+}
+
+// TypeSafetyScanRequest defines the request body for type-safety scanning
+type TypeSafetyScanRequest struct {
+	ScenarioName    string `json:"scenario_name"`
+	IncludePatterns bool   `json:"include_patterns,omitempty"`
+}
+
+// handleTypeSafetyScan scans a scenario's UI for type-safety config issues
+func (s *Server) handleTypeSafetyScan(w http.ResponseWriter, r *http.Request) {
+	var req TypeSafetyScanRequest
+	if !decodeAndValidateJSON(w, r, &req) {
+		return
+	}
+
+	if req.ScenarioName == "" {
+		respondError(w, http.StatusBadRequest, "scenario_name is required")
+		return
+	}
+
+	if s.scenarioLocator == nil {
+		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
+		return
+	}
+
+	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	scenarioPath := s.scenarioLocator.ScenarioPath(scenarioName)
+	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
+	result := analyzer.Analyze()
+
+	// Optionally include pattern detection
+	if req.IncludePatterns {
+		summary := s.collectTypeSafetyPatterns(scenarioPath)
+		if summary != nil {
+			result.PatternSummary = summary
+		}
+	}
+
+	respondJSON(w, http.StatusOK, result)
+}
+
+// handleTypeSafetyFix auto-fixes tsconfig.json for a scenario
+func (s *Server) handleTypeSafetyFix(w http.ResponseWriter, r *http.Request) {
+	var req TypeSafetyScanRequest
+	if !decodeAndValidateJSON(w, r, &req) {
+		return
+	}
+
+	if req.ScenarioName == "" {
+		respondError(w, http.StatusBadRequest, "scenario_name is required")
+		return
+	}
+
+	if s.scenarioLocator == nil {
+		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
+		return
+	}
+
+	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	scenarioPath := s.scenarioLocator.ScenarioPath(scenarioName)
+	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
+	result, fixErr := analyzer.FixTSConfig()
+	if fixErr != nil {
+		respondError(w, http.StatusInternalServerError, fixErr.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, result)
+}
+
+// collectTypeSafetyPatterns walks TS/JS files and aggregates dangerous pattern counts
+func (s *Server) collectTypeSafetyPatterns(scenarioPath string) *TypeSafetyPatternSummary {
+	detector := NewLanguageDetector(scenarioPath)
+	languages, err := detector.DetectLanguages()
+	if err != nil {
+		return nil
+	}
+
+	summary := &TypeSafetyPatternSummary{}
+	cma := NewCodeMetricsAnalyzer(scenarioPath)
+
+	var allFiles []FilePatternBreakdown
+
+	for lang, langInfo := range languages {
+		if lang != LanguageTypeScript && lang != LanguageJavaScript {
+			continue
+		}
+		for _, relPath := range langInfo.Files {
+			absPath := filepath.Join(scenarioPath, relPath)
+			fm, err := cma.analyzeFile(absPath, lang)
+			if err != nil {
+				continue
+			}
+			summary.TotalFiles++
+			summary.AsAnyCount += fm.AsAnyCount
+			summary.AsTypeAssertionCount += fm.AsTypeAssertionCount
+			summary.TsIgnoreCount += fm.TsIgnoreCount
+			summary.NonNullAssertionCount += fm.NonNullAssertionCount
+
+			total := fm.AsAnyCount + fm.AsTypeAssertionCount + fm.TsIgnoreCount + fm.NonNullAssertionCount
+			if total > 0 {
+				allFiles = append(allFiles, FilePatternBreakdown{
+					FilePath:              relPath,
+					AsAnyCount:            fm.AsAnyCount,
+					AsTypeAssertionCount:  fm.AsTypeAssertionCount,
+					TsIgnoreCount:         fm.TsIgnoreCount,
+					NonNullAssertionCount: fm.NonNullAssertionCount,
+					Total:                 total,
+				})
+			}
+		}
+	}
+
+	// Sort by total descending and take top 10
+	sort.Slice(allFiles, func(i, j int) bool {
+		return allFiles[i].Total > allFiles[j].Total
+	})
+	if len(allFiles) > 10 {
+		allFiles = allFiles[:10]
+	}
+	if len(allFiles) > 0 {
+		summary.TopFiles = allFiles
+	}
+
+	return summary
 }
 
 // GenerateIssuesFromMetricsRequest defines request for generating issues from stored metrics

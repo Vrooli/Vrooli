@@ -23,21 +23,21 @@ func TestIssueManager_FilterByStatus(t *testing.T) {
 
 	// Insert test issues with different statuses
 	var openID, resolvedID, ignoredID int
-	srv.db.QueryRow(`
+	_ = srv.db.QueryRow(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
 	`, "test-filter", "test.go", "lint", "error", "Open issue", "Description", "open").Scan(&openID)
-	srv.db.QueryRow(`
+	_ = srv.db.QueryRow(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
 	`, "test-filter", "test2.go", "type", "warning", "Resolved issue", "Description", "resolved").Scan(&resolvedID)
-	srv.db.QueryRow(`
+	_ = srv.db.QueryRow(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
 	`, "test-filter", "test3.go", "ai", "warning", "Ignored issue", "Description", "ignored").Scan(&ignoredID)
 
 	defer func() {
-		srv.db.Exec("DELETE FROM issues WHERE scenario = $1", "test-filter")
+		_, _ = srv.db.Exec("DELETE FROM issues WHERE scenario = $1", "test-filter")
 	}()
 
 	// Test filtering by status=open
@@ -50,7 +50,7 @@ func TestIssueManager_FilterByStatus(t *testing.T) {
 	}
 
 	var issues []map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &issues)
+	_ = json.Unmarshal(w.Body.Bytes(), &issues)
 	if len(issues) != 1 {
 		t.Errorf("Expected 1 open issue, got %d", len(issues))
 	}
@@ -59,7 +59,7 @@ func TestIssueManager_FilterByStatus(t *testing.T) {
 	req = httptest.NewRequest("GET", "/api/v1/agent/issues?scenario=test-filter&status=resolved", nil)
 	w = httptest.NewRecorder()
 	srv.router.ServeHTTP(w, req)
-	json.Unmarshal(w.Body.Bytes(), &issues)
+	_ = json.Unmarshal(w.Body.Bytes(), &issues)
 	if len(issues) != 1 {
 		t.Errorf("Expected 1 resolved issue, got %d", len(issues))
 	}
@@ -78,20 +78,20 @@ func TestIssueManager_FilterBySeverityAndStatus(t *testing.T) {
 	defer srv.db.Close()
 
 	// Insert test issues with different severity and status
-	srv.db.Exec(`
+	_, _ = srv.db.Exec(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ('test-multi', 'test1.go', 'lint', 'error', 'Error 1', 'Desc', 'open')
 	`)
-	srv.db.Exec(`
+	_, _ = srv.db.Exec(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ('test-multi', 'test2.go', 'type', 'warning', 'Warning 1', 'Desc', 'open')
 	`)
-	srv.db.Exec(`
+	_, _ = srv.db.Exec(`
 		INSERT INTO issues (scenario, file_path, category, severity, title, description, status)
 		VALUES ('test-multi', 'test3.go', 'lint', 'error', 'Error 2', 'Desc', 'resolved')
 	`)
 
-	defer srv.db.Exec("DELETE FROM issues WHERE scenario = $1", "test-multi")
+	defer func() { _, _ = srv.db.Exec("DELETE FROM issues WHERE scenario = $1", "test-multi") }()
 
 	// Filter by status=open AND severity=error
 	req := httptest.NewRequest("GET", "/api/v1/agent/issues?scenario=test-multi&status=open&severity=error", nil)
@@ -147,7 +147,7 @@ func TestIssueManager_FilterByStatus_VerifyContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
-	defer srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID) }()
 
 	// Query for this specific issue
 	req := httptest.NewRequest("GET", "/api/v1/agent/issues?scenario=test-content&status=open", nil)

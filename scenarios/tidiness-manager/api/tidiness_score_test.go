@@ -237,9 +237,9 @@ func TestHandleGetTidinessScoreWithDB(t *testing.T) {
 
 	// Clean up before and after
 	cleanupTestScenario := func() {
-		srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
-		srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
-		srv.db.ExecContext(ctx, "DELETE FROM scan_history WHERE scenario = $1", testScenario)
+		_, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
+		_, _ = srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
+		_, _ = srv.db.ExecContext(ctx, "DELETE FROM scan_history WHERE scenario = $1", testScenario)
 	}
 	cleanupTestScenario()
 	defer cleanupTestScenario()
@@ -388,15 +388,15 @@ func TestScoreIsIdempotent(t *testing.T) {
 	testScenario := "test-idempotent"
 
 	// Clean up
-	srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
-	srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
+	_, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
+	_, _ = srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
 	defer func() {
-		srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
-		srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
+		_, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
+		_, _ = srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", testScenario)
 	}()
 
 	// Insert test data
-	srv.db.ExecContext(ctx, `
+	_, _ = srv.db.ExecContext(ctx, `
 		INSERT INTO issues (scenario, file_path, category, severity, title, status)
 		VALUES ($1, 'test.go', 'lint', 'warning', 'Test', 'open')
 	`, testScenario)
@@ -442,11 +442,11 @@ func TestScoreReflectsIssueResolution(t *testing.T) {
 	testScenario := "test-resolution"
 
 	// Clean up
-	srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
-	defer srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
+	_, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", testScenario) }()
 
 	// Insert multiple issues
-	srv.db.ExecContext(ctx, `
+	_, _ = srv.db.ExecContext(ctx, `
 		INSERT INTO issues (scenario, file_path, category, severity, title, status)
 		VALUES
 			($1, 'file1.go', 'lint', 'warning', 'Issue 1', 'open'),
@@ -465,7 +465,7 @@ func TestScoreReflectsIssueResolution(t *testing.T) {
 	}
 
 	// Resolve some issues
-	srv.db.ExecContext(ctx, `
+	_, _ = srv.db.ExecContext(ctx, `
 		UPDATE issues SET status = 'resolved'
 		WHERE scenario = $1 AND file_path IN ('file1.go', 'file2.go', 'file3.go')
 	`, testScenario)

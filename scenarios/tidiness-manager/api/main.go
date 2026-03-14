@@ -48,6 +48,9 @@ func NewServer() (*Server, error) {
 	}
 
 	store := NewTidinessStore(db)
+	if err := store.EnsureTypeSafetyColumns(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure type-safety columns: %w", err)
+	}
 	srv := &Server{
 		config:          &Config{},
 		db:              db,
@@ -93,6 +96,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light", s.handleLightScan).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
+
+	// Type-safety scanning endpoints
+	s.router.HandleFunc("/api/v1/scan/type-safety", s.handleTypeSafetyScan).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/scan/type-safety/fix", s.handleTypeSafetyFix).Methods("POST", "OPTIONS")
 
 	// Smart scanning endpoints (TM-SS-001, TM-SS-002)
 	s.router.HandleFunc("/api/v1/scan/smart", s.handleSmartScan).Methods("POST", "OPTIONS")

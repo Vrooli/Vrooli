@@ -29,13 +29,13 @@ type:
 	@echo "ui/src/App.tsx(15,20): error TS2339: Property missing"
 	@exit 0
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create Go file exceeding long file threshold (>500 lines)
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,13 +48,13 @@ type:
 	}
 	goCode := strings.Join(goLines, "\n")
 
-	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(goCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create TypeScript file under threshold
 	uiSrcDir := filepath.Join(tmpDir, "ui", "src")
-	if err := os.MkdirAll(uiSrcDir, 0755); err != nil {
+	if err := os.MkdirAll(uiSrcDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ export default function App() {
   return <div>Hello</div>;
 }
 `
-	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(tsCode), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(uiSrcDir, "App.tsx"), []byte(tsCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -161,23 +161,22 @@ func TestLightScanner_Integration_PartialFailure(t *testing.T) {
 	@sleep 60
 	@echo "Should not reach here"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create valid source files
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Use short timeout to force Makefile command failure
 	scanner := NewLightScanner(tmpDir, 1*time.Second)
 	result, err := scanner.Scan(context.Background())
-
 	// INTEGRATION VALIDATION: Partial failure should not prevent overall scan
 	if err != nil {
 		t.Fatalf("Integration error: Scan should complete with partial results, got error: %v", err)
@@ -223,7 +222,7 @@ func TestLightScanner_Integration_EmptyScenario(t *testing.T) {
 	if result.TotalLines != 0 {
 		t.Errorf("Integration error: Expected 0 lines, got %d", result.TotalLines)
 	}
-	if result.LanguageMetrics != nil && len(result.LanguageMetrics) > 0 {
+	if len(result.LanguageMetrics) > 0 {
 		t.Error("Integration error: Language metrics should be empty for empty scenario")
 	}
 	if !result.CompletedAt.IsZero() {
@@ -240,14 +239,14 @@ func TestLightScanner_Integration_ContextCancellation(t *testing.T) {
 
 	// Create large scenario with many files to ensure scan takes time
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create 100 files to make scan take longer
 	for i := 0; i < 100; i++ {
 		content := strings.Repeat("// comment\n", 100)
-		if err := os.WriteFile(filepath.Join(apiDir, fmt.Sprintf("file%03d.go", i)), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(apiDir, fmt.Sprintf("file%03d.go", i)), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -295,16 +294,16 @@ func TestLightScanner_Integration_MakefileMissingCommands(t *testing.T) {
 test:
 	@echo "Testing..."
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create source file
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -334,30 +333,30 @@ func TestLightScanner_Integration_SymlinksAndSpecialFiles(t *testing.T) {
 
 	// Create regular file
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	regularFile := filepath.Join(apiDir, "regular.go")
-	if err := os.WriteFile(regularFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(regularFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create hidden directory (should be ignored)
 	hiddenDir := filepath.Join(tmpDir, ".hidden")
-	if err := os.MkdirAll(hiddenDir, 0755); err != nil {
+	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hiddenDir, "file.go"), []byte("package hidden\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(hiddenDir, "file.go"), []byte("package hidden\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create symlink (behavior depends on scanner config)
 	symlinkTarget := filepath.Join(tmpDir, "target")
-	if err := os.MkdirAll(symlinkTarget, 0755); err != nil {
+	if err := os.MkdirAll(symlinkTarget, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	targetFile := filepath.Join(symlinkTarget, "target.go")
-	if err := os.WriteFile(targetFile, []byte("package target\n"), 0644); err != nil {
+	if err := os.WriteFile(targetFile, []byte("package target\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -391,10 +390,10 @@ func TestLightScanner_Integration_ConcurrentScans(t *testing.T) {
 	tmpDir2 := t.TempDir()
 
 	// Create different content in each scenario
-	if err := os.WriteFile(filepath.Join(tmpDir1, "file1.go"), []byte("package main\n// File 1\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir1, "file1.go"), []byte("package main\n// File 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir2, "file2.go"), []byte("package main\n// File 2\n// File 2 line 2\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir2, "file2.go"), []byte("package main\n// File 2\n// File 2 line 2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

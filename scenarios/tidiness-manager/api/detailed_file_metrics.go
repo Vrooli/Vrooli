@@ -8,22 +8,26 @@ import (
 
 // DetailedFileMetrics contains comprehensive per-file metrics for refactor prioritization
 type DetailedFileMetrics struct {
-	FilePath       string   `json:"file_path"`
-	Language       string   `json:"language"`
-	FileExtension  string   `json:"file_extension"`
-	LineCount      int      `json:"line_count"`
-	TodoCount      int      `json:"todo_count"`
-	FixmeCount     int      `json:"fixme_count"`
-	HackCount      int      `json:"hack_count"`
-	ImportCount    int      `json:"import_count"`
-	FunctionCount  int      `json:"function_count"`
-	CodeLines      int      `json:"code_lines"`
-	CommentLines   int      `json:"comment_lines"`
-	CommentRatio   float64  `json:"comment_to_code_ratio"`
-	HasTestFile    bool     `json:"has_test_file"`
-	ComplexityAvg  *float64 `json:"complexity_avg,omitempty"`
-	ComplexityMax  *int     `json:"complexity_max,omitempty"`
-	DuplicationPct *float64 `json:"duplication_pct,omitempty"`
+	FilePath              string   `json:"file_path"`
+	Language              string   `json:"language"`
+	FileExtension         string   `json:"file_extension"`
+	LineCount             int      `json:"line_count"`
+	TodoCount             int      `json:"todo_count"`
+	FixmeCount            int      `json:"fixme_count"`
+	HackCount             int      `json:"hack_count"`
+	ImportCount           int      `json:"import_count"`
+	FunctionCount         int      `json:"function_count"`
+	CodeLines             int      `json:"code_lines"`
+	CommentLines          int      `json:"comment_lines"`
+	CommentRatio          float64  `json:"comment_to_code_ratio"`
+	HasTestFile           bool     `json:"has_test_file"`
+	ComplexityAvg         *float64 `json:"complexity_avg,omitempty"`
+	ComplexityMax         *int     `json:"complexity_max,omitempty"`
+	DuplicationPct        *float64 `json:"duplication_pct,omitempty"`
+	AsAnyCount            int      `json:"as_any_count,omitempty"`
+	AsTypeAssertionCount  int      `json:"as_type_assertion_count,omitempty"`
+	TsIgnoreCount         int      `json:"ts_ignore_count,omitempty"`
+	NonNullAssertionCount int      `json:"non_null_assertion_count,omitempty"`
 }
 
 // CollectDetailedFileMetrics analyzes files and returns detailed per-file metrics
@@ -97,19 +101,23 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, lang)
 
 		detailed := DetailedFileMetrics{
-			FilePath:      relPath,
-			Language:      string(lang),
-			FileExtension: filepath.Ext(relPath),
-			LineCount:     fileMetrics.CodeLines + fileMetrics.CommentLines,
-			TodoCount:     fileMetrics.TodoCount,
-			FixmeCount:    fileMetrics.FixmeCount,
-			HackCount:     fileMetrics.HackCount,
-			ImportCount:   fileMetrics.ImportCount,
-			FunctionCount: fileMetrics.FunctionCount,
-			CodeLines:     fileMetrics.CodeLines,
-			CommentLines:  fileMetrics.CommentLines,
-			CommentRatio:  fileMetrics.CommentToCodeRatio,
-			HasTestFile:   hasTest,
+			FilePath:              relPath,
+			Language:              string(lang),
+			FileExtension:         filepath.Ext(relPath),
+			LineCount:             fileMetrics.CodeLines + fileMetrics.CommentLines,
+			TodoCount:             fileMetrics.TodoCount,
+			FixmeCount:            fileMetrics.FixmeCount,
+			HackCount:             fileMetrics.HackCount,
+			ImportCount:           fileMetrics.ImportCount,
+			FunctionCount:         fileMetrics.FunctionCount,
+			CodeLines:             fileMetrics.CodeLines,
+			CommentLines:          fileMetrics.CommentLines,
+			CommentRatio:          fileMetrics.CommentToCodeRatio,
+			HasTestFile:           hasTest,
+			AsAnyCount:            fileMetrics.AsAnyCount,
+			AsTypeAssertionCount:  fileMetrics.AsTypeAssertionCount,
+			TsIgnoreCount:         fileMetrics.TsIgnoreCount,
+			NonNullAssertionCount: fileMetrics.NonNullAssertionCount,
 		}
 
 		// Add complexity metrics if available for this file

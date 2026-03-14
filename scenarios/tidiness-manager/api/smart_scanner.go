@@ -281,7 +281,7 @@ func (s *SmartScanner) callAIResource(ctx context.Context, fileContents map[stri
 	if resp.StatusCode != http.StatusOK {
 		// Security: Limit error response size to prevent memory exhaustion
 		limitedBody := io.LimitReader(resp.Body, 1024) // 1KB max for error messages
-		io.ReadAll(limitedBody)
+		_, _ = io.ReadAll(limitedBody)
 		// Sanitize error message to prevent information leakage
 		return nil, fmt.Errorf("AI resource returned status %d", resp.StatusCode)
 	}

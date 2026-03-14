@@ -15,13 +15,13 @@ func TestNoMakefile_GracefulHandling(t *testing.T) {
 
 	// Create directory structure but NO Makefile
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	// Create test files
 	testFile := filepath.Join(apiDir, "main.go")
-	if err := os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -75,17 +75,17 @@ func TestNoMakefile_EmptyMakefile(t *testing.T) {
 	makefileContent := `
 # This Makefile has no targets
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -122,17 +122,17 @@ build:
 test:
 	@echo "Testing..."
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -166,18 +166,18 @@ func TestNoMakefile_UnreadableMakefile(t *testing.T) {
 lint:
 	@echo "lint"
 `
-	if err := os.WriteFile(makefilePath, []byte(makefileContent), 0000); err != nil {
+	if err := os.WriteFile(makefilePath, []byte(makefileContent), 0o000); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
-	defer os.Chmod(makefilePath, 0644) // Cleanup
+	defer func() { _ = os.Chmod(makefilePath, 0o644) }() // Cleanup
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -212,7 +212,7 @@ type:
 	@# Silent command with no output
 	@true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -247,16 +247,16 @@ func TestNoMakefile_NoSourceFiles(t *testing.T) {
 
 	// Create directory structure but no source files
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	// Create only non-source files
-	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Test"), 0o644); err != nil {
 		t.Fatalf("failed to create README: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte("{}"), 0o644); err != nil {
 		t.Fatalf("failed to create package.json: %v", err)
 	}
 
@@ -282,7 +282,7 @@ func TestNoMakefile_MakefileInSubdirectory(t *testing.T) {
 
 	// Create Makefile in subdirectory, not root
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
@@ -291,13 +291,13 @@ func TestNoMakefile_MakefileInSubdirectory(t *testing.T) {
 lint:
 	@echo "lint from subdirectory"
 `
-	if err := os.WriteFile(filepath.Join(apiDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(apiDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile in subdirectory: %v", err)
 	}
 
 	// Create test file
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

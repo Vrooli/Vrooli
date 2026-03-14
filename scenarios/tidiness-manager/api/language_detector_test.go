@@ -10,7 +10,7 @@ import (
 func createTestDir(t *testing.T, basePath string, relPath string, files map[string]string) string {
 	t.Helper()
 	dirPath := filepath.Join(basePath, relPath)
-	if err := os.MkdirAll(dirPath, 0755); err != nil {
+	if err := os.MkdirAll(dirPath, 0o755); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dirPath, err)
 	}
 	for filename, content := range files {
@@ -22,7 +22,7 @@ func createTestDir(t *testing.T, basePath string, relPath string, files map[stri
 // Test helper: creates a test file with content
 func createTestFile(t *testing.T, path string, content string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file %s: %v", path, err)
 	}
 }

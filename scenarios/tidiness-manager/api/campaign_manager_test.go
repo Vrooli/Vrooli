@@ -55,7 +55,7 @@ func TestCampaignManager_CreateCampaign(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -99,7 +99,7 @@ func TestCampaignManager_FindCampaignByScenario(t *testing.T) {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -132,7 +132,7 @@ func TestCampaignManager_GetOrCreateCampaign(t *testing.T) {
 				Campaigns: []Campaign{},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -140,7 +140,7 @@ func TestCampaignManager_GetOrCreateCampaign(t *testing.T) {
 			attemptedCreate = true
 
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 
 			resp := CreateCampaignResponse{
 				Campaign: Campaign{
@@ -153,7 +153,7 @@ func TestCampaignManager_GetOrCreateCampaign(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -199,7 +199,7 @@ func TestCampaignManager_CreateCampaignMetadata(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/campaigns" && r.Method == http.MethodPost {
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 
 			// Verify metadata fields
 			if req.Metadata == nil {
@@ -217,7 +217,7 @@ func TestCampaignManager_CreateCampaignMetadata(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		http.NotFound(w, r)
@@ -245,7 +245,7 @@ func TestCampaignManager_FindCampaignMultiple(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 	defer cleanup()
 
@@ -285,7 +285,7 @@ func TestCampaignManager_CampaignNotFound(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 	defer cleanup()
 
@@ -322,7 +322,7 @@ func TestCampaignManager_CreateCampaignError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.response))
+				_, _ = w.Write([]byte(tt.response))
 			})
 			defer cleanup()
 
@@ -338,7 +338,7 @@ func TestCampaignManager_CreateCampaignError(t *testing.T) {
 func TestCampaignManager_ListCampaignsError(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "database error"}`))
+		_, _ = w.Write([]byte(`{"error": "database error"}`))
 	})
 	defer cleanup()
 
@@ -355,14 +355,14 @@ func TestCampaignManager_CampaignNameFormat(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			capturedName = req.Name
 
 			resp := CreateCampaignResponse{
 				Campaign: Campaign{ID: "test-id", Name: req.Name},
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()
@@ -410,7 +410,7 @@ func TestCampaignManager_PatternConfiguration(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			capturedPatterns = req.Patterns
 
 			resp := CreateCampaignResponse{
@@ -420,7 +420,7 @@ func TestCampaignManager_PatternConfiguration(t *testing.T) {
 				},
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()
@@ -448,15 +448,15 @@ func TestCampaignManager_ConcurrentOperations(t *testing.T) {
 		requestCount++
 		if r.Method == http.MethodGet {
 			resp := ListCampaignsResponse{Campaigns: []Campaign{}}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		} else if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			resp := CreateCampaignResponse{
 				Campaign: Campaign{ID: "campaign-" + req.Name},
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()
@@ -484,7 +484,7 @@ func TestCampaignManager_IsAvailableHealthy(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status": "healthy"}`))
+			_, _ = w.Write([]byte(`{"status": "healthy"}`))
 		}
 	})
 	defer cleanup()
@@ -531,7 +531,7 @@ func TestCampaignManager_SpecialCharactersInScenario(t *testing.T) {
 			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == http.MethodPost {
 					var req CreateCampaignRequest
-					json.NewDecoder(r.Body).Decode(&req)
+					_ = json.NewDecoder(r.Body).Decode(&req)
 					capturedScenario = req.Metadata["scenario"].(string)
 
 					resp := CreateCampaignResponse{
@@ -541,7 +541,7 @@ func TestCampaignManager_SpecialCharactersInScenario(t *testing.T) {
 						},
 					}
 					w.WriteHeader(http.StatusCreated)
-					json.NewEncoder(w).Encode(resp)
+					_ = json.NewEncoder(w).Encode(resp)
 				}
 			})
 			defer cleanup()
@@ -580,7 +580,7 @@ func TestCampaignManager_MalformedJSONResponse(t *testing.T) {
 			cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte(tt.response))
+				_, _ = w.Write([]byte(tt.response))
 			})
 			defer cleanup()
 
@@ -600,7 +600,7 @@ func TestCampaignManager_ListCampaignsMalformedJSON(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"campaigns": [{"id": "broken"`))
+		_, _ = w.Write([]byte(`{"campaigns": [{"id": "broken"`))
 	})
 	defer cleanup()
 
@@ -617,7 +617,7 @@ func TestCampaignManager_MetadataFields(t *testing.T) {
 	cm, cleanup := setupTestCampaignManager(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req CreateCampaignRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			capturedMetadata = req.Metadata
 
 			resp := CreateCampaignResponse{
@@ -627,7 +627,7 @@ func TestCampaignManager_MetadataFields(t *testing.T) {
 				},
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()
@@ -660,7 +660,7 @@ func TestCampaignManager_FindCampaignAnyAgent(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 	defer cleanup()
 
@@ -696,7 +696,7 @@ func TestCampaignManager_ResponseFieldValidation(t *testing.T) {
 				},
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()
@@ -740,7 +740,7 @@ func BenchmarkCreateCampaign(b *testing.B) {
 			Campaign: Campaign{ID: "test-id"},
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 	defer cleanup()
 
@@ -758,7 +758,7 @@ func BenchmarkFindCampaignByScenario(b *testing.B) {
 				{ID: "c1", Name: "tidiness-test-scenario-123", FromAgent: "tidiness-manager"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 	defer cleanup()
 
@@ -775,9 +775,9 @@ func BenchmarkGetOrCreateCampaign(b *testing.B) {
 		if r.Method == http.MethodGet {
 			// Return empty on first call, existing on subsequent
 			if callCount == 0 {
-				json.NewEncoder(w).Encode(ListCampaignsResponse{Campaigns: []Campaign{}})
+				_ = json.NewEncoder(w).Encode(ListCampaignsResponse{Campaigns: []Campaign{}})
 			} else {
-				json.NewEncoder(w).Encode(ListCampaignsResponse{
+				_ = json.NewEncoder(w).Encode(ListCampaignsResponse{
 					Campaigns: []Campaign{
 						{ID: "c1", Name: "tidiness-test-scenario-123"},
 					},
@@ -787,7 +787,7 @@ func BenchmarkGetOrCreateCampaign(b *testing.B) {
 		} else if r.Method == http.MethodPost {
 			resp := CreateCampaignResponse{Campaign: Campaign{ID: "new-id"}}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	})
 	defer cleanup()

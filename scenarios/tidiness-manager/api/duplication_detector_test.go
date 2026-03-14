@@ -48,20 +48,6 @@ func assertLocation(t *testing.T, loc DuplicateLocation, path string, startLine,
 	}
 }
 
-// assertDuplicationSkipped validates that a duplication result is skipped with a reason containing expected text
-func assertDuplicationSkipped(t *testing.T, result DuplicateResult, expectedReasonSubstring string) {
-	t.Helper()
-	if !result.Skipped {
-		t.Error("Expected result to be skipped")
-	}
-	if result.SkipReason == "" {
-		t.Error("Expected SkipReason to be set")
-	}
-	if !contains(result.SkipReason, expectedReasonSubstring) {
-		t.Errorf("Expected skip reason to contain %q, got: %q", expectedReasonSubstring, result.SkipReason)
-	}
-}
-
 // assertNoError checks that an error is nil
 func assertNoError(t *testing.T, err error) {
 	t.Helper()

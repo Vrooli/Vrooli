@@ -309,8 +309,8 @@ func TestIssueRanker_TopNEdgeCases(t *testing.T) {
 			result := GetTopNIssues(issues, "severity", tc.n)
 			if tc.n < 0 {
 				// Negative should return all or handle gracefully
-				if len(result) < 0 {
-					t.Error("Negative n should not return negative results")
+				if len(result) == 0 {
+					t.Error("Negative n should not return empty results")
 				}
 			} else if len(result) != tc.expected {
 				t.Errorf("%s: expected %d issues, got %d", tc.name, tc.expected, len(result))
@@ -804,8 +804,8 @@ func FuzzGetTopNIssues(f *testing.F) {
 		}
 
 		// Result should be >= 0
-		if len(result) < 0 {
-			t.Errorf("Result length cannot be negative: %d", len(result))
+		if len(result) == 0 && n > 0 {
+			t.Logf("Result is empty for n=%d", n)
 		}
 	})
 }
@@ -813,16 +813,16 @@ func FuzzGetTopNIssues(f *testing.F) {
 // [REQ:TM-API-004] Test sorting stability with randomized data
 func TestIssueRanker_RandomizedStability(t *testing.T) {
 	// Create issues with random data but known severities
-	rand.Seed(12345) // Fixed seed for reproducibility
+	rng := rand.New(rand.NewSource(12345)) // Fixed seed for reproducibility
 	issues := make([]RankedIssue, 20)
 	severities := []string{"critical", "high", "medium", "low"}
 
 	for i := 0; i < 20; i++ {
 		issues[i] = RankedIssue{
 			ID:       fmt.Sprintf("issue-%d", i),
-			Severity: severities[rand.Intn(4)],
-			Category: fmt.Sprintf("cat-%d", rand.Intn(3)),
-			FilePath: fmt.Sprintf("file-%d.go", rand.Intn(10)),
+			Severity: severities[rng.Intn(4)],
+			Category: fmt.Sprintf("cat-%d", rng.Intn(3)),
+			FilePath: fmt.Sprintf("file-%d.go", rng.Intn(10)),
 		}
 	}
 

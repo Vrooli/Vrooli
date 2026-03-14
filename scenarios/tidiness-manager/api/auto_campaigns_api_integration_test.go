@@ -23,8 +23,8 @@ func TestIntegration_AutoCampaignCreation(t *testing.T) {
 	defer srv.db.Close()
 
 	// Clean up any existing test campaigns
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'") }()
 
 	testScenario := "integration-test-scenario-create"
 
@@ -66,7 +66,6 @@ func TestIntegration_AutoCampaignCreation(t *testing.T) {
 		FROM campaigns
 		WHERE id = $1
 	`, int(campaignID)).Scan(&dbStatus, &maxSessions, &maxFilesPerSession)
-
 	if err != nil {
 		t.Fatalf("Campaign not found in database: %v", err)
 	}
@@ -99,8 +98,10 @@ func TestIntegration_AutoCampaignConcurrencyViaAPI(t *testing.T) {
 	defer srv.db.Close()
 
 	// Clean up any existing test campaigns first
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-concurrent-%'")
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-concurrent-%'")
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-concurrent-%'")
+	defer func() {
+		_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-concurrent-%'")
+	}()
 
 	// Create campaigns up to limit
 	var createdCampaigns []int
@@ -125,7 +126,7 @@ func TestIntegration_AutoCampaignConcurrencyViaAPI(t *testing.T) {
 		var resp struct {
 			Campaign map[string]interface{} `json:"campaign"`
 		}
-		json.Unmarshal(w.Body.Bytes(), &resp)
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		if id, ok := resp.Campaign["id"].(float64); ok {
 			createdCampaigns = append(createdCampaigns, int(id))
 		}
@@ -133,7 +134,7 @@ func TestIntegration_AutoCampaignConcurrencyViaAPI(t *testing.T) {
 
 	// Start all campaigns to make them active
 	for _, id := range createdCampaigns {
-		srv.db.Exec("UPDATE campaigns SET status = 'active' WHERE id = $1", id)
+		_, _ = srv.db.Exec("UPDATE campaigns SET status = 'active' WHERE id = $1", id)
 	}
 
 	// Verify we're at capacity - attempting to create a 4th should fail
@@ -177,8 +178,8 @@ func TestIntegration_AutoCampaignProgress(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-progress"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign
 	var campaignID int
@@ -242,8 +243,10 @@ func TestIntegration_CampaignCreationValidation(t *testing.T) {
 	}
 	defer srv.db.Close()
 
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-validation-%'")
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-validation-%'")
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-validation-%'")
+	defer func() {
+		_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-validation-%'")
+	}()
 
 	tests := []struct {
 		name        string

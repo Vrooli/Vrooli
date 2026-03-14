@@ -14,7 +14,7 @@ func TestScanPerformance_SmallScenario(t *testing.T) {
 
 	// Create a small scenario with <50 files
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
@@ -42,7 +42,7 @@ func helper() string {
   return "test"
 }
 `
-		if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to create test file: %v", err)
 		}
 	}
@@ -57,7 +57,7 @@ lint:
 type:
 	@echo "type complete"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -98,7 +98,7 @@ func TestScanPerformance_MediumScenario(t *testing.T) {
 	dirs := []string{"api", "ui/src/components", "ui/src/pages", "cli"}
 	for _, dir := range dirs {
 		fullDir := filepath.Join(tmpDir, dir)
-		if err := os.MkdirAll(fullDir, 0755); err != nil {
+		if err := os.MkdirAll(fullDir, 0o755); err != nil {
 			t.Fatalf("failed to create directory %s: %v", dir, err)
 		}
 	}
@@ -150,7 +150,7 @@ func (h *Handler) Close() {
 	fmt.Println("Handler closed")
 }
 `
-		if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to create test file %s: %v", testFile, err)
 		}
 	}
@@ -165,7 +165,7 @@ lint:
 type:
 	@echo "type complete"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -208,7 +208,7 @@ func TestScanPerformance_SmallScenarioMixedFileSizes(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
@@ -232,7 +232,7 @@ func TestScanPerformance_SmallScenarioMixedFileSizes(t *testing.T) {
 			for j := 0; j < tc.lineCount; j++ {
 				content += "// Line comment to reach target size\n"
 			}
-			if err := os.WriteFile(fileName, []byte(content), 0644); err != nil {
+			if err := os.WriteFile(fileName, []byte(content), 0o644); err != nil {
 				t.Fatalf("failed to create %s: %v", fileName, err)
 			}
 			fileCount++
@@ -244,7 +244,7 @@ func TestScanPerformance_SmallScenarioMixedFileSizes(t *testing.T) {
 lint:
 	@echo "lint complete"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -281,7 +281,7 @@ func TestScanPerformance_MediumScenarioDeeplyNested(t *testing.T) {
 	for depth := 0; depth < 5; depth++ {
 		for i := 0; i < 3; i++ {
 			dirPath := filepath.Join(apiDir, "level"+string(rune('0'+depth)), "dir"+string(rune('a'+i)))
-			if err := os.MkdirAll(dirPath, 0755); err != nil {
+			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				t.Fatalf("failed to create nested directory: %v", err)
 			}
 
@@ -296,7 +296,7 @@ func test() {
   return
 }
 `
-				if err := os.WriteFile(fileName, []byte(content), 0644); err != nil {
+				if err := os.WriteFile(fileName, []byte(content), 0o644); err != nil {
 					t.Fatalf("failed to create file: %v", err)
 				}
 			}
@@ -308,7 +308,7 @@ func test() {
 lint:
 	@echo "lint complete"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -341,7 +341,7 @@ func TestScanPerformance_Consistency(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
@@ -355,7 +355,7 @@ func test() {
   return
 }
 `
-		if err := os.WriteFile(fileName, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fileName, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to create file: %v", err)
 		}
 	}
@@ -365,7 +365,7 @@ func test() {
 lint:
 	@echo "lint complete"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 

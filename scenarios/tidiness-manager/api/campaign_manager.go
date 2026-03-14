@@ -103,7 +103,7 @@ func (cm *CampaignManager) FindCampaignByScenario(scenario string) (*Campaign, e
 	if resp.StatusCode != http.StatusOK {
 		// Security: Limit error body size and sanitize error message
 		limitedBody := io.LimitReader(resp.Body, 1024)
-		io.ReadAll(limitedBody)
+		_, _ = io.ReadAll(limitedBody)
 		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 
@@ -159,7 +159,7 @@ func (cm *CampaignManager) CreateCampaign(scenario string) (*Campaign, error) {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		// Security: Limit error body size and sanitize error message
 		limitedBody := io.LimitReader(resp.Body, 1024)
-		io.ReadAll(limitedBody)
+		_, _ = io.ReadAll(limitedBody)
 		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 
@@ -200,7 +200,7 @@ func (cm *CampaignManager) GetCampaignFiles(campaignID string) ([]TrackedFile, e
 	if resp.StatusCode != http.StatusOK {
 		// Security: Limit error body size and sanitize error message
 		limitedBody := io.LimitReader(resp.Body, 1024)
-		io.ReadAll(limitedBody)
+		_, _ = io.ReadAll(limitedBody)
 		return nil, fmt.Errorf("visited-tracker returned status %d", resp.StatusCode)
 	}
 

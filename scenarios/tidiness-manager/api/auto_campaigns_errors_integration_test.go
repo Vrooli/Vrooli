@@ -20,8 +20,8 @@ func TestIntegration_CampaignErrorRecording(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-error-recording"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign
 	var campaignID int
@@ -41,7 +41,6 @@ func TestIntegration_CampaignErrorRecording(t *testing.T) {
 			SET error_count = $1, error_reason = $2, updated_at = NOW()
 			WHERE id = $3
 		`, i, "Simulated error during session execution", campaignID)
-
 		if err != nil {
 			t.Errorf("Failed to record error %d: %v", i, err)
 		}
@@ -57,7 +56,6 @@ func TestIntegration_CampaignErrorRecording(t *testing.T) {
 		FROM campaigns
 		WHERE id = $1
 	`, campaignID).Scan(&errorCount, &errorReason)
-
 	if err != nil {
 		t.Fatalf("Failed to query error tracking: %v", err)
 	}
@@ -86,8 +84,8 @@ func TestIntegration_ErrorThresholdBoundaries(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-error-boundaries"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign
 	var campaignID int
@@ -108,13 +106,12 @@ func TestIntegration_ErrorThresholdBoundaries(t *testing.T) {
 			SET error_count = $1, error_reason = $2
 			WHERE id = $3
 		`, i, fmt.Sprintf("Error %d", i), campaignID)
-
 		if err != nil {
 			t.Fatalf("Failed to update error count: %v", err)
 		}
 
 		var status string
-		srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
+		_ = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
 
 		// Should still be active before threshold
 		if status != "active" {
@@ -129,13 +126,12 @@ func TestIntegration_ErrorThresholdBoundaries(t *testing.T) {
 		SET error_count = $1, error_reason = 'Threshold reached'
 		WHERE id = $2
 	`, errorThreshold, campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to set error count to threshold: %v", err)
 	}
 
 	var status string
-	srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
+	_ = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
 
 	t.Logf("Campaign status at threshold (%d errors): %s", errorThreshold, status)
 	// Note: Auto-termination logic might be in orchestrator, not database trigger
@@ -147,13 +143,12 @@ func TestIntegration_ErrorThresholdBoundaries(t *testing.T) {
 		SET error_count = 0, error_reason = NULL, status = 'active'
 		WHERE id = $1
 	`, campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to reset error count: %v", err)
 	}
 
 	var resetErrorCount int
-	srv.db.QueryRow("SELECT error_count FROM campaigns WHERE id = $1", campaignID).Scan(&resetErrorCount)
+	_ = srv.db.QueryRow("SELECT error_count FROM campaigns WHERE id = $1", campaignID).Scan(&resetErrorCount)
 
 	if resetErrorCount != 0 {
 		t.Errorf("Expected error_count to be reset to 0, got %d", resetErrorCount)

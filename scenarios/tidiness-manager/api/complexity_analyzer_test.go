@@ -18,7 +18,7 @@ func newTestComplexityAnalyzer(t *testing.T) *ComplexityAnalyzer {
 func createGoFile(t *testing.T, dir, filename, code string) string {
 	t.Helper()
 	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, []byte(code), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(code), 0o644); err != nil {
 		t.Fatalf("Failed to create Go file %s: %v", filename, err)
 	}
 	return path
