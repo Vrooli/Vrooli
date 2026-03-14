@@ -104,9 +104,7 @@ export const literalSelectors = {
     empty: "backlog-empty",
     grid: "backlog-grid",
     noResults: "backlog-no-results",
-    // Experience architecture additions (Phase 29)
-    continueSection: "backlog-continue-section",
-    continueList: "backlog-continue-list",
+    sortButton: "backlog-sort-button",
     summaryStats: "backlog-summary-stats",
     readyCount: "backlog-ready-count",
     cliHint: "backlog-cli-hint",

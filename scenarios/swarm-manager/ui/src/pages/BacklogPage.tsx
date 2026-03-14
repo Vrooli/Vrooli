@@ -12,16 +12,15 @@
  * - Shows user-friendly error messages based on error type
  * - Provides retry functionality for recoverable errors
  *
- * Experience Architecture (Phase 29):
- * - "Continue Working" section surfaces recently updated non-completed items
+ * Experience Architecture:
+ * - Sort control lets users reorder by priority, recency, status, or title
  * - Summary stats show total items and count ready for processing
- * - Reduces cognitive load for returning users by highlighting active work
  */
 
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
+import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -54,8 +53,24 @@ import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
 import { useBacklogStore } from "../stores";
 
-/** Statuses that indicate an item is "completed" and shouldn't appear in Continue Working */
-const COMPLETED_STATUSES: BacklogStatus[] = ["completed", "archived"];
+type SortField = "priority" | "updated" | "status" | "title";
+
+const SORT_OPTIONS: Array<{ field: SortField; label: string }> = [
+  { field: "priority", label: "Priority" },
+  { field: "updated", label: "Recently Updated" },
+  { field: "status", label: "Status" },
+  { field: "title", label: "Title" },
+];
+
+const STATUS_SORT_ORDER: Record<BacklogStatus, number> = {
+  backlog: 0,
+  researching: 1,
+  ready: 2,
+  queued: 3,
+  in_progress: 4,
+  completed: 5,
+  archived: 6,
+};
 
 const STATUS_OPTIONS: BacklogStatus[] = [
   "backlog",
@@ -123,6 +138,8 @@ export function BacklogPage() {
   const [activeKind, setActiveKind] = useState<TabKind>("idea");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<BacklogStatus | "">("");
+  const [sortField, setSortField] = useState<SortField>("priority");
+  const [showSort, setShowSort] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
@@ -214,13 +231,32 @@ export function BacklogPage() {
     return result;
   }, [kindItems, searchTerm, statusFilter]);
 
-  const continueWorkingItems = useMemo(() => {
-    if (!filteredItems || filteredItems.length === 0) return [];
-    return filteredItems
-      .filter((item) => !COMPLETED_STATUSES.includes(item.status))
-      .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-      .slice(0, 3);
-  }, [filteredItems]);
+  const sortedItems = useMemo(() => {
+    const sorted = [...filteredItems];
+    switch (sortField) {
+      case "priority":
+        sorted.sort((a, b) =>
+          a.priority !== b.priority
+            ? a.priority - b.priority
+            : new Date(b.updated).getTime() - new Date(a.updated).getTime()
+        );
+        break;
+      case "updated":
+        sorted.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+        break;
+      case "status":
+        sorted.sort((a, b) =>
+          STATUS_SORT_ORDER[a.status] !== STATUS_SORT_ORDER[b.status]
+            ? STATUS_SORT_ORDER[a.status] - STATUS_SORT_ORDER[b.status]
+            : a.priority - b.priority
+        );
+        break;
+      case "title":
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+    }
+    return sorted;
+  }, [filteredItems, sortField]);
 
   const stats = useMemo(() => {
     return {
@@ -343,9 +379,37 @@ export function BacklogPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Sort backlog"
+                  data-testid={selectors.backlog.sortButton}
+                  onClick={() => { setShowSort(!showSort); setShowFilters(false); }}
+                  className={sortField !== "priority" ? "border-cyan-500/50" : ""}
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+                {showSort && (
+                  <div className="absolute left-0 top-full z-10 mt-2 w-48 rounded-lg border border-white/10 bg-slate-800 p-2 shadow-xl">
+                    <div className="mb-1 text-sm font-medium text-slate-200 px-2 py-1">Sort by</div>
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.field}
+                        onClick={() => { setSortField(opt.field); setShowSort(false); }}
+                        className={`w-full rounded px-2 py-1.5 text-left text-sm ${
+                          sortField === opt.field ? "bg-cyan-500/15 text-cyan-300" : "text-slate-300 hover:bg-slate-700/50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
                   aria-label="Filter backlog"
                   data-testid={selectors.backlog.filter}
-                  onClick={() => setShowFilters(!showFilters)}
+                  onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}
                   className={statusFilter ? "border-cyan-500/50" : ""}
                 >
                   <Filter className="h-4 w-4" />
@@ -385,12 +449,6 @@ export function BacklogPage() {
                   </div>
                 )}
               </div>
-              <StatusLegend
-                items={BACKLOG_STATUS_LEGEND_ITEMS}
-                title="Status Guide"
-                compact
-                data-testid={selectors.backlog.statusLegend}
-              />
             </div>
 
             {kindItems.length > 0 && (
@@ -401,6 +459,12 @@ export function BacklogPage() {
                     {stats.ready} ready to queue
                   </span>
                 )}
+                <StatusLegend
+                  items={BACKLOG_STATUS_LEGEND_ITEMS}
+                  title="Status Guide"
+                  compact
+                  data-testid={selectors.backlog.statusLegend}
+                />
               </div>
             )}
           </div>
@@ -471,37 +535,6 @@ export function BacklogPage() {
           </Card>
         )}
 
-        {continueWorkingItems.length > 0 && (
-          <div className="space-y-3" data-testid={selectors.backlog.continueSection}>
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
-              <Clock className="h-4 w-4 text-cyan-400" />
-              <span>Continue Working</span>
-            </div>
-            <ResponsiveList data-testid={selectors.backlog.continueList}>
-              {continueWorkingItems.map((item) => (
-                <ResponsiveListItem
-                  as={Link}
-                  key={`continue-${item.kind}-${item.name}`}
-                  to={`/backlog/${item.kind}/${item.name}`}
-                  interactive
-                  className="group flex items-center gap-3 md:border-cyan-500/30 md:bg-cyan-500/5 md:hover:border-cyan-500/50 md:hover:bg-cyan-500/10"
-                >
-                  <span
-                    className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="truncate font-medium text-slate-100">{item.title}</h4>
-                    <p className="text-xs text-slate-400">
-                      {formatBacklogStatus(item.status)} · {formatRelativeTime(item.updated)}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-cyan-400 opacity-0 transition group-hover:opacity-100" />
-                </ResponsiveListItem>
-              ))}
-            </ResponsiveList>
-          </div>
-        )}
-
         {kindItems.length > 0 && filteredItems.length === 0 && (
           <Card padding="lg" centered data-testid={selectors.backlog.noResults}>
             <Search className="mx-auto h-12 w-12 text-slate-600" />
@@ -525,9 +558,6 @@ export function BacklogPage() {
 
         {filteredItems.length > 0 && (
           <div className="space-y-3">
-            {continueWorkingItems.length > 0 && (
-              <div className="text-sm font-medium text-slate-400">All {activeTab.label} Items</div>
-            )}
             <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
@@ -581,7 +611,7 @@ export function BacklogPage() {
               </div>
             </Card>
             <ResponsiveList data-testid={selectors.backlog.grid}>
-              {filteredItems.map((item) => (
+              {sortedItems.map((item) => (
                 <ResponsiveListItem
                   as={Link}
                   key={`${item.kind}-${item.name}`}
