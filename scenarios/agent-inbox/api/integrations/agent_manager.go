@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,15 +32,26 @@ var (
 	protoUnmarshalOpts = protojson.UnmarshalOptions{DiscardUnknown: true}
 )
 
+// UploadResponse contains the server response after uploading an attachment.
+type UploadResponse struct {
+	ID          string `json:"id"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	FileSize    int64  `json:"file_size"`
+	StoragePath string `json:"storage_path"`
+	URL         string `json:"url"`
+}
+
 // AgentManagerClientInterface defines the operations used by agent mode handlers.
 // This interface enables dependency injection for testing.
 type AgentManagerClientInterface interface {
 	StartAgentChat(ctx context.Context, message string, cfg AgentChatConfig) (*AgentChatSession, error)
-	ContinueChat(ctx context.Context, runID, message string) error
+	ContinueChat(ctx context.Context, runID, message string, attachmentIDs []string) error
 	GetEvents(ctx context.Context, runID string, afterSequence int64) ([]*TranslatedEvent, error)
 	GetRunStatus(ctx context.Context, runID string) (*AgentRunStatus, error)
 	StopRun(ctx context.Context, runID string) error
 	ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResult, error)
+	UploadAttachment(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*UploadResponse, error)
 }
 
 // AgentManagerClient provides direct REST API access to agent-manager.
@@ -578,10 +590,12 @@ func (c *AgentManagerClient) StartAgentChat(ctx context.Context, message string,
 
 // ContinueChat sends a follow-up message to an existing agent run.
 // Uses the continuation API to maintain conversation state.
-func (c *AgentManagerClient) ContinueChat(ctx context.Context, runID, message string) error {
+// attachmentIDs optionally references previously uploaded attachments to include.
+func (c *AgentManagerClient) ContinueChat(ctx context.Context, runID, message string, attachmentIDs []string) error {
 	reqProto := &domainpb.ContinueRunRequest{
-		RunId:   runID,
-		Message: message,
+		RunId:         runID,
+		Message:       message,
+		AttachmentIds: attachmentIDs,
 	}
 	body, err := protoMarshalOpts.Marshal(reqProto)
 	if err != nil {
@@ -600,6 +614,53 @@ func (c *AgentManagerClient) ContinueChat(ctx context.Context, runID, message st
 	}
 
 	return nil
+}
+
+// UploadAttachment proxies a file upload to agent-manager's attachment endpoint.
+// Uses a direct HTTP request (not doWithRetry) because multipart uploads require
+// a custom Content-Type header with the boundary parameter.
+func (c *AgentManagerClient) UploadAttachment(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*UploadResponse, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("file", header.Filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	if _, err := io.Copy(part, file); err != nil {
+		return nil, fmt.Errorf("failed to copy file data: %w", err)
+	}
+	writer.Close()
+
+	baseURL, err := c.getBaseURL()
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager not available: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/api/v1/attachments/upload", &buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload to agent-manager: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("upload failed: %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result UploadResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode upload response: %w", err)
+	}
+
+	return &result, nil
 }
 
 // GetEvents retrieves events for a run, optionally filtered by sequence.

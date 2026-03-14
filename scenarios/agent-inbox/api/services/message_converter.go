@@ -134,4 +134,3 @@ func HasPDFAttachment(attachments []domain.Attachment) bool {
 	}
 	return false
 }
-

@@ -4,6 +4,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"mime/multipart"
 	"sync"
 
 	"agent-inbox/domain"
@@ -397,8 +398,9 @@ type StartAgentChatCall struct {
 
 // ContinueChatCall records a call to ContinueChat.
 type ContinueChatCall struct {
-	RunID   string
-	Message string
+	RunID         string
+	Message       string
+	AttachmentIDs []string
 }
 
 // GetEventsCall records a call to GetEvents.
@@ -427,6 +429,8 @@ type MockAgentManagerClient struct {
 	StopError      error
 	ListRunsResult *integrations.ListRunsResult
 	ListRunsError  error
+	UploadResult   *integrations.UploadResponse
+	UploadError    error
 
 	// Call tracking
 	StartCalls    []StartAgentChatCall
@@ -435,14 +439,16 @@ type MockAgentManagerClient struct {
 	StatusCalls   []string // runIDs
 	StopCalls     []string // runIDs
 	ListRunsCalls []ListRunsCall
+	UploadCalls   int
 
 	// Custom func hooks (override default behavior when set)
 	StartFunc    func(ctx context.Context, message string, cfg integrations.AgentChatConfig) (*integrations.AgentChatSession, error)
-	ContinueFunc func(ctx context.Context, runID, message string) error
+	ContinueFunc func(ctx context.Context, runID, message string, attachmentIDs []string) error
 	EventsFunc   func(ctx context.Context, runID string, afterSequence int64) ([]*integrations.TranslatedEvent, error)
 	StatusFunc   func(ctx context.Context, runID string) (*integrations.AgentRunStatus, error)
 	StopFunc     func(ctx context.Context, runID string) error
 	ListRunsFunc func(ctx context.Context, opts integrations.ListRunsOptions) (*integrations.ListRunsResult, error)
+	UploadFunc   func(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*integrations.UploadResponse, error)
 }
 
 // StartAgentChat implements AgentManagerClientInterface.
@@ -457,12 +463,12 @@ func (m *MockAgentManagerClient) StartAgentChat(ctx context.Context, message str
 }
 
 // ContinueChat implements AgentManagerClientInterface.
-func (m *MockAgentManagerClient) ContinueChat(ctx context.Context, runID, message string) error {
+func (m *MockAgentManagerClient) ContinueChat(ctx context.Context, runID, message string, attachmentIDs []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.ContinueCalls = append(m.ContinueCalls, ContinueChatCall{RunID: runID, Message: message})
+	m.ContinueCalls = append(m.ContinueCalls, ContinueChatCall{RunID: runID, Message: message, AttachmentIDs: attachmentIDs})
 	if m.ContinueFunc != nil {
-		return m.ContinueFunc(ctx, runID, message)
+		return m.ContinueFunc(ctx, runID, message, attachmentIDs)
 	}
 	return m.ContinueErr
 }
@@ -511,6 +517,17 @@ func (m *MockAgentManagerClient) ListRuns(ctx context.Context, opts integrations
 	return m.ListRunsResult, m.ListRunsError
 }
 
+// UploadAttachment implements AgentManagerClientInterface.
+func (m *MockAgentManagerClient) UploadAttachment(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*integrations.UploadResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.UploadCalls++
+	if m.UploadFunc != nil {
+		return m.UploadFunc(ctx, file, header)
+	}
+	return m.UploadResult, m.UploadError
+}
+
 // Reset clears all recorded calls and return values.
 func (m *MockAgentManagerClient) Reset() {
 	m.mu.Lock()
@@ -521,4 +538,5 @@ func (m *MockAgentManagerClient) Reset() {
 	m.StatusCalls = nil
 	m.StopCalls = nil
 	m.ListRunsCalls = nil
+	m.UploadCalls = 0
 }

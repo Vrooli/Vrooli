@@ -11,7 +11,16 @@
  * This provides better UX (progress feedback) and simplifies the send flow.
  */
 import { useState, useCallback } from "react";
-import { uploadAttachment, type UploadResponse } from "../lib/api";
+import { getApiBaseUrl } from "../lib/utils";
+
+export interface UploadResponse {
+  id: string;
+  file_name: string;
+  content_type: string;
+  file_size: number;
+  storage_path: string;
+  url: string;
+}
 
 export type AttachmentType = "image" | "pdf";
 
@@ -30,7 +39,7 @@ export interface AttachmentState {
 
 export interface UseAttachmentsReturn {
   attachments: AttachmentState[];
-  addAttachment: (file: File, type: AttachmentType) => void;
+  addAttachment: (file: File, type?: AttachmentType) => void;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   isUploading: boolean;
@@ -52,10 +61,29 @@ function getAttachmentType(file: File): AttachmentType {
   return "pdf";
 }
 
-export function useAttachments(
-  customUploadFn?: (file: File) => Promise<UploadResponse>
-): UseAttachmentsReturn {
+async function defaultUploadAttachment(file: File): Promise<UploadResponse> {
+  const base = getApiBaseUrl();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${base}/attachments/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    if (res.status === 413) throw new Error("File is too large");
+    if (res.status === 415) throw new Error("File type not supported");
+    throw new Error(`Failed to upload: ${res.status}`);
+  }
+
+  return res.json() as Promise<UploadResponse>;
+}
+
+export function useAttachments(uploadFn?: (file: File) => Promise<UploadResponse>): UseAttachmentsReturn {
   const [attachments, setAttachments] = useState<AttachmentState[]>([]);
+
+  const upload = uploadFn ?? defaultUploadAttachment;
 
   const addAttachment = useCallback((file: File, type?: AttachmentType) => {
     const id = generateLocalId();
@@ -87,7 +115,8 @@ export function useAttachments(
 
     // Start upload immediately
     uploadFile(id, file);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upload]);
 
   const uploadFile = async (id: string, file: File) => {
     // Mark as uploading
@@ -98,8 +127,7 @@ export function useAttachments(
     );
 
     try {
-      const uploadFn = customUploadFn || uploadAttachment;
-      const response: UploadResponse = await uploadFn(file);
+      const response: UploadResponse = await upload(file);
 
       // Mark as uploaded with server data
       setAttachments((prev) =>

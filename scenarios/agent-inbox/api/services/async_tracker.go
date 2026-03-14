@@ -162,23 +162,23 @@ type AsyncCompletionEvent struct {
 
 // AsyncOperation represents a tracked async tool execution.
 type AsyncOperation struct {
-	ToolCallID    string                 `json:"tool_call_id"`
-	ChatID        string                 `json:"chat_id"`
-	ToolName      string                 `json:"tool_name"`
-	Scenario      string                 `json:"scenario"`
-	ExternalRunID string                 `json:"external_run_id"`
-	AsyncBehavior *toolspb.AsyncBehavior `json:"-"`
-	Status        string                 `json:"status"`
-	Progress      *int                   `json:"progress,omitempty"`
-	Message       string                 `json:"message,omitempty"`
-	Phase         string                 `json:"phase,omitempty"`
+	ToolCallID        string                 `json:"tool_call_id"`
+	ChatID            string                 `json:"chat_id"`
+	ToolName          string                 `json:"tool_name"`
+	Scenario          string                 `json:"scenario"`
+	ExternalRunID     string                 `json:"external_run_id"`
+	AsyncBehavior     *toolspb.AsyncBehavior `json:"-"`
+	Status            string                 `json:"status"`
+	Progress          *int                   `json:"progress,omitempty"`
+	Message           string                 `json:"message,omitempty"`
+	Phase             string                 `json:"phase,omitempty"`
 	Result            interface{}            `json:"result,omitempty"`
 	Error             string                 `json:"error,omitempty"`
 	ConsecutiveErrors int                    `json:"-"` // Track consecutive poll failures (not serialized)
 	LastPollError     string                 `json:"-"` // Most recent poll error message (not serialized)
 	StartedAt         time.Time              `json:"started_at"`
-	UpdatedAt     time.Time              `json:"updated_at"`
-	CompletedAt   *time.Time             `json:"completed_at,omitempty"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+	CompletedAt       *time.Time             `json:"completed_at,omitempty"`
 }
 
 // AsyncStatusUpdate represents a status update pushed to subscribers.

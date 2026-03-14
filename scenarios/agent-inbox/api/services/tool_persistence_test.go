@@ -13,11 +13,11 @@ import (
 // mockToolPersistenceRepo implements ToolPersistenceRepository for testing.
 type mockToolPersistenceRepo struct {
 	// Transaction tracking
-	beginTxCalled   bool
-	commitCalled    bool
-	rollbackCalled  bool
-	txError         error
-	commitError     error
+	beginTxCalled  bool
+	commitCalled   bool
+	rollbackCalled bool
+	txError        error
+	commitError    error
 
 	// Method-specific errors to inject
 	saveRecordError  error
@@ -25,14 +25,14 @@ type mockToolPersistenceRepo struct {
 	setLeafError     error
 
 	// Track what was saved (for verification)
-	savedRecord       *domain.ToolCallRecord
-	savedMessageID    string
-	savedToolCallID   string
-	savedResult       string
-	savedParentMsgID  string
-	savedChatID       string
-	savedLeafMsgID    string
-	savedLeafChatID   string
+	savedRecord      *domain.ToolCallRecord
+	savedMessageID   string
+	savedToolCallID  string
+	savedResult      string
+	savedParentMsgID string
+	savedChatID      string
+	savedLeafMsgID   string
+	savedLeafChatID  string
 }
 
 // mockTx tracks commit/rollback calls

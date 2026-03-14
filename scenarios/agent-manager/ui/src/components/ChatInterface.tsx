@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
-import { Send, Loader2, User, Bot, Copy, Check, AlertCircle, Trash2 } from "lucide-react";
+import { Send, Loader2, User, Bot, Copy, Check, AlertCircle, Trash2, Paperclip } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { cn } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import { MarkdownRenderer } from "./markdown";
+import { useAttachments } from "../hooks/useAttachments";
+import { AttachmentPreview } from "./AttachmentPreview";
 import type { Run, RunEvent } from "../types";
 import { RunStatus } from "../types";
 
@@ -20,7 +22,7 @@ interface ChatInterfaceProps {
   run: Run;
   events: RunEvent[];
   eventsLoading: boolean;
-  onContinue: (message: string) => Promise<void>;
+  onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
 }
 
@@ -38,6 +40,8 @@ export function ChatInterface({
   const [revealedMessages, setRevealedMessages] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
 
   const deletedMessages = useMemo(() => {
     const deleted = new Set<string>();
@@ -110,19 +114,31 @@ export function ChatInterface({
   }, [inputMessage]);
 
   const handleSend = async () => {
-    if (!inputMessage.trim() || !canContinue || sending) return;
+    const hasText = inputMessage.trim().length > 0;
+    const hasAttachments = attachments.length > 0;
+    if ((!hasText && !hasAttachments) || !canContinue || sending || isUploading) return;
 
     setSending(true);
     setContinueError(null);
     try {
-      await onContinue(inputMessage.trim());
+      const ids = getUploadedIds();
+      await onContinue(inputMessage.trim(), ids.length > 0 ? ids : undefined);
       setInputMessage("");
+      clearAttachments();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to continue run";
       setContinueError(message);
       console.error("Failed to continue run:", err);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = ""; // Reset so same file can be selected again
     }
   };
 
@@ -332,7 +348,32 @@ export function ChatInterface({
       {/* Input area */}
       {canContinue ? (
         <div className="border-t border-border pt-4">
+          {/* Attachment preview */}
+          {attachments.length > 0 && (
+            <AttachmentPreview
+              attachments={attachments}
+              onRemove={removeAttachment}
+              isUploading={isUploading}
+            />
+          )}
           <div className="flex gap-2">
+            {/* Image upload button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="self-end"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach image"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
             <Textarea
               ref={textareaRef}
               value={inputMessage}
@@ -349,7 +390,7 @@ export function ChatInterface({
             />
             <Button
               onClick={handleSend}
-              disabled={!inputMessage.trim() || sending}
+              disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading}
               className="self-end"
             >
               {sending ? (

@@ -5,13 +5,14 @@ export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/dom
 
 // Plain object interface for form editing (no proto Message metadata required)
 export interface ContextAttachmentData {
-  type: string;      // "file" | "link" | "note"
-  key?: string;      // Unique identifier
-  tags?: string[];   // Categorization tags
-  path?: string;     // For "file" type
-  url?: string;      // For "link" type
-  content?: string;  // For "note" type, or descriptions
-  label?: string;    // Optional human-readable label
+  type: string;           // "file" | "link" | "note" | "image"
+  key?: string;           // Unique identifier
+  tags?: string[];        // Categorization tags
+  path?: string;          // For "file" type
+  url?: string;           // For "link" type
+  content?: string;       // For "note" type, or descriptions
+  label?: string;         // Optional human-readable label
+  attachment_id?: string; // For "image" type - reference to uploaded Attachment
 }
 
 export {

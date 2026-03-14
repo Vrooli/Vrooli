@@ -102,13 +102,14 @@ func (r *OpenCodeRunner) Type() domain.RunnerType {
 // Capabilities returns what this runner supports.
 func (r *OpenCodeRunner) Capabilities() Capabilities {
 	return Capabilities{
-		SupportsMessages:     true,
-		SupportsToolEvents:   true,
-		SupportsCostTracking: false, // OpenCode may not track costs the same way
-		SupportsStreaming:    false,
-		SupportsCancellation: true,
-		SupportsContinuation: true, // OpenCode supports --session for session continuation
-		MaxTurns:             0,    // unlimited
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     false, // OpenCode may not track costs the same way
+		SupportsStreaming:        false,
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // OpenCode supports --session for session continuation
+		SupportsImageAttachments: false,
+		MaxTurns:                 0, // unlimited
 		SupportedModels: []string{
 			"anthropic/claude-sonnet-4-5",
 			"anthropic/claude-opus-4-5",

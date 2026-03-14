@@ -26,6 +26,7 @@ import (
 	"agent-manager/internal/pricing/providers"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/storage"
 	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
 
@@ -57,6 +58,7 @@ type Server struct {
 	reconciler           *orchestration.Reconciler
 	recommendationWorker *orchestration.RecommendationWorker
 	toolRegistry         *toolregistry.Registry
+	storage              storage.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -79,8 +81,15 @@ func NewServer() (*Server, error) {
 	wsHub := handlers.NewWebSocketHub()
 	go wsHub.Run()
 
+	// Create upload storage service
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "/tmp/agent-manager-uploads"
+	}
+	uploadStorage := storage.NewLocalService(uploadDir)
+
 	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(db, wsHub, logger)
+	deps := createOrchestrator(db, wsHub, logger, uploadStorage)
 
 	// Create tool registry for tool discovery protocol
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -106,6 +115,7 @@ func NewServer() (*Server, error) {
 		reconciler:           deps.reconciler,
 		recommendationWorker: deps.recommendationWorker,
 		toolRegistry:         toolReg,
+		storage:              uploadStorage,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -137,7 +147,7 @@ type orchestratorDeps struct {
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
+func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger, uploadStorage storage.Service) orchestratorDeps {
 	levers, err := agentconfig.LoadLevers()
 	if err != nil {
 		log.Printf("Warning: failed to load config levers: %v", err)
@@ -306,6 +316,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
 		orchestration.WithPromptClient(promptClient),
 		orchestration.WithFlagValidator(flagValidator),
+		orchestration.WithAttachmentStorage(uploadStorage),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
@@ -377,7 +388,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
 	// Keep /health minimal for infra probes.
-	handler := handlers.New(s.orchestrator)
+	handler := handlers.New(s.orchestrator, handlers.WithStorage(s.storage))
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 

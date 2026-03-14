@@ -11,11 +11,11 @@ import (
 // GoroutineChecker helps detect goroutine leaks in tests.
 // Create at the start of a test and call Check() at the end.
 type GoroutineChecker struct {
-	t              *testing.T
-	initialCount   int
-	initialStacks  string
-	allowedGrowth  int
-	graceTime      time.Duration
+	t             *testing.T
+	initialCount  int
+	initialStacks string
+	allowedGrowth int
+	graceTime     time.Duration
 }
 
 // NewGoroutineChecker creates a new goroutine leak detector.

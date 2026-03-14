@@ -80,6 +80,9 @@ type Capabilities struct {
 	// SupportsContinuation indicates the runner can resume previous sessions.
 	SupportsContinuation bool
 
+	// SupportsImageAttachments indicates the runner can accept image file attachments.
+	SupportsImageAttachments bool
+
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 
@@ -127,6 +130,9 @@ type ExecuteRequest struct {
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+
+	// Attachments contains image/file attachments for this request.
+	Attachments []Attachment
 }
 
 // GetTag returns the tag for this request, defaulting to RunID if not set.
@@ -169,6 +175,17 @@ type ContinueRequest struct {
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+
+	// Attachments contains image/file attachments for this request.
+	Attachments []Attachment
+}
+
+// Attachment represents a file attachment to include in a request.
+type Attachment struct {
+	ID          string
+	FileName    string
+	ContentType string
+	FilePath    string // Absolute filesystem path
 }
 
 // ExecuteResult contains the outcome of an agent execution.

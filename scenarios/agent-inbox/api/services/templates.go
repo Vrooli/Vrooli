@@ -550,7 +550,6 @@ func (s *TemplatesService) findTemplateByID(dir, id string) (*templateWithMeta, 
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

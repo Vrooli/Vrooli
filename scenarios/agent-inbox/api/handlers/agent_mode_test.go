@@ -1300,7 +1300,7 @@ func TestGetRunEvents_Success(t *testing.T) {
 
 	var resp struct {
 		Events []integrations.TranslatedEvent `json:"events"`
-		RunID  string                          `json:"run_id"`
+		RunID  string                         `json:"run_id"`
 	}
 	decodeBody(t, w, &resp)
 

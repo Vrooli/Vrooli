@@ -520,11 +520,11 @@ func TestSplitDotPath(t *testing.T) {
 		expectNil   bool
 		expectValue string // Only for string values at leaf level
 	}{
-		{"simple", "a", false, ""},             // Returns map, not nil
-		{"two levels", "a.b", false, ""},       // Returns map, not nil
+		{"simple", "a", false, ""},       // Returns map, not nil
+		{"two levels", "a.b", false, ""}, // Returns map, not nil
 		{"three levels", "a.b.c", false, "value"},
 		{"empty", "", true, ""},
-		{"trailing dot", "a.", false, ""},      // After filtering empty parts, finds "a"
+		{"trailing dot", "a.", false, ""}, // After filtering empty parts, finds "a"
 		{"nonexistent", "x.y.z", true, ""},
 	}
 
@@ -633,8 +633,8 @@ func TestExtractStringField(t *testing.T) {
 		expected string
 	}{
 		{"status", "completed"},
-		{"number", ""},     // Not a string
-		{"boolean", ""},    // Not a string
+		{"number", ""},      // Not a string
+		{"boolean", ""},     // Not a string
 		{"nonexistent", ""}, // Not found
 		{"nested.message", "hello"},
 	}
@@ -1180,10 +1180,10 @@ func TestBackoffCalculation(t *testing.T) {
 			multiplier: 1.5,
 			iterations: 5,
 			expected: []time.Duration{
-				2 * time.Second,  // Initial
-				3 * time.Second,  // 2 * 1.5 = 3
-				4500 * time.Millisecond, // 3 * 1.5 = 4.5
-				6750 * time.Millisecond, // 4.5 * 1.5 = 6.75
+				2 * time.Second,          // Initial
+				3 * time.Second,          // 2 * 1.5 = 3
+				4500 * time.Millisecond,  // 3 * 1.5 = 4.5
+				6750 * time.Millisecond,  // 4.5 * 1.5 = 6.75
 				10125 * time.Millisecond, // 6.75 * 1.5 = 10.125
 			},
 		},

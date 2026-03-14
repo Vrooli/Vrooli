@@ -313,9 +313,41 @@ func (h *Handlers) StartAgentMode(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// ProxyAgentUpload proxies file upload to agent-manager's attachment endpoint.
+// POST /api/v1/agent-attachments/upload
+func (h *Handlers) ProxyAgentUpload(w http.ResponseWriter, r *http.Request) {
+	agentClient := h.getAgentClient(w, r)
+	if agentClient == nil {
+		return
+	}
+
+	// Parse multipart form (32MB max)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("invalid multipart form"))
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("missing file field"))
+		return
+	}
+	defer file.Close()
+
+	result, err := agentClient.UploadAttachment(r.Context(), file, header)
+	if err != nil {
+		log.Printf("[ERROR] [%s] ProxyAgentUpload failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrExternalService("agent-manager", err.Error()))
+		return
+	}
+
+	h.JSONResponse(w, result, http.StatusCreated)
+}
+
 // SendAgentMessageRequest is the request body for sending a message in agent mode.
 type SendAgentMessageRequest struct {
-	Message string `json:"message"`
+	Message       string   `json:"message"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 }
 
 // SendAgentMessage sends a follow-up message to an agent run.
@@ -376,7 +408,7 @@ func (h *Handlers) SendAgentMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Continue the run
-	if err := agentClient.ContinueChat(r.Context(), runID, req.Message); err != nil {
+	if err := agentClient.ContinueChat(r.Context(), runID, req.Message, req.AttachmentIDs); err != nil {
 		log.Printf("[ERROR] [%s] SendAgentMessage ContinueChat failed: %v", middleware.GetRequestID(r.Context()), err)
 		h.WriteAppError(w, r, domain.ErrExternalService("agent-manager", err.Error()))
 		return

@@ -37,7 +37,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
   useEffect(() => {
     const checkScenarioAvailability = async () => {
       try {
-        const response = await fetch(`/embedded/${scenarioName}/target`);
+        const response = await fetch(`/embedded/${scenarioName}/external-url`);
         if (!response.ok) {
           const data = await response.json().catch(() => ({})) as { detail?: string };
           setErrorMessage(data.detail || "Scenario is not available");
@@ -74,7 +74,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
   // Open in new browser tab (direct to scenario)
   const handleOpenExternal = useCallback(async () => {
     try {
-      const response = await fetch(`/embedded/${scenarioName}/target`);
+      const response = await fetch(`/embedded/${scenarioName}/external-url`);
       if (response.ok) {
         const data = await response.json() as { url?: string };
         window.open(data.url, "_blank");

@@ -28,7 +28,7 @@ import { useMessageDraft } from "../../hooks/useMessageDraft";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import { selectorsManifest } from "../../consts/selectors";
 import { getTemplateById } from "@/data/templates";
-import type { Model, Message } from "../../lib/api";
+import type { Model, Message, UploadResponse } from "../../lib/api";
 import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
 
 const MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY = "agent-inbox:message-input-suggestions-expanded";
@@ -92,6 +92,8 @@ interface MessageInputProps {
   disableSend?: boolean;
   /** Tooltip reason when disableSend is true */
   disableSendReason?: string;
+  /** Custom upload function for attachments (e.g., agent mode uses a different endpoint) */
+  customUploadFn?: (file: File) => Promise<UploadResponse>;
 }
 
 export function MessageInput({
@@ -115,6 +117,7 @@ export function MessageInput({
   onTemplateDeactivate,
   disableSend,
   disableSendReason,
+  customUploadFn,
 }: MessageInputProps) {
   const messageInputTestIds = {
     container: selectorsManifest.selectors["messageInput.container"]?.testId ?? "message-input-container",
@@ -206,7 +209,7 @@ export function MessageInput({
     hasErrors,
     allUploaded,
     getUploadedIds,
-  } = useAttachments();
+  } = useAttachments(customUploadFn);
 
   // Get tools for force tool selection (only if enabled and have chatId)
   const { toolsByScenario, enabledTools: _enabledTools } = useTools({

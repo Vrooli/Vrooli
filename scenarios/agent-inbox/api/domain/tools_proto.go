@@ -7,8 +7,8 @@
 package domain
 
 import (
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // ToolProtocolVersion is the version of the Tool Discovery Protocol we support.

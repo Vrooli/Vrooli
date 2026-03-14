@@ -56,7 +56,7 @@ interface RunsPageProps {
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
-  onContinueRun: (id: string, message: string) => Promise<Run>;
+  onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
   onDeleteRunMessage: (runId: string, eventId: string) => Promise<void>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
@@ -649,8 +649,8 @@ export function RunsPage({
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
             onDelete={handleDelete}
-            onContinue={async (message) => {
-              await onContinueRun(selectedRun.id, message);
+            onContinue={async (message, attachmentIds) => {
+              await onContinueRun(selectedRun.id, message, attachmentIds);
               // Reload events to show the new messages
               const newEvents = await onGetEvents(selectedRun.id);
               setEvents(newEvents);

@@ -23,28 +23,28 @@ type mockCompletionRepository struct {
 	mu sync.Mutex
 
 	// Data stores
-	chatSettings      map[string]*repoMockChatSettings
-	messages          map[string][]*domain.Message // chatID -> messages
-	toolCallRecords   map[string]*domain.ToolCallRecord
-	attachments       map[string]*domain.Attachment
+	chatSettings       map[string]*repoMockChatSettings
+	messages           map[string][]*domain.Message // chatID -> messages
+	toolCallRecords    map[string]*domain.ToolCallRecord
+	attachments        map[string]*domain.Attachment
 	messageAttachments map[string][]string // messageID -> attachment IDs
-	activeLeafs       map[string]string    // chatID -> messageID
+	activeLeafs        map[string]string   // chatID -> messageID
 
 	// Call tracking
-	saveAssistantMessageCalls       []saveAssistantMessageCall
-	saveToolResponseMessageCalls    []saveToolResponseMessageCall
-	saveToolCallRecordCalls         []saveToolCallRecordCall
-	updateToolCallStatusCalls       []updateToolCallStatusCall
-	setActiveLeafCalls              []setActiveLeafCall
+	saveAssistantMessageCalls    []saveAssistantMessageCall
+	saveToolResponseMessageCalls []saveToolResponseMessageCall
+	saveToolCallRecordCalls      []saveToolCallRecordCall
+	updateToolCallStatusCalls    []updateToolCallStatusCall
+	setActiveLeafCalls           []setActiveLeafCall
 
 	// Error injection
-	getMessagesError            error
-	saveAssistantMessageError   error
+	getMessagesError             error
+	saveAssistantMessageError    error
 	saveToolResponseMessageError error
-	saveToolCallRecordError     error
-	getToolCallByIDError        error
-	updateToolCallStatusError   error
-	getPendingApprovalsError    error
+	saveToolCallRecordError      error
+	getToolCallByIDError         error
+	updateToolCallStatusError    error
+	getPendingApprovalsError     error
 
 	// Auto-increment message ID
 	nextMessageID int

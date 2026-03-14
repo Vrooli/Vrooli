@@ -113,12 +113,12 @@ func TestAsyncFlow_MultipleOperationsParallel(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			svc.AddTestOperation(&AsyncOperation{
-				ToolCallID:    idString("tc-parallel", id),
-				ChatID:        "chat-parallel",
-				ToolName:      "test-tool",
-				Status:        "running",
-				StartedAt:     time.Now(),
-				UpdatedAt:     time.Now(),
+				ToolCallID: idString("tc-parallel", id),
+				ChatID:     "chat-parallel",
+				ToolName:   "test-tool",
+				Status:     "running",
+				StartedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
 			})
 		}(i)
 	}

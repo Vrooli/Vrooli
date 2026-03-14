@@ -253,4 +253,3 @@ func unmarshalJSONOrNil(data []byte) interface{} {
 	}
 	return result
 }
-

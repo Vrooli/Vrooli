@@ -76,9 +76,9 @@ func TestEffectiveTool_GetDescription(t *testing.T) {
 
 func TestEffectiveTool_GetMetadata(t *testing.T) {
 	tests := []struct {
-		name     string
-		tool     EffectiveTool
-		wantNil  bool
+		name    string
+		tool    EffectiveTool
+		wantNil bool
 	}{
 		{
 			name:    "nil tool",

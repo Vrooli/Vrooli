@@ -97,10 +97,11 @@ type RunExecutor struct {
 	config ExecutorConfig
 
 	// Execution context
-	run     *domain.Run
-	task    *domain.Task
-	profile *domain.AgentProfile
-	prompt  string
+	run         *domain.Run
+	task        *domain.Task
+	profile     *domain.AgentProfile
+	prompt      string
+	attachments []runner.Attachment // image attachments resolved from storage
 
 	// Workspace state
 	sandboxID *uuid.UUID
@@ -208,6 +209,12 @@ func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecu
 // WithBroadcaster sets the event broadcaster for real-time updates.
 func (e *RunExecutor) WithBroadcaster(b EventBroadcaster) *RunExecutor {
 	e.broadcaster = b
+	return e
+}
+
+// WithAttachments sets image attachments resolved from storage for the initial execution.
+func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecutor {
+	e.attachments = attachments
 	return e
 }
 
@@ -838,6 +845,7 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		WorkingDir:     e.workDir,
 		Prompt:         e.prompt,
 		EventSink:      eventSink,
+		Attachments:    e.attachments,
 	}
 
 	// Execute

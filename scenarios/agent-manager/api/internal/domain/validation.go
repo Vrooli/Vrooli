@@ -501,10 +501,10 @@ func (r *PolicyRules) Validate() error {
 
 // Validate checks if a ContextAttachment is valid.
 func (c *ContextAttachment) Validate() error {
-	validTypes := map[string]bool{"file": true, "link": true, "note": true}
+	validTypes := map[string]bool{"file": true, "link": true, "note": true, "image": true}
 	if !validTypes[c.Type] {
 		return NewValidationErrorWithHint("type", "invalid attachment type",
-			"valid types: file, link, note")
+			"valid types: file, link, note, image")
 	}
 
 	// Key validation: optional but must be valid format if provided
@@ -548,6 +548,10 @@ func (c *ContextAttachment) Validate() error {
 	case "note":
 		if strings.TrimSpace(c.Content) == "" {
 			return NewValidationError("content", "required for note attachments")
+		}
+	case "image":
+		if strings.TrimSpace(c.AttachmentID) == "" {
+			return NewValidationError("attachment_id", "required for image attachments")
 		}
 	}
 

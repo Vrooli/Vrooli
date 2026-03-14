@@ -83,7 +83,6 @@ func TestProtocolHandler_Execute_Success(t *testing.T) {
 	result, err := handler.Execute(context.Background(), "list_deployments", map[string]interface{}{
 		"status": "deployed",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -133,7 +132,6 @@ func TestProtocolHandler_Execute_AsyncSuccess(t *testing.T) {
 	result, err := handler.Execute(context.Background(), "execute_deployment", map[string]interface{}{
 		"deployment": "my-deployment",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -37,6 +37,7 @@ import (
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/storage"
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
@@ -54,15 +55,30 @@ type Handler struct {
 	svc       orchestration.Service
 	hub       *WebSocketHub
 	validator protovalidate.Validator
+	storage   storage.Service
+}
+
+// HandlerOption configures the Handler.
+type HandlerOption func(*Handler)
+
+// WithStorage sets the file storage service for attachment uploads.
+func WithStorage(s storage.Service) HandlerOption {
+	return func(h *Handler) {
+		h.storage = s
+	}
 }
 
 // New creates a new Handler with the given orchestration service.
-func New(svc orchestration.Service) *Handler {
+func New(svc orchestration.Service, opts ...HandlerOption) *Handler {
 	validator, err := protovalidate.New()
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize protovalidate: %v", err))
 	}
-	return &Handler{svc: svc, validator: validator}
+	h := &Handler{svc: svc, validator: validator}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // SetWebSocketHub sets the WebSocket hub for event broadcasting.
@@ -141,6 +157,12 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
 	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")
+
+	// Attachment endpoints
+	if h.storage != nil {
+		r.HandleFunc("/api/v1/attachments/upload", h.UploadAttachment).Methods("POST")
+		r.HandleFunc("/api/v1/uploads/{path:.*}", h.ServeUpload).Methods("GET")
+	}
 }
 
 // =============================================================================
@@ -1648,8 +1670,9 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	run, err := h.svc.ContinueRun(r.Context(), orchestration.ContinueRunRequest{
-		RunID:   id,
-		Message: req.Message,
+		RunID:         id,
+		Message:       req.Message,
+		AttachmentIDs: req.AttachmentIds,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -1696,6 +1719,93 @@ func (h *Handler) DeleteRunMessage(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, http.StatusOK, &domainpb.DeleteRunMessageResponse{
 		Success: true,
 	})
+}
+
+// =============================================================================
+// ATTACHMENT ENDPOINTS
+// =============================================================================
+
+// UploadAttachment handles multipart file uploads.
+// POST /api/v1/attachments/upload
+func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		writeSimpleError(w, r, "storage", "file storage not configured")
+		return
+	}
+
+	// Enforce max size at the HTTP level
+	maxSize := h.storage.MaxFileSize()
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize+1024) // +1KB for multipart overhead
+
+	if err := r.ParseMultipartForm(maxSize); err != nil {
+		if err.Error() == "http: request body too large" {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "file too large"})
+			return
+		}
+		writeSimpleError(w, r, "body", "invalid multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeSimpleError(w, r, "file", "missing file field")
+		return
+	}
+	defer file.Close()
+
+	// Detect content type from file bytes (don't trust Content-Type header)
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedType := http.DetectContentType(buf[:n])
+	// Reset the file reader
+	if seeker, ok := file.(io.ReadSeeker); ok {
+		_, _ = seeker.Seek(0, io.SeekStart)
+	}
+
+	if !h.storage.IsAllowedType(detectedType) {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unsupported file type: " + detectedType})
+		return
+	}
+
+	// Override the header content-type with detected type
+	header.Header.Set("Content-Type", detectedType)
+
+	meta, err := h.storage.Upload(r.Context(), file, header)
+	if err != nil {
+		writeSimpleError(w, r, "upload", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":           meta.ID,
+		"file_name":    meta.FileName,
+		"content_type": meta.ContentType,
+		"file_size":    meta.FileSize,
+		"storage_path": meta.StoragePath,
+		"url":          h.storage.GetServingURL(meta.StoragePath),
+	})
+}
+
+// ServeUpload serves uploaded files.
+// GET /api/v1/uploads/{path:.*}
+func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	filePath := mux.Vars(r)["path"]
+	if filePath == "" || strings.Contains(filePath, "..") {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	fullPath := h.storage.GetFilePath(filePath)
+	http.ServeFile(w, r, fullPath)
 }
 
 // GetRunByTag retrieves a run by its custom tag.

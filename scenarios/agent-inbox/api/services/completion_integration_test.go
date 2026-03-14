@@ -21,12 +21,12 @@ import (
 
 // mockChatSettings is a minimal mock for testing chat settings retrieval.
 type mockChatSettings struct {
-	Model              string
-	ToolsEnabled       bool
-	WebSearchEnabled   bool
-	SystemPrompt       string
-	ShouldReturnNil    bool
-	ShouldReturnError  error
+	Model             string
+	ToolsEnabled      bool
+	WebSearchEnabled  bool
+	SystemPrompt      string
+	ShouldReturnNil   bool
+	ShouldReturnError error
 }
 
 // mockRepository provides a minimal repository mock for integration testing.

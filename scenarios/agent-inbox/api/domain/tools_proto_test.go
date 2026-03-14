@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // =============================================================================
@@ -315,7 +315,7 @@ func TestJsonValueToInterface_AllTypes(t *testing.T) {
 func TestJsonValueToInterface_Object(t *testing.T) {
 	obj := &commonv1.JsonObject{
 		Fields: map[string]*commonv1.JsonValue{
-			"name": {Kind: &commonv1.JsonValue_StringValue{StringValue: "test"}},
+			"name":  {Kind: &commonv1.JsonValue_StringValue{StringValue: "test"}},
 			"count": {Kind: &commonv1.JsonValue_IntValue{IntValue: 5}},
 		},
 	}
@@ -401,9 +401,9 @@ func TestInterfaceToJsonValue_Nil(t *testing.T) {
 
 func TestInterfaceToJsonValue_AllTypes(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    interface{}
-		checkFn  func(*commonv1.JsonValue) bool
+		name    string
+		input   interface{}
+		checkFn func(*commonv1.JsonValue) bool
 	}{
 		{
 			name:  "bool",

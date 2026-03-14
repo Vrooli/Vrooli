@@ -12,7 +12,7 @@ import { AttachRunModal } from "./AttachRunModal";
 import { AgentEventList, type AgentMetric } from "./agent/AgentEventList";
 import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
-import { startAgentMode, sendAgentMessage, stopAgentMode, attachAgentRun, AgentModeError } from "../../lib/api";
+import { startAgentMode, sendAgentMessage, stopAgentMode, attachAgentRun, uploadAgentAttachment, AgentModeError } from "../../lib/api";
 import type { AgentRunSummary } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
@@ -254,7 +254,7 @@ export function ChatView({
   }, [chatData?.chat?.id, pendingAgentMessage, onRefreshChat]);
 
   // Handle sending message in agent mode
-  const handleSendAgentMessage = useCallback(async (message: string) => {
+  const handleSendAgentMessage = useCallback(async (message: string, attachmentIds?: string[]) => {
     if (!chatData?.chat?.id) return;
 
     // If not in agent mode yet, show the start modal
@@ -267,7 +267,7 @@ export function ChatView({
     // Continue existing run
     try {
       setAgentError(null);
-      await sendAgentMessage(chatData.chat.id, message);
+      await sendAgentMessage(chatData.chat.id, message, attachmentIds);
       refreshAgentEvents();
     } catch (e) {
       if (e instanceof AgentModeError) {
@@ -283,7 +283,7 @@ export function ChatView({
     if (!agentBusy && queuedMessage) {
       const payload = queuedMessage;
       setQueuedMessage(null);
-      handleSendAgentMessage(payload.content);
+      handleSendAgentMessage(payload.content, payload.attachmentIds);
     }
   }, [agentBusy, queuedMessage, handleSendAgentMessage]);
 
@@ -332,7 +332,7 @@ export function ChatView({
         // Queue the message to auto-send when the agent finishes
         setQueuedMessage(payload);
       } else {
-        handleSendAgentMessage(payload.content);
+        handleSendAgentMessage(payload.content, payload.attachmentIds);
       }
     } else {
       onSendMessage(payload);
@@ -553,6 +553,7 @@ export function ChatView({
             onTemplateActivated={onTemplateActivated}
             activeTemplateId={activeTemplateId}
             onTemplateDeactivate={onTemplateDeactivate}
+            customUploadFn={chatMode === "agent" ? uploadAgentAttachment : undefined}
           />
         </ErrorBoundary>
       </div>

@@ -244,13 +244,14 @@ func (r *CodexRunner) Type() domain.RunnerType {
 // Capabilities returns what this runner supports.
 func (r *CodexRunner) Capabilities() Capabilities {
 	return Capabilities{
-		SupportsMessages:     true,
-		SupportsToolEvents:   true,
-		SupportsCostTracking: true,
-		SupportsStreaming:    r.useJSONStream, // JSON streaming if codex CLI available
-		SupportsCancellation: true,
-		SupportsContinuation: true, // Codex supports "codex resume <thread_id>"
-		MaxTurns:             0,    // unlimited
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     true,
+		SupportsStreaming:        r.useJSONStream, // JSON streaming if codex CLI available
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // Codex supports "codex resume <thread_id>"
+		SupportsImageAttachments: false,
+		MaxTurns:                 0, // unlimited
 		SupportedModels: []string{
 			"gpt-5.2-codex",
 			"gpt-5.1-codex-max",

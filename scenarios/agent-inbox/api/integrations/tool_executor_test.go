@@ -134,7 +134,6 @@ func TestExecuteTool_Success(t *testing.T) {
 		"my-tool",
 		`{"param": "value"}`,
 	)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -285,7 +284,6 @@ func TestExecuteTool_ExtractsRunID(t *testing.T) {
 		"async-tool",
 		`{}`,
 	)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -309,7 +307,6 @@ func TestExecuteTool_NoRunIDInResult(t *testing.T) {
 		"my-tool",
 		`{}`,
 	)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -339,7 +336,6 @@ func TestExecuteTool_MultipleHandlers(t *testing.T) {
 		"tool-b",
 		`{}`,
 	)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

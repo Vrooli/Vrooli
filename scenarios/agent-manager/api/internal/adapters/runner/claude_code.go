@@ -110,13 +110,14 @@ func (r *ClaudeCodeRunner) Type() domain.RunnerType {
 // Capabilities returns what this runner supports.
 func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 	return Capabilities{
-		SupportsMessages:     true,
-		SupportsToolEvents:   true,
-		SupportsCostTracking: true,
-		SupportsStreaming:    true,
-		SupportsCancellation: true,
-		SupportsContinuation: true, // Claude Code supports --resume for session continuation
-		MaxTurns:             0,    // unlimited
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     true,
+		SupportsStreaming:        true,
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // Claude Code supports --resume for session continuation
+		SupportsImageAttachments: true,
+		MaxTurns:                 0, // unlimited
 		SupportedModels: []string{
 			"sonnet",
 			"opus",
@@ -218,8 +219,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		))
 	}
 
+	// Build prompt with attachment file paths prepended
+	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
+
 	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	if _, err := stdin.Write([]byte(prompt)); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "execute",
@@ -543,8 +547,11 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		))
 	}
 
+	// Build prompt with attachment file paths prepended
+	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
+
 	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	if _, err := stdin.Write([]byte(prompt)); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "continue",
@@ -1058,6 +1065,26 @@ func (r *ClaudeCodeRunner) toolCallFromState(runID uuid.UUID, state *claudeStrea
 		}
 	}
 	return domain.NewToolCallEvent(runID, state.toolUseName, state.toolUseID, input)
+}
+
+// =============================================================================
+// Prompt Helpers
+// =============================================================================
+
+// buildPromptWithAttachments prepends attachment file paths to a prompt.
+// Claude Code reads image files when paths are provided in the input.
+func buildPromptWithAttachments(prompt string, attachments []Attachment) string {
+	if len(attachments) == 0 {
+		return prompt
+	}
+	var sb strings.Builder
+	for _, att := range attachments {
+		sb.WriteString(att.FilePath)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+	sb.WriteString(prompt)
+	return sb.String()
 }
 
 // =============================================================================

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardList,
   FolderOpen,
+  Paperclip,
   Play,
   Rocket,
   Settings2,
@@ -24,9 +25,11 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "./ModelConfigSelector";
+import { AttachmentPreview } from "./AttachmentPreview";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
+import { useAttachments } from "../hooks/useAttachments";
 import { cn, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
@@ -102,6 +105,8 @@ export function QuickRunDialog({
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1: Task data
   const [taskData, setTaskData] = useState<{
@@ -165,6 +170,7 @@ export function QuickRunDialog({
     setCurrentStep(1);
     setError(null);
     setExistingSandboxId("");
+    clearAttachments();
     setTaskData({
       title: "",
       description: "",
@@ -225,6 +231,14 @@ export function QuickRunDialog({
     setCurrentStep(step);
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = "";
+    }
+  };
+
   const handleAddFallbackRunner = () => {
     setAgentConfig((prev) => ({
       ...prev,
@@ -273,11 +287,21 @@ export function QuickRunDialog({
       // Empty array means "." (current directory / read-only)
       const scopePath = scopePaths.length > 0 ? scopePaths.join(":") : ".";
       const title = generateTitle();
+
+      // Include uploaded image attachments as context attachments
+      const uploadedIds = getUploadedIds();
+      const imageAttachments = uploadedIds.map((id) => ({
+        type: "image",
+        attachment_id: id,
+        label: "Uploaded image",
+      }));
+
       const task = await onCreateTask({
         title,
         description: taskData.description || undefined,
         scopePath,
         projectRoot: taskData.projectRoot || undefined,
+        ...(imageAttachments.length > 0 ? { contextAttachments: imageAttachments } : {}),
       });
 
       // Step 2: Create the run
@@ -323,7 +347,7 @@ export function QuickRunDialog({
     } finally {
       setSubmitting(false);
     }
-  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, onCreateTask, onCreateRun, onRunCreated, handleClose]);
+  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, handleClose]);
 
   // Ctrl+Enter shortcut to start run
   useEffect(() => {
@@ -410,6 +434,34 @@ export function QuickRunDialog({
                 />
               </div>
 
+              {/* Image attachments */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Image Attachments</label>
+                {attachments.length > 0 && (
+                  <AttachmentPreview
+                    attachments={attachments}
+                    onRemove={removeAttachment}
+                    isUploading={isUploading}
+                  />
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Attach Image
+                </Button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="title">Task Title</Label>
                 <Input
@@ -435,6 +487,7 @@ export function QuickRunDialog({
                 defaultProjectRoot={defaultProjectRoot}
                 scopePathsHelp="Directories where the agent can make changes. Leave empty for read-only access."
               />
+
             </div>
           )}
 
@@ -792,6 +845,16 @@ export function QuickRunDialog({
                       <span className="text-xs text-muted-foreground italic">Read-only (no write access)</span>
                     )}
                   </div>
+                  {attachments.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Paperclip className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Attachments: </span>
+                      <span>{attachments.length} image{attachments.length !== 1 ? "s" : ""}</span>
+                      {isUploading && (
+                        <Badge variant="outline" className="text-xs">uploading...</Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -915,7 +978,7 @@ export function QuickRunDialog({
                   type="button"
                   variant="secondary"
                   onClick={handleStartRun}
-                  disabled={submitting || !canProceedStep1()}
+                  disabled={submitting || isUploading || !canProceedStep1()}
                   className="gap-2"
                 >
                   <Play className="h-4 w-4" />
@@ -939,7 +1002,7 @@ export function QuickRunDialog({
               <Button
                 type="button"
                 onClick={handleStartRun}
-                disabled={submitting}
+                disabled={submitting || isUploading}
                 className="gap-2"
               >
                 <Play className="h-4 w-4" />

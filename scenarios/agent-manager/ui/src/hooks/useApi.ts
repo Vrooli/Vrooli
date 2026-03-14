@@ -307,7 +307,11 @@ function buildTask(task: TaskFormData): Task {
     description: task.description ?? "",
     scopePath: task.scopePath,
     projectRoot: task.projectRoot ?? "",
-    contextAttachments: task.contextAttachments ?? [],
+    contextAttachments: (task.contextAttachments ?? []).map((att) => ({
+      ...att,
+      // Map snake_case to camelCase for proto-es
+      attachmentId: att.attachment_id ?? "",
+    })),
   });
 }
 
@@ -790,10 +794,14 @@ export function useRuns() {
   );
 
   const continueRun = useCallback(
-    async (id: string, message: string): Promise<Run> => {
+    async (id: string, message: string, attachmentIds?: string[]): Promise<Run> => {
+      const body: Record<string, unknown> = { message };
+      if (attachmentIds && attachmentIds.length > 0) {
+        body.attachment_ids = attachmentIds;
+      }
       const data = await apiRequest<unknown>("/runs/" + id + "/continue", {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(body),
       });
       const response = data as { success: boolean; run: unknown; error?: string };
       if (!response.success && response.error) {

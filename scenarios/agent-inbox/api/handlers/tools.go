@@ -239,12 +239,13 @@ func (h *Handlers) ApproveToolCall(w http.ResponseWriter, r *http.Request) {
 
 // ExecuteToolManually executes a tool directly without going through AI.
 // POST /api/v1/tools/execute
-// Body: {
-//   "scenario": "agent-manager",
-//   "tool_name": "spawn_coding_agent",
-//   "arguments": { ... tool parameters ... },
-//   "chat_id": "optional - if provided, adds result to chat history"
-// }
+//
+//	Body: {
+//	  "scenario": "agent-manager",
+//	  "tool_name": "spawn_coding_agent",
+//	  "arguments": { ... tool parameters ... },
+//	  "chat_id": "optional - if provided, adds result to chat history"
+//	}
 func (h *Handlers) ExecuteToolManually(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Scenario  string                 `json:"scenario"`

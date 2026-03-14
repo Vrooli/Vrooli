@@ -152,7 +152,7 @@ func TestParseSkillsFromBody(t *testing.T) {
 	tests := []struct {
 		name           string
 		body           string
-		contentLength  int64  // -1 for chunked/unknown
+		contentLength  int64 // -1 for chunked/unknown
 		expectedSkills int
 		expectParsed   bool
 	}{

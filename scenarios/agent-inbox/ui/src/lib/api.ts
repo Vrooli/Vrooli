@@ -1751,6 +1751,29 @@ export async function uploadAttachment(file: File): Promise<UploadResponse> {
   return jsonResponse<UploadResponse>(res);
 }
 
+/**
+ * Upload a file attachment for agent mode (proxied through agent-inbox to agent-manager).
+ */
+export async function uploadAgentAttachment(file: File): Promise<UploadResponse> {
+  const url = buildApiUrl("/agent-attachments/upload", { baseUrl: API_BASE });
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    if (res.status === 413) throw new Error("File is too large");
+    if (res.status === 415) throw new Error("File type not supported");
+    throw new Error(`Failed to upload file: ${res.status}`);
+  }
+
+  return jsonResponse<UploadResponse>(res);
+}
+
 // -----------------------------------------------------------------------------
 // Web Search Settings API Functions
 // -----------------------------------------------------------------------------
@@ -2449,21 +2472,27 @@ export async function startAgentMode(
  */
 export async function sendAgentMessage(
   chatId: string,
-  message: string
+  message: string,
+  attachmentIds?: string[]
 ): Promise<{ success: boolean; run_id: string }> {
   const url = buildApiUrl(`/chats/${chatId}/agent-mode/message`, { baseUrl: API_BASE });
+
+  const reqBody: Record<string, unknown> = { message };
+  if (attachmentIds && attachmentIds.length > 0) {
+    reqBody.attachment_ids = attachmentIds;
+  }
 
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
+    body: JSON.stringify(reqBody)
   });
 
   if (!res.ok) {
-    const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const msg = detail || body?.error?.message || `Failed to send agent message: ${res.status}`;
-    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+    const errBody: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
+    const detail = errBody?.error?.details?.user_message;
+    const msg = detail || errBody?.error?.message || `Failed to send agent message: ${res.status}`;
+    throw new AgentModeError(msg, errBody?.error?.code, errBody?.error?.recovery);
   }
 
   return jsonResponse<{ success: boolean; run_id: string }>(res);

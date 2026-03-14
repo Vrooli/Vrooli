@@ -222,16 +222,17 @@ const (
 // Each attachment should have a clear summary and appropriate priority
 // to help agents quickly understand relevance and focus on important context.
 type ContextAttachment struct {
-	Type     string   `json:"type"`               // "file", "link", "note"
-	Key      string   `json:"key,omitempty"`      // Unique identifier (e.g., "error-logs", "deployment-manifest")
-	Tags     []string `json:"tags,omitempty"`     // Categorization tags for filtering and analytics
-	Path     string   `json:"path,omitempty"`     // File path for "file" type
-	URL      string   `json:"url,omitempty"`      // URL for "link" type
-	Content  string   `json:"content,omitempty"`  // Inline content for "note" type
-	Label    string   `json:"label,omitempty"`    // Human-readable title
-	Summary  string   `json:"summary,omitempty"`  // One-sentence TL;DR of what this context contains
-	Format   string   `json:"format,omitempty"`   // Content format: "text", "json", "markdown", "yaml", "log"
-	Priority string   `json:"priority,omitempty"` // Importance: "high", "medium", "low"
+	Type         string   `json:"type"`                    // "file", "link", "note", "image"
+	Key          string   `json:"key,omitempty"`           // Unique identifier (e.g., "error-logs", "deployment-manifest")
+	Tags         []string `json:"tags,omitempty"`          // Categorization tags for filtering and analytics
+	Path         string   `json:"path,omitempty"`          // File path for "file" type
+	URL          string   `json:"url,omitempty"`           // URL for "link" type
+	Content      string   `json:"content,omitempty"`       // Inline content for "note" type
+	Label        string   `json:"label,omitempty"`         // Human-readable title
+	Summary      string   `json:"summary,omitempty"`       // One-sentence TL;DR of what this context contains
+	Format       string   `json:"format,omitempty"`        // Content format: "text", "json", "markdown", "yaml", "log"
+	Priority     string   `json:"priority,omitempty"`      // Importance: "high", "medium", "low"
+	AttachmentID string   `json:"attachment_id,omitempty"` // Reference to uploaded Attachment (for "image" type)
 }
 
 // -----------------------------------------------------------------------------

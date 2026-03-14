@@ -442,8 +442,8 @@ func TestOperationToUpdate(t *testing.T) {
 	progress := 50
 
 	tests := []struct {
-		name       string
-		op         *services.AsyncOperation
+		name         string
+		op           *services.AsyncOperation
 		wantTerminal bool
 	}{
 		{

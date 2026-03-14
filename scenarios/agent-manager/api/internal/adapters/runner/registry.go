@@ -98,8 +98,9 @@ type MockRunner struct {
 	message      string
 
 	// Execution behavior
-	ExecuteFunc func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
-	StopFunc    func(ctx context.Context, runID uuid.UUID) error
+	ExecuteFunc  func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
+	ContinueFunc func(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
+	StopFunc     func(ctx context.Context, runID uuid.UUID) error
 }
 
 // NewMockRunner creates a new mock runner.
@@ -175,6 +176,10 @@ func (m *MockRunner) SetCapabilities(caps Capabilities) {
 
 // Continue continues a previous conversation in the same session.
 func (m *MockRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	if m.ContinueFunc != nil {
+		return m.ContinueFunc(ctx, req)
+	}
+
 	// Default mock behavior: simulate successful continuation
 	return &ExecuteResult{
 		Success:   true,

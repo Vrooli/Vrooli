@@ -62,7 +62,7 @@ interface RunDetailProps {
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
   onDelete: (run: Run) => Promise<void>;
-  onContinue: (message: string) => Promise<void>;
+  onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
   deleteLoading: boolean;
 }

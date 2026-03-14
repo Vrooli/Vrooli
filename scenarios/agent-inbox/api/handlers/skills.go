@@ -142,7 +142,6 @@ func (h *Handlers) DeleteSkill(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, map[string]bool{"deleted": true}, http.StatusOK)
 }
 
-
 // ImportSkills imports multiple skills from a JSON array.
 // POST /api/v1/skills/import
 func (h *Handlers) ImportSkills(w http.ResponseWriter, r *http.Request) {

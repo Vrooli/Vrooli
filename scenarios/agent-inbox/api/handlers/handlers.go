@@ -78,6 +78,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats/{id}/active-template", h.SetActiveTemplate).Methods("PATCH", "OPTIONS")
 
 	// Agent Mode - Integration with agent-manager for agentic coding
+	r.HandleFunc("/api/v1/agent-attachments/upload", h.ProxyAgentUpload).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/agent-runs", h.ListAgentRuns).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/agent-runs/{run_id}/events", h.GetRunEvents).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/agent-mode/attach", h.AttachAgentRun).Methods("POST", "OPTIONS")

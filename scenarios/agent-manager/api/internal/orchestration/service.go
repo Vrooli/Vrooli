@@ -31,6 +31,7 @@ import (
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/storage"
 	"github.com/google/uuid"
 )
 
@@ -262,8 +263,9 @@ type StopAllResult struct {
 
 // ContinueRunRequest contains parameters for continuing an existing run conversation.
 type ContinueRunRequest struct {
-	RunID   uuid.UUID `json:"runId"`
-	Message string    `json:"message"`
+	RunID         uuid.UUID `json:"runId"`
+	Message       string    `json:"message"`
+	AttachmentIDs []string  `json:"attachmentIds,omitempty"`
 }
 
 // CreateInvestigationRequest contains parameters for creating an investigation run.
@@ -414,6 +416,9 @@ type Orchestrator struct {
 
 	// Prompt-manager client for reading investigation prompts from skills.
 	promptClient promptmanager.Client
+
+	// File storage for uploaded attachments.
+	storage storage.Service
 }
 
 // OrchestratorConfig holds service configuration.
@@ -554,6 +559,13 @@ func WithRecommendationExtractor(extractor recommendation.Extractor) Option {
 func WithPromptClient(client promptmanager.Client) Option {
 	return func(o *Orchestrator) {
 		o.promptClient = client
+	}
+}
+
+// WithAttachmentStorage sets the file storage service for resolving attachment IDs.
+func WithAttachmentStorage(s storage.Service) Option {
+	return func(o *Orchestrator) {
+		o.storage = s
 	}
 }
 
@@ -1060,6 +1072,25 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		prompt = domain.BuildPromptWithContext(prompt, task.ContextAttachments)
 	}
 
+	// Resolve image attachments from storage so runners receive file paths
+	var imageAttachments []runner.Attachment
+	if o.storage != nil {
+		for _, att := range task.ContextAttachments {
+			if att.Type == "image" && att.AttachmentID != "" {
+				meta, err := o.storage.Get(ctx, att.AttachmentID)
+				if err != nil {
+					continue // skip unresolvable attachments
+				}
+				imageAttachments = append(imageAttachments, runner.Attachment{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					FilePath:    o.storage.GetFilePath(meta.StoragePath),
+				})
+			}
+		}
+	}
+
 	// Emit the initial user prompt as the first message event
 	if o.events != nil && strings.TrimSpace(prompt) != "" {
 		userEvent := domain.NewMessageEvent(run.ID, "user", prompt)
@@ -1073,7 +1104,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
+	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir, imageAttachments)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -1676,8 +1707,26 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		eventSink = &noOpEventSink{}
 	}
 
+	// Resolve attachments
+	var attachments []runner.Attachment
+	if len(req.AttachmentIDs) > 0 && o.storage != nil {
+		metas, err := o.storage.GetMultiple(ctx, req.AttachmentIDs)
+		if err != nil {
+			// Log but continue without attachments
+			_ = err
+		}
+		for _, meta := range metas {
+			attachments = append(attachments, runner.Attachment{
+				ID:          meta.ID,
+				FileName:    meta.FileName,
+				ContentType: meta.ContentType,
+				FilePath:    o.storage.GetFilePath(meta.StoragePath),
+			})
+		}
+	}
+
 	// Execute continuation asynchronously
-	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir)
+	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -1733,14 +1782,15 @@ func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, ev
 }
 
 // executeContinuation handles the actual continuation execution (runs in background).
-func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string) {
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment) {
 	// Build continue request
 	continueReq := runner.ContinueRequest{
-		RunID:      run.ID,
-		SessionID:  run.SessionID,
-		Prompt:     message,
-		WorkingDir: workDir,
-		EventSink:  eventSink,
+		RunID:       run.ID,
+		SessionID:   run.SessionID,
+		Prompt:      message,
+		WorkingDir:  workDir,
+		EventSink:   eventSink,
+		Attachments: attachments,
 	}
 
 	// Execute continuation
@@ -1818,7 +1868,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 // executeRun handles the actual agent execution (runs in background).
 // This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, existingSandboxWorkDir string) {
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, existingSandboxWorkDir string, attachments []runner.Attachment) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -1845,6 +1895,9 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
+	}
+	if len(attachments) > 0 {
+		executor.WithAttachments(attachments)
 	}
 	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)
