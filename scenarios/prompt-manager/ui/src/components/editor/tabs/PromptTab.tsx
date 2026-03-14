@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import {
   Copy,
   Code,
@@ -95,7 +96,7 @@ export function PromptTab({
     if (sections.length === 0) return
     const full = sections.map((s) => s.content).join('\n\n---\n\n')
     try {
-      await navigator.clipboard.writeText(full)
+      await copyToClipboard(full)
       toast({ title: 'Prompt copied', description: 'Full prompt copied to clipboard.' })
     } catch {
       toast({ title: 'Copy failed', description: 'Unable to copy. Try again.' })

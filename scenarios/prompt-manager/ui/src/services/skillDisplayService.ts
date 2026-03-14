@@ -2,6 +2,7 @@
  * Service for displaying multiple skills into various output formats.
  */
 
+import { copyToClipboard } from '@/lib/clipboard'
 import type { Skill } from '@/types'
 import type { DisplayFormat, DisplayResponse } from '@/types/world'
 
@@ -240,13 +241,13 @@ export function validateForDisplay(skills: Skill[]): {
 /**
  * Copy displayed content to clipboard.
  */
-export async function copyToClipboard(
+export async function copySkillsToClipboard(
   skills: Skill[],
   format: DisplayFormat = 'xml'
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const result = displaySkills(skills, format)
-    await navigator.clipboard.writeText(result.combined)
+    await copyToClipboard(result.combined)
     return { success: true }
   } catch (error) {
     return {

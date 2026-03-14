@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { Search, Filter, FileOutput } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
@@ -99,7 +100,7 @@ export function RunEventsTab({ runId, live, className }: RunEventsTabProps) {
 
   const handleCopyExport = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(exportText)
+      await copyToClipboard(exportText)
       toast({ title: `Copied ${exportFormat.toUpperCase()}`, variant: 'success' })
       setIsExportDialogOpen(false)
     } catch (err) {

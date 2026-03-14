@@ -17,151 +17,20 @@ Required reading:
 
 Before manual code review, verify that automated tooling is configured to catch React-specific bugs. **Proper TypeScript and ESLint configuration catches 80%+ of runtime crashes automatically.**
 
-#### **Step 1: Verify TypeScript Safety Rules**
-
-Check that `tsconfig.json` (or `tsconfig.node.json` if it extends) has these critical settings with protective comments:
-
-```jsonc
-{
-  "compilerOptions": {
-    // ╔══════════════════════════════════════════════════════════════════════════╗
-    // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
-    // ║                                                                          ║
-    // ║  These rules prevent runtime crashes like:                               ║
-    // ║  - "X is not a function"                                                 ║
-    // ║  - "Cannot read property Y of undefined"                                 ║
-    // ║  - "undefined is not iterable"                                           ║
-    // ║                                                                          ║
-    // ║  If you encounter type errors from these rules:                          ║
-    // ║  ✅ DO: Use optional chaining (?.) or null checks (if (x) { ... })       ║
-    // ║  ✅ DO: Use nullish coalescing (??) for defaults                         ║
-    // ║  ✅ DO: Add proper type guards before accessing properties               ║
-    // ║  ❌ DON'T: Use non-null assertion (!) - it hides bugs, use ?? instead    ║
-    // ║  ❌ DON'T: Use type assertions (as X) to silence errors                  ║
-    // ║  ❌ DON'T: Add @ts-ignore or @ts-expect-error comments                   ║
-    // ║  ❌ DON'T: Remove or weaken these rules                                  ║
-    // ║                                                                          ║
-    // ║  These rules exist because UI crashes are the #1 production issue.       ║
-    // ║  Removing them WILL cause crashes that are much harder to debug than     ║
-    // ║  the type errors they produce at compile time.                           ║
-    // ╚══════════════════════════════════════════════════════════════════════════╝
-    "strict": true,
-    "noUncheckedIndexedAccess": true
-  }
-}
-```
-
-**Why `noUncheckedIndexedAccess`?** Without it, `arr[0].trim()` compiles fine but crashes at runtime if the array is empty. With it, TypeScript forces you to handle the undefined case: `arr[0]?.trim()`.
-
-**IMPORTANT:** Always include the protective comment block above when adding these rules. The comments prevent future agents from removing the rules without understanding the consequences.
-
-#### **Step 2: Check if ESLint is configured for React**
-
+#### Step 1: Run automated type-safety checks
 ```bash
-# Look for ESLint config in the UI directory
-ls scenarios/{{TARGET}}/ui/eslint.config.* 2>/dev/null || \
-ls scenarios/{{TARGET}}/ui/.eslintrc* 2>/dev/null || \
-echo "NO ESLINT CONFIG FOUND"
+scenario-auditor scan {{TARGET}} --rules TS_CONFIG_STRICT,ESLINT_SAFETY_RULES,TS_DANGEROUS_PATTERNS
 ```
 
-#### **Step 3: If no config exists, create one with safety rules**
-
-Create `scenarios/{{TARGET}}/ui/eslint.config.js` with protective comments:
-
-```js
-import js from "@eslint/js";
-import importPlugin from "eslint-plugin-import";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
-
-export default tseslint.config(
-  { ignores: ["dist", "node_modules"] },
-  {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      parserOptions: {
-        project: "./tsconfig.json",  // Enable type-aware linting
-      },
-    },
-    plugins: {
-      "import": importPlugin,
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
-    settings: {
-      "import/resolver": {
-        typescript: {
-          alwaysTryTypes: true,
-          project: "./tsconfig.json",
-        },
-      },
-    },
-    rules: {
-      // ════════════════════════════════════════════════════════════════════════
-      // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
-      //
-      // These rules prevent runtime crashes. If you encounter errors:
-      // ✅ DO: Fix the code with optional chaining (?.), null checks, or proper types
-      // ❌ DON'T: Disable the rule, use "as" casts, or use non-null assertion (!)
-      //
-      // Removing these rules WILL cause production crashes that are much harder
-      // to debug than the lint errors they produce at development time.
-      // ════════════════════════════════════════════════════════════════════════
-
-      // CRITICAL: Catches React Error #310 (hook count changes between renders)
-      // Detects early returns before hooks, conditional hook calls, etc.
-      "react-hooks/rules-of-hooks": "error",
-
-      // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
-      // Using ! hides bugs that will crash at runtime with "X is not a function"
-      // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
-      "@typescript-eslint/no-non-null-assertion": "error",
-
-      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
-      // These catch bugs like "v.trim is not a function" when v is not actually a string
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
-
-      // Prevents explicit 'any' which disables all type checking for that value
-      "@typescript-eslint/no-explicit-any": "error",
-
-      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
-      // These runtime errors are extremely hard to debug in production (minified variable names).
-      // Requires eslint-plugin-import and eslint-import-resolver-typescript
-      "import/no-cycle": "error",
-
-      // ════════════════════════════════════════════════════════════════════════
-      // STANDARD RULES (can be adjusted if needed)
-      // ════════════════════════════════════════════════════════════════════════
-
-      // Catches stale closure bugs from missing/incorrect dependencies
-      "react-hooks/exhaustive-deps": "warn",
-
-      // Ensures only components are exported for proper HMR
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-
-      // Allow unused vars prefixed with underscore (common pattern for ignored params)
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-    },
-  }
-);
-```
-
-**IMPORTANT:** Always include the protective comment blocks above when creating ESLint configs. The comments explain why each rule exists and prevent future agents from removing them without understanding the consequences.
-
-Ensure required dev dependencies are installed:
+#### Step 2: Auto-fix what can be fixed
 ```bash
-cd scenarios/{{TARGET}}/ui
-pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh eslint-plugin-import eslint-import-resolver-typescript
+scenario-auditor fix {{TARGET}} --rules TS_CONFIG_STRICT --dry-run
+scenario-auditor fix {{TARGET}} --rules TS_CONFIG_STRICT
 ```
 
-#### **Step 4: Run linting and fix errors**
+For ESLint and pattern issues: follow remediation guidance in scan output.
 
+#### Step 3: Run linting and fix errors
 ```bash
 cd scenarios/{{TARGET}}/ui && pnpm lint
 ```

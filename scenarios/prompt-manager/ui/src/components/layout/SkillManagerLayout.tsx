@@ -18,6 +18,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from '@/hooks/use-toast'
 import { Home, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
+import { copyAsyncToClipboard } from '@/lib/clipboard'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { DeleteTeamDialog } from '../shared/DeleteTeamDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
@@ -256,36 +257,39 @@ export function SkillManagerLayout() {
     [combineSelectedIds, toggleCombineSkillSelection, toggleCombineMultipleSkills]
   )
 
-  const handleCombineCopy = useCallback(async () => {
+  const handleCombineCopy = useCallback(() => {
     if (combineSelectedIds.size === 0) return
 
     setIsCombineCopying(true)
     setCombineCopySuccess(false)
 
-    try {
-      const identifiers = Array.from(combineSelectedIds)
-      const response = await api.displaySkills(identifiers, combineFormat)
+    const identifiers = Array.from(combineSelectedIds)
+    const contentPromise = api.displaySkills(identifiers, combineFormat)
+      .then((response) => response.combined)
 
-      await navigator.clipboard.writeText(response.combined)
-      setCombineCopySuccess(true)
-
-      toast({
-        title: 'Copied to clipboard',
-        description: `${combineSelectedIds.size} skill${combineSelectedIds.size !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,
+    // IMPORTANT: copyAsyncToClipboard must be called synchronously in the click
+    // handler (within user activation). It uses ClipboardItem with a Promise<Blob>
+    // so the browser reserves the clipboard write immediately while content loads.
+    copyAsyncToClipboard(contentPromise)
+      .then(() => {
+        setCombineCopySuccess(true)
+        toast({
+          title: 'Copied to clipboard',
+          description: `${identifiers.length} skill${identifiers.length !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,
+        })
+        setTimeout(() => setCombineCopySuccess(false), 2000)
       })
-
-      // Reset success state after delay
-      setTimeout(() => setCombineCopySuccess(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy combined skills:', error)
-      toast({
-        title: 'Copy failed',
-        description: 'Failed to combine and copy skills',
-        variant: 'destructive',
+      .catch((error) => {
+        console.error('Failed to copy combined skills:', error)
+        toast({
+          title: 'Copy failed',
+          description: 'Failed to combine and copy skills',
+          variant: 'destructive',
+        })
       })
-    } finally {
-      setIsCombineCopying(false)
-    }
+      .finally(() => {
+        setIsCombineCopying(false)
+      })
   }, [combineSelectedIds, combineFormat, setIsCombineCopying])
 
   // Skill editor state

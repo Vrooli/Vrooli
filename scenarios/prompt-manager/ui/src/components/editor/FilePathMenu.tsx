@@ -11,6 +11,7 @@
  */
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { ChevronRight, Copy, Check, FolderOpen, HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FolderType } from '@/types'
@@ -215,7 +216,7 @@ export function FilePathMenu({
   // Copy function - wrapped to avoid returning promise in onClick
   const handleCopyRelative = useCallback(() => {
     if (!resolvedRelativePath) return
-    void navigator.clipboard.writeText(resolvedRelativePath).then(() => {
+    void copyToClipboard(resolvedRelativePath).then(() => {
       setCopiedRelative(true)
       setTimeout(() => setCopiedRelative(false), 2000)
     }).catch((err: unknown) => {
@@ -225,7 +226,7 @@ export function FilePathMenu({
 
   const handleCopyProject = useCallback(() => {
     if (!resolvedProjectPath) return
-    void navigator.clipboard.writeText(resolvedProjectPath).then(() => {
+    void copyToClipboard(resolvedProjectPath).then(() => {
       setCopiedProject(true)
       setTimeout(() => setCopiedProject(false), 2000)
     }).catch((err: unknown) => {
@@ -235,7 +236,7 @@ export function FilePathMenu({
 
   const handleCopyFull = useCallback(() => {
     if (!resolvedFullPath) return
-    void navigator.clipboard.writeText(resolvedFullPath).then(() => {
+    void copyToClipboard(resolvedFullPath).then(() => {
       setCopiedFull(true)
       setTimeout(() => setCopiedFull(false), 2000)
     }).catch((err: unknown) => {

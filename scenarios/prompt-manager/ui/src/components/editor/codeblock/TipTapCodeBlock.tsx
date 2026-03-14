@@ -9,6 +9,7 @@
  */
 
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { Check, Copy } from 'lucide-react'
@@ -77,7 +78,7 @@ function useCodeCopy(code: string) {
 
   const copyCode = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(code)
+      await copyToClipboard(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {

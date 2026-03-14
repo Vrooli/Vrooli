@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, X, FileCode, FileText, Braces, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
+import { copyAsyncToClipboard } from '@/lib/clipboard'
 import type { Skill } from '@/types'
 import type { DisplayFormat } from '@/types/world'
 import { displaySkills, generatePreview, validateForDisplay } from '@/services/skillDisplayService'
@@ -48,30 +49,30 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
     [selectedSkills, format]
   )
 
-  // Handle copy - uses API for authoritative display
-  const handleCopy = async () => {
-    try {
-      // Get displayed content from API
-      const identifiers = selectedSkills.map((p) => p.id)
-      const response = await api.displaySkills(identifiers, format)
-
-      // Copy to clipboard
-      await navigator.clipboard.writeText(response.combined)
-      setCopied(true)
-      onDisplay?.(response.combined, format)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.error('Failed to display and copy skills:', error)
-      // Fallback to client-side display if API fails
-      try {
-        await navigator.clipboard.writeText(displayResult.combined)
-        setCopied(true)
+  // Handle copy - uses API for authoritative display.
+  // Must call copyAsyncToClipboard synchronously in click handler to preserve
+  // user activation for clipboard access.
+  const handleCopy = () => {
+    const identifiers = selectedSkills.map((p) => p.id)
+    const contentPromise = api.displaySkills(identifiers, format)
+      .then((response) => {
+        onDisplay?.(response.combined, format)
+        return response.combined
+      })
+      .catch(() => {
+        // Fallback to client-side display if API fails
         onDisplay?.(displayResult.combined, format)
+        return displayResult.combined
+      })
+
+    copyAsyncToClipboard(contentPromise)
+      .then(() => {
+        setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      } catch (fallbackError) {
-        console.error('Fallback copy also failed:', fallbackError)
-      }
-    }
+      })
+      .catch((error) => {
+        console.error('Failed to copy skills:', error)
+      })
   }
 
   if (selectedSkills.length === 0) {

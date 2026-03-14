@@ -7,6 +7,7 @@
  */
 
 import Code from '@tiptap/extension-code'
+import { copyToClipboard } from '@/lib/clipboard'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 const INLINE_CODE_COPY_PLUGIN_KEY = new PluginKey('inlineCodeCopy')
@@ -53,10 +54,10 @@ function showCopySuccess(button: HTMLButtonElement): void {
   }, 2000)
 }
 
-// Copy text to clipboard
-async function copyToClipboard(text: string, button: HTMLButtonElement): Promise<void> {
+// Copy text to clipboard and show button feedback
+async function copyCodeToClipboard(text: string, button: HTMLButtonElement): Promise<void> {
   try {
-    await navigator.clipboard.writeText(text)
+    await copyToClipboard(text)
     showCopySuccess(button)
   } catch (err) {
     console.error('Failed to copy:', err)
@@ -103,7 +104,7 @@ function createInlineCodeCopyPlugin(): Plugin {
       e.preventDefault()
       e.stopPropagation()
       const code = target.textContent || ''
-      void copyToClipboard(code, button)
+      void copyCodeToClipboard(code, button)
     }
     button.addEventListener('click', clickHandler)
 

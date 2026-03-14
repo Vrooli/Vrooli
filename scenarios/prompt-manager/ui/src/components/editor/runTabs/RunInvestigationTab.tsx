@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { Search as SearchIcon, Loader2, Play, MessageSquare, Wrench, ChevronDown, Info, RefreshCw, Copy, Check, SendHorizontal, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
@@ -198,7 +199,7 @@ export function RunInvestigationTab({ runId, className }: RunInvestigationTabPro
 
   const handleCopyJson = useCallback(() => {
     const text = JSON.stringify(filteredEvents, null, 2)
-    void navigator.clipboard.writeText(text).then(() => {
+    void copyToClipboard(text).then(() => {
       setCopiedJson(true)
       setTimeout(() => setCopiedJson(false), 1500)
     })

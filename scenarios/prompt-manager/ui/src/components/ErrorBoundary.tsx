@@ -1,4 +1,5 @@
 import React from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { motion } from 'framer-motion'
 import { AlertTriangle, RefreshCw, Bug, Copy, CheckCircle2 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -75,7 +76,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       url: window.location.href
     }
 
-    navigator.clipboard.writeText(JSON.stringify(errorReport, null, 2))
+    void copyToClipboard(JSON.stringify(errorReport, null, 2))
       .then(() => {
         this.setState({ copied: true })
         if (this.copyTimeout) clearTimeout(this.copyTimeout)

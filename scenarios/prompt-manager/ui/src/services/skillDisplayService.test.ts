@@ -14,7 +14,7 @@ import {
   displaySkills,
   generatePreview,
   validateForDisplay,
-  copyToClipboard,
+  copySkillsToClipboard,
 } from './skillDisplayService'
 import type { Skill } from '@/types'
 
@@ -316,7 +316,7 @@ describe('validateForDisplay', () => {
   })
 })
 
-describe('copyToClipboard', () => {
+describe('copySkillsToClipboard', () => {
   const mockClipboard = {
     writeText: vi.fn(),
   }
@@ -330,7 +330,7 @@ describe('copyToClipboard', () => {
     mockClipboard.writeText.mockResolvedValue(undefined)
     const skills = [createTestSkill()]
 
-    const result = await copyToClipboard(skills, 'xml')
+    const result = await copySkillsToClipboard(skills, 'xml')
 
     expect(result.success).toBe(true)
     expect(mockClipboard.writeText).toHaveBeenCalled()
@@ -340,7 +340,7 @@ describe('copyToClipboard', () => {
     mockClipboard.writeText.mockRejectedValue(new Error('Permission denied'))
     const skills = [createTestSkill()]
 
-    const result = await copyToClipboard(skills, 'xml')
+    const result = await copySkillsToClipboard(skills, 'xml')
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('Permission denied')

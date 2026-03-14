@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { Loader2, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
 import { MarkdownRenderer } from '@/components/markdown/MarkdownRenderer'
 import { getRunEvents, type RunEvent } from '@/services/heartbeatService'
@@ -36,7 +37,7 @@ function str(v: unknown, fallback = ''): string {
 export function CopyButton({ text, label, className }: { text: string; label?: string; className?: string }) {
   const [copied, setCopied] = useState(false)
   const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(text).then(() => {
+    void copyToClipboard(text).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     })

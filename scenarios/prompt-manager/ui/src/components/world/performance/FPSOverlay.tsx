@@ -5,6 +5,7 @@
 // AI_CHECK: FPS_TRACE_OVERLAY_RENDER=1 | LAST: 2026-02-17
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { useShallow } from 'zustand/react/shallow'
 import { usePerformanceStore, selectTraceData, selectSceneSnapshot } from '@/stores/performanceStore'
 import { useGraphicsStore } from '@/stores/graphicsStore'
@@ -205,7 +206,7 @@ export function FPSOverlay({
     const payload = JSON.stringify(diagnosticsPayload, null, 2)
 
     try {
-      await navigator.clipboard.writeText(payload)
+      await copyToClipboard(payload)
 
       setCopyState('copied')
     } catch {

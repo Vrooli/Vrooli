@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { RefreshCw, Copy, ExternalLink, Pencil, Link } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -165,7 +166,7 @@ export function MemberPromptPipelineSection({ teamId, memberId, onNavigateToTab,
   const handleCopyPrompt = useCallback(async () => {
     if (!promptPreview) return
     try {
-      await navigator.clipboard.writeText(promptPreview)
+      await copyToClipboard(promptPreview)
       toast({
         title: 'Prompt copied',
         description: 'The full prompt is now in your clipboard.',

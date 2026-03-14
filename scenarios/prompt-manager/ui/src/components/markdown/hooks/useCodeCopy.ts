@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { toast } from '@/hooks/use-toast'
 
 interface UseCodeCopyReturn {
@@ -15,7 +16,7 @@ export function useCodeCopy(code: string): UseCodeCopyReturn {
   const [copied, setCopied] = useState(false)
 
   const copyCode = useCallback(() => {
-    void navigator.clipboard.writeText(code)
+    void copyToClipboard(code)
       .then(() => {
         setCopied(true)
         toast({
