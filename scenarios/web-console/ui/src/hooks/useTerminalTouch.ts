@@ -17,6 +17,8 @@ export interface UseTerminalTouchOptions {
   terminal: Terminal | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
   enabled?: boolean;
+  /** Fired on right-click (desktop) or long-press-release without drag (mobile). */
+  onContextMenu?: (x: number, y: number) => void;
 }
 
 export interface UseTerminalTouchReturn {
@@ -51,6 +53,7 @@ type GestureState =
       touchId: number;
       anchorCol: number;
       anchorRow: number;
+      hasDragged: boolean;
     };
 
 /** Pending double-tap detection tracked separately. */
@@ -143,11 +146,14 @@ export function useTerminalTouch({
   terminal,
   containerRef,
   enabled = true,
+  onContextMenu,
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
   const gestureRef = useRef<GestureState>({ type: "idle" });
   const doubleTapRef = useRef<DoubleTapState | null>(null);
   const momentumRafRef = useRef<number | null>(null);
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
 
   // ---- Clipboard helpers ----
 
@@ -288,6 +294,7 @@ export function useTerminalTouch({
           touchId: g.touchId,
           anchorCol: col,
           anchorRow: row,
+          hasDragged: false,
         };
       }, TOUCH_LONG_PRESS_MS);
 
@@ -341,6 +348,7 @@ export function useTerminalTouch({
         }
         e.preventDefault();
       } else if (g.type === "selecting") {
+        g.hasDragged = true;
         const { col, row } = touchToCell(
           term,
           container,
@@ -393,14 +401,28 @@ export function useTerminalTouch({
         if (Math.abs(g.velocity) > TOUCH_SCROLL_MIN_VELOCITY) {
           startMomentum(g.velocity);
         }
+      } else if (g.type === "selecting") {
+        if (!g.hasDragged) {
+          // Long-press without drag: show context menu instead of keeping
+          // the single-character selection.
+          term.clearSelection();
+          setHasSelection(false);
+          onContextMenuRef.current?.(touch.clientX, touch.clientY);
+        }
+        // If dragged, keep the selection in place
       }
-      // For "selecting", keep the selection in place on touchend
 
       gestureRef.current = { type: "idle" };
     }
 
     function onTouchCancel() {
       resetGesture();
+    }
+
+    // Right-click context menu (desktop)
+    function onContextMenuEvent(e: MouseEvent) {
+      e.preventDefault();
+      onContextMenuRef.current?.(e.clientX, e.clientY);
     }
 
     // Attach in capture phase to intercept before xterm's bundled gesture system
@@ -411,6 +433,7 @@ export function useTerminalTouch({
     });
     container.addEventListener("touchend", onTouchEnd, { capture: true });
     container.addEventListener("touchcancel", onTouchCancel, { capture: true });
+    container.addEventListener("contextmenu", onContextMenuEvent);
 
     return () => {
       container.removeEventListener("touchstart", onTouchStart, {
@@ -423,6 +446,7 @@ export function useTerminalTouch({
       container.removeEventListener("touchcancel", onTouchCancel, {
         capture: true,
       });
+      container.removeEventListener("contextmenu", onContextMenuEvent);
 
       // Clean up touch-action style
       if (screenEl) {

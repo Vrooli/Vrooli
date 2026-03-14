@@ -66,9 +66,6 @@ export default function VoiceMicButton({
   onStart,
   onStop,
 }: VoiceMicButtonProps) {
-  if (!supported) return null;
-
-  const hasError = error !== null && !isRecording && !isTranscribing;
   const btnRef = useRef<HTMLButtonElement>(null);
   const pressStartRef = useRef(0);
   const wasRecordingRef = useRef(false);
@@ -94,6 +91,10 @@ export default function VoiceMicButton({
     }
     // Short press on fresh start — keep recording (tap-to-toggle)
   }, [isRecording, onStop]);
+
+  if (!supported) return null;
+
+  const hasError = error !== null && !isRecording && !isTranscribing;
 
   return (
     <div className="relative shrink-0">
@@ -137,7 +138,7 @@ export default function VoiceMicButton({
         )}
       </button>
       {hasError && btnRef.current && (
-        <ErrorTooltip anchor={btnRef.current} text={error!} />
+        <ErrorTooltip anchor={btnRef.current} text={error as string} />
       )}
     </div>
   );

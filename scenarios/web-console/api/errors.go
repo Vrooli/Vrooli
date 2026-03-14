@@ -138,6 +138,20 @@ var errorCatalog = map[string]appError{
 		Recovery: "Try again. If the problem persists, check Whisper logs.",
 		Retry:    true,
 	},
+	"upload_too_large": {
+		Status:   http.StatusRequestEntityTooLarge,
+		Code:     "upload_too_large",
+		Category: "validation",
+		Message:  "File exceeds maximum upload size",
+		Recovery: "Reduce the file size and try again (max 20MB)",
+	},
+	"invalid_upload_type": {
+		Status:   http.StatusBadRequest,
+		Code:     "invalid_upload_type",
+		Category: "validation",
+		Message:  "Unsupported file type",
+		Recovery: "Upload an image file (PNG, JPEG, GIF, WebP, or SVG)",
+	},
 }
 
 // writeJSON encodes data as a JSON response with the given HTTP status code.

@@ -595,6 +595,79 @@ describe("useTerminalTouch", () => {
     expect(terminal.scrollLines).toHaveBeenCalled();
   });
 
+  // ---- Context menu (long-press / right-click) ----
+
+  it("long press without drag fires onContextMenu", () => {
+    const onContextMenu = vi.fn();
+
+    renderHook(() =>
+      useTerminalTouch({
+        ...makeHookArgs(terminal, container),
+        onContextMenu,
+      }),
+    );
+
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 100 });
+
+    // Wait for long-press threshold to enter selecting mode
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LONG_PRESS_MS + 10);
+    });
+
+    // Touch end without drag → should fire context menu
+    fireTouchEvent(container, "touchend", { clientX: 100, clientY: 100 });
+
+    expect(onContextMenu).toHaveBeenCalledWith(100, 100);
+    // Selection should be cleared (single char selection removed)
+    expect(terminal.clearSelection).toHaveBeenCalled();
+  });
+
+  it("long press with drag does NOT fire onContextMenu", () => {
+    const onContextMenu = vi.fn();
+
+    renderHook(() =>
+      useTerminalTouch({
+        ...makeHookArgs(terminal, container),
+        onContextMenu,
+      }),
+    );
+
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 100 });
+
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LONG_PRESS_MS + 10);
+    });
+
+    // Drag to extend selection
+    fireTouchEvent(container, "touchmove", { clientX: 200, clientY: 100 });
+    fireTouchEvent(container, "touchend", { clientX: 200, clientY: 100 });
+
+    expect(onContextMenu).not.toHaveBeenCalled();
+  });
+
+  it("desktop right-click fires onContextMenu", () => {
+    const onContextMenu = vi.fn();
+
+    renderHook(() =>
+      useTerminalTouch({
+        ...makeHookArgs(terminal, container),
+        onContextMenu,
+      }),
+    );
+
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 150,
+      clientY: 250,
+    });
+
+    container.dispatchEvent(event);
+
+    expect(onContextMenu).toHaveBeenCalledWith(150, 250);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("cleanup removes event listeners on unmount", () => {
     const removeSpy = vi.spyOn(container, "removeEventListener");
 

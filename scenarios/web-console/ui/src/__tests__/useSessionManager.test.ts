@@ -203,7 +203,7 @@ describe("useSessionManager", () => {
       result.current.handleTerminalReady("sess-1");
     });
 
-    const handle = { sendInput: vi.fn() };
+    const handle = { sendInput: vi.fn(), focus: vi.fn() };
     act(() => {
       result.current.registerTerminalRef("sess-1", handle);
     });

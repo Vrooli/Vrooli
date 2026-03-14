@@ -382,6 +382,16 @@ export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
   return (await res.json()) as CapabilitiesResponse;
 }
 
+export async function uploadFile(sessionId: string, file: File | Blob, filename?: string): Promise<string> {
+  const url = buildApiUrl(`/sessions/${sessionId}/upload`, { baseUrl: API_BASE });
+  const formData = new FormData();
+  formData.append("file", file, filename ?? (file instanceof File ? file.name : "image.png"));
+  const res = await fetch(url, { method: "POST", body: formData });
+  if (!res.ok) throw await extractAPIError(res, "File upload failed");
+  const data = (await res.json()) as { path: string };
+  return data.path;
+}
+
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   const url = buildApiUrl("/voice/transcribe", { baseUrl: API_BASE });
   const formData = new FormData();

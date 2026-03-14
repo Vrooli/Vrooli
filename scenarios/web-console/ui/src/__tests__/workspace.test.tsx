@@ -24,6 +24,7 @@ let mockLaunchSession: ReturnType<typeof vi.fn>;
 let mockRemovePane: ReturnType<typeof vi.fn>;
 let mockClearError: ReturnType<typeof vi.fn>;
 let mockSendToActiveTerminal: ReturnType<typeof vi.fn>;
+let mockFocusActiveTerminal: ReturnType<typeof vi.fn>;
 let mockHandleTerminalReady: ReturnType<typeof vi.fn>;
 let mockHandleExit: ReturnType<typeof vi.fn>;
 let mockRegisterTerminalRef: ReturnType<typeof vi.fn>;
@@ -48,6 +49,7 @@ vi.mock("../hooks/useSessionManager", () => ({
     removePane: mockRemovePane,
     handleExit: mockHandleExit,
     sendToActiveTerminal: mockSendToActiveTerminal,
+    focusActiveTerminal: mockFocusActiveTerminal,
     registerTerminalRef: mockRegisterTerminalRef,
   }),
 }));
@@ -191,6 +193,7 @@ describe("Workspace", () => {
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
     mockSendToActiveTerminal = vi.fn();
+    mockFocusActiveTerminal = vi.fn();
     mockHandleTerminalReady = vi.fn();
     mockHandleExit = vi.fn();
     mockRegisterTerminalRef = vi.fn();

@@ -17,7 +17,7 @@ interface SpeechRecognitionResultList {
   [index: number]: SpeechRecognitionResult;
 }
 
-interface SpeechRecognitionEventInit extends EventInit {
+interface _SpeechRecognitionEventInit extends EventInit {
   results: SpeechRecognitionResultList;
 }
 
@@ -25,7 +25,7 @@ interface SpeechRecognitionEvent extends Event {
   readonly results: SpeechRecognitionResultList;
 }
 
-interface SpeechRecognitionErrorEventInit extends EventInit {
+interface _SpeechRecognitionErrorEventInit extends EventInit {
   error: string;
   message?: string;
 }
@@ -242,7 +242,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         // Compute RMS level normalized to 0–1
         let sum = 0;
         for (let i = 0; i < data.length; i++) {
-          const v = (data[i] - 128) / 128;
+          const v = ((data[i] ?? 128) - 128) / 128;
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);

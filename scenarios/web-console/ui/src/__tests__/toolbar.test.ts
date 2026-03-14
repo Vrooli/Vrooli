@@ -7,9 +7,10 @@ describe("MobileToolbar component", () => {
     const labels = TOOLBAR_KEYS.map((k) => k.label);
     expect(labels).toContain("Esc");
     expect(labels).toContain("Tab");
-    expect(labels).toContain("Ctrl+C");
-    expect(labels).toContain("Ctrl+D");
-    expect(labels).toContain("Ctrl+Z");
+    expect(labels).toContain("\u2191"); // Up arrow
+    expect(labels).toContain("\u2193"); // Down arrow
+    expect(labels).toContain("\u2190"); // Left arrow
+    expect(labels).toContain("\u2192"); // Right arrow
   });
 
   it("component module exports default component", async () => {

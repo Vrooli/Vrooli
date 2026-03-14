@@ -121,6 +121,9 @@ func (s *Server) setupRoutes() {
 	// WebSocket terminal I/O - [REQ:P0-002b]
 	s.router.HandleFunc("/api/v1/sessions/{id}/ws", s.handleTerminalWS).Methods("GET")
 
+	// Image upload for terminal path injection
+	s.router.HandleFunc("/api/v1/sessions/{id}/upload", s.handleUpload).Methods("POST")
+
 	// AI command generation - [REQ:P0-005a]
 	s.router.HandleFunc("/api/v1/ai/generate", s.handleAIGenerate).Methods("POST")
 

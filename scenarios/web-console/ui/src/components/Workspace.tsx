@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Plus } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
@@ -16,7 +16,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import { getSession } from "../lib/api";
+import { getSession, uploadFile } from "../lib/api";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -285,6 +285,25 @@ export default function Workspace() {
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
   }, [voiceInput]);
+
+  // --- Mobile image upload ---
+  const mobileFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleMobileUploadImage = useCallback(() => {
+    mobileFileInputRef.current?.click();
+  }, []);
+
+  const handleMobileFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !store.activePane) return;
+    try {
+      const path = await uploadFile(store.activePane, file);
+      sendToActiveTerminal(path + "\n", store.activePane);
+    } catch {
+      // Upload errors are transient — user can retry
+    }
+  }, [store.activePane, sendToActiveTerminal]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -638,6 +657,14 @@ export default function Workspace() {
           voiceLevel={voiceInput.audioLevel}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
+          onUploadImage={handleMobileUploadImage}
+        />
+        <input
+          ref={mobileFileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleMobileFileChange}
         />
       </div>
 

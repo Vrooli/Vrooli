@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -436,14 +438,19 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 	// Start the PTY output reader; it will close exitCh when the process exits.
 	go sess.readLoop()
 
-	// Auto-remove: when the PTY exits, clean up the session map entry so
-	// List()/Get() no longer return a terminated session.
+	// Auto-remove: when the PTY exits, clean up the session map entry and
+	// any upload temp directory so List()/Get() no longer return a terminated session.
 	go func() {
 		<-sess.Done()
 		log.Printf("session %s: process exited", sess.ID)
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
+		// Clean up session upload directory
+		uploadDir := filepath.Join(uploadBaseDir, sess.ID)
+		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
+			log.Printf("session %s: failed to clean up upload dir: %v", sess.ID, err)
+		}
 	}()
 
 	return sess, nil
@@ -482,6 +489,11 @@ func (sm *SessionManager) Delete(id string) error {
 
 	_ = sess.pty.Kill()
 	_ = sess.pty.Close()
+	// Clean up session upload directory
+	uploadDir := filepath.Join(uploadBaseDir, id)
+	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
+		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
+	}
 	return nil
 }
 

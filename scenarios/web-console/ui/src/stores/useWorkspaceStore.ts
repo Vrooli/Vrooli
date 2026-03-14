@@ -179,7 +179,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             state.voiceShortcut = "Ctrl+Shift+Space";
           }
         }
-        return state as WorkspaceState & WorkspaceActions;
+        return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
         activePane: state.activePane,

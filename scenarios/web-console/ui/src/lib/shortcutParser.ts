@@ -7,7 +7,9 @@ export interface ParsedShortcut {
   metaKey: boolean;
 }
 
-const MODIFIER_MAP: Record<string, keyof ParsedShortcut> = {
+type ModifierKey = "ctrlKey" | "altKey" | "shiftKey" | "metaKey";
+
+const MODIFIER_MAP: Record<string, ModifierKey> = {
   ctrl: "ctrlKey",
   control: "ctrlKey",
   alt: "altKey",

@@ -454,11 +454,9 @@ describe("useTerminalSocket hook", () => {
     vi.useFakeTimers();
 
     const sockets: FakeWebSocket[] = [];
-    let socketIdx = 0;
     const multiFactory = vi.fn(() => {
       const ws = new FakeWebSocket();
       sockets.push(ws);
-      socketIdx++;
       return ws as unknown as WebSocket;
     });
 
@@ -477,7 +475,7 @@ describe("useTerminalSocket hook", () => {
       }),
     );
 
-    const firstWs = sockets[0]!;
+    const firstWs = sockets[0] as FakeWebSocket;
     act(() => firstWs.triggerOpen());
     act(() => firstWs.triggerClose(1006));
 
@@ -530,12 +528,12 @@ describe("useTerminalSocket hook", () => {
       }),
     );
 
-    const firstWs = sockets[0]!;
+    const firstWs = sockets[0] as FakeWebSocket;
     act(() => firstWs.triggerOpen());
 
     // Do 3 failed reconnections to burn attempts
     for (let i = 0; i < 3; i++) {
-      act(() => sockets[sockets.length - 1]!.triggerClose(1006));
+      act(() => (sockets[sockets.length - 1] as FakeWebSocket).triggerClose(1006));
       act(() => {
         vi.advanceTimersByTime(10000);
       });
@@ -549,7 +547,7 @@ describe("useTerminalSocket hook", () => {
       writable: true,
       configurable: true,
     });
-    act(() => sockets[sockets.length - 1]!.triggerClose(1006));
+    act(() => (sockets[sockets.length - 1] as FakeWebSocket).triggerClose(1006));
 
     // Come back visible — should reset attempts and reconnect
     Object.defineProperty(document, "visibilityState", {

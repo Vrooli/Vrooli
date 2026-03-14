@@ -1,24 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { TOOLBAR_KEYS } from "../consts/toolbar-keys";
+import { TOOLBAR_KEYS, applyModifiers } from "../consts/toolbar-keys";
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping
 describe("Toolbar key/chord escape sequences", () => {
-  it("Ctrl+C sends correct escape sequence (0x03)", () => {
-    const ctrlC = TOOLBAR_KEYS.find((k) => k.label === "Ctrl+C");
-    expect(ctrlC).toBeDefined();
-    expect(ctrlC?.input).toBe("\x03");
+  it("Ctrl+C via modifier produces correct escape sequence (0x03)", () => {
+    const result = applyModifiers("c", { ctrl: true, alt: false, shift: false });
+    expect(result.data).toBe("\x03");
+    expect(result.consumed).toBe(true);
   });
 
-  it("Ctrl+D sends correct escape sequence (0x04)", () => {
-    const ctrlD = TOOLBAR_KEYS.find((k) => k.label === "Ctrl+D");
-    expect(ctrlD).toBeDefined();
-    expect(ctrlD?.input).toBe("\x04");
+  it("Ctrl+D via modifier produces correct escape sequence (0x04)", () => {
+    const result = applyModifiers("d", { ctrl: true, alt: false, shift: false });
+    expect(result.data).toBe("\x04");
+    expect(result.consumed).toBe(true);
   });
 
-  it("Ctrl+Z sends correct escape sequence (0x1a)", () => {
-    const ctrlZ = TOOLBAR_KEYS.find((k) => k.label === "Ctrl+Z");
-    expect(ctrlZ).toBeDefined();
-    expect(ctrlZ?.input).toBe("\x1a");
+  it("Ctrl+Z via modifier produces correct escape sequence (0x1a)", () => {
+    const result = applyModifiers("z", { ctrl: true, alt: false, shift: false });
+    expect(result.data).toBe("\x1a");
+    expect(result.consumed).toBe(true);
   });
 
   it("arrow keys send correct ANSI escape sequences", () => {

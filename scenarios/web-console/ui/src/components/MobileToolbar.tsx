@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Maximize2, Minimize2, SendHorizontal } from "lucide-react";
+import { Image, Maximize2, Minimize2, SendHorizontal } from "lucide-react";
 import { TOOLBAR_KEYS, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -44,6 +44,7 @@ interface MobileToolbarProps {
   voiceLevel?: number;
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
+  onUploadImage?: () => void;
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -58,6 +59,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceLevel,
   onVoiceStart,
   onVoiceStop,
+  onUploadImage,
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
 
@@ -243,6 +245,17 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             </button>
           ))}
         </div>
+        {onUploadImage && (
+          <button
+            data-testid="toolbar-upload-image"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onUploadImage}
+            className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+            title="Upload image"
+          >
+            <Image className="h-3.5 w-3.5" />
+          </button>
+        )}
         {voiceSupported && onVoiceStart && onVoiceStop && (
           <VoiceMicButton
             supported={voiceSupported}
