@@ -531,10 +531,20 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 			},
 		}
 	case *domain.MessageEventData:
+		var pbAttachments []*pb.MessageAttachmentInfo
+		for _, att := range data.Attachments {
+			pbAttachments = append(pbAttachments, &pb.MessageAttachmentInfo{
+				Id:          att.ID,
+				FileName:    att.FileName,
+				ContentType: att.ContentType,
+				Url:         att.URL,
+			})
+		}
 		event.Data = &pb.RunEvent_Message{
 			Message: &pb.MessageEventData{
-				Role:    data.Role,
-				Content: data.Content,
+				Role:        data.Role,
+				Content:     data.Content,
+				Attachments: pbAttachments,
 			},
 		}
 	case *domain.MessageDeletedEventData:

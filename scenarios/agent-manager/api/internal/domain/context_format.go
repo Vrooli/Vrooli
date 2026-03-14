@@ -27,8 +27,20 @@ func FormatContextForPrompt(attachments []ContextAttachment) string {
 		return ""
 	}
 
+	// Filter out image attachments — they are handled via file path injection
+	// to the runner, not via XML context tags in the prompt text.
+	var textAttachments []ContextAttachment
+	for _, att := range attachments {
+		if att.Type != "image" {
+			textAttachments = append(textAttachments, att)
+		}
+	}
+	if len(textAttachments) == 0 {
+		return ""
+	}
+
 	// Sort by priority: high > medium > low > unset
-	sorted := sortByPriority(attachments)
+	sorted := sortByPriority(textAttachments)
 
 	var builder strings.Builder
 	builder.WriteString("\n\n")

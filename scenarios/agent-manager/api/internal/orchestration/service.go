@@ -1093,7 +1093,25 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 
 	// Emit the initial user prompt as the first message event
 	if o.events != nil && strings.TrimSpace(prompt) != "" {
-		userEvent := domain.NewMessageEvent(run.ID, "user", prompt)
+		// Build attachment metadata for the event so the UI can render image thumbnails
+		var attInfo []domain.MessageAttachmentInfo
+		for _, att := range imageAttachments {
+			meta, err := o.storage.Get(ctx, att.ID)
+			if err == nil {
+				attInfo = append(attInfo, domain.MessageAttachmentInfo{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					URL:         o.storage.GetServingURL(meta.StoragePath),
+				})
+			}
+		}
+		var userEvent *domain.RunEvent
+		if len(attInfo) > 0 {
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", prompt, attInfo)
+		} else {
+			userEvent = domain.NewMessageEvent(run.ID, "user", prompt)
+		}
 		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
 			// Log but don't fail
 			_ = err
@@ -1659,11 +1677,33 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		o.broadcaster.BroadcastRunStatus(run)
 	}
 
-	// Emit user message event
-	if o.events != nil {
-		userEvent := domain.NewMessageEvent(run.ID, "user", req.Message)
+	// Emit user message event (with attachment metadata if present, resolved later)
+	// Note: We defer emitting until after attachment resolution so we can include URLs.
+	emitUserMessage := func(attachments []runner.Attachment) {
+		if o.events == nil {
+			return
+		}
+		var attInfo []domain.MessageAttachmentInfo
+		if o.storage != nil {
+			for _, att := range attachments {
+				meta, err := o.storage.Get(ctx, att.ID)
+				if err == nil {
+					attInfo = append(attInfo, domain.MessageAttachmentInfo{
+						ID:          meta.ID,
+						FileName:    meta.FileName,
+						ContentType: meta.ContentType,
+						URL:         o.storage.GetServingURL(meta.StoragePath),
+					})
+				}
+			}
+		}
+		var userEvent *domain.RunEvent
+		if len(attInfo) > 0 {
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", req.Message, attInfo)
+		} else {
+			userEvent = domain.NewMessageEvent(run.ID, "user", req.Message)
+		}
 		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
-			// Log but don't fail
 			_ = err
 		}
 		if o.broadcaster != nil {
@@ -1724,6 +1764,9 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 			})
 		}
 	}
+
+	// Emit user message event now that attachments are resolved
+	emitUserMessage(attachments)
 
 	// Execute continuation asynchronously
 	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments)

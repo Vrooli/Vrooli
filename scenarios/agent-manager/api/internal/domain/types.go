@@ -592,8 +592,18 @@ func NewLogEvent(runID uuid.UUID, level, message string) *RunEvent {
 
 // MessageEventData contains data for conversation messages (user, assistant, system).
 type MessageEventData struct {
-	Role    string `json:"role"`    // user, assistant, system
-	Content string `json:"content"` // Message content
+	Role        string                  `json:"role"`                  // user, assistant, system
+	Content     string                  `json:"content"`               // Message content
+	Attachments []MessageAttachmentInfo `json:"attachments,omitempty"` // Image/file attachments
+}
+
+// MessageAttachmentInfo stores metadata about attachments included with a message.
+// Used by the UI to render image thumbnails inline.
+type MessageAttachmentInfo struct {
+	ID          string `json:"id"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	URL         string `json:"url"` // Serving URL relative to API base
 }
 
 func (d *MessageEventData) EventType() RunEventType { return EventTypeMessage }
@@ -607,6 +617,17 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 		EventType: EventTypeMessage,
 		Timestamp: time.Now(),
 		Data:      &MessageEventData{Role: role, Content: content},
+	}
+}
+
+// NewMessageEventWithAttachments creates a message event that includes attachment metadata.
+func NewMessageEventWithAttachments(runID uuid.UUID, role, content string, attachments []MessageAttachmentInfo) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessage,
+		Timestamp: time.Now(),
+		Data:      &MessageEventData{Role: role, Content: content, Attachments: attachments},
 	}
 }
 

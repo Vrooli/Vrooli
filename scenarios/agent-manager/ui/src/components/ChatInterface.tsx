@@ -10,12 +10,19 @@ import { useAttachments } from "../hooks/useAttachments";
 import { AttachmentPreview } from "./AttachmentPreview";
 import type { Run, RunEvent } from "../types";
 import { RunStatus } from "../types";
+import type { MessageAttachmentInfo } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  attachments?: MessageAttachmentInfo[];
+}
+
+/** Strip empty <context type="image" ...></context> tags from message content */
+function stripImageContextTags(content: string): string {
+  return content.replace(/<context\s+[^>]*type="image"[^>]*>\s*<\/context>/g, "").trim();
 }
 
 interface ChatInterfaceProps {
@@ -61,15 +68,16 @@ export function ChatInterface({
 
     for (const event of events) {
       if (event.data.case !== "message") continue;
-      const payload = event.data.value as { role?: string; content?: string };
+      const payload = event.data.value as { role?: string; content?: string; attachments?: MessageAttachmentInfo[] };
       const role = (payload.role || "").toLowerCase();
       if (role !== "user" && role !== "assistant") continue;
 
       result.push({
         id: event.id,
         role: role as "user" | "assistant",
-        content: payload.content || "",
+        content: stripImageContextTags(payload.content || ""),
         timestamp: event.timestamp ? new Date(timestampMs(event.timestamp)) : new Date(),
+        attachments: payload.attachments,
       });
     }
     return result;
@@ -250,7 +258,27 @@ export function ChatInterface({
               >
                 {showContent ? (
                   <div className="text-sm">
-                    <MarkdownRenderer content={message.content} />
+                    {/* Render image attachments as thumbnails */}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {message.attachments.map((att) => (
+                          <a
+                            key={att.id}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={att.url}
+                              alt={att.fileName}
+                              className="max-w-[200px] max-h-[200px] rounded object-cover border border-border"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {message.content && <MarkdownRenderer content={message.content} />}
                   </div>
                 ) : (
                   <div className="text-sm italic text-muted-foreground">
