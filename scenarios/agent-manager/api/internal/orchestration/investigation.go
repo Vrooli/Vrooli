@@ -1178,16 +1178,6 @@ func getBuiltInProfileDefaults(profileKey string) *domain.AgentProfile {
 	}
 }
 
-func noteAttachment(key, label, content string, tags []string) domain.ContextAttachment {
-	return domain.ContextAttachment{
-		Type:    "note",
-		Key:     key,
-		Label:   label,
-		Content: content,
-		Tags:    tags,
-	}
-}
-
 func marshalJSON(value any) (string, error) {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {

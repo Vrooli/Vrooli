@@ -17,6 +17,7 @@ import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 import { StatsPage } from "./features/stats";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { jsonValueToPlain } from "./lib/utils";
 
 export default function App() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function App() {
     };
   }, []);
 
-  const TERMINAL_STATUSES = [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED];
+  const TERMINAL_STATUSES = useRef([RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED]);
 
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
@@ -85,7 +86,7 @@ export default function App() {
         case "run_status": {
           const statusUpdate = message.payload as Partial<Run>;
           const isTerminal = statusUpdate.status !== undefined &&
-            TERMINAL_STATUSES.includes(statusUpdate.status);
+            TERMINAL_STATUSES.current.includes(statusUpdate.status);
           if (isTerminal && message.runId) {
             terminalRunIdsRef.current.add(message.runId);
           }
@@ -166,6 +167,12 @@ export default function App() {
           profiles={profiles.data || []}
           runners={runners.data ?? undefined}
           modelRegistry={modelRegistry.data ?? undefined}
+          defaultProjectRoot={(() => {
+            const raw = health.data?.metrics?.default_project_root;
+            if (!raw) return undefined;
+            const plain = jsonValueToPlain(raw);
+            return typeof plain === "string" ? plain : undefined;
+          })()}
           onCreateTask={tasks.createTask}
           onCreateRun={runs.createRun}
           onRunCreated={(run) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -52,6 +52,7 @@ interface QuickRunDialogProps {
   profiles: AgentProfile[];
   runners?: Record<string, RunnerStatus>;
   modelRegistry?: ModelRegistry;
+  defaultProjectRoot?: string;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
@@ -93,6 +94,7 @@ export function QuickRunDialog({
   profiles,
   runners,
   modelRegistry,
+  defaultProjectRoot,
   onCreateTask,
   onCreateRun,
   onRunCreated,
@@ -109,9 +111,16 @@ export function QuickRunDialog({
   }>({
     title: "",
     description: "",
-    projectRoot: "",
+    projectRoot: defaultProjectRoot ?? "",
   });
-  const [scopePaths, setScopePaths] = useState<string[]>([]);
+  const [scopePaths, setScopePaths] = useState<string[]>(["."]);
+
+  // Sync defaultProjectRoot when it arrives async (e.g. from health fetch)
+  useEffect(() => {
+    if (defaultProjectRoot && taskData.projectRoot === "") {
+      setTaskData((prev) => ({ ...prev, projectRoot: defaultProjectRoot }));
+    }
+  }, [defaultProjectRoot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 2: Agent config
   const [agentConfig, setAgentConfig] = useState<AgentConfigData>({
@@ -123,7 +132,7 @@ export function QuickRunDialog({
     modelMode: "default",
     maxTurns: 100,
     timeoutMinutes: 30,
-    runMode: RunMode.SANDBOXED,
+    runMode: RunMode.IN_PLACE,
     skipPermissionPrompt: true,
     fallbackRunnerTypes: [],
     features: { enableBrowser: false },
@@ -159,9 +168,9 @@ export function QuickRunDialog({
     setTaskData({
       title: "",
       description: "",
-      projectRoot: "",
+      projectRoot: defaultProjectRoot ?? "",
     });
-    setScopePaths([]);
+    setScopePaths(["."]);
     setAgentConfig({
       mode: profiles.length > 0 ? "profile" : "custom",
       profileId: "",
@@ -171,7 +180,7 @@ export function QuickRunDialog({
       modelMode: "default",
       maxTurns: 100,
       timeoutMinutes: 30,
-      runMode: RunMode.SANDBOXED,
+      runMode: RunMode.IN_PLACE,
       skipPermissionPrompt: true,
       fallbackRunnerTypes: [],
       features: { enableBrowser: false },
@@ -179,14 +188,14 @@ export function QuickRunDialog({
     });
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     resetForm();
     onOpenChange(false);
-  };
+  }, [onOpenChange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canProceedStep1 = (): boolean => {
-    // Title and project root are required; scope paths can be empty for read-only access
-    return taskData.title.trim().length > 0 && taskData.projectRoot.trim().length > 0;
+    // Project root is required; title auto-generated if empty
+    return taskData.projectRoot.trim().length > 0;
   };
 
   const canProceedStep2 = (): boolean => {
@@ -213,17 +222,7 @@ export function QuickRunDialog({
   };
 
   const handleStepClick = (step: Step) => {
-    // Allow clicking to go back to previous steps
-    if (step < currentStep) {
-      setCurrentStep(step);
-    }
-    // Allow clicking to go forward only if current step is valid
-    if (step === 2 && currentStep === 1 && canProceedStep1()) {
-      setCurrentStep(2);
-    }
-    if (step === 3 && currentStep === 2 && canProceedStep2()) {
-      setCurrentStep(3);
-    }
+    setCurrentStep(step);
   };
 
   const handleAddFallbackRunner = () => {
@@ -250,7 +249,21 @@ export function QuickRunDialog({
     });
   };
 
-  const handleStartRun = async () => {
+  const generateTitle = useCallback((): string => {
+    if (taskData.title.trim()) return taskData.title.trim();
+    if (taskData.description.trim()) {
+      const desc = taskData.description.trim();
+      if (desc.length <= 60) return desc;
+      const truncated = desc.slice(0, 60);
+      const lastSpace = truncated.lastIndexOf(" ");
+      return (lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated) + "...";
+    }
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `Quick run ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }, [taskData.title, taskData.description]);
+
+  const handleStartRun = useCallback(async () => {
     setSubmitting(true);
     setError(null);
 
@@ -259,8 +272,9 @@ export function QuickRunDialog({
       // Join scope paths with ":" for the backend (which expects a single string)
       // Empty array means "." (current directory / read-only)
       const scopePath = scopePaths.length > 0 ? scopePaths.join(":") : ".";
+      const title = generateTitle();
       const task = await onCreateTask({
-        title: taskData.title,
+        title,
         description: taskData.description || undefined,
         scopePath,
         projectRoot: taskData.projectRoot || undefined,
@@ -309,7 +323,20 @@ export function QuickRunDialog({
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, onCreateTask, onCreateRun, onRunCreated, handleClose]);
+
+  // Ctrl+Enter shortcut to start run
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleStartRun();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, handleStartRun]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
@@ -332,14 +359,13 @@ export function QuickRunDialog({
                 type="button"
                 onClick={() => handleStepClick(step.num)}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer",
                   currentStep === step.num
                     ? "bg-primary text-primary-foreground"
                     : currentStep > step.num
-                    ? "bg-primary/20 text-primary cursor-pointer hover:bg-primary/30"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
-                disabled={step.num > currentStep}
               >
                 {currentStep > step.num ? (
                   <Check className="h-4 w-4" />
@@ -371,29 +397,32 @@ export function QuickRunDialog({
           {currentStep === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Task Title *</Label>
-                <Input
-                  id="title"
-                  value={taskData.title}
-                  onChange={(e) =>
-                    setTaskData({ ...taskData, title: e.target.value })
-                  }
-                  placeholder="e.g., Fix authentication bug"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">What should the agent do?</Label>
                 <Textarea
                   id="description"
                   value={taskData.description}
                   onChange={(e) =>
                     setTaskData({ ...taskData, description: e.target.value })
                   }
-                  placeholder="Detailed instructions for the agent..."
+                  placeholder="Describe the task for the agent..."
                   rows={4}
+                  autoFocus
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">Task Title</Label>
+                <Input
+                  id="title"
+                  value={taskData.title}
+                  onChange={(e) =>
+                    setTaskData({ ...taskData, title: e.target.value })
+                  }
+                  placeholder={taskData.description ? generateTitle() : "Auto-generated from description"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to auto-generate from description
+                </p>
               </div>
 
               <ScopePathsManager
@@ -403,6 +432,7 @@ export function QuickRunDialog({
                 }
                 scopePaths={scopePaths}
                 onScopePathsChange={setScopePaths}
+                defaultProjectRoot={defaultProjectRoot}
                 scopePathsHelp="Directories where the agent can make changes. Leave empty for read-only access."
               />
             </div>
@@ -724,9 +754,12 @@ export function QuickRunDialog({
                   <h4 className="font-medium">Task</h4>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Title: </span>
-                    <span className="font-medium">{taskData.title}</span>
+                    <span className="font-medium">{generateTitle()}</span>
+                    {!taskData.title.trim() && (
+                      <Badge variant="outline" className="text-xs">auto-generated</Badge>
+                    )}
                   </div>
                   {taskData.description && (
                     <div>
@@ -875,30 +908,46 @@ export function QuickRunDialog({
             </Button>
           )}
           <div className="flex-1" />
-          {currentStep < 3 ? (
-            <Button
-              type="button"
-              onClick={handleNext}
-              disabled={
-                (currentStep === 1 && !canProceedStep1()) ||
-                (currentStep === 2 && !canProceedStep2())
-              }
-              className="gap-2"
-            >
-              Next
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleStartRun}
-              disabled={submitting}
-              className="gap-2"
-            >
-              <Play className="h-4 w-4" />
-              {submitting ? "Starting..." : "Start Run"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {currentStep < 3 && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleStartRun}
+                  disabled={submitting || !canProceedStep1()}
+                  className="gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  {submitting ? "Starting..." : "Start Run"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={
+                    (currentStep === 1 && !canProceedStep1()) ||
+                    (currentStep === 2 && !canProceedStep2())
+                  }
+                  className="gap-2"
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {currentStep === 3 && (
+              <Button
+                type="button"
+                onClick={handleStartRun}
+                disabled={submitting}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" />
+                {submitting ? "Starting..." : "Start Run"}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

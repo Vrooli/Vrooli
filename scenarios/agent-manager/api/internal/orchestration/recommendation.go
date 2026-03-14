@@ -90,65 +90,6 @@ func (o *Orchestrator) queueRecommendationExtraction(ctx context.Context, run *d
 	return nil
 }
 
-// extractRecommendationsSync performs synchronous extraction.
-// DEPRECATED: This is no longer used by the main API flow. Extraction is now always
-// done asynchronously by the background worker to avoid blocking HTTP requests.
-// Kept for potential use in testing or debugging scenarios.
-func (o *Orchestrator) extractRecommendationsSync(ctx context.Context, run *domain.Run) (*domain.ExtractionResult, error) {
-	// Check if extractor is available
-	if o.recommendationExtractor == nil {
-		// No extractor configured - return fallback with raw text
-		text, source := o.getInvestigationText(ctx, run)
-		return &domain.ExtractionResult{
-			Success:       false,
-			RawText:       text,
-			ExtractedFrom: source,
-			Error:         "recommendation extractor not configured",
-		}, nil
-	}
-
-	// Extract text from the run (prefer summary, fallback to events)
-	text, source := o.getInvestigationText(ctx, run)
-
-	// Truncate if too long (10k chars max for LLM context)
-	const maxLen = 10000
-	if len(text) > maxLen {
-		text = text[:maxLen]
-	}
-
-	// Call extractor adapter
-	result, err := o.recommendationExtractor.Extract(ctx, domain.ExtractionRequest{
-		InvestigationText: text,
-		MaxLength:         maxLen,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	result.ExtractedFrom = source
-	result.RawText = text
-
-	// Save the result to the database for caching (so we don't re-extract on next modal open)
-	now := time.Now()
-	run.RecommendationStatus = domain.RecommendationStatusComplete
-	run.RecommendationResult = result
-	run.RecommendationAttempts = 1
-	run.RecommendationError = ""
-	run.UpdatedAt = now
-	if err := o.runs.Update(ctx, run); err != nil {
-		// Log but don't fail - the extraction succeeded, just caching failed
-		// Next time the modal opens, it will re-extract (not ideal but functional)
-		log.Printf("[recommendation] Failed to persist recommendation result for run %s: %v", run.ID, err)
-	}
-
-	// Broadcast the update so UI gets real-time notification
-	if o.broadcaster != nil {
-		o.broadcaster.BroadcastRunStatus(run)
-	}
-
-	return result, nil
-}
-
 // RegenerateRecommendations forces re-extraction of recommendations for an investigation run.
 // This resets the extraction state and queues the run for background processing.
 func (o *Orchestrator) RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error {

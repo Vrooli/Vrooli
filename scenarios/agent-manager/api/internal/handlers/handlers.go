@@ -687,8 +687,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metrics := map[string]*commonpb.JsonValue{
-		"active_runs":  {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.ActiveRuns)}},
-		"queued_tasks": {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.QueuedTasks)}},
+		"active_runs":          {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.ActiveRuns)}},
+		"queued_tasks":         {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.QueuedTasks)}},
+		"default_project_root": {Kind: &commonpb.JsonValue_StringValue{StringValue: h.svc.GetDefaultProjectRoot()}},
 	}
 
 	writeProtoJSON(w, http.StatusOK, &commonpb.HealthResponse{

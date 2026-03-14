@@ -109,6 +109,9 @@ type Service interface {
 	// --- Recommendation Extraction Operations ---
 	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
 	RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error
+
+	// --- Config Accessors ---
+	GetDefaultProjectRoot() string
 }
 
 // -----------------------------------------------------------------------------
@@ -2052,6 +2055,13 @@ func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelr
 }
 
 // -----------------------------------------------------------------------------
+// Config Accessors
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetDefaultProjectRoot() string {
+	return o.config.DefaultProjectRoot
+}
+
 // Status Operations
 // -----------------------------------------------------------------------------
 
