@@ -13,7 +13,22 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 	// Pass nil for repoLock — visual capture calls BAS (external HTTP) and
 	// saves to file storage; it never touches git. Holding the repo lock for
 	// the duration of BAS workflow execution starves all other endpoints.
-	hctx := RepoOperation(w, r, s.git, s.repos, nil, 120*time.Second)
+	var req VisualCaptureRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	// Scale timeout by number of presets (each preset×page takes ~60s max)
+	numPresets := len(req.Presets)
+	if numPresets == 0 {
+		numPresets = 1
+	}
+	timeout := time.Duration(numPresets*120+30) * time.Second
+	if timeout > 600*time.Second {
+		timeout = 600 * time.Second
+	}
+
+	hctx := RepoOperation(w, r, s.git, s.repos, nil, timeout)
 	if hctx == nil {
 		return
 	}
@@ -21,11 +36,6 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 
 	if !s.capabilities.IsAvailable(hctx.Ctx, "browser-automation-studio") {
 		hctx.Resp.ServiceUnavailable("browser-automation-studio is not available")
-		return
-	}
-
-	var req VisualCaptureRequest
-	if !ParseJSONBody(w, r, &req) {
 		return
 	}
 
@@ -37,6 +47,21 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 	if req.Mode != "" && req.Mode != CaptureModeBaseline && req.Mode != CaptureModeCapture {
 		hctx.Resp.BadRequest("mode must be \"baseline\" or \"capture\"")
 		return
+	}
+
+	for i := range req.Presets {
+		p := &req.Presets[i]
+		if p.Width <= 0 || p.Height <= 0 || p.Width > 7680 || p.Height > 4320 {
+			hctx.Resp.BadRequest("preset dimensions must be positive and at most 7680x4320")
+			return
+		}
+		if p.Theme == "" {
+			p.Theme = "light"
+		}
+		if p.Theme != "light" && p.Theme != "dark" {
+			hctx.Resp.BadRequest("preset theme must be \"light\" or \"dark\"")
+			return
+		}
 	}
 
 	meta, err := CaptureScenario(hctx.Ctx, VisualCaptureDeps{

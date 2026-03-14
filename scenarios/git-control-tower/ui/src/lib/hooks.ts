@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { DiffStats } from "./api";
+import type { CapturePreset, DiffStats } from "./api";
 import {
   fetchHealth,
   fetchRepoStatus,
@@ -791,8 +791,14 @@ export function useVisualCaptureDetail(id: string, slug: string, enabled = true,
 
 export function useTriggerVisualCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture" }>({
-    mutationFn: ({ scenarioSlug, mode }) => triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined),
+  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture"; presets: CapturePreset[] }>({
+    mutationFn: async ({ scenarioSlug, mode, presets }) => {
+      const meta = await triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined, presets);
+      if (meta.status === "failed") {
+        throw new Error(meta.error || "Capture failed — no screenshots were captured");
+      }
+      return meta;
+    },
     onSuccess: (_data, { scenarioSlug }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.visualCaptures(scenarioSlug, repoId) });
     },
@@ -844,7 +850,13 @@ export function useWorkflowCaptures(slug: string, enabled = true, repoId?: strin
 export function useTriggerWorkflowCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation<WorkflowCaptureResult, Error, { scenarioSlug: string; mode: "baseline" | "capture"; executionModes: ExecutionMode[] }>({
-    mutationFn: ({ scenarioSlug, mode, executionModes }) => triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined),
+    mutationFn: async ({ scenarioSlug, mode, executionModes }) => {
+      const result = await triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined);
+      if (result.status === "failed") {
+        throw new Error(result.error || "Workflow capture failed");
+      }
+      return result;
+    },
     onSuccess: (_data, { scenarioSlug }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflowCaptures(scenarioSlug, repoId) });
     },

@@ -48,81 +48,90 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		pages, discoveryMethod = discoverPagesWithMethod(deps.FS, deps.RepoDir, req.ScenarioSlug)
 	}
 
-	// Default viewport
-	viewport := req.Viewport
-	if viewport.Width == 0 || viewport.Height == 0 {
-		viewport = BASViewport{Width: 1280, Height: 720}
+	// Default presets
+	presets := req.Presets
+	if len(presets) == 0 {
+		presets = []CapturePreset{{Name: "Desktop Light", Width: 1440, Height: 900, Theme: "light"}}
 	}
 
 	snapshotID := fmt.Sprintf("%d", time.Now().UnixNano())
 	screenshots := map[string][]byte{}
-	var capturedPages []string
+	capturedPagesSet := map[string]bool{}
 	var captureErr string
 
+	for _, preset := range presets {
+		for _, page := range pages {
+			pageCtx, pageCancel := context.WithTimeout(ctx, 60*time.Second)
+
+			wfJSON, err := buildScreenshotWorkflow(req.ScenarioSlug, page, preset)
+			if err != nil {
+				pageCancel()
+				log.Printf("WARNING: build workflow failed for %s%s@%dx%d_%s: %v", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, err)
+				captureErr = err.Error()
+				continue
+			}
+
+			execResp, err := deps.BAS.ExecuteAdhocWorkflow(pageCtx, BASExecuteAdhocRequest{
+				FlowDefinition: wfJSON,
+			}, false)
+			if err != nil {
+				pageCancel()
+				log.Printf("WARNING: execute workflow failed for %s%s@%dx%d_%s: %v", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, err)
+				captureErr = err.Error()
+				continue
+			}
+
+			detail, err := deps.BAS.PollExecutionCompletion(pageCtx, execResp.ExecutionID, 500*time.Millisecond)
+			if err != nil {
+				pageCancel()
+				log.Printf("WARNING: poll failed for %s%s@%dx%d_%s: %v", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, err)
+				captureErr = err.Error()
+				continue
+			}
+			if detail.Status != "EXECUTION_STATUS_COMPLETED" {
+				pageCancel()
+				errMsg := fmt.Sprintf("execution %s for %s%s@%dx%d_%s: %s", detail.Status, req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, detail.Error)
+				log.Printf("WARNING: %s", errMsg)
+				captureErr = errMsg
+				continue
+			}
+
+			ssResp, err := deps.BAS.GetScreenshots(pageCtx, execResp.ExecutionID)
+			if err != nil {
+				pageCancel()
+				log.Printf("WARNING: get screenshots failed for %s%s@%dx%d_%s: %v", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, err)
+				captureErr = err.Error()
+				continue
+			}
+			if len(ssResp.Screenshots) == 0 {
+				pageCancel()
+				log.Printf("WARNING: no screenshots returned for %s%s@%dx%d_%s", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme)
+				captureErr = "no screenshots returned"
+				continue
+			}
+
+			// Use the last screenshot — BAS captures one per step, and the explicit
+			// ACTION_TYPE_SCREENSHOT step is always last in the workflow.
+			lastSS := ssResp.Screenshots[len(ssResp.Screenshots)-1]
+			pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, lastSS.Screenshot.Url)
+			pageCancel()
+			if err != nil {
+				log.Printf("WARNING: fetch screenshot data failed for %s%s@%dx%d_%s: %v", req.ScenarioSlug, page.Path, preset.Width, preset.Height, preset.Theme, err)
+				captureErr = err.Error()
+				continue
+			}
+
+			filename := sanitizeFilename(page.Path) + presetSuffix(preset) + ".png"
+			screenshots[filename] = pngData
+			capturedPagesSet[page.Path] = true
+		}
+	}
+
+	var capturedPages []string
 	for _, page := range pages {
-		pageCtx, pageCancel := context.WithTimeout(ctx, 60*time.Second)
-
-		wfJSON, err := buildScreenshotWorkflow(req.ScenarioSlug, page, viewport)
-		if err != nil {
-			pageCancel()
-			log.Printf("WARNING: build workflow failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
-			captureErr = err.Error()
-			continue
+		if capturedPagesSet[page.Path] {
+			capturedPages = append(capturedPages, page.Path)
 		}
-
-		execResp, err := deps.BAS.ExecuteAdhocWorkflow(pageCtx, BASExecuteAdhocRequest{
-			FlowDefinition: wfJSON,
-		}, false)
-		if err != nil {
-			pageCancel()
-			log.Printf("WARNING: execute workflow failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
-			captureErr = err.Error()
-			continue
-		}
-
-		detail, err := deps.BAS.PollExecutionCompletion(pageCtx, execResp.ExecutionID, 500*time.Millisecond)
-		if err != nil {
-			pageCancel()
-			log.Printf("WARNING: poll failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
-			captureErr = err.Error()
-			continue
-		}
-		if detail.Status != "EXECUTION_STATUS_COMPLETED" {
-			pageCancel()
-			errMsg := fmt.Sprintf("execution %s for %s%s: %s", detail.Status, req.ScenarioSlug, page.Path, detail.Error)
-			log.Printf("WARNING: %s", errMsg)
-			captureErr = errMsg
-			continue
-		}
-
-		ssResp, err := deps.BAS.GetScreenshots(pageCtx, execResp.ExecutionID)
-		if err != nil {
-			pageCancel()
-			log.Printf("WARNING: get screenshots failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
-			captureErr = err.Error()
-			continue
-		}
-		if len(ssResp.Screenshots) == 0 {
-			pageCancel()
-			log.Printf("WARNING: no screenshots returned for %s%s", req.ScenarioSlug, page.Path)
-			captureErr = "no screenshots returned"
-			continue
-		}
-
-		// Use the last screenshot — BAS captures one per step, and the explicit
-		// ACTION_TYPE_SCREENSHOT step is always last in the workflow.
-		lastSS := ssResp.Screenshots[len(ssResp.Screenshots)-1]
-		pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, lastSS.Screenshot.Url)
-		pageCancel()
-		if err != nil {
-			log.Printf("WARNING: fetch screenshot data failed for %s%s: %v", req.ScenarioSlug, page.Path, err)
-			captureErr = err.Error()
-			continue
-		}
-
-		filename := sanitizeFilename(page.Path) + ".png"
-		screenshots[filename] = pngData
-		capturedPages = append(capturedPages, page.Path)
 	}
 
 	status := "complete"
@@ -151,6 +160,7 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 		CreatedAt:           time.Now().UTC(),
 		Status:              status,
 		Error:               captureErr,
+		Presets:             presets,
 		PageDiscoveryMethod: discoveryMethod,
 	}
 
@@ -167,8 +177,8 @@ func CaptureScenario(ctx context.Context, deps VisualCaptureDeps, req VisualCapt
 }
 
 // buildScreenshotWorkflow creates an inline BAS workflow JSON that navigates to
-// a scenario page and takes a full-page screenshot.
-func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, viewport BASViewport) (json.RawMessage, error) {
+// a scenario page, applies the requested color scheme, and takes a full-page screenshot.
+func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, preset CapturePreset) (json.RawMessage, error) {
 	nodes := []map[string]interface{}{
 		{
 			"id": "navigate",
@@ -208,6 +218,27 @@ func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, viewport 
 		},
 	}
 
+	// Inject CSS color-scheme as a JS fallback in case BAS does not propagate
+	// the color_scheme workflow setting to Playwright's emulateMedia.
+	nodes = append(nodes, map[string]interface{}{
+		"id": "set-theme",
+		"action": map[string]interface{}{
+			"type": "ACTION_TYPE_EVALUATE",
+			"evaluate": map[string]interface{}{
+				"expression": fmt.Sprintf(`document.documentElement.style.colorScheme = %q`, preset.Theme),
+			},
+			"metadata": map[string]interface{}{
+				"label": "Set color scheme to " + preset.Theme,
+			},
+		},
+	})
+	edges = append(edges, map[string]interface{}{
+		"id":     "e-settle-theme",
+		"source": "wait-settled",
+		"target": "set-theme",
+		"type":   "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+	})
+
 	nodes = append(nodes, map[string]interface{}{
 		"id": "screenshot",
 		"action": map[string]interface{}{
@@ -222,7 +253,7 @@ func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, viewport 
 	})
 	edges = append(edges, map[string]interface{}{
 		"id":     "e-screenshot",
-		"source": "wait-settled",
+		"source": "set-theme",
 		"target": "screenshot",
 		"type":   "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
 	})
@@ -233,8 +264,13 @@ func buildScreenshotWorkflow(scenarioSlug string, page LighthousePage, viewport 
 			"description": fmt.Sprintf("Capture screenshot of %s %s", scenarioSlug, page.Path),
 		},
 		"settings": map[string]interface{}{
-			"viewport_width":  viewport.Width,
-			"viewport_height": viewport.Height,
+			"viewport_width":  preset.Width,
+			"viewport_height": preset.Height,
+			"browser_profile": map[string]interface{}{
+				"fingerprint": map[string]interface{}{
+					"color_scheme": preset.Theme,
+				},
+			},
 		},
 		"nodes": nodes,
 		"edges": edges,
@@ -356,6 +392,11 @@ func discoverPagesWithMethod(fs FileIO, repoDir, scenarioSlug string) ([]Lightho
 	}
 
 	return []LighthousePage{{Path: "/", Label: "Home"}}, "fallback"
+}
+
+// presetSuffix returns a filename-safe suffix like "@1440x900_light" for a capture preset.
+func presetSuffix(p CapturePreset) string {
+	return fmt.Sprintf("@%dx%d_%s", p.Width, p.Height, p.Theme)
 }
 
 // sanitizeFilename converts page path "/" → "_root_", "/workflow/new" → "_workflow_new_"

@@ -276,7 +276,7 @@ func TestCaptureScenario_FullFlow(t *testing.T) {
 func TestBuildScreenshotWorkflow(t *testing.T) {
 	t.Parallel()
 
-	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, BASViewport{Width: 1920, Height: 1080})
+	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, CapturePreset{Name: "Desktop Dark", Width: 1920, Height: 1080, Theme: "dark"})
 	if err != nil {
 		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
 	}
@@ -291,11 +291,16 @@ func TestBuildScreenshotWorkflow(t *testing.T) {
 	if int(settings["viewport_width"].(float64)) != 1920 {
 		t.Errorf("expected viewport_width 1920, got %v", settings["viewport_width"])
 	}
+	bp := settings["browser_profile"].(map[string]interface{})
+	fp := bp["fingerprint"].(map[string]interface{})
+	if fp["color_scheme"] != "dark" {
+		t.Errorf("expected color_scheme dark, got %v", fp["color_scheme"])
+	}
 
-	// Always 3 nodes: navigate → wait-settled → screenshot
+	// 4 nodes: navigate → wait-settled → set-theme → screenshot
 	nodes := wf["nodes"].([]interface{})
-	if len(nodes) != 3 {
-		t.Fatalf("expected 3 nodes, got %d", len(nodes))
+	if len(nodes) != 4 {
+		t.Fatalf("expected 4 nodes, got %d", len(nodes))
 	}
 
 	// Navigate node
@@ -319,32 +324,44 @@ func TestBuildScreenshotWorkflow(t *testing.T) {
 		t.Errorf("settle expression should check for animate-spin spinners")
 	}
 
+	// Theme node
+	themeNode := nodes[2].(map[string]interface{})
+	themeAction := themeNode["action"].(map[string]interface{})
+	themeExpr := themeAction["evaluate"].(map[string]interface{})["expression"].(string)
+	if !strings.Contains(themeExpr, "colorScheme") {
+		t.Errorf("theme expression should set colorScheme, got: %s", themeExpr)
+	}
+
 	// Screenshot node
-	ssNode := nodes[2].(map[string]interface{})
+	ssNode := nodes[3].(map[string]interface{})
 	ssAction := ssNode["action"].(map[string]interface{})
 	if ssAction["type"] != "ACTION_TYPE_SCREENSHOT" {
 		t.Errorf("expected ACTION_TYPE_SCREENSHOT, got %v", ssAction["type"])
 	}
 
-	// Check edges: navigate→wait-settled→screenshot
+	// Check edges: navigate→wait-settled→set-theme→screenshot
 	edges := wf["edges"].([]interface{})
-	if len(edges) != 2 {
-		t.Fatalf("expected 2 edges, got %d", len(edges))
+	if len(edges) != 3 {
+		t.Fatalf("expected 3 edges, got %d", len(edges))
 	}
 	e1 := edges[0].(map[string]interface{})
 	if e1["source"] != "navigate" || e1["target"] != "wait-settled" {
 		t.Errorf("expected edge navigate->wait-settled, got %v->%v", e1["source"], e1["target"])
 	}
 	e2 := edges[1].(map[string]interface{})
-	if e2["source"] != "wait-settled" || e2["target"] != "screenshot" {
-		t.Errorf("expected edge wait-settled->screenshot, got %v->%v", e2["source"], e2["target"])
+	if e2["source"] != "wait-settled" || e2["target"] != "set-theme" {
+		t.Errorf("expected edge wait-settled->set-theme, got %v->%v", e2["source"], e2["target"])
+	}
+	e3 := edges[2].(map[string]interface{})
+	if e3["source"] != "set-theme" || e3["target"] != "screenshot" {
+		t.Errorf("expected edge set-theme->screenshot, got %v->%v", e3["source"], e3["target"])
 	}
 }
 
 func TestBuildScreenshotWorkflow_WithWaitForSelector(t *testing.T) {
 	t.Parallel()
 
-	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/", Label: "Home", WaitForSelector: "[data-testid=\"main\"]"}, BASViewport{Width: 1280, Height: 720})
+	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/", Label: "Home", WaitForSelector: "[data-testid=\"main\"]"}, CapturePreset{Name: "Desktop Light", Width: 1280, Height: 720, Theme: "light"})
 	if err != nil {
 		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
 	}
@@ -546,5 +563,72 @@ func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
 	result := CheckCaptureStaleness(dir, "nonexistent", time.Now().UTC())
 	if result.IsStale {
 		t.Error("expected not stale for nonexistent scenario dir")
+	}
+}
+
+func TestPresetSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		preset CapturePreset
+		want   string
+	}{
+		{CapturePreset{Name: "Desktop Light", Width: 1440, Height: 900, Theme: "light"}, "@1440x900_light"},
+		{CapturePreset{Name: "Mobile Dark", Width: 390, Height: 844, Theme: "dark"}, "@390x844_dark"},
+		{CapturePreset{Name: "Tablet Light", Width: 768, Height: 1024, Theme: "light"}, "@768x1024_light"},
+	}
+	for _, tc := range tests {
+		got := presetSuffix(tc.preset)
+		if got != tc.want {
+			t.Errorf("presetSuffix(%v) = %q, want %q", tc.preset, got, tc.want)
+		}
+	}
+}
+
+func TestCaptureScenario_MultiplePresets(t *testing.T) {
+	t.Parallel()
+
+	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
+
+	// Create lighthouse.json with 2 pages
+	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
+	if err := os.MkdirAll(lhDir, 0o755); err != nil {
+		t.Fatalf("create lighthouse dir: %v", err)
+	}
+	lhConfig := LighthouseConfig{
+		Enabled: true,
+		Pages: []LighthousePage{
+			{ID: "home", Path: "/", Label: "Home"},
+			{ID: "about", Path: "/about", Label: "About"},
+		},
+	}
+	lhData, _ := json.Marshal(lhConfig)
+	if err := os.WriteFile(filepath.Join(lhDir, "lighthouse.json"), lhData, 0o644); err != nil {
+		t.Fatalf("write lighthouse.json: %v", err)
+	}
+
+	presets := []CapturePreset{
+		{Name: "Desktop Light", Width: 1440, Height: 900, Theme: "light"},
+		{Name: "Mobile Dark", Width: 390, Height: 844, Theme: "dark"},
+	}
+	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
+		ScenarioSlug: "test-app",
+		Mode:         CaptureModeBaseline,
+		Presets:      presets,
+	})
+	if err != nil {
+		t.Fatalf("CaptureScenario returned error: %v", err)
+	}
+	if meta.Status != "complete" {
+		t.Errorf("expected status complete, got %s (error: %s)", meta.Status, meta.Error)
+	}
+	// 2 pages × 2 presets = 4 screenshots
+	if meta.ScreenshotCount != 4 {
+		t.Errorf("expected 4 screenshots (2 pages × 2 presets), got %d", meta.ScreenshotCount)
+	}
+	if len(meta.Presets) != 2 {
+		t.Errorf("expected 2 presets in metadata, got %d", len(meta.Presets))
+	}
+	if len(meta.Pages) != 2 {
+		t.Errorf("expected 2 captured pages, got %d", len(meta.Pages))
 	}
 }

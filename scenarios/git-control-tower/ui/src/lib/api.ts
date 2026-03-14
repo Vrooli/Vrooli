@@ -645,19 +645,45 @@ export interface RemoteURLUpdateResponse {
 // API Functions
 // ============================================================================
 
+/** Extract a short readable message from an HTML error page. */
+function extractHtmlErrorMessage(html: string, status: number): string {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch?.[1]) {
+    const title = titleMatch[1].trim();
+    if (title && title.length < 200) return title;
+  }
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h1Match?.[1]) {
+    const heading = h1Match[1].replace(/<[^>]*>/g, "").trim();
+    if (heading && heading.length < 200) return heading;
+  }
+  return `Server returned an HTML error (status ${status})`;
+}
+
+const MAX_ERROR_LENGTH = 500;
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
     let message = text;
     if (text) {
-      try {
-        const parsed = JSON.parse(text) as { error?: string };
-        if (parsed?.error) {
-          message = parsed.error;
+      // Detect HTML responses (proxies, panic recovery, etc.)
+      const isHtml = text.trimStart().startsWith("<") || res.headers.get("content-type")?.includes("text/html");
+      if (isHtml) {
+        message = extractHtmlErrorMessage(text, res.status);
+      } else {
+        try {
+          const parsed = JSON.parse(text) as { error?: string };
+          if (parsed?.error) {
+            message = parsed.error;
+          }
+        } catch {
+          // Ignore JSON parse errors; fall back to raw text.
         }
-      } catch {
-        // Ignore JSON parse errors; fall back to raw text.
       }
+    }
+    if (message && message.length > MAX_ERROR_LENGTH) {
+      message = message.slice(0, MAX_ERROR_LENGTH) + "…";
     }
     throw new Error(message || `Request failed: ${res.status}`);
   }
@@ -1378,6 +1404,51 @@ export type CaptureStatus = "complete" | "failed";
 export type SnapshotRole = "baseline" | "capture";
 export type CaptureMode = "baseline" | "capture";
 
+export type CaptureTheme = "light" | "dark";
+
+export interface CapturePreset {
+  name: string;
+  width: number;
+  height: number;
+  theme: CaptureTheme;
+}
+
+export const SIZE_PRESETS: Record<string, { width: number; height: number }> = {
+  Desktop: { width: 1440, height: 900 },
+  Tablet: { width: 768, height: 1024 },
+  Mobile: { width: 390, height: 844 },
+};
+
+export const DEFAULT_PRESETS: CapturePreset[] = [
+  { name: "Desktop Light", width: 1440, height: 900, theme: "light" },
+];
+
+export function presetSuffix(p: CapturePreset): string {
+  return `@${p.width}x${p.height}_${p.theme}`;
+}
+
+export function presetLabel(p: CapturePreset): string {
+  return p.name;
+}
+
+export function presetKey(p: CapturePreset): string {
+  return `${p.width}x${p.height}_${p.theme}`;
+}
+
+export function getCapturePresets(scenarioSlug: string): CapturePreset[] {
+  const stored = localStorage.getItem(`gct.capturePresets.${scenarioSlug}`);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch { /* fall through */ }
+  }
+  return DEFAULT_PRESETS;
+}
+
+export function setCapturePresets(scenarioSlug: string, presets: CapturePreset[]): void {
+  localStorage.setItem(`gct.capturePresets.${scenarioSlug}`, JSON.stringify(presets));
+}
+
 export interface SnapshotStalenessInfo {
   isStale: boolean;
   lastFileChange?: string;
@@ -1390,6 +1461,9 @@ export interface SnapshotFile {
   pageLabel?: string;
   width?: number;
   height?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  theme?: string;
   sizeBytes: number;
 }
 
@@ -1407,6 +1481,7 @@ export interface SnapshotSetMeta {
   sizeBytes: number;
   status: CaptureStatus;
   error?: string;
+  presets: CapturePreset[];
   pageDiscoveryMethod?: "lighthouse" | "fallback" | "explicit";
 }
 
@@ -1431,12 +1506,12 @@ export interface CaptureStorageStats {
 // Visual Capture API Functions
 // ============================================================================
 
-export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string): Promise<SnapshotSetMeta> {
+export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
   const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode })
+    body: JSON.stringify({ scenarioSlug, mode, presets })
   });
   return handleResponse<SnapshotSetMeta>(res);
 }

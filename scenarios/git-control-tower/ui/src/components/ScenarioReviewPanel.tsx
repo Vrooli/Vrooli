@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera, ExternalLink, AlertCircle } from "lucide-react";
+import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera, ExternalLink, AlertCircle, Settings, Copy, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture, useScenarios, useStartAuditorCheck, useAuditorJobStatus } from "../lib/hooks";
-import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl } from "../lib/api";
-import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult, AuditorViolation, AuditorJobStatus } from "../lib/api";
+import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl, presetSuffix, presetLabel, presetKey, getCapturePresets, setCapturePresets as saveCapturePresets, SIZE_PRESETS, DEFAULT_PRESETS } from "../lib/api";
+import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult, AuditorViolation, AuditorJobStatus } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
+import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
 type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "agent";
@@ -94,9 +95,18 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   const capture = completeSnapshots.find(s => effectiveRole(s) === "capture");
   const captureStaleness = capturesQuery.data?.staleness;
 
+  const [presetConfig, setPresetConfigState] = useState<CapturePreset[]>(() => getCapturePresets(scenarioSlug));
+  useEffect(() => {
+    setPresetConfigState(getCapturePresets(scenarioSlug));
+  }, [scenarioSlug]);
+  const handlePresetConfigChange = useCallback((presets: CapturePreset[]) => {
+    setPresetConfigState(presets);
+    saveCapturePresets(scenarioSlug, presets);
+  }, [scenarioSlug]);
+
   const isCapturing = triggerCapture.isPending;
-  const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline" }), [triggerCapture, scenarioSlug]);
-  const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture" }), [triggerCapture, scenarioSlug]);
+  const handleBaseline = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "baseline", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
+  const handleCapture = useCallback(() => triggerCapture.mutate({ scenarioSlug, mode: "capture", presets: presetConfig }), [triggerCapture, scenarioSlug, presetConfig]);
 
   // Workflow captures (mirrors screenshot capture pattern)
   const workflowCapturesQuery = useWorkflowCaptures(scenarioSlug, true, repoId);
@@ -190,7 +200,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             <div className="h-48 animate-pulse bg-slate-800 rounded" />
           </div>
         ) : capturesQuery.error ? (
-          <p className="text-red-400 text-sm">{capturesQuery.error.message}</p>
+          <MutationErrorBanner error={capturesQuery.error} />
         ) : (
           <ScreenshotsTab
             baseline={baseline}
@@ -202,6 +212,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             isCapturing={isCapturing}
             onBaseline={handleBaseline}
             onCapture={handleCapture}
+            presetConfig={presetConfig}
+            onPresetConfigChange={handlePresetConfigChange}
             mutationError={triggerCapture.error}
             onDismissError={() => triggerCapture.reset()}
           />
@@ -512,11 +524,21 @@ function MediaLightbox({
 // ============================================================================
 
 function MutationErrorBanner({ error, onDismiss }: { error: Error | null; onDismiss?: () => void }) {
+  const [copied, setCopied] = useState(false);
   if (!error) return null;
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(error.message).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   return (
     <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/30 border border-red-900/40">
       <AlertTriangle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
-      <p className="flex-1 text-xs text-red-300">{error.message}</p>
+      <p className="flex-1 text-xs text-red-300 max-h-32 overflow-y-auto break-words">{error.message}</p>
+      <button type="button" onClick={handleCopy} className="text-red-400 hover:text-red-300 shrink-0" aria-label="Copy error" title="Copy error">
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
       {onDismiss && (
         <button type="button" onClick={onDismiss} className="text-red-400 hover:text-red-300 shrink-0" aria-label="Dismiss">
           <X className="h-3.5 w-3.5" />
@@ -896,6 +918,8 @@ function ScreenshotsTab({
   isCapturing,
   onBaseline,
   onCapture,
+  presetConfig,
+  onPresetConfigChange,
   mutationError,
   onDismissError,
 }: {
@@ -908,16 +932,30 @@ function ScreenshotsTab({
   isCapturing: boolean;
   onBaseline: () => void;
   onCapture: () => void;
+  presetConfig: CapturePreset[];
+  onPresetConfigChange: (presets: CapturePreset[]) => void;
   mutationError?: Error | null;
   onDismissError?: () => void;
 }) {
   const [selectedPage, setSelectedPage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+
+  // Determine which presets were captured (from snapshot metadata)
+  const primarySnapshot = capture ?? baseline;
+  const capturedPresets: CapturePreset[] = primarySnapshot?.presets ?? [];
+
+  // Active preset for filtering — default to first captured preset, or first config preset
+  const [activePreset, setActivePreset] = useState<CapturePreset>(
+    () => capturedPresets[0] ?? presetConfig[0] ?? { name: "Desktop Light", width: 1440, height: 900, theme: "light" as CaptureTheme }
+  );
 
   // No snapshots at all
   if (!baseline && !capture) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+        <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
         <ClipboardCheck className="h-8 w-8 mb-3 opacity-50" />
         <p className="text-sm">No captures yet</p>
         <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing visual changes</p>
@@ -933,40 +971,45 @@ function ScreenshotsTab({
     );
   }
 
-  // Use the most detailed snapshot for page navigation
-  const primarySnapshot = capture ?? baseline!;
-  const primaryPages = primarySnapshot.pages ?? [];
+  const primaryPages = primarySnapshot!.pages ?? [];
   const currentPage = primaryPages[selectedPage] ?? "/";
 
-  // Build lightbox items: baseline first (left side), then capture (right side)
+  // Build filename for current preset
+  const screenshotFilename = (pagePath: string) =>
+    sanitizePagePath(pagePath) + presetSuffix(activePreset) + ".png";
+
+  // Build lightbox items for the active preset: baseline first, then capture
   const lightboxItems: LightboxItem[] = [];
   const baselinePages = baseline?.pages ?? [];
   if (baseline) {
     for (const page of baselinePages) {
-      const filename = sanitizePagePath(page) + ".png";
       lightboxItems.push({
         label: `Baseline: ${page === "/" ? "/ (Home)" : page}`,
-        sublabel: new Date(baseline.createdAt).toLocaleString(),
+        sublabel: `${new Date(baseline.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
         type: "image",
-        url: buildCaptureScreenshotUrl(baseline.id, scenarioSlug, filename),
+        url: buildCaptureScreenshotUrl(baseline.id, scenarioSlug, screenshotFilename(page)),
       });
     }
   }
   if (capture) {
     const capturePages = capture.pages ?? [];
     for (const page of capturePages) {
-      const filename = sanitizePagePath(page) + ".png";
       lightboxItems.push({
         label: baseline ? `Capture: ${page === "/" ? "/ (Home)" : page}` : page === "/" ? "/ (Home)" : page,
-        sublabel: new Date(capture.createdAt).toLocaleString(),
+        sublabel: `${new Date(capture.createdAt).toLocaleString()} (${presetLabel(activePreset)})`,
         type: "image",
-        url: buildCaptureScreenshotUrl(capture.id, scenarioSlug, filename),
+        url: buildCaptureScreenshotUrl(capture.id, scenarioSlug, screenshotFilename(page)),
       });
     }
   }
 
   const baselineIndex = (pageIdx: number) => pageIdx;
   const captureIndex = (pageIdx: number) => baselinePages.length + pageIdx;
+
+  // Capture time estimate
+  const numPages = primaryPages.length || 1;
+  const numPresets = presetConfig.length || 1;
+  const estimatedSeconds = numPages * numPresets * 3;
 
   return (
     <div className="space-y-4">
@@ -983,6 +1026,96 @@ function ScreenshotsTab({
         </Button>
       </div>
 
+      {/* Capture time estimate */}
+      {(numPresets > 1 || numPages > 1) && (
+        <p className="text-[10px] text-slate-600">
+          ~{estimatedSeconds}s for {numPresets} preset{numPresets > 1 ? "s" : ""} &times; {numPages} page{numPages > 1 ? "s" : ""}
+        </p>
+      )}
+
+      {/* Preset filter — desktop: chips + gear, mobile: dropdown */}
+      {capturedPresets.length > 0 && (
+        isMobile ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMobileDropdownOpen(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-xs text-slate-300 hover:text-white transition-colors"
+            >
+              {presetLabel(activePreset)}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {mobileDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1">
+                {capturedPresets.map(p => (
+                  <button
+                    key={presetKey(p)}
+                    type="button"
+                    onClick={() => { setActivePreset(p); setMobileDropdownOpen(false); }}
+                    className={`block w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                      presetKey(p) === presetKey(activePreset)
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                    }`}
+                  >
+                    {presetLabel(p)}
+                  </button>
+                ))}
+                <div className="border-t border-slate-700 mt-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setMobileDropdownOpen(false); setConfigOpen(true); }}
+                    className="block w-full text-left px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                  >
+                    <Settings className="h-3 w-3 inline mr-1.5" />
+                    Configure presets...
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            {capturedPresets.map(p => (
+              <button
+                key={presetKey(p)}
+                type="button"
+                onClick={() => setActivePreset(p)}
+                className={`px-2.5 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
+                  presetKey(p) === presetKey(activePreset)
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {presetLabel(p)}
+              </button>
+            ))}
+            <Popover
+              trigger={<Settings className="h-3.5 w-3.5 text-slate-500 hover:text-slate-300 transition-colors" />}
+              align="end"
+            >
+              <PresetConfigPanel
+                config={presetConfig}
+                onChange={onPresetConfigChange}
+              />
+            </Popover>
+          </div>
+        )
+      )}
+
+      {/* Preset config modal for mobile (triggered from dropdown) */}
+      {configOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={() => setConfigOpen(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-t-xl sm:rounded-xl w-full sm:max-w-sm p-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-200">Configure Presets</span>
+              <button type="button" onClick={() => setConfigOpen(false)} className="text-slate-500 hover:text-slate-300"><X className="h-4 w-4" /></button>
+            </div>
+            <PresetConfigPanel config={presetConfig} onChange={onPresetConfigChange} />
+          </div>
+        </div>
+      )}
+
       {/* Staleness warning */}
       {captureStaleness?.isStale && capture && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
@@ -994,7 +1127,7 @@ function ScreenshotsTab({
       )}
 
       {/* Fallback warning */}
-      {primarySnapshot.pageDiscoveryMethod === "fallback" && (
+      {primarySnapshot!.pageDiscoveryMethod === "fallback" && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
           <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-300">
@@ -1050,6 +1183,7 @@ function ScreenshotsTab({
               captureId={baseline.id}
               scenarioSlug={scenarioSlug}
               pagePath={currentPage}
+              preset={activePreset}
               onClick={() => setLightboxIndex(baselineIndex(selectedPage))}
             />
           </div>
@@ -1071,9 +1205,10 @@ function ScreenshotsTab({
             )}
           </div>
           <ScreenshotImage
-            captureId={primarySnapshot.id}
+            captureId={primarySnapshot!.id}
             scenarioSlug={scenarioSlug}
             pagePath={currentPage}
+            preset={activePreset}
             onClick={() => setLightboxIndex(capture ? captureIndex(selectedPage) : baselineIndex(selectedPage))}
           />
         </div>
@@ -1089,18 +1224,164 @@ function ScreenshotsTab({
   );
 }
 
+function PresetConfigPanel({ config, onChange }: { config: CapturePreset[]; onChange: (presets: CapturePreset[]) => void }) {
+  const [addName, setAddName] = useState("");
+  const [addSize, setAddSize] = useState("Desktop");
+  const [addCustomW, setAddCustomW] = useState("");
+  const [addCustomH, setAddCustomH] = useState("");
+  const [addTheme, setAddTheme] = useState<CaptureTheme>("light");
+
+  const sizeEntries = Object.entries(SIZE_PRESETS);
+  const isCustomSize = addSize === "Custom";
+
+  // Auto-populate name from size + theme
+  const autoName = useMemo(() => {
+    const sizeName = isCustomSize ? `${addCustomW || "?"}x${addCustomH || "?"}` : addSize;
+    return `${sizeName} ${addTheme === "light" ? "Light" : "Dark"}`;
+  }, [addSize, addTheme, addCustomW, addCustomH, isCustomSize]);
+
+  const effectiveName = addName || autoName;
+
+  const addPreset = () => {
+    let w: number, h: number;
+    if (isCustomSize) {
+      w = parseInt(addCustomW, 10);
+      h = parseInt(addCustomH, 10);
+      if (!w || !h || w <= 0 || h <= 0 || w > 7680 || h > 4320) return;
+    } else {
+      const preset = SIZE_PRESETS[addSize];
+      if (!preset) return;
+      w = preset.width;
+      h = preset.height;
+    }
+    const newPreset: CapturePreset = { name: effectiveName, width: w, height: h, theme: addTheme };
+    // Duplicate check by key
+    if (config.some(c => presetKey(c) === presetKey(newPreset))) return;
+    onChange([...config, newPreset]);
+    setAddName("");
+    setAddCustomW("");
+    setAddCustomH("");
+  };
+
+  const removePreset = (p: CapturePreset) => {
+    if (config.length <= 1) return;
+    onChange(config.filter(c => presetKey(c) !== presetKey(p)));
+  };
+
+  const isDuplicate = (() => {
+    let w: number, h: number;
+    if (isCustomSize) {
+      w = parseInt(addCustomW, 10);
+      h = parseInt(addCustomH, 10);
+      if (!w || !h) return false;
+    } else {
+      const preset = SIZE_PRESETS[addSize];
+      if (!preset) return false;
+      w = preset.width;
+      h = preset.height;
+    }
+    return config.some(c => presetKey(c) === `${w}x${h}_${addTheme}`);
+  })();
+
+  return (
+    <div className="p-3 space-y-3 min-w-[260px]">
+      <p className="text-xs font-medium text-slate-400">Capture presets</p>
+
+      {/* Current preset list */}
+      {config.map(p => (
+        <div key={presetKey(p)} className="flex items-center gap-2 text-xs text-slate-300">
+          <span className="flex-1 truncate">{p.name}</span>
+          <span className="text-slate-500">{p.width}&times;{p.height}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] ${p.theme === "dark" ? "bg-slate-700 text-slate-300" : "bg-slate-800 text-slate-400"}`}>
+            {p.theme === "dark" ? "Dark" : "Light"}
+          </span>
+          <button
+            type="button"
+            onClick={() => removePreset(p)}
+            disabled={config.length <= 1}
+            className="text-slate-600 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+
+      {/* Add form */}
+      <div className="pt-2 border-t border-slate-800 space-y-2">
+        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Add preset</p>
+        <input
+          type="text"
+          placeholder={autoName}
+          value={addName}
+          onChange={e => setAddName(e.target.value)}
+          className="w-full px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <div className="flex items-center gap-1.5">
+          <select
+            value={addSize}
+            onChange={e => setAddSize(e.target.value)}
+            className="flex-1 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {sizeEntries.map(([name, s]) => (
+              <option key={name} value={name}>{name} ({s.width}&times;{s.height})</option>
+            ))}
+            <option value="Custom">Custom</option>
+          </select>
+          <select
+            value={addTheme}
+            onChange={e => setAddTheme(e.target.value as CaptureTheme)}
+            className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+        {isCustomSize && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              placeholder="W"
+              value={addCustomW}
+              onChange={e => setAddCustomW(e.target.value)}
+              className="w-20 px-1.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <span className="text-xs text-slate-600">&times;</span>
+            <input
+              type="number"
+              placeholder="H"
+              value={addCustomH}
+              onChange={e => setAddCustomH(e.target.value)}
+              className="w-20 px-1.5 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={addPreset}
+          disabled={isDuplicate || (isCustomSize && (!addCustomW || !addCustomH))}
+          className="w-full px-2 py-1.5 rounded bg-blue-600 text-white text-xs hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isDuplicate ? "Already exists" : "Add"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ScreenshotImage({
   captureId,
   scenarioSlug,
   pagePath,
+  preset,
   onClick,
 }: {
   captureId: string;
   scenarioSlug: string;
   pagePath: string;
+  preset: CapturePreset;
   onClick: () => void;
 }) {
-  const filename = sanitizePagePath(pagePath) + ".png";
+  const filename = sanitizePagePath(pagePath) + presetSuffix(preset) + ".png";
   const url = buildCaptureScreenshotUrl(captureId, scenarioSlug, filename);
 
   return (
@@ -1217,6 +1498,7 @@ function WorkflowsTab({
   if (!baseline && !capture) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+        <MutationErrorBanner error={mutationError ?? null} onDismiss={onDismissError} />
         <Play className="h-8 w-8 mb-3 opacity-50" />
         <p className="text-sm">No workflow captures yet</p>
         <p className="text-xs mt-1 mb-3 text-slate-600">Set a baseline to start comparing workflow results</p>

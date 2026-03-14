@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -186,10 +188,16 @@ func (s *VisualCaptureStorage) GetSnapshotSet(repoID int64, scenarioSlug, snapsh
 			if err != nil {
 				continue
 			}
-			detail.Screenshots = append(detail.Screenshots, SnapshotFile{
+			sf := SnapshotFile{
 				Filename:  entry.Name(),
 				SizeBytes: info.Size(),
-			})
+			}
+			if vw, vh, theme, ok := parsePresetFromFilename(entry.Name()); ok {
+				sf.ViewportWidth = vw
+				sf.ViewportHeight = vh
+				sf.Theme = theme
+			}
+			detail.Screenshots = append(detail.Screenshots, sf)
 		}
 	}
 
@@ -589,6 +597,20 @@ func (s *VisualCaptureStorage) DeleteWorkflowCapturesByRole(repoID int64, scenar
 		}
 	}
 	return nil
+}
+
+var presetFilenameRe = regexp.MustCompile(`@(\d+)x(\d+)_(light|dark)\.png$`)
+
+// parsePresetFromFilename extracts viewport dimensions and theme from a
+// filename like "_root_@1440x900_light.png".
+func parsePresetFromFilename(name string) (width, height int, theme string, ok bool) {
+	m := presetFilenameRe.FindStringSubmatch(name)
+	if m == nil {
+		return 0, 0, "", false
+	}
+	w, _ := strconv.Atoi(m[1])
+	h, _ := strconv.Atoi(m[2])
+	return w, h, m[3], true
 }
 
 func validateFilename(filename string) error {

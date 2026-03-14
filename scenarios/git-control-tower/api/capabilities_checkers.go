@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/vrooli/api-core/discovery"
@@ -30,12 +31,14 @@ func (c *ScenarioChecker) Check(ctx context.Context) (CapabilityStatus, string) 
 		if discovery.IsScenarioNotRunning(err) {
 			return StatusUnavailable, c.Slug + " is not running"
 		}
-		return StatusUnavailable, "cannot resolve " + c.Slug + ": " + err.Error()
+		log.Printf("WARNING: capability check for %s failed: %v", c.Slug, err)
+		return StatusUnavailable, c.Slug + " is not running or could not be reached"
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url+"/health", nil)
 	if err != nil {
-		return StatusUnavailable, c.Slug + " health check failed: " + err.Error()
+		log.Printf("WARNING: capability health check for %s failed: %v", c.Slug, err)
+		return StatusUnavailable, c.Slug + " is not responding"
 	}
 
 	resp, err := c.Client.Do(req)

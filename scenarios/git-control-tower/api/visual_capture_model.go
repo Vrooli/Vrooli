@@ -51,6 +51,15 @@ type BASScreenshotsResponse struct {
 	Total       int                      `json:"total"`
 }
 
+// CapturePreset defines a named capture configuration with viewport dimensions
+// and theme. Extensible for future properties (e.g. deviceScaleFactor, locale).
+type CapturePreset struct {
+	Name   string `json:"name"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+	Theme  string `json:"theme"` // "light" | "dark"
+}
+
 // Visual Capture API Types
 
 // Snapshot roles distinguish the purpose of each capture.
@@ -66,28 +75,29 @@ const (
 )
 
 type VisualCaptureRequest struct {
-	ScenarioSlug string      `json:"scenarioSlug"`
-	Mode         string      `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
-	TriggerType  string      `json:"triggerType,omitempty"` // "manual" | "periodic" (default: "manual")
-	Viewport     BASViewport `json:"viewport,omitempty"`
-	Pages        []string    `json:"pages,omitempty"`
+	ScenarioSlug string          `json:"scenarioSlug"`
+	Mode         string          `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
+	TriggerType  string          `json:"triggerType,omitempty"` // "manual" | "periodic" (default: "manual")
+	Presets      []CapturePreset `json:"presets,omitempty"`
+	Pages        []string        `json:"pages,omitempty"`
 }
 
 type SnapshotSetMeta struct {
-	ID                  string    `json:"id"`
-	ScenarioSlug        string    `json:"scenarioSlug"`
-	Role                string    `json:"role"` // "baseline" | "capture"
-	CommitHash          string    `json:"commitHash,omitempty"`
-	TriggerType         string    `json:"triggerType"`
-	Pages               []string  `json:"pages"`
-	ScreenshotCount     int       `json:"screenshotCount"`
-	VideoCount          int       `json:"videoCount"`
-	VideoStatus         string    `json:"videoStatus,omitempty"` // "not_implemented" | "disabled" | "captured" | "failed"
-	CreatedAt           time.Time `json:"createdAt"`
-	SizeBytes           int64     `json:"sizeBytes"`
-	Status              string    `json:"status"`
-	Error               string    `json:"error,omitempty"`
-	PageDiscoveryMethod string    `json:"pageDiscoveryMethod,omitempty"` // "lighthouse" | "fallback" | "explicit"
+	ID                  string          `json:"id"`
+	ScenarioSlug        string          `json:"scenarioSlug"`
+	Role                string          `json:"role"` // "baseline" | "capture"
+	CommitHash          string          `json:"commitHash,omitempty"`
+	TriggerType         string          `json:"triggerType"`
+	Pages               []string        `json:"pages"`
+	ScreenshotCount     int             `json:"screenshotCount"`
+	VideoCount          int             `json:"videoCount"`
+	VideoStatus         string          `json:"videoStatus,omitempty"` // "not_implemented" | "disabled" | "captured" | "failed"
+	CreatedAt           time.Time       `json:"createdAt"`
+	SizeBytes           int64           `json:"sizeBytes"`
+	Status              string          `json:"status"`
+	Error               string          `json:"error,omitempty"`
+	Presets             []CapturePreset `json:"presets"`
+	PageDiscoveryMethod string          `json:"pageDiscoveryMethod,omitempty"` // "lighthouse" | "fallback" | "explicit"
 }
 
 // SnapshotStalenessInfo describes whether the most recent capture is outdated
@@ -114,12 +124,15 @@ type SnapshotSetDetail struct {
 }
 
 type SnapshotFile struct {
-	Filename  string `json:"filename"`
-	PagePath  string `json:"pagePath,omitempty"`
-	PageLabel string `json:"pageLabel,omitempty"`
-	Width     int    `json:"width,omitempty"`
-	Height    int    `json:"height,omitempty"`
-	SizeBytes int64  `json:"sizeBytes"`
+	Filename       string `json:"filename"`
+	PagePath       string `json:"pagePath,omitempty"`
+	PageLabel      string `json:"pageLabel,omitempty"`
+	Width          int    `json:"width,omitempty"`
+	Height         int    `json:"height,omitempty"`
+	ViewportWidth  int    `json:"viewportWidth,omitempty"`
+	ViewportHeight int    `json:"viewportHeight,omitempty"`
+	Theme          string `json:"theme,omitempty"`
+	SizeBytes      int64  `json:"sizeBytes"`
 }
 
 type VisualCaptureStorageStats struct {
@@ -163,11 +176,11 @@ type BASRecordedVideosResponse struct {
 // Workflow Capture Types
 
 type WorkflowCaptureRequest struct {
-	ScenarioSlug   string      `json:"scenarioSlug"`
-	Mode           string      `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
-	TriggerType    string      `json:"triggerType,omitempty"` // "manual" (default)
-	Viewport       BASViewport `json:"viewport,omitempty"`
-	ExecutionModes []string    `json:"executionModes,omitempty"` // filter: ["observer"], ["observer","mutating"], etc.
+	ScenarioSlug   string          `json:"scenarioSlug"`
+	Mode           string          `json:"mode,omitempty"`        // "baseline" | "capture" (default: "capture")
+	TriggerType    string          `json:"triggerType,omitempty"` // "manual" (default)
+	Presets        []CapturePreset `json:"presets,omitempty"`
+	ExecutionModes []string        `json:"executionModes,omitempty"` // filter: ["observer"], ["observer","mutating"], etc.
 }
 
 type WorkflowExecutionResult struct {

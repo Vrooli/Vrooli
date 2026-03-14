@@ -6,7 +6,9 @@ import {
   ChevronDown,
   ChevronRight,
   Upload,
-  History
+  History,
+  Copy,
+  Check
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -40,6 +42,28 @@ interface CommitPanelProps {
   sourceBranch?: string;
   // History mode - disables the panel
   isHistoryMode?: boolean;
+}
+
+function CommitErrorDisplay({ error }: { error: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(error).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div
+      className="flex items-start gap-2 px-3 py-2 bg-red-950/30 border border-red-800/50 rounded-md text-xs text-red-400"
+      data-testid="commit-error"
+    >
+      <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+      <span className="break-words flex-1 max-h-32 overflow-y-auto">{error}</span>
+      <button type="button" onClick={handleCopy} className="hover:text-red-300 shrink-0" aria-label="Copy error" title="Copy error">
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
 }
 
 export function CommitPanel({
@@ -312,13 +336,7 @@ export function CommitPanel({
 
           {/* Error feedback */}
           {commitError && (
-            <div
-              className="flex items-start gap-2 px-3 py-2 bg-red-950/30 border border-red-800/50 rounded-md text-xs text-red-400"
-              data-testid="commit-error"
-            >
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <span className="break-words">{commitError}</span>
-            </div>
+            <CommitErrorDisplay error={commitError} />
           )}
 
           {/* Helper text when nothing staged */}

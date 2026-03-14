@@ -407,3 +407,80 @@ func TestStorage_PathTraversal(t *testing.T) {
 		t.Fatal("expected error for path traversal filename")
 	}
 }
+
+func TestParsePresetFromFilename(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name      string
+		input     string
+		wantW     int
+		wantH     int
+		wantTheme string
+		wantOK    bool
+	}{
+		{"light", "_root_@1440x900_light.png", 1440, 900, "light", true},
+		{"dark", "_about_@390x844_dark.png", 390, 844, "dark", true},
+		{"no preset", "_root_.png", 0, 0, "", false},
+		{"old format no theme", "_root_@1440x900.png", 0, 0, "", false},
+		{"not png", "_root_@1440x900_light.jpg", 0, 0, "", false},
+		{"partial", "_root_@1440_light.png", 0, 0, "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w, h, theme, ok := parsePresetFromFilename(tc.input)
+			if ok != tc.wantOK || w != tc.wantW || h != tc.wantH || theme != tc.wantTheme {
+				t.Errorf("parsePresetFromFilename(%q) = (%d, %d, %q, %v), want (%d, %d, %q, %v)", tc.input, w, h, theme, ok, tc.wantW, tc.wantH, tc.wantTheme, tc.wantOK)
+			}
+		})
+	}
+}
+
+func TestStorage_GetSnapshotSet_ParsesPresetDimensions(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	store := NewVisualCaptureStorage(testStorageResolver(t, dir), OSFileIO{})
+
+	meta := SnapshotSetMeta{
+		ID:              "vp-1",
+		ScenarioSlug:    "test-app",
+		Role:            SnapshotRoleBaseline,
+		TriggerType:     "manual",
+		Pages:           []string{"/"},
+		ScreenshotCount: 2,
+		Presets:         []CapturePreset{{Name: "Desktop Light", Width: 1440, Height: 900, Theme: "light"}, {Name: "Mobile Dark", Width: 390, Height: 844, Theme: "dark"}},
+		CreatedAt:       time.Now().UTC(),
+		Status:          "complete",
+	}
+	screenshots := map[string][]byte{
+		"_root_@1440x900_light.png": {0x89, 0x50, 0x4E, 0x47},
+		"_root_@390x844_dark.png":   {0x89, 0x50, 0x4E, 0x47},
+	}
+	if err := store.SaveSnapshotSet(1, meta, screenshots, nil); err != nil {
+		t.Fatalf("SaveSnapshotSet: %v", err)
+	}
+
+	detail, err := store.GetSnapshotSet(1, "test-app", "vp-1")
+	if err != nil {
+		t.Fatalf("GetSnapshotSet: %v", err)
+	}
+	if len(detail.Screenshots) != 2 {
+		t.Fatalf("expected 2 screenshots, got %d", len(detail.Screenshots))
+	}
+
+	foundDesktop := false
+	foundMobile := false
+	for _, sf := range detail.Screenshots {
+		if sf.ViewportWidth == 1440 && sf.ViewportHeight == 900 && sf.Theme == "light" {
+			foundDesktop = true
+		}
+		if sf.ViewportWidth == 390 && sf.ViewportHeight == 844 && sf.Theme == "dark" {
+			foundMobile = true
+		}
+	}
+	if !foundDesktop {
+		t.Error("expected screenshot with preset 1440x900 light")
+	}
+	if !foundMobile {
+		t.Error("expected screenshot with preset 390x844 dark")
+	}
+}
