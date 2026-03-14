@@ -20,7 +20,6 @@ import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, typ
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  AlertTriangle,
   ArrowRight,
   ArrowRightLeft,
   ChevronDown,
@@ -42,7 +41,6 @@ import {
   Tags,
   Trash2,
   Upload,
-  Wrench,
   X,
 } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
@@ -70,6 +68,7 @@ import { TargetFormDialog } from "../components/backlog/target-form-dialog";
 import { QuestionFormDialog } from "../components/backlog/question-form-dialog";
 import { SuggestionFormDialog } from "../components/backlog/suggestion-form-dialog";
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
+import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import {
   buildClarifyQuestionsContent,
   buildMaturityInputFromLocal,
@@ -90,7 +89,6 @@ import {
   computeSuggestionsSynthesisSummary,
 } from "../lib/idea-agent-files";
 import { backlogService } from "../services";
-import type { QueueResponse } from "../services";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
@@ -248,13 +246,12 @@ export function BacklogDetailsPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAgentDialog, setShowAgentDialog] = useState(false);
-  const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
+  const [showRunModal, setShowRunModal] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [agentRunExpanded, setAgentRunExpanded] = useState(true);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
-  const [queueBlockedResult, setQueueBlockedResult] = useState<QueueResponse | null>(null);
   const [reqDialogOpen, setReqDialogOpen] = useState(false);
   const [reqDialogMode, setReqDialogMode] = useState<"create" | "edit">("create");
   const [editingReq, setEditingReq] = useState<{ groupId: string; req?: ArchiveRequirementRecord } | null>(null);
@@ -428,31 +425,6 @@ export function BacklogDetailsPage() {
     if (!backlogKind || !name) return;
     queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
   }, [queryClient, backlogKind, name]);
-
-  const queueMutation = useMutation({
-    onMutate: () => setQueueBlockedResult(null),
-    mutationFn: ({ mode, delaySeconds }: { mode: "manual" | "scheduled" | "yolo"; delaySeconds?: number }) => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.queue(backlogKind, name, {
-        mode,
-        delaySeconds,
-        startedBy: "swarm-manager-ui",
-        confirm: true,
-      });
-    },
-    onSuccess: (result) => {
-      if (!backlogKind || !name) return;
-      if (result.dryRun && result.blockingReasons.length > 0) {
-        setQueueBlockedResult(result);
-        return;
-      }
-      setQueueBlockedResult(null);
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
-      if (result?.item) {
-        upsertItem(result.item);
-      }
-    },
-  });
 
   const updateMutation = useMutation({
     mutationFn: (values: {
@@ -1011,11 +983,6 @@ export function BacklogDetailsPage() {
   const suggestionsError = suggestionsMutation.isError
     ? suggestionsMutation.error instanceof Error ? suggestionsMutation.error.message : "Failed to save suggestions or start the Enhance agent."
     : null;
-  const queueError = queueMutation.isError
-    ? queueMutation.error instanceof Error
-      ? queueMutation.error.message
-      : "Failed to queue backlog item. Please try again."
-    : null;
   const convertError = convertMutation.isError
     ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
     : null;
@@ -1233,9 +1200,7 @@ export function BacklogDetailsPage() {
     );
   }
 
-  const HeaderIcon = backlogKind === "research" ? Search : backlogKind === "fix" ? Wrench : Play;
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : item?.kind === "research" ? "Research Agent" : "Research";
-  const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
   const isProtectedSelectedFile = selectedFile?.path === "spec.json";
 
   const renderFileActionItems = (target: BacklogFile, closeMenu: () => void) => {
@@ -1609,50 +1574,15 @@ export function BacklogDetailsPage() {
     return (
       <div className="space-y-2">
         {canQueue && (
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className={rowButtonClass}
-              onClick={() => runAction(() => queueMutation.mutate({ mode: "manual" }))}
-              disabled={queueMutation.isPending}
-            >
-              <HeaderIcon className="mr-2 h-4 w-4" />
-              Queue
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className={primaryRowButtonClass}
-              onClick={() => runAction(() => queueMutation.mutate({ mode: "yolo" }))}
-              disabled={queueMutation.isPending}
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Start Now
-            </Button>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={scheduleDelayValue}
-                onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
-                className="h-10 flex-1 rounded-lg border-slate-700/80 bg-slate-900/40"
-                aria-label="Schedule delay seconds"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 shrink-0 rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-slate-100 hover:bg-slate-800/70"
-                onClick={() =>
-                  runAction(() => queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue }))
-                }
-                disabled={queueMutation.isPending}
-              >
-                Schedule
-              </Button>
-            </div>
-          </div>
+          <Button
+            variant="default"
+            size="sm"
+            className={primaryRowButtonClass}
+            onClick={() => runAction(() => setShowRunModal(true))}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Run
+          </Button>
         )}
         {!canQueue && queueBlockedReason ? (
           <p className="text-xs text-slate-500">{queueBlockedReason}</p>
@@ -1788,33 +1718,8 @@ export function BacklogDetailsPage() {
 
   const mobileInfoView = (
     <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 pb-4">
-      {(queueError || queueBlockedResult || deleteError || convertError) && (
+      {(deleteError || convertError) && (
         <Card padding="sm" className="space-y-2 rounded-lg border-slate-700/60 bg-slate-900/45">
-          {queueBlockedResult && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-              <div className="flex items-center gap-2 font-medium">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                {queueBlockedResult.message}
-              </div>
-              {queueBlockedResult.blockingReasons.length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-0.5 pl-6 text-amber-300/90">
-                  {queueBlockedResult.blockingReasons.map((reason, i) => (
-                    <li key={i}>{reason}</li>
-                  ))}
-                </ul>
-              )}
-              {queueBlockedResult.unansweredQuestions > 0 && (
-                <p className="mt-1 text-xs text-amber-300/70">
-                  {queueBlockedResult.unansweredQuestions} unanswered question{queueBlockedResult.unansweredQuestions !== 1 ? "s" : ""}
-                </p>
-              )}
-            </div>
-          )}
-          {queueError && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {queueError}
-            </div>
-          )}
           {convertError && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
               {convertError}
@@ -2012,44 +1917,15 @@ export function BacklogDetailsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {canQueue && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => queueMutation.mutate({ mode: "manual" })}
-                      disabled={queueMutation.isPending}
-                      data-testid={selectors.backlogDetails.queueButton}
-                    >
-                      {queueMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <HeaderIcon className="mr-2 h-4 w-4" />}
-                      Queue
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => queueMutation.mutate({ mode: "yolo" })}
-                      disabled={queueMutation.isPending}
-                    >
-                      {queueMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                      Start Now
-                    </Button>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={scheduleDelayValue}
-                      onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
-                      className="h-9 w-24"
-                      aria-label="Schedule delay seconds"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => queueMutation.mutate({ mode: "scheduled", delaySeconds: scheduleDelayValue })}
-                      disabled={queueMutation.isPending}
-                    >
-                      Schedule
-                    </Button>
-                  </>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setShowRunModal(true)}
+                    data-testid={selectors.backlogDetails.queueButton}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Run
+                  </Button>
                 )}
                 {!canQueue && queueBlockedReason ? (
                   <span className="max-w-xs text-xs text-slate-500">{queueBlockedReason}</span>
@@ -2115,33 +1991,8 @@ export function BacklogDetailsPage() {
               </div>
             </div>
 
-            {(queueError || queueBlockedResult || deleteError || convertError) && (
+            {(deleteError || convertError) && (
               <div className="mt-4 space-y-2">
-                {queueBlockedResult && (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-                    <div className="flex items-center gap-2 font-medium">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                      {queueBlockedResult.message}
-                    </div>
-                    {queueBlockedResult.blockingReasons.length > 0 && (
-                      <ul className="mt-1.5 list-disc space-y-0.5 pl-6 text-amber-300/90">
-                        {queueBlockedResult.blockingReasons.map((reason, i) => (
-                          <li key={i}>{reason}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {queueBlockedResult.unansweredQuestions > 0 && (
-                      <p className="mt-1 text-xs text-amber-300/70">
-                        {queueBlockedResult.unansweredQuestions} unanswered question{queueBlockedResult.unansweredQuestions !== 1 ? "s" : ""}
-                      </p>
-                    )}
-                  </div>
-                )}
-                {queueError && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                    {queueError}
-                  </div>
-                )}
                 {convertError && (
                   <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                     {convertError}
@@ -2355,6 +2206,19 @@ export function BacklogDetailsPage() {
         description={`Delete "${activeFileAction?.target.path ?? ""}" from this backlog item? This cannot be undone.`}
         confirmLabel="Delete"
         isLoading={fileActionMutation.isPending}
+      />
+
+      <RunBacklogModal
+        isOpen={showRunModal}
+        onClose={() => setShowRunModal(false)}
+        target={backlogKind && name ? { kind: backlogKind, name, title: item?.title } : undefined}
+        onSuccess={(result) => {
+          if (result.item) upsertItem(result.item);
+          if (backlogKind && name) {
+            queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+          }
+          setShowRunModal(false);
+        }}
       />
 
       <BacklogAgentDialog

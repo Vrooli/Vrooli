@@ -26,7 +26,6 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { FloatingActionButton } from "../components/ui/floating-action-button";
-import { Input } from "../components/ui/input";
 import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { ResponsiveList, ResponsiveListItem } from "../components/ui/responsive-list";
 import { SearchBar } from "../components/ui/search-bar";
@@ -39,7 +38,6 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { computeMaturity, formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
 import type { MaturityInput } from "../lib";
 import { backlogService } from "../services";
-import type { MaturityItemSummary } from "../types";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
@@ -52,6 +50,8 @@ import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
 import { MaturityPhaseBar } from "../components/backlog/maturity-phase-bar";
+import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
+import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
 import { useBacklogStore } from "../stores";
 
 /** Statuses that indicate an item is "completed" and shouldn't appear in Continue Working */
@@ -128,7 +128,8 @@ export function BacklogPage() {
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
   const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
   const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
-  const [scheduleDelaySeconds, setScheduleDelaySeconds] = useState(300);
+  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | null>(null);
+  const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
@@ -181,71 +182,6 @@ export function BacklogPage() {
       setShowCreate(false);
     },
   });
-  const queueMutation = useMutation({
-    mutationFn: ({
-      kind,
-      name,
-      mode,
-      delaySeconds,
-    }: {
-      kind: BacklogKind;
-      name: string;
-      mode: "manual" | "scheduled" | "yolo";
-      delaySeconds?: number;
-    }) =>
-      backlogService.queue(kind, name, {
-        mode,
-        delaySeconds,
-        startedBy: "swarm-manager-ui",
-        confirm: true,
-      }),
-    onSuccess: () => {
-      void fetchBacklog({ force: true });
-    },
-  });
-  const bulkQueueMutation = useMutation({
-    mutationFn: async ({
-      items: selectedItems,
-      mode,
-      delaySeconds,
-    }: {
-      items: Array<{ kind: BacklogKind; name: string }>;
-      mode: "manual" | "scheduled" | "yolo";
-      delaySeconds?: number;
-    }) => {
-      let queuedCount = 0;
-      const failures: string[] = [];
-
-      for (const item of selectedItems) {
-        try {
-          await backlogService.queue(item.kind, item.name, {
-            mode,
-            delaySeconds,
-            startedBy: "swarm-manager-ui",
-            confirm: true,
-          });
-          queuedCount += 1;
-        } catch {
-          failures.push(`${item.kind}/${item.name}`);
-        }
-      }
-
-      if (failures.length > 0) {
-        const preview = failures.slice(0, 3).join(", ");
-        const suffix = failures.length > 3 ? ", ..." : "";
-        throw new Error(
-          `Queued ${queuedCount}/${selectedItems.length}. Failed: ${preview}${suffix}`
-        );
-      }
-    },
-    onSuccess: () => {
-      setSelectedKeys([]);
-    },
-    onSettled: () => {
-      void fetchBacklog({ force: true });
-    },
-  });
-
   const openFeedbackHub = (tab: "review" | "export" | "import", names?: string[]) => {
     setFeedbackHubInitialTab(tab);
     setFeedbackHubSelectedNames(names);
@@ -255,15 +191,6 @@ export function BacklogPage() {
   const createError = createMutation.isError
     ? createMutation.error instanceof Error ? createMutation.error.message : "Failed to create backlog item. Please try again."
     : null;
-  const queueError = queueMutation.isError
-    ? queueMutation.error instanceof Error
-      ? queueMutation.error.message
-      : "Failed to queue backlog item."
-    : bulkQueueMutation.isError
-      ? bulkQueueMutation.error instanceof Error
-        ? bulkQueueMutation.error.message
-        : "Failed to queue selected backlog items."
-      : null;
 
   const kindItems = useMemo(
     () => activeKind === "all" ? items : items.filter((item) => item.kind === activeKind),
@@ -303,8 +230,6 @@ export function BacklogPage() {
   }, [kindItems]);
 
   const activeTab = BACKLOG_KIND_TABS.find((tab) => tab.kind === activeKind) ?? BACKLOG_KIND_TABS[0];
-  const scheduleDelayValue = Number.isFinite(scheduleDelaySeconds) && scheduleDelaySeconds >= 0 ? scheduleDelaySeconds : 0;
-  const isAnyQueuePending = queueMutation.isPending || bulkQueueMutation.isPending;
   const queueableFilteredItems = useMemo(
     () => filteredItems.filter((item) => isBacklogQueueable(item)),
     [filteredItems]
@@ -339,17 +264,6 @@ export function BacklogPage() {
       return;
     }
     setSelectedKeys(queueableFilteredItems.map((item) => `${item.kind}/${item.name}`));
-  };
-
-  const queueSelected = (mode: "manual" | "scheduled" | "yolo") => {
-    if (!hasAnySelectedQueueable || isAnyQueuePending) {
-      return;
-    }
-    bulkQueueMutation.mutate({
-      items: selectedQueueableItems.map((item) => ({ kind: item.kind, name: item.name })),
-      mode,
-      ...(mode === "scheduled" ? { delaySeconds: scheduleDelayValue } : {}),
-    });
   };
 
   if (!activeTab) {
@@ -487,17 +401,6 @@ export function BacklogPage() {
                     {stats.ready} ready to queue
                   </span>
                 )}
-                <label className="flex items-center gap-2 text-xs text-slate-500">
-                  Schedule delay (s)
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={scheduleDelayValue}
-                    onChange={(event) => setScheduleDelaySeconds(Number(event.target.value || 0))}
-                    className="h-8 w-24"
-                  />
-                </label>
               </div>
             )}
           </div>
@@ -517,11 +420,6 @@ export function BacklogPage() {
             <X className="h-4 w-4" />
           </button>
         </div>
-      )}
-      {queueError && (
-        <Card className="border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          {queueError}
-        </Card>
       )}
       {isRefreshing && items.length > 0 && (
         <InlineLoadingIndicator
@@ -639,7 +537,7 @@ export function BacklogPage() {
                       aria-label="Select all queueable items"
                       checked={allQueueableSelected}
                       onChange={toggleSelectAllQueueable}
-                      disabled={queueableFilteredItems.length === 0 || isAnyQueuePending}
+                      disabled={queueableFilteredItems.length === 0}
                     />
                     <span>Select all queueable</span>
                   </label>
@@ -664,27 +562,20 @@ export function BacklogPage() {
                     Export Selected
                   </Button>
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => queueSelected("manual")}
-                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
+                    onClick={() =>
+                      setRunModalTargets(
+                        selectedQueueableItems.map((item) => ({
+                          kind: item.kind,
+                          name: item.name,
+                          title: item.title,
+                        })),
+                      )
+                    }
+                    disabled={!hasAnySelectedQueueable}
                   >
-                    Queue Selected
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => queueSelected("yolo")}
-                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
-                  >
-                    Start Selected
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => queueSelected("scheduled")}
-                    disabled={!hasAnySelectedQueueable || isAnyQueuePending}
-                  >
-                    Schedule Selected
+                    <Play className="mr-1 h-3 w-3" />
+                    Run Selected
                   </Button>
                 </div>
               </div>
@@ -711,7 +602,6 @@ export function BacklogPage() {
                             event.stopPropagation();
                             toggleItemSelection(item);
                           }}
-                          disabled={isAnyQueuePending}
                         />
                       ) : null}
                       <span
@@ -743,46 +633,17 @@ export function BacklogPage() {
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>
                   {isBacklogQueueable(item) && (
-                    <div className="mt-3 flex flex-wrap gap-2" onClick={(event) => event.preventDefault()}>
+                    <div className="mt-3" onClick={(event) => event.preventDefault()}>
                       <Button
-                        variant="outline"
                         size="sm"
-                        disabled={isAnyQueuePending}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          queueMutation.mutate({ kind: item.kind, name: item.name, mode: "manual" });
+                          setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
                         }}
                       >
-                        Queue
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={isAnyQueuePending}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          queueMutation.mutate({ kind: item.kind, name: item.name, mode: "yolo" });
-                        }}
-                      >
-                        Start Now
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isAnyQueuePending}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          queueMutation.mutate({
-                            kind: item.kind,
-                            name: item.name,
-                            mode: "scheduled",
-                            delaySeconds: scheduleDelayValue,
-                          });
-                        }}
-                      >
-                        Schedule
+                        <Play className="mr-1 h-3 w-3" />
+                        Run
                       </Button>
                     </div>
                   )}
@@ -817,6 +678,22 @@ export function BacklogPage() {
           createMutation.reset();
         }}
         onSubmit={(values) => createMutation.mutate(values)}
+      />
+
+      <RunBacklogModal
+        isOpen={runModalTarget !== null || runModalTargets !== null}
+        onClose={() => {
+          setRunModalTarget(null);
+          setRunModalTargets(null);
+        }}
+        target={runModalTarget ?? undefined}
+        targets={runModalTargets ?? undefined}
+        onSuccess={() => {
+          void fetchBacklog({ force: true });
+          setSelectedKeys([]);
+          setRunModalTarget(null);
+          setRunModalTargets(null);
+        }}
       />
 
       <FeedbackHubModal

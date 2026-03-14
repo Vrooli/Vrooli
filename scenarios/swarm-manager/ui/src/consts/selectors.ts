@@ -238,6 +238,18 @@ export const literalSelectors = {
     grid: "execution-grid",
     promptTrace: "execution-prompt-trace",
   },
+  // Run backlog modal selectors
+  runBacklog: {
+    dialog: "run-backlog-dialog",
+    modeYolo: "run-backlog-mode-yolo",
+    modeManual: "run-backlog-mode-manual",
+    modeScheduled: "run-backlog-mode-scheduled",
+    delayInput: "run-backlog-delay-input",
+    submitButton: "run-backlog-submit",
+    queueDepth: "run-backlog-queue-depth",
+    blockingReasons: "run-backlog-blocking-reasons",
+    error: "run-backlog-error",
+  },
   prompts: {
     page: "prompts-page",
     tabs: "prompts-tabs",
