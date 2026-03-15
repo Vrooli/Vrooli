@@ -1,3 +1,4 @@
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useParams, useNavigate } from "react-router-dom";
@@ -115,6 +116,8 @@ export function RunsPage({
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
+  const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
   const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
   const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
@@ -664,6 +667,8 @@ export function RunsPage({
               setEvents(newEvents);
             }}
             deleteLoading={deleteLoading}
+            onMobileHeaderLeft={setMobileHeaderLeft}
+            onMobileHeaderRight={setMobileHeaderRight}
           />
         )}
       </DetailPanel>
@@ -694,6 +699,8 @@ export function RunsPage({
           requestAnimationFrame(() => { isDeselectingRef.current = false; });
         }}
         detailTitle={selectedRun ? getTaskTitle(selectedRun.taskId) : "Run Details"}
+        detailHeaderLeft={selectedRun ? mobileHeaderLeft : undefined}
+        detailHeaderRight={selectedRun ? mobileHeaderRight : undefined}
       />
 
       {/* Investigation Modal */}

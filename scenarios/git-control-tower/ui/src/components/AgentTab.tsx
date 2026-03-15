@@ -141,6 +141,7 @@ function buildChatMessages(
   activeRun: AgentRun | null,
   diffFiles: AgentRunDiffFile[] | null,
   runId: string | null,
+  promptPreview?: string,
 ): ChatMessage[] {
   const messages: ChatMessage[] = [];
 
@@ -207,6 +208,23 @@ function buildChatMessages(
     messages.push({ type: "error", text: activeRun.errorMsg, timestamp: new Date().toISOString() });
   }
 
+  // If no user/agent messages were produced from events or sentMessages,
+  // fall back to showing the run's promptPreview as a synthetic user message
+  // so the chat never appears empty for a run that clearly had interaction.
+  // promptPreview may come from the runs list (Get() doesn't populate it).
+  const preview = activeRun?.promptPreview || promptPreview;
+  if (
+    preview &&
+    !messages.some((m) => m.type === "user" || m.type === "agent-message")
+  ) {
+    messages.unshift({
+      type: "user",
+      text: preview,
+      contextCount: 0,
+      timestamp: activeRun?.createdAt ?? new Date().toISOString(),
+    });
+  }
+
   // Append summary
   if (activeRun?.summary) {
     messages.push({ type: "summary", summary: activeRun.summary, run: activeRun, timestamp: new Date().toISOString() });
@@ -256,7 +274,7 @@ export function AgentTab({
     }
   }, [onActiveRunIdChange]);
   const [events, setEvents] = useState<AgentRunEvent[]>([]);
-  const [lastEventSequence, setLastEventSequence] = useState(0);
+  const [lastEventSequence, setLastEventSequence] = useState(-1);
   const [showRunHistory, setShowRunHistory] = useState(false);
 
   // Scroll tracking
@@ -290,6 +308,16 @@ export function AgentTab({
       if (active) setActiveRunId(active.id);
     }
   }, [activeRunId, runs.data]);
+
+  // Reset events when switching runs (handles all paths: auto-detect, history, parent change)
+  const prevRunIdRef = useRef<string | null | undefined>(activeRunId);
+  useEffect(() => {
+    if (activeRunId !== prevRunIdRef.current) {
+      prevRunIdRef.current = activeRunId;
+      setEvents([]);
+      setLastEventSequence(-1);
+    }
+  }, [activeRunId]);
 
   // Accumulate events
   useEffect(() => {
@@ -371,7 +399,7 @@ export function AgentTab({
           ]);
           setActiveRunId(resp.runId);
           setEvents([]);
-          setLastEventSequence(0);
+          setLastEventSequence(-1);
           setMessage("");
           onClearContext();
         },
@@ -406,6 +434,14 @@ export function AgentTab({
     try { localStorage.setItem(AGENT_PROFILE_KEY, id); } catch { /* ignore */ }
   }, []);
 
+  // Look up promptPreview from runs list (Get() single-run endpoint doesn't populate it)
+  const promptPreview = useMemo(() => {
+    if (activeRunId && runs.data?.runs) {
+      return runs.data.runs.find((r) => r.id === activeRunId)?.promptPreview;
+    }
+    return undefined;
+  }, [activeRunId, runs.data?.runs]);
+
   const chatMessages = useMemo(
     () =>
       buildChatMessages(
@@ -414,8 +450,9 @@ export function AgentTab({
         activeRun.data ?? null,
         runDiff.data?.files ?? null,
         activeRunId,
+        promptPreview,
       ),
-    [sentMessages, events, activeRun.data, runDiff.data, activeRunId]
+    [sentMessages, events, activeRun.data, runDiff.data, activeRunId, promptPreview]
   );
 
   if (!agentManagerAvailable) {
@@ -490,7 +527,7 @@ export function AgentTab({
                       onClick={() => {
                         setActiveRunId(run.id);
                         setEvents([]);
-                        setLastEventSequence(0);
+                        setLastEventSequence(-1);
                         setShowRunHistory(false);
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-slate-800/60 ${
@@ -531,7 +568,7 @@ export function AgentTab({
               onClick={() => {
                 setActiveRunId(null);
                 setEvents([]);
-                setLastEventSequence(0);
+                setLastEventSequence(-1);
               }}
               className="h-6 text-[11px] gap-1"
             >
@@ -547,10 +584,23 @@ export function AgentTab({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
       >
-        {chatMessages.length === 0 && (
+        {chatMessages.length === 0 && !runEvents.isLoading && (
           <div className="flex flex-col items-center justify-center h-full text-slate-500">
             <Bot className="h-8 w-8 mb-3 opacity-30" />
-            <p className="text-xs text-center">Send a message to start an agent run</p>
+            <p className="text-xs text-center">
+              {activeRunId ? "No messages available for this run" : "Send a message to start an agent run"}
+            </p>
+            {runEvents.error && (
+              <p className="text-[11px] text-red-400/70 mt-2 text-center max-w-xs">
+                Failed to load events: {runEvents.error.message}
+              </p>
+            )}
+          </div>
+        )}
+        {chatMessages.length === 0 && runEvents.isLoading && activeRunId && (
+          <div className="flex flex-col items-center justify-center h-full text-slate-500">
+            <Loader2 className="h-6 w-6 animate-spin mb-3 opacity-50" />
+            <p className="text-xs">Loading messages...</p>
           </div>
         )}
 
@@ -642,7 +692,7 @@ export function AgentTab({
       {showInputBar ? (
         <div className="shrink-0 border-t border-slate-800">
           {/* Profile selector row */}
-          {canSendNew && profiles.data?.profiles && profiles.data.profiles.length > 0 && (
+          {canSendNew && !canContinue && profiles.data?.profiles && profiles.data.profiles.length > 0 && (
             <div className="px-4 pt-2 flex items-center gap-2">
               <span className="text-[11px] text-slate-500">Profile:</span>
               <select
@@ -708,7 +758,7 @@ export function AgentTab({
             onClick={() => {
               setActiveRunId(null);
               setEvents([]);
-              setLastEventSequence(0);
+              setLastEventSequence(-1);
             }}
             className="h-8 text-xs gap-1"
           >

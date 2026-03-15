@@ -30,6 +30,11 @@ interface MasterDetailLayoutProps {
   /** Minimum detail panel width in pixels (default: 320) */
   minDetailWidth?: number;
 
+  /** Content rendered before the title in the mobile detail modal header */
+  detailHeaderLeft?: React.ReactNode;
+  /** Content rendered after the title in the mobile detail modal header */
+  detailHeaderRight?: React.ReactNode;
+
   /** Additional CSS classes */
   className?: string;
 }
@@ -49,6 +54,8 @@ export function MasterDetailLayout({
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
   minListWidth = DEFAULT_MIN_LIST_WIDTH,
+  detailHeaderLeft,
+  detailHeaderRight,
   minDetailWidth = DEFAULT_MIN_DETAIL_WIDTH,
   className,
 }: MasterDetailLayoutProps) {
@@ -141,7 +148,7 @@ export function MasterDetailLayout({
       </div>
 
       {/* Mobile detail modal */}
-      <DetailModal open={!!selectedId} onClose={onDeselect} title={detailTitle}>
+      <DetailModal open={!!selectedId} onClose={onDeselect} title={detailTitle} headerLeft={detailHeaderLeft} headerRight={detailHeaderRight}>
         {detailPanel}
       </DetailModal>
     </div>

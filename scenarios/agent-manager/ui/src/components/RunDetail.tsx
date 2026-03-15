@@ -1,3 +1,4 @@
+import type React from "react";
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
@@ -13,6 +14,7 @@ import {
   FileCode,
   File,
   FolderOpen,
+  Info,
   Link2,
   MessageSquare,
   MoreVertical,
@@ -24,6 +26,7 @@ import {
   Terminal,
   Trash2,
   Wrench,
+  X,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -71,6 +74,8 @@ interface RunDetailProps {
   onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
   deleteLoading: boolean;
+  onMobileHeaderLeft?: (node: React.ReactNode | null) => void;
+  onMobileHeaderRight?: (node: React.ReactNode | null) => void;
 }
 
 export function RunDetail({
@@ -92,12 +97,15 @@ export function RunDetail({
   onContinue,
   onDeleteMessage,
   deleteLoading,
+  onMobileHeaderLeft,
+  onMobileHeaderRight,
 }: RunDetailProps) {
   const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("messages");
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
   const [idCopied, setIdCopied] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const { isDesktop } = useViewportSize();
@@ -149,6 +157,67 @@ export function RunDetail({
   const actions = run.actions;
   const canDeleteRun = actions?.canDelete ?? false;
   const canApplyFixes = actions?.canApplyInvestigation ?? false;
+
+  // Close info dialog on Escape, preventing it from bubbling to DetailModal
+  useEffect(() => {
+    if (!infoOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopImmediatePropagation();
+        setInfoOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleEscape, true); // capture phase
+    return () => document.removeEventListener("keydown", handleEscape, true);
+  }, [infoOpen]);
+
+  // Build mobile header left (status dot) and push to parent
+  const [statusLegendOpen, setStatusLegendOpen] = useState(false);
+  useEffect(() => {
+    if (isDesktop || !onMobileHeaderLeft) return;
+
+    const statusLabel = runStatusLabel(run.status);
+    const dotColor = STATUS_DOT_COLORS[statusLabel] ?? "bg-muted-foreground";
+
+    onMobileHeaderLeft(
+      <StatusDotWithLegend
+        dotColor={dotColor}
+        statusLabel={statusLabel}
+        legendOpen={statusLegendOpen}
+        setLegendOpen={setStatusLegendOpen}
+      />
+    );
+
+    return () => onMobileHeaderLeft(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDesktop, run.status, statusLegendOpen, onMobileHeaderLeft]);
+
+  // Build mobile header right (info, stop, actions) and push to parent
+  useEffect(() => {
+    if (isDesktop || !onMobileHeaderRight) return;
+
+    onMobileHeaderRight(
+      <MobileHeaderActions
+        actions={actions}
+        onInfoOpen={() => setInfoOpen(true)}
+        onStop={() => onStop(run)}
+        actionsMenuOpen={actionsMenuOpen}
+        setActionsMenuOpen={setActionsMenuOpen}
+        actionsMenuRef={actionsMenuRef}
+        onInvestigate={() => onInvestigate(run.id)}
+        canApplyFixes={canApplyFixes}
+        onApplyInvestigation={() => onApplyInvestigation(run.id)}
+        onRetry={() => onRetry(run)}
+        onReview={() => setShowReviewModal(true)}
+        canDeleteRun={canDeleteRun}
+        onDelete={() => onDelete(run)}
+        deleteLoading={deleteLoading}
+      />
+    );
+
+    return () => onMobileHeaderRight(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDesktop, run.actions, actionsMenuOpen, onMobileHeaderRight]);
   const runVariant = getRunVariant(run.status);
 
   const eventCounts = useMemo(() => {
@@ -209,10 +278,10 @@ export function RunDetail({
 
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
-      {/* Details Section (collapsible) */}
+      {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
       <div
-        className="flex-shrink-0 flex flex-col border-b border-border"
-        style={isDetailsCollapsed || !isDesktop ? undefined : { height: detailsHeight }}
+        className="flex-shrink-0 flex-col border-b border-border hidden lg:flex"
+        style={isDetailsCollapsed ? undefined : { height: detailsHeight }}
       >
         {/* Header - always visible, clickable to toggle */}
         <div
@@ -401,111 +470,13 @@ export function RunDetail({
         {/* Content - hidden when collapsed */}
         {!isDetailsCollapsed && (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 sm:p-4 sm:space-y-4">
-            {/* Run Overview */}
-            <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
-                <h3 className="text-lg font-semibold">{taskTitle}</h3>
-                <p className="text-sm text-muted-foreground">{profileName}</p>
-              </div>
-
-              {run.errorMsg && (
-                <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <div className="space-y-1">
-                      <p className="font-medium">Failure reason</p>
-                      <p className="break-words text-xs text-destructive/90">
-                        {run.errorMsg}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <span className="text-muted-foreground">Mode: </span>
-                  {runModeLabel(run.runMode)}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Phase: </span>
-                  {runPhaseLabel(run.phase).replace("_", " ")}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Progress: </span>
-                  {run.progressPercent}%
-                </div>
-                {run.resolvedConfig?.runnerType ? (
-                  <div>
-                    <span className="text-muted-foreground">Runner: </span>
-                    {runnerTypeLabel(run.resolvedConfig.runnerType)}
-                  </div>
-                ) : null}
-                {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
-                  <div>
-                    <span className="text-muted-foreground">Fallbacks: </span>
-                    {run.resolvedConfig.fallbackRunnerTypes
-                      .map((runnerType) => runnerTypeLabel(runnerType))
-                      .join(", ")}
-                  </div>
-                ) : null}
-                {run.resolvedConfig?.features?.enableBrowser && (
-                  <div className="col-span-2 flex flex-wrap gap-1">
-                    <Badge variant="outline">Browser</Badge>
-                  </div>
-                )}
-                {run.resolvedConfig?.extraFlags && Object.entries(run.resolvedConfig.extraFlags).map(([rt, list]) =>
-                  list.flags?.map((flag, i) => (
-                    <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
-                  ))
-                )}
-                {run.sandboxId && (
-                  <div>
-                    <span className="text-muted-foreground">Sandbox: </span>
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {run.sandboxId}
-                    </code>
-                  </div>
-                )}
-                {run.changedFiles > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Files: </span>
-                    {run.changedFiles} changed
-                  </div>
-                )}
-                {durationMs !== null && (
-                  <div>
-                    <span className="text-muted-foreground">Duration: </span>
-                    {formatDuration(durationMs)}
-                  </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Tag: </span>
-                  {run.tag ? (
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">{run.tag}</code>
-                  ) : (
-                    <span className="text-muted-foreground">None</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Highlights */}
-            <div className="grid grid-cols-3 gap-2 text-sm">
-              <div className="rounded border border-border px-3 py-2">
-                <div className="text-xs text-muted-foreground">Duration</div>
-                <div className="font-semibold">{durationMs !== null ? formatDuration(durationMs) : "—"}</div>
-              </div>
-              <div className="rounded border border-border px-3 py-2">
-                <div className="text-xs text-muted-foreground">Cost</div>
-                <div className="font-semibold">{costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}</div>
-              </div>
-              <div className="rounded border border-border px-3 py-2">
-                <div className="text-xs text-muted-foreground">Changes</div>
-                <div className="font-semibold">{run.changedFiles > 0 ? `${run.changedFiles} files` : "None"}</div>
-              </div>
-            </div>
+            <RunDetailsContent
+              run={run}
+              taskTitle={taskTitle}
+              profileName={profileName}
+              durationMs={durationMs}
+              costTotals={costTotals}
+            />
           </div>
         )}
 
@@ -712,6 +683,51 @@ export function RunDetail({
         </div>
         </div>
       </div>
+
+      {/* Mobile info dialog — shows run details behind info icon */}
+      {infoOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center lg:hidden">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setInfoOpen(false)} aria-hidden="true" />
+          <div className="relative z-10 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <h3 className="font-semibold">Run Details</h3>
+              <button
+                onClick={() => setInfoOpen(false)}
+                className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Run ID with copy */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Run ID:</span>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => {
+                    navigator.clipboard.writeText(run.id);
+                    setIdCopied(true);
+                    setTimeout(() => setIdCopied(false), 1500);
+                  }}
+                  title={`Copy run ID: ${run.id}`}
+                >
+                  <code className="font-mono">{run.id.slice(0, 8)}</code>
+                  {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                </button>
+              </div>
+              <RunDetailsContent
+                run={run}
+                taskTitle={taskTitle}
+                profileName={profileName}
+                durationMs={durationMs}
+                costTotals={costTotals}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <ReviewModal
         open={showReviewModal}
@@ -1120,6 +1136,318 @@ function getCostTotals(events: RunEvent[]): CostTotals {
 
 function formatCurrency(value: number): string {
   return formatUsdFixed(value, 4, { useGrouping: false });
+}
+
+const STATUS_DOT_COLORS: Record<string, string> = {
+  pending: "bg-muted-foreground",
+  cancelled: "bg-muted-foreground",
+  starting: "bg-primary",
+  running: "bg-primary",
+  complete: "bg-success",
+  needs_review: "bg-warning",
+  failed: "bg-destructive",
+};
+
+interface RunDetailsContentProps {
+  run: Run;
+  taskTitle: string;
+  profileName: string;
+  durationMs: number | null;
+  costTotals: CostTotals;
+}
+
+function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
+  return (
+    <>
+      {/* Run Overview */}
+      <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
+          <h3 className="text-lg font-semibold">{taskTitle}</h3>
+          <p className="text-sm text-muted-foreground">{profileName}</p>
+        </div>
+
+        {run.errorMsg && (
+          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="font-medium">Failure reason</p>
+                <p className="break-words text-xs text-destructive/90">
+                  {run.errorMsg}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <span className="text-muted-foreground">Mode: </span>
+            {runModeLabel(run.runMode)}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Phase: </span>
+            {runPhaseLabel(run.phase).replace("_", " ")}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Progress: </span>
+            {run.progressPercent}%
+          </div>
+          {run.resolvedConfig?.runnerType ? (
+            <div>
+              <span className="text-muted-foreground">Runner: </span>
+              {runnerTypeLabel(run.resolvedConfig.runnerType)}
+            </div>
+          ) : null}
+          {run.resolvedConfig?.fallbackRunnerTypes?.length ? (
+            <div>
+              <span className="text-muted-foreground">Fallbacks: </span>
+              {run.resolvedConfig.fallbackRunnerTypes
+                .map((runnerType) => runnerTypeLabel(runnerType))
+                .join(", ")}
+            </div>
+          ) : null}
+          {run.resolvedConfig?.features?.enableBrowser && (
+            <div className="col-span-2 flex flex-wrap gap-1">
+              <Badge variant="outline">Browser</Badge>
+            </div>
+          )}
+          {run.resolvedConfig?.extraFlags && Object.entries(run.resolvedConfig.extraFlags).map(([rt, list]) =>
+            list.flags?.map((flag, i) => (
+              <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+            ))
+          )}
+          {run.sandboxId && (
+            <div>
+              <span className="text-muted-foreground">Sandbox: </span>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                {run.sandboxId}
+              </code>
+            </div>
+          )}
+          {run.changedFiles > 0 && (
+            <div>
+              <span className="text-muted-foreground">Files: </span>
+              {run.changedFiles} changed
+            </div>
+          )}
+          {durationMs !== null && (
+            <div>
+              <span className="text-muted-foreground">Duration: </span>
+              {formatDuration(durationMs)}
+            </div>
+          )}
+          <div>
+            <span className="text-muted-foreground">Tag: </span>
+            {run.tag ? (
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">{run.tag}</code>
+            ) : (
+              <span className="text-muted-foreground">None</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Highlights */}
+      <div className="grid grid-cols-3 gap-2 text-sm">
+        <div className="rounded border border-border px-3 py-2">
+          <div className="text-xs text-muted-foreground">Duration</div>
+          <div className="font-semibold">{durationMs !== null ? formatDuration(durationMs) : "—"}</div>
+        </div>
+        <div className="rounded border border-border px-3 py-2">
+          <div className="text-xs text-muted-foreground">Cost</div>
+          <div className="font-semibold">{costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}</div>
+        </div>
+        <div className="rounded border border-border px-3 py-2">
+          <div className="text-xs text-muted-foreground">Changes</div>
+          <div className="font-semibold">{run.changedFiles > 0 ? `${run.changedFiles} files` : "None"}</div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const STATUS_LEGEND: { label: string; color: string }[] = [
+  { label: "Pending", color: "bg-muted-foreground" },
+  { label: "Starting", color: "bg-primary" },
+  { label: "Running", color: "bg-primary" },
+  { label: "Needs review", color: "bg-warning" },
+  { label: "Complete", color: "bg-success" },
+  { label: "Failed", color: "bg-destructive" },
+  { label: "Cancelled", color: "bg-muted-foreground" },
+];
+
+interface StatusDotWithLegendProps {
+  dotColor: string;
+  statusLabel: string;
+  legendOpen: boolean;
+  setLegendOpen: (open: boolean) => void;
+}
+
+function StatusDotWithLegend({ dotColor, statusLabel, legendOpen, setLegendOpen }: StatusDotWithLegendProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!legendOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setLegendOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [legendOpen, setLegendOpen]);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        type="button"
+        className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-muted/50 transition-colors"
+        onClick={() => setLegendOpen(!legendOpen)}
+        title={statusLabel.replace("_", " ")}
+      >
+        <span className={cn("w-2.5 h-2.5 rounded-full", dotColor)} />
+      </button>
+      {legendOpen && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-md border border-border bg-card p-2 shadow-lg">
+          <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Status</p>
+          {STATUS_LEGEND.map(({ label, color }) => (
+            <div
+              key={label}
+              className={cn(
+                "flex items-center gap-2 px-1 py-0.5 text-xs rounded",
+                statusLabel.replace("_", " ") === label.toLowerCase() && "bg-muted/50 font-medium"
+              )}
+            >
+              <span className={cn("w-2 h-2 rounded-full shrink-0", color)} />
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface MobileHeaderActionsProps {
+  actions: Run["actions"];
+  onInfoOpen: () => void;
+  onStop: () => void;
+  actionsMenuOpen: boolean;
+  setActionsMenuOpen: (fn: (prev: boolean) => boolean) => void;
+  actionsMenuRef: React.RefObject<HTMLDivElement>;
+  onInvestigate: () => void;
+  canApplyFixes: boolean;
+  onApplyInvestigation: () => void;
+  onRetry: () => void;
+  onReview: () => void;
+  canDeleteRun: boolean;
+  onDelete: () => void;
+  deleteLoading: boolean;
+}
+
+function MobileHeaderActions({
+  actions,
+  onInfoOpen,
+  onStop,
+  actionsMenuOpen,
+  setActionsMenuOpen,
+  actionsMenuRef,
+  onInvestigate,
+  canApplyFixes,
+  onApplyInvestigation,
+  onRetry,
+  onReview,
+  canDeleteRun,
+  onDelete,
+  deleteLoading,
+}: MobileHeaderActionsProps) {
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0"
+        onClick={onInfoOpen}
+        title="Run details"
+      >
+        <Info className="h-4 w-4" />
+      </Button>
+      {actions?.canStop && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onStop}
+          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+          title="Stop run"
+        >
+          <Square className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      <div className="relative" ref={actionsMenuRef}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActionsMenuOpen((prev) => !prev)}
+          className="h-7 w-7 p-0"
+          aria-label="Run actions"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+        {actionsMenuOpen && (
+          <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border bg-card p-1 shadow-lg">
+            {actions?.canInvestigate && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                onClick={() => { onInvestigate(); setActionsMenuOpen(() => false); }}
+              >
+                <Search className="h-3.5 w-3.5" /> Investigate
+              </button>
+            )}
+            {canApplyFixes && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                onClick={() => { onApplyInvestigation(); setActionsMenuOpen(() => false); }}
+              >
+                <Wrench className="h-3.5 w-3.5" /> Apply Fixes
+              </button>
+            )}
+            {actions?.canRetry && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                onClick={() => { onRetry(); setActionsMenuOpen(() => false); }}
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Re-run
+              </button>
+            )}
+            {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                onClick={() => { onReview(); setActionsMenuOpen(() => false); }}
+              >
+                <Eye className="h-3.5 w-3.5" /> Review
+              </button>
+            )}
+            {canDeleteRun && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
+                disabled={deleteLoading}
+                onClick={() => { onDelete(); setActionsMenuOpen(() => false); }}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 function CostBreakdown({ totals }: { totals: CostTotals }) {

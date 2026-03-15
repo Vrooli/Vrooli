@@ -1,15 +1,19 @@
 import * as React from "react";
-import { X, ChevronLeft } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 interface DetailModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Content rendered before the title (e.g. status indicator) */
+  headerLeft?: React.ReactNode;
+  /** Content rendered after the title, before the close button (e.g. action buttons) */
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function DetailModal({ open, onClose, title, children }: DetailModalProps) {
+export function DetailModal({ open, onClose, title, headerLeft, headerRight, children }: DetailModalProps) {
   const [isClosing, setIsClosing] = React.useState(false);
   const [shouldRender, setShouldRender] = React.useState(open);
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,27 +87,21 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleClose}
-              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Back to list"
-            >
-              <ChevronLeft className="h-5 w-5" />
-              <span className="text-sm hidden sm:inline">Back</span>
-            </button>
-          </div>
-          <h2 className="font-semibold text-lg truncate px-4 flex-1 text-center">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          {headerLeft}
+          <h2 className="font-semibold text-base truncate flex-1 min-w-0">
             {title}
           </h2>
-          <button
-            onClick={handleClose}
-            className="rounded-sm p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {headerRight}
+            <button
+              onClick={handleClose}
+              className="rounded-sm p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         {/* Body */}
         <div className="flex-1 overflow-y-auto">

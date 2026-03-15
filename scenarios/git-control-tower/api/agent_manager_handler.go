@@ -205,11 +205,11 @@ func (s *Server) handleAgentRunEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	afterSequence := 0
+	afterSequence := -1 // default: include all events (sequence > -1)
 	if raw := strings.TrimSpace(r.URL.Query().Get("afterSequence")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed < 0 {
-			hctx.Resp.BadRequest("afterSequence must be a non-negative integer")
+		if err != nil || parsed < -1 {
+			hctx.Resp.BadRequest("afterSequence must be -1 or a non-negative integer")
 			return
 		}
 		afterSequence = parsed
