@@ -12,10 +12,19 @@ interface DetailModalProps {
 export function DetailModal({ open, onClose, title, children }: DetailModalProps) {
   const [isClosing, setIsClosing] = React.useState(false);
   const [shouldRender, setShouldRender] = React.useState(open);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     if (open) {
       setShouldRender(true);
+      setIsClosing(false);
+    } else {
+      // When parent sets open=false directly, clean up
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setShouldRender(false);
       setIsClosing(false);
     }
   }, [open]);
@@ -32,20 +41,15 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
   }, [open]);
 
   const handleClose = React.useCallback(() => {
+    if (isClosing) return; // Guard against double-close
     setIsClosing(true);
-    setTimeout(() => {
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
       setShouldRender(false);
       setIsClosing(false);
       onClose();
     }, 150);
-  }, [onClose]);
-
-  const handleAnimationEnd = () => {
-    if (isClosing) {
-      setShouldRender(false);
-      setIsClosing(false);
-    }
-  };
+  }, [isClosing, onClose]);
 
   // Escape key handler
   React.useEffect(() => {
@@ -77,7 +81,6 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
           "fixed inset-x-0 bottom-0 top-0 z-50 flex flex-col bg-background",
           isClosing ? "animate-slide-down" : "animate-slide-up"
         )}
-        onAnimationEnd={handleAnimationEnd}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

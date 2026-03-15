@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -109,6 +109,7 @@ export function RunsPage({
   const navigate = useNavigate();
   const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
+  const isDeselectingRef = useRef(false);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<RunDiff | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -322,6 +323,7 @@ export function RunsPage({
 
   // Load run from URL params when component mounts or runId changes
   useEffect(() => {
+    if (isDeselectingRef.current) return;
     if (!runId || resolvedRuns.length === 0) return;
     if (selectedRunId === runId) return;
     const run = resolvedRuns.find((r) => r.id === runId);
@@ -684,8 +686,11 @@ export function RunsPage({
         detailPanel={detailPanel}
         selectedId={selectedRun?.id ?? null}
         onDeselect={() => {
+          isDeselectingRef.current = true;
           setSelectedRun(null);
           navigate("/runs");
+          // Clear after React processes the navigation
+          requestAnimationFrame(() => { isDeselectingRef.current = false; });
         }}
         detailTitle={selectedRun ? getTaskTitle(selectedRun.taskId) : "Run Details"}
       />

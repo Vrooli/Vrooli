@@ -1,8 +1,9 @@
 import * as React from "react";
 import { cn } from "../../../lib/utils";
 import { SearchInput } from "./SearchInput";
-import { FilterDropdown, type FilterOption } from "./FilterDropdown";
-import { SortDropdown, type SortOption } from "./SortDropdown";
+import { type FilterOption } from "./FilterDropdown";
+import { type SortOption } from "./SortDropdown";
+import { FilterPopoverButton } from "./FilterPopoverButton";
 
 export interface FilterConfig {
   id: string;
@@ -11,6 +12,7 @@ export interface FilterConfig {
   options: FilterOption[];
   onChange: (value: string) => void;
   allLabel?: string;
+  defaultValue?: string;
 }
 
 interface SearchToolbarProps {
@@ -21,6 +23,7 @@ interface SearchToolbarProps {
   sortOptions?: SortOption[];
   currentSort?: string;
   onSortChange?: (value: string) => void;
+  defaultSort?: string;
   className?: string;
   children?: React.ReactNode;
 }
@@ -33,31 +36,28 @@ export function SearchToolbar({
   sortOptions,
   currentSort,
   onSortChange,
+  defaultSort,
   className,
   children,
 }: SearchToolbarProps) {
+  const hasFilters = filters && filters.length > 0;
+  const hasSort =
+    sortOptions && sortOptions.length > 0 && currentSort && onSortChange;
+
   return (
-    <div className={cn("flex flex-wrap gap-3 items-center", className)}>
+    <div className={cn("flex gap-2 items-center", className)}>
       <SearchInput
         value={searchValue}
         onChange={onSearchChange}
         placeholder={searchPlaceholder}
       />
-      {filters?.map((filter) => (
-        <FilterDropdown
-          key={filter.id}
-          value={filter.value}
-          onChange={filter.onChange}
-          options={filter.options}
-          label={filter.label}
-          allLabel={filter.allLabel}
-        />
-      ))}
-      {sortOptions && sortOptions.length > 0 && currentSort && onSortChange && (
-        <SortDropdown
-          value={currentSort}
-          onChange={onSortChange}
-          options={sortOptions}
+      {(hasFilters || hasSort) && (
+        <FilterPopoverButton
+          filters={filters}
+          sortOptions={sortOptions}
+          currentSort={currentSort}
+          onSortChange={onSortChange}
+          defaultSort={defaultSort}
         />
       )}
       {children}

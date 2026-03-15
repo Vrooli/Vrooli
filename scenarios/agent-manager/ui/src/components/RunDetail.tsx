@@ -27,7 +27,7 @@ import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
-import { formatStandardDateTime } from "../lib/dateTime";
+import { formatRelativeTimeShort, formatStandardDateTime } from "../lib/dateTime";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -86,7 +86,7 @@ export function RunDetail({
   onDeleteMessage,
   deleteLoading,
 }: RunDetailProps) {
-  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("events");
+  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("messages");
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
@@ -510,34 +510,40 @@ export function RunDetail({
                 No events recorded
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={eventFilter === "errors" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setEventFilter("errors")}
-                    className="gap-2"
-                    disabled={eventCounts.errors === 0}
-                  >
-                    Jump to errors
-                    <Badge variant="secondary">{eventCounts.errors}</Badge>
-                  </Button>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {eventCounts.errors > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEventFilter("errors")}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                        eventFilter === "errors"
+                          ? "bg-destructive text-destructive-foreground"
+                          : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                      )}
+                    >
+                      Errors <span className="font-semibold">{eventCounts.errors}</span>
+                    </button>
+                  )}
                   {(["all", "messages", "tools", "status"] as const).map((filter) => (
-                    <Button
+                    <button
                       key={filter}
-                      variant={eventFilter === filter ? "default" : "outline"}
-                      size="sm"
+                      type="button"
                       onClick={() => setEventFilter(filter)}
-                      className="gap-2"
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                        eventFilter === filter
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      )}
                     >
                       {filter === "all" ? "All" : filter}
-                      <Badge variant="secondary">
-                        {eventCounts[filter]}
-                      </Badge>
-                    </Button>
+                      <span className="opacity-70">{eventCounts[filter]}</span>
+                    </button>
                   ))}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-0.5">
                   {filteredEvents.map((event) => (
                     <EventItem key={event.id} event={event} />
                   ))}
@@ -835,64 +841,51 @@ function EventItem({ event }: { event: RunEvent }) {
   const getIcon = () => {
     switch (event.eventType) {
       case RunEventType.LOG:
-        return <Terminal className="h-4 w-4" />;
+        return <Terminal className="h-3.5 w-3.5" />;
       case RunEventType.MESSAGE:
-        return <MessageSquare className="h-4 w-4" />;
+        return <MessageSquare className="h-3.5 w-3.5" />;
       case RunEventType.TOOL_CALL:
       case RunEventType.TOOL_RESULT:
-        return <Wrench className="h-4 w-4" />;
+        return <Wrench className="h-3.5 w-3.5" />;
       case RunEventType.STATUS:
-        return <Activity className="h-4 w-4" />;
+        return <Activity className="h-3.5 w-3.5" />;
       case RunEventType.ERROR:
-        return <AlertCircle className="h-4 w-4 text-destructive" />;
+        return <AlertCircle className="h-3.5 w-3.5" />;
       default:
-        return <ChevronRight className="h-4 w-4" />;
+        return <ChevronRight className="h-3.5 w-3.5" />;
     }
   };
 
-  const getBadgeVariant = () => {
+  const getAccentColor = () => {
     switch (event.eventType) {
       case RunEventType.ERROR:
-        return "destructive";
+        return "border-l-destructive text-destructive";
       case RunEventType.STATUS:
-        return "secondary";
+        return "border-l-primary text-primary";
       case RunEventType.TOOL_CALL:
       case RunEventType.TOOL_RESULT:
-        return "warning";
+        return "border-l-warning text-warning";
       case RunEventType.MESSAGE:
-        return "success";
+        return "border-l-success text-success";
       default:
-        return "outline";
-    }
-  };
-
-  const getCardStyles = () => {
-    switch (event.eventType) {
-      case RunEventType.ERROR:
-        return "border-destructive/40 bg-destructive/5";
-      case RunEventType.STATUS:
-        return "border-primary/30 bg-primary/5";
-      case RunEventType.TOOL_CALL:
-      case RunEventType.TOOL_RESULT:
-        return "border-warning/30 bg-warning/5";
-      case RunEventType.MESSAGE:
-        return "border-success/30 bg-success/5";
-      default:
-        return "border-border bg-card/50";
+        return "border-l-muted-foreground text-muted-foreground";
     }
   };
 
   const getSummary = () => {
     const v = payloadValue ?? {};
     switch (payload.case) {
-      case "log":
-        return String(v.message ?? "Log entry");
+      case "log": {
+        const msg = String(v.message ?? "Log entry");
+        // Strip "phase: " prefix — the badge already shows type
+        return msg.replace(/^phase:\s*/i, "");
+      }
       case "message":
-        return String(v.role ?? "unknown") + ": " + String(v.content ?? "").slice(0, 100);
+        return String(v.role ?? "unknown") + ": " + String(v.content ?? "").slice(0, 120);
       case "toolCall":
-        return "Called " + String(v.toolName ?? "unknown tool");
+        return String(v.toolName ?? "unknown tool");
       case "toolResult":
-        return (v.success ? "Success" : "Failed") + ": " + String(v.toolName ?? "");
+        return (v.success ? "OK" : "Failed") + " — " + String(v.toolName ?? "");
       case "status":
         return (
           runStatusLabel((v.oldStatus as RunStatus) ?? RunStatus.UNSPECIFIED) +
@@ -902,7 +895,7 @@ function EventItem({ event }: { event: RunEvent }) {
       case "metric":
         return `${String(v.name ?? "metric")}: ${v.value ?? 0}`;
       case "artifact":
-        return v.path ? `Artifact: ${String(v.path)}` : "Artifact";
+        return v.path ? String(v.path) : "Artifact";
       case "progress":
         return `Progress ${v.percentComplete ?? 0}%`;
       case "cost":
@@ -916,41 +909,38 @@ function EventItem({ event }: { event: RunEvent }) {
     }
   };
 
+  const accentClasses = getAccentColor();
+  const iconColor = accentClasses.split(" ").slice(1).join(" ");
+
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 text-xs transition-colors",
-        getCardStyles()
+        "border-l-2 rounded-r-md bg-card/50 text-xs transition-colors hover:bg-muted/30",
+        accentClasses.split(" ")[0]
       )}
     >
       <div
-        className="flex items-start gap-3 cursor-pointer"
+        className="flex items-center gap-2 px-3 py-1.5 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className={cn("mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-muted/50")}>
-          {getIcon()}
-        </div>
-        <div className="flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getBadgeVariant()}>
-              {runEventTypeLabel(event.eventType).replace("_", " ")}
-            </Badge>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {formatStandardDateTime(event.timestamp)}
-            </span>
-          </div>
-          <div className="text-sm font-medium text-foreground">
-            {getSummary()}
-          </div>
-        </div>
+        <span className={cn("shrink-0", iconColor)}>{getIcon()}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
+          {runEventTypeLabel(event.eventType).replace("_", " ")}
+        </span>
+        <span className="flex-1 truncate text-sm text-foreground">
+          {getSummary()}
+        </span>
+        <span className="text-[10px] text-muted-foreground shrink-0">
+          {formatRelativeTimeShort(event.timestamp)}
+        </span>
         {expanded ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
         )}
       </div>
       {expanded && (
-        <div className="mt-2 space-y-2">
+        <div className="px-3 pb-2 pt-1 space-y-1 border-t border-border/50">
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
             Payload
           </div>
