@@ -46,14 +46,15 @@ describe("useTerminalSocket hook", () => {
     // Simulate WebSocket open
     act(() => fakeWs.triggerOpen());
 
-    // No resize message sent on open (deferred to onReady callback)
-    expect(fakeWs.sent).toHaveLength(0);
+    // Resize message sent immediately on open with terminal dimensions
+    expect(fakeWs.sent).toHaveLength(1);
+    expect(JSON.parse(fakeWs.sent[0]!)).toEqual({ type: "resize", cols: 80, rows: 24 });
 
     // Should call onReady
     expect(onReady).toHaveBeenCalledOnce();
   });
 
-  it("does not send resize message on socket open", () => {
+  it("sends resize with terminal dimensions immediately on open", () => {
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-1",
@@ -64,7 +65,7 @@ describe("useTerminalSocket hook", () => {
 
     act(() => fakeWs.triggerOpen());
 
-    // No resize message should be sent on open (deferred to onReady callback)
+    // Resize message should be sent on open with terminal's current dimensions
     const resizeMsg = fakeWs.sent.find((raw) => {
       try {
         const msg = JSON.parse(raw) as TerminalMessage;
@@ -73,7 +74,8 @@ describe("useTerminalSocket hook", () => {
         return false;
       }
     });
-    expect(resizeMsg).toBeUndefined();
+    expect(resizeMsg).toBeDefined();
+    expect(JSON.parse(resizeMsg!)).toEqual({ type: "resize", cols: 80, rows: 24 });
   });
 
   it("does not create WebSocket when terminal is null", () => {
@@ -279,6 +281,7 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    fakeWs.sent = []; // clear the resize-on-open message
 
     // Simulate user typing
     act(() => terminal.simulateInput("ls -la\r"));
@@ -375,8 +378,13 @@ describe("useTerminalSocket hook", () => {
 
     act(() => fakeWs.triggerOpen());
 
-    expect(fakeWs.sent).toHaveLength(1);
-    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
+    // On open: flushed stdin + resize message
+    const stdinMsg = fakeWs.sent.find((raw) => {
+      const m = JSON.parse(raw) as TerminalMessage;
+      return m.type === "stdin";
+    });
+    expect(stdinMsg).toBeDefined();
+    expect(JSON.parse(stdinMsg!)).toEqual({ type: "stdin", data: "echo queued" });
   });
 
   it("shows sync_warning with drop count in yellow", () => {
@@ -397,6 +405,12 @@ describe("useTerminalSocket hook", () => {
     expect(warningData).toBeTruthy();
     expect(warningData).toContain(ANSI.yellow);
     expect(warningData).toContain("terminal may lag");
+
+    // Verify stdout after sync_warning is passed through unchanged
+    // (local echo predictions are reset on sync_warning to prevent suppression)
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "post-coalesce output" }));
+    const postOutput = findWriteCall(terminal.write, "post-coalesce output");
+    expect(postOutput).toBeTruthy();
   });
 
   it("handles resize_info message without crashing", () => {

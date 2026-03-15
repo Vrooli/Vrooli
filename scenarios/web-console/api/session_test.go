@@ -1084,3 +1084,270 @@ done:
 	fake.Close()
 	<-sess.Done()
 }
+
+// --- Coalescing trim recovery tests ---
+
+// TestDeliver_PrependsSGRResetOnTrim verifies that when the coalesced pending
+// buffer exceeds offlineBufferMax and is trimmed, the remaining data is
+// prefixed with an SGR reset sequence (\x1b[0m) to clear dangling color state.
+func TestDeliver_PrependsSGRResetOnTrim(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1
+	sm.cfg.OfflineBufferMax = 64 // tiny cap to force trimming
+	sm.cfg.CoalesceNotifyThreshold = 100
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	// Write enough data with ANSI color codes to overflow the coalescing cap.
+	for i := 0; i < 20; i++ {
+		_, _ = fake.outW.Write([]byte("\x1b[31mRED\x1b[0m\n"))
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// Drain channel + flush pending to collect all coalesced data.
+	var received []byte
+	for {
+		select {
+		case data := <-ch:
+			received = append(received, data...)
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto sgrDrain
+		}
+	}
+sgrDrain:
+	for {
+		select {
+		case data := <-ch:
+			received = append(received, data...)
+		case <-time.After(100 * time.Millisecond):
+			goto sgrVerify
+		}
+	}
+sgrVerify:
+	if len(received) == 0 {
+		t.Fatal("expected data after coalescing")
+	}
+
+	// The coalesced data should contain an SGR reset from the trim.
+	if !bytes.Contains(received, sgrReset) {
+		t.Error("coalesced trimmed data should contain SGR reset prefix")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain verifies that when the
+// coalesced pending buffer was trimmed, FlushPending triggers a SIGWINCH
+// (via pty.SetSize) after fully draining, so the shell redraws its screen.
+func TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1
+	sm.cfg.OfflineBufferMax = 64
+	sm.cfg.CoalesceNotifyThreshold = 100
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	// Record initial SetSize calls (from session creation).
+	fake.mu.Lock()
+	initialCalls := fake.setSizeCalls
+	fake.mu.Unlock()
+
+	// Write enough data to trigger coalescing trim.
+	for i := 0; i < 20; i++ {
+		_, _ = fake.outW.Write([]byte("\x1b[31mRED LINE DATA\x1b[0m\n"))
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// Drain channel and flush pending until fully drained.
+	for {
+		select {
+		case <-ch:
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto sigwinchDrainRemainder
+		}
+	}
+sigwinchDrainRemainder:
+	for {
+		select {
+		case <-ch:
+		case <-time.After(100 * time.Millisecond):
+			goto sigwinchCheck
+		}
+	}
+sigwinchCheck:
+	fake.mu.Lock()
+	extraCalls := fake.setSizeCalls - initialCalls
+	gotCols := fake.cols
+	gotRows := fake.rows
+	fake.mu.Unlock()
+
+	if extraCalls < 1 {
+		t.Errorf("expected at least 1 extra SetSize call (SIGWINCH), got %d", extraCalls)
+	}
+	if gotCols != 80 || gotRows != 24 {
+		t.Errorf("SIGWINCH SetSize should use session dims (80x24), got %dx%d", gotCols, gotRows)
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestFlushPending_NoSIGWINCHWithoutTrim verifies that FlushPending does NOT
+// trigger a SIGWINCH when the coalesced data was not trimmed.
+func TestFlushPending_NoSIGWINCHWithoutTrim(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1
+	sm.cfg.OfflineBufferMax = 1 << 20 // 1MB — large enough to never trim
+	sm.cfg.CoalesceNotifyThreshold = 100
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	fake.mu.Lock()
+	initialCalls := fake.setSizeCalls
+	fake.mu.Unlock()
+
+	// Write some data — not enough to trigger trim.
+	for i := 0; i < 5; i++ {
+		_, _ = fake.outW.Write([]byte("hello world\n"))
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// Drain + flush.
+	for {
+		select {
+		case <-ch:
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto noTrimDrain
+		}
+	}
+noTrimDrain:
+	for {
+		select {
+		case <-ch:
+		case <-time.After(100 * time.Millisecond):
+			goto noTrimCheck
+		}
+	}
+noTrimCheck:
+	fake.mu.Lock()
+	extraCalls := fake.setSizeCalls - initialCalls
+	fake.mu.Unlock()
+
+	if extraCalls != 0 {
+		t.Errorf("expected 0 extra SetSize calls (no trim occurred), got %d", extraCalls)
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestFlushPending_SIGWINCHOnlyOncePerTrim verifies that when a trim occurs
+// and FlushPending partially drains (channel fills mid-flush), the SIGWINCH
+// is triggered exactly once — on the final drain, not the partial one.
+func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1
+	// Set OfflineBufferMax > historyChunkSize so trimmed pending data requires
+	// multiple 64KB chunks to drain, enabling a partial-flush scenario.
+	sm.cfg.OfflineBufferMax = historyChunkSize + historyChunkSize/2 // 96KB
+	sm.cfg.CoalesceNotifyThreshold = 100
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	fake.mu.Lock()
+	initialCalls := fake.setSizeCalls
+	fake.mu.Unlock()
+
+	// Write enough data to exceed OfflineBufferMax and trigger trim.
+	// Each write is 1KB; we need > 96KB total coalesced.
+	chunk := make([]byte, 1024)
+	for i := range chunk {
+		chunk[i] = byte('A' + (i % 26))
+	}
+	chunk[len(chunk)-1] = '\n'
+	for i := 0; i < 120; i++ {
+		_, _ = fake.outW.Write(chunk)
+		time.Sleep(2 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// Drain one message from the channel — this makes room for FlushPending
+	// to send one 64KB chunk, but the channel is too small for the rest.
+	select {
+	case <-ch:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected at least one message in channel")
+	}
+
+	// First FlushPending: partial drain (channel capacity = 1, pending > 64KB).
+	sess.FlushPending(ch)
+
+	fake.mu.Lock()
+	callsAfterPartial := fake.setSizeCalls - initialCalls
+	fake.mu.Unlock()
+
+	if callsAfterPartial != 0 {
+		t.Errorf("expected 0 extra SetSize calls after partial drain, got %d", callsAfterPartial)
+	}
+
+	// Now fully drain everything.
+	for {
+		select {
+		case <-ch:
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto onceFinalDrain
+		}
+	}
+onceFinalDrain:
+	for {
+		select {
+		case <-ch:
+		case <-time.After(100 * time.Millisecond):
+			goto onceFinalCheck
+		}
+	}
+onceFinalCheck:
+	fake.mu.Lock()
+	totalExtraCalls := fake.setSizeCalls - initialCalls
+	fake.mu.Unlock()
+
+	if totalExtraCalls != 1 {
+		t.Errorf("expected exactly 1 SIGWINCH SetSize call after full drain, got %d", totalExtraCalls)
+	}
+
+	fake.Close()
+	<-sess.Done()
+}

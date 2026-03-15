@@ -61,7 +61,7 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
 5. `readLoop` splits PTY output at UTF-8 codepoint boundaries so that partial multi-byte sequences are buffered across reads, preventing JSON encoding corruption
-6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes
+6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded, with an SGR reset prefix to clear dangling color state. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes. After a trimmed buffer is fully flushed, `FlushPending` triggers SIGWINCH (via `pty.SetSize`) so the shell redraws its screen, recovering structural state (cursor position, scroll region, alternate screen) lost during the trim
 7. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
 
 ### Resize Strategy

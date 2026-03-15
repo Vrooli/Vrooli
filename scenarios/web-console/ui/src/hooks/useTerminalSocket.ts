@@ -176,6 +176,10 @@ export function useTerminalSocket({
         reconnectAttempts = 0;
         localEcho.reset();
         flushPendingInput();
+        // Ensure PTY has client dimensions before history replay arrives.
+        // onReady may send a refined resize after fit(), but this provides
+        // an immediate baseline.
+        sendResize(terminal.cols, terminal.rows);
         if (wasReconnect) {
           terminal.reset();
           terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
@@ -223,6 +227,9 @@ export function useTerminalSocket({
             break;
           }
           case "sync_warning": {
+            // Reset local echo predictions — heavy coalesced output means
+            // pending predictions are stale and could suppress legitimate chars.
+            localEcho.reset();
             const coalesced = msg.coalesced_frames ?? 0;
             terminal.write(
               `\r\n${ANSI.yellow}[Warning: ${coalesced} output frames coalesced — terminal may lag]${ANSI.reset}\r\n` +

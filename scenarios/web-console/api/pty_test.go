@@ -175,6 +175,7 @@ type fakePTY struct {
 	killed       bool
 	closed       bool
 	exitCode     int
+	setSizeCalls int // tracks SetSize invocations for test assertions
 }
 
 func (f *fakePTY) Read(p []byte) (int, error)  { return f.stdoutReader.Read(p) }
@@ -185,6 +186,7 @@ func (f *fakePTY) SetSize(cols, rows uint16) error {
 	defer f.mu.Unlock()
 	f.cols = cols
 	f.rows = rows
+	f.setSizeCalls++
 	return nil
 }
 

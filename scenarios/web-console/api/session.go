@@ -43,6 +43,7 @@ var (
 // write to drain coalesced data back into the channel.
 type ClientInfo struct {
 	pending         []byte   // coalesced data awaiting consumer drain
+	pendingTrimmed  bool     // set when pending buffer was trimmed; triggers SIGWINCH after drain
 	CoalescedFrames int      // count of coalesced frames (observability)
 	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
 }
@@ -328,9 +329,16 @@ func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
 		// Cap pending at offlineBufferMax to prevent unbounded growth.
 		// Snap to a clean ANSI boundary so partial escape sequences don't
 		// corrupt the terminal when the coalesced data is flushed.
+		// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 		if s.offlineBufferMax > 0 && len(info.pending) > s.offlineBufferMax {
 			trimmed := info.pending[len(info.pending)-s.offlineBufferMax:]
-			info.pending = append([]byte(nil), snapToCleanBoundary(trimmed)...)
+			trimmedClean := snapToCleanBoundary(trimmed)
+			// Prepend SGR reset so trimmed color-setting sequences don't
+			// bleed stale attributes into the client's terminal.
+			info.pending = make([]byte, 0, len(sgrReset)+len(trimmedClean))
+			info.pending = append(info.pending, sgrReset...)
+			info.pending = append(info.pending, trimmedClean...)
+			info.pendingTrimmed = true
 		}
 		s.notifyIfThreshold(info)
 		return
@@ -386,6 +394,14 @@ func (s *Session) FlushPending(ch chan []byte) {
 	}
 	info.pending = nil
 	info.CoalescedFrames = 0
+	if info.pendingTrimmed {
+		info.pendingTrimmed = false
+		// Trigger SIGWINCH so the shell redraws its screen, recovering
+		// structural state (cursor position, scroll region, alternate
+		// screen buffer) that was lost when the coalesced buffer was trimmed.
+		// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
+		_ = s.pty.SetSize(s.Cols, s.Rows)
+	}
 }
 
 // readLoop continuously reads PTY output and broadcasts to subscribers.
