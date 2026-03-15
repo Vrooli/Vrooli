@@ -1,6 +1,6 @@
 import type { ExecutionMode, ExecutionRecord, ExecutionStatus } from "../types";
 
-export type ExecutionTabId = "all" | "pending" | "running" | "completed" | "failed";
+export type ExecutionTabId = "all" | "pending" | "running" | "review" | "completed" | "failed";
 
 interface ExecutionTabConfig {
   id: ExecutionTabId;
@@ -14,7 +14,7 @@ export const EXECUTION_TAB_CONFIG: ExecutionTabConfig[] = [
   {
     id: "all",
     label: "All Runs",
-    statuses: ["pending", "scheduled", "running", "completed", "failed", "canceled"],
+    statuses: ["pending", "scheduled", "starting", "running", "needs_review", "completed", "failed", "canceled"],
     emptyTitle: "No executions yet",
     emptyDescription: "Queue a backlog item to create your first execution run.",
   },
@@ -28,9 +28,16 @@ export const EXECUTION_TAB_CONFIG: ExecutionTabConfig[] = [
   {
     id: "running",
     label: "Running",
-    statuses: ["running"],
+    statuses: ["starting", "running"],
     emptyTitle: "No running runs",
     emptyDescription: "When a run is active, it appears here with live status updates.",
+  },
+  {
+    id: "review",
+    label: "Needs Review",
+    statuses: ["needs_review"],
+    emptyTitle: "No runs awaiting review",
+    emptyDescription: "Runs that finish and need human approval will appear here.",
   },
   {
     id: "completed",
@@ -68,7 +75,7 @@ export const isExecutionInTab = (item: ExecutionRecord, tab: ExecutionTabId): bo
 };
 
 export const isExecutionActive = (item: ExecutionRecord): boolean =>
-  item.status === "pending" || item.status === "scheduled" || item.status === "running";
+  item.status === "pending" || item.status === "scheduled" || item.status === "starting" || item.status === "running" || item.status === "needs_review";
 
 const parseDateFilter = (value: string): number | null => {
   if (!value) {
@@ -153,6 +160,6 @@ export const canStartExecution = (status: ExecutionStatus): boolean =>
   status === "pending" || status === "scheduled";
 
 export const canCancelExecution = (status: ExecutionStatus): boolean =>
-  status === "pending" || status === "scheduled" || status === "running";
+  status === "pending" || status === "scheduled" || status === "starting" || status === "running" || status === "needs_review";
 
 export const canRetryExecution = (status: ExecutionStatus): boolean => status === "failed";

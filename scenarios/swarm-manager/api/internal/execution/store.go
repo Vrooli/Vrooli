@@ -31,7 +31,7 @@ func NewStore(path string) *FileStore {
 	return &FileStore{path: path}
 }
 
-// Load returns all execution records.
+// Load returns all execution records, migrating any stale data.
 func (s *FileStore) Load() ([]Record, error) {
 	var records []Record
 	exists, err := storage.ReadJSON(s.path, &records)
@@ -46,7 +46,21 @@ func (s *FileStore) Load() ([]Record, error) {
 			records[i].ExecutionID = "unknown"
 		}
 	}
+	records = migrateRecords(records)
 	return records, nil
+}
+
+// migrateRecords fixes stale records from before status expansion.
+// Records with status "running" but no RunID are orphaned and can never
+// be resolved — mark them failed so they surface in the UI for retry.
+func migrateRecords(records []Record) []Record {
+	for i := range records {
+		if records[i].Status == StatusRunning && strings.TrimSpace(records[i].RunID) == "" {
+			records[i].Status = StatusFailed
+			records[i].FailureReason = "orphaned execution: no run ID"
+		}
+	}
+	return records
 }
 
 // Save writes execution records atomically.

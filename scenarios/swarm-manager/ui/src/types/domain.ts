@@ -418,7 +418,7 @@ export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;
 // Execution Domain
 // ============================================================================
 
-export type ExecutionStatus = "pending" | "scheduled" | "running" | "completed" | "failed" | "canceled";
+export type ExecutionStatus = "pending" | "scheduled" | "starting" | "running" | "needs_review" | "completed" | "failed" | "canceled";
 
 export type ExecutionMode = "manual" | "scheduled" | "yolo";
 

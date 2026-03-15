@@ -289,7 +289,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	record.TaskID = runResult.TaskID
 	record.RunID = runResult.RunID
 	record.StartedAt = nowRFC3339()
-	record.Status = StatusRunning
+	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()
 
 	records = append(records, record)
@@ -334,7 +334,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 	record := records[idx]
-	if record.Status == StatusRunning || record.Status == StatusCompleted {
+	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview || record.Status == StatusCompleted {
 		return record, nil
 	}
 	if record.Status == StatusCanceled {
@@ -390,7 +390,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
-	record.Status = StatusRunning
+	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()
 	record.ScheduledAt = ""
 	records[idx] = record
@@ -424,7 +424,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			return Record{}, err
 		}
 		return record, nil
-	case StatusRunning:
+	case StatusStarting, StatusRunning, StatusNeedsReview:
 		if s.stopper == nil {
 			return Record{}, fmt.Errorf("cancel is not supported by current agent service")
 		}
@@ -446,7 +446,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		}
 		return record, nil
 	default:
-		return Record{}, fmt.Errorf("only pending/scheduled/running executions can be canceled")
+		return Record{}, fmt.Errorf("only pending/scheduled/starting/running/needs_review executions can be canceled")
 	}
 }
 
@@ -559,7 +559,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 	changed := false
 	for i := range records {
 		record := &records[i]
-		if record.Status != StatusRunning || strings.TrimSpace(record.RunID) == "" {
+		if (record.Status != StatusStarting && record.Status != StatusRunning && record.Status != StatusNeedsReview) || strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
 		runState, err := s.inspector.GetRunState(ctx, record.RunID)
@@ -567,28 +567,31 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			continue
 		}
 		nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg)
-		if nextStatus == StatusRunning {
+		if nextStatus == record.Status {
 			continue
 		}
 		record.Status = nextStatus
 		record.FailureReason = reason
 		record.UpdatedAt = nowRFC3339()
-		if strings.TrimSpace(runState.FinishedAt) != "" {
-			record.FinishedAt = runState.FinishedAt
-		} else {
-			record.FinishedAt = nowRFC3339()
-		}
-		// Post-completion hook: archive scenario after successful spec-sync
-		if record.ArchiveContext != nil {
-			if nextStatus == StatusCompleted {
-				s.handleSpecSyncComplete(ctx, record)
+		// Only set FinishedAt for terminal statuses
+		if nextStatus == StatusCompleted || nextStatus == StatusFailed || nextStatus == StatusCanceled {
+			if strings.TrimSpace(runState.FinishedAt) != "" {
+				record.FinishedAt = runState.FinishedAt
+			} else {
+				record.FinishedAt = nowRFC3339()
 			}
-			// For spec-sync failures, leave status as failed for UI recovery
-		} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			if nextStatus == StatusCompleted {
-				_ = s.updateBacklogStatus(item, "completed")
-			} else if nextStatus == StatusFailed || nextStatus == StatusCanceled {
-				_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
+			// Post-completion hook: archive scenario after successful spec-sync
+			if record.ArchiveContext != nil {
+				if nextStatus == StatusCompleted {
+					s.handleSpecSyncComplete(ctx, record)
+				}
+				// For spec-sync failures, leave status as failed for UI recovery
+			} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+				if nextStatus == StatusCompleted {
+					_ = s.updateBacklogStatus(item, "completed")
+				} else if nextStatus == StatusFailed || nextStatus == StatusCanceled {
+					_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
+				}
 			}
 		}
 		changed = true
@@ -714,8 +717,12 @@ func plannedSchedule(mode Mode, delaySeconds int64) (string, Status) {
 
 func mapRunStatus(status, errorMsg string) (Status, string) {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "pending", "starting", "running", "needs_review", "unspecified":
+	case "pending", "starting":
+		return StatusStarting, ""
+	case "running":
 		return StatusRunning, ""
+	case "needs_review":
+		return StatusNeedsReview, ""
 	case "complete":
 		return StatusCompleted, ""
 	case "failed":

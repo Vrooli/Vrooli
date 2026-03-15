@@ -125,7 +125,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install; else echo 'No package.json found, skipping pnpm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install UI dependencies"
         },
         {

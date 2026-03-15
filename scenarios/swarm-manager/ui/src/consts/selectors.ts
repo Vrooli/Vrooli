@@ -105,6 +105,7 @@ export const literalSelectors = {
     grid: "backlog-grid",
     noResults: "backlog-no-results",
     sortButton: "backlog-sort-button",
+    batchToggle: "backlog-batch-toggle",
     summaryStats: "backlog-summary-stats",
     readyCount: "backlog-ready-count",
     cliHint: "backlog-cli-hint",

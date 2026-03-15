@@ -10,12 +10,14 @@ import "time"
 type Status string
 
 const (
-	StatusPending   Status = "pending"
-	StatusScheduled Status = "scheduled"
-	StatusRunning   Status = "running"
-	StatusCompleted Status = "completed"
-	StatusFailed    Status = "failed"
-	StatusCanceled  Status = "canceled"
+	StatusPending     Status = "pending"
+	StatusScheduled   Status = "scheduled"
+	StatusStarting    Status = "starting"
+	StatusRunning     Status = "running"
+	StatusNeedsReview Status = "needs_review"
+	StatusCompleted   Status = "completed"
+	StatusFailed      Status = "failed"
+	StatusCanceled    Status = "canceled"
 )
 
 // Mode controls when an execution starts.

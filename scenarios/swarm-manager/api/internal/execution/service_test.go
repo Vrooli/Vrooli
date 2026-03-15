@@ -68,8 +68,8 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start error: %v", err)
 	}
-	if started.Status != StatusRunning {
-		t.Fatalf("expected running status, got %s", started.Status)
+	if started.Status != StatusStarting {
+		t.Fatalf("expected starting status, got %s", started.Status)
 	}
 	if started.TaskID != "task-1" || started.RunID != "run-1" {
 		t.Fatalf("expected task/run IDs set, got task=%s run=%s", started.TaskID, started.RunID)
@@ -473,6 +473,176 @@ func mustWriteClarifyQuestions(t *testing.T, root, kind, name string, payload ma
 	}
 	if err := os.WriteFile(filepath.Join(dir, "questions.json"), bytes, 0o644); err != nil {
 		t.Fatalf("write questions file: %v", err)
+	}
+}
+
+func TestMapRunStatus_DirectMappings(t *testing.T) {
+	tests := []struct {
+		input    string
+		errorMsg string
+		want     Status
+		wantMsg  string
+	}{
+		{"pending", "", StatusStarting, ""},
+		{"starting", "", StatusStarting, ""},
+		{"running", "", StatusRunning, ""},
+		{"needs_review", "", StatusNeedsReview, ""},
+		{"complete", "", StatusCompleted, ""},
+		{"failed", "boom", StatusFailed, "boom"},
+		{"failed", "", StatusFailed, "agent-manager run failed"},
+		{"cancelled", "", StatusCanceled, ""},
+		{"unspecified", "", StatusRunning, ""},
+		{"RUNNING", "", StatusRunning, ""},
+		{"unknown-value", "", StatusRunning, ""},
+	}
+	for _, tc := range tests {
+		got, msg := mapRunStatus(tc.input, tc.errorMsg)
+		if got != tc.want {
+			t.Errorf("mapRunStatus(%q, %q): got %s, want %s", tc.input, tc.errorMsg, got, tc.want)
+		}
+		if msg != tc.wantMsg {
+			t.Errorf("mapRunStatus(%q, %q): msg got %q, want %q", tc.input, tc.errorMsg, msg, tc.wantMsg)
+		}
+	}
+}
+
+type stubInspector struct {
+	state agentmanager.RunState
+	err   error
+}
+
+func (s *stubInspector) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	if s.err != nil {
+		return agentmanager.RunState{}, s.err
+	}
+	return s.state, nil
+}
+
+type stubStopper struct {
+	stopCalls int
+	err       error
+}
+
+func (s *stubStopper) StopRun(_ context.Context, _ string) error {
+	s.stopCalls++
+	return s.err
+}
+
+func TestCancel_StartingExecution(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "starting-cancel", map[string]any{
+		"name":        "starting-cancel",
+		"title":       "Starting Cancel",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	stopper := &stubStopper{}
+	agent := &stubAgentService{}
+	service := NewService(ServiceConfig{
+		RootDir:      root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		AgentService: agent,
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+	service.stopper = stopper
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "starting-cancel",
+		Mode:        ModeManual,
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+	started, err := service.Start(context.Background(), record.ExecutionID)
+	if err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+	if started.Status != StatusStarting {
+		t.Fatalf("expected starting, got %s", started.Status)
+	}
+
+	canceled, err := service.Cancel(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("Cancel error: %v", err)
+	}
+	if canceled.Status != StatusCanceled {
+		t.Fatalf("expected canceled, got %s", canceled.Status)
+	}
+	if stopper.stopCalls != 1 {
+		t.Fatalf("expected 1 StopRun call, got %d", stopper.stopCalls)
+	}
+}
+
+func TestCancel_NeedsReviewExecution(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "review-cancel", map[string]any{
+		"name":        "review-cancel",
+		"title":       "Review Cancel",
+		"description": "desc",
+		"status":      "backlog",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	stopper := &stubStopper{}
+	agent := &stubAgentService{}
+	service := NewService(ServiceConfig{
+		RootDir:      root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		AgentService: agent,
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+	service.stopper = stopper
+
+	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+		BacklogKind: "idea",
+		BacklogName: "review-cancel",
+		Mode:        ModeManual,
+	})
+	if err != nil {
+		t.Fatalf("QueueBacklog error: %v", err)
+	}
+	started, err := service.Start(context.Background(), record.ExecutionID)
+	if err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+
+	// Manually set to needs_review to simulate agent-manager transition
+	records, idx, _ := service.loadRecordLocked(started.ExecutionID)
+	records[idx].Status = StatusNeedsReview
+	_ = service.store.Save(records)
+
+	canceled, err := service.Cancel(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("Cancel error: %v", err)
+	}
+	if canceled.Status != StatusCanceled {
+		t.Fatalf("expected canceled, got %s", canceled.Status)
+	}
+}
+
+func TestMigrateRecords_OrphanedRunning(t *testing.T) {
+	records := []Record{
+		{ExecutionID: "ok", Status: StatusRunning, RunID: "run-1"},
+		{ExecutionID: "orphan", Status: StatusRunning, RunID: ""},
+		{ExecutionID: "done", Status: StatusCompleted},
+	}
+	migrated := migrateRecords(records)
+	if migrated[0].Status != StatusRunning {
+		t.Fatalf("expected running with RunID to stay running, got %s", migrated[0].Status)
+	}
+	if migrated[1].Status != StatusFailed {
+		t.Fatalf("expected orphaned running to become failed, got %s", migrated[1].Status)
+	}
+	if migrated[1].FailureReason != "orphaned execution: no run ID" {
+		t.Fatalf("expected orphan failure reason, got %q", migrated[1].FailureReason)
+	}
+	if migrated[2].Status != StatusCompleted {
+		t.Fatalf("expected completed to stay completed, got %s", migrated[2].Status)
 	}
 }
 

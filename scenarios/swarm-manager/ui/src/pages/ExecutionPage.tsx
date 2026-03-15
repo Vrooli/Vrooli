@@ -91,7 +91,7 @@ export function ExecutionPage() {
   }, [filteredItems]);
 
   const stats = useMemo(() => {
-    const running = tabItems.filter((item) => item.status === "running").length;
+    const running = tabItems.filter((item) => item.status === "starting" || item.status === "running" || item.status === "needs_review").length;
     const failed = tabItems.filter((item) => item.status === "failed" || item.status === "canceled").length;
     return {
       total: tabItems.length,

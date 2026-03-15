@@ -20,7 +20,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
+import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -145,6 +145,7 @@ export function BacklogPage() {
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
   const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
   const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
+  const [batchMode, setBatchMode] = useState(false);
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | null>(null);
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -449,6 +450,23 @@ export function BacklogPage() {
                   </div>
                 )}
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Toggle batch mode"
+                data-testid={selectors.backlog.batchToggle}
+                onClick={() => {
+                  setBatchMode((prev) => {
+                    if (prev) setSelectedKeys([]);
+                    return !prev;
+                  });
+                  setShowSort(false);
+                  setShowFilters(false);
+                }}
+                className={batchMode ? "border-cyan-500/50 text-cyan-300" : ""}
+              >
+                <CheckSquare className="h-4 w-4" />
+              </Button>
             </div>
 
             {kindItems.length > 0 && (
@@ -558,58 +576,60 @@ export function BacklogPage() {
 
         {filteredItems.length > 0 && (
           <div className="space-y-3">
-            <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all queueable items"
-                      checked={allQueueableSelected}
-                      onChange={toggleSelectAllQueueable}
-                      disabled={queueableFilteredItems.length === 0}
-                    />
-                    <span>Select all queueable</span>
-                  </label>
-                  <span className="text-slate-400">
-                    {selectedQueueableItems.length} selected
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {queueableFilteredItems.length} queueable in current view
-                  </span>
+            {batchMode && (
+              <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all queueable items"
+                        checked={allQueueableSelected}
+                        onChange={toggleSelectAllQueueable}
+                        disabled={queueableFilteredItems.length === 0}
+                      />
+                      <span>Select all queueable</span>
+                    </label>
+                    <span className="text-slate-400">
+                      {selectedQueueableItems.length} selected
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {queueableFilteredItems.length} queueable in current view
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const names = selectedQueueableItems.map((item) => `${item.kind}/${item.name}`);
+                        openFeedbackHub("export", names);
+                      }}
+                      disabled={!hasAnySelectedQueueable}
+                    >
+                      <MessageSquareText className="mr-1 h-3 w-3" />
+                      Export Selected
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        setRunModalTargets(
+                          selectedQueueableItems.map((item) => ({
+                            kind: item.kind,
+                            name: item.name,
+                            title: item.title,
+                          })),
+                        )
+                      }
+                      disabled={!hasAnySelectedQueueable}
+                    >
+                      <Play className="mr-1 h-3 w-3" />
+                      Run Selected
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const names = selectedQueueableItems.map((item) => `${item.kind}/${item.name}`);
-                      openFeedbackHub("export", names);
-                    }}
-                    disabled={!hasAnySelectedQueueable}
-                  >
-                    <MessageSquareText className="mr-1 h-3 w-3" />
-                    Export Selected
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      setRunModalTargets(
-                        selectedQueueableItems.map((item) => ({
-                          kind: item.kind,
-                          name: item.name,
-                          title: item.title,
-                        })),
-                      )
-                    }
-                    disabled={!hasAnySelectedQueueable}
-                  >
-                    <Play className="mr-1 h-3 w-3" />
-                    Run Selected
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )}
             <ResponsiveList data-testid={selectors.backlog.grid}>
               {sortedItems.map((item) => (
                 <ResponsiveListItem
@@ -622,7 +642,7 @@ export function BacklogPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      {isBacklogQueueable(item) ? (
+                      {batchMode && isBacklogQueueable(item) ? (
                         <input
                           type="checkbox"
                           aria-label={`Select backlog item ${item.title}`}
