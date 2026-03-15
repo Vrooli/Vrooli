@@ -43,7 +43,7 @@ func TestHandleUpload_ValidPNG(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	// Minimal PNG header bytes
 	pngData := []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
@@ -79,7 +79,7 @@ func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "photo.jpg", "image/jpeg", []byte("fake jpeg"))
 	rr := httptest.NewRecorder()
@@ -97,7 +97,7 @@ func TestHandleUpload_AcceptsWebP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "img.webp", "image/webp", []byte("fake webp"))
 	rr := httptest.NewRecorder()
@@ -115,7 +115,7 @@ func TestHandleUpload_AcceptsGIF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "anim.gif", "image/gif", []byte("GIF89a"))
 	rr := httptest.NewRecorder()
@@ -133,7 +133,7 @@ func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "script.sh", "text/plain", []byte("#!/bin/bash"))
 	rr := httptest.NewRecorder()
@@ -158,7 +158,7 @@ func TestHandleUpload_RejectsOversizedFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	// Create a body that exceeds 20MB
 	bigData := make([]byte, 21<<20)
@@ -197,7 +197,7 @@ func TestHandleUpload_PathTraversalFilename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer srv.sessions.Delete(sess.ID)
+	defer func() { _ = srv.sessions.Delete(sess.ID) }()
 
 	req := createUploadRequest(t, sess.ID, "../../../etc/passwd", "image/png", []byte("data"))
 	rr := httptest.NewRecorder()

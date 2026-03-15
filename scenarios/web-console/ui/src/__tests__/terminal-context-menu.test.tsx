@@ -147,9 +147,31 @@ describe("TerminalContextMenu", () => {
 
   it("hides Upload Image when onUploadImage is undefined", () => {
     const props = defaultProps();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { onUploadImage: _, ...propsWithout } = props;
+    const { onUploadImage: _unused, ...propsWithout } = props;
+    void _unused;
     render(<TerminalContextMenu {...propsWithout} />);
     expect(screen.queryByTestId("ctx-upload-image")).not.toBeInTheDocument();
+  });
+
+  it("renders Speak button when hasSelection and onSpeak provided", () => {
+    render(<TerminalContextMenu {...defaultProps()} hasSelection onSpeak={vi.fn()} />);
+    expect(screen.getByTestId("ctx-speak")).toBeInTheDocument();
+  });
+
+  it("hides Speak when no selection", () => {
+    render(<TerminalContextMenu {...defaultProps()} hasSelection={false} onSpeak={vi.fn()} />);
+    expect(screen.queryByTestId("ctx-speak")).not.toBeInTheDocument();
+  });
+
+  it("hides Speak when onSpeak is undefined", () => {
+    render(<TerminalContextMenu {...defaultProps()} hasSelection />);
+    expect(screen.queryByTestId("ctx-speak")).not.toBeInTheDocument();
+  });
+
+  it("calls onSpeak when clicked", () => {
+    const onSpeak = vi.fn();
+    render(<TerminalContextMenu {...defaultProps()} hasSelection onSpeak={onSpeak} />);
+    fireEvent.click(screen.getByTestId("ctx-speak"));
+    expect(onSpeak).toHaveBeenCalledTimes(1);
   });
 });

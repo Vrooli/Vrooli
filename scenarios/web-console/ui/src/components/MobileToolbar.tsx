@@ -6,6 +6,7 @@ import { TOOLBAR_KEYS, type ToolbarKey, applyModifiers } from "../consts/toolbar
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import VoiceMicButton from "./VoiceMicButton";
+import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
 
@@ -42,7 +43,8 @@ interface MobileToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
-  onVoiceStart?: () => void;
+  voicePartialTranscript?: string;
+  onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
   onUploadImage?: () => void;
 }
@@ -57,6 +59,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceTranscribing,
   voiceError,
   voiceLevel,
+  voicePartialTranscript,
   onVoiceStart,
   onVoiceStop,
   onUploadImage,
@@ -263,6 +266,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             isTranscribing={voiceTranscribing ?? false}
             error={voiceError ?? null}
             audioLevel={voiceLevel}
+            partialTranscript={voicePartialTranscript}
             onStart={onVoiceStart}
             onStop={onVoiceStop}
           />

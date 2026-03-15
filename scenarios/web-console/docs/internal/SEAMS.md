@@ -1,6 +1,6 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-02-20
+Last updated: 2026-03-15
 
 ## Responsibility Zones
 
@@ -26,7 +26,9 @@ Last updated: 2026-02-20
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
 - `PTY` interface ([CODE: api/pty.go#PTY]) — Abstracts PTY process behind `Read`/`Write`/`SetSize`/`Close`/`Kill`. Default `realPTY` wraps creack/pty; tests substitute `fakePTY` (pipe-based).
 - `PTYFactory` ([CODE: api/pty.go#PTYFactory]) — Function type `func(shell, cols, rows) (PTY, error)`. Injected into SessionManager via `NewSessionManagerWithFactory()`.
-- `Session` — PTY process wrapper: delegates I/O to `PTY` interface, manages subscribe/unsubscribe/broadcast, offline buffer, exit signaling via `exitCh` channel
+- `Session` — PTY process wrapper: delegates I/O to `PTY` interface, manages subscribe/unsubscribe/broadcast, offline buffer, exit signaling via `exitCh` channel. Includes UTF-8 boundary buffering in `readLoop` and frame coalescing in `broadcast`/`deliver`.
+- `FlushPending(ch)` — Testability seam for the coalescing mechanism. The WS output forwarder calls this after each successful write. Tests can call it directly to control the drain cycle and verify coalesced data integrity.
+- `splitCompleteUTF8(data)` — Pure function seam for UTF-8 boundary detection. Splits byte slices at complete codepoint boundaries, enabling isolated unit testing of the buffering logic.
 - `SessionManager` — Session CRUD, resize (delegates to `PTY.SetSize()`), auto-cleanup on exit (listens on `Session.Done()`)
 - Key invariant: Session signals its own exit; SessionManager owns the cleanup decision
 
@@ -131,11 +133,51 @@ Last updated: 2026-02-20
 | Component | Production | Test |
 |-----------|-----------|------|
 | `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
-| `WebSpeechProvider` | Uses browser SpeechRecognition API | Mock `window.SpeechRecognition` |
-| `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError` callbacks | Same interface, deterministic behavior |
+| `VoiceStreamProvider` | Streams audio over WebSocket to `/api/v1/voice/stream`, receives partial/final transcripts | Mock WebSocket + mic |
+| `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
+| `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
 | `MediaDevicesAdapter` | `navigator.mediaDevices.getUserMedia()` | Mock that resolves/rejects for permission tests |
+| AudioContext singleton | Reused across recording sessions; resumed if suspended | Mock constructor, assert single creation |
+| Language parameter | `voiceLanguage` from store → `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
+| Mic release timing | Deferred to `mediaRecorder.onstop` callback | Mock MediaRecorder, assert track stop order |
+| WS reconnection | 2 attempts with exponential backoff (1s, 3s) + chunk buffering during reconnection | FakeWebSocket close simulation |
+| Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2× recording duration), capped at 60s | Pure function, table-driven unit tests |
+| Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |
+| `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain → `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories; track `.connect()` call order |
+| `inputStream` provider property | When set, providers use injected filtered stream instead of acquiring own mic | Set property before `start()`, verify MediaRecorder uses injected stream |
+| `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ≈ 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5×/s) | Pure function, table-driven unit tests |
 
-**Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses.
+**Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Bandpass filter chain is a pure function testable with mock AudioContext. Sliding-window VAD is a pure function testable with synthetic RMS sequences.
+
+### Audio Transcoding Seam (API)
+**File**: `api/audio_transcode.go`
+**Purpose**: Decouple audio format conversion from transcription handlers for testable preprocessing.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg stdin/stdout pipe (16kHz mono WAV) | No-op passthrough or tracking function via `t.Cleanup` |
+| `checkFfmpeg` | `sync.Once` + `exec.LookPath` caches ffmpeg availability | Implicitly controlled by `transcodeAudio` override |
+
+**Benefits**: Audio preprocessing can be tested without ffmpeg installed. Both batch (`handleVoiceTranscribe`) and streaming (`transcribeBytes`) paths share the same seam. Graceful fallback to raw audio when ffmpeg is unavailable or transcoding fails.
+
+### Voice Stream WebSocket Seam (API)
+**File**: `api/voice_stream_ws.go`
+**Purpose**: Decouple streaming transcription from the Whisper service for testable WebSocket behavior.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `whisperURL` package var | Points to `localhost:8090/asr?output=json` | Swapped to `httptest.NewServer` URL via `t.Cleanup` defer |
+| `transcribeBytes(ctx, audio, language, transcode, initialPrompt)` | Optionally transcodes via `transcodeAudio`, then calls Whisper; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
+| `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track `transcodeAudio` call count per WS lifecycle — 0 for partials, 1 for final |
+| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg 16kHz mono WAV | No-op passthrough via `t.Cleanup` in `setupVoiceWSServer` |
+| `voiceStreamFlushInterval` | 1s ticker for partial transcripts | Testable via constant value assertion |
+| Delta offset tracking | `lastPartialOffset` advances per tick; only new bytes (`buf[offset:]`) sent to Whisper | `trackingWhisperHandler` records payload sizes — each partial ≈ delta size, not full buffer |
+| `minDeltaSize` | 8KB minimum delta before partial transcription attempted | Send tiny drip, verify Whisper not called until delta exceeds threshold |
+| `initial_prompt` context | `lastNWords(previousTranscript, 10)` appended to Whisper URL for context continuity | Tracking handler captures URLs — first partial has no prompt, subsequent partials have prompt with prior words |
+| `lastNWords(s, n)` | Returns last N whitespace-delimited words of string | Pure function, table-driven unit tests |
+| Language passthrough | Read from WS upgrade query `?language=`; empty = Whisper auto-detect | Verify mock Whisper URL has/lacks `language=` param |
+
+**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription reduces Whisper GPU time ~70% for long recordings. Transcode skip for partials reduces latency ~100-200ms per tick.
 
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`
@@ -159,6 +201,20 @@ Last updated: 2026-02-20
 | `CapabilityRegistry` | Caches results with 30s TTL | Inject mock checkers, verify caching behavior |
 
 **Benefits**: New capabilities can be added by implementing `StatusChecker` and registering in the registry. Tests verify caching and fallback without network calls.
+
+### Text-to-Speech Seam (UI)
+**File**: `ui/src/hooks/useTextToSpeech.ts`
+**Purpose**: Decouple TTS lifecycle from browser `speechSynthesis` API for testable voice output.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `SpeechSynthesisAdapter` interface | Wraps `window.speechSynthesis` via `createDefaultAdapter()` | Fake adapter with tracked `speak`/`cancel`/`getVoices` calls |
+| `useTextToSpeech(settings, adapter?)` | Manages utterance lifecycle, voice selection, error handling | Inject fake adapter, assert state transitions (speaking/paused/error) |
+| TTS settings | `ttsVoice`/`ttsRate`/`ttsPitch` from workspace store | Set store values, assert utterance properties match |
+| Voice loading | `adapter.getVoices()` + `onvoiceschanged` listener | Fake adapter fires voiceschanged, verify voice list updates |
+| Cleanup | `adapter.cancel()` on unmount | Unmount hook, verify cancel called |
+
+**Benefits**: TTS can be tested without real `speechSynthesis` API. Adapter pattern enables deterministic testing of all state transitions (speak, pause, resume, stop, error). Context menu integration tested independently via `onSpeak` prop on `TerminalContextMenu`.
 
 ## Boundary Violations Fixed
 
@@ -421,7 +477,7 @@ The API uses a hybrid organization:
 | `error` | Server→Client | Runtime error with known recovery hints for common cases |
 | `pong` | Server→Client | Keepalive response confirming connection liveness |
 | `resize_info` | Server→Client | Informational: reports effective PTY size after resize (may differ from requested if other clients are larger) |
-| `sync_warning` | Server→Client | Data-loss notification: `dropped_frames` count indicates output frames the client missed due to slow consumption |
+| `sync_warning` | Server→Client | Coalescing notification: `coalesced_frames` count indicates output frames merged due to slow consumption (data is preserved, not lost) |
 
 **UI Feedback Surfaces:**
 | Component | Signal Type | Behavior |

@@ -53,16 +53,18 @@ type Config struct {
 	MaxSessions int
 
 	// ClientChannelBuffer is the capacity of the per-client output channel.
-	// Higher values absorb output bursts from fast-producing PTYs; lower
-	// values use less memory but may drop frames for slow consumers.
-	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 64 | Range: 8–1024
+	// Higher values absorb output bursts from fast-producing PTYs before
+	// frame coalescing kicks in. With coalescing, frames are never lost —
+	// they are merged into a pending buffer — but a larger channel reduces
+	// the frequency of coalescing.
+	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
 
-	// DropNotifyThreshold is the number of dropped output frames per client
-	// before a sync_warning notification is sent via the WebSocket. Lower
-	// values alert the user sooner; higher values reduce notification noise.
-	// Env: WC_DROP_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
-	DropNotifyThreshold int
+	// CoalesceNotifyThreshold is the number of coalesced output frames per
+	// client before a sync_warning notification is sent via the WebSocket.
+	// Lower values alert the user sooner; higher values reduce noise.
+	// Env: WC_COALESCE_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
+	CoalesceNotifyThreshold int
 
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
 	// Fallback chain:
@@ -74,16 +76,16 @@ type Config struct {
 // DefaultConfig returns the default configuration with all sane defaults.
 func DefaultConfig() Config {
 	return Config{
-		OfflineBufferMax:    1 << 20, // 1 MB
-		PTYReadBuffer:       4096,
-		WSBufferSize:        4096,
-		DefaultCols:         80,
-		DefaultRows:         24,
-		DefaultShell:        resolveShell(),
-		MaxSessions:         0,
-		ClientChannelBuffer: 64,
-		DropNotifyThreshold: 5,
-		DefaultCWD:          resolveWorkingDir(),
+		OfflineBufferMax:        1 << 20, // 1 MB
+		PTYReadBuffer:           4096,
+		WSBufferSize:            4096,
+		DefaultCols:             80,
+		DefaultRows:             24,
+		DefaultShell:            resolveShell(),
+		MaxSessions:             0,
+		ClientChannelBuffer:     256,
+		CoalesceNotifyThreshold: 5,
+		DefaultCWD:              resolveWorkingDir(),
 	}
 }
 
@@ -99,7 +101,7 @@ func LoadConfig() Config {
 	cfg.DefaultRows = uint16(envInt("WC_DEFAULT_ROWS", int(cfg.DefaultRows), 5, 200))
 	cfg.MaxSessions = envInt("WC_MAX_SESSIONS", cfg.MaxSessions, 0, 1000)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
-	cfg.DropNotifyThreshold = envInt("WC_DROP_NOTIFY_THRESHOLD", cfg.DropNotifyThreshold, 1, 1000)
+	cfg.CoalesceNotifyThreshold = envInt("WC_COALESCE_NOTIFY_THRESHOLD", cfg.CoalesceNotifyThreshold, 1, 1000)
 
 	cfg.DefaultShell = resolveShell()
 	cfg.DefaultCWD = resolveWorkingDir()

@@ -88,13 +88,13 @@ The UI provides contextual recovery hints for known WS error messages:
 
 ### Sync Warning (Data-Loss Notification)
 
-When a client's output channel falls behind (e.g. slow WebSocket consumer, network congestion), the server drops frames to prevent backpressure from blocking other clients. After the configured threshold (`WC_DROP_NOTIFY_THRESHOLD`, default 5) of dropped frames, a `sync_warning` message is sent:
+When a client's output channel falls behind (e.g. slow WebSocket consumer, network congestion), the server coalesces frames into a pending buffer instead of dropping them. After the configured threshold (`WC_COALESCE_NOTIFY_THRESHOLD`, default 5) of coalesced frames, a `sync_warning` message is sent:
 
 ```json
-{"type": "sync_warning", "dropped_frames": 7}
+{"type": "sync_warning", "coalesced_frames": 7}
 ```
 
-The client renders a yellow warning in the terminal: `[Warning: 7 output frames dropped — terminal may be out of sync]`. This is informational, not an error — the session continues normally.
+The client renders a yellow warning in the terminal: `[Warning: 7 output frames coalesced — terminal may lag]`. Coalesced data is automatically delivered when the consumer catches up — no data is lost. This is informational, not an error — the session continues normally.
 
 ### Resize Info (Informational)
 

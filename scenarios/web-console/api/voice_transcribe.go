@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"time"
 )
 
 const maxAudioSize = 10 << 20 // 10 MB
 
-var whisperURL = "http://localhost:8090/asr?output=json&language=en"
+var whisperURL = "http://localhost:8090/asr?output=json"
 
 func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -29,60 +27,30 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, header, err := r.FormFile("audio_file")
+	// Empty language = Whisper auto-detects.
+	language := r.URL.Query().Get("language")
+
+	file, _, err := r.FormFile("audio_file")
 	if err != nil {
 		writeCatalogError(w, "invalid_body", "Missing audio_file field")
 		return
 	}
 	defer file.Close()
 
-	pr, pw := io.Pipe()
-	writer := multipart.NewWriter(pw)
-
-	go func() {
-		defer pw.Close()
-		part, err := writer.CreateFormFile("audio_file", header.Filename)
-		if err != nil {
-			pw.CloseWithError(err)
-			return
-		}
-		if _, err := io.Copy(part, file); err != nil {
-			pw.CloseWithError(err)
-			return
-		}
-		writer.Close()
-	}()
-
-	req, err := http.NewRequestWithContext(ctx, "POST", whisperURL, pr)
+	// Buffer the uploaded audio so we can transcode before forwarding.
+	raw, err := io.ReadAll(file)
 	if err != nil {
-		log.Printf("voice transcribe: create request: %v", err)
-		writeCatalogError(w, "voice_transcribe_failed", "Failed to create transcription request")
+		log.Printf("voice transcribe: read audio: %v", err)
+		writeCatalogError(w, "voice_transcribe_failed", "Failed to read audio data")
 		return
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	text, err := transcribeBytes(ctx, raw, language, true, "")
 	if err != nil {
-		log.Printf("voice transcribe: proxy request: %v", err)
+		log.Printf("voice transcribe: %v", err)
 		writeCatalogError(w, "voice_transcribe_failed", "Whisper request failed")
 		return
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("voice transcribe: whisper returned %d", resp.StatusCode)
-		writeCatalogError(w, "voice_transcribe_failed", "Whisper returned an error")
-		return
-	}
-
-	var result struct {
-		Text string `json:"text"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Printf("voice transcribe: decode response: %v", err)
-		writeCatalogError(w, "voice_transcribe_failed", "Failed to decode Whisper response")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"text": result.Text})
+	writeJSON(w, http.StatusOK, map[string]string{"text": text})
 }

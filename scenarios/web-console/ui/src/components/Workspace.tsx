@@ -278,8 +278,9 @@ export default function Workspace() {
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
-  const handleVoiceStart = useCallback(() => {
-    voiceInput.startRecording();
+  const handleVoiceStart = useCallback((opts?: { vadEnabled?: boolean }) => {
+    const vadAutoStop = useWorkspaceStore.getState().vadAutoStop;
+    voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
   }, [voiceInput]);
 
   const handleVoiceStop = useCallback(() => {
@@ -553,9 +554,17 @@ export default function Workspace() {
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
+        voicePartialTranscript={voiceInput.partialTranscript}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
       />
+
+      {/* Voice fallback notice */}
+      {voiceInput.fallbackNotice && (
+        <div className="px-3 py-1.5 text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
+          {voiceInput.fallbackNotice}
+        </div>
+      )}
 
       {/* Error banner */}
       {createError && (
@@ -655,6 +664,7 @@ export default function Workspace() {
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
+          voicePartialTranscript={voiceInput.partialTranscript}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
           onUploadImage={handleMobileUploadImage}

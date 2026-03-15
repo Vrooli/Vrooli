@@ -48,7 +48,7 @@ var knownCapabilities = []CapabilityDef{
 		Description:    "Speech-to-text transcription via Whisper",
 		DependencyKind: DependencyResource,
 		DependencySlug: "whisper",
-		Features:       []string{"voice-input"},
+		Features:       []string{"voice-input", "voice-streaming"},
 	},
 }
 

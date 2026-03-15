@@ -80,7 +80,7 @@ describe("useImageUpload", () => {
         ok: true,
         json: () => Promise.resolve({ path: "/tmp/test.png" }),
       } as Response);
-      await uploadPromise!;
+      await uploadPromise;
     });
 
     expect(result.current.uploading).toBe(false);

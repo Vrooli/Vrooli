@@ -1,0 +1,263 @@
+// DOC: docs/internal/SEAMS.md#voice-stream-websocket-seam
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
+
+// Voice streaming WebSocket message types.
+const (
+	VoiceMsgDone    = "done"    // client → server: recording finished
+	VoiceMsgPartial = "partial" // server → client: partial transcript
+	VoiceMsgFinal   = "final"   // server → client: definitive transcript
+	VoiceMsgError   = "error"   // server → client: error
+)
+
+// VoiceStreamMessage is the JSON message format for voice streaming.
+type VoiceStreamMessage struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+}
+
+// voiceStreamFlushInterval is how often accumulated audio is sent to Whisper
+// for partial transcription.
+const voiceStreamFlushInterval = 1 * time.Second
+
+// minDeltaSize is the minimum audio delta (in bytes) before a partial
+// transcription is attempted. Very short clips produce poor Whisper results.
+const minDeltaSize = 8 * 1024
+
+// handleVoiceStreamWS upgrades to WebSocket and streams audio chunks to Whisper,
+// returning partial and final transcripts.
+func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	if !s.capabilities.IsAvailable(ctx, "whisper-stt") {
+		writeCatalogError(w, "voice_unavailable", "Voice transcription is currently unavailable")
+		return
+	}
+
+	language := r.URL.Query().Get("language")
+
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  64 * 1024,
+		WriteBufferSize: 16 * 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("voice-ws: upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	var writeMu sync.Mutex
+
+	writeJSON := func(msg VoiceStreamMessage) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return conn.WriteJSON(msg)
+	}
+
+	// Audio buffer protected by mutex. Binary frames append here.
+	var bufMu sync.Mutex
+	var audioBuffer bytes.Buffer
+	var lastPartialOffset int
+	done := make(chan struct{})
+
+	// Background ticker: periodically send new audio delta to Whisper
+	// for partial transcripts, using initial_prompt for context continuity.
+	var previousTranscript string
+	go func() {
+		ticker := time.NewTicker(voiceStreamFlushInterval)
+		defer ticker.Stop()
+		var accumulatedTranscript string
+		for {
+			select {
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				bufMu.Lock()
+				currentLen := audioBuffer.Len()
+				deltaSize := currentLen - lastPartialOffset
+				if deltaSize < minDeltaSize || currentLen == 0 {
+					bufMu.Unlock()
+					continue
+				}
+				deltaCopy := make([]byte, deltaSize)
+				copy(deltaCopy, audioBuffer.Bytes()[lastPartialOffset:currentLen])
+				lastPartialOffset = currentLen
+				bufMu.Unlock()
+
+				prompt := lastNWords(accumulatedTranscript, 10)
+				text, err := transcribeBytes(ctx, deltaCopy, language, false, prompt)
+				if err != nil {
+					log.Printf("voice-ws: partial transcribe: %v", err)
+					continue
+				}
+				text = strings.TrimSpace(text)
+				if text == "" {
+					continue
+				}
+				if accumulatedTranscript != "" {
+					accumulatedTranscript += " " + text
+				} else {
+					accumulatedTranscript = text
+				}
+				if accumulatedTranscript != previousTranscript {
+					previousTranscript = accumulatedTranscript
+					if writeErr := writeJSON(VoiceStreamMessage{Type: VoiceMsgPartial, Text: accumulatedTranscript}); writeErr != nil {
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	// Input loop: read binary audio chunks and JSON control messages.
+	for {
+		msgType, data, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		if msgType == websocket.BinaryMessage {
+			bufMu.Lock()
+			audioBuffer.Write(data)
+			bufMu.Unlock()
+			continue
+		}
+
+		if msgType == websocket.TextMessage {
+			var msg VoiceStreamMessage
+			if err := json.Unmarshal(data, &msg); err != nil {
+				continue
+			}
+			if msg.Type == VoiceMsgDone {
+				break
+			}
+		}
+	}
+
+	close(done)
+
+	// Final transcription with the complete audio buffer.
+	bufMu.Lock()
+	finalAudio := make([]byte, audioBuffer.Len())
+	copy(finalAudio, audioBuffer.Bytes())
+	bufMu.Unlock()
+
+	if len(finalAudio) == 0 {
+		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: ""})
+		return
+	}
+
+	text, err := transcribeBytes(ctx, finalAudio, language, true, "")
+	if err != nil {
+		log.Printf("voice-ws: final transcribe: %v", err)
+		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgError, Text: "Final transcription failed"})
+		return
+	}
+
+	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
+}
+
+// lastNWords returns the last n whitespace-delimited words of s.
+func lastNWords(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	words := strings.Fields(s)
+	if len(words) <= n {
+		return s
+	}
+	return strings.Join(words[len(words)-n:], " ")
+}
+
+// transcribeBytes sends audio bytes to the Whisper /asr endpoint and returns
+// the transcribed text. When transcode is true, audio is transcoded to 16kHz
+// mono WAV via ffmpeg for best accuracy. The language parameter is an ISO-639-1
+// code (e.g. "en"); when empty, Whisper auto-detects. initialPrompt provides
+// Whisper with context from previous transcription segments.
+func transcribeBytes(ctx context.Context, audio []byte, language string, transcode bool, initialPrompt string) (string, error) {
+	filename := "recording.webm"
+	transcoded := audio
+	if transcode {
+		var tcErr error
+		transcoded, tcErr = transcodeAudio(ctx, audio)
+		if tcErr != nil {
+			log.Printf("voice: transcode failed, sending raw: %v", tcErr)
+			transcoded = audio
+		}
+		if len(transcoded) > 0 && len(audio) > 0 && &transcoded[0] != &audio[0] {
+			filename = "recording.wav"
+		}
+	}
+
+	targetURL := whisperURL
+	if language != "" {
+		targetURL += "&language=" + language
+	}
+	if initialPrompt != "" {
+		targetURL += "&initial_prompt=" + url.QueryEscape(initialPrompt)
+	}
+
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+
+	go func() {
+		defer pw.Close()
+		part, err := writer.CreateFormFile("audio_file", filename)
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if _, err := io.Copy(part, bytes.NewReader(transcoded)); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		writer.Close()
+	}()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", targetURL, pr)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("whisper returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.Text, nil
+}

@@ -28,8 +28,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.MaxSessions != 0 {
 		t.Errorf("MaxSessions: want 0, got %d", cfg.MaxSessions)
 	}
-	if cfg.ClientChannelBuffer != 64 {
-		t.Errorf("ClientChannelBuffer: want 64, got %d", cfg.ClientChannelBuffer)
+	if cfg.ClientChannelBuffer != 256 {
+		t.Errorf("ClientChannelBuffer: want 256, got %d", cfg.ClientChannelBuffer)
 	}
 	if cfg.DefaultShell == "" {
 		t.Error("DefaultShell should not be empty")

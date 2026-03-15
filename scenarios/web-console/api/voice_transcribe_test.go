@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -18,6 +20,14 @@ func serverWithCapability(available bool) *Server {
 	checker := &fakeChecker{status: status, message: "test"}
 	reg := NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{"whisper-stt": checker}, time.Minute)
 	return &Server{capabilities: reg}
+}
+
+// bypassTranscode installs a no-op transcodeAudio for the duration of the test.
+func bypassTranscode(t *testing.T) {
+	t.Helper()
+	orig := transcodeAudio
+	transcodeAudio = func(_ context.Context, audio []byte) ([]byte, error) { return audio, nil }
+	t.Cleanup(func() { transcodeAudio = orig })
 }
 
 func buildMultipartRequest(t *testing.T, fieldName, fileName string, content []byte) *http.Request {
@@ -86,6 +96,7 @@ func TestVoiceTranscribe_MissingAudioFile(t *testing.T) {
 }
 
 func TestVoiceTranscribe_Success(t *testing.T) {
+	bypassTranscode(t)
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify it received multipart form with audio_file
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
@@ -105,7 +116,7 @@ func TestVoiceTranscribe_Success(t *testing.T) {
 	defer whisper.Close()
 
 	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json&language=en"
+	whisperURL = whisper.URL + "/asr?output=json"
 	defer func() { whisperURL = origURL }()
 
 	srv := serverWithCapability(true)
@@ -128,13 +139,14 @@ func TestVoiceTranscribe_Success(t *testing.T) {
 }
 
 func TestVoiceTranscribe_WhisperError(t *testing.T) {
+	bypassTranscode(t)
 	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer whisper.Close()
 
 	origURL := whisperURL
-	whisperURL = whisper.URL + "/asr?output=json&language=en"
+	whisperURL = whisper.URL + "/asr?output=json"
 	defer func() { whisperURL = origURL }()
 
 	srv := serverWithCapability(true)
@@ -153,5 +165,71 @@ func TestVoiceTranscribe_WhisperError(t *testing.T) {
 	}
 	if resp.Code != "voice_transcribe_failed" {
 		t.Errorf("code = %q, want %q", resp.Code, "voice_transcribe_failed")
+	}
+}
+
+func TestVoiceTranscribe_LanguageParam(t *testing.T) {
+	bypassTranscode(t)
+	var receivedURL string
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedURL = r.URL.String()
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": "hola mundo"})
+	}))
+	defer whisper.Close()
+
+	origURL := whisperURL
+	whisperURL = whisper.URL + "/asr?output=json"
+	defer func() { whisperURL = origURL }()
+
+	srv := serverWithCapability(true)
+	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio"))
+	req.URL.RawQuery = "language=es"
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if !strings.Contains(receivedURL, "language=es") {
+		t.Errorf("Whisper URL %q should contain language=es", receivedURL)
+	}
+}
+
+func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
+	bypassTranscode(t)
+	var receivedURL string
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedURL = r.URL.String()
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": "hello"})
+	}))
+	defer whisper.Close()
+
+	origURL := whisperURL
+	whisperURL = whisper.URL + "/asr?output=json"
+	defer func() { whisperURL = origURL }()
+
+	srv := serverWithCapability(true)
+	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio"))
+	// No language query param — should trigger auto-detect (no language= in Whisper URL)
+	rr := httptest.NewRecorder()
+
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if strings.Contains(receivedURL, "language=") {
+		t.Errorf("Whisper URL %q should NOT contain language= for auto-detect", receivedURL)
 	}
 }

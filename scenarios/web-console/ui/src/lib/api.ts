@@ -352,6 +352,13 @@ export function buildSessionWsUrl(sessionId: string): string {
   return buildWsUrl(`/sessions/${sessionId}/ws`, { baseUrl: wsBase });
 }
 
+export function buildVoiceStreamWsUrl(language?: string): string {
+  const wsBase = apiBaseToWsBase(API_BASE);
+  const base = buildWsUrl("/voice/stream", { baseUrl: wsBase });
+  if (language) return `${base}${base.includes("?") ? "&" : "?"}language=${encodeURIComponent(language)}`;
+  return base;
+}
+
 // Voice input capabilities
 export interface CapabilityState {
   id: string;
@@ -392,8 +399,10 @@ export async function uploadFile(sessionId: string, file: File | Blob, filename?
   return data.path;
 }
 
-export async function transcribeAudio(audioBlob: Blob): Promise<string> {
-  const url = buildApiUrl("/voice/transcribe", { baseUrl: API_BASE });
+export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
+  let path = "/voice/transcribe";
+  if (language) path += `?language=${encodeURIComponent(language)}`;
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
   const formData = new FormData();
   formData.append("audio_file", audioBlob, "recording.webm");
   const res = await fetch(url, {
@@ -405,4 +414,19 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   }
   const data = (await res.json()) as { text: string };
   return data.text;
+}
+
+export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await transcribeAudio(audioBlob, language);
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
 }

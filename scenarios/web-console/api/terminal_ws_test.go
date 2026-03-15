@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -285,5 +286,71 @@ func TestTerminalMessage_ResizeFields(t *testing.T) {
 	}
 	if decoded.Cols != 120 || decoded.Rows != 40 {
 		t.Errorf("resize fields mismatch: cols=%d rows=%d", decoded.Cols, decoded.Rows)
+	}
+}
+
+// --- Goroutine lifecycle tests ---
+
+// TestHandleTerminalWS_ForwarderExitsOnClientClose verifies that the output
+// forwarder goroutine exits when the WebSocket client disconnects, preventing
+// goroutine leaks. The session should remain alive (PTY not killed).
+func TestHandleTerminalWS_ForwarderExitsOnClientClose(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+
+	// Give server time to start forwarder goroutine.
+	time.Sleep(50 * time.Millisecond)
+
+	// Close the WebSocket from the client side.
+	conn.Close()
+	time.Sleep(500 * time.Millisecond)
+
+	// Session should still be alive (PTY not killed by WS disconnect).
+	sess, ok := srv.sessions.Get(sessID)
+	if !ok {
+		t.Fatal("session should still exist after WS disconnect")
+	}
+	if sess.IsDead() {
+		t.Error("session should not be dead after WS disconnect")
+	}
+}
+
+// TestHandleTerminalWS_RepeatedConnectDisconnect verifies that repeatedly
+// connecting and disconnecting WebSocket clients does not leak goroutines.
+func TestHandleTerminalWS_RepeatedConnectDisconnect(t *testing.T) {
+	ts, _ := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	// Let any startup goroutines settle.
+	time.Sleep(100 * time.Millisecond)
+	runtime.GC()
+	baseline := runtime.NumGoroutine()
+
+	for i := 0; i < 5; i++ {
+		dialer := websocket.Dialer{}
+		conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+		if err != nil {
+			t.Fatalf("ws dial #%d: %v", i, err)
+		}
+		time.Sleep(30 * time.Millisecond)
+		conn.Close()
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Allow goroutines to settle.
+	time.Sleep(500 * time.Millisecond)
+	runtime.GC()
+	after := runtime.NumGoroutine()
+
+	// Allow small jitter (±3) for GC/runtime goroutines.
+	delta := after - baseline
+	if delta > 3 {
+		t.Errorf("goroutine leak: baseline=%d, after=%d, delta=%d (expected ≤3)", baseline, after, delta)
 	}
 }

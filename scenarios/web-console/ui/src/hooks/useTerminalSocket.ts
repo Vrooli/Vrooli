@@ -27,8 +27,8 @@ export interface TerminalMessage {
   rows?: number;
   /** Process exit code (sent with "exit" messages). */
   code?: number;
-  /** Cumulative dropped frame count (sent with "sync_warning" messages). */
-  dropped_frames?: number;
+  /** Cumulative coalesced frame count (sent with "sync_warning" messages). */
+  coalesced_frames?: number;
 }
 
 /** Factory function for creating WebSocket connections. Override in tests. */
@@ -223,10 +223,10 @@ export function useTerminalSocket({
             break;
           }
           case "sync_warning": {
-            const dropped = msg.dropped_frames ?? 0;
+            const coalesced = msg.coalesced_frames ?? 0;
             terminal.write(
-              `\r\n${ANSI.yellow}[Warning: ${dropped} output frames dropped — terminal may be out of sync]${ANSI.reset}\r\n` +
-              `${ANSI.gray}  Reconnect to resync from history buffer.${ANSI.reset}\r\n`,
+              `\r\n${ANSI.yellow}[Warning: ${coalesced} output frames coalesced — terminal may lag]${ANSI.reset}\r\n` +
+              `${ANSI.gray}  Output will catch up automatically.${ANSI.reset}\r\n`,
             );
             break;
           }

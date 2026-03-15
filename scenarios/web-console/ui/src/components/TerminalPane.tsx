@@ -12,6 +12,7 @@ import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_
 import { parseShortcut, matchesShortcut } from "../lib/shortcutParser";
 import { useImageUpload } from "../hooks/useImageUpload";
 import TerminalContextMenu from "./TerminalContextMenu";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -74,6 +75,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       focus: () => terminal?.focus(),
     }), [sendInput, terminal]);
 
+    const ttsVoice = useWorkspaceStore((s) => s.ttsVoice);
+    const ttsRate = useWorkspaceStore((s) => s.ttsRate);
+    const ttsPitch = useWorkspaceStore((s) => s.ttsPitch);
+    const ttsSettings = useMemo(() => ({ voice: ttsVoice, rate: ttsRate, pitch: ttsPitch }), [ttsVoice, ttsRate, ttsPitch]);
+    const { speak, supported: ttsSupported } = useTextToSpeech(ttsSettings);
+
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
     const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
@@ -107,6 +114,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       terminal?.clear();
       setContextMenu(null);
     }, [terminal]);
+
+    const handleCtxSpeak = useCallback(() => {
+      const selection = terminal?.getSelection();
+      if (selection) speak(selection);
+      setContextMenu(null);
+    }, [terminal, speak]);
 
     // Image upload support
     const { uploadAndInject, uploading, error: uploadError } = useImageUpload(sessionId, sendInput);
@@ -331,6 +344,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
             onSelectAll={handleCtxSelectAll}
             onClear={handleCtxClear}
             onUploadImage={handleCtxUploadImage}
+            onSpeak={ttsSupported ? handleCtxSpeak : undefined}
             onClose={closeContextMenu}
           />
         )}

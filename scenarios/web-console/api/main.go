@@ -147,6 +147,7 @@ func (s *Server) setupRoutes() {
 	// Voice input capabilities
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/transcribe", s.handleVoiceTranscribe).Methods("POST")
+	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 }
 
 // Handler returns the router wrapped with panic-recovery middleware so that

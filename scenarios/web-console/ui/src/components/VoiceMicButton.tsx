@@ -2,6 +2,7 @@ import { useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mic, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/classnames";
+import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -13,7 +14,9 @@ interface VoiceMicButtonProps {
   error: string | null;
   /** 0–1 audio level for live mic visualization */
   audioLevel?: number;
-  onStart: () => void;
+  /** Live partial transcript from streaming transcription. */
+  partialTranscript?: string;
+  onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
 }
 
@@ -63,6 +66,7 @@ export default function VoiceMicButton({
   isTranscribing,
   error,
   audioLevel = 0,
+  partialTranscript,
   onStart,
   onStop,
 }: VoiceMicButtonProps) {
@@ -75,7 +79,7 @@ export default function VoiceMicButton({
     pressStartRef.current = Date.now();
     wasRecordingRef.current = isRecording;
     if (!isRecording && !isTranscribing) {
-      onStart();
+      onStart({ vadEnabled: true });
     }
   }, [isRecording, isTranscribing, onStart]);
 
@@ -139,6 +143,11 @@ export default function VoiceMicButton({
       </button>
       {hasError && btnRef.current && (
         <ErrorTooltip anchor={btnRef.current} text={error as string} />
+      )}
+      {isRecording && partialTranscript && btnRef.current && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
+          {partialTranscript}
+        </div>
       )}
     </div>
   );

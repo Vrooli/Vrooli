@@ -27,6 +27,11 @@ interface WorkspaceState {
   aiModalOpen: boolean;
   voiceEnabled: boolean;
   voiceShortcut: string;
+  vadAutoStop: boolean;
+  voiceLanguage: string;
+  ttsVoice: string;
+  ttsRate: number;
+  ttsPitch: number;
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
@@ -53,6 +58,11 @@ interface WorkspaceActions {
   setAiModalOpen: (open: boolean) => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceShortcut: (shortcut: string) => void;
+  setVadAutoStop: (enabled: boolean) => void;
+  setVoiceLanguage: (lang: string) => void;
+  setTtsVoice: (voice: string) => void;
+  setTtsRate: (rate: number) => void;
+  setTtsPitch: (pitch: number) => void;
   setDefaultHeaderColor: (color: string) => void;
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
@@ -78,6 +88,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       aiModalOpen: false,
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
+      vadAutoStop: true,
+      voiceLanguage: "en-US",
+      ttsVoice: "",
+      ttsRate: 1.0,
+      ttsPitch: 1.0,
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
@@ -156,6 +171,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
+      setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),
+      setVoiceLanguage: (lang) => set({ voiceLanguage: lang }),
+      setTtsVoice: (voice) => set({ ttsVoice: voice }),
+      setTtsRate: (rate) => set({ ttsRate: rate }),
+      setTtsPitch: (pitch) => set({ ttsPitch: pitch }),
       setDefaultHeaderColor: (color) => set({ defaultHeaderColor: color }),
       setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
       setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
@@ -169,15 +189,20 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 1,
+      version: 2,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
-        if (version === 0) {
+        if (version < 1) {
           // Alt+Space is intercepted by Linux window managers before
           // reaching the browser — migrate to a shortcut that works.
           if (state.voiceShortcut === "Alt+Space") {
             state.voiceShortcut = "Ctrl+Shift+Space";
           }
+        }
+        if (version < 2) {
+          state.ttsVoice ??= "";
+          state.ttsRate ??= 1.0;
+          state.ttsPitch ??= 1.0;
         }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
@@ -190,6 +215,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         displayMode: state.displayMode,
         voiceEnabled: state.voiceEnabled,
         voiceShortcut: state.voiceShortcut,
+        vadAutoStop: state.vadAutoStop,
+        voiceLanguage: state.voiceLanguage,
+        ttsVoice: state.ttsVoice,
+        ttsRate: state.ttsRate,
+        ttsPitch: state.ttsPitch,
         defaultHeaderColor: state.defaultHeaderColor,
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,

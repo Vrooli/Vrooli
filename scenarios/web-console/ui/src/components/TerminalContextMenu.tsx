@@ -12,6 +12,7 @@ interface TerminalContextMenuProps {
   onSelectAll: () => void;
   onClear: () => void;
   onUploadImage?: () => void;
+  onSpeak?: () => void;
   onClose: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function TerminalContextMenu({
   onSelectAll,
   onClear,
   onUploadImage,
+  onSpeak,
   onClose,
 }: TerminalContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -96,6 +98,15 @@ export default function TerminalContextMenu({
             onClick={onCopy}
           >
             Copy
+          </button>
+        )}
+        {hasSelection && onSpeak && (
+          <button
+            data-testid="ctx-speak"
+            className={itemClass}
+            onClick={onSpeak}
+          >
+            Speak
           </button>
         )}
         <button

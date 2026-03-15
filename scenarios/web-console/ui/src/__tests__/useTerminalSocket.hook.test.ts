@@ -372,13 +372,13 @@ describe("useTerminalSocket hook", () => {
 
     act(() => fakeWs.triggerOpen());
     act(() =>
-      fakeWs.triggerMessage({ type: "sync_warning", dropped_frames: 7 }),
+      fakeWs.triggerMessage({ type: "sync_warning", coalesced_frames: 7 }),
     );
 
-    const warningData = findWriteCall(terminal.write, "7 output frames dropped");
+    const warningData = findWriteCall(terminal.write, "7 output frames coalesced");
     expect(warningData).toBeTruthy();
     expect(warningData).toContain(ANSI.yellow);
-    expect(warningData).toContain("out of sync");
+    expect(warningData).toContain("terminal may lag");
   });
 
   it("handles resize_info message without crashing", () => {

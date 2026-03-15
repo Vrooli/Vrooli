@@ -152,6 +152,97 @@ function ShortcutEditor({
   );
 }
 
+function TtsSettingsSection() {
+  const ttsVoice = useWorkspaceStore((s) => s.ttsVoice);
+  const setTtsVoice = useWorkspaceStore((s) => s.setTtsVoice);
+  const ttsRate = useWorkspaceStore((s) => s.ttsRate);
+  const setTtsRate = useWorkspaceStore((s) => s.setTtsRate);
+  const ttsPitch = useWorkspaceStore((s) => s.ttsPitch);
+  const setTtsPitch = useWorkspaceStore((s) => s.setTtsPitch);
+
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+    const loadVoices = () => {
+      const v = synth.getVoices();
+      if (v.length > 0) setVoices(v);
+    };
+    loadVoices();
+    synth.onvoiceschanged = loadVoices;
+    return () => { synth.onvoiceschanged = null; };
+  }, []);
+
+  const hasTts = typeof window !== "undefined" && !!window.speechSynthesis;
+
+  return (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
+        Voice Output (TTS)
+      </h3>
+      <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3 space-y-3">
+        {!hasTts ? (
+          <p className="text-[11px] text-wc-text-faint">
+            Speech synthesis is not supported in this browser.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-wc-text-secondary">Voice</span>
+              <select
+                data-testid="tts-voice-select"
+                className="text-xs bg-wc-surface-base border border-wc-default rounded px-1.5 py-0.5 text-wc-text-primary max-w-[180px]"
+                value={ttsVoice}
+                onChange={(e) => setTtsVoice(e.target.value)}
+              >
+                <option value="">System default</option>
+                {voices.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-wc-text-secondary">Rate</span>
+              <div className="flex items-center gap-2">
+                <input
+                  data-testid="tts-rate-slider"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsRate}
+                  onChange={(e) => setTtsRate(parseFloat(e.target.value))}
+                  className="w-24 accent-[rgb(var(--wc-accent))]"
+                />
+                <span className="text-xs text-wc-text-muted w-7 text-right">{ttsRate.toFixed(1)}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-wc-text-secondary">Pitch</span>
+              <div className="flex items-center gap-2">
+                <input
+                  data-testid="tts-pitch-slider"
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsPitch}
+                  onChange={(e) => setTtsPitch(parseFloat(e.target.value))}
+                  className="w-24 accent-[rgb(var(--wc-accent))]"
+                />
+                <span className="text-xs text-wc-text-muted w-7 text-right">{ttsPitch.toFixed(1)}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function SettingsModal() {
   const settingsModalOpen = useWorkspaceStore((s) => s.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((s) => s.setSettingsModalOpen);
@@ -169,6 +260,10 @@ export default function SettingsModal() {
   const setVoiceEnabled = useWorkspaceStore((s) => s.setVoiceEnabled);
   const voiceShortcut = useWorkspaceStore((s) => s.voiceShortcut);
   const setVoiceShortcut = useWorkspaceStore((s) => s.setVoiceShortcut);
+  const vadAutoStop = useWorkspaceStore((s) => s.vadAutoStop);
+  const setVadAutoStop = useWorkspaceStore((s) => s.setVadAutoStop);
+  const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
+  const setVoiceLanguage = useWorkspaceStore((s) => s.setVoiceLanguage);
   const [recordingShortcut, setRecordingShortcut] = useState(false);
 
   // Voice capability status
@@ -518,6 +613,52 @@ export default function SettingsModal() {
                   />
                 </button>
               </div>
+              {voiceEnabled && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-wc-text-secondary">Auto-stop on silence</span>
+                      <span className="text-[10px] text-wc-text-muted">Stop recording when you stop speaking (tap mode only)</span>
+                    </div>
+                    <button
+                      data-testid="vad-auto-stop-toggle"
+                      role="switch"
+                      aria-checked={vadAutoStop}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        vadAutoStop ? "bg-wc-accent" : "bg-wc-surface-base"
+                      }`}
+                      onClick={() => setVadAutoStop(!vadAutoStop)}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                          vadAutoStop ? "translate-x-[18px]" : "translate-x-[3px]"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-wc-text-secondary">Language</span>
+                    <select
+                      data-testid="voice-language-select"
+                      className="text-xs bg-wc-surface-base border border-wc-default rounded px-1.5 py-0.5 text-wc-text-primary"
+                      value={voiceLanguage}
+                      onChange={(e) => setVoiceLanguage(e.target.value)}
+                    >
+                      <option value="auto">Auto-detect</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="es-ES">Spanish</option>
+                      <option value="fr-FR">French</option>
+                      <option value="de-DE">German</option>
+                      <option value="zh-CN">Chinese (Simplified)</option>
+                      <option value="ja-JP">Japanese</option>
+                      <option value="ko-KR">Korean</option>
+                      <option value="pt-BR">Portuguese (Brazil)</option>
+                      <option value="hi-IN">Hindi</option>
+                    </select>
+                  </div>
+                </>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-wc-text-secondary">Shortcut</span>
                 <div className="flex items-center gap-1.5">
@@ -665,6 +806,9 @@ export default function SettingsModal() {
               </div>
             </div>
           </section>
+
+          {/* Section: Voice Output (TTS) */}
+          <TtsSettingsSection />
 
           {/* Section 3: Appearance Defaults */}
           <section>

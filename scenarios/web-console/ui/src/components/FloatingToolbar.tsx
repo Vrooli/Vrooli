@@ -4,6 +4,7 @@ import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
 import { Button } from "./ui/button";
+import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 
 /** Minimum fling speed (px/s) to trigger a dock */
 const FLING_VELOCITY_THRESHOLD = 400;
@@ -52,7 +53,8 @@ interface FloatingToolbarProps {
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
-  onVoiceStart?: () => void;
+  voicePartialTranscript?: string;
+  onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
 }
 
@@ -71,6 +73,7 @@ export default function FloatingToolbar({
   voiceTranscribing,
   voiceError,
   voiceLevel = 0,
+  voicePartialTranscript,
   onVoiceStart,
   onVoiceStop,
 }: FloatingToolbarProps) {
@@ -180,7 +183,7 @@ export default function FloatingToolbar({
     voicePressStartRef.current = Date.now();
     voiceWasRecordingRef.current = !!voiceRecording;
     if (!voiceRecording && !voiceTranscribing) {
-      onVoiceStart?.();
+      onVoiceStart?.({ vadEnabled: true });
     }
   }, [voiceRecording, voiceTranscribing, onVoiceStart]);
 
@@ -250,40 +253,47 @@ export default function FloatingToolbar({
         <Sparkles className="h-4 w-4" />
       </Button>
       {voiceSupported && onVoiceStart && onVoiceStop && (
-        <Button
-          data-testid="toolbar-voice"
-          variant="ghost"
-          size="icon"
-          className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceError ? "text-amber-400" : ""}`}
-          onPointerDown={handleVoicePointerDown}
-          onPointerUp={handleVoicePointerUp}
-          onPointerCancel={handleVoicePointerUp}
-          title={
-            voiceRecording
-              ? "Recording... tap to stop, or hold to talk"
-              : voiceTranscribing
-                ? "Transcribing..."
-                : voiceError
-                  ? `Voice error: ${voiceError}`
-                  : "Tap to record, hold to talk"
-          }
-          tabIndex={docked ? -1 : undefined}
-        >
-          {/* Audio level fill — rises from bottom */}
-          {voiceRecording && (
-            <span
-              className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
-              style={{ height: `${Math.round(voiceLevel * 100)}%` }}
-            />
+        <div className="relative">
+          <Button
+            data-testid="toolbar-voice"
+            variant="ghost"
+            size="icon"
+            className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceError ? "text-amber-400" : ""}`}
+            onPointerDown={handleVoicePointerDown}
+            onPointerUp={handleVoicePointerUp}
+            onPointerCancel={handleVoicePointerUp}
+            title={
+              voiceRecording
+                ? "Recording... tap to stop, or hold to talk"
+                : voiceTranscribing
+                  ? "Transcribing..."
+                  : voiceError
+                    ? `Voice error: ${voiceError}`
+                    : "Tap to record, hold to talk"
+            }
+            tabIndex={docked ? -1 : undefined}
+          >
+            {/* Audio level fill — rises from bottom */}
+            {voiceRecording && (
+              <span
+                className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
+                style={{ height: `${Math.round(voiceLevel * 100)}%` }}
+              />
+            )}
+            {voiceTranscribing ? (
+              <Loader2 className="h-4 w-4 animate-spin relative" />
+            ) : voiceError ? (
+              <AlertCircle className="h-4 w-4 relative" />
+            ) : (
+              <Mic className="h-4 w-4 relative" />
+            )}
+          </Button>
+          {voiceRecording && voicePartialTranscript && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis z-10">
+              {voicePartialTranscript}
+            </div>
           )}
-          {voiceTranscribing ? (
-            <Loader2 className="h-4 w-4 animate-spin relative" />
-          ) : voiceError ? (
-            <AlertCircle className="h-4 w-4 relative" />
-          ) : (
-            <Mic className="h-4 w-4 relative" />
-          )}
-        </Button>
+        </div>
       )}
       <Button
         data-testid="toolbar-new"

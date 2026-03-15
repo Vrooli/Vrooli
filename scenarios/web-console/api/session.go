@@ -30,14 +30,15 @@ var (
 	ErrPTYSpawnFailed = errors.New("PTY spawn failed")
 )
 
-// ClientInfo tracks per-client metadata for a subscribed WebSocket connection.
-// Each connected client has its own viewport dimensions so the session can
-// compute the effective PTY size as the maximum across all clients.
+// ClientInfo tracks per-client broadcast flow control for a subscribed
+// WebSocket connection. When the client's output channel is full, incoming
+// frames are coalesced into a pending buffer instead of being dropped.
+// The WebSocket output forwarder calls FlushPending after each successful
+// write to drain coalesced data back into the channel.
 type ClientInfo struct {
-	Cols          uint16
-	Rows          uint16
-	DroppedFrames int
-	NotifyCh      chan int // receives cumulative drop count when threshold crossed
+	pending         []byte   // coalesced data awaiting consumer drain
+	CoalescedFrames int      // count of coalesced frames (observability)
+	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
 }
 
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
@@ -64,11 +65,16 @@ type Session struct {
 	processExitCode int  // exit code from the PTY process (-1 if unknown)
 	historyTrimmed  bool // set once when history cap is hit (log once)
 
+	// utf8Buf holds an incomplete multi-byte UTF-8 sequence from the previous
+	// PTY read. Prepended to the next read before broadcasting so that
+	// string(data) + JSON encoding never sees partial codepoints.
+	utf8Buf []byte
+
 	// Config-driven limits for this session
-	offlineBufferMax    int
-	ptyReadBuffer       int
-	clientChannelBuffer int
-	dropNotifyThreshold int
+	offlineBufferMax        int
+	ptyReadBuffer           int
+	clientChannelBuffer     int
+	coalesceNotifyThreshold int
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
@@ -80,13 +86,13 @@ func (s *Session) Write(data []byte) (int, error) {
 }
 
 // Subscribe returns a channel that receives PTY output and a notification
-// channel that fires when dropped frames exceed the configured threshold.
+// channel that fires when coalesced frames exceed the configured threshold.
 // Caller must call Unsubscribe when done. Recent output history is replayed
 // immediately, prefixed with an SGR reset to clear any dangling
 // color/attribute state that may have been lost when the history buffer
 // was trimmed.
 // [REQ:P0-003b] Reconnect State Restoration
-func (s *Session) Subscribe(cols, rows uint16) (chan []byte, chan int) {
+func (s *Session) Subscribe() (chan []byte, chan int) {
 	ch := make(chan []byte, s.clientChannelBuffer)
 	notifyCh := make(chan int, 1)
 	s.mu.Lock()
@@ -99,63 +105,29 @@ func (s *Session) Subscribe(cols, rows uint16) (chan []byte, chan int) {
 		snapshot = append(snapshot, s.outputHistory...)
 		ch <- snapshot
 	}
-	s.clients[ch] = &ClientInfo{
-		Cols:     cols,
-		Rows:     rows,
-		NotifyCh: notifyCh,
-	}
-	s.recomputePTYSize()
+	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
 	s.mu.Unlock()
 	return ch, notifyCh
 }
 
-// Unsubscribe removes a client channel and recomputes the effective PTY size.
+// Unsubscribe removes a client channel. The PTY size is unchanged.
 func (s *Session) Unsubscribe(ch chan []byte) {
 	s.mu.Lock()
 	delete(s.clients, ch)
-	s.recomputePTYSize()
 	s.mu.Unlock()
 }
 
-// ResizeClient updates a specific client's viewport dimensions and recomputes
-// the effective PTY size. Returns the effective (cols, rows) after recomputation.
+// Resize sets the PTY dimensions directly. Last caller wins.
 // [REQ:P0-002c] Terminal Resize Handling
-func (s *Session) ResizeClient(ch chan []byte, cols, rows uint16) (uint16, uint16) {
+func (s *Session) Resize(cols, rows uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if info, ok := s.clients[ch]; ok {
-		info.Cols = cols
-		info.Rows = rows
+	if cols == s.Cols && rows == s.Rows {
+		return
 	}
-	s.recomputePTYSize()
-	return s.Cols, s.Rows
-}
-
-// recomputePTYSize sets the PTY dimensions to the maximum across all connected
-// clients. Smaller clients rely on xterm.js reflow to handle the wider output.
-// Caller must hold s.mu.
-func (s *Session) recomputePTYSize() {
-	var maxCols, maxRows uint16
-	for _, info := range s.clients {
-		if info.Cols > maxCols {
-			maxCols = info.Cols
-		}
-		if info.Rows > maxRows {
-			maxRows = info.Rows
-		}
-	}
-	// Fall back to session creation defaults when no clients are connected
-	if maxCols == 0 {
-		maxCols = s.Cols
-	}
-	if maxRows == 0 {
-		maxRows = s.Rows
-	}
-	if maxCols != s.Cols || maxRows != s.Rows {
-		s.Cols = maxCols
-		s.Rows = maxRows
-		_ = s.pty.SetSize(maxCols, maxRows)
-	}
+	s.Cols = cols
+	s.Rows = rows
+	_ = s.pty.SetSize(cols, rows)
 }
 
 // GetPolicy returns the session's expiration policy.
@@ -287,9 +259,9 @@ func looksLikeMidSequence(buf []byte) bool {
 
 // broadcast fans out PTY output to all connected WebSocket clients while
 // preserving bounded output history for reconnect/reload replay.
-// Slow clients that can't keep up have frames dropped; when the cumulative
-// drop count crosses the configured threshold, a notification is sent on
-// the client's NotifyCh so the WebSocket handler can alert the user.
+// Slow clients that can't keep up have frames coalesced into a pending buffer
+// instead of being dropped. The WebSocket output forwarder calls FlushPending
+// after each successful write to drain coalesced data back into the channel.
 func (s *Session) broadcast(data []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -297,39 +269,110 @@ func (s *Session) broadcast(data []byte) {
 	if len(s.clients) == 0 {
 		return
 	}
-	// Copy to avoid data races since buf is reused
+	// Copy to avoid data races since buf is reused by readLoop.
 	cp := make([]byte, len(data))
 	copy(cp, data)
 	for ch, info := range s.clients {
+		s.deliver(ch, info, cp)
+	}
+}
+
+// deliver sends data to a client channel, coalescing into the pending buffer
+// when the channel is full. Must be called with s.mu held.
+func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
+	if len(info.pending) > 0 {
+		// Already coalescing — append to pending buffer.
+		info.pending = append(info.pending, data...)
+		info.CoalescedFrames++
+		// Cap pending at offlineBufferMax to prevent unbounded growth.
+		if s.offlineBufferMax > 0 && len(info.pending) > s.offlineBufferMax {
+			info.pending = info.pending[len(info.pending)-s.offlineBufferMax:]
+		}
+		s.notifyIfThreshold(info)
+		return
+	}
+	select {
+	case ch <- data:
+		// Sent immediately.
+	default:
+		// Channel full — start coalescing instead of dropping.
+		info.pending = append([]byte(nil), data...)
+		info.CoalescedFrames++
+		s.notifyIfThreshold(info)
+	}
+}
+
+// notifyIfThreshold sends a coalescing notification when the cumulative
+// count crosses the configured threshold. Must be called with s.mu held.
+func (s *Session) notifyIfThreshold(info *ClientInfo) {
+	if s.coalesceNotifyThreshold > 0 && info.CoalescedFrames%s.coalesceNotifyThreshold == 0 {
 		select {
-		case ch <- cp:
+		case info.NotifyCh <- info.CoalescedFrames:
 		default:
-			// Client is slow, drop frame
-			info.DroppedFrames++
-			if s.dropNotifyThreshold > 0 && info.DroppedFrames%s.dropNotifyThreshold == 0 {
-				select {
-				case info.NotifyCh <- info.DroppedFrames:
-				default:
-					// Notification already pending
-				}
-			}
+			// Notification already pending.
 		}
 	}
 }
 
+// FlushPending drains any coalesced output for the given client channel.
+// The WebSocket output forwarder calls this after each successful write
+// to resume normal per-frame delivery.
+// DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
+func (s *Session) FlushPending(ch chan []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	info, ok := s.clients[ch]
+	if !ok || len(info.pending) == 0 {
+		return
+	}
+	select {
+	case ch <- info.pending:
+		info.pending = nil
+		info.CoalescedFrames = 0
+	default:
+		// Channel still full — leave pending for next flush cycle.
+	}
+}
+
 // readLoop continuously reads PTY output and broadcasts to subscribers.
+// Each read is split at UTF-8 codepoint boundaries so that partial multi-byte
+// sequences are buffered and prepended to the next read, preventing JSON
+// encoding from replacing incomplete sequences with U+FFFD.
+//
 // On PTY read error (including normal process exit), it:
-//  1. Marks the session as exited
-//  2. Closes all client channels (triggering "exit" messages in WS handlers)
-//  3. Signals exitCh so the SessionManager can clean up
+//  1. Flushes any buffered UTF-8 remainder
+//  2. Marks the session as exited
+//  3. Closes all client channels (triggering "exit" messages in WS handlers)
+//  4. Signals exitCh so the SessionManager can clean up
+//
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 func (s *Session) readLoop() {
 	buf := make([]byte, s.ptyReadBuffer)
 	for {
 		n, err := s.pty.Read(buf)
 		if n > 0 {
-			s.broadcast(buf[:n])
+			data := buf[:n]
+			// Prepend any incomplete UTF-8 bytes from the previous read.
+			if len(s.utf8Buf) > 0 {
+				data = append(s.utf8Buf, data...)
+				s.utf8Buf = nil
+			}
+			complete, remainder := splitCompleteUTF8(data)
+			if len(complete) > 0 {
+				s.broadcast(complete)
+			}
+			// Copy remainder — it may alias the read buffer which is reused.
+			if len(remainder) > 0 {
+				s.utf8Buf = append([]byte(nil), remainder...)
+			}
 		}
 		if err != nil {
+			// Flush any remaining incomplete UTF-8 bytes — there is no more
+			// data coming, so send them as-is (the terminal will handle them).
+			if len(s.utf8Buf) > 0 {
+				s.broadcast(s.utf8Buf)
+				s.utf8Buf = nil
+			}
 			exitCode := s.pty.ExitCode()
 			s.mu.Lock()
 			s.processExited = true
@@ -343,6 +386,72 @@ func (s *Session) readLoop() {
 			return
 		}
 	}
+}
+
+// splitCompleteUTF8 splits data at the last complete UTF-8 codepoint boundary.
+// Returns (complete, remainder) where remainder contains any trailing incomplete
+// multi-byte sequence that should be buffered for the next read.
+//
+// UTF-8 encoding rules used:
+//   - 0xxxxxxx: 1-byte (ASCII)
+//   - 110xxxxx: 2-byte leading byte
+//   - 1110xxxx: 3-byte leading byte
+//   - 11110xxx: 4-byte leading byte
+//   - 10xxxxxx: continuation byte
+//
+// If the trailing bytes are orphaned continuation bytes with no leading byte,
+// they are treated as complete (passed through as-is) since they represent
+// pre-existing corruption, not a split boundary.
+func splitCompleteUTF8(data []byte) (complete, remainder []byte) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	// Walk backward from the end to find the start of a potential
+	// incomplete multi-byte sequence.
+	i := len(data) - 1
+
+	// Skip continuation bytes (10xxxxxx).
+	contCount := 0
+	for i >= 0 && data[i]&0xC0 == 0x80 {
+		contCount++
+		i--
+	}
+
+	// If we consumed the entire slice as continuation bytes, there's no
+	// leading byte — treat as pre-existing corruption, pass through.
+	if i < 0 {
+		return data, nil
+	}
+
+	b := data[i]
+	var expectedLen int
+	switch {
+	case b&0x80 == 0:
+		// ASCII byte — not a multi-byte sequence leader.
+		return data, nil
+	case b&0xE0 == 0xC0:
+		expectedLen = 2
+	case b&0xF0 == 0xE0:
+		expectedLen = 3
+	case b&0xF8 == 0xF0:
+		expectedLen = 4
+	default:
+		// Invalid leading byte — pass through.
+		return data, nil
+	}
+
+	actualLen := contCount + 1 // leading byte + continuation bytes
+	if actualLen >= expectedLen {
+		// Sequence is complete.
+		return data, nil
+	}
+
+	// Incomplete sequence: split before the leading byte.
+	if i == 0 {
+		return nil, data
+	}
+	return data[:i], data[i:]
 }
 
 // SessionManager tracks all active terminal sessions.
@@ -416,19 +525,19 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 	}
 
 	sess := &Session{
-		ID:                  uuid.New().String(),
-		Shell:               shell,
-		CreatedAt:           time.Now(),
-		Cols:                cols,
-		Rows:                rows,
-		pty:                 p,
-		policy:              DefaultPolicy(),
-		clients:             make(map[chan []byte]*ClientInfo),
-		exitCh:              make(chan struct{}),
-		offlineBufferMax:    sm.cfg.OfflineBufferMax,
-		ptyReadBuffer:       sm.cfg.PTYReadBuffer,
-		clientChannelBuffer: sm.cfg.ClientChannelBuffer,
-		dropNotifyThreshold: sm.cfg.DropNotifyThreshold,
+		ID:                      uuid.New().String(),
+		Shell:                   shell,
+		CreatedAt:               time.Now(),
+		Cols:                    cols,
+		Rows:                    rows,
+		pty:                     p,
+		policy:                  DefaultPolicy(),
+		clients:                 make(map[chan []byte]*ClientInfo),
+		exitCh:                  make(chan struct{}),
+		offlineBufferMax:        sm.cfg.OfflineBufferMax,
+		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
+		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
+		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 	}
 
 	sm.mu.Lock()

@@ -11,8 +11,8 @@
 | **PTY readLoop** | `session.go:146` | `SessionManager.Create()` | PTY file descriptor | Broadcasts to client channels, sets `processExited`, closes `exitCh` | PTY read error (process exit) |
 | **Session auto-cleanup** | `session.go:261` | `SessionManager.Create()` | `<-sess.Done()` (exitCh closed) | Removes session from manager map | Immediate after Done signal |
 | **ExpirationSweeper** | `session_policy.go:157` | `Server` startup via `NewServer` | 30s ticker, session list | Deletes expired sessions, emits events, updates metrics | `Stop()` called in server Cleanup |
-| **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel | Writes stdout/exit to WS conn | Channel closed (process exit) or WS write error |
-| **WebSocket input loop** | `terminal_ws.go:131` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error or `writerDone` signal |
+| **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel + `ctx.Done()` | Writes stdout/exit to WS conn, calls `FlushPending` after each write | Channel closed (process exit), WS write error, or `ctx.Done()` (input loop exited) |
+| **WebSocket input loop** | `terminal_ws.go` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error → `defer cancel()` signals forwarder |
 | **AI provider chain** | `ai_generate.go:253` | `POST /api/v1/ai/generate` | HTTP request context | Per-provider timeout context, health metrics | All providers tried or first success |
 
 ### UI (React/TypeScript)
@@ -36,7 +36,7 @@
 - **Terminal init → WS connect**: Terminal `useState` triggers WS effect. Ordering enforced by React's `useEffect` dependency chain.
 - **PTY readLoop → auto-cleanup**: Cleanup goroutine waits on `<-sess.Done()`. Channel close is the coordination signal.
 - **Sweeper start → stop**: Started in `NewServer`, stopped in server `Cleanup` callback. Lifecycle tied to HTTP server.
-- **Output forwarder ↔ input loop**: Coordinated via `writerDone` channel + `writeMu` mutex for WS writes.
+- **Output forwarder ↔ input loop**: Coordinated via `context.WithCancel` + `writeMu` mutex for WS writes. Input loop exit → cancel() → forwarder sees ctx.Done(). Forwarder exit → conn.Close() → input loop ReadMessage fails.
 
 ### Assumptions to monitor
 - **Session limit check → create**: `isSessionLimitReached()` uses RLock, then `Create()` takes write lock. TOCTOU gap exists but is acceptable for a soft limit.
@@ -47,7 +47,7 @@
 | Race | Location | Status | Mitigation |
 |------|----------|--------|------------|
 | Concurrent WS writes | `terminal_ws.go:89` | **Mitigated** | `writeMu sync.Mutex` serializes all WS writes |
-| Client channel drop | `session.go:134` | **By design** | Non-blocking send; slow clients lose frames (acceptable) |
+| Client channel coalescing | `session.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending` |
 | Event subscriber drop | `events.go:74` | **By design** | Non-blocking fan-out; full channels skip events |
 | Stale AI response | `AiInput.tsx` | **Mitigated** | Generation ID ref discards stale setState calls |
 | Stale settings load | `SettingsPage.tsx` | **Mitigated** | Cancellation signal prevents setState on unmounted component |

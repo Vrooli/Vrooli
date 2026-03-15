@@ -57,18 +57,24 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
 1. UI opens WebSocket to `/api/v1/sessions/{id}/ws`
 2. Server upgrades connection in [CODE: api/terminal_ws.go#handleTerminalWS]
 3. Two concurrent loops bridge browser ↔ PTY:
-   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client (also forwards `sync_warning` from drop notification channel)
+   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client (also forwards `sync_warning` when frame coalescing crosses the configured threshold)
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
+5. `readLoop` splits PTY output at UTF-8 codepoint boundaries so that partial multi-byte sequences are buffered across reads, preventing JSON encoding corruption
+6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data
+7. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
 
-### Multi-Client Resize Strategy
+### Resize Strategy
 
-When multiple clients (e.g. desktop and phone) connect to the same PTY session, each client tracks its own viewport dimensions via `ResizeClient()`. The PTY is sized to the **maximum** across all connected clients' columns and rows, ensuring no client's content is truncated. Clients with smaller viewports rely on xterm.js reflow to wrap content naturally.
+The PTY dimensions follow a **last-writer-wins** model: whichever client sends a resize message last sets the PTY size. This keeps the resize path simple and predictable.
 
-- `Subscribe(cols, rows)` registers a client with its initial dimensions
-- `ResizeClient(ch, cols, rows)` updates a client's dimensions and triggers `recomputePTYSize()`
-- `Unsubscribe(ch)` removes the client and shrinks the PTY if needed
-- When no clients are connected, the PTY retains the session's creation-time defaults
+- `Subscribe()` registers a client for output broadcast
+- `Resize(cols, rows)` sets the PTY size directly
+- `Unsubscribe(ch)` removes the client without altering the PTY size
+
+### History Replay Limitations
+
+On reconnect, the server replays buffered output history prefixed with an SGR reset (`ESC[0m`) to clear dangling color/attribute state. This does **not** restore cursor position, scroll regions (DECSTBM), alternate screen buffer (smcup/rmcup), or character set state. Full terminal state restoration would require a server-side terminal emulator, which adds significant complexity for marginal benefit in the single-operator use case.
 
 ### Voice Input
 
@@ -123,12 +129,12 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | File | Responsibility |
 |------|---------------|
 | `api/main.go` | Server wiring, routes, middleware, health checks |
-| `api/session.go` | Session + SessionManager domain logic |
+| `api/session.go` | Session + SessionManager domain logic, UTF-8 boundary buffering, frame coalescing |
 | `api/pty.go` | PTY interface and factory (testability seam) |
 | `api/errors.go` | Error catalog, structured error types, HTTP error-writing helpers |
 | `api/session_handlers.go` | All session HTTP handlers (CRUD + policy) |
 | `api/session_policy.go` | Expiration policy domain logic: validation, TTL, sweeper |
-| `api/terminal_ws.go` | WebSocket upgrade + bidirectional I/O bridge |
+| `api/terminal_ws.go` | WebSocket upgrade + bidirectional I/O bridge (context-based goroutine lifecycle) |
 | `api/config.go` | Environment-based configuration with validation |
 | `api/ai_generate.go` | AI command generation: provider chain, prompt building, extraction, config-aware orchestration |
 | `api/repository.go` | Storage interfaces: `ShortcutStore`, `AIConfigStore` |
