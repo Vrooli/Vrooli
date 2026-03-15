@@ -223,6 +223,42 @@ describe("LocalEchoController", () => {
     });
   });
 
+  describe("ANSI escape handling", () => {
+    it("passes through data unchanged when server output starts with ESC", () => {
+      echo.handleInput("a");
+      echo.handleInput("b");
+      const data = "\x1b[32mgreen\x1b[0m";
+      expect(echo.processOutput(data)).toBe(data);
+      expect(echo.pendingCount).toBe(0);
+    });
+
+    it("clears predictions when ESC detected (no erase sequences)", () => {
+      echo.handleInput("a");
+      echo.handleInput("b");
+      echo.handleInput("c");
+      const data = "\x1b[1m bold prompt";
+      const result = echo.processOutput(data);
+      // Should NOT contain backspace erase sequences
+      expect(result).not.toContain("\b");
+      expect(result).toBe(data);
+      expect(echo.pendingCount).toBe(0);
+    });
+
+    it("still reconciles when ANSI appears mid-string", () => {
+      echo.handleInput("l");
+      echo.handleInput("s");
+      // Server echoes "ls" then sends colored output
+      const result = echo.processOutput("ls\r\n\x1b[32mfile\x1b[0m");
+      expect(result).toBe("\r\n\x1b[32mfile\x1b[0m");
+      expect(echo.pendingCount).toBe(0);
+    });
+
+    it("passes through ESC data unchanged with no pending predictions", () => {
+      const data = "\x1b[31mred\x1b[0m";
+      expect(echo.processOutput(data)).toBe(data);
+    });
+  });
+
   describe("clock injection", () => {
     it("accepts a custom clock for testability", () => {
       const clock = fakeClock(5000);

@@ -2401,6 +2401,34 @@ export async function fetchScenarios(): Promise<ScenarioInfo[]> {
   return handleResponse<ScenarioInfo[]>(res);
 }
 
+// ============================================================================
+// Scenario Envelope — enriched metadata for agent orientation
+// ============================================================================
+
+/** Enriched scenario metadata derived from service.json, used to build the agent envelope. */
+export interface ScenarioEnvelopeData {
+  name: string;
+  displayName: string;
+  description: string;
+  path: string;
+  tags: string[];
+  dependencies: {
+    scenarios: Record<string, string>;
+    resources: Record<string, string>;
+  };
+  lifecycle: {
+    testCommand?: string;
+    buildCommand?: string;
+  };
+}
+
+/** Fetch enriched scenario metadata for the agent envelope. */
+export async function fetchScenarioEnvelope(slug: string): Promise<ScenarioEnvelopeData> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(slug)}/envelope`, { baseUrl: API_BASE });
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
+  return handleResponse<ScenarioEnvelopeData>(res);
+}
+
 export async function stopAgentRun(runId: string, repoId?: string): Promise<AgentStopResponse> {
   const url = buildApiUrl(`/agent/runs/${runId}/stop`, { baseUrl: API_BASE });
   const res = await fetch(url, {

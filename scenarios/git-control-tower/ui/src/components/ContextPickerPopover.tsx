@@ -43,8 +43,8 @@ export function ContextPickerPopover({
     if (!testExecs.data?.items?.length) return [];
     const latest = testExecs.data.items[0];
     if (!latest?.phases) return [];
-    return testFailureContextItems(latest.phases);
-  }, [testExecs.data]);
+    return testFailureContextItems(latest.phases, scenarioSlug);
+  }, [testExecs.data, scenarioSlug]);
 
   const qualityItem = useMemo(() => {
     if (!tidinessScore.data) return null;
@@ -53,21 +53,21 @@ export function ContextPickerPopover({
 
   const codeItems = useMemo(() => {
     if (!tidinessIssues.data?.length) return [];
-    return codeQualityContextItems(tidinessIssues.data);
-  }, [tidinessIssues.data]);
+    return codeQualityContextItems(tidinessIssues.data, scenarioSlug);
+  }, [tidinessIssues.data, scenarioSlug]);
 
   const auditorViolations = useAuditorViolations(scenarioSlug, auditorAvailable, repoId);
   const violationsData = auditorViolations.data;
 
   const ruleViolationItems = useMemo(() => {
     if (!violationsData?.length) return [];
-    return ruleViolationContextItems(violationsData);
-  }, [violationsData]);
+    return ruleViolationContextItems(violationsData, scenarioSlug);
+  }, [violationsData, scenarioSlug]);
 
   const rulesSummary = useMemo(() => {
     if (!violationsData?.length) return null;
-    return rulesSummaryContextItem(violationsData);
-  }, [violationsData]);
+    return rulesSummaryContextItem(violationsData, undefined, scenarioSlug);
+  }, [violationsData, scenarioSlug]);
 
   // Screenshots — fetch latest capture and its detail
   const captures = useVisualCaptures(scenarioSlug, visualCaptureAvailable, repoId);

@@ -61,7 +61,7 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
 5. `readLoop` splits PTY output at UTF-8 codepoint boundaries so that partial multi-byte sequences are buffered across reads, preventing JSON encoding corruption
-6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data
+6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes
 7. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
 
 ### Resize Strategy
@@ -74,7 +74,9 @@ The PTY dimensions follow a **last-writer-wins** model: whichever client sends a
 
 ### History Replay Limitations
 
-On reconnect, the server replays buffered output history prefixed with an SGR reset (`ESC[0m`) to clear dangling color/attribute state. This does **not** restore cursor position, scroll regions (DECSTBM), alternate screen buffer (smcup/rmcup), or character set state. Full terminal state restoration would require a server-side terminal emulator, which adds significant complexity for marginal benefit in the single-operator use case.
+On reconnect, the client resets the terminal (`terminal.reset()`) before history replay arrives, ensuring a clean slate with no duplicated content. The server replays buffered output history prefixed with an SGR reset (`ESC[0m`) to clear dangling color/attribute state. For large history buffers, the replay is chunked into 64 KB pieces to prevent browser UI freezes — each chunk is sent as a separate WebSocket message so xterm.js can render incrementally.
+
+This does **not** restore cursor position, scroll regions (DECSTBM), alternate screen buffer (smcup/rmcup), or character set state. Full terminal state restoration would require a server-side terminal emulator, which adds significant complexity for marginal benefit in the single-operator use case.
 
 ### Voice Input
 
@@ -162,6 +164,7 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/components/ErrorBoundary.tsx` | React error boundary with region labels |
 | `ui/src/lib/api.ts` | HTTP/WS client functions |
 | `ui/src/lib/format.ts` | Display formatting utilities |
+| `ui/src/lib/localEcho.ts` | Predictive local echo with ANSI-aware graceful degradation |
 | `ui/src/lib/ansi.ts` | ANSI escape sequence constants |
 | `ui/src/consts/config.ts` | UI tunable constants |
 | `ui/src/consts/shortcuts.ts` | Launch shortcut definitions |

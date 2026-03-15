@@ -26,8 +26,8 @@ Last updated: 2026-03-15
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
 - `PTY` interface ([CODE: api/pty.go#PTY]) — Abstracts PTY process behind `Read`/`Write`/`SetSize`/`Close`/`Kill`. Default `realPTY` wraps creack/pty; tests substitute `fakePTY` (pipe-based).
 - `PTYFactory` ([CODE: api/pty.go#PTYFactory]) — Function type `func(shell, cols, rows) (PTY, error)`. Injected into SessionManager via `NewSessionManagerWithFactory()`.
-- `Session` — PTY process wrapper: delegates I/O to `PTY` interface, manages subscribe/unsubscribe/broadcast, offline buffer, exit signaling via `exitCh` channel. Includes UTF-8 boundary buffering in `readLoop` and frame coalescing in `broadcast`/`deliver`.
-- `FlushPending(ch)` — Testability seam for the coalescing mechanism. The WS output forwarder calls this after each successful write. Tests can call it directly to control the drain cycle and verify coalesced data integrity.
+- `Session` — PTY process wrapper: delegates I/O to `PTY` interface, manages subscribe/unsubscribe/broadcast, offline buffer, exit signaling via `exitCh` channel. Includes UTF-8 boundary buffering in `readLoop`, frame coalescing in `broadcast`/`deliver` (with ANSI-boundary-aware capping via `snapToCleanBoundary`), and chunked history replay via `historyChunkSize` constant.
+- `FlushPending(ch)` — Testability seam for the coalescing mechanism. The WS output forwarder calls this after each successful write. Chunks coalesced data at `historyChunkSize` (64 KB) to prevent browser UI freezes from large blobs. Tests can call it directly to control the drain cycle and verify coalesced data integrity.
 - `splitCompleteUTF8(data)` — Pure function seam for UTF-8 boundary detection. Splits byte slices at complete codepoint boundaries, enabling isolated unit testing of the buffering logic.
 - `SessionManager` — Session CRUD, resize (delegates to `PTY.SetSize()`), auto-cleanup on exit (listens on `Session.Done()`)
 - Key invariant: Session signals its own exit; SessionManager owns the cleanup decision

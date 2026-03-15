@@ -26,8 +26,9 @@ import {
   useApproveAgentRun,
   useRejectAgentRun,
   useStopAgentRun,
+  useScenarioEnvelope,
 } from "../lib/hooks";
-import { composePrompt, resolveScreenshotPaths } from "../lib/agentContext";
+import { buildScenarioEnvelope, composePrompt, resolveScreenshotPaths } from "../lib/agentContext";
 import { ContextPickerPopover } from "./ContextPickerPopover";
 import { ContextPreviewPopover } from "./ContextPreviewPopover";
 import {
@@ -288,6 +289,7 @@ export function AgentTab({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const profiles = useAgentProfiles(agentManagerAvailable);
+  const envelopeQuery = useScenarioEnvelope(scenarioSlug, agentManagerAvailable);
   const runs = useAgentRuns(scenarioSlug, agentManagerAvailable, repoId);
   const activeRun = useAgentRun(activeRunId, agentManagerAvailable, repoId);
 
@@ -378,7 +380,15 @@ export function AgentTab({
 
   const handleSend = useCallback(async () => {
     const resolvedItems = await resolveScreenshotPaths(contextItems, scenarioSlug, repoId ?? undefined);
-    const prompt = composePrompt(message, resolvedItems);
+
+    // Prepend the scenario envelope on the first message of a conversation
+    // so the agent has orientation (name, path, lifecycle commands, etc.).
+    const isFirstMessage = sentMessages.length === 0;
+    const envelope = isFirstMessage && envelopeQuery.data
+      ? buildScenarioEnvelope(envelopeQuery.data)
+      : undefined;
+
+    const prompt = composePrompt(message, resolvedItems, envelope);
     if (!prompt.trim()) return;
 
     const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
@@ -409,7 +419,7 @@ export function AgentTab({
         },
       }
     );
-  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, createRun, onClearContext, onSentMessagesChange]);
+  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, sentMessages.length, envelopeQuery.data, createRun, onClearContext, onSentMessagesChange]);
 
   const handleContinue = useCallback(() => {
     if (!activeRunId || !message.trim()) return;

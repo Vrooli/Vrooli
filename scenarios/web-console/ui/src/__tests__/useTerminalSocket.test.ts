@@ -37,6 +37,7 @@ function createMockTerminal() {
     cols: 80,
     rows: 24,
     write: vi.fn(),
+    reset: vi.fn(),
     onData: vi.fn((_cb: (data: string) => void) => ({
       dispose: vi.fn(),
     })),
@@ -223,5 +224,78 @@ describe("useTerminalSocket — callback stability", () => {
     socket?.simulateOpen();
     unmount();
     expect(socket?.close).toHaveBeenCalled();
+  });
+});
+
+describe("useTerminalSocket — reconnect behavior", () => {
+  let sockets: ReturnType<typeof createMockSocket>[];
+  let socketFactory: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sockets = [];
+    socketFactory = vi.fn(() => {
+      const s = createMockSocket();
+      sockets.push(s);
+      return s as unknown as WebSocket;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("calls terminal.reset() on reconnect before writing [Reconnected]", () => {
+    const terminal = createMockTerminal();
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: socketFactory,
+      }),
+    );
+
+    // Initial connect
+    const first = sockets[0];
+    first?.simulateOpen();
+
+    // Simulate abnormal close -> reconnect
+    first?.onclose?.(new CloseEvent("close", { code: 1006 }));
+    vi.advanceTimersByTime(400);
+
+    // Second socket connects
+    const second = sockets[1];
+    expect(second).toBeDefined();
+    second?.simulateOpen();
+
+    // terminal.reset() should have been called exactly once (on reconnect, not initial)
+    expect(terminal.reset).toHaveBeenCalledTimes(1);
+
+    // Verify ordering: reset was called before [Reconnected] write
+    const resetCallOrder = terminal.reset.mock.invocationCallOrder[0] as number;
+    expect(resetCallOrder).toBeDefined();
+    const reconnectedWrite = terminal.write.mock.calls.findIndex(
+      (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("[Reconnected]"),
+    );
+    expect(reconnectedWrite).toBeGreaterThanOrEqual(0);
+    const reconnectedWriteOrder = terminal.write.mock.invocationCallOrder[reconnectedWrite] as number;
+    expect(resetCallOrder).toBeLessThan(reconnectedWriteOrder);
+  });
+
+  it("does NOT call terminal.reset() on initial connect", () => {
+    const terminal = createMockTerminal();
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: socketFactory,
+      }),
+    );
+
+    sockets[0]?.simulateOpen();
+    expect(terminal.reset).not.toHaveBeenCalled();
   });
 });

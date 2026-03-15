@@ -152,6 +152,8 @@ import {
   type AgentRejectResponse,
   type AgentStopResponse,
   type ScenarioInfo,
+  type ScenarioEnvelopeData,
+  fetchScenarioEnvelope,
   ACTIVE_STATUSES,
   RUN_STATUS,
 } from "./api";
@@ -972,6 +974,16 @@ export function useScenarios(enabled = true) {
     queryFn: fetchScenarios,
     enabled,
     staleTime: 30_000,
+  });
+}
+
+/** Fetch enriched scenario metadata for the agent envelope (from service.json). */
+export function useScenarioEnvelope(slug: string, enabled = true) {
+  return useQuery<ScenarioEnvelopeData, Error>({
+    queryKey: ["scenario-envelope", slug],
+    queryFn: () => fetchScenarioEnvelope(slug),
+    enabled,
+    staleTime: 60_000,
   });
 }
 

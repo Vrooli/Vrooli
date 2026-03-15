@@ -86,6 +86,15 @@ export class LocalEchoController {
       return data;
     }
 
+    // If server output starts with an ANSI escape sequence, skip
+    // reconciliation. Colored prompts and readline sequences make
+    // character-by-character matching unreliable — clear predictions
+    // and pass through unchanged to avoid visual flicker.
+    if (data.charCodeAt(0) === 0x1b) {
+      this.predicted = [];
+      return data;
+    }
+
     let i = 0;
     // Walk through server data, consuming matching predictions
     while (i < data.length && this.predicted.length > 0) {

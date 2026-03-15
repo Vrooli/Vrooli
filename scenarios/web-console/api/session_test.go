@@ -348,25 +348,28 @@ func TestSnapToCleanBoundary_ParameterBytesOnly(t *testing.T) {
 func TestLooksLikeMidSequence(t *testing.T) {
 	tests := []struct {
 		name   string
-		input  byte
+		input  []byte
 		expect bool
 	}{
-		{"open bracket", '[', true},
-		{"digit 0", '0', true},
-		{"digit 9", '9', true},
-		{"semicolon", ';', true},
-		{"space", ' ', true},
-		{"ESC byte", 0x1b, false},
-		{"letter A", 'A', false},
-		{"letter m", 'm', false},
-		{"newline", '\n', false},
-		{"null", 0x00, false},
+		{"open bracket", []byte("["), true},
+		{"bracket_K", []byte("[K"), true},
+		{"digit_then_m", []byte("31m"), true},
+		{"cursor_position", []byte("1;1H"), true},
+		{"lone_digit", []byte("5"), false},
+		{"lone_space", []byte(" "), false},
+		{"semicolon_alone", []byte(";"), false},
+		{"ESC_byte", []byte{0x1b}, false},
+		{"letter_A", []byte("A"), false},
+		{"letter_m", []byte("m"), false},
+		{"newline", []byte("\n"), false},
+		{"null", []byte{0x00}, false},
+		{"empty", []byte{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := looksLikeMidSequence([]byte{tt.input})
+			got := looksLikeMidSequence(tt.input)
 			if got != tt.expect {
-				t.Errorf("looksLikeMidSequence(0x%02x) = %v, want %v", tt.input, got, tt.expect)
+				t.Errorf("looksLikeMidSequence(%q) = %v, want %v", tt.input, got, tt.expect)
 			}
 		})
 	}
@@ -731,6 +734,351 @@ func TestAppendHistory_TrimDoesNotSplitANSISequence(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for replayed history")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// --- Coalescing cap ANSI boundary tests ---
+
+func TestSession_Broadcast_CoalescingCapSnapsToCleanBoundary(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1
+	sm.cfg.OfflineBufferMax = 32 // tiny cap to force trimming
+	sm.cfg.CoalesceNotifyThreshold = 100
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	// Write data containing ANSI sequences. The coalescing cap should trim
+	// at an ANSI-clean boundary rather than slicing mid-escape-sequence.
+	for i := 0; i < 10; i++ {
+		_, _ = fake.outW.Write([]byte("\x1b[31mRED\x1b[0m\n"))
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// Drain channel + flush pending.
+	var received []byte
+	for {
+		select {
+		case data := <-ch:
+			received = append(received, data...)
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto coalesceDone
+		}
+	}
+coalesceDone:
+	for {
+		select {
+		case data := <-ch:
+			received = append(received, data...)
+		case <-time.After(100 * time.Millisecond):
+			goto coalesceVerify
+		}
+	}
+coalesceVerify:
+	if len(received) == 0 {
+		t.Fatal("expected data after coalescing cap")
+	}
+	// Verify no orphaned partial ANSI sequences: every '[' should be
+	// preceded by ESC (0x1b), not appear bare as part of a CSI sequence.
+	for i, b := range received {
+		if b == '[' && (i == 0 || received[i-1] != 0x1b) {
+			if looksLikeMidSequence(received[i:]) {
+				t.Errorf("coalesced data contains orphaned CSI at byte %d", i)
+			}
+		}
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// --- Slice aliasing tests ---
+
+func TestAppendHistory_NoSliceAliasing(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.OfflineBufferMax = 32
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write data that fills the buffer and triggers the trim path.
+	_, _ = fake.outW.Write([]byte("AAAAAAAAAAAAAAAA\n")) // 17 bytes
+	time.Sleep(30 * time.Millisecond)
+	_, _ = fake.outW.Write([]byte("BBBBBBBBBBBBBBBB\n")) // 17 bytes — triggers trim
+	time.Sleep(30 * time.Millisecond)
+
+	// Subscribe to see the current history state.
+	ch1, _ := sess.Subscribe()
+	select {
+	case data := <-ch1:
+		if !bytes.Contains(data, []byte("BBBB")) {
+			t.Errorf("history should contain second write, got %q", data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for history")
+	}
+	sess.Unsubscribe(ch1)
+
+	// Write more data to trigger another trim cycle.
+	_, _ = fake.outW.Write([]byte("CCCCCCCCCCCCCCCC\n")) // 17 bytes — triggers trim again
+	time.Sleep(30 * time.Millisecond)
+
+	// Verify the history is not corrupted by slice aliasing.
+	ch2, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch2)
+
+	select {
+	case data := <-ch2:
+		if !bytes.Contains(data, []byte("CCCC")) {
+			t.Errorf("history should contain third write after re-trim, got %q", data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for history after second trim")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// --- History chunking tests ---
+
+func TestSubscribe_ChunksLargeHistory(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	// Allow large history so it exceeds historyChunkSize.
+	sm.cfg.OfflineBufferMax = 200 * 1024 // 200 KB
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write 100KB of data (exceeds historyChunkSize of 64KB).
+	bigData := bytes.Repeat([]byte("X"), 100*1024)
+	_, _ = fake.outW.Write(bigData)
+	time.Sleep(100 * time.Millisecond)
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	var chunks [][]byte
+	for {
+		select {
+		case data := <-ch:
+			chunks = append(chunks, data)
+		case <-time.After(500 * time.Millisecond):
+			goto verifyChunks
+		}
+	}
+verifyChunks:
+	if len(chunks) < 2 {
+		t.Fatalf("expected multiple chunks for 100KB history, got %d", len(chunks))
+	}
+	// First chunk should start with SGR reset.
+	if !bytes.HasPrefix(chunks[0], sgrReset) {
+		t.Errorf("first chunk should start with SGR reset, got prefix %q", chunks[0][:min(8, len(chunks[0]))])
+	}
+	// Each chunk should be at most historyChunkSize bytes.
+	for i, chunk := range chunks {
+		if len(chunk) > historyChunkSize {
+			t.Errorf("chunk %d is %d bytes, exceeds historyChunkSize (%d)", i, len(chunk), historyChunkSize)
+		}
+	}
+	// Concatenation should equal SGR reset + original data.
+	var combined []byte
+	for _, chunk := range chunks {
+		combined = append(combined, chunk...)
+	}
+	expected := append(append([]byte(nil), sgrReset...), bigData...)
+	if !bytes.Equal(combined, expected) {
+		t.Errorf("chunked replay mismatch: got %d bytes, want %d bytes", len(combined), len(expected))
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+func TestSubscribe_SmallHistoryNotChunked(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write small data (well under historyChunkSize).
+	_, _ = fake.outW.Write([]byte("small output\n"))
+	time.Sleep(50 * time.Millisecond)
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	var chunks [][]byte
+	for {
+		select {
+		case data := <-ch:
+			chunks = append(chunks, data)
+		case <-time.After(300 * time.Millisecond):
+			goto verifySmall
+		}
+	}
+verifySmall:
+	if len(chunks) != 1 {
+		t.Errorf("expected exactly 1 chunk for small history, got %d", len(chunks))
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+func TestFlushPending_ChunksLargeData(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1 // force coalescing
+	sm.cfg.OfflineBufferMax = 200 * 1024
+	sm.cfg.CoalesceNotifyThreshold = 10000
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	// Drain history replay if any
+	drainWithTimeout := func() {
+		for {
+			select {
+			case <-ch:
+			case <-time.After(50 * time.Millisecond):
+				return
+			}
+		}
+	}
+	drainWithTimeout()
+
+	// Write 150KB in small chunks to force coalescing
+	chunkData := make([]byte, 1024)
+	for i := range chunkData {
+		chunkData[i] = byte('A' + (i % 26))
+	}
+	for i := 0; i < 150; i++ {
+		_, _ = fake.outW.Write(chunkData)
+		time.Sleep(2 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// Drain the one message in the channel (first broadcast that fit)
+	select {
+	case <-ch:
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Now flush pending data — channel has room
+	sess.FlushPending(ch)
+
+	// Collect all flushed chunks
+	var chunks [][]byte
+	for {
+		select {
+		case data := <-ch:
+			chunks = append(chunks, data)
+			sess.FlushPending(ch) // try to flush more
+		case <-time.After(200 * time.Millisecond):
+			goto verify
+		}
+	}
+verify:
+	if len(chunks) == 0 {
+		t.Fatal("expected at least one chunk from FlushPending")
+	}
+	for i, chunk := range chunks {
+		if len(chunk) > historyChunkSize {
+			t.Errorf("chunk %d is %d bytes, exceeds historyChunkSize (%d)", i, len(chunk), historyChunkSize)
+		}
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+func TestFlushPending_StopsWhenChannelFull(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sm.cfg.ClientChannelBuffer = 1 // tiny channel — fills immediately
+	sm.cfg.OfflineBufferMax = 200 * 1024
+	sm.cfg.CoalesceNotifyThreshold = 10000
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	ch, _ := sess.Subscribe()
+	defer sess.Unsubscribe(ch)
+
+	// Drain initial history replay
+	for {
+		select {
+		case <-ch:
+		case <-time.After(50 * time.Millisecond):
+			goto write
+		}
+	}
+write:
+	// Write 150KB to force coalescing
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte('X')
+	}
+	for i := 0; i < 150; i++ {
+		_, _ = fake.outW.Write(data)
+		time.Sleep(2 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// Drain the one message that fit in the channel
+	select {
+	case <-ch:
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Fill the channel with a dummy message so FlushPending can't send everything
+	ch <- []byte("blocker")
+
+	// FlushPending should send one chunk (if channel drains the blocker first) or stop
+	sess.FlushPending(ch)
+
+	// Drain everything and call FlushPending repeatedly
+	var total int
+	for {
+		select {
+		case d := <-ch:
+			total += len(d)
+			sess.FlushPending(ch)
+		case <-time.After(200 * time.Millisecond):
+			goto done
+		}
+	}
+done:
+	// We should have received some data (the blocker + flushed chunks)
+	if total == 0 {
+		t.Fatal("expected some data from FlushPending after draining")
 	}
 
 	fake.Close()

@@ -1,4 +1,4 @@
-import type { AgentContextItem, AuditorViolation, AuditorViolationSummary } from "./api";
+import type { AgentContextItem, AuditorViolation, AuditorViolationSummary, ScenarioEnvelopeData } from "./api";
 import type { TestPhaseResult, TidinessIssue, SnapshotSetMeta, SnapshotFile, RepoFileStats } from "./api";
 import { fetchScreenshotPath } from "./api";
 import { aggregateFileStats, formatNetLines } from "./metrics";
@@ -6,8 +6,107 @@ import { aggregateFileStats, formatNetLines } from "./metrics";
 const MAX_PROMPT_CHARS = 50_000;
 const MAX_ERROR_LINES = 200;
 
-/** Build context items from failed test phases. */
-export function testFailureContextItems(phases: TestPhaseResult[]): AgentContextItem[] {
+// =============================================================================
+// Verification hints
+// =============================================================================
+
+/** Context kinds that have a meaningful re-verification command. */
+export type VerifiableContextKind = "test-failure" | "code-quality-issue" | "rule-violation" | "rules-summary";
+
+/**
+ * Returns a markdown blockquote with the command that detected this issue
+ * and optionally a skill reference for deeper guidance.
+ *
+ * Appended to actionable context items so the agent knows how to verify its fix.
+ */
+export function verificationHint(kind: VerifiableContextKind, scenarioName: string): string {
+  switch (kind) {
+    case "test-failure":
+      return (
+        `\n> **Verify fix:** \`vrooli scenario test ${scenarioName}\` (detected by test-genie)\n` +
+        `> **For guidance:** \`prompt-manager skill read test\`\n`
+      );
+    case "code-quality-issue":
+      return (
+        `\n> **Verify fix:** \`tidiness-manager scan ${scenarioName}\` (detected by tidiness-manager)\n` +
+        `> **For guidance:** \`prompt-manager skill read refactor\`\n`
+      );
+    case "rule-violation":
+    case "rules-summary":
+      return `\n> **Verify fix:** \`scenario-auditor scan ${scenarioName}\` (detected by scenario-auditor)\n`;
+  }
+}
+
+// =============================================================================
+// Scenario envelope
+// =============================================================================
+
+/**
+ * Build a markdown "scenario envelope" that orients an AI agent within a scenario.
+ *
+ * This is silently prepended to the first message of a conversation — it is not
+ * a user-visible context chip. The output is agent-agnostic plain markdown.
+ *
+ * @param data - Enriched scenario metadata from the /scenarios/{slug}/envelope endpoint.
+ * @returns Formatted markdown string ending with a horizontal rule separator.
+ */
+export function buildScenarioEnvelope(data: ScenarioEnvelopeData): string {
+  const lines: string[] = [];
+
+  lines.push("## Scenario Context");
+  lines.push("");
+  lines.push(`You are working in the **${data.displayName}** scenario (\`${data.name}\`).`);
+  lines.push(`- **Path:** \`${data.path}\``);
+  lines.push(`- **Description:** ${data.description}`);
+
+  if (data.tags.length > 0) {
+    lines.push(`- **Tags:** ${data.tags.join(", ")}`);
+  }
+
+  // Dependencies — only render if at least one exists.
+  const scenarioDeps = Object.entries(data.dependencies.scenarios);
+  const resourceDeps = Object.entries(data.dependencies.resources);
+  if (scenarioDeps.length > 0 || resourceDeps.length > 0) {
+    lines.push("");
+    lines.push("### Dependencies");
+    for (const [name, desc] of scenarioDeps) {
+      lines.push(`- **${name}** (scenario): ${desc}`);
+    }
+    for (const [name, desc] of resourceDeps) {
+      lines.push(`- **${name}** (resource): ${desc}`);
+    }
+  }
+
+  // Verification commands.
+  lines.push("");
+  lines.push("### Verification Commands");
+  lines.push(`- **Run tests:** \`${data.lifecycle.testCommand || `vrooli scenario test ${data.name}`}\``);
+  if (data.lifecycle.buildCommand) {
+    lines.push(`- **Build:** \`${data.lifecycle.buildCommand}\``);
+  }
+
+  // Skill discovery hint.
+  lines.push("");
+  lines.push("### Deeper Guidance");
+  lines.push(`For detailed guidance on working with this scenario, run: \`prompt-manager search "${data.name}" -limit 5\``);
+
+  lines.push("");
+  lines.push("---");
+
+  return lines.join("\n");
+}
+
+// =============================================================================
+// Context item builders
+// =============================================================================
+
+/**
+ * Build context items from failed test phases.
+ *
+ * @param phases - Test phase results (only failed phases produce items).
+ * @param scenarioName - Scenario slug, used to generate the verification hint.
+ */
+export function testFailureContextItems(phases: TestPhaseResult[], scenarioName: string): AgentContextItem[] {
   return phases
     .filter((p) => p.status === "failed")
     .map((phase) => {
@@ -25,6 +124,8 @@ export function testFailureContextItems(phases: TestPhaseResult[]): AgentContext
       }
       if (phase.logPath) md += `\n_Log file:_ \`${phase.logPath}\`\n`;
 
+      md += verificationHint("test-failure", scenarioName);
+
       return {
         kind: "test-failure" as const,
         id: `test-${phase.name}`,
@@ -34,8 +135,13 @@ export function testFailureContextItems(phases: TestPhaseResult[]): AgentContext
     });
 }
 
-/** Build context items from code quality issues. */
-export function codeQualityContextItems(issues: TidinessIssue[]): AgentContextItem[] {
+/**
+ * Build context items from code quality issues.
+ *
+ * @param issues - Tidiness issues from the tidiness-manager.
+ * @param scenarioName - Scenario slug, used to generate the verification hint.
+ */
+export function codeQualityContextItems(issues: TidinessIssue[], scenarioName: string): AgentContextItem[] {
   return issues.map((issue) => {
     let md = `### ${issue.title}\n`;
     md += `- **File:** \`${issue.file_path}\``;
@@ -45,6 +151,8 @@ export function codeQualityContextItems(issues: TidinessIssue[]): AgentContextIt
     md += `- **Severity:** ${issue.severity}\n`;
     if (issue.description) md += `\n${issue.description}\n`;
     if (issue.remediation_steps) md += `\n**Remediation:** ${issue.remediation_steps}\n`;
+
+    md += verificationHint("code-quality-issue", scenarioName);
 
     return {
       kind: "code-quality-issue" as const,
@@ -157,8 +265,13 @@ export function scenarioQualityContextItem(scoreData: {
   };
 }
 
-/** Build context items from auditor violations. */
-export function ruleViolationContextItems(violations: AuditorViolation[]): AgentContextItem[] {
+/**
+ * Build context items from auditor rule violations.
+ *
+ * @param violations - Individual violations from the scenario-auditor.
+ * @param scenarioName - Scenario slug, used to generate the verification hint.
+ */
+export function ruleViolationContextItems(violations: AuditorViolation[], scenarioName: string): AgentContextItem[] {
   return violations.map((v, i) => {
     let md = `### Rule Violation: ${v.type}\n`;
     md += `- **Severity:** ${v.severity}\n`;
@@ -173,6 +286,8 @@ export function ruleViolationContextItems(violations: AuditorViolation[]): Agent
     if (v.recommendation) md += `\n**Recommendation:** ${v.recommendation}\n`;
     if (v.source) md += `\n_Source: ${v.source}_\n`;
 
+    md += verificationHint("rule-violation", scenarioName);
+
     return {
       kind: "rule-violation" as const,
       id: `rule-${v.id || `${v.type}-${i}`}`,
@@ -182,8 +297,18 @@ export function ruleViolationContextItems(violations: AuditorViolation[]): Agent
   });
 }
 
-/** Build a summary context item from auditor violations. */
-export function rulesSummaryContextItem(violations: AuditorViolation[], summary?: AuditorViolationSummary): AgentContextItem {
+/**
+ * Build a summary context item from auditor violations.
+ *
+ * @param violations - All violations (used for counting if summary is absent).
+ * @param summary - Pre-computed summary with severity breakdown and recommended steps.
+ * @param scenarioName - Scenario slug, used to generate the verification hint.
+ */
+export function rulesSummaryContextItem(
+  violations: AuditorViolation[],
+  summary: AuditorViolationSummary | undefined,
+  scenarioName: string,
+): AgentContextItem {
   const total = summary?.total ?? violations.length;
   const bySev = summary?.by_severity ?? {};
   const high = bySev["high"] ?? violations.filter(v => v.severity === "high").length;
@@ -202,6 +327,8 @@ export function rulesSummaryContextItem(violations: AuditorViolation[], summary?
     }
   }
 
+  md += verificationHint("rules-summary", scenarioName);
+
   return {
     kind: "rules-summary" as const,
     id: "rules-summary",
@@ -210,13 +337,39 @@ export function rulesSummaryContextItem(violations: AuditorViolation[], summary?
   };
 }
 
-/** Compose a full prompt from user message and attached context items. */
-export function composePrompt(message: string, contextItems: AgentContextItem[]): string {
+// =============================================================================
+// Prompt composition
+// =============================================================================
+
+/**
+ * Compose a full prompt from user message, attached context items, and optional envelope.
+ *
+ * The final prompt is structured as:
+ *   [screenshot paths]  ← so the agent can read image files
+ *   [envelope]          ← scenario orientation (first message only)
+ *   [user message]
+ *   ---
+ *   ## Attached Context
+ *   [context items]
+ *
+ * Truncated to {@link MAX_PROMPT_CHARS} if the combined content exceeds the limit.
+ *
+ * @param message - The user's typed message.
+ * @param contextItems - Selected context items with pre-formatted markdown.
+ * @param envelope - Optional scenario envelope markdown (pass only on first message).
+ */
+export function composePrompt(message: string, contextItems: AgentContextItem[], envelope?: string): string {
   // Collect screenshot filesystem paths to prepend (Claude Code reads images from paths)
   const screenshotPaths = contextItems
     .flatMap((item) => item.screenshotPaths ?? []);
 
   let prompt = message.trim();
+
+  // Prepend envelope before the user message (first message only).
+  if (envelope) {
+    prompt = prompt ? envelope + "\n\n" + prompt : envelope;
+  }
+
   if (contextItems.length > 0) {
     const contextSection = contextItems.map((item) => item.markdown).join("\n---\n\n");
     if (prompt) {

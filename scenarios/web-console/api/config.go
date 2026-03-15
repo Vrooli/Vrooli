@@ -54,9 +54,10 @@ type Config struct {
 
 	// ClientChannelBuffer is the capacity of the per-client output channel.
 	// Higher values absorb output bursts from fast-producing PTYs before
-	// frame coalescing kicks in. With coalescing, frames are never lost —
-	// they are merged into a pending buffer — but a larger channel reduces
-	// the frequency of coalescing.
+	// frame coalescing kicks in. With coalescing, frames are merged into a
+	// pending buffer rather than dropped. When the pending buffer exceeds
+	// OfflineBufferMax, the oldest data is trimmed at an ANSI-clean boundary.
+	// A larger channel reduces the frequency of coalescing.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
 

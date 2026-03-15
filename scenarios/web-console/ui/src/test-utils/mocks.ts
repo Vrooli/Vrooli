@@ -116,6 +116,7 @@ export interface MockTerminal {
   scrollToBottom: ReturnType<typeof vi.fn>;
   // Terminal control
   clear: ReturnType<typeof vi.fn>;
+  reset: ReturnType<typeof vi.fn>;
   // Selection APIs
   select: ReturnType<typeof vi.fn>;
   selectAll: ReturnType<typeof vi.fn>;
@@ -162,6 +163,7 @@ export function createMockTerminal(): MockTerminal {
     scrollLines: vi.fn(),
     scrollToBottom: vi.fn(),
     clear: vi.fn(),
+    reset: vi.fn(),
     select: vi.fn(),
     selectAll: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),

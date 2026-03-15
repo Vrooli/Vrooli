@@ -175,9 +175,9 @@ export function useTerminalSocket({
         connectedAtLeastOnce = true;
         reconnectAttempts = 0;
         localEcho.reset();
-        sendResize(terminal.cols, terminal.rows);
         flushPendingInput();
         if (wasReconnect) {
+          terminal.reset();
           terminal.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
         }
         onReadyRef.current?.();

@@ -52,6 +52,7 @@ type Server struct {
 	agentManagerClient   *AgentManagerClient
 	auditorClient        *AuditorClient
 	scenarioLocator      *ScenarioLocator
+	envelopeCache        *EnvelopeCache
 }
 
 // NewServer initializes configuration, database, and routes
@@ -167,6 +168,7 @@ func NewServer() (*Server, error) {
 	}()
 
 	srv.scenarioLocator = NewScenarioLocator(30 * time.Second)
+	srv.envelopeCache = NewEnvelopeCache(60 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
 	srv.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
@@ -224,6 +226,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/search/content", s.handleContentSearch).Methods("GET")
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios", s.handleScenarioList).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{slug}/envelope", s.handleScenarioEnvelope).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints

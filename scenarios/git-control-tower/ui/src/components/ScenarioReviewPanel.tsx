@@ -795,7 +795,7 @@ function OverviewTab({
           {agentManagerAvailable && onAttachToAgent && latestTest && !latestTest.success && (
             <AttachToAgentButton onClick={() => {
               const failedPhases = latestTest.phases.filter(p => p.status === "failed");
-              for (const item of testFailureContextItems(failedPhases)) {
+              for (const item of testFailureContextItems(failedPhases, scenarioSlug)) {
                 onAttachToAgent(item);
               }
             }} />
@@ -1915,7 +1915,7 @@ function TestsTab({
                 </div>
                 {agentManagerAvailable && phase.status === "failed" && onAttachToAgent && (
                   <div className="mt-2 shrink-0">
-                    <AttachToAgentButton onClick={() => { const items = testFailureContextItems([phase]); if (items[0]) onAttachToAgent(items[0]); }} />
+                    <AttachToAgentButton onClick={() => { const items = testFailureContextItems([phase], scenarioSlug); if (items[0]) onAttachToAgent(items[0]); }} />
                   </div>
                 )}
               </div>
@@ -2219,6 +2219,7 @@ function CodeQualityTab({
           isLoading={tidinessIssues.isLoading}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={onAttachToAgent}
+          scenarioSlug={scenarioSlug}
         />
       ) : (
         <ScenarioWideView
@@ -2335,7 +2336,7 @@ function RulesTab({
         </div>
         <div className="flex items-center gap-2">
           {agentManagerAvailable && onAttachToAgent && violations.length > 0 && (
-            <AttachToAgentButton onClick={() => onAttachToAgent(rulesSummaryContextItem(violations, summary))} />
+            <AttachToAgentButton onClick={() => onAttachToAgent(rulesSummaryContextItem(violations, summary, scenarioSlug))} />
           )}
           <Button
             variant="outline"
@@ -2407,7 +2408,7 @@ function RulesTab({
                   {agentManagerAvailable && onAttachToAgent && (
                     <div className="pr-2">
                       <AttachToAgentButton onClick={() => {
-                        const items = ruleViolationContextItems([v]);
+                        const items = ruleViolationContextItems([v], scenarioSlug);
                         if (items[0]) onAttachToAgent(items[0]);
                       }} />
                     </div>
@@ -2459,6 +2460,7 @@ function ChangedFilesView({
   isLoading,
   agentManagerAvailable,
   onAttachToAgent,
+  scenarioSlug,
 }: {
   issues: TidinessIssue[];
   issuesByFile: Map<string, TidinessIssue[]>;
@@ -2467,6 +2469,7 @@ function ChangedFilesView({
   isLoading: boolean;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  scenarioSlug: string;
 }) {
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
@@ -2530,7 +2533,7 @@ function ChangedFilesView({
                 {agentManagerAvailable && onAttachToAgent && (
                   <div className="pr-2">
                     <AttachToAgentButton onClick={() => {
-                      for (const item of codeQualityContextItems(fileIssues)) {
+                      for (const item of codeQualityContextItems(fileIssues, scenarioSlug)) {
                         onAttachToAgent(item);
                       }
                     }} />
@@ -2553,7 +2556,7 @@ function ChangedFilesView({
                         )}
                       </div>
                       {agentManagerAvailable && onAttachToAgent && (
-                        <AttachToAgentButton onClick={() => { const items = codeQualityContextItems([issue]); if (items[0]) onAttachToAgent(items[0]); }} />
+                        <AttachToAgentButton onClick={() => { const items = codeQualityContextItems([issue], scenarioSlug); if (items[0]) onAttachToAgent(items[0]); }} />
                       )}
                     </div>
                   ))}

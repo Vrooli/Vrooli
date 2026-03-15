@@ -29,7 +29,7 @@ describe("useTerminalSocket hook", () => {
     vi.useRealTimers();
   });
 
-  it("creates WebSocket with correct URL and sends initial resize on open", () => {
+  it("creates WebSocket with correct URL and calls onReady on open", () => {
     const onReady = vi.fn();
 
     renderHook(() =>
@@ -46,13 +46,34 @@ describe("useTerminalSocket hook", () => {
     // Simulate WebSocket open
     act(() => fakeWs.triggerOpen());
 
-    // Should send resize message with terminal dimensions
-    expect(fakeWs.sent).toHaveLength(1);
-    const resizeMsg = JSON.parse(fakeWs.sent[0] ?? "{}") as TerminalMessage;
-    expect(resizeMsg).toEqual({ type: "resize", cols: 80, rows: 24 });
+    // No resize message sent on open (deferred to onReady callback)
+    expect(fakeWs.sent).toHaveLength(0);
 
     // Should call onReady
     expect(onReady).toHaveBeenCalledOnce();
+  });
+
+  it("does not send resize message on socket open", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // No resize message should be sent on open (deferred to onReady callback)
+    const resizeMsg = fakeWs.sent.find((raw) => {
+      try {
+        const msg = JSON.parse(raw) as TerminalMessage;
+        return msg.type === "resize";
+      } catch {
+        return false;
+      }
+    });
+    expect(resizeMsg).toBeUndefined();
   });
 
   it("does not create WebSocket when terminal is null", () => {
@@ -245,6 +266,7 @@ describe("useTerminalSocket hook", () => {
 
     const writeData = findWriteCall(terminal.write, "[Reconnected]");
     expect(writeData).toBeTruthy();
+    expect(terminal.reset).toHaveBeenCalledTimes(1);
   });
 
   it("forwards terminal input to WebSocket as stdin messages", () => {
@@ -257,9 +279,6 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
-
-    // Clear the initial resize message
-    fakeWs.sent = [];
 
     // Simulate user typing
     act(() => terminal.simulateInput("ls -la\r"));
@@ -356,9 +375,8 @@ describe("useTerminalSocket hook", () => {
 
     act(() => fakeWs.triggerOpen());
 
-    expect(fakeWs.sent).toHaveLength(2);
-    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "resize", cols: 80, rows: 24 });
-    expect(JSON.parse(fakeWs.sent[1] ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
+    expect(fakeWs.sent).toHaveLength(1);
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
   });
 
   it("shows sync_warning with drop count in yellow", () => {

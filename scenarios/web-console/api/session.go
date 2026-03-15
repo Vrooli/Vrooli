@@ -19,6 +19,12 @@ import (
 // reconnecting client's terminal.
 var sgrReset = []byte("\x1b[0m")
 
+// historyChunkSize is the maximum bytes sent per channel message when
+// replaying output history to a reconnecting client. Smaller chunks
+// prevent browser UI freezes during large history replays.
+// DOC: docs/concepts/ARCHITECTURE.md#history-replay-limitations
+const historyChunkSize = 64 * 1024 // 64 KB
+
 // Sentinel errors for session operations. Handlers use these to select the
 // correct HTTP status code and user-facing message.
 var (
@@ -103,7 +109,17 @@ func (s *Session) Subscribe() (chan []byte, chan int) {
 		snapshot := make([]byte, 0, len(sgrReset)+len(s.outputHistory))
 		snapshot = append(snapshot, sgrReset...)
 		snapshot = append(snapshot, s.outputHistory...)
-		ch <- snapshot
+		// Chunk into historyChunkSize pieces so the WS forwarder sends
+		// them as separate messages and the browser can render incrementally.
+		for off := 0; off < len(snapshot); off += historyChunkSize {
+			end := off + historyChunkSize
+			if end > len(snapshot) {
+				end = len(snapshot)
+			}
+			chunk := make([]byte, end-off)
+			copy(chunk, snapshot[off:end])
+			ch <- chunk
+		}
 	}
 	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
 	s.mu.Unlock()
@@ -190,7 +206,7 @@ func (s *Session) appendHistory(data []byte) {
 	}
 
 	trim := combinedLen - s.offlineBufferMax
-	remainder := append(s.outputHistory[trim:], data...)
+	remainder := append(append([]byte(nil), s.outputHistory[trim:]...), data...)
 	s.outputHistory = snapToCleanBoundary(remainder)
 	if !s.historyTrimmed {
 		s.historyTrimmed = true
@@ -246,15 +262,39 @@ func snapToCleanBoundary(buf []byte) []byte {
 }
 
 // looksLikeMidSequence heuristically detects whether buf starts inside a
-// truncated ANSI CSI escape sequence. CSI parameter bytes are 0x30-0x3F,
-// intermediate bytes are 0x20-0x2F. If the first byte falls in one of
-// these ranges (or is '[' which follows ESC in CSI), we're likely mid-sequence.
+// truncated ANSI CSI escape sequence. It requires evidence of a real CSI
+// sequence (a final byte 0x40-0x7E within a short window) to avoid false
+// positives on normal text starting with digits, spaces, or punctuation.
 func looksLikeMidSequence(buf []byte) bool {
 	if len(buf) == 0 {
 		return false
 	}
-	b := buf[0]
-	return b == '[' || (b >= 0x20 && b <= 0x3F)
+	// '[' following a trimmed ESC is the clear CSI indicator.
+	if buf[0] == '[' {
+		return true
+	}
+	// Parameter bytes (0x30-0x3F: digits, semicolons) are only mid-sequence
+	// if followed by a CSI final byte (0x40-0x7E) within a short window.
+	// This prevents false positives on lines starting with numbers or punctuation.
+	if buf[0] >= 0x30 && buf[0] <= 0x3F {
+		limit := 8
+		if limit > len(buf) {
+			limit = len(buf)
+		}
+		for i := 0; i < limit; i++ {
+			b := buf[i]
+			if b >= 0x40 && b <= 0x7E {
+				return true // Found CSI final byte — this is mid-sequence
+			}
+			if b < 0x20 || b > 0x3F {
+				return false // Non-parameter byte before final — not mid-sequence
+			}
+		}
+		return false // No final byte found in window — not mid-sequence
+	}
+	// Space (0x20) and intermediate bytes (0x20-0x2F) alone are NOT
+	// treated as mid-sequence — they are too common as regular text.
+	return false
 }
 
 // broadcast fans out PTY output to all connected WebSocket clients while
@@ -277,6 +317,7 @@ func (s *Session) broadcast(data []byte) {
 	}
 }
 
+// DOC: docs/internal/ERROR-SEMANTICS.md#sync-warning-coalescing-notification
 // deliver sends data to a client channel, coalescing into the pending buffer
 // when the channel is full. Must be called with s.mu held.
 func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
@@ -285,8 +326,11 @@ func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
 		info.pending = append(info.pending, data...)
 		info.CoalescedFrames++
 		// Cap pending at offlineBufferMax to prevent unbounded growth.
+		// Snap to a clean ANSI boundary so partial escape sequences don't
+		// corrupt the terminal when the coalesced data is flushed.
 		if s.offlineBufferMax > 0 && len(info.pending) > s.offlineBufferMax {
-			info.pending = info.pending[len(info.pending)-s.offlineBufferMax:]
+			trimmed := info.pending[len(info.pending)-s.offlineBufferMax:]
+			info.pending = append([]byte(nil), snapToCleanBoundary(trimmed)...)
 		}
 		s.notifyIfThreshold(info)
 		return
@@ -316,7 +360,8 @@ func (s *Session) notifyIfThreshold(info *ClientInfo) {
 
 // FlushPending drains any coalesced output for the given client channel.
 // The WebSocket output forwarder calls this after each successful write
-// to resume normal per-frame delivery.
+// to resume normal per-frame delivery. Data is chunked at historyChunkSize
+// to prevent browser UI freezes from single large WebSocket messages.
 // DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
 func (s *Session) FlushPending(ch chan []byte) {
 	s.mu.Lock()
@@ -325,13 +370,22 @@ func (s *Session) FlushPending(ch chan []byte) {
 	if !ok || len(info.pending) == 0 {
 		return
 	}
-	select {
-	case ch <- info.pending:
-		info.pending = nil
-		info.CoalescedFrames = 0
-	default:
-		// Channel still full — leave pending for next flush cycle.
+	for len(info.pending) > 0 {
+		end := historyChunkSize
+		if end > len(info.pending) {
+			end = len(info.pending)
+		}
+		chunk := make([]byte, end)
+		copy(chunk, info.pending[:end])
+		select {
+		case ch <- chunk:
+			info.pending = info.pending[end:]
+		default:
+			return // Channel full mid-flush — keep remainder for next cycle
+		}
 	}
+	info.pending = nil
+	info.CoalescedFrames = 0
 }
 
 // readLoop continuously reads PTY output and broadcasts to subscribers.
