@@ -1,5 +1,6 @@
 import type { AgentContextItem, AuditorViolation, AuditorViolationSummary } from "./api";
-import type { TestPhaseResult, TidinessIssue, SnapshotSetMeta, RepoFileStats } from "./api";
+import type { TestPhaseResult, TidinessIssue, SnapshotSetMeta, SnapshotFile, RepoFileStats } from "./api";
+import { fetchScreenshotPath } from "./api";
 import { aggregateFileStats, formatNetLines } from "./metrics";
 
 const MAX_PROMPT_CHARS = 50_000;
@@ -55,13 +56,40 @@ export function codeQualityContextItems(issues: TidinessIssue[]): AgentContextIt
 }
 
 /** Build a context item for a screenshot. */
-export function screenshotContextItem(snapshot: SnapshotSetMeta, pageName: string): AgentContextItem {
+export function screenshotContextItem(snapshot: SnapshotSetMeta, file: SnapshotFile): AgentContextItem {
+  const pageName = file.pageLabel || file.pagePath || file.filename;
   return {
     kind: "screenshot" as const,
-    id: `screenshot-${snapshot.id}-${pageName}`,
+    id: `screenshot-${snapshot.id}-${file.filename}`,
     label: `Screenshot: ${pageName}`,
-    markdown: `### Visual Reference: ${pageName}\n\nScreenshot captured at ${new Date(snapshot.createdAt).toLocaleString()} (${snapshot.screenshotCount} total screenshots).\n\n_Note: Agents cannot view images directly. This context indicates visual state was captured for the page._\n`,
+    markdown: `### Screenshot: ${pageName}\n\n- **Captured:** ${new Date(snapshot.createdAt).toLocaleString()}\n- **Viewport:** ${file.viewportWidth ?? "?"}x${file.viewportHeight ?? "?"}\n- **Theme:** ${file.theme || "default"}\n\n_Image file attached below._\n`,
   };
+}
+
+/** Resolve filesystem paths for screenshot context items so the agent can read them. */
+export async function resolveScreenshotPaths(
+  items: AgentContextItem[],
+  scenarioSlug: string,
+  repoId?: string,
+): Promise<AgentContextItem[]> {
+  const results = await Promise.all(
+    items.map(async (item) => {
+      if (item.kind !== "screenshot") return item;
+      // Parse captureId and filename from id: "screenshot-{captureId}-{filename}"
+      const match = item.id.match(/^screenshot-(.+?)-([^-]+\.\w+)$/);
+      if (!match?.[1] || !match[2]) return item;
+      const captureId = match[1];
+      const filename = match[2];
+      try {
+        const path = await fetchScreenshotPath(captureId, scenarioSlug, filename, repoId);
+        return { ...item, screenshotPaths: [path] };
+      } catch {
+        // Graceful degradation — screenshot may have been deleted
+        return item;
+      }
+    }),
+  );
+  return results;
 }
 
 /** Build a context item from file change statistics. */
@@ -184,6 +212,10 @@ export function rulesSummaryContextItem(violations: AuditorViolation[], summary?
 
 /** Compose a full prompt from user message and attached context items. */
 export function composePrompt(message: string, contextItems: AgentContextItem[]): string {
+  // Collect screenshot filesystem paths to prepend (Claude Code reads images from paths)
+  const screenshotPaths = contextItems
+    .flatMap((item) => item.screenshotPaths ?? []);
+
   let prompt = message.trim();
   if (contextItems.length > 0) {
     const contextSection = contextItems.map((item) => item.markdown).join("\n---\n\n");
@@ -192,6 +224,11 @@ export function composePrompt(message: string, contextItems: AgentContextItem[])
     } else {
       prompt = "## Attached Context\n\n" + contextSection;
     }
+  }
+
+  // Prepend screenshot file paths so Claude Code can read the images
+  if (screenshotPaths.length > 0) {
+    prompt = screenshotPaths.join("\n") + "\n\n" + prompt;
   }
 
   if (prompt.length > MAX_PROMPT_CHARS) {

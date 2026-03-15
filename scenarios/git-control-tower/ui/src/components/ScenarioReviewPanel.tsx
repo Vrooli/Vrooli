@@ -9,7 +9,7 @@ import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInf
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton, type SentMessage } from "./AgentTab";
-import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
+import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
@@ -217,6 +217,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             onPresetConfigChange={handlePresetConfigChange}
             mutationError={triggerCapture.error}
             onDismissError={() => triggerCapture.reset()}
+            agentManagerAvailable={agentManagerAvailable}
+            onAttachToAgent={addAgentContext}
           />
         )
       ) : activeTab === "workflows" ? (
@@ -269,6 +271,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           testGenieAvailable={testGenieAvailable}
           tidinessAvailable={tidinessAvailable}
           auditorAvailable={auditorAvailable}
+          visualCaptureAvailable={basAvailable}
           fileStats={scenarioFileStats}
           activeRunId={agentRunId}
           onActiveRunIdChange={onAgentRunIdChange}
@@ -925,6 +928,8 @@ function ScreenshotsTab({
   onPresetConfigChange,
   mutationError,
   onDismissError,
+  agentManagerAvailable,
+  onAttachToAgent,
 }: {
   baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
@@ -939,6 +944,8 @@ function ScreenshotsTab({
   onPresetConfigChange: (presets: CapturePreset[]) => void;
   mutationError?: Error | null;
   onDismissError?: () => void;
+  agentManagerAvailable?: boolean;
+  onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const [selectedPage, setSelectedPage] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -1181,6 +1188,20 @@ function ScreenshotsTab({
               <span className="text-[10px] text-slate-600">
                 {new Date(baseline.createdAt).toLocaleString()}
               </span>
+              {agentManagerAvailable && onAttachToAgent && (
+                <AttachToAgentButton onClick={() => {
+                  const filename = screenshotFilename(currentPage);
+                  onAttachToAgent(screenshotContextItem(baseline, {
+                    filename,
+                    pagePath: currentPage,
+                    pageLabel: currentPage === "/" ? "/ (Home)" : currentPage,
+                    viewportWidth: activePreset.width,
+                    viewportHeight: activePreset.height,
+                    theme: activePreset.theme,
+                    sizeBytes: 0,
+                  }));
+                }} />
+              )}
             </div>
             <ScreenshotImage
               captureId={baseline.id}
@@ -1205,6 +1226,21 @@ function ScreenshotsTab({
               <span className="text-[10px] text-slate-600">
                 {new Date(capture.createdAt).toLocaleString()}
               </span>
+            )}
+            {agentManagerAvailable && onAttachToAgent && (
+              <AttachToAgentButton onClick={() => {
+                const snapshot = primarySnapshot!;
+                const filename = screenshotFilename(currentPage);
+                onAttachToAgent(screenshotContextItem(snapshot, {
+                  filename,
+                  pagePath: currentPage,
+                  pageLabel: currentPage === "/" ? "/ (Home)" : currentPage,
+                  viewportWidth: activePreset.width,
+                  viewportHeight: activePreset.height,
+                  theme: activePreset.theme,
+                  sizeBytes: 0,
+                }));
+              }} />
             )}
           </div>
           <ScreenshotImage

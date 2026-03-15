@@ -1569,6 +1569,14 @@ export function buildCaptureScreenshotUrl(captureId: string, scenarioSlug: strin
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/screenshot/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
 }
 
+export async function fetchScreenshotPath(captureId: string, scenarioSlug: string, filename: string, repoId?: string): Promise<string> {
+  const params = new URLSearchParams({ scenarioSlug });
+  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/screenshot/${encodeURIComponent(filename)}/path?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { headers: buildRepoHeaders(repoId) });
+  const data = await handleResponse<{ path: string }>(res);
+  return data.path;
+}
+
 export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
   const params = new URLSearchParams({ scenarioSlug });
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
@@ -2254,6 +2262,8 @@ export interface AgentContextItem {
   id: string;
   label: string;
   markdown: string;
+  /** Absolute filesystem paths for screenshot images (resolved at send time). */
+  screenshotPaths?: string[];
 }
 
 // ── Agent Manager fetch functions ────────────────────────────────────

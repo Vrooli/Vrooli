@@ -222,6 +222,22 @@ func (s *VisualCaptureStorage) GetSnapshotSet(repoID int64, scenarioSlug, snapsh
 	return detail, nil
 }
 
+// GetScreenshotFilePath returns the absolute filesystem path to a screenshot without reading the file.
+func (s *VisualCaptureStorage) GetScreenshotFilePath(repoID int64, scenarioSlug, snapshotID, filename string) (string, error) {
+	if err := validateFilename(filename); err != nil {
+		return "", err
+	}
+	dir, err := s.snapshotDir(repoID, scenarioSlug, snapshotID)
+	if err != nil {
+		return "", err
+	}
+	fp := filepath.Join(dir, "screenshots", filename)
+	if _, err := os.Stat(fp); err != nil {
+		return "", fmt.Errorf("screenshot not found: %w", err)
+	}
+	return fp, nil
+}
+
 // GetScreenshotFile returns raw PNG bytes. Validates filename has no path separators.
 func (s *VisualCaptureStorage) GetScreenshotFile(repoID int64, scenarioSlug, snapshotID, filename string) ([]byte, error) {
 	if err := validateFilename(filename); err != nil {

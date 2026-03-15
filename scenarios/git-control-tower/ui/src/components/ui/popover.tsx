@@ -10,42 +10,89 @@ interface PopoverProps {
   direction?: "down" | "up";
 }
 
+const VIEWPORT_PADDING = 8;
+
 export function Popover({ trigger, children, align = "center", direction = "down" }: PopoverProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [style, setStyle] = useState<React.CSSProperties>({ top: 0, left: 0, visibility: "hidden" });
 
   const close = useCallback(() => setOpen(false), []);
 
   const computePosition = useCallback(() => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
+    if (!triggerRef.current || !popoverRef.current) return;
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const popoverEl = popoverRef.current;
+    const popoverW = popoverEl.offsetWidth;
+    const popoverH = popoverEl.offsetHeight;
     const gap = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
+    // Vertical: prefer requested direction, flip if not enough room
     let top: number;
+    const spaceAbove = triggerRect.top - gap;
+    const spaceBelow = vh - triggerRect.bottom - gap;
+
     if (direction === "up") {
-      top = rect.top - gap;
+      if (popoverH <= spaceAbove) {
+        top = triggerRect.top - gap - popoverH;
+      } else if (popoverH <= spaceBelow) {
+        top = triggerRect.bottom + gap; // flip down
+      } else {
+        top = Math.max(VIEWPORT_PADDING, triggerRect.top - gap - popoverH);
+      }
     } else {
-      top = rect.bottom + gap;
+      if (popoverH <= spaceBelow) {
+        top = triggerRect.bottom + gap;
+      } else if (popoverH <= spaceAbove) {
+        top = triggerRect.top - gap - popoverH; // flip up
+      } else {
+        top = Math.max(VIEWPORT_PADDING, triggerRect.bottom + gap);
+      }
     }
 
+    // Clamp vertically so popover doesn't exceed viewport bottom
+    if (top + popoverH > vh - VIEWPORT_PADDING) {
+      top = vh - VIEWPORT_PADDING - popoverH;
+    }
+    if (top < VIEWPORT_PADDING) {
+      top = VIEWPORT_PADDING;
+    }
+
+    // Horizontal: align to trigger, then clamp to viewport
     let left: number;
     if (align === "start") {
-      left = rect.left;
+      left = triggerRect.left;
     } else if (align === "end") {
-      left = rect.right;
+      left = triggerRect.right - popoverW;
     } else {
-      left = rect.left + rect.width / 2;
+      left = triggerRect.left + triggerRect.width / 2 - popoverW / 2;
     }
 
-    setPosition({ top, left });
+    // Clamp horizontally
+    if (left + popoverW > vw - VIEWPORT_PADDING) {
+      left = vw - VIEWPORT_PADDING - popoverW;
+    }
+    if (left < VIEWPORT_PADDING) {
+      left = VIEWPORT_PADDING;
+    }
+
+    // Set max height so content scrolls if popover still can't fit
+    const maxH = vh - 2 * VIEWPORT_PADDING;
+
+    setStyle({ top, left, maxHeight: maxH, visibility: "visible" });
   }, [align, direction]);
 
   // Recompute position on open and on scroll/resize
   useLayoutEffect(() => {
     if (!open) return;
-    computePosition();
+    // Reset to hidden until we measure
+    setStyle((prev) => ({ ...prev, visibility: "hidden" }));
+    // Use rAF to ensure the popover is rendered and measurable
+    const id = requestAnimationFrame(() => computePosition());
+    return () => cancelAnimationFrame(id);
   }, [open, computePosition]);
 
   useEffect(() => {
@@ -83,15 +130,6 @@ export function Popover({ trigger, children, align = "center", direction = "down
     };
   }, [open, close]);
 
-  const alignTransform =
-    align === "start"
-      ? "translateX(0)"
-      : align === "end"
-        ? "translateX(-100%)"
-        : "translateX(-50%)";
-
-  const directionTransform = direction === "up" ? "translateY(-100%)" : "";
-
   return (
     <>
       <button
@@ -107,12 +145,8 @@ export function Popover({ trigger, children, align = "center", direction = "down
         createPortal(
           <div
             ref={popoverRef}
-            className="fixed z-50 min-w-[200px] rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
-            style={{
-              top: position.top,
-              left: position.left,
-              transform: `${alignTransform} ${directionTransform}`.trim(),
-            }}
+            className="fixed z-50 min-w-[200px] rounded-lg border border-slate-700 bg-slate-900 shadow-xl overflow-y-auto"
+            style={style}
             role="dialog"
           >
             {children}

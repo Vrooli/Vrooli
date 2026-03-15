@@ -179,6 +179,37 @@ func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// handleVisualCaptureScreenshotPath handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}/path
+// Returns the absolute filesystem path to a screenshot instead of its bytes.
+func (s *Server) handleVisualCaptureScreenshotPath(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+	filename := vars["filename"]
+	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
+	if slug == "" {
+		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
+		return
+	}
+
+	fp, err := s.visualCaptureStorage.GetScreenshotFilePath(hctx.RepoID, slug, id, filename)
+	if err != nil {
+		if strings.Contains(err.Error(), "path traversal") {
+			hctx.Resp.BadRequest(err.Error())
+			return
+		}
+		hctx.Resp.NotFound("screenshot not found")
+		return
+	}
+
+	hctx.Resp.OK(map[string]string{"path": fp})
+}
+
 // handleVisualCaptureVideo handles GET /api/v1/repo/visual-captures/{id}/video/{filename}
 func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request) {
 	// nil repoLock — file I/O only, no git operations

@@ -27,8 +27,9 @@ import {
   useRejectAgentRun,
   useStopAgentRun,
 } from "../lib/hooks";
-import { composePrompt } from "../lib/agentContext";
+import { composePrompt, resolveScreenshotPaths } from "../lib/agentContext";
 import { ContextPickerPopover } from "./ContextPickerPopover";
+import { ContextPreviewPopover } from "./ContextPreviewPopover";
 import {
   RUN_STATUS,
   ACTIVE_STATUSES,
@@ -126,6 +127,7 @@ interface AgentTabProps {
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
   auditorAvailable: boolean;
+  visualCaptureAvailable: boolean;
   fileStats?: RepoFileStats;
   activeRunId?: string | null;
   onActiveRunIdChange?: (id: string | null) => void;
@@ -254,6 +256,7 @@ export function AgentTab({
   testGenieAvailable,
   tidinessAvailable,
   auditorAvailable,
+  visualCaptureAvailable,
   fileStats,
   activeRunId: controlledRunId,
   onActiveRunIdChange,
@@ -373,8 +376,9 @@ export function AgentTab({
     autoResize();
   }, [message, autoResize]);
 
-  const handleSend = useCallback(() => {
-    const prompt = composePrompt(message, contextItems);
+  const handleSend = useCallback(async () => {
+    const resolvedItems = await resolveScreenshotPaths(contextItems, scenarioSlug, repoId ?? undefined);
+    const prompt = composePrompt(message, resolvedItems);
     if (!prompt.trim()) return;
 
     const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
@@ -405,7 +409,7 @@ export function AgentTab({
         },
       }
     );
-  }, [message, contextItems, scenarioSlug, selectedProfileId, createRun, onClearContext, onSentMessagesChange]);
+  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, createRun, onClearContext, onSentMessagesChange]);
 
   const handleContinue = useCallback(() => {
     if (!activeRunId || !message.trim()) return;
@@ -664,19 +668,7 @@ export function AgentTab({
       {contextItems.length > 0 && showInputBar && (
         <div className="px-4 pb-1 flex flex-wrap gap-1 border-t border-slate-800/50 pt-2">
           {contextItems.map((item) => (
-            <span
-              key={item.id}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-slate-300"
-            >
-              {item.label}
-              <button
-                type="button"
-                className="text-slate-500 hover:text-slate-300"
-                onClick={() => onRemoveContext(item.id)}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
+            <ContextPreviewPopover key={item.id} item={item} scenarioSlug={scenarioSlug} onRemove={onRemoveContext} />
           ))}
           <button
             type="button"
@@ -715,6 +707,7 @@ export function AgentTab({
               testGenieAvailable={testGenieAvailable}
               tidinessAvailable={tidinessAvailable}
               auditorAvailable={auditorAvailable}
+              visualCaptureAvailable={visualCaptureAvailable}
               fileStats={fileStats}
               contextItems={contextItems}
               onAddContext={onAddContext}

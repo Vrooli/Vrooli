@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Popover } from "./ui/popover";
-import { Plus, CheckSquare, Square, AlertTriangle, ShieldCheck, FileText, Shield } from "lucide-react";
-import { useTestExecutions, useTidinessScore, useTidinessIssues, useAuditorViolations } from "../lib/hooks";
-import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
+import { Plus, CheckSquare, Square, AlertTriangle, ShieldCheck, FileText, Shield, Camera } from "lucide-react";
+import { useTestExecutions, useTidinessScore, useTidinessIssues, useAuditorViolations, useVisualCaptures, useVisualCaptureDetail } from "../lib/hooks";
+import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import type { AgentContextItem, RepoFileStats } from "../lib/api";
 
 interface ContextPickerProps {
@@ -11,6 +11,7 @@ interface ContextPickerProps {
   testGenieAvailable: boolean;
   tidinessAvailable: boolean;
   auditorAvailable: boolean;
+  visualCaptureAvailable: boolean;
   fileStats?: RepoFileStats;
   contextItems: AgentContextItem[];
   onAddContext: (item: AgentContextItem) => void;
@@ -23,6 +24,7 @@ export function ContextPickerPopover({
   testGenieAvailable,
   tidinessAvailable,
   auditorAvailable,
+  visualCaptureAvailable,
   fileStats,
   contextItems,
   onAddContext,
@@ -67,6 +69,23 @@ export function ContextPickerPopover({
     return rulesSummaryContextItem(violationsData);
   }, [violationsData]);
 
+  // Screenshots — fetch latest capture and its detail
+  const captures = useVisualCaptures(scenarioSlug, visualCaptureAvailable, repoId);
+  const latestCapture = captures.data?.snapshots?.[0] ?? null;
+  const captureDetail = useVisualCaptureDetail(
+    latestCapture?.id ?? "",
+    scenarioSlug,
+    visualCaptureAvailable && !!latestCapture,
+    repoId,
+  );
+
+  const screenshotItems = useMemo(() => {
+    if (!latestCapture || !captureDetail.data?.screenshots?.length) return [];
+    return captureDetail.data.screenshots.map((file) =>
+      screenshotContextItem(latestCapture, file),
+    );
+  }, [latestCapture, captureDetail.data]);
+
   const isAttached = (id: string) => contextItems.some((c) => c.id === id);
 
   const toggle = (item: AgentContextItem) => {
@@ -77,7 +96,7 @@ export function ContextPickerPopover({
     }
   };
 
-  const hasAnyItems = !!(changeSummary || testItems.length || qualityItem || codeItems.length || rulesSummary || ruleViolationItems.length);
+  const hasAnyItems = !!(changeSummary || testItems.length || qualityItem || codeItems.length || rulesSummary || ruleViolationItems.length || screenshotItems.length);
 
   return (
     <Popover
@@ -178,6 +197,29 @@ export function ContextPickerPopover({
             {ruleViolationItems.length > 10 && (
               <p className="text-[11px] text-slate-500 px-2 py-1">
                 +{ruleViolationItems.length - 10} more violations
+              </p>
+            )}
+          </Section>
+        )}
+
+        {/* Screenshots */}
+        {visualCaptureAvailable && (
+          <Section icon={<Camera className="h-3 w-3" />} title="Screenshots">
+            {screenshotItems.length > 0 ? (
+              screenshotItems.slice(0, 10).map((item) => (
+                <CheckItem
+                  key={item.id}
+                  item={item}
+                  checked={isAttached(item.id)}
+                  onToggle={toggle}
+                />
+              ))
+            ) : (
+              <p className="text-[11px] text-slate-600 px-2 py-1">No captures yet</p>
+            )}
+            {screenshotItems.length > 10 && (
+              <p className="text-[11px] text-slate-500 px-2 py-1">
+                +{screenshotItems.length - 10} more screenshots
               </p>
             )}
           </Section>

@@ -237,6 +237,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-capture", s.handleVisualCapture).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/visual-captures", s.handleVisualCaptureList).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDetail).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}/screenshot/{filename}/path", s.handleVisualCaptureScreenshotPath).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}/screenshot/{filename}", s.handleVisualCaptureScreenshot).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}/video/{filename}", s.handleVisualCaptureVideo).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureStorageStats).Methods("GET")
