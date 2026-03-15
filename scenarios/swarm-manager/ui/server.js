@@ -6,4 +6,5 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'swarm-manager',
   corsOrigins: '*',
+  embeddedProxy: true,
 })

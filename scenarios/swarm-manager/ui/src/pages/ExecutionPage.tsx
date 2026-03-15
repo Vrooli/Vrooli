@@ -54,6 +54,20 @@ export function ExecutionPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [traceByExecutionId, setTraceByExecutionId] = useState<Record<string, PromptTrace>>({});
   const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null);
+  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/embedded/${encodeURIComponent("agent-manager")}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) {
+          setAgentManagerUiUrl(data.url);
+        }
+      })
+      .catch(() => { /* agent-manager not available */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     void fetchExecutions();
@@ -62,6 +76,7 @@ export function ExecutionPage() {
     }, AUTO_REFRESH_MS);
     return () => window.clearInterval(interval);
   }, [fetchExecutions]);
+
 
   const activeTabConfig = EXECUTION_TAB_CONFIG.find((tab) => tab.id === activeTab) ?? EXECUTION_TAB_CONFIG[0];
   const hasLoaded = status !== "idle";
@@ -420,6 +435,7 @@ export function ExecutionPage() {
                     onViewTrace={(executionId) => void handleViewTrace(executionId)}
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
+                    agentManagerUiUrl={agentManagerUiUrl}
                   />
                 </ResponsiveListItem>
               ))}
@@ -447,6 +463,7 @@ export function ExecutionPage() {
                     onViewTrace={(executionId) => void handleViewTrace(executionId)}
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
+                    agentManagerUiUrl={agentManagerUiUrl}
                   />
                 </ResponsiveListItem>
               ))}
