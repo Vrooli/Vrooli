@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, Loader2 } from 'lucide-react'
+import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getRunDetails, retryRun, type RunDetails } from '@/services/heartbeatService'
 import { CopyButton } from '@/components/shared/EventsDisplay'
@@ -69,6 +69,21 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
   const [error, setError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState('')
   const [retrying, setRetrying] = useState(false)
+  const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null)
+
+  // Resolve agent-manager UI URL via embedded proxy
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/embedded/${encodeURIComponent('agent-manager')}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) {
+          setAgentManagerUiUrl(data.url)
+        }
+      })
+      .catch(() => { /* agent-manager not available */ })
+    return () => { cancelled = true }
+  }, [])
 
   // Fetch run details
   useEffect(() => {
@@ -221,6 +236,19 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
               {runDetails?.id && <CopyButton text={runDetails.id} />}
             </dd>
           </div>
+          {runDetails?.id && agentManagerUiUrl && (
+            <div className="flex items-center gap-3">
+              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+              <a
+                href={`${agentManagerUiUrl}/runs/${runDetails.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                View in Agent Manager
+              </a>
+            </div>
+          )}
         </dl>
       </section>
 
