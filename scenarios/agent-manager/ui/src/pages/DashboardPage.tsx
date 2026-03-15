@@ -35,7 +35,7 @@ interface DashboardPageProps {
   tasks: Task[];
   runs: Run[];
   onRefresh: () => void;
-  onNavigateToRun?: (runId: string) => void;
+  onNavigateToRun?: (runId: string, tab?: string) => void;
 }
 
 export function DashboardPage({
@@ -133,10 +133,10 @@ export function DashboardPage({
                   <div
                     key={run.id}
                     className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => onNavigateToRun?.(run.id)}
+                    onClick={() => onNavigateToRun?.(run.id, "diff")}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id)}
+                    onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id, "diff")}
                   >
                     <div className="min-w-0 flex-1 mr-3">
                       <p className="font-medium text-sm truncate">{task?.title || "Unknown Task"}</p>

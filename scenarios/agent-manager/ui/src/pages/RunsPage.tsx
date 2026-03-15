@@ -1,10 +1,11 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
+  Ban,
   Check,
   Clock,
   Eye,
@@ -55,6 +56,7 @@ interface RunsPageProps {
   onGetTask: (id: string) => Promise<Task>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
+  onPartialApproveRun: (id: string, fileIds: string[], actor?: string, commitMsg?: string) => Promise<ApproveResult>;
   onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
   onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
@@ -96,6 +98,7 @@ export function RunsPage({
   onGetTask,
   onApproveRun,
   onRejectRun,
+  onPartialApproveRun,
   onInvestigateRuns,
   onApplyInvestigation,
   onContinueRun,
@@ -107,6 +110,7 @@ export function RunsPage({
   wsRemoveMessageHandler,
 }: RunsPageProps) {
   const { runId } = useParams<{ runId?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
@@ -371,6 +375,16 @@ export function RunsPage({
     onRefresh();
   };
 
+  const handlePartialApprove = async (id: string, fileIds: string[], actor?: string, commitMsg?: string) => {
+    const result = await onPartialApproveRun(id, fileIds, actor, commitMsg);
+    // Reload to reflect updated approval state
+    if (result.remaining === 0) {
+      setSelectedRun(null);
+    }
+    onRefresh();
+    return result;
+  };
+
   const handleRetry = async (run: Run) => {
     const newRun = await onRetryRun(run);
     loadRunDetails(newRun);
@@ -583,7 +597,7 @@ export function RunsPage({
               />
             ) : undefined
           }
-          icon={<RunStatusIcon status={run.status} />}
+          icon={<RunStatusIcon status={run.status} approvalState={run.approvalState} />}
           actions={
             <div className="flex items-center gap-1">
               {run.actions?.canStop && (
@@ -626,6 +640,15 @@ export function RunsPage({
     </ListPanel>
   );
 
+  // Determine initial tab: query param > status-based default > "messages"
+  const VALID_TABS = new Set(["task", "events", "diff", "messages", "cost"]);
+  const tabParam = searchParams.get("tab");
+  const initialTab = useMemo(() => {
+    if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "events" | "diff" | "messages" | "cost";
+    if (selectedRun?.status === RunStatus.NEEDS_REVIEW) return "diff" as const;
+    return "messages" as const;
+  }, [tabParam, selectedRun?.status]);
+
   const detailPanel = (
     <DetailPanel
       title="Run Details"
@@ -641,6 +664,7 @@ export function RunsPage({
       {selectedRun && (
           <RunDetail
             run={selectedRun}
+            initialTab={initialTab}
             events={events}
             diff={diff}
             eventsLoading={eventsLoading}
@@ -650,6 +674,7 @@ export function RunsPage({
             profileName={getProfileName(selectedRun.agentProfileId)}
             onApprove={(req) => handleApprove(selectedRun.id, req)}
             onReject={(req) => handleReject(selectedRun.id, req)}
+            onPartialApprove={(fileIds, actor, commitMsg) => handlePartialApprove(selectedRun.id, fileIds, actor, commitMsg)}
             onRetry={handleRetry}
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
@@ -781,7 +806,12 @@ function runStatusTooltip(status: RunStatus): string {
   }
 }
 
-function RunStatusIcon({ status }: { status: RunStatus }) {
+function RunStatusIcon({ status, approvalState }: { status: RunStatus; approvalState?: ApprovalState }) {
+  // Rejected runs get distinct orange icon
+  if (approvalState === ApprovalState.REJECTED) {
+    return <span className="flex-shrink-0" title="Rejected"><Ban className="h-5 w-5 text-orange-500" /></span>;
+  }
+
   const tooltip = runStatusTooltip(status);
   let icon: JSX.Element;
   switch (status) {

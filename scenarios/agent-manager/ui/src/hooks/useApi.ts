@@ -51,6 +51,8 @@ import {
   ListProfilesResponseSchema,
   ListRunsResponseSchema,
   ListTasksResponseSchema,
+  PartialApproveRunRequestSchema,
+  PartialApproveRunResponseSchema,
   PurgeDataRequestSchema,
   PurgeDataResponseSchema,
   PurgeTarget,
@@ -793,6 +795,25 @@ export function useRuns() {
     [fetchRuns]
   );
 
+  const partialApproveRun = useCallback(
+    async (id: string, fileIds: string[], actor?: string, commitMsg?: string): Promise<ApproveResult> => {
+      const payload = create(PartialApproveRunRequestSchema, {
+        runId: id,
+        fileIds,
+        actor: actor?.trim() || undefined,
+        commitMsg: commitMsg || undefined,
+      });
+      const data = await apiRequest<unknown>("/runs/" + id + "/partial-approve", {
+        method: "POST",
+        body: JSON.stringify(toProtoJson(PartialApproveRunRequestSchema, payload)),
+      });
+      const message = parseProto(PartialApproveRunResponseSchema, data);
+      await fetchRuns();
+      return message.result as ApproveResult;
+    },
+    [fetchRuns]
+  );
+
   const continueRun = useCallback(
     async (id: string, message: string, attachmentIds?: string[]): Promise<Run> => {
       const body: Record<string, unknown> = { message };
@@ -841,6 +862,7 @@ export function useRuns() {
     getRunDiff,
     approveRun,
     rejectRun,
+    partialApproveRun,
     continueRun,
     deleteRunMessage,
   };

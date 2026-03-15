@@ -15,7 +15,6 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { DiffViewer } from "./DiffViewer";
-import { buildSandboxReviewUrl } from "../lib/utils";
 import type { ApproveFormData, RejectFormData, Run, RunDiff } from "../types";
 import { ApprovalState } from "../types";
 
@@ -27,6 +26,7 @@ interface ReviewModalProps {
   diffLoading: boolean;
   onApprove: (req: ApproveFormData) => Promise<void>;
   onReject: (req: RejectFormData) => Promise<void>;
+  onOpenSandbox?: () => void;
 }
 
 function approvalStateLabel(state: ApprovalState): string {
@@ -52,6 +52,7 @@ export function ReviewModal({
   diffLoading,
   onApprove,
   onReject,
+  onOpenSandbox,
 }: ReviewModalProps) {
   const [action, setAction] = useState<"none" | "approve" | "reject">("none");
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
@@ -138,15 +139,12 @@ export function ReviewModal({
                     </div>
                   )}
                 </div>
-                {run.sandboxId && (
+                {run.sandboxId && onOpenSandbox && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full gap-2"
-                    onClick={() => {
-                      const url = buildSandboxReviewUrl(run.sandboxId ?? "");
-                      window.open(url, "_blank", "noopener,noreferrer");
-                    }}
+                    onClick={onOpenSandbox}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     Open in Sandbox

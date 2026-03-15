@@ -137,6 +137,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/partial-approve", h.PartialApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/sandbox-sync", h.SyncRunFromSandbox).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/extract-recommendations", h.ExtractRecommendations).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/regenerate-recommendations", h.RegenerateRecommendations).Methods("POST")
@@ -2083,6 +2084,72 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.RejectRunResponse{Status: "rejected"})
+}
+
+// PartialApproveRun approves only selected files from a run's changes.
+func (h *Handler) PartialApproveRun(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.PartialApproveRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
+
+	if len(req.FileIds) == 0 {
+		writeSimpleError(w, r, "file_ids", "at least one file ID is required")
+		return
+	}
+
+	fileIDs := make([]uuid.UUID, len(req.FileIds))
+	for i, fid := range req.FileIds {
+		parsed, err := uuid.Parse(fid)
+		if err != nil {
+			writeSimpleError(w, r, "file_ids", "invalid UUID format for file ID: "+fid)
+			return
+		}
+		fileIDs[i] = parsed
+	}
+
+	actor := normalizeActor(req.GetActor())
+	result, err := h.svc.PartialApprove(r.Context(), orchestration.PartialApproveRequest{
+		RunID:     id,
+		FileIDs:   fileIDs,
+		Actor:     actor,
+		CommitMsg: req.GetCommitMsg(),
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.PartialApproveRunResponse{
+		Result: protoconv.ApproveResultToProto(&protoconv.ApproveResult{
+			Success:    result.Success,
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			ErrorMsg:   result.ErrorMsg,
+		}),
+	})
 }
 
 type sandboxSyncRequest struct {

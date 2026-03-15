@@ -735,6 +735,8 @@ func ApproveResultToProto(r *ApproveResult) *pb.ApproveResult {
 		FilesApplied: int32(r.Applied),
 		CommitHash:   r.CommitHash,
 		Message:      r.ErrorMsg,
+		Remaining:    int32(r.Remaining),
+		IsPartial:    r.IsPartial,
 	}
 }
 
@@ -790,6 +792,7 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 	files := make([]*pb.FileDiff, len(r.Files))
 	for i, f := range r.Files {
 		files[i] = &pb.FileDiff{
+			Id:         UUIDToString(f.ID),
 			Path:       f.FilePath,
 			ChangeType: string(f.ChangeType),
 			Additions:  int32(f.LinesAdded),

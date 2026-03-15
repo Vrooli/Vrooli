@@ -48,20 +48,6 @@ export function ModelRegistryTab({
 }: ModelRegistryTabProps) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Model Registry</h3>
-          <p className="text-sm text-muted-foreground">
-            Configure per-runner model lists and map Fast/Cheap/Smart presets to model IDs. Updates apply across all scenarios that use agent-manager.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="secondary">FAST</Badge>
-          <Badge variant="secondary">CHEAP</Badge>
-          <Badge variant="secondary">SMART</Badge>
-        </div>
-      </div>
-
       {!draft && loading && (
         <p className="text-sm text-muted-foreground">Loading model registry...</p>
       )}
@@ -146,7 +132,7 @@ function FallbackRunnersCard({
     <Card className="border-border bg-card/40">
       <CardContent className="space-y-4 py-5">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Global Fallbacks</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground">Global Fallbacks</h3>
           <p className="text-xs text-muted-foreground">
             Ordered runner list to try when the primary runner is unavailable. Empty disables fallback.
           </p>

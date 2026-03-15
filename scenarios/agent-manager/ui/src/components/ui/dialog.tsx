@@ -69,7 +69,7 @@ export function DialogContent({
     <div
       className={cn(
         "relative rounded-lg border border-border bg-card shadow-xl",
-        "max-h-[85vh] overflow-y-auto",
+        "flex flex-col max-h-[85vh]",
         "max-w-lg mx-auto", // Default width + centered, width can be overridden via className
         className
       )}
@@ -162,7 +162,7 @@ export function DialogBody({
   ...props
 }: DialogBodyProps) {
   return (
-    <div className={cn("p-6", className)} {...props}>
+    <div className={cn("p-6 overflow-y-auto flex-1 min-h-0", className)} {...props}>
       {children}
     </div>
   );

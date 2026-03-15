@@ -26,12 +26,16 @@ import {
   Terminal,
   Trash2,
   Wrench,
+  ExternalLink,
   X,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
-import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { cn, formatDuration, getWorkspaceSandboxUiUrl, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
@@ -45,7 +49,7 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
@@ -55,17 +59,21 @@ import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
 
+type TabId = "task" | "events" | "diff" | "messages" | "cost";
+
 interface RunDetailProps {
   run: Run;
   events: RunEvent[];
   diff: RunDiff | null;
   eventsLoading: boolean;
   diffLoading: boolean;
+  initialTab?: TabId;
   task?: Task | null;
   taskTitle: string;
   profileName: string;
   onApprove: (req: ApproveFormData) => Promise<void>;
   onReject: (req: RejectFormData) => Promise<void>;
+  onPartialApprove?: (fileIds: string[], actor?: string, commitMsg?: string) => Promise<unknown>;
   onRetry: (run: Run) => Promise<Run>;
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
@@ -84,11 +92,13 @@ export function RunDetail({
   diff,
   eventsLoading,
   diffLoading,
+  initialTab,
   task,
   taskTitle,
   profileName,
   onApprove,
   onReject,
+  onPartialApprove,
   onRetry,
   onInvestigate,
   onApplyInvestigation,
@@ -100,7 +110,13 @@ export function RunDetail({
   onMobileHeaderLeft,
   onMobileHeaderRight,
 }: RunDetailProps) {
-  const [activeTab, setActiveTab] = useState<"task" | "events" | "diff" | "messages" | "cost">("messages");
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "messages");
+
+  // Reset tab when switching runs or when initialTab changes
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab, run.id]);
+
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
@@ -109,6 +125,78 @@ export function RunDetail({
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const { isDesktop } = useViewportSize();
+
+  // Inline review state
+  const [inlineAction, setInlineAction] = useState<"none" | "approve" | "reject" | "partial">("none");
+  const [inlineApprovalForm, setInlineApprovalForm] = useState({ actor: "", commitMsg: "" });
+  const [inlineRejectForm, setInlineRejectForm] = useState({ actor: "", reason: "" });
+  const [inlineSubmitting, setInlineSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+
+  // Reset inline review state when run changes
+  useEffect(() => {
+    setInlineAction("none");
+    setInlineApprovalForm({ actor: "", commitMsg: "" });
+    setInlineRejectForm({ actor: "", reason: "" });
+    setInlineSubmitting(false);
+    setSelectedFiles(new Set());
+  }, [run.id]);
+
+  // Resolve workspace-sandbox URL via embedded proxy (standard cross-scenario pattern)
+  const [sandboxUrl, setSandboxUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/embedded/${encodeURIComponent("workspace-sandbox")}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) setSandboxUrl(data.url);
+      })
+      .catch(() => { /* workspace-sandbox not available */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const openSandboxReview = useCallback(() => {
+    if (!run.sandboxId) return;
+    const base = sandboxUrl ?? getWorkspaceSandboxUiUrl();
+    const url = `${base}?sandbox=${run.sandboxId}&review=true`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, [run.sandboxId, sandboxUrl]);
+
+  const handleInlineConfirm = useCallback(async () => {
+    setInlineSubmitting(true);
+    try {
+      if (inlineAction === "approve") {
+        await onApprove({
+          actor: inlineApprovalForm.actor.trim() || undefined,
+          commitMsg: inlineApprovalForm.commitMsg || undefined,
+        });
+      } else if (inlineAction === "reject") {
+        await onReject({
+          actor: inlineRejectForm.actor.trim() || undefined,
+          reason: inlineRejectForm.reason || undefined,
+        });
+      } else if (inlineAction === "partial" && onPartialApprove) {
+        // Collect file IDs from selected files
+        const files = diff?.files ?? [];
+        const fileIds = files
+          .filter((f) => selectedFiles.has(f.path) && f.id)
+          .map((f) => f.id);
+        if (fileIds.length > 0) {
+          await onPartialApprove(
+            fileIds,
+            inlineApprovalForm.actor.trim() || undefined,
+            inlineApprovalForm.commitMsg || undefined,
+          );
+          setSelectedFiles(new Set());
+        }
+      }
+      setInlineAction("none");
+    } catch (err) {
+      console.error(`Failed to ${inlineAction} run:`, err);
+    } finally {
+      setInlineSubmitting(false);
+    }
+  }, [inlineAction, inlineApprovalForm, inlineRejectForm, onApprove, onReject, onPartialApprove, diff, selectedFiles]);
 
   const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
     storageKey: "run.details",
@@ -176,7 +264,7 @@ export function RunDetail({
   useEffect(() => {
     if (isDesktop || !onMobileHeaderLeft) return;
 
-    const statusLabel = runStatusLabel(run.status);
+    const statusLabel = runStatusLabel(run.status, run.approvalState);
     const dotColor = STATUS_DOT_COLORS[statusLabel] ?? "bg-muted-foreground";
 
     onMobileHeaderLeft(
@@ -218,7 +306,7 @@ export function RunDetail({
     return () => onMobileHeaderRight(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktop, run.actions, actionsMenuOpen, onMobileHeaderRight]);
-  const runVariant = getRunVariant(run.status);
+  const runVariant = getRunVariant(run.status, run.approvalState);
 
   const eventCounts = useMemo(() => {
     const counts = {
@@ -297,7 +385,7 @@ export function RunDetail({
             <span className="font-semibold text-sm">Details</span>
             <Badge
               variant={
-                runStatusLabel(run.status) as
+                runStatusLabel(run.status, run.approvalState) as
                   | "pending"
                   | "starting"
                   | "running"
@@ -307,7 +395,7 @@ export function RunDetail({
                   | "cancelled"
               }
             >
-              {runStatusLabel(run.status).replace("_", " ")}
+              {runStatusLabel(run.status, run.approvalState).replace("_", " ")}
             </Badge>
             <button
               type="button"
@@ -636,14 +724,207 @@ export function RunDetail({
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
-                Loading diff...
-              </div>
-            ) : !diff ? (
-              <div className="py-8 text-center text-muted-foreground">
-                No diff available
+                <div className="h-8 w-8 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <p className="mt-3 text-sm">Loading diff...</p>
               </div>
             ) : (
-              <DiffViewer diff={diff} />
+              <div className="space-y-4">
+                {!diff ? (
+                  <div className="py-8 flex flex-col items-center gap-4 text-center">
+                    <FileCode className="h-10 w-10 text-muted-foreground/50" />
+                    <div>
+                      <p className="font-medium text-muted-foreground">No diff available</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">
+                        {run.sandboxId
+                          ? "The diff hasn't been generated yet. You can review changes directly in the sandbox."
+                          : "This run didn't use a sandbox, so no diff was collected."}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {run.sandboxId && (
+                        <Button variant="outline" size="sm" className="gap-2" onClick={openSandboxReview}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Open in Workspace Sandbox
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <DiffViewer
+                    diff={diff}
+                    selectable={inlineAction === "partial"}
+                    selectedFiles={selectedFiles}
+                    onFileSelectionChange={(path, selected) => {
+                      setSelectedFiles((prev) => {
+                        const next = new Set(prev);
+                        if (selected) next.add(path);
+                        else next.delete(path);
+                        return next;
+                      });
+                    }}
+                  />
+                )}
+
+                {/* Inline review controls */}
+                {(actions?.canApprove || actions?.canReject) && (
+                  <div className="border-t border-border pt-4 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {run.sandboxId && (
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={openSandboxReview}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Open in Sandbox
+                        </Button>
+                      )}
+                      <div className="flex-1" />
+                      {actions?.canApprove && onPartialApprove && diff && (diff.files?.length ?? 0) > 1 && (
+                        <Button
+                          variant={inlineAction === "partial" ? "secondary" : "outline"}
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => {
+                            if (inlineAction === "partial") {
+                              setInlineAction("none");
+                              setSelectedFiles(new Set());
+                            } else {
+                              setInlineAction("partial");
+                            }
+                          }}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Partial Approve
+                        </Button>
+                      )}
+                      {actions?.canApprove && (
+                        <Button
+                          variant={inlineAction === "approve" ? "success" : "outline"}
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setInlineAction(inlineAction === "approve" ? "none" : "approve")}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Approve All
+                        </Button>
+                      )}
+                      {actions?.canReject && (
+                        <Button
+                          variant={inlineAction === "reject" ? "destructive" : "outline"}
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setInlineAction(inlineAction === "reject" ? "none" : "reject")}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Reject
+                        </Button>
+                      )}
+                    </div>
+
+                    {inlineAction === "approve" && (
+                      <div className="space-y-3 rounded-lg border border-success/30 bg-success/5 p-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="inline-approve-actor">Your Name (optional)</Label>
+                          <Input
+                            id="inline-approve-actor"
+                            value={inlineApprovalForm.actor}
+                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
+                            placeholder="Leave blank to approve anonymously"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="inline-approve-msg">Commit Message (optional)</Label>
+                          <Input
+                            id="inline-approve-msg"
+                            value={inlineApprovalForm.commitMsg}
+                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
+                            placeholder="Custom commit message"
+                          />
+                        </div>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={handleInlineConfirm}
+                          disabled={inlineSubmitting}
+                          className="gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          {inlineSubmitting ? "Approving..." : "Confirm Approval"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {inlineAction === "reject" && (
+                      <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="inline-reject-actor">Your Name (optional)</Label>
+                          <Input
+                            id="inline-reject-actor"
+                            value={inlineRejectForm.actor}
+                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, actor: e.target.value })}
+                            placeholder="Leave blank for anonymous"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="inline-reject-reason">Rejection Reason</Label>
+                          <Textarea
+                            id="inline-reject-reason"
+                            value={inlineRejectForm.reason}
+                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, reason: e.target.value })}
+                            placeholder="Why are you rejecting these changes?"
+                            rows={3}
+                          />
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleInlineConfirm}
+                          disabled={inlineSubmitting}
+                          className="gap-2"
+                        >
+                          <X className="h-4 w-4" />
+                          {inlineSubmitting ? "Rejecting..." : "Confirm Rejection"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {inlineAction === "partial" && (
+                      <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                        <p className="text-sm text-muted-foreground">
+                          Select files above, then approve the selected subset.
+                        </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="partial-approve-actor">Your Name (optional)</Label>
+                          <Input
+                            id="partial-approve-actor"
+                            value={inlineApprovalForm.actor}
+                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
+                            placeholder="Leave blank to approve anonymously"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="partial-approve-msg">Commit Message (optional)</Label>
+                          <Input
+                            id="partial-approve-msg"
+                            value={inlineApprovalForm.commitMsg}
+                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
+                            placeholder="Custom commit message"
+                          />
+                        </div>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={handleInlineConfirm}
+                          disabled={inlineSubmitting || selectedFiles.size === 0}
+                          className="gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          {inlineSubmitting
+                            ? "Approving..."
+                            : `Approve Selected (${selectedFiles.size} file${selectedFiles.size !== 1 ? "s" : ""})`}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )
           ) : eventsLoading ? (
             <div className="py-8 text-center text-muted-foreground">
@@ -737,13 +1018,15 @@ export function RunDetail({
         diffLoading={diffLoading}
         onApprove={onApprove}
         onReject={onReject}
+        onOpenSandbox={run.sandboxId ? openSandboxReview : undefined}
       />
     </div>
   );
 }
 
 // Helper functions and sub-components
-function getRunVariant(status: RunStatus): "default" | "success" | "warning" | "error" {
+function getRunVariant(status: RunStatus, approvalState?: ApprovalState): string {
+  if (approvalState === ApprovalState.REJECTED) return "rejected";
   switch (status) {
     case RunStatus.COMPLETE:
       return "success";
@@ -756,7 +1039,8 @@ function getRunVariant(status: RunStatus): "default" | "success" | "warning" | "
   }
 }
 
-function runStatusLabel(status: RunStatus): string {
+function runStatusLabel(status: RunStatus, approvalState?: ApprovalState): string {
+  if (approvalState === ApprovalState.REJECTED) return "rejected";
   switch (status) {
     case RunStatus.PENDING:
       return "pending";
@@ -1146,6 +1430,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   complete: "bg-success",
   needs_review: "bg-warning",
   failed: "bg-destructive",
+  rejected: "bg-orange-500",
 };
 
 interface RunDetailsContentProps {
@@ -1274,6 +1559,7 @@ const STATUS_LEGEND: { label: string; color: string }[] = [
   { label: "Running", color: "bg-primary" },
   { label: "Needs review", color: "bg-warning" },
   { label: "Complete", color: "bg-success" },
+  { label: "Rejected", color: "bg-orange-500" },
   { label: "Failed", color: "bg-destructive" },
   { label: "Cancelled", color: "bg-muted-foreground" },
 ];

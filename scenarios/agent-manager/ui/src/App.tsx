@@ -203,7 +203,7 @@ export default function App() {
                     tasks.refetch();
                     runs.refetch();
                   }}
-                  onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
+                  onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
                 />
                 </ErrorBoundary>
               }
@@ -267,6 +267,7 @@ export default function App() {
                   onGetTask={tasks.getTask}
                   onApproveRun={runs.approveRun}
                   onRejectRun={runs.rejectRun}
+                  onPartialApproveRun={runs.partialApproveRun}
                   onInvestigateRuns={runs.investigateRuns}
                   onApplyInvestigation={runs.applyInvestigation}
                   onContinueRun={runs.continueRun}

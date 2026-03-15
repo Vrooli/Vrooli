@@ -1,7 +1,8 @@
 // Investigation settings tab - configuration for investigation agents
 
+import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Microscope, RotateCcw, Settings, Wrench, Zap } from "lucide-react";
+import { ExternalLink, Microscope, Settings, Wrench, Zap } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import { Input } from "../../ui/input";
@@ -18,6 +19,13 @@ import { DEFAULT_INVESTIGATION_CONTEXT } from "../../../types";
 
 type AgentSubtab = "investigation" | "apply";
 
+export interface InvestigationTabHandle {
+  hasChanges: boolean;
+  saving: boolean;
+  save: () => Promise<void>;
+  reset: () => Promise<void>;
+}
+
 interface InvestigationTabProps {
   settings: InvestigationSettings | null;
   loading: boolean;
@@ -30,6 +38,7 @@ interface InvestigationTabProps {
     investigationTagAllowlist: InvestigationTagRule[];
   }>) => Promise<InvestigationSettings | void>;
   onReset: () => Promise<InvestigationSettings | void>;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const depthOptions: {
@@ -85,13 +94,8 @@ const contextOptions: {
   },
 ];
 
-export function InvestigationTab({
-  settings,
-  loading,
-  error,
-  onSave,
-  onReset,
-}: InvestigationTabProps) {
+export const InvestigationTab = React.forwardRef<InvestigationTabHandle, InvestigationTabProps>(
+  function InvestigationTab({ settings, loading, error, onSave, onReset, onDirtyChange }, ref) {
   // Subtab state
   const [activeSubtab, setActiveSubtab] = useState<AgentSubtab>("investigation");
 
@@ -155,6 +159,19 @@ export function InvestigationTab({
     }
   }, [onReset]);
 
+  // Expose imperative handle for unified footer
+  React.useImperativeHandle(ref, () => ({
+    hasChanges: !!hasChanges,
+    saving,
+    save: handleSave,
+    reset: handleReset,
+  }), [hasChanges, saving, handleSave, handleReset]);
+
+  // Notify parent when dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(!!hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
   const handleContextChange = (key: keyof InvestigationContextFlags, checked: boolean) => {
     setDraftContext(prev => ({ ...prev, [key]: checked }));
   };
@@ -202,9 +219,11 @@ export function InvestigationTab({
   return (
     <div className="space-y-6">
       {/* Subtab Buttons */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1">
+      <div className="flex gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Agent type">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeSubtab === "investigation"}
           onClick={() => setActiveSubtab("investigation")}
           className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             activeSubtab === "investigation"
@@ -217,6 +236,8 @@ export function InvestigationTab({
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={activeSubtab === "apply"}
           onClick={() => setActiveSubtab("apply")}
           className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             activeSubtab === "apply"
@@ -256,7 +277,7 @@ export function InvestigationTab({
 
           {/* Default Depth */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Default Investigation Depth
             </h3>
             <Card>
@@ -295,7 +316,7 @@ export function InvestigationTab({
 
           {/* Investigation Prompt Template */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Investigation Prompt Template
             </h3>
             <Card>
@@ -355,7 +376,7 @@ export function InvestigationTab({
 
           {/* Apply Investigation Prompt Template */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Apply Investigation Prompt Template
             </h3>
             <Card>
@@ -388,7 +409,7 @@ export function InvestigationTab({
 
           {/* Apply Fixes Tag Allowlist */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Apply Fixes Tag Allowlist
             </h3>
             <Card>
@@ -459,7 +480,7 @@ export function InvestigationTab({
 
       {/* Shared: Default Context Attachments */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-sm font-semibold text-muted-foreground">
           Default Context Attachments
         </h3>
         <Card>
@@ -496,25 +517,6 @@ export function InvestigationTab({
           {displayError}
         </div>
       )}
-
-      {/* Action buttons */}
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={handleReset}
-          disabled={saving || resetting}
-          className="gap-2"
-        >
-          <RotateCcw className="h-4 w-4" />
-          {resetting ? "Resetting..." : "Reset to Defaults"}
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={!hasChanges || saving || resetting}
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
     </div>
   );
-}
+});
