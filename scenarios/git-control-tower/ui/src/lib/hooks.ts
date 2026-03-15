@@ -1006,13 +1006,14 @@ export function useAgentRunEvents(
   runId: string | null,
   afterSequence: number,
   enabled = true,
-  repoId?: string | null
+  repoId?: string | null,
+  status?: string,
 ) {
   return useQuery<AgentRunEventsResponse, Error>({
     queryKey: [...queryKeys.agentRunEvents(runId ?? "", repoId), afterSequence],
     queryFn: () => fetchAgentRunEvents(runId as string, afterSequence, repoId ?? undefined),
     enabled: enabled && Boolean(runId),
-    refetchInterval: 2_000,
+    refetchInterval: agentPollingInterval(status),
   });
 }
 

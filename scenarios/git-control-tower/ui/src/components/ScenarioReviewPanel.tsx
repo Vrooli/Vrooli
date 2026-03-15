@@ -8,7 +8,7 @@ import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl,
 import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult, AuditorViolation, AuditorJobStatus } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
-import { AgentTab, AttachToAgentButton } from "./AgentTab";
+import { AgentTab, AttachToAgentButton, type SentMessage } from "./AgentTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
@@ -30,6 +30,7 @@ interface ScenarioReviewPanelProps {
 export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [internalTab, setInternalTab] = useState<Tab>("overview");
+  const [agentSentMessages, setAgentSentMessages] = useState<SentMessage[]>([]);
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = onActiveTabChange ?? setInternalTab;
   const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
@@ -154,7 +155,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
   );
 
   const tabNav = (
-    <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
+    <div className="flex border-b border-slate-800 px-4 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {visibleTabs.map((tab) => (
         <button
           key={tab}
@@ -271,6 +272,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           fileStats={scenarioFileStats}
           activeRunId={agentRunId}
           onActiveRunIdChange={onAgentRunIdChange}
+          sentMessages={agentSentMessages}
+          onSentMessagesChange={setAgentSentMessages}
         />
       )}
     </div>
@@ -324,7 +327,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           )}
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
-          {basAvailable && (
+          {basAvailable && activeTab !== "agent" && (
             <>
               <button
                 type="button"

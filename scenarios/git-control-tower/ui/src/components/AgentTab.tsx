@@ -33,6 +33,7 @@ import {
   RUN_STATUS,
   ACTIVE_STATUSES,
   type AgentContextItem,
+  type AgentRun,
   type AgentRunEvent,
   type AgentRunStatus,
   type AgentRunDiffFile,
@@ -43,6 +44,25 @@ import {
 
 const AGENT_PROFILE_KEY = "gct.agent.defaultProfileId";
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
+function humanizeNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+function formatDuration(start?: string, end?: string): string | null {
+  if (!start || !end) return null;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 0) return null;
+  const secs = Math.floor(ms / 1000);
+  const mins = Math.floor(secs / 60);
+  const rem = secs % 60;
+  if (mins === 0) return `${rem}s`;
+  return `${mins}m ${rem}s`;
+}
+
 // ── Chat message types ──────────────────────────────────────────────
 
 type ChatMessage =
@@ -51,11 +71,11 @@ type ChatMessage =
   | { type: "tool-group"; tools: { name: string; result?: string }[]; timestamp: string }
   | { type: "status"; status: AgentRunStatus; phase?: string; timestamp: string }
   | { type: "error"; text: string; timestamp: string }
-  | { type: "summary"; summary: AgentRunSummary; timestamp: string }
+  | { type: "summary"; summary: AgentRunSummary; run?: AgentRun; timestamp: string }
   | { type: "diff"; files: AgentRunDiffFile[]; runId: string; actions: AgentRunActions }
   | { type: "action-prompt"; actions: AgentRunActions; runId: string };
 
-interface SentMessage {
+export interface SentMessage {
   text: string;
   contextCount: number;
   runId: string;
@@ -109,6 +129,8 @@ interface AgentTabProps {
   fileStats?: RepoFileStats;
   activeRunId?: string | null;
   onActiveRunIdChange?: (id: string | null) => void;
+  sentMessages: SentMessage[];
+  onSentMessagesChange: (msgs: SentMessage[] | ((prev: SentMessage[]) => SentMessage[])) => void;
 }
 
 // ── Build chat messages from events ─────────────────────────────────
@@ -116,7 +138,7 @@ interface AgentTabProps {
 function buildChatMessages(
   sentMessages: SentMessage[],
   events: AgentRunEvent[],
-  activeRun: { status: AgentRunStatus; phase?: string; summary?: AgentRunSummary; errorMsg?: string; actions?: AgentRunActions } | null,
+  activeRun: AgentRun | null,
   diffFiles: AgentRunDiffFile[] | null,
   runId: string | null,
 ): ChatMessage[] {
@@ -187,7 +209,7 @@ function buildChatMessages(
 
   // Append summary
   if (activeRun?.summary) {
-    messages.push({ type: "summary", summary: activeRun.summary, timestamp: new Date().toISOString() });
+    messages.push({ type: "summary", summary: activeRun.summary, run: activeRun, timestamp: new Date().toISOString() });
   }
 
   // Append diff + action-prompt when needs_review
@@ -217,6 +239,8 @@ export function AgentTab({
   fileStats,
   activeRunId: controlledRunId,
   onActiveRunIdChange,
+  sentMessages,
+  onSentMessagesChange,
 }: AgentTabProps) {
   const [message, setMessage] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
@@ -233,7 +257,6 @@ export function AgentTab({
   }, [onActiveRunIdChange]);
   const [events, setEvents] = useState<AgentRunEvent[]>([]);
   const [lastEventSequence, setLastEventSequence] = useState(0);
-  const [sentMessages, setSentMessages] = useState<SentMessage[]>([]);
   const [showRunHistory, setShowRunHistory] = useState(false);
 
   // Scroll tracking
@@ -249,7 +272,7 @@ export function AgentTab({
 
   const isActiveRun = activeRun.data && ([...ACTIVE_STATUSES, RUN_STATUS.NEEDS_REVIEW] as string[]).includes(activeRun.data.status);
   const shouldPollDiff = activeRun.data?.status === RUN_STATUS.NEEDS_REVIEW && agentManagerAvailable;
-  const runEvents = useAgentRunEvents(activeRunId, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId);
+  const runEvents = useAgentRunEvents(activeRunId, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId, activeRun.data?.status);
   const runDiff = useAgentRunDiff(activeRunId, shouldPollDiff, repoId);
 
   const createRun = useCreateAgentRun(repoId);
@@ -271,8 +294,10 @@ export function AgentTab({
   // Accumulate events
   useEffect(() => {
     if (runEvents.data?.events?.length) {
+      const incoming = runEvents.data.events;
+      // Guard: ignore events from a different run
+      if (incoming[0]?.runId && incoming[0].runId !== activeRunId) return;
       setEvents((prev) => {
-        const incoming = runEvents.data?.events ?? [];
         const newEvents = incoming.filter(
           (e) => !prev.some((p) => p.id === e.id)
         );
@@ -283,7 +308,7 @@ export function AgentTab({
         return merged;
       });
     }
-  }, [runEvents.data]);
+  }, [runEvents.data, activeRunId]);
 
   // Scroll tracking
   const handleScroll = useCallback(() => {
@@ -335,7 +360,7 @@ export function AgentTab({
       },
       {
         onSuccess: (resp) => {
-          setSentMessages((prev) => [
+          onSentMessagesChange((prev) => [
             ...prev,
             {
               text: message,
@@ -352,7 +377,7 @@ export function AgentTab({
         },
       }
     );
-  }, [message, contextItems, scenarioSlug, selectedProfileId, createRun, onClearContext]);
+  }, [message, contextItems, scenarioSlug, selectedProfileId, createRun, onClearContext, onSentMessagesChange]);
 
   const handleContinue = useCallback(() => {
     if (!activeRunId || !message.trim()) return;
@@ -361,7 +386,7 @@ export function AgentTab({
       { runId: activeRunId, request: { message: followUp } },
       {
         onSuccess: () => {
-          setSentMessages((prev) => [
+          onSentMessagesChange((prev) => [
             ...prev,
             {
               text: followUp,
@@ -374,7 +399,7 @@ export function AgentTab({
         },
       }
     );
-  }, [activeRunId, message, continueRun]);
+  }, [activeRunId, message, continueRun, onSentMessagesChange]);
 
   const handleSetDefaultProfile = useCallback((id: string) => {
     setSelectedProfileId(id);
@@ -412,6 +437,7 @@ export function AgentTab({
 
   // Determine input behavior
   const canSendNew = !activeRunId || (!isActiveRun && activeRun.data?.status !== RUN_STATUS.NEEDS_REVIEW);
+  const showInputBar = !activeRunId || !!isActiveRun || canContinue;
   const inputDisabled = isRunning || isCreating || isContinuing;
   const placeholder = isRunning
     ? "Agent is working..."
@@ -429,14 +455,19 @@ export function AgentTab({
     }
   };
 
+  const duration = activeRun.data ? formatDuration(activeRun.data.startedAt, activeRun.data.endedAt) : null;
+
   return (
     <div className="flex flex-col h-full">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 shrink-0 gap-2 flex-wrap min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           {activeRun.data && <StatusBadge status={activeRun.data.status} />}
-          {activeRun.data?.phase && (
+          {activeRun.data?.phase && isActiveRun && (
             <span className="text-[11px] text-slate-500">{activeRun.data.phase}</span>
+          )}
+          {duration && (
+            <span className="text-[11px] text-slate-500">{duration}</span>
           )}
           {/* Run history dropdown */}
           {runs.data && runs.data.runs.length > 0 && (
@@ -480,20 +511,7 @@ export function AgentTab({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          {activeRun.data?.summary && (
-            <div className="flex items-center gap-3 text-[11px] text-slate-400 mr-2">
-              {activeRun.data.summary.tokensUsed != null && (
-                <span>{activeRun.data.summary.tokensUsed.toLocaleString()} tok</span>
-              )}
-              {activeRun.data.summary.turnsUsed != null && (
-                <span>{activeRun.data.summary.turnsUsed} turns</span>
-              )}
-              {activeRun.data.summary.costEstimate != null && activeRun.data.summary.costEstimate > 0 && (
-                <span>${activeRun.data.summary.costEstimate.toFixed(2)}</span>
-              )}
-            </div>
-          )}
+        <div className="flex items-center gap-1 shrink-0">
           {activeRun.data?.actions?.canStop && (
             <Button
               variant="outline"
@@ -549,7 +567,7 @@ export function AgentTab({
             case "error":
               return <ErrorBubble key={idx} text={msg.text} />;
             case "summary":
-              return <SummaryCard key={idx} summary={msg.summary} />;
+              return <SummaryCard key={idx} summary={msg.summary} run={msg.run} />;
             case "diff":
               return <DiffSection key={idx} files={msg.files} isLoading={runDiff.isLoading} />;
             case "action-prompt":
@@ -593,7 +611,7 @@ export function AgentTab({
       )}
 
       {/* Context chips above input */}
-      {contextItems.length > 0 && (
+      {contextItems.length > 0 && showInputBar && (
         <div className="px-4 pb-1 flex flex-wrap gap-1 border-t border-slate-800/50 pt-2">
           {contextItems.map((item) => (
             <span
@@ -620,62 +638,84 @@ export function AgentTab({
         </div>
       )}
 
-      {/* Input bar - always visible */}
-      <div className="shrink-0 border-t border-slate-800 px-4 py-3 flex items-end gap-2">
-        <ContextPickerPopover
-          scenarioSlug={scenarioSlug}
-          repoId={repoId}
-          testGenieAvailable={testGenieAvailable}
-          tidinessAvailable={tidinessAvailable}
-          auditorAvailable={auditorAvailable}
-          fileStats={fileStats}
-          contextItems={contextItems}
-          onAddContext={onAddContext}
-          onRemoveContext={onRemoveContext}
-        />
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleInputSend();
-            }
-          }}
-          placeholder={placeholder}
-          className="flex-1 min-h-[36px] max-h-[144px] px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500"
-          disabled={inputDisabled}
-          rows={1}
-        />
-        <div className="flex items-center gap-1.5 shrink-0">
-          {profiles.data?.profiles && profiles.data.profiles.length > 0 && (
-            <select
-              value={selectedProfileId}
-              onChange={(e) => handleSetDefaultProfile(e.target.value)}
-              className="h-9 px-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Default</option>
-              {profiles.data.profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+      {/* Input bar */}
+      {showInputBar ? (
+        <div className="shrink-0 border-t border-slate-800">
+          {/* Profile selector row */}
+          {canSendNew && profiles.data?.profiles && profiles.data.profiles.length > 0 && (
+            <div className="px-4 pt-2 flex items-center gap-2">
+              <span className="text-[11px] text-slate-500">Profile:</span>
+              <select
+                value={selectedProfileId}
+                onChange={(e) => handleSetDefaultProfile(e.target.value)}
+                className="h-7 px-2 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Default</option>
+                {profiles.data.profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
           )}
+          {/* Message input row */}
+          <div className="px-4 py-3 flex items-end gap-2">
+            <ContextPickerPopover
+              scenarioSlug={scenarioSlug}
+              repoId={repoId}
+              testGenieAvailable={testGenieAvailable}
+              tidinessAvailable={tidinessAvailable}
+              auditorAvailable={auditorAvailable}
+              fileStats={fileStats}
+              contextItems={contextItems}
+              onAddContext={onAddContext}
+              onRemoveContext={onRemoveContext}
+            />
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleInputSend();
+                }
+              }}
+              placeholder={placeholder}
+              className="flex-1 min-h-[36px] max-h-[144px] px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500"
+              disabled={inputDisabled}
+              rows={1}
+            />
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleInputSend}
+              disabled={inputDisabled || (!message.trim() && contextItems.length === 0)}
+              className="h-9 w-9 p-0 shrink-0"
+            >
+              {isCreating || isContinuing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="shrink-0 border-t border-slate-800 px-4 py-2 flex justify-center">
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
-            onClick={handleInputSend}
-            disabled={inputDisabled || (!message.trim() && contextItems.length === 0)}
-            className="h-9 w-9 p-0"
+            onClick={() => {
+              setActiveRunId(null);
+              setEvents([]);
+              setLastEventSequence(0);
+            }}
+            className="h-8 text-xs gap-1"
           >
-            {isCreating || isContinuing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            Start New Run
           </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -762,15 +802,38 @@ function ErrorBubble({ text }: { text: string }) {
   );
 }
 
-function SummaryCard({ summary }: { summary: AgentRunSummary }) {
+function SummaryCard({ summary, run }: { summary: AgentRunSummary; run?: AgentRun }) {
+  const duration = run ? formatDuration(run.startedAt, run.endedAt) : null;
+  const totalFiles = (summary.filesModified?.length ?? 0) + (summary.filesCreated?.length ?? 0) + (summary.filesDeleted?.length ?? 0);
+
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-      <h4 className="text-xs font-medium text-slate-400 mb-2">Summary</h4>
-      <div className="flex gap-4 text-[11px] text-slate-400">
-        <span>Modified: {summary.filesModified?.length ?? 0}</span>
-        <span>Created: {summary.filesCreated?.length ?? 0}</span>
-        <span>Deleted: {summary.filesDeleted?.length ?? 0}</span>
+    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 space-y-2">
+      <h4 className="text-xs font-medium text-slate-400">Summary</h4>
+      {run?.promptPreview && (
+        <p className="text-[11px] text-slate-500 truncate">{run.promptPreview}</p>
+      )}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+        {summary.tokensUsed != null && (
+          <span>{humanizeNumber(summary.tokensUsed)} tokens</span>
+        )}
+        {summary.turnsUsed != null && (
+          <span>{summary.turnsUsed} turns</span>
+        )}
+        {summary.costEstimate != null && summary.costEstimate > 0 && (
+          <span>${summary.costEstimate.toFixed(2)}</span>
+        )}
+        {duration && <span>{duration}</span>}
       </div>
+      {totalFiles > 0 && (
+        <div className="flex gap-4 text-[11px] text-slate-400">
+          {(summary.filesModified?.length ?? 0) > 0 && <span>Modified: {summary.filesModified!.length}</span>}
+          {(summary.filesCreated?.length ?? 0) > 0 && <span>Created: {summary.filesCreated!.length}</span>}
+          {(summary.filesDeleted?.length ?? 0) > 0 && <span>Deleted: {summary.filesDeleted!.length}</span>}
+        </div>
+      )}
+      {totalFiles === 0 && (
+        <div className="text-[11px] text-slate-500">No file changes</div>
+      )}
     </div>
   );
 }
