@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   FileDiff,
   FilePlus,
@@ -17,6 +17,7 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { ViewModeSelector } from "./ViewModeSelector";
 import type { DiffResult, FileChange, ChangeType, ViewMode, AnnotatedLine } from "../lib/api";
+import { splitPath } from "../lib/utils";
 import { SELECTORS } from "../consts/selectors";
 import {
   highlightCode,
@@ -291,7 +292,7 @@ interface FullFileViewProps {
   filePath: string;
 }
 
-function FullFileView({ annotatedLines, highlightedLines, filePath }: FullFileViewProps) {
+function FullFileView({ annotatedLines, highlightedLines, filePath: _filePath }: FullFileViewProps) {
   // Create a map from line number to highlighted tokens
   const highlightMap = useMemo(() => {
     if (!highlightedLines) return new Map<number, HighlightToken[]>();
@@ -325,7 +326,7 @@ interface SourceViewProps {
   filePath: string;
 }
 
-function SourceView({ content, highlightedLines, filePath }: SourceViewProps) {
+function SourceView({ content, highlightedLines, filePath: _filePath }: SourceViewProps) {
   const lines = useMemo(() => content.split("\n"), [content]);
 
   // Create a map from line number to highlighted tokens
@@ -516,9 +517,14 @@ function FileDiffSection({
           <ChevronRight className="h-4 w-4 text-slate-500" />
         )}
         {changeIcon[file.changeType]}
-        <span className="font-mono text-xs text-slate-200 flex-1 truncate">
-          {file.path}
-        </span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="font-mono text-xs text-slate-200 truncate" data-testid="diff-file-name">
+            {splitPath(file.path).file}
+          </span>
+          <span className="font-mono text-[10px] text-slate-500 truncate" data-testid="diff-file-dir">
+            {splitPath(file.path).dir}
+          </span>
+        </div>
 
         {/* Show hunk selection count when in selection mode */}
         {showHunkSelection && totalHunks > 0 && (
@@ -780,7 +786,7 @@ export function DiffViewer({
           )}
 
         {diff && hasChanges && (
-          <div className="flex items-center gap-3" data-testid={SELECTORS.diffStats}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-testid={SELECTORS.diffStats}>
             {/* Bulk select controls */}
             {showFileSelection && diff.files && diff.files.length > 0 && (
               <>
@@ -834,16 +840,17 @@ export function DiffViewer({
                 <span className="text-slate-700">|</span>
               </>
             )}
-            <span className="flex items-center gap-1 text-xs text-emerald-500">
+            {/* R5: Compact stats that don't clip on narrow screens */}
+            <span className="flex items-center gap-1 text-xs text-emerald-500 whitespace-nowrap">
               <Plus className="h-3 w-3" />
               {diff.totalAdded}
             </span>
-            <span className="flex items-center gap-1 text-xs text-red-500">
+            <span className="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap">
               <Minus className="h-3 w-3" />
               {diff.totalDeleted}
             </span>
-            <span className="text-xs text-slate-500">
-              {diff.files?.length || parsedFiles.length} file(s)
+            <span className="text-xs text-slate-500 whitespace-nowrap">
+              {diff.files?.length || parsedFiles.length} files
             </span>
           </div>
         )}

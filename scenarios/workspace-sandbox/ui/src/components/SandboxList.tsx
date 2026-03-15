@@ -15,10 +15,13 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { Badge } from "./ui/badge";
 import type { Sandbox, Status } from "../lib/api";
 import { formatBytes, formatRelativeTime } from "../lib/api";
+import { sandboxDisplayName, formatOwner, truncatePath } from "../lib/utils";
 import { SELECTORS } from "../consts/selectors";
+
+/** Max display length for paths in the sandbox list */
+const PATH_MAX_LENGTH = 35;
 
 interface SandboxListProps {
   sandboxes: Sandbox[];
@@ -35,6 +38,8 @@ interface SandboxGroupProps {
   onSelect: (sandbox: Sandbox) => void;
   icon: React.ReactNode;
   defaultExpanded?: boolean;
+  /** Mount health messages that have been consolidated into the top banner */
+  consolidatedMessages: Set<string>;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string }> = {
@@ -47,6 +52,22 @@ const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string }> = 
   error: { icon: <AlertCircle className="h-3.5 w-3.5 text-red-400" />, label: "Error" },
 };
 
+/** Compute the reserved path display string for a sandbox */
+function reservedPathDisplay(sandbox: Sandbox): string {
+  if (
+    sandbox.noLock &&
+    (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+    !sandbox.reservedPath
+  ) {
+    return "No lock";
+  }
+  const reserved = sandbox.reservedPaths?.length
+    ? sandbox.reservedPaths
+    : [sandbox.reservedPath || sandbox.scopePath || "/"];
+  const head = reserved[0] || "/";
+  return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
+}
+
 function SandboxGroup({
   title,
   status,
@@ -55,6 +76,7 @@ function SandboxGroup({
   onSelect,
   icon,
   defaultExpanded = true,
+  consolidatedMessages,
 }: SandboxGroupProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -79,62 +101,44 @@ function SandboxGroup({
       </button>
 
       {expanded && (
-        <ul className="mt-1 space-y-0.5">
+        <ul className="mt-1 divide-y divide-slate-800/30">
           {sandboxes.map((sandbox) => {
             const isSelected = selectedId === sandbox.id;
+            const displayName = sandboxDisplayName(sandbox);
+            const pathStr = reservedPathDisplay(sandbox);
+            const mountMsg = sandbox.mountHealth && !sandbox.mountHealth.healthy
+              ? (sandbox.mountHealth.hint || sandbox.mountHealth.error || "Mount unhealthy")
+              : null;
+            const isMountConsolidated = mountMsg ? consolidatedMessages.has(mountMsg) : false;
 
             return (
               <li
                 key={sandbox.id}
                 className={`group flex flex-col px-2 py-2 rounded cursor-pointer transition-colors touch-target ${
                   isSelected
-                    ? "bg-slate-700/50 border-l-2 border-l-emerald-500"
-                    : "hover:bg-slate-800/50 border-l-2 border-l-transparent"
+                    ? "bg-emerald-950/40 border-l-4 border-l-emerald-500"
+                    : "hover:bg-slate-800/50 border-l-4 border-l-transparent"
                 }`}
                 data-testid={SELECTORS.sandboxItem}
                 data-sandbox-id={sandbox.id}
                 onClick={() => onSelect(sandbox)}
               >
-                {/* Primary label - name or reserved path */}
+                {/* Primary label — friendly name */}
                 <div className="flex items-center gap-2 min-w-0">
                   <FolderOpen className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-                  <span className={`text-xs text-slate-200 truncate ${sandbox.name ? "font-medium" : "font-mono"}`}>
-                    {sandbox.name ||
-                      (() => {
-                        if (
-                          sandbox.noLock &&
-                          (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                          !sandbox.reservedPath
-                        ) {
-                          return "No lock";
-                        }
-                        const reserved = sandbox.reservedPaths?.length
-                          ? sandbox.reservedPaths
-                          : [sandbox.reservedPath || sandbox.scopePath || "/"];
-                        const head = reserved[0] || "/";
-                        return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
-                      })()}
+                  <span className="text-xs font-medium text-slate-200 truncate">
+                    {displayName}
                   </span>
                 </div>
 
-                {/* Path as secondary when name exists */}
-                {sandbox.name && (
+                {/* Secondary — reserved path (only if different from display name) */}
+                {pathStr !== displayName && pathStr !== "No lock" && (
                   <div className="flex items-center gap-2 mt-0.5 min-w-0 pl-5">
-                    <span className="font-mono text-[10px] text-slate-500 truncate">
-                      {(() => {
-                        if (
-                          sandbox.noLock &&
-                          (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                          !sandbox.reservedPath
-                        ) {
-                          return "No lock";
-                        }
-                        const reserved = sandbox.reservedPaths?.length
-                          ? sandbox.reservedPaths
-                          : [sandbox.reservedPath || sandbox.scopePath || "/"];
-                        const head = reserved[0] || "/";
-                        return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
-                      })()}
+                    <span
+                      className="font-mono text-[10px] text-slate-500 truncate"
+                      title={pathStr}
+                    >
+                      {truncatePath(pathStr, PATH_MAX_LENGTH)}
                     </span>
                   </div>
                 )}
@@ -144,7 +148,7 @@ function SandboxGroup({
                   {/* Owner */}
                   {sandbox.owner && (
                     <span className="truncate max-w-[100px]" title={sandbox.owner}>
-                      {sandbox.owner}
+                      {formatOwner(sandbox.owner, sandbox.ownerType)}
                     </span>
                   )}
 
@@ -168,16 +172,15 @@ function SandboxGroup({
                   </div>
                 )}
 
-                {/* Mount health warning */}
-                {sandbox.mountHealth && !sandbox.mountHealth.healthy && (
+                {/* Mount health warning — only if NOT consolidated into banner */}
+                {mountMsg && !isMountConsolidated && (
                   <div
                     className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400"
-                    title={sandbox.mountHealth.hint || sandbox.mountHealth.error}
+                    title={mountMsg}
+                    data-testid="mount-warning-inline"
                   >
                     <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">
-                      {sandbox.mountHealth.hint || sandbox.mountHealth.error || "Mount unhealthy"}
-                    </span>
+                    <span className="truncate">{mountMsg}</span>
                   </div>
                 )}
               </li>
@@ -223,6 +226,28 @@ export function SandboxList({
     return groups;
   }, [sandboxes]);
 
+  // R2: Consolidate repeated mount health warnings into banners
+  const { banners, consolidatedMessages } = useMemo(() => {
+    const messageCounts = new Map<string, number>();
+    for (const sb of sandboxes) {
+      if (sb.mountHealth && !sb.mountHealth.healthy) {
+        const msg = sb.mountHealth.hint || sb.mountHealth.error || "Mount unhealthy";
+        messageCounts.set(msg, (messageCounts.get(msg) || 0) + 1);
+      }
+    }
+
+    const consolidated = new Set<string>();
+    const bannerList: Array<{ message: string; count: number }> = [];
+    for (const [msg, count] of messageCounts) {
+      if (count >= 2) {
+        consolidated.add(msg);
+        bannerList.push({ message: msg, count });
+      }
+    }
+
+    return { banners: bannerList, consolidatedMessages: consolidated };
+  }, [sandboxes]);
+
   const hasAnySandboxes = sandboxes.length > 0;
 
   return (
@@ -239,6 +264,23 @@ export function SandboxList({
 
       <CardContent className="flex-1 p-0 overflow-hidden">
         <ScrollArea className="h-full px-2 py-2">
+          {/* Consolidated mount health banners */}
+          {banners.map((banner) => (
+            <div
+              key={banner.message}
+              className="mb-3 px-3 py-2 rounded-lg bg-amber-950/30 border border-amber-800/50 flex items-start gap-2"
+              data-testid="mount-warning-banner"
+            >
+              <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-amber-300">{banner.message}</p>
+                <p className="text-[10px] text-amber-400/70 mt-0.5">
+                  Affects {banner.count} sandboxes
+                </p>
+              </div>
+            </div>
+          ))}
+
           {/* Active and Creating - most important */}
           <SandboxGroup
             title="Active"
@@ -248,6 +290,7 @@ export function SandboxList({
             onSelect={onSelect}
             icon={STATUS_CONFIG.active.icon}
             defaultExpanded={true}
+            consolidatedMessages={consolidatedMessages}
           />
 
           {/* Stopped - needs review */}
@@ -259,6 +302,7 @@ export function SandboxList({
             onSelect={onSelect}
             icon={STATUS_CONFIG.stopped.icon}
             defaultExpanded={true}
+            consolidatedMessages={consolidatedMessages}
           />
 
           {/* Error - needs attention */}
@@ -270,6 +314,7 @@ export function SandboxList({
             onSelect={onSelect}
             icon={STATUS_CONFIG.error.icon}
             defaultExpanded={true}
+            consolidatedMessages={consolidatedMessages}
           />
 
           {/* Approved - historical */}
@@ -281,6 +326,7 @@ export function SandboxList({
             onSelect={onSelect}
             icon={STATUS_CONFIG.approved.icon}
             defaultExpanded={false}
+            consolidatedMessages={consolidatedMessages}
           />
 
           {/* Rejected - historical */}
@@ -292,6 +338,7 @@ export function SandboxList({
             onSelect={onSelect}
             icon={STATUS_CONFIG.rejected.icon}
             defaultExpanded={false}
+            consolidatedMessages={consolidatedMessages}
           />
 
           {/* Empty State */}

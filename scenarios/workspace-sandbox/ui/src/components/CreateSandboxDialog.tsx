@@ -22,7 +22,7 @@ import {
 import { Button } from "./ui/button";
 import { Input, Label } from "./ui/input";
 import { Select } from "./ui/select";
-import type { CreateRequest, OwnerType, Sandbox, PathValidationResult } from "../lib/api";
+import type { CreateRequest, OwnerType, Sandbox } from "../lib/api";
 import { validatePath } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
 

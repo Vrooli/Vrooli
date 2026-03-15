@@ -47,7 +47,7 @@ export function MobileNav({ activePanel, onPanelChange, changeCount }: MobileNav
               <div className="relative">
                 <Icon className="h-5 w-5" />
                 {item.id === "changes" && changeCount !== undefined && changeCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white whitespace-nowrap overflow-hidden">
                     {changeCount > 99 ? "99+" : changeCount}
                   </span>
                 )}
