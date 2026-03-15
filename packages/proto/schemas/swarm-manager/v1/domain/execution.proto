@@ -13,7 +13,7 @@ message ExecutionRecord {
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;
-  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "running", "completed", "failed", "canceled"] }];
+  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "starting", "running", "needs_review", "completed", "failed", "canceled"] }];
   string mode = 7 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
   optional string scheduled_at = 8;
   optional string started_at = 9;

@@ -3,11 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { SandboxList } from "./components/SandboxList";
 import { SandboxDetail } from "./components/SandboxDetail";
+import { DiffViewer } from "./components/DiffViewer";
 import { FileTree } from "./components/FileTree";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { CommitPendingDialog } from "./components/CommitPendingDialog";
 import { LaunchAgentDialog, type LaunchConfig } from "./components/LaunchAgentDialog";
+import { MobileNav, type MobilePanel } from "./components/layout/MobileNav";
+import { MobileHeader } from "./components/layout/MobileHeader";
+import { useIsMobile } from "./hooks/useViewportSize";
 import type { HunkSelection } from "./components/DiffViewer";
 import {
   useHealth,
@@ -44,10 +48,14 @@ function getUrlParams(): { sandboxId: string | null; autoReview: boolean } {
 
 export default function App() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // URL parameters for deep-linking
   const urlParams = useMemo(() => getUrlParams(), []);
   const [deepLinkProcessed, setDeepLinkProcessed] = useState(false);
+
+  // Mobile panel state
+  const [mobileActivePanel, setMobileActivePanel] = useState<MobilePanel>("sandboxes");
 
   // Local state
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
@@ -140,7 +148,10 @@ export default function App() {
 
   const handleSelectSandbox = useCallback((sandbox: Sandbox) => {
     setSelectedSandbox(sandbox);
-  }, []);
+    if (isMobile) {
+      setMobileActivePanel("details");
+    }
+  }, [isMobile]);
 
   const handleCreate = useCallback(
     (req: CreateRequest) => {
@@ -434,101 +445,58 @@ export default function App() {
     return Array.from(paths);
   }, [sandboxes]);
 
-  return (
-    <div
-      className="h-screen flex flex-col bg-slate-950 text-slate-50"
-      data-testid={SELECTORS.app}
-    >
-      {/* Status Header */}
-      <StatusHeader
-        health={healthQuery.data}
-        stats={stats}
-        isLoading={healthQuery.isLoading || sandboxesQuery.isLoading}
-        onRefresh={handleRefresh}
-        onCreateClick={() => setCreateDialogOpen(true)}
-        onSettingsClick={() => setSettingsDialogOpen(true)}
-        onCommitClick={() => setCommitDialogOpen(true)}
-      />
+  // Helper to compute sandbox path for FileTree
+  const getSandboxPath = useCallback((sandbox: Sandbox) => {
+    if (
+      sandbox.noLock &&
+      (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+      !sandbox.reservedPath
+    ) {
+      return "No lock";
+    }
+    const reserved = sandbox.reservedPaths?.length
+      ? sandbox.reservedPaths
+      : [sandbox.reservedPath || sandbox.scopePath || "/"];
+    return reserved[0] || "/";
+  }, []);
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden" ref={mainRef}>
-        {/* Left Panel - Sandbox List or File Tree (in review mode) */}
-        <div
-          className="flex-shrink-0 border-r border-slate-800 overflow-hidden"
-          style={{ width: sidebarWidth }}
-        >
-          {isReviewMode && currentSandbox ? (
-            <FileTree
-              diff={diffQuery.data}
-              sandboxPath={(() => {
-                if (
-                  currentSandbox.noLock &&
-                  (!currentSandbox.reservedPaths || currentSandbox.reservedPaths.length === 0) &&
-                  !currentSandbox.reservedPath
-                ) {
-                  return "No lock";
-                }
-                const reserved = currentSandbox.reservedPaths?.length
-                  ? currentSandbox.reservedPaths
-                  : [currentSandbox.reservedPath || currentSandbox.scopePath || "/"];
-                return reserved[0] || "/";
-              })()}
-              selectedHunks={selectedHunks}
-              onFileClick={handleScrollToFile}
-              onExitReview={handleExitReviewMode}
-            />
-          ) : (
-            <SandboxList
-              sandboxes={sandboxes}
-              selectedId={currentSandbox?.id}
-              onSelect={handleSelectSandbox}
-              isLoading={sandboxesQuery.isLoading}
-            />
-          )}
-        </div>
+  // Diff file count for mobile badge
+  const diffFileCount = diffQuery.data?.files?.length ?? 0;
 
-        {/* Sidebar Resize Handle */}
-        <div
-          className="w-1 bg-slate-900 hover:bg-slate-700 cursor-col-resize flex-shrink-0"
-          onMouseDown={handleSidebarResizeStart}
-        />
+  // Shared sandbox detail props
+  const sandboxDetailProps = {
+    sandbox: currentSandbox || undefined,
+    diff: diffQuery.data,
+    isDiffLoading: diffQuery.isLoading,
+    diffError: diffQuery.error,
+    onStop: handleStop,
+    onStart: handleStart,
+    onApprove: handleApprove,
+    onOverrideAcceptance: handleOverrideAcceptance,
+    onReject: handleReject,
+    onDelete: handleDelete,
+    onDiscardFile: handleDiscardFile,
+    onLaunchAgent: () => setLaunchDialogOpen(true),
+    onApproveSelected: handleApproveSelected,
+    isApproving: approveMutation.isPending,
+    isRejecting: rejectMutation.isPending,
+    isStopping: stopMutation.isPending,
+    isStarting: startMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    isDiscarding: discardMutation.isPending,
+    isReviewMode,
+    onReviewModeChange: setIsReviewMode,
+    selectedFileIds,
+    onSelectedFileIdsChange: setSelectedFileIds,
+    selectedHunks,
+    onSelectedHunksChange: setSelectedHunks,
+    viewMode,
+    onViewModeChange: setViewMode,
+  } as const;
 
-        {/* Detail Panel - Right Panel */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <SandboxDetail
-            sandbox={currentSandbox || undefined}
-            diff={diffQuery.data}
-            isDiffLoading={diffQuery.isLoading}
-            diffError={diffQuery.error}
-            onStop={handleStop}
-            onStart={handleStart}
-            onApprove={handleApprove}
-            onOverrideAcceptance={handleOverrideAcceptance}
-            onReject={handleReject}
-            onDelete={handleDelete}
-            onDiscardFile={handleDiscardFile}
-            onLaunchAgent={() => setLaunchDialogOpen(true)}
-            onApproveSelected={handleApproveSelected}
-            isApproving={approveMutation.isPending}
-            isRejecting={rejectMutation.isPending}
-            isStopping={stopMutation.isPending}
-            isStarting={startMutation.isPending}
-            isDeleting={deleteMutation.isPending}
-            isDiscarding={discardMutation.isPending}
-            // Review mode state (lifted)
-            isReviewMode={isReviewMode}
-            onReviewModeChange={setIsReviewMode}
-            selectedFileIds={selectedFileIds}
-            onSelectedFileIdsChange={setSelectedFileIds}
-            selectedHunks={selectedHunks}
-            onSelectedHunksChange={setSelectedHunks}
-            // View mode state
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-        </div>
-      </div>
-
+  // Shared elements (dialogs + error toast)
+  const sharedElements = (
+    <>
       {/* Create Sandbox Dialog */}
       <CreateSandboxDialog
         open={createDialogOpen}
@@ -575,7 +543,7 @@ export default function App() {
         execMutation.error ||
         startProcessMutation.error) && (
         <div
-          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md z-50"
+          className={`fixed right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md z-50 ${isMobile ? "bottom-20 left-4" : "bottom-4"}`}
           data-testid={SELECTORS.errorToast}
         >
           <p className="font-medium">Operation failed</p>
@@ -594,6 +562,150 @@ export default function App() {
           </p>
         </div>
       )}
+    </>
+  );
+
+  // ── Mobile Layout ──
+  if (isMobile) {
+    return (
+      <div
+        className="h-[100dvh] flex flex-col bg-slate-950 text-slate-50"
+        data-testid={SELECTORS.app}
+      >
+        <MobileHeader
+          health={healthQuery.data}
+          stats={stats}
+          isLoading={healthQuery.isLoading || sandboxesQuery.isLoading}
+          onRefresh={handleRefresh}
+          onCreateClick={() => setCreateDialogOpen(true)}
+          onSettingsClick={() => setSettingsDialogOpen(true)}
+          onCommitClick={() => setCommitDialogOpen(true)}
+        />
+
+        <main className="flex-1 min-h-0 overflow-hidden pb-16">
+          {mobileActivePanel === "sandboxes" && (
+            <div className="h-full overflow-y-auto">
+              {isReviewMode && currentSandbox ? (
+                <FileTree
+                  diff={diffQuery.data}
+                  sandboxPath={getSandboxPath(currentSandbox)}
+                  selectedHunks={selectedHunks}
+                  onFileClick={(filePath) => {
+                    handleScrollToFile(filePath);
+                    setMobileActivePanel("changes");
+                  }}
+                  onExitReview={handleExitReviewMode}
+                />
+              ) : (
+                <SandboxList
+                  sandboxes={sandboxes}
+                  selectedId={currentSandbox?.id}
+                  onSelect={handleSelectSandbox}
+                  isLoading={sandboxesQuery.isLoading}
+                />
+              )}
+            </div>
+          )}
+
+          {mobileActivePanel === "details" && (
+            <div className="h-full overflow-y-auto">
+              <SandboxDetail
+                {...sandboxDetailProps}
+                hideDiffViewer
+              />
+            </div>
+          )}
+
+          {mobileActivePanel === "changes" && (
+            <div className="h-full overflow-hidden">
+              <DiffViewer
+                diff={diffQuery.data}
+                isLoading={diffQuery.isLoading}
+                error={diffQuery.error}
+                showFileActions={
+                  (currentSandbox?.status === "active" || currentSandbox?.status === "stopped") &&
+                  !!handleDiscardFile
+                }
+                onRejectFile={handleDiscardFile}
+                showFileSelection={isReviewMode && (currentSandbox?.status === "active" || currentSandbox?.status === "stopped")}
+                selectedFiles={selectedFileIds}
+                onFileSelectionChange={setSelectedFileIds}
+                showHunkSelection={isReviewMode && (currentSandbox?.status === "active" || currentSandbox?.status === "stopped")}
+                selectedHunks={selectedHunks}
+                onHunkSelectionChange={setSelectedHunks}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+              />
+            </div>
+          )}
+        </main>
+
+        <MobileNav
+          activePanel={mobileActivePanel}
+          onPanelChange={setMobileActivePanel}
+          changeCount={diffFileCount}
+        />
+
+        {sharedElements}
+      </div>
+    );
+  }
+
+  // ── Desktop Layout ──
+  return (
+    <div
+      className="h-screen flex flex-col bg-slate-950 text-slate-50"
+      data-testid={SELECTORS.app}
+    >
+      {/* Status Header */}
+      <StatusHeader
+        health={healthQuery.data}
+        stats={stats}
+        isLoading={healthQuery.isLoading || sandboxesQuery.isLoading}
+        onRefresh={handleRefresh}
+        onCreateClick={() => setCreateDialogOpen(true)}
+        onSettingsClick={() => setSettingsDialogOpen(true)}
+        onCommitClick={() => setCommitDialogOpen(true)}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden" ref={mainRef}>
+        {/* Left Panel - Sandbox List or File Tree (in review mode) */}
+        <div
+          className="flex-shrink-0 border-r border-slate-800 overflow-hidden"
+          style={{ width: sidebarWidth }}
+        >
+          {isReviewMode && currentSandbox ? (
+            <FileTree
+              diff={diffQuery.data}
+              sandboxPath={getSandboxPath(currentSandbox)}
+              selectedHunks={selectedHunks}
+              onFileClick={handleScrollToFile}
+              onExitReview={handleExitReviewMode}
+            />
+          ) : (
+            <SandboxList
+              sandboxes={sandboxes}
+              selectedId={currentSandbox?.id}
+              onSelect={handleSelectSandbox}
+              isLoading={sandboxesQuery.isLoading}
+            />
+          )}
+        </div>
+
+        {/* Sidebar Resize Handle */}
+        <div
+          className="w-1 bg-slate-900 hover:bg-slate-700 cursor-col-resize flex-shrink-0"
+          onMouseDown={handleSidebarResizeStart}
+        />
+
+        {/* Detail Panel - Right Panel */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <SandboxDetail {...sandboxDetailProps} />
+        </div>
+      </div>
+
+      {sharedElements}
     </div>
   );
 }

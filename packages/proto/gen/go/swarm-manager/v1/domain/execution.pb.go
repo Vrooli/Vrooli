@@ -322,14 +322,14 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x88\a\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa0\a\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12F\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB#\xbaH r\x1eR\x04ideaR\x03fixR\aexecuteR\bresearchR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
-	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12W\n" +
-	"\x06status\x18\x06 \x01(\tB?\xbaH<r:R\apendingR\tscheduledR\arunningR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
+	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12o\n" +
+	"\x06status\x18\x06 \x01(\tBW\xbaHTrRR\apendingR\tscheduledR\bstartingR\arunningR\fneeds_reviewR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
 	"\x04mode\x18\a \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x04mode\x12&\n" +
 	"\fscheduled_at\x18\b \x01(\tH\x02R\vscheduledAt\x88\x01\x01\x12\"\n" +
 	"\n" +

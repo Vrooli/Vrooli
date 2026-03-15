@@ -333,6 +333,12 @@ const literalSelectors: LiteralSelectorTree = {
     cancelButton: "launch-cancel",
   },
 
+  // Mobile
+  mobileNav: "mobile-nav",
+  mobileHeader: "mobile-header",
+  mobileHeaderMore: "mobile-header-more",
+  bottomSheet: "bottom-sheet",
+
   // Error/loading states
   loading: "loading-spinner",
   errorToast: "error-toast",
@@ -363,6 +369,18 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     description: "Diff file item by path",
     selectorPattern: '[data-testid="diff-file-item"][data-file-path="${path}"]',
     params: { path: { type: "string" } },
+  }),
+
+  // Mobile nav tab by panel
+  mobileNavTab: defineDynamicSelector({
+    description: "Mobile navigation tab by panel name",
+    testIdPattern: "mobile-nav-${panel}",
+    params: {
+      panel: {
+        type: "enum",
+        values: ["sandboxes", "details", "changes"],
+      },
+    },
   }),
 
   // Diff hunk by index
@@ -449,6 +467,15 @@ export const SELECTORS = {
   launchSubmit: "launch-submit",
   launchCancel: "launch-cancel",
   launchAgentButton: "launch-agent-button",
+
+  // Mobile navigation
+  mobileNav: "mobile-nav",
+  mobileNavTab: (panel: string) => `mobile-nav-${panel}`,
+  mobileHeader: "mobile-header",
+  mobileHeaderMore: "mobile-header-more",
+
+  // Bottom sheet
+  bottomSheet: "bottom-sheet",
 
   // Error/loading
   loading: "loading-spinner",

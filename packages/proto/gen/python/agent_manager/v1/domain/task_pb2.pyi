@@ -38,7 +38,7 @@ class Task(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., phase_prompt_ids: _Optional[_Iterable[str]] = ..., context_attachments: _Optional[_Iterable[_Union[ContextAttachment, _Mapping]]] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ContextAttachment(_message.Message):
-    __slots__ = ("type", "path", "url", "content", "label", "key", "tags", "summary", "format", "priority")
+    __slots__ = ("type", "path", "url", "content", "label", "key", "tags", "summary", "format", "priority", "attachment_id")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
@@ -49,6 +49,7 @@ class ContextAttachment(_message.Message):
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_ID_FIELD_NUMBER: _ClassVar[int]
     type: str
     path: str
     url: str
@@ -59,7 +60,8 @@ class ContextAttachment(_message.Message):
     summary: str
     format: str
     priority: str
-    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., format: _Optional[str] = ..., priority: _Optional[str] = ...) -> None: ...
+    attachment_id: str
+    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., format: _Optional[str] = ..., priority: _Optional[str] = ..., attachment_id: _Optional[str] = ...) -> None: ...
 
 class ScopeLock(_message.Message):
     __slots__ = ("id", "run_id", "scope_path", "project_root", "acquired_at", "expires_at")

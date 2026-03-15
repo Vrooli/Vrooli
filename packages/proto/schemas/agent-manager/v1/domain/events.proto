@@ -251,6 +251,21 @@ message MessageEventData {
 
   // Message content.
   string content = 2;
+
+  // Image/file attachments included with this message.
+  repeated MessageAttachmentInfo attachments = 3;
+}
+
+// MessageAttachmentInfo stores metadata about an attachment included with a message.
+message MessageAttachmentInfo {
+  // Server-assigned unique identifier.
+  string id = 1;
+  // Original sanitized filename.
+  string file_name = 2;
+  // MIME type (e.g., "image/png").
+  string content_type = 3;
+  // Serving URL relative to API base.
+  string url = 4;
 }
 
 // MessageDeletedEventData marks a prior message as deleted/redacted.

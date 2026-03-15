@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
@@ -28,6 +28,8 @@ vi.mock('./lib/api', () => ({
     error: 0,
     totalSizeBytes: 0,
   }),
+  formatBytes: vi.fn((bytes: number) => `${bytes}B`),
+  formatRelativeTime: vi.fn(() => 'just now'),
 }));
 
 const createQueryClient = () =>
@@ -39,11 +41,22 @@ const createQueryClient = () =>
     },
   });
 
-describe('App', () => {
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', { value: width, writable: true, configurable: true });
+  window.dispatchEvent(new Event('resize'));
+}
+
+describe('App - Desktop Layout', () => {
   let queryClient: QueryClient;
+  const originalWidth = window.innerWidth;
 
   beforeEach(() => {
     queryClient = createQueryClient();
+    setViewportWidth(1024);
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalWidth);
   });
 
   /**
@@ -57,7 +70,6 @@ describe('App', () => {
       </QueryClientProvider>
     );
 
-    // App should render with the main container
     const appContainer = screen.getByTestId('workspace-sandbox-app');
     expect(appContainer).toBeInTheDocument();
   });
@@ -73,7 +85,6 @@ describe('App', () => {
       </QueryClientProvider>
     );
 
-    // The create button should be visible
     const createButton = await screen.findByTestId('create-sandbox-button');
     expect(createButton).toBeInTheDocument();
   });
@@ -89,8 +100,73 @@ describe('App', () => {
       </QueryClientProvider>
     );
 
-    // The sandbox list should be visible
     const sandboxList = screen.getByTestId('sandbox-list');
     expect(sandboxList).toBeInTheDocument();
+  });
+
+  it('does not render mobile navigation on desktop', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByTestId('mobile-nav')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-header')).not.toBeInTheDocument();
+  });
+});
+
+describe('App - Mobile Layout', () => {
+  let queryClient: QueryClient;
+  const originalWidth = window.innerWidth;
+
+  beforeEach(() => {
+    queryClient = createQueryClient();
+    setViewportWidth(375);
+  });
+
+  afterEach(() => {
+    setViewportWidth(originalWidth);
+  });
+
+  it('renders mobile navigation', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-header')).toBeInTheDocument();
+  });
+
+  it('renders sandbox list on the sandboxes tab', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId('sandbox-list')).toBeInTheDocument();
+  });
+
+  it('does not render the desktop status header on mobile', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByTestId('status-header')).not.toBeInTheDocument();
+  });
+
+  it('renders the app container with data-testid', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId('workspace-sandbox-app')).toBeInTheDocument();
   });
 });

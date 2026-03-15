@@ -62,6 +62,8 @@ interface SandboxDetailProps {
   // View mode props
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  /** When true, hide the DiffViewer section (used on mobile where diff has its own tab) */
+  hideDiffViewer?: boolean;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; variant: Status }> = {
@@ -175,6 +177,7 @@ export function SandboxDetail({
   onSelectedHunksChange,
   viewMode,
   onViewModeChange,
+  hideDiffViewer,
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -309,8 +312,8 @@ export function SandboxDetail({
     <div className="h-full flex flex-col" data-testid={SELECTORS.detailPanel} ref={containerRef}>
       {/* Details Panel */}
       <div
-        className="flex-shrink-0"
-        style={isDetailsCollapsed ? undefined : { height: headerHeight }}
+        className={hideDiffViewer ? "flex-1 min-h-0" : "flex-shrink-0"}
+        style={hideDiffViewer || isDetailsCollapsed ? undefined : { height: headerHeight }}
       >
         <Card className={isDetailsCollapsed ? "" : "h-full flex flex-col"}>
           <CardHeader
@@ -828,35 +831,37 @@ export function SandboxDetail({
         </Card>
       </div>
 
-      {/* Header/Diff Resize Handle - only show when details expanded */}
-      {!isDetailsCollapsed && (
+      {/* Header/Diff Resize Handle - only show when details expanded and diff visible */}
+      {!hideDiffViewer && !isDetailsCollapsed && (
         <div
           className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
           onMouseDown={handleHeaderResizeStart}
         />
       )}
 
-      {/* Diff Viewer */}
-      <div className="flex-1 min-h-0">
-        <DiffViewer
-          diff={diff}
-          isLoading={isDiffLoading}
-          error={diffError}
-          showFileActions={canApproveReject && !!onDiscardFile}
-          onRejectFile={onDiscardFile}
-          // File selection props for partial approval
-          showFileSelection={isReviewMode && canApproveReject}
-          selectedFiles={selectedFileIds}
-          onFileSelectionChange={onSelectedFileIdsChange}
-          // Hunk selection props for partial approval
-          showHunkSelection={isReviewMode && canApproveReject}
-          selectedHunks={selectedHunks}
-          onHunkSelectionChange={onSelectedHunksChange}
-          // View mode props
-          viewMode={viewMode}
-          onViewModeChange={onViewModeChange}
-        />
-      </div>
+      {/* Diff Viewer - hidden on mobile (separate tab) */}
+      {!hideDiffViewer && (
+        <div className="flex-1 min-h-0">
+          <DiffViewer
+            diff={diff}
+            isLoading={isDiffLoading}
+            error={diffError}
+            showFileActions={canApproveReject && !!onDiscardFile}
+            onRejectFile={onDiscardFile}
+            // File selection props for partial approval
+            showFileSelection={isReviewMode && canApproveReject}
+            selectedFiles={selectedFileIds}
+            onFileSelectionChange={onSelectedFileIdsChange}
+            // Hunk selection props for partial approval
+            showHunkSelection={isReviewMode && canApproveReject}
+            selectedHunks={selectedHunks}
+            onHunkSelectionChange={onSelectedHunksChange}
+            // View mode props
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

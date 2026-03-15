@@ -86,7 +86,7 @@ function SandboxGroup({
             return (
               <li
                 key={sandbox.id}
-                className={`group flex flex-col px-2 py-2 rounded cursor-pointer transition-colors ${
+                className={`group flex flex-col px-2 py-2 rounded cursor-pointer transition-colors touch-target ${
                   isSelected
                     ? "bg-slate-700/50 border-l-2 border-l-emerald-500"
                     : "hover:bg-slate-800/50 border-l-2 border-l-transparent"

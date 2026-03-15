@@ -157,7 +157,7 @@ function FileNodeComponent({ node, depth, onFileClick }: FileNodeComponentProps)
   const file = node.file!;
   return (
     <button
-      className="w-full flex items-center gap-2 py-1.5 px-2 text-left hover:bg-slate-800/50 transition-colors rounded-sm"
+      className="w-full flex items-center gap-2 py-1.5 px-2 text-left hover:bg-slate-800/50 transition-colors rounded-sm touch-target"
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
       onClick={() => onFileClick(file.filePath)}
       title={file.filePath}

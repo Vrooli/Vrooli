@@ -437,6 +437,24 @@ class RejectRunResponse(_message.Message):
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
 
+class PartialApproveRunRequest(_message.Message):
+    __slots__ = ("run_id", "file_ids", "actor", "commit_msg")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    FILE_IDS_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_MSG_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    file_ids: _containers.RepeatedScalarFieldContainer[str]
+    actor: str
+    commit_msg: str
+    def __init__(self, run_id: _Optional[str] = ..., file_ids: _Optional[_Iterable[str]] = ..., actor: _Optional[str] = ..., commit_msg: _Optional[str] = ...) -> None: ...
+
+class PartialApproveRunResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: _run_pb2.ApproveResult
+    def __init__(self, result: _Optional[_Union[_run_pb2.ApproveResult, _Mapping]] = ...) -> None: ...
+
 class GetRunnerStatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

@@ -182,7 +182,7 @@ func (x *Task) GetUpdatedAt() *timestamppb.Timestamp {
 type ContextAttachment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Type of attachment.
-	// @constraint "file" | "link" | "note"
+	// @constraint "file" | "link" | "note" | "image"
 	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// File path for "file" type attachments.
 	// Relative to project_root or absolute.
@@ -212,7 +212,9 @@ type ContextAttachment struct {
 	// Priority level indicating importance for the task.
 	// High priority context should be read first; low can be skipped if not needed.
 	// @constraint "high" | "medium" | "low"
-	Priority      string `protobuf:"bytes,10,opt,name=priority,proto3" json:"priority,omitempty"`
+	Priority string `protobuf:"bytes,10,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Optional reference to an uploaded Attachment (for image-type context).
+	AttachmentId  string `protobuf:"bytes,11,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,6 +315,13 @@ func (x *ContextAttachment) GetFormat() string {
 func (x *ContextAttachment) GetPriority() string {
 	if x != nil {
 		return x.Priority
+	}
+	return ""
+}
+
+func (x *ContextAttachment) GetAttachmentId() string {
+	if x != nil {
+		return x.AttachmentId
 	}
 	return ""
 }
@@ -721,9 +730,9 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8a\x02\n" +
-	"\x11ContextAttachment\x12+\n" +
-	"\x04type\x18\x01 \x01(\tB\x17\xbaH\x14r\x12R\x04fileR\x04linkR\x04noteR\x04type\x12\x12\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb6\x02\n" +
+	"\x11ContextAttachment\x122\n" +
+	"\x04type\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x04fileR\x04linkR\x04noteR\x05imageR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12\x14\n" +
@@ -733,7 +742,8 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"\asummary\x18\b \x01(\tR\asummary\x12\x16\n" +
 	"\x06format\x18\t \x01(\tR\x06format\x12\x1a\n" +
 	"\bpriority\x18\n" +
-	" \x01(\tR\bpriority\"\xec\x01\n" +
+	" \x01(\tR\bpriority\x12#\n" +
+	"\rattachment_id\x18\v \x01(\tR\fattachmentId\"\xec\x01\n" +
 	"\tScopeLock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1d\n" +

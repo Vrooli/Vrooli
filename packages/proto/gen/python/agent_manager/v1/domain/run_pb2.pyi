@@ -14,7 +14,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Run(_message.Message):
-    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions")
+    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview")
     ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +44,7 @@ class Run(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     id: str
     task_id: str
     agent_profile_id: str
@@ -73,7 +74,8 @@ class Run(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
     actions: RunActions
-    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ...) -> None: ...
+    prompt_preview: str
+    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ...) -> None: ...
 
 class RunActions(_message.Message):
     __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_extract_recommendations", "can_regenerate_recommendations")
@@ -262,16 +264,20 @@ class StopFailure(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ApproveResult(_message.Message):
-    __slots__ = ("success", "files_applied", "commit_hash", "message")
+    __slots__ = ("success", "files_applied", "commit_hash", "message", "remaining", "is_partial")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     FILES_APPLIED_FIELD_NUMBER: _ClassVar[int]
     COMMIT_HASH_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_FIELD_NUMBER: _ClassVar[int]
+    IS_PARTIAL_FIELD_NUMBER: _ClassVar[int]
     success: bool
     files_applied: int
     commit_hash: str
     message: str
-    def __init__(self, success: _Optional[bool] = ..., files_applied: _Optional[int] = ..., commit_hash: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+    remaining: int
+    is_partial: bool
+    def __init__(self, success: _Optional[bool] = ..., files_applied: _Optional[int] = ..., commit_hash: _Optional[str] = ..., message: _Optional[str] = ..., remaining: _Optional[int] = ..., is_partial: _Optional[bool] = ...) -> None: ...
 
 class RunDiff(_message.Message):
     __slots__ = ("run_id", "content", "files", "generated_at")
@@ -286,28 +292,48 @@ class RunDiff(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., content: _Optional[str] = ..., files: _Optional[_Iterable[_Union[FileDiff, _Mapping]]] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class FileDiff(_message.Message):
-    __slots__ = ("path", "change_type", "additions", "deletions", "is_binary", "patch")
+    __slots__ = ("path", "change_type", "additions", "deletions", "is_binary", "patch", "id")
     PATH_FIELD_NUMBER: _ClassVar[int]
     CHANGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ADDITIONS_FIELD_NUMBER: _ClassVar[int]
     DELETIONS_FIELD_NUMBER: _ClassVar[int]
     IS_BINARY_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
     path: str
     change_type: str
     additions: int
     deletions: int
     is_binary: bool
     patch: str
-    def __init__(self, path: _Optional[str] = ..., change_type: _Optional[str] = ..., additions: _Optional[int] = ..., deletions: _Optional[int] = ..., is_binary: _Optional[bool] = ..., patch: _Optional[str] = ...) -> None: ...
+    id: str
+    def __init__(self, path: _Optional[str] = ..., change_type: _Optional[str] = ..., additions: _Optional[int] = ..., deletions: _Optional[int] = ..., is_binary: _Optional[bool] = ..., patch: _Optional[str] = ..., id: _Optional[str] = ...) -> None: ...
+
+class Attachment(_message.Message):
+    __slots__ = ("id", "file_name", "content_type", "file_size", "storage_path", "url")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    FILE_NAME_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FILE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_PATH_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    file_name: str
+    content_type: str
+    file_size: int
+    storage_path: str
+    url: str
+    def __init__(self, id: _Optional[str] = ..., file_name: _Optional[str] = ..., content_type: _Optional[str] = ..., file_size: _Optional[int] = ..., storage_path: _Optional[str] = ..., url: _Optional[str] = ...) -> None: ...
 
 class ContinueRunRequest(_message.Message):
-    __slots__ = ("run_id", "message")
+    __slots__ = ("run_id", "message", "attachment_ids")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     message: str
-    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+    attachment_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ContinueRunResponse(_message.Message):
     __slots__ = ("success", "run", "error", "error_code")

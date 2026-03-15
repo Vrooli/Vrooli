@@ -92,12 +92,13 @@ message Task {
 // @usage Task.context_attachments
 message ContextAttachment {
   // Type of attachment.
-  // @constraint "file" | "link" | "note"
+  // @constraint "file" | "link" | "note" | "image"
   string type = 1 [(buf.validate.field).string = {
     in: [
       "file",
       "link",
-      "note"
+      "note",
+      "image"
     ]
   }];
 
@@ -138,6 +139,9 @@ message ContextAttachment {
   // High priority context should be read first; low can be skipped if not needed.
   // @constraint "high" | "medium" | "low"
   string priority = 10;
+
+  // Optional reference to an uploaded Attachment (for image-type context).
+  string attachment_id = 11;
 }
 
 // =============================================================================

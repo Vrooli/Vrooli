@@ -767,6 +767,28 @@ message RejectRunResponse {
   string status = 1;
 }
 
+// PartialApproveRunRequest approves only selected files from a run's changes.
+message PartialApproveRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // File IDs to approve (UUIDs from FileDiff.id).
+  repeated string file_ids = 2;
+
+  // Actor approving (user identifier).
+  optional string actor = 3;
+
+  // Commit message for the changes.
+  optional string commit_msg = 4;
+}
+
+// PartialApproveRunResponse returns partial approval result.
+message PartialApproveRunResponse {
+  // Approval result.
+  ApproveResult result = 1;
+}
+
 // =============================================================================
 // RUNNER MESSAGES
 // =============================================================================

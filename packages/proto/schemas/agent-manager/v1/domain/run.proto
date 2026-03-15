@@ -142,6 +142,10 @@ message Run {
 
   // Action availability for this run (computed).
   RunActions actions = 29;
+
+  // First ~120 characters of the associated task description.
+  // Populated on list/get responses for display purposes.
+  string prompt_preview = 30;
 }
 
 // RunActions captures which operations are currently allowed for a run.
@@ -435,6 +439,12 @@ message ApproveResult {
 
   // Message describing what was applied.
   string message = 4;
+
+  // Number of files remaining to be approved (for partial approve).
+  int32 remaining = 5;
+
+  // Whether this was a partial approval.
+  bool is_partial = 6;
 }
 
 // =============================================================================
@@ -478,6 +488,38 @@ message FileDiff {
 
   // Unified diff for this file.
   string patch = 6;
+
+  // File change ID (for partial approve).
+  // @format uuid
+  string id = 7;
+}
+
+// =============================================================================
+// ATTACHMENT
+// =============================================================================
+
+// Attachment represents an uploaded file (image, PDF, etc.) associated with a run.
+//
+// @usage POST /api/v1/attachments/upload response, ContinueRunRequest context
+message Attachment {
+  // Server-assigned unique identifier.
+  // @format uuid
+  string id = 1;
+
+  // Original sanitized filename.
+  string file_name = 2;
+
+  // MIME type (e.g., "image/png").
+  string content_type = 3;
+
+  // Size in bytes.
+  int64 file_size = 4;
+
+  // Internal storage path (not exposed to clients in all contexts).
+  string storage_path = 5;
+
+  // Serving URL relative to API base.
+  string url = 6;
 }
 
 // =============================================================================
@@ -497,6 +539,9 @@ message ContinueRunRequest {
 
   // Follow-up message to send to the agent.
   string message = 2 [(buf.validate.field).string.min_len = 1];
+
+  // IDs of uploaded attachments to include with this message.
+  repeated string attachment_ids = 3;
 }
 
 // ContinueRunResponse contains the result of continuing a run.
