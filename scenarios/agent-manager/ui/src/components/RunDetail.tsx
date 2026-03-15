@@ -3,9 +3,11 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
+  Check,
   ChevronDown,
   ChevronRight,
   Clock,
+  Copy,
   DollarSign,
   Eye,
   FileCode,
@@ -13,8 +15,10 @@ import {
   FolderOpen,
   Link2,
   MessageSquare,
+  MoreVertical,
   RotateCcw,
   Search,
+  Square,
   StickyNote,
   Tag,
   Terminal,
@@ -27,6 +31,7 @@ import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
+import { useViewportSize } from "../hooks/useViewportSize";
 import { formatRelativeTimeShort, formatStandardDateTime } from "../lib/dateTime";
 import type {
   ApproveFormData,
@@ -38,7 +43,7 @@ import type {
   Task,
 } from "../types";
 import { RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
-import { KPICard } from "../features/stats/components/kpi/KPICard";
+
 import { MarkdownRenderer } from "./markdown";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { ModelCostComparison } from "./ModelCostComparison";
@@ -61,6 +66,7 @@ interface RunDetailProps {
   onRetry: (run: Run) => Promise<Run>;
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
+  onStop: (run: Run) => Promise<void>;
   onDelete: (run: Run) => Promise<void>;
   onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
@@ -81,6 +87,7 @@ export function RunDetail({
   onRetry,
   onInvestigate,
   onApplyInvestigation,
+  onStop,
   onDelete,
   onContinue,
   onDeleteMessage,
@@ -90,6 +97,10 @@ export function RunDetail({
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
   const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
+  const [idCopied, setIdCopied] = useState(false);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const { isDesktop } = useViewportSize();
 
   const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
     storageKey: "run.details",
@@ -113,6 +124,18 @@ export function RunDetail({
     minOtherSize: TABS_MIN_HEIGHT,
   });
   const eventsScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Close actions menu on outside click
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [actionsMenuOpen]);
 
   const costTotals = getCostTotals(events);
   const durationMs =
@@ -189,7 +212,7 @@ export function RunDetail({
       {/* Details Section (collapsible) */}
       <div
         className="flex-shrink-0 flex flex-col border-b border-border"
-        style={isDetailsCollapsed ? undefined : { height: detailsHeight }}
+        style={isDetailsCollapsed || !isDesktop ? undefined : { height: detailsHeight }}
       >
         {/* Header - always visible, clickable to toggle */}
         <div
@@ -217,79 +240,171 @@ export function RunDetail({
             >
               {runStatusLabel(run.status).replace("_", " ")}
             </Badge>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(run.id);
+                setIdCopied(true);
+                setTimeout(() => setIdCopied(false), 1500);
+              }}
+              title={`Copy run ID: ${run.id}`}
+            >
+              <code className="font-mono">{run.id.slice(0, 8)}</code>
+              {idCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+            </button>
           </div>
-          {/* Action buttons in header */}
+          {/* Action buttons — stop is always primary, rest are inline on desktop / ellipsis on mobile */}
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {actions?.canInvestigate && (
+            {actions?.canStop && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onInvestigate(run.id)}
-                className="gap-1 h-7 px-2"
-                title="Investigate"
-              >
-                <Search className="h-3 w-3" />
-                <span className="hidden lg:inline">Investigate</span>
-              </Button>
-            )}
-            {canApplyFixes && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onApplyInvestigation(run.id)}
-                className="gap-1 h-7 px-2"
-                title="Apply Fixes"
-              >
-                <Wrench className="h-3 w-3" />
-                <span className="hidden lg:inline">Apply Fixes</span>
-              </Button>
-            )}
-            {actions?.canRetry && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onRetry(run)}
-                className="gap-1 h-7 px-2"
-                title="Re-run"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span className="hidden lg:inline">Re-run</span>
-              </Button>
-            )}
-            {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowReviewModal(true)}
-                className="gap-1 h-7 px-2"
-                title="Review changes"
-              >
-                <Eye className="h-3 w-3" />
-                <span className="hidden lg:inline">Review</span>
-              </Button>
-            )}
-            {canDeleteRun && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete(run)}
+                onClick={() => onStop(run)}
                 className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
-                disabled={deleteLoading}
-                title="Delete run"
+                title="Stop run"
               >
-                <Trash2 className="h-3 w-3" />
+                <Square className="h-3 w-3" />
+                <span className="hidden sm:inline">Stop</span>
               </Button>
+            )}
+            {isDesktop ? (
+              <>
+                {actions?.canInvestigate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onInvestigate(run.id)}
+                    className="gap-1 h-7 px-2"
+                    title="Investigate"
+                  >
+                    <Search className="h-3 w-3" />
+                    <span className="hidden lg:inline">Investigate</span>
+                  </Button>
+                )}
+                {canApplyFixes && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onApplyInvestigation(run.id)}
+                    className="gap-1 h-7 px-2"
+                    title="Apply Fixes"
+                  >
+                    <Wrench className="h-3 w-3" />
+                    <span className="hidden lg:inline">Apply Fixes</span>
+                  </Button>
+                )}
+                {actions?.canRetry && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRetry(run)}
+                    className="gap-1 h-7 px-2"
+                    title="Re-run"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span className="hidden lg:inline">Re-run</span>
+                  </Button>
+                )}
+                {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowReviewModal(true)}
+                    className="gap-1 h-7 px-2"
+                    title="Review changes"
+                  >
+                    <Eye className="h-3 w-3" />
+                    <span className="hidden lg:inline">Review</span>
+                  </Button>
+                )}
+                {canDeleteRun && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(run)}
+                    className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
+                    disabled={deleteLoading}
+                    title="Delete run"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </>
+            ) : (
+              <div className="relative" ref={actionsMenuRef}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActionsMenuOpen((prev) => !prev)}
+                  className="h-7 w-7 p-0"
+                  aria-label="Run actions"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+                {actionsMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border bg-card p-1 shadow-lg">
+                    {actions?.canInvestigate && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        onClick={() => { onInvestigate(run.id); setActionsMenuOpen(false); }}
+                      >
+                        <Search className="h-3.5 w-3.5" /> Investigate
+                      </button>
+                    )}
+                    {canApplyFixes && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        onClick={() => { onApplyInvestigation(run.id); setActionsMenuOpen(false); }}
+                      >
+                        <Wrench className="h-3.5 w-3.5" /> Apply Fixes
+                      </button>
+                    )}
+                    {actions?.canRetry && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        onClick={() => { onRetry(run); setActionsMenuOpen(false); }}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" /> Re-run
+                      </button>
+                    )}
+                    {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        onClick={() => { setShowReviewModal(true); setActionsMenuOpen(false); }}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Review
+                      </button>
+                    )}
+                    {canDeleteRun && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
+                        disabled={deleteLoading}
+                        onClick={() => { onDelete(run); setActionsMenuOpen(false); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
 
         {/* Content - hidden when collapsed */}
         {!isDetailsCollapsed && (
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 sm:p-4 sm:space-y-4">
             {/* Run Overview */}
-            <div className="rounded-lg border border-border bg-card/50 p-4">
+            <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
               <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Run Overview</p>
+                <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
                 <h3 className="text-lg font-semibold">{taskTitle}</h3>
                 <p className="text-sm text-muted-foreground">{profileName}</p>
               </div>
@@ -377,40 +492,27 @@ export function RunDetail({
             </div>
 
             {/* Highlights */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <KPICard
-                title="Status"
-                value={runStatusLabel(run.status).replace("_", " ")}
-                subtitle={runPhaseLabel(run.phase).replace("_", " ")}
-                icon={<Activity className="h-4 w-4" />}
-                variant={runVariant}
-              />
-              <KPICard
-                title="Duration"
-                value={durationMs !== null ? formatDuration(durationMs) : "In progress"}
-                subtitle={run.startedAt ? formatStandardDateTime(run.startedAt) : "Not started"}
-                icon={<Clock className="h-4 w-4" />}
-              />
-              <KPICard
-                title="Total Cost"
-                value={costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}
-                subtitle={`${totalTokens.toLocaleString()} tokens`}
-                icon={<DollarSign className="h-4 w-4" />}
-              />
-              <KPICard
-                title="Changes"
-                value={run.changedFiles > 0 ? `${run.changedFiles} files` : "No changes"}
-                subtitle={diff?.files?.length ? `${diff.files.length} files in diff` : "Diff pending"}
-                icon={<FileCode className="h-4 w-4" />}
-              />
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="rounded border border-border px-3 py-2">
+                <div className="text-xs text-muted-foreground">Duration</div>
+                <div className="font-semibold">{durationMs !== null ? formatDuration(durationMs) : "—"}</div>
+              </div>
+              <div className="rounded border border-border px-3 py-2">
+                <div className="text-xs text-muted-foreground">Cost</div>
+                <div className="font-semibold">{costTotals.totalCostUsd ? formatCurrency(costTotals.totalCostUsd) : "$0.0000"}</div>
+              </div>
+              <div className="rounded border border-border px-3 py-2">
+                <div className="text-xs text-muted-foreground">Changes</div>
+                <div className="font-semibold">{run.changedFiles > 0 ? `${run.changedFiles} files` : "None"}</div>
+              </div>
             </div>
           </div>
         )}
 
       </div>
 
-      {/* Resize handle - only when expanded */}
-      {!isDetailsCollapsed && (
+      {/* Resize handle - only when expanded, desktop only */}
+      {!isDetailsCollapsed && isDesktop && (
         <div
           className="h-1.5 bg-border hover:bg-primary/50 cursor-row-resize flex-shrink-0"
           onMouseDown={handleResizeStart}
@@ -423,62 +525,62 @@ export function RunDetail({
           <div className="flex border-b border-border overflow-x-auto overflow-y-hidden shrink-0">
             <button
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === "task"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setActiveTab("task")}
             >
-              <File className="h-4 w-4 inline mr-2" />
+              <span className="hidden sm:inline mr-2"><File className="h-4 w-4 inline" /></span>
               Task
             </button>
             <button
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === "events"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setActiveTab("events")}
             >
-              <Terminal className="h-4 w-4 inline mr-2" />
+              <span className="hidden sm:inline mr-2"><Terminal className="h-4 w-4 inline" /></span>
               Events ({events.length})
             </button>
             <button
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === "messages"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setActiveTab("messages")}
             >
-              <MessageSquare className="h-4 w-4 inline mr-2" />
+              <span className="hidden sm:inline mr-2"><MessageSquare className="h-4 w-4 inline" /></span>
               Messages
             </button>
             <button
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === "diff"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setActiveTab("diff")}
             >
-              <FileCode className="h-4 w-4 inline mr-2" />
+              <span className="hidden sm:inline mr-2"><FileCode className="h-4 w-4 inline" /></span>
               Diff
             </button>
             <button
               className={cn(
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === "cost"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setActiveTab("cost")}
             >
-              <DollarSign className="h-4 w-4 inline mr-2" />
+              <span className="hidden sm:inline mr-2"><DollarSign className="h-4 w-4 inline" /></span>
               Cost
             </button>
           </div>
@@ -489,7 +591,7 @@ export function RunDetail({
             onScroll={activeTab === "events" ? handleEventsScroll : undefined}
             className={cn(
               "flex-1 min-h-0",
-              activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-4"
+              activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-3 sm:p-4"
             )}
           >
             {activeTab === "task" ? (
@@ -551,7 +653,7 @@ export function RunDetail({
               </div>
             )
           ) : activeTab === "messages" ? (
-            <div className="flex-1 min-h-0 p-4">
+            <div className="flex-1 min-h-0 p-3 sm:p-4">
               <ChatInterface
                 run={run}
                 events={events}
@@ -581,32 +683,24 @@ export function RunDetail({
               No cost data available
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <KPICard
-                  title="Total Cost"
-                  value={formatCurrency(costTotals.totalCostUsd)}
-                  subtitle={`${costTotals.events} events`}
-                  icon={<DollarSign className="h-4 w-4" />}
-                />
-                <KPICard
-                  title="Total Tokens"
-                  value={totalTokens.toLocaleString()}
-                  subtitle={`${costTotals.inputTokens.toLocaleString()} input`}
-                  icon={<Terminal className="h-4 w-4" />}
-                />
-                <KPICard
-                  title="Output Tokens"
-                  value={costTotals.outputTokens.toLocaleString()}
-                  subtitle={`${costTotals.cacheReadTokens.toLocaleString()} cache read`}
-                  icon={<MessageSquare className="h-4 w-4" />}
-                />
-                <KPICard
-                  title="Requests"
-                  value={(costTotals.webSearchRequests + costTotals.serverToolUseRequests).toLocaleString()}
-                  subtitle={`${costTotals.serverToolUseRequests} tool calls`}
-                  icon={<Wrench className="h-4 w-4" />}
-                />
+            <div className="space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
+                <div className="rounded border border-border px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Total Cost</div>
+                  <div className="font-semibold">{formatCurrency(costTotals.totalCostUsd)}</div>
+                </div>
+                <div className="rounded border border-border px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Total Tokens</div>
+                  <div className="font-semibold">{totalTokens.toLocaleString()}</div>
+                </div>
+                <div className="rounded border border-border px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Output Tokens</div>
+                  <div className="font-semibold">{costTotals.outputTokens.toLocaleString()}</div>
+                </div>
+                <div className="rounded border border-border px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Requests</div>
+                  <div className="font-semibold">{(costTotals.webSearchRequests + costTotals.serverToolUseRequests).toLocaleString()}</div>
+                </div>
               </div>
               <CostBreakdown totals={costTotals} />
               <ModelCostComparison
@@ -760,7 +854,7 @@ function TaskSummary({ task }: { task: Task }) {
 
       <div className="space-y-3 text-sm">
         <div className="space-y-2">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Scope</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">Scope</h4>
           <div className="flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
             <code className="text-xs bg-muted px-2 py-1 rounded">{task.scopePath}</code>
@@ -769,14 +863,14 @@ function TaskSummary({ task }: { task: Task }) {
 
         {task.projectRoot && (
           <div className="space-y-2">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Project Root</h4>
+            <h4 className="text-xs font-medium text-muted-foreground">Project Root</h4>
             <code className="text-xs bg-muted px-2 py-1 rounded">{task.projectRoot}</code>
           </div>
         )}
 
         {task.contextAttachments && task.contextAttachments.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <h4 className="text-xs font-medium text-muted-foreground">
               Context Attachments
             </h4>
             <div className="space-y-2">
@@ -924,7 +1018,7 @@ function EventItem({ event }: { event: RunEvent }) {
         onClick={() => setExpanded(!expanded)}
       >
         <span className={cn("shrink-0", iconColor)}>{getIcon()}</span>
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
+        <span className="text-[10px] font-medium text-muted-foreground shrink-0">
           {runEventTypeLabel(event.eventType).replace("_", " ")}
         </span>
         <span className="flex-1 truncate text-sm text-foreground">
@@ -941,7 +1035,7 @@ function EventItem({ event }: { event: RunEvent }) {
       </div>
       {expanded && (
         <div className="px-3 pb-2 pt-1 space-y-1 border-t border-border/50">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="text-[10px] text-muted-foreground">
             Payload
           </div>
           <CodeBlock code={JSON.stringify(payloadValue, null, 2)} language="json" />

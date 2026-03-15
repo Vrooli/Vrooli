@@ -223,7 +223,7 @@ export function ChatInterface({
           <div
             key={message.id}
             className={cn(
-              "flex gap-3",
+              "flex gap-3 min-w-0",
               message.role === "user" ? "flex-row-reverse" : "flex-row"
             )}
           >
@@ -246,20 +246,20 @@ export function ChatInterface({
             {/* Message bubble */}
             <div
               className={cn(
-                "flex flex-col gap-1",
+                "flex flex-col gap-1 min-w-0",
                 message.role === "user" ? "items-end" : "items-start"
               )}
             >
               <div
                 className={cn(
-                  "max-w-[95%] rounded-lg px-4 py-2",
+                  "max-w-[95%] rounded-lg px-4 py-2 overflow-hidden",
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
                 )}
               >
                 {showContent ? (
-                  <div className="text-sm">
+                  <div className="text-sm overflow-x-auto break-words">
                     {/* Render image attachments as thumbnails */}
                     {message.attachments && message.attachments.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">

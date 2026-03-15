@@ -650,6 +650,7 @@ export function RunsPage({
             onRetry={handleRetry}
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
+            onStop={async (r) => handleStop(r.id)}
             onDelete={handleDelete}
             onContinue={async (message, attachmentIds) => {
               await onContinueRun(selectedRun.id, message, attachmentIds);

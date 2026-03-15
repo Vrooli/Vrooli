@@ -91,7 +91,7 @@ export function DetailModal({ open, onClose, title, children }: DetailModalProps
               aria-label="Back to list"
             >
               <ChevronLeft className="h-5 w-5" />
-              <span className="text-sm">Back</span>
+              <span className="text-sm hidden sm:inline">Back</span>
             </button>
           </div>
           <h2 className="font-semibold text-lg truncate px-4 flex-1 text-center">
