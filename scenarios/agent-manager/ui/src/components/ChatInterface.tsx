@@ -8,6 +8,7 @@ import { formatStandardDateTime } from "../lib/dateTime";
 import { MarkdownRenderer } from "./markdown";
 import { useAttachments } from "../hooks/useAttachments";
 import { AttachmentPreview } from "./AttachmentPreview";
+import { useViewportSize } from "../hooks/useViewportSize";
 import type { Run, RunEvent } from "../types";
 import { RunStatus } from "../types";
 import type { MessageAttachmentInfo } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
@@ -49,6 +50,7 @@ export function ChatInterface({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
+  const { isDesktop } = useViewportSize();
 
   const deletedMessages = useMemo(() => {
     const deleted = new Set<string>();
@@ -151,7 +153,7 @@ export function ChatInterface({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && isDesktop) {
       e.preventDefault();
       handleSend();
     }
@@ -428,9 +430,11 @@ export function ChatInterface({
               )}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Press Enter to send, Shift+Enter for new line
-          </p>
+          {isDesktop && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Press Enter to send, Shift+Enter for new line
+            </p>
+          )}
           {continueError ? (
             <div className="mt-2 flex items-center gap-2 text-xs text-destructive">
               <AlertCircle className="h-3 w-3" />

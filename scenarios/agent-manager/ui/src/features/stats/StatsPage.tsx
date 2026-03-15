@@ -15,15 +15,10 @@ import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
 export function StatsPage() {
   return (
     <TimeWindowProvider defaultPreset="24h">
-      <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-10 space-y-6">
+      <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
         {/* Header with controls */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">Statistics & Analytics</h2>
-            <p className="text-sm text-muted-foreground">
-              Performance metrics and trends for agent runs
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Statistics & Analytics</h2>
           <div className="flex items-center gap-3">
             <TimeWindowSelector />
             <ExportButton />
@@ -34,19 +29,19 @@ export function StatsPage() {
         <KPISummary />
 
         {/* Charts Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <RunStatusTrends />
           <CostDurationTrends />
         </div>
 
         {/* Tables Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <RunnerPerformanceTable />
           <ProfileActivityTable />
         </div>
 
         {/* Breakdowns Row */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <ModelUsageBreakdown />
           <ToolUsageAnalytics />
         </div>

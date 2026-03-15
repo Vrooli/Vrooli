@@ -25,16 +25,16 @@ export function CostDurationTrends() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-40 animate-pulse rounded bg-muted/30" />
-        <div className="h-[300px] animate-pulse rounded bg-muted/20" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-40 animate-pulse rounded bg-muted/30" />
+        <div className="h-[200px] sm:h-[300px] animate-pulse rounded bg-muted/20" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Cost & Duration</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -54,18 +54,18 @@ export function CostDurationTrends() {
   const maxDuration = Math.max(...chartData.map((d) => d.duration), 0);
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+      <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Cost & Duration Trends
       </h3>
       {chartData.length === 0 ? (
-        <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+        <div className="flex h-[200px] sm:h-[300px] items-center justify-center text-sm text-muted-foreground">
           No data available for this time period
         </div>
       ) : (
-        <div className="h-[300px]">
+        <div className="h-[200px] sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={CHART_MARGINS}>
+            <LineChart data={chartData} margin={{ ...CHART_MARGINS, bottom: 5, left: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"

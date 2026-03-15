@@ -57,8 +57,8 @@ export function KPICard({
 
   if (loading) {
     return (
-      <div className={`rounded-lg border p-4 ${getVariantStyles()}`}>
-        <div className="animate-pulse space-y-3">
+      <div className={`rounded-lg border px-3 py-2 sm:p-4 overflow-hidden min-w-0 ${getVariantStyles()}`}>
+        <div className="animate-pulse space-y-2">
           <div className="h-4 w-20 rounded bg-muted/30" />
           <div className="h-8 w-24 rounded bg-muted/30" />
           <div className="h-3 w-16 rounded bg-muted/30" />
@@ -69,7 +69,7 @@ export function KPICard({
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 sm:p-4 overflow-hidden min-w-0">
         <p className="text-xs text-muted-foreground">{title}</p>
         <p className="mt-1 text-sm text-red-500">Error loading</p>
       </div>
@@ -77,26 +77,21 @@ export function KPICard({
   }
 
   return (
-    <div className={`rounded-lg border p-4 ${getVariantStyles()}`}>
+    <div className={`rounded-lg border px-3 py-2 sm:p-4 overflow-hidden min-w-0 ${getVariantStyles()}`}>
       <div className="flex items-start justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           {title}
         </p>
         {icon && <div className="text-muted-foreground">{icon}</div>}
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
-      <div className="mt-1 flex items-center gap-2">
-        {subtitle && (
-          <span className="text-xs text-muted-foreground">{subtitle}</span>
-        )}
-        {trend !== undefined && (
-          <span className={`flex items-center gap-1 text-xs ${getTrendColor()}`}>
-            {getTrendIcon()}
-            {Math.abs(trend).toFixed(1)}%
-            {trendLabel && <span className="text-muted-foreground">{trendLabel}</span>}
-          </span>
-        )}
-      </div>
+      <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums">{value}</p>
+      {trend !== undefined && (
+        <span className={`mt-1 flex items-center gap-1 text-xs ${getTrendColor()}`}>
+          {getTrendIcon()}
+          {Math.abs(trend).toFixed(1)}%
+          {trendLabel && <span className="text-muted-foreground">{trendLabel}</span>}
+        </span>
+      )}
     </div>
   );
 }

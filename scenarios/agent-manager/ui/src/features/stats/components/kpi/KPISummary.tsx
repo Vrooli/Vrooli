@@ -34,11 +34,10 @@ export function KPISummary() {
     : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
       <KPICard
         title="Success Rate"
         value={summary ? formatPercent(summary.successRate) : "-"}
-        subtitle="completed runs"
         icon={<CheckCircle2 className="h-4 w-4" />}
         loading={isLoading}
         error={error?.message}
@@ -55,7 +54,6 @@ export function KPISummary() {
       <KPICard
         title="Total Cost"
         value={cost ? formatUsdFixed(cost.totalCostUsd, 2) : "-"}
-        subtitle={cost ? `${formatNumber(cost.totalTokens)} tokens` : undefined}
         icon={<DollarSign className="h-4 w-4" />}
         loading={isLoading}
         error={error?.message}
@@ -63,7 +61,6 @@ export function KPISummary() {
       <KPICard
         title="Avg Duration"
         value={duration ? formatDuration(duration.avgMs) : "-"}
-        subtitle={duration ? `p95: ${formatDuration(duration.p95Ms)}` : undefined}
         icon={<Clock className="h-4 w-4" />}
         loading={isLoading}
         error={error?.message}
@@ -71,7 +68,6 @@ export function KPISummary() {
       <KPICard
         title="Throughput"
         value={throughput > 0 ? `${throughput.toFixed(1)}/hr` : "-"}
-        subtitle="runs per hour"
         icon={<Activity className="h-4 w-4" />}
         loading={isLoading}
         error={error?.message}
@@ -79,11 +75,6 @@ export function KPISummary() {
       <KPICard
         title="Queue"
         value={counts ? formatNumber(counts.pending + counts.running) : "-"}
-        subtitle={
-          counts
-            ? `${counts.pending} pending, ${counts.running} running`
-            : undefined
-        }
         icon={<ListTodo className="h-4 w-4" />}
         loading={isLoading}
         error={error?.message}

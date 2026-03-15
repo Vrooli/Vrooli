@@ -69,16 +69,16 @@ export function ToolUsageAnalytics() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
+        <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Tool Usage</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -86,10 +86,10 @@ export function ToolUsageAnalytics() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       {selectedTool && selectedStats ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-2 sm:mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -101,7 +101,7 @@ export function ToolUsageAnalytics() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-sm font-semibold text-muted-foreground">
                   Tool Usage
                 </h3>
                 <p className="text-sm font-medium text-foreground">
@@ -147,17 +147,17 @@ export function ToolUsageAnalytics() {
           </div>
           {activeTab === "runs" ? (
             runsLoading ? (
-              <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+              <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
             ) : runsError ? (
               <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
                 Failed to load runs: {runsError.message}
               </div>
             ) : (toolRuns?.runs?.length ?? 0) === 0 ? (
-              <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
                 No runs found for this tool in the selected window
               </div>
             ) : (
-              <div className="max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+              <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
                 {toolRuns?.runs.map((run) => (
                   <div key={run.runId} className="flex flex-wrap items-center justify-between gap-4 py-3">
                     <div>
@@ -185,17 +185,17 @@ export function ToolUsageAnalytics() {
               </div>
             )
           ) : modelsLoading ? (
-            <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+            <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : modelsError ? (
             <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
               Failed to load models: {modelsError.message}
             </div>
           ) : (toolModels?.models?.length ?? 0) === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No model usage found for this tool in the selected window
             </div>
           ) : (
-            <div className="max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+            <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
               {toolModels?.models.map((model) => (
                 <div key={model.model} className="flex flex-wrap items-center justify-between gap-4 py-3">
                   <div>
@@ -217,18 +217,18 @@ export function ToolUsageAnalytics() {
         </>
       ) : (
         <>
-          <div className="mb-4 flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 sm:mb-4 flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Tool Usage
             </h3>
             <span className="text-xs text-muted-foreground">Click a bar to view runs</span>
           </div>
           {chartData.length === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No tool usage data available
             </div>
           ) : (
-            <div className="h-[250px]">
+            <div className="h-[200px] sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
