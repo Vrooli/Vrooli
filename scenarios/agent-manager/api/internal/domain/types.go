@@ -50,8 +50,9 @@ type AgentProfile struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
 
 	// Default policies (can be overridden per task)
-	RequiresSandbox  bool `json:"requiresSandbox" db:"requires_sandbox"`
-	RequiresApproval bool `json:"requiresApproval" db:"requires_approval"`
+	RequiresSandbox  bool          `json:"requiresSandbox" db:"requires_sandbox"`
+	RequiresApproval bool          `json:"requiresApproval" db:"requires_approval"`
+	NetworkAccess    NetworkAccess `json:"networkAccess" db:"network_access"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
@@ -112,6 +113,42 @@ func (p ModelPreset) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// NetworkAccess controls the level of network access granted to an agent during execution.
+type NetworkAccess string
+
+const (
+	// NetworkAccessNone blocks all network access.
+	// Codex: maps to --full-auto.
+	NetworkAccessNone NetworkAccess = "none"
+
+	// NetworkAccessLocalhost allows access to localhost only (local scenario APIs).
+	// Codex: maps to --dangerously-bypass-approvals-and-sandbox.
+	NetworkAccessLocalhost NetworkAccess = "localhost"
+
+	// NetworkAccessFull allows unrestricted network access.
+	// Codex: maps to --dangerously-bypass-approvals-and-sandbox.
+	NetworkAccessFull NetworkAccess = "full"
+)
+
+// IsValid reports whether the network access level is a supported value.
+// Empty string is valid and treated as NetworkAccessLocalhost at runtime.
+func (n NetworkAccess) IsValid() bool {
+	switch n {
+	case "", NetworkAccessNone, NetworkAccessLocalhost, NetworkAccessFull:
+		return true
+	default:
+		return false
+	}
+}
+
+// Effective returns the network access level, defaulting empty to NetworkAccessLocalhost.
+func (n NetworkAccess) Effective() NetworkAccess {
+	if n == "" {
+		return NetworkAccessLocalhost
+	}
+	return n
 }
 
 // SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
@@ -455,8 +492,9 @@ type RunConfig struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
 
 	// Policy flags
-	RequiresSandbox  bool `json:"requiresSandbox"`
-	RequiresApproval bool `json:"requiresApproval"`
+	RequiresSandbox  bool          `json:"requiresSandbox"`
+	RequiresApproval bool          `json:"requiresApproval"`
+	NetworkAccess    NetworkAccess `json:"networkAccess"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -491,6 +529,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	}
 	c.RequiresSandbox = profile.RequiresSandbox
 	c.RequiresApproval = profile.RequiresApproval
+	c.NetworkAccess = profile.NetworkAccess
 	c.SandboxConfig = profile.SandboxConfig
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
@@ -504,6 +543,7 @@ func DefaultRunConfig() *RunConfig {
 		Timeout:          30 * time.Minute,
 		RequiresSandbox:  true,
 		RequiresApproval: true,
+		NetworkAccess:    NetworkAccessLocalhost,
 	}
 }
 

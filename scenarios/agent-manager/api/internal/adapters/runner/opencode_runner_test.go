@@ -7,6 +7,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -598,4 +599,55 @@ func TestOpenCodeRunner_NonJSONANSILinesSkipped(t *testing.T) {
 			t.Errorf("expected 0 events for ANSI line %q, got %d", line, len(events))
 		}
 	}
+}
+
+// =============================================================================
+// OPENCODE SYSTEM PROMPT FALLBACK TESTS
+// =============================================================================
+
+func TestOpenCodeRunner_BuildArgs_SystemPrompt(t *testing.T) {
+	r := NewTestOpenCodeRunner()
+
+	t.Run("no system prompt passes prompt directly", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:  uuid.New(),
+			Prompt: "fix the tests",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeOpenCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		// Third arg (index 2) is the prompt
+		if len(args) < 3 {
+			t.Fatalf("expected at least 3 args, got %d", len(args))
+		}
+		if args[2] != "fix the tests" {
+			t.Errorf("prompt arg = %q, want %q", args[2], "fix the tests")
+		}
+	})
+
+	t.Run("system prompt is prepended with tags", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:        uuid.New(),
+			Prompt:       "user data",
+			SystemPrompt: "system instructions",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeOpenCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		if len(args) < 3 {
+			t.Fatalf("expected at least 3 args, got %d", len(args))
+		}
+		prompt := args[2]
+		if !strings.Contains(prompt, "<system-instructions>") {
+			t.Error("expected <system-instructions> tag in prompt arg")
+		}
+		if !strings.Contains(prompt, "system instructions") {
+			t.Error("expected system prompt content in prompt arg")
+		}
+		if !strings.Contains(prompt, "user data") {
+			t.Error("expected user prompt content in prompt arg")
+		}
+	})
 }

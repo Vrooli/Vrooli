@@ -106,7 +106,7 @@ export const InvestigationTab = React.forwardRef<InvestigationTabHandle, Investi
   const [draftApplyPrompt, setDraftApplyPrompt] = useState("");
   const [draftTagAllowlist, setDraftTagAllowlist] = useState<InvestigationTagRule[]>([]);
   const [saving, setSaving] = useState(false);
-  const [resetting, setResetting] = useState(false);
+  const [_resetting, setResetting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [openingProfile, setOpeningProfile] = useState(false);
 

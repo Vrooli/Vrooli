@@ -1,7 +1,7 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { runnerTypeLabel } from "../lib/utils";
+import { networkAccessLabel, runnerTypeLabel } from "../lib/utils";
 import { formatStandardDateTime } from "../lib/dateTime";
 import type { AgentProfile } from "../types";
 import { ModelPreset } from "../types";
@@ -79,6 +79,9 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         )}
         {profile.requiresApproval && (
           <Badge variant="outline">Approval Required</Badge>
+        )}
+        {profile.networkAccess != null && (
+          <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
         )}
         {profile.features?.enableBrowser && (
           <Badge variant="outline">Browser</Badge>

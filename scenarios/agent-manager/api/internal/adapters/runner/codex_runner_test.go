@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -962,4 +963,51 @@ func TestIsOnlyANSI(t *testing.T) {
 			}
 		})
 	}
+}
+
+// =============================================================================
+// CODEX SYSTEM PROMPT FALLBACK TESTS
+// =============================================================================
+
+func TestCodexRunner_EffectivePrompt_InBuildArgs(t *testing.T) {
+	// Codex uses EffectivePrompt() when writing to stdin.
+	// Verify the fallback XML-tag wrapping works correctly.
+	r := NewTestCodexRunner()
+
+	t.Run("no system prompt passes prompt as-is", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:  uuid.New(),
+			Prompt: "fix the bug",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeCodex,
+			},
+		}
+		got := req.EffectivePrompt()
+		if got != "fix the bug" {
+			t.Errorf("EffectivePrompt() = %q, want %q", got, "fix the bug")
+		}
+		// Verify buildJSONArgs doesn't crash
+		_ = r.BuildJSONArgsForTest(req)
+	})
+
+	t.Run("system prompt is wrapped in tags", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:        uuid.New(),
+			Prompt:       "context data here",
+			SystemPrompt: "you are a code reviewer",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeCodex,
+			},
+		}
+		got := req.EffectivePrompt()
+		if !strings.Contains(got, "<system-instructions>") {
+			t.Error("expected <system-instructions> tag in effective prompt")
+		}
+		if !strings.Contains(got, "you are a code reviewer") {
+			t.Error("expected system prompt content in effective prompt")
+		}
+		if !strings.Contains(got, "context data here") {
+			t.Error("expected user prompt content in effective prompt")
+		}
+	})
 }

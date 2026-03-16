@@ -18,6 +18,7 @@ export interface ContextAttachmentData {
 export {
   RunnerType,
   ModelPreset,
+  NetworkAccess,
   TaskStatus,
   RunStatus,
   ApprovalState,
@@ -88,6 +89,7 @@ export interface ProfileFormData {
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
   requiresApproval?: boolean;
+  networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
   features?: {
@@ -120,6 +122,7 @@ export interface RunFormData {
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
   requiresApproval?: boolean;
+  networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
   features?: {

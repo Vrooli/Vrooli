@@ -12,6 +12,7 @@ const app = createScenarioServer({
   verbose: process.env.NODE_ENV === 'development',
   // Extended timeout for LLM-based operations (recommendation extraction)
   proxyTimeoutMs: 180000, // 3 minutes
+  embeddedProxy: true,
   setupRoutes: (appInstance) => {
     appInstance.use((_req, res, next) => {
       const originalSend = res.send.bind(res)

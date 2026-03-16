@@ -68,7 +68,21 @@ import {
 import {
   ExtraFlagListSchema,
   FeatureFlagsSchema,
+  NetworkAccess,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+
+function networkAccessToProto(na: "none" | "localhost" | "full"): NetworkAccess {
+  switch (na) {
+    case "none":
+      return NetworkAccess.NONE;
+    case "localhost":
+      return NetworkAccess.LOCALHOST;
+    case "full":
+      return NetworkAccess.FULL;
+    default:
+      return NetworkAccess.LOCALHOST;
+  }
+}
 
 interface ApiState<T> {
   data: T | null;
@@ -287,6 +301,7 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
     requiresSandbox: profile.requiresSandbox ?? true,
     requiresApproval: profile.requiresApproval ?? true,
+    networkAccess: networkAccessToProto(profile.networkAccess ?? "localhost"),
     allowedPaths: profile.allowedPaths ?? [],
     deniedPaths: profile.deniedPaths ?? [],
     features: profile.features?.enableBrowser
@@ -361,6 +376,9 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (typeof run.requiresApproval === "boolean") {
     payload.requiresApproval = run.requiresApproval;
   }
+  if (run.networkAccess !== undefined) {
+    payload.networkAccess = networkAccessToProto(run.networkAccess);
+  }
   if (run.allowedPaths !== undefined) {
     payload.allowedPaths = run.allowedPaths;
     if (run.allowedPaths.length === 0) {
@@ -405,6 +423,7 @@ function hasInlineConfig(run: RunFormData): boolean {
       typeof run.skipPermissionPrompt === "boolean" ||
       typeof run.requiresSandbox === "boolean" ||
       typeof run.requiresApproval === "boolean" ||
+      run.networkAccess !== undefined ||
       run.allowedPaths !== undefined ||
       run.deniedPaths !== undefined ||
       run.features !== undefined ||

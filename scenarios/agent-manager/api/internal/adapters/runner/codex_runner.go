@@ -358,8 +358,10 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		))
 	}
 
-	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	// Write prompt and close stdin.
+	// Codex has no native system prompt mechanism, so EffectivePrompt()
+	// prepends SystemPrompt with <system-instructions> tags if present.
+	if _, err := stdin.Write([]byte(req.EffectivePrompt())); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeCodex,
 			Operation:  "execute",
@@ -550,8 +552,10 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		))
 	}
 
-	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	// Write prompt and close stdin.
+	// Codex has no native system prompt mechanism, so EffectivePrompt()
+	// prepends SystemPrompt with <system-instructions> tags if present.
+	if _, err := stdin.Write([]byte(req.EffectivePrompt())); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeCodex,
 			Operation:  "execute",
@@ -734,13 +738,13 @@ func (r *CodexRunner) buildJSONArgs(req ExecuteRequest) []string {
 		"--skip-git-repo-check",
 	}
 
-	// Respect the profile's sandbox setting.
-	// When RequiresSandbox is false, we use --dangerously-bypass-approvals-and-sandbox
-	// which is designed for "environments that are externally sandboxed" (per Codex docs).
-	// This enables network access (e.g., SSH) which is blocked by --full-auto.
-	if cfg.RequiresSandbox {
+	// Network access policy determines Codex's sandbox mode.
+	// RequiresSandbox only controls overlayfs file isolation (run mode decision).
+	switch cfg.NetworkAccess.Effective() {
+	case domain.NetworkAccessNone:
 		args = append(args, "--full-auto")
-	} else {
+	default:
+		// localhost or full: bypass Codex's internal sandbox to allow network access.
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}
 

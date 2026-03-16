@@ -18,7 +18,7 @@ interface KPICardProps {
 export function KPICard({
   title,
   value,
-  subtitle,
+  subtitle: _subtitle,
   trend,
   trendLabel,
   icon,

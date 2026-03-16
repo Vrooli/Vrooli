@@ -1,6 +1,7 @@
 package runner_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -796,4 +797,134 @@ func TestParseStreamEvents_CompactionFlow(t *testing.T) {
 	if data.OriginalCommand != "/compact focus on auth" {
 		t.Errorf("OriginalCommand = %s, want '/compact focus on auth'", data.OriginalCommand)
 	}
+}
+
+// =============================================================================
+// EFFECTIVE PROMPT TESTS
+// =============================================================================
+
+func TestExecuteRequest_EffectivePrompt(t *testing.T) {
+	tests := []struct {
+		name         string
+		req          runner.ExecuteRequest
+		wantContains []string
+		wantExact    string
+	}{
+		{
+			name: "no system prompt returns prompt unchanged",
+			req: runner.ExecuteRequest{
+				Prompt:       "user message",
+				SystemPrompt: "",
+			},
+			wantExact: "user message",
+		},
+		{
+			name: "no user prompt returns system prompt unchanged",
+			req: runner.ExecuteRequest{
+				Prompt:       "",
+				SystemPrompt: "instructions",
+			},
+			wantExact: "instructions",
+		},
+		{
+			name: "both prompts wraps system in XML tags",
+			req: runner.ExecuteRequest{
+				Prompt:       "user data here",
+				SystemPrompt: "you are an investigator",
+			},
+			wantContains: []string{
+				"<system-instructions>",
+				"you are an investigator",
+				"</system-instructions>",
+				"user data here",
+			},
+		},
+		{
+			name: "system prompt appears before user prompt",
+			req: runner.ExecuteRequest{
+				Prompt:       "user data",
+				SystemPrompt: "system instructions",
+			},
+			wantContains: []string{
+				"<system-instructions>",
+				"</system-instructions>",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.req.EffectivePrompt()
+
+			if tt.wantExact != "" {
+				if got != tt.wantExact {
+					t.Errorf("EffectivePrompt() = %q, want %q", got, tt.wantExact)
+				}
+				return
+			}
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(got, want) {
+					t.Errorf("EffectivePrompt() missing %q, got:\n%s", want, got)
+				}
+			}
+
+			// Verify ordering: system-instructions tag appears before user data
+			if tt.req.SystemPrompt != "" && tt.req.Prompt != "" {
+				sysIdx := strings.Index(got, "<system-instructions>")
+				userIdx := strings.Index(got, tt.req.Prompt)
+				if sysIdx >= userIdx {
+					t.Errorf("system prompt should appear before user prompt, sys=%d user=%d", sysIdx, userIdx)
+				}
+			}
+		})
+	}
+}
+
+// =============================================================================
+// CLAUDE CODE SYSTEM PROMPT ENV VAR TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildEnv_SystemPrompt(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	t.Run("includes APPEND_SYSTEM_PROMPT when set", func(t *testing.T) {
+		req := runner.ExecuteRequest{
+			RunID:        uuid.New(),
+			SystemPrompt: "You are an investigation agent.",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "APPEND_SYSTEM_PROMPT=") {
+				found = true
+				val := strings.TrimPrefix(e, "APPEND_SYSTEM_PROMPT=")
+				if val != "You are an investigation agent." {
+					t.Errorf("APPEND_SYSTEM_PROMPT = %q, want %q", val, "You are an investigation agent.")
+				}
+			}
+		}
+		if !found {
+			t.Error("expected APPEND_SYSTEM_PROMPT in env vars")
+		}
+	})
+
+	t.Run("omits APPEND_SYSTEM_PROMPT when empty", func(t *testing.T) {
+		req := runner.ExecuteRequest{
+			RunID:        uuid.New(),
+			SystemPrompt: "",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		for _, e := range env {
+			if strings.HasPrefix(e, "APPEND_SYSTEM_PROMPT=") {
+				t.Error("expected no APPEND_SYSTEM_PROMPT when system prompt is empty")
+			}
+		}
+	})
 }

@@ -201,6 +201,7 @@ type CreateRunRequest struct {
 	EnableBrowser        *bool                   `json:"enableBrowser,omitempty"`
 	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
 	RequiresSandbox      *bool                   `json:"requiresSandbox,omitempty"`
+	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
 	RequiresApproval     *bool                   `json:"requiresApproval,omitempty"`
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
@@ -1061,16 +1062,11 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Mark idempotency as complete
 	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
 
-	// Determine the prompt: use override if provided, otherwise fall back to task description
-	prompt := req.Prompt
-	if prompt == "" {
-		prompt = task.Description
-	}
-
-	// Append context attachments to the prompt if present
-	if len(task.ContextAttachments) > 0 {
-		prompt = domain.BuildPromptWithContext(prompt, task.ContextAttachments)
-	}
+	// Split instructions (system prompt) from context data (user message).
+	// Task description contains methodology/instructions → system prompt.
+	// Context attachments contain data/evidence → user message.
+	// If an override prompt is provided, it replaces the task description as system prompt.
+	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
 
 	// Resolve image attachments from storage so runners receive file paths
 	var imageAttachments []runner.Attachment
@@ -1091,8 +1087,10 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 	}
 
-	// Emit the initial user prompt as the first message event
-	if o.events != nil && strings.TrimSpace(prompt) != "" {
+	// Emit the initial user prompt as the first message event.
+	// We emit the user message (context + task), not the system prompt,
+	// since the system prompt is runner-internal instructions.
+	if o.events != nil && strings.TrimSpace(userMessage) != "" {
 		// Build attachment metadata for the event so the UI can render image thumbnails
 		var attInfo []domain.MessageAttachmentInfo
 		for _, att := range imageAttachments {
@@ -1108,9 +1106,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 		var userEvent *domain.RunEvent
 		if len(attInfo) > 0 {
-			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", prompt, attInfo)
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", userMessage, attInfo)
 		} else {
-			userEvent = domain.NewMessageEvent(run.ID, "user", prompt)
+			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
 		}
 		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
 			// Log but don't fail
@@ -1122,7 +1120,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir, imageAttachments)
+	go o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -1274,6 +1272,9 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 	if req.RequiresSandbox != nil {
 		cfg.RequiresSandbox = *req.RequiresSandbox
+	}
+	if req.NetworkAccess != nil {
+		cfg.NetworkAccess = *req.NetworkAccess
 	}
 	if req.RequiresApproval != nil {
 		cfg.RequiresApproval = *req.RequiresApproval
@@ -1911,7 +1912,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 // executeRun handles the actual agent execution (runs in background).
 // This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, existingSandboxWorkDir string, attachments []runner.Attachment) {
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -1921,6 +1922,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		task,
 		profile,
 		prompt,
+		systemPrompt,
 	)
 	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
@@ -2021,6 +2023,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		task,
 		profile,
 		"", // No new prompt for resume
+		"", // No system prompt for resume (session persists instructions)
 	)
 
 	// Configure for resumption

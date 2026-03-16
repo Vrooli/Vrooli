@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -187,6 +186,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.ensureProfileNetworkAccessColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to add network_access column to agent_profiles")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -308,26 +312,58 @@ func (db *DB) dropInvestigationPromptColumns(ctx context.Context) error {
 	return nil
 }
 
+// ensureProfileNetworkAccessColumn adds the network_access column to agent_profiles
+// if it doesn't already exist (migration for existing databases).
+func (db *DB) ensureProfileNetworkAccessColumn(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'agent_profiles'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+
+	hasColumn := false
+	for _, col := range columns {
+		if col.Name == "network_access" {
+			hasColumn = true
+			break
+		}
+	}
+
+	if !hasColumn {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN network_access TEXT NOT NULL DEFAULT 'localhost'"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "migration",
+				EntityType: "Schema",
+				Cause:      fmt.Errorf("add column network_access: %w", err),
+			}
+		}
+	}
+
+	return nil
+}
+
 func getCurrentFilePath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	return filename
-}
-
-// Helper functions for reading environment variables
-func getEnvInt(key string, defaultVal int) int {
-	if val := strings.TrimSpace(os.Getenv(key)); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
-}
-
-func getEnvFloat(key string, defaultVal float64) float64 {
-	if val := strings.TrimSpace(os.Getenv(key)); val != "" {
-		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
 }

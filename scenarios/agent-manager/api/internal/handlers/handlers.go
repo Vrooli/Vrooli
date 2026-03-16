@@ -1354,6 +1354,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			requiresApproval := inline.GetRequiresApproval()
 			req.RequiresApproval = &requiresApproval
 		}
+		if inline.NetworkAccess != nil {
+			na := protoconv.NetworkAccessFromProto(inline.GetNetworkAccess())
+			req.NetworkAccess = &na
+		}
 		if inline.SandboxConfig != nil {
 			req.SandboxConfig = protoconv.SandboxConfigFromProto(inline.SandboxConfig)
 		}

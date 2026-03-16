@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock,
   Copy,
   DollarSign,
   Eye,
@@ -35,11 +34,11 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
-import { cn, formatDuration, getWorkspaceSandboxUiUrl, runnerTypeLabel } from "../lib/utils";
+import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
-import { formatRelativeTimeShort, formatStandardDateTime } from "../lib/dateTime";
+import { formatRelativeTimeShort } from "../lib/dateTime";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -156,9 +155,8 @@ export function RunDetail({
   }, []);
 
   const openSandboxReview = useCallback(() => {
-    if (!run.sandboxId) return;
-    const base = sandboxUrl ?? getWorkspaceSandboxUiUrl();
-    const url = `${base}?sandbox=${run.sandboxId}&review=true`;
+    if (!run.sandboxId || !sandboxUrl) return;
+    const url = `${sandboxUrl}?sandbox=${run.sandboxId}&review=true`;
     window.open(url, "_blank", "noopener,noreferrer");
   }, [run.sandboxId, sandboxUrl]);
 
@@ -306,8 +304,6 @@ export function RunDetail({
     return () => onMobileHeaderRight(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktop, run.actions, actionsMenuOpen, onMobileHeaderRight]);
-  const runVariant = getRunVariant(run.status, run.approvalState);
-
   const eventCounts = useMemo(() => {
     const counts = {
       all: events.length,
@@ -741,7 +737,7 @@ export function RunDetail({
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {run.sandboxId && (
+                      {run.sandboxId && sandboxUrl && (
                         <Button variant="outline" size="sm" className="gap-2" onClick={openSandboxReview}>
                           <ExternalLink className="h-3.5 w-3.5" />
                           Open in Workspace Sandbox
@@ -769,7 +765,7 @@ export function RunDetail({
                 {(actions?.canApprove || actions?.canReject) && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {run.sandboxId && (
+                      {run.sandboxId && sandboxUrl && (
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={openSandboxReview}>
                           <ExternalLink className="h-3.5 w-3.5" />
                           Open in Sandbox
@@ -1018,27 +1014,13 @@ export function RunDetail({
         diffLoading={diffLoading}
         onApprove={onApprove}
         onReject={onReject}
-        onOpenSandbox={run.sandboxId ? openSandboxReview : undefined}
+        onOpenSandbox={run.sandboxId && sandboxUrl ? openSandboxReview : undefined}
       />
     </div>
   );
 }
 
 // Helper functions and sub-components
-function getRunVariant(status: RunStatus, approvalState?: ApprovalState): string {
-  if (approvalState === ApprovalState.REJECTED) return "rejected";
-  switch (status) {
-    case RunStatus.COMPLETE:
-      return "success";
-    case RunStatus.NEEDS_REVIEW:
-      return "warning";
-    case RunStatus.FAILED:
-      return "error";
-    default:
-      return "default";
-  }
-}
-
 function runStatusLabel(status: RunStatus, approvalState?: ApprovalState): string {
   if (approvalState === ApprovalState.REJECTED) return "rejected";
   switch (status) {

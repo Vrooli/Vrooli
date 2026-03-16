@@ -277,6 +277,7 @@ func TestNewRunExecutor(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	)
 
 	if executor == nil {
@@ -304,6 +305,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(customConfig)
 
 	if executor == nil {
@@ -351,6 +353,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -405,6 +408,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -452,6 +456,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -499,6 +504,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -539,6 +545,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -573,6 +580,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -616,6 +624,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -659,6 +668,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -715,6 +725,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -780,6 +791,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -824,6 +836,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config).WithCheckpointRepository(repos.Checkpoints)
 
 	ctx := context.Background()
@@ -894,6 +907,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config).WithResumeFrom(checkpoint)
 
 	ctx := context.Background()
@@ -944,6 +958,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -999,6 +1014,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -1045,6 +1061,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -1094,6 +1111,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -1136,6 +1154,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 		f.task,
 		f.profile,
 		"test prompt",
+		"", // no system prompt
 	).WithConfig(config)
 
 	ctx := context.Background()
@@ -1197,6 +1216,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 				f.task,
 				f.profile,
 				fmt.Sprintf("test prompt %d", idx),
+				"", // no system prompt
 			).WithConfig(config)
 
 			ctx := context.Background()

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -86,7 +86,7 @@ interface DiffViewerProps {
 // =============================================================================
 
 export function DiffViewer({ diff, selectable, selectedFiles, onFileSelectionChange }: DiffViewerProps) {
-  const files = diff.files ?? [];
+  const files = useMemo(() => diff.files ?? [], [diff.files]);
   const fileCount = files.length;
   const totals = files.reduce(
     (acc, file) => {

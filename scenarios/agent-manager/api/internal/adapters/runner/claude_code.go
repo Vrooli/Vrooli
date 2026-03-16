@@ -808,6 +808,11 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 		env = append(env, "SKIP_PERMISSIONS=yes")
 	}
 
+	// System prompt via --append-system-prompt (passed through resource wrapper)
+	if req.SystemPrompt != "" {
+		env = append(env, fmt.Sprintf("APPEND_SYSTEM_PROMPT=%s", req.SystemPrompt))
+	}
+
 	// Add any custom environment from the request
 	return appendEnvMap(env, req.Environment)
 }

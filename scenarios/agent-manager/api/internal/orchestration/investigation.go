@@ -52,14 +52,7 @@ func buildInvestigationContextAttachment(projectRoot string, scopePaths []string
 		sb.WriteString(fmt.Sprintf("- `%s`\n", id.String()))
 	}
 
-	sb.WriteString("\n### CLI Commands for Additional Data\n\n")
-	sb.WriteString("```bash\n")
-	for _, id := range runIDs {
-		sb.WriteString(fmt.Sprintf("agent-manager run get %s      # Full run details\n", id))
-		sb.WriteString(fmt.Sprintf("agent-manager run events %s   # All events with tool calls\n", id))
-		sb.WriteString(fmt.Sprintf("agent-manager run diff %s     # Code changes made\n", id))
-	}
-	sb.WriteString("```\n")
+	sb.WriteString("\n*For additional detail beyond the attached context, use: `agent-manager run events <run-id>`*\n")
 
 	return domain.ContextAttachment{
 		Type:     "note",
@@ -137,8 +130,9 @@ func (o *Orchestrator) CreateInvestigationRun(
 		projectRoot = o.config.DefaultProjectRoot
 	}
 
-	// Build attachments - all dynamic data goes here, NOT in the prompt
-	attachments, err := o.buildInvestigationAttachments(ctx, req.RunIDs, req.CustomContext)
+	// Build attachments - all dynamic data goes here, NOT in the prompt.
+	// Depth controls which attachments are included (quick = fewer, deep = all).
+	attachments, err := o.buildInvestigationAttachments(ctx, req.RunIDs, req.CustomContext, depth)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +149,16 @@ func (o *Orchestrator) CreateInvestigationRun(
 	prompt, err := o.readInvestigationSkill(ctx, "agent-manager-process-investigation")
 	if err != nil {
 		prompt = settings.PromptTemplate
+	}
+
+	// Pre-fetch supporting methodology skills and append to the system prompt.
+	// This avoids the agent burning turns on `prompt-manager skill read` calls.
+	// NOTE: Only include skills that directly help with investigation analysis.
+	// "skill-principles" is excluded — it's guidance for skill *authors*, not consumers.
+	if supporting := o.readSupportingSkills(ctx, []string{
+		"conversation-friction-analysis",
+	}); supporting != "" {
+		prompt = prompt + "\n\n---\n\n## Reference Methodology\n\n" + supporting
 	}
 
 	// Create task with explicit project root
@@ -217,6 +221,14 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if err != nil {
 		applyTemplate = settings.ApplyPromptTemplate
 	}
+
+	// Pre-fetch supporting methodology skill for the apply agent.
+	if supporting := o.readSupportingSkills(ctx, []string{
+		"skill-principles",
+	}); supporting != "" {
+		applyTemplate = applyTemplate + "\n\n---\n\n## Reference Methodology\n\n" + supporting
+	}
+
 	prompt := buildApplyPrompt(applyTemplate, investigationRunID, customContext)
 	// Use the original task's project root for the apply run
 	applyTask, err := o.createInvestigationTask(ctx, "Apply Investigation", prompt, attachments, task.ProjectRoot)
@@ -249,6 +261,29 @@ func (o *Orchestrator) readInvestigationSkill(ctx context.Context, skillID strin
 		return "", err
 	}
 	return content, nil
+}
+
+// readSupportingSkills fetches multiple skills from prompt-manager and returns
+// them concatenated with headers. Any individual skill that fails to load is
+// silently skipped. Returns empty string if none could be loaded.
+func (o *Orchestrator) readSupportingSkills(ctx context.Context, skillIDs []string) string {
+	if o.promptClient == nil {
+		return ""
+	}
+
+	var parts []string
+	for _, id := range skillIDs {
+		content, err := o.promptClient.ReadSkill(ctx, id, nil, false)
+		if err != nil || strings.TrimSpace(content) == "" {
+			continue
+		}
+		parts = append(parts, content)
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "\n\n---\n\n")
 }
 
 func (o *Orchestrator) investigationTagAllowlist(ctx context.Context) []domain.InvestigationTagRule {
@@ -323,7 +358,16 @@ func (o *Orchestrator) buildInvestigationAttachments(
 	ctx context.Context,
 	runIDs []uuid.UUID,
 	customContext string,
+	depth domain.InvestigationDepth,
 ) ([]domain.ContextAttachment, error) {
+	// Depth controls which attachments are included to manage context budget:
+	//   quick:    run overview + event timeline + custom context
+	//   standard: + agent setup + diff
+	//   deep:     + historical context
+	includeAgentSetup := depth != domain.InvestigationDepthQuick
+	includeDiff := depth != domain.InvestigationDepthQuick
+	includeHistory := depth == domain.InvestigationDepthDeep
+
 	attachments := make([]domain.ContextAttachment, 0, len(runIDs)*4+3)
 
 	for _, runID := range runIDs {
@@ -344,11 +388,11 @@ func (o *Orchestrator) buildInvestigationAttachments(
 
 		short := shortID(runID)
 
-		// 1. Human-readable run overview (replaces raw JSON dump).
+		// 1. Human-readable run overview (always included).
 		attachments = append(attachments, buildRunOverview(run, task, profile, short))
 
-		// 2. Agent setup context (prompt-manager paths for Agent, Team, Member).
-		if profile != nil {
+		// 2. Agent setup context (standard and deep only).
+		if includeAgentSetup && profile != nil {
 			projectRoot := ""
 			if task != nil {
 				projectRoot = task.ProjectRoot
@@ -361,7 +405,7 @@ func (o *Orchestrator) buildInvestigationAttachments(
 			}
 		}
 
-		// 3. Curated event timeline (replaces raw event JSON array).
+		// 3. Curated event timeline (always included).
 		if o.events != nil {
 			events, err := o.GetRunEvents(ctx, runID, event.GetOptions{
 				AfterSequence: -1,
@@ -373,27 +417,29 @@ func (o *Orchestrator) buildInvestigationAttachments(
 			attachments = append(attachments, buildRunTimeline(events, run, short))
 		}
 
-		// 4. Diff (kept but with proper metadata).
-		diff, err := o.GetRunDiff(ctx, runID)
-		if err == nil && diff != nil {
-			diffJSON, err := marshalJSON(diff)
-			if err != nil {
-				return nil, err
+		// 4. Diff (standard and deep only).
+		if includeDiff {
+			diff, err := o.GetRunDiff(ctx, runID)
+			if err == nil && diff != nil {
+				diffJSON, err := marshalJSON(diff)
+				if err != nil {
+					return nil, err
+				}
+				attachments = append(attachments, domain.ContextAttachment{
+					Type:     "note",
+					Key:      fmt.Sprintf("run-diff-%s", short),
+					Label:    fmt.Sprintf("Run Diff %s", short),
+					Content:  diffJSON,
+					Format:   "json",
+					Priority: "medium",
+					Summary:  fmt.Sprintf("Code changes from run %s (%d files, %d bytes)", short, run.ChangedFiles, run.TotalSizeBytes),
+					Tags:     []string{"run", "diff", "investigation"},
+				})
 			}
-			attachments = append(attachments, domain.ContextAttachment{
-				Type:     "note",
-				Key:      fmt.Sprintf("run-diff-%s", short),
-				Label:    fmt.Sprintf("Run Diff %s", short),
-				Content:  diffJSON,
-				Format:   "json",
-				Priority: "medium",
-				Summary:  fmt.Sprintf("Code changes from run %s (%d files, %d bytes)", short, run.ChangedFiles, run.TotalSizeBytes),
-				Tags:     []string{"run", "diff", "investigation"},
-			})
 		}
 
-		// 5. Historical context (recent runs with same agent profile).
-		if run.AgentProfileID != nil {
+		// 5. Historical context (deep only).
+		if includeHistory && run.AgentProfileID != nil {
 			if att, ok := o.buildHistoricalContext(ctx, run, short); ok {
 				attachments = append(attachments, att)
 			}
@@ -1127,6 +1173,7 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
 		RequiresApproval:     false,
+		NetworkAccess:        domain.NetworkAccessLocalhost,
 		CreatedBy:            "agent-manager",
 	}
 }
@@ -1161,6 +1208,7 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
 		RequiresApproval:     true, // Require approval for changes
+		NetworkAccess:        domain.NetworkAccessLocalhost,
 		CreatedBy:            "agent-manager",
 	}
 }

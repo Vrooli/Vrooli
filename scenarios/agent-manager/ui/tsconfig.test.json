@@ -16,6 +16,8 @@
     "src/lib/currency.ts",
     "src/lib/dateTime.ts",
     "src/lib/display.ts",
+    "src/**/*.test.ts",
     "tests/**/*.test.ts"
-  ]
+  ],
+  "exclude": []
 }

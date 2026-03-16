@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { resolveApiBase } from "@vrooli/api-base";
-import { JsonObject, JsonValue, RunnerType } from "../types";
+import { JsonObject, JsonValue, NetworkAccess, RunnerType } from "../types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -60,6 +60,19 @@ export function runnerTypeLabel(type?: RunnerType): string {
   }
 }
 
+export function networkAccessLabel(na?: NetworkAccess): string {
+  switch (na) {
+    case NetworkAccess.NONE:
+      return "None";
+    case NetworkAccess.LOCALHOST:
+      return "Localhost";
+    case NetworkAccess.FULL:
+      return "Full";
+    default:
+      return "Localhost";
+  }
+}
+
 export function jsonValueToPlain(value?: JsonValue): unknown {
   if (!value) return undefined;
   const kind = value.kind;
@@ -95,22 +108,4 @@ export function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen - 3) + "...";
 }
-
-/**
- * Get the workspace-sandbox UI URL for opening sandbox reviews.
- * Uses VITE_WORKSPACE_SANDBOX_UI_URL environment variable if set,
- * otherwise defaults to localhost:35001 (standard workspace-sandbox UI port).
- */
-export function getWorkspaceSandboxUiUrl(): string {
-  // Check for explicit UI URL configuration
-  const configuredUrl = import.meta.env.VITE_WORKSPACE_SANDBOX_UI_URL as string | undefined;
-  if (configuredUrl) {
-    return configuredUrl.replace(/\/$/, ""); // Remove trailing slash
-  }
-
-  // Default to standard workspace-sandbox UI port on same host
-  const host = window.location.hostname;
-  return `http://${host}:35001`;
-}
-
 

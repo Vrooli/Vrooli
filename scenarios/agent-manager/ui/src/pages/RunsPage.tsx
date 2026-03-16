@@ -83,6 +83,8 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "oldest", label: "Oldest First" },
 ];
 
+const VALID_TABS = new Set(["task", "events", "diff", "messages", "cost"]);
+
 export function RunsPage({
   runs,
   tasks,
@@ -641,7 +643,6 @@ export function RunsPage({
   );
 
   // Determine initial tab: query param > status-based default > "messages"
-  const VALID_TABS = new Set(["task", "events", "diff", "messages", "cost"]);
   const tabParam = searchParams.get("tab");
   const initialTab = useMemo(() => {
     if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "events" | "diff" | "messages" | "cost";

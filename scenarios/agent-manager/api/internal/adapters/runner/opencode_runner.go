@@ -570,10 +570,12 @@ func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
 func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// resource-opencode run passes through to opencode CLI
 	// Syntax: resource-opencode run run <message> [options]
+	// OpenCode has no native system prompt mechanism, so EffectivePrompt()
+	// prepends SystemPrompt with <system-instructions> tags if present.
 	args := []string{
 		"run", // resource-opencode subcommand
 		"run", // opencode subcommand
-		req.Prompt,
+		req.EffectivePrompt(),
 		"--format", "json", // Enable JSON output for event parsing
 	}
 

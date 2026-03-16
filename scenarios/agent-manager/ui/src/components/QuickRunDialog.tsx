@@ -30,7 +30,7 @@ import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { useAttachments } from "../hooks/useAttachments";
-import { cn, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
   ModelRegistry,
@@ -72,6 +72,7 @@ interface AgentConfigData {
   timeoutMinutes: number;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
+  networkAccess: "none" | "localhost" | "full";
   fallbackRunnerTypes: RunnerType[];
   features?: {
     enableBrowser?: boolean;
@@ -139,6 +140,7 @@ export function QuickRunDialog({
     timeoutMinutes: 30,
     runMode: RunMode.IN_PLACE,
     skipPermissionPrompt: true,
+    networkAccess: "localhost",
     fallbackRunnerTypes: [],
     features: { enableBrowser: false },
     extraFlags: {},
@@ -188,6 +190,7 @@ export function QuickRunDialog({
       timeoutMinutes: 30,
       runMode: RunMode.IN_PLACE,
       skipPermissionPrompt: true,
+      networkAccess: "localhost",
       fallbackRunnerTypes: [],
       features: { enableBrowser: false },
       extraFlags: {},
@@ -323,6 +326,7 @@ export function QuickRunDialog({
         runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
+        runRequest.networkAccess = agentConfig.networkAccess;
         if (agentConfig.fallbackRunnerTypes.length > 0) {
           runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
         }
@@ -363,8 +367,8 @@ export function QuickRunDialog({
   }, [open, handleStartRun]);
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()} fullScreenMobile>
+      <DialogContent fullScreenMobile className="sm:max-w-2xl">
         <DialogHeader onClose={handleClose}>
           <DialogTitle className="flex items-center gap-2">
             <Play className="h-5 w-5 text-primary" />
@@ -570,6 +574,9 @@ export function QuickRunDialog({
                                   {profile.requiresApproval && (
                                     <Badge variant="outline">Approval</Badge>
                                   )}
+                                  {profile.networkAccess != null && (
+                                    <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
+                                  )}
                                   {profile.features?.enableBrowser && (
                                     <Badge variant="outline">Browser</Badge>
                                   )}
@@ -745,6 +752,24 @@ export function QuickRunDialog({
                     <span className="text-sm">Skip Permission Prompts</span>
                   </label>
 
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm">Network Access</span>
+                    <select
+                      value={agentConfig.networkAccess}
+                      onChange={(e) =>
+                        setAgentConfig({
+                          ...agentConfig,
+                          networkAccess: e.target.value as "none" | "localhost" | "full",
+                        })
+                      }
+                      className="h-8 rounded border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="localhost">Localhost</option>
+                      <option value="full">Full</option>
+                    </select>
+                  </label>
+
                   {agentConfig.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -890,6 +915,9 @@ export function QuickRunDialog({
                               )}
                               {profile.requiresApproval && (
                                 <Badge variant="outline">Approval Required</Badge>
+                              )}
+                              {profile.networkAccess != null && (
+                                <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
                               )}
                               {profile.features?.enableBrowser && (
                                 <Badge variant="outline">Browser</Badge>

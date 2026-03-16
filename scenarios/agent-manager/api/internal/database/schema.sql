@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     extra_flags TEXT DEFAULT '{}',
     requires_sandbox INTEGER DEFAULT 1,
     requires_approval INTEGER DEFAULT 1,
+    network_access TEXT NOT NULL DEFAULT 'localhost',
     sandbox_config TEXT DEFAULT '{}',
     allowed_paths TEXT DEFAULT '[]',
     denied_paths TEXT DEFAULT '[]',

@@ -109,6 +109,38 @@ func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
 }
 
 // =============================================================================
+// NETWORK ACCESS
+// =============================================================================
+
+// NetworkAccessToProto converts domain NetworkAccess to proto NetworkAccess.
+func NetworkAccessToProto(n domain.NetworkAccess) pb.NetworkAccess {
+	switch n {
+	case domain.NetworkAccessNone:
+		return pb.NetworkAccess_NETWORK_ACCESS_NONE
+	case domain.NetworkAccessLocalhost:
+		return pb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+	case domain.NetworkAccessFull:
+		return pb.NetworkAccess_NETWORK_ACCESS_FULL
+	default:
+		return pb.NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+	}
+}
+
+// NetworkAccessFromProto converts proto NetworkAccess to domain NetworkAccess.
+func NetworkAccessFromProto(n pb.NetworkAccess) domain.NetworkAccess {
+	switch n {
+	case pb.NetworkAccess_NETWORK_ACCESS_NONE:
+		return domain.NetworkAccessNone
+	case pb.NetworkAccess_NETWORK_ACCESS_LOCALHOST:
+		return domain.NetworkAccessLocalhost
+	case pb.NetworkAccess_NETWORK_ACCESS_FULL:
+		return domain.NetworkAccessFull
+	default:
+		return domain.NetworkAccessLocalhost // sensible default
+	}
+}
+
+// =============================================================================
 // SANDBOX CONFIG
 // =============================================================================
 

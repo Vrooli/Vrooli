@@ -11,7 +11,7 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.json",  // Enable type-aware linting
+        project: ["./tsconfig.json", "./tsconfig.test.json"],  // Enable type-aware linting
       },
     },
     plugins: {

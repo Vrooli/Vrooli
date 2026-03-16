@@ -97,11 +97,12 @@ type RunExecutor struct {
 	config ExecutorConfig
 
 	// Execution context
-	run         *domain.Run
-	task        *domain.Task
-	profile     *domain.AgentProfile
-	prompt      string
-	attachments []runner.Attachment // image attachments resolved from storage
+	run          *domain.Run
+	task         *domain.Task
+	profile      *domain.AgentProfile
+	prompt       string
+	systemPrompt string
+	attachments  []runner.Attachment // image attachments resolved from storage
 
 	// Workspace state
 	sandboxID *uuid.UUID
@@ -141,6 +142,7 @@ func NewRunExecutor(
 	task *domain.Task,
 	profile *domain.AgentProfile,
 	prompt string,
+	systemPrompt string,
 ) *RunExecutor {
 	return &RunExecutor{
 		runs:          runs,
@@ -151,6 +153,7 @@ func NewRunExecutor(
 		task:          task,
 		profile:       profile,
 		prompt:        prompt,
+		systemPrompt:  systemPrompt,
 		config:        DefaultExecutorConfig(),
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
@@ -844,6 +847,7 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		Task:           e.task,
 		WorkingDir:     e.workDir,
 		Prompt:         e.prompt,
+		SystemPrompt:   e.systemPrompt,
 		EventSink:      eventSink,
 		Attachments:    e.attachments,
 	}

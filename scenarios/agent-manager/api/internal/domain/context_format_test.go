@@ -252,3 +252,107 @@ func TestFormatContextForPrompt_LinkWithoutContent(t *testing.T) {
 		t.Errorf("expected URL in placeholder")
 	}
 }
+
+// =============================================================================
+// BuildSplitPrompt Tests
+// =============================================================================
+
+func TestBuildSplitPrompt_NoAttachments(t *testing.T) {
+	// Without attachments, falls back to legacy behavior:
+	// everything in user message, system prompt empty.
+	sys, user := BuildSplitPrompt("do the thing", nil, "")
+	if sys != "" {
+		t.Errorf("expected empty system prompt, got %q", sys)
+	}
+	if user != "do the thing" {
+		t.Errorf("expected user message = task description, got %q", user)
+	}
+}
+
+func TestBuildSplitPrompt_NoAttachments_WithOverride(t *testing.T) {
+	sys, user := BuildSplitPrompt("original", nil, "override")
+	if sys != "" {
+		t.Errorf("expected empty system prompt, got %q", sys)
+	}
+	if user != "override" {
+		t.Errorf("expected user message = override prompt, got %q", user)
+	}
+}
+
+func TestBuildSplitPrompt_WithAttachments(t *testing.T) {
+	attachments := []ContextAttachment{
+		{
+			Type:     "note",
+			Key:      "run-data",
+			Content:  "the run failed at step 3",
+			Format:   "text",
+			Priority: "high",
+		},
+	}
+
+	sys, user := BuildSplitPrompt("investigate this run", attachments, "")
+
+	if sys != "investigate this run" {
+		t.Errorf("expected system prompt = task description, got %q", sys)
+	}
+	if !strings.Contains(user, "the run failed at step 3") {
+		t.Errorf("expected user message to contain attachment content, got %q", user)
+	}
+	if !strings.Contains(user, `key="run-data"`) {
+		t.Errorf("expected user message to contain context tags, got %q", user)
+	}
+	// System prompt should NOT contain attachment data
+	if strings.Contains(sys, "run-data") {
+		t.Errorf("system prompt should not contain attachment data")
+	}
+}
+
+func TestBuildSplitPrompt_WithAttachments_OverrideBecomesSystem(t *testing.T) {
+	attachments := []ContextAttachment{
+		{
+			Type:    "note",
+			Key:     "ctx",
+			Content: "some context",
+			Format:  "text",
+		},
+	}
+
+	sys, user := BuildSplitPrompt("original task", attachments, "custom override")
+
+	if sys != "custom override" {
+		t.Errorf("expected system prompt = override, got %q", sys)
+	}
+	if !strings.Contains(user, "some context") {
+		t.Errorf("expected user message to contain context, got %q", user)
+	}
+}
+
+func TestBuildSplitPrompt_AttachmentPriorityOrder(t *testing.T) {
+	attachments := []ContextAttachment{
+		{
+			Type:     "note",
+			Key:      "low-pri",
+			Content:  "low priority data",
+			Format:   "text",
+			Priority: "low",
+		},
+		{
+			Type:     "note",
+			Key:      "high-pri",
+			Content:  "high priority data",
+			Format:   "text",
+			Priority: "high",
+		},
+	}
+
+	_, user := BuildSplitPrompt("instructions", attachments, "")
+
+	highIdx := strings.Index(user, "high priority data")
+	lowIdx := strings.Index(user, "low priority data")
+	if highIdx < 0 || lowIdx < 0 {
+		t.Fatalf("expected both attachments in user message, got %q", user)
+	}
+	if highIdx > lowIdx {
+		t.Errorf("expected high-priority attachment before low-priority, high=%d low=%d", highIdx, lowIdx)
+	}
+}

@@ -205,6 +205,11 @@ func (p *AgentProfile) Validate() error {
 			"same path cannot be both allowed and denied")
 	}
 
+	if !p.NetworkAccess.IsValid() {
+		return NewValidationErrorWithHint("networkAccess", "invalid network access level",
+			"valid values: none, localhost, full")
+	}
+
 	if err := validateSandboxConfig(p.SandboxConfig); err != nil {
 		return err
 	}

@@ -107,8 +107,8 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} contentClassName="!mx-0 sm:mx-4">
-        <DialogContent className="h-[100dvh] max-h-none rounded-none border-0 sm:h-auto sm:max-h-[85vh] sm:rounded-lg sm:border sm:max-w-[90vw] xl:max-w-7xl">
+      <Dialog open={open} onOpenChange={onOpenChange} fullScreenMobile>
+        <DialogContent fullScreenMobile className="sm:max-w-[90vw] xl:max-w-7xl">
           <DialogHeader onClose={() => onOpenChange(false)} className="p-4 sm:p-6">
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>

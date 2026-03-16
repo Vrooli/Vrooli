@@ -122,8 +122,16 @@ type ExecuteRequest struct {
 	// For in-place runs, this is the actual project directory.
 	WorkingDir string
 
-	// Prompt is the initial prompt/instruction for the agent.
+	// Prompt is the user message for the agent (context data, task question).
+	// For runners that support system prompts, this contains only the user-facing
+	// content. For runners that don't, SystemPrompt is prepended to this.
 	Prompt string
+
+	// SystemPrompt contains stable instructions/methodology that should be
+	// delivered via the runner's system prompt mechanism when supported.
+	// Claude Code: passed via --append-system-prompt flag.
+	// Codex/OpenCode: prepended to Prompt with <system-instructions> tags.
+	SystemPrompt string
 
 	// EventSink receives events as they occur during execution.
 	EventSink EventSink
@@ -133,6 +141,19 @@ type ExecuteRequest struct {
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
+}
+
+// EffectivePrompt returns the prompt with the system prompt prepended using
+// XML tags, for runners that don't support a native system prompt mechanism.
+// If SystemPrompt is empty, returns Prompt unchanged.
+func (r *ExecuteRequest) EffectivePrompt() string {
+	if r.SystemPrompt == "" {
+		return r.Prompt
+	}
+	if r.Prompt == "" {
+		return r.SystemPrompt
+	}
+	return "<system-instructions>\n" + r.SystemPrompt + "\n</system-instructions>\n\n" + r.Prompt
 }
 
 // GetTag returns the tag for this request, defaulting to RunID if not set.

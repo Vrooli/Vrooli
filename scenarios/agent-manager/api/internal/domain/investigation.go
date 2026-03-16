@@ -208,73 +208,42 @@ func globToRegex(pattern string) string {
 // DEFAULT PROMPT TEMPLATE
 // =============================================================================
 
-// DefaultInvestigationPromptTemplate is the default prompt for investigation agents.
-// This template classifies failures as Environment/Tooling or Agent Setup through active exploration.
-// Dynamic data (depth, runs, scenarios) is provided as separate context attachments.
-const DefaultInvestigationPromptTemplate = `# Agent-Manager Process Investigation
+// DefaultInvestigationPromptTemplate is the fallback prompt for investigation agents
+// when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
+// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation/SKILL.md
+const DefaultInvestigationPromptTemplate = `## Investigation
 
-Diagnose why an agent run failed by classifying the root cause as Environment/Tooling, Agent Setup, or both, through active codebase exploration. Produce a structured report with evidence-backed findings and prioritized recommendations.
+Diagnose why the attached agent run(s) failed. Produce a structured report classifying root causes and recommending specific, actionable fixes.
 
-## Failure Categories
+### What you have
 
-| Category | Definition | Example Signals |
-|---|---|---|
-| **Environment/Tooling** | Tools, configs, paths, or services are broken, missing, or misconfigured | Tool errors, missing files, service unreachable, permission denied, command not found, wrong versions |
-| **Agent Setup** | The agent's prompt, context, or instructions are malformed, insufficient, or conflicting | Agent looping on contradictory instructions, misinterpreting task scope, ignoring available tools, missing guardrails, prompt ambiguity |
+Context attachments below contain the key data — read them before exploring further:
+- **Run overview**: status, timing, task description, runner configuration
+- **Event timeline**: chronological tool calls, reasoning, and results
+- **Agent setup paths**: file paths to the agent's prompt-manager configuration
+- **Historical context**: recent runs with the same agent profile (success/fail patterns)
+- **Run diff**: code changes made during the run (if any)
 
-When both categories apply, **investigate Environment/Tooling first** -- a broken environment makes Agent Setup analysis unreliable.
+### What to do
 
-## Scope Boundaries
+1. Read the attached timeline and overview to understand what happened
+2. Identify where things went wrong — errors, loops, wrong approaches, stalls
+3. Classify each failure as one or both of:
+   - **Environment/Tooling**: tools broken/missing/misconfigured, config errors, services down, wrong versions, permission issues
+   - **Agent Setup**: prompt unclear or contradictory, missing guardrails, wrong tools listed, insufficient context, scope confusion
+4. If both apply, investigate Environment/Tooling first — a broken environment makes prompt analysis unreliable
+5. For each finding: cite specific evidence (event numbers, file contents, command outputs), assess severity, and recommend a concrete fix naming the specific file and change needed
 
-**In scope:** Classifying failures, exploring codebase/configs/tools, analyzing prompts for conflicts/gaps, structured recommendations.
-**Out of scope:** Fixing problems (apply skill's job), completing the failed task, architecture redesign.
+### Exploration
 
-## Inputs
+- Read agent prompt/instruction files listed in the agent-setup attachment
+- Run diagnostic commands (which, version checks) to verify tools the agent tried to use
+- Check configs and files referenced in error messages
+- For standard/deep depth: do targeted exploration of the primary failure category
+- For deep depth: thoroughly investigate all applicable categories
+- **Do NOT modify any files** — investigation is read-only
 
-Context attachments are provided automatically (metadata, run summaries, events, diffs, custom context).
-
-For additional data, use the agent-manager CLI:
-` + "```bash\n" + `agent-manager run get <run-id>      # Full run details
-agent-manager run events <run-id>   # All events with tool calls
-agent-manager run diff <run-id>     # Code changes made
-` + "```\n" + `
-## Investigation Workflow
-
-### Phase 1: Categorize (all depths)
-1. **Build timeline**: Extract chronological sequence of agent actions from run events
-2. **Extract failure signals**: Identify where progress stopped, reversed, or looped
-3. **Classify signals**: Map each signal to Environment/Tooling, Agent Setup, or both
-4. **Determine primary category**: Environment-blocking signal? Investigate Environment/Tooling first
-
-### Phase 2: Deep Investigation (standard and deep only)
-**Environment/Tooling**: Verify tool availability, check configs, test commands, check file existence/permissions, look for missing deps.
-**Agent Setup**: Analyze prompts/instructions for conflicts, gaps, ambiguity, missing guardrails.
-
-### Phase 3: Synthesize
-For each finding: evidence, root cause, severity (Critical/Major/Gap/Minor), recommendation.
-
-## Signal Classification Table
-
-| Signal | Primary Category |
-|---|---|
-| Tool returns error/not found | Environment/Tooling |
-| File missing or inaccessible | Environment/Tooling |
-| Service unreachable | Environment/Tooling |
-| Permission denied | Environment/Tooling |
-| Config syntax invalid | Environment/Tooling |
-| Agent retries same failing approach | Agent Setup |
-| Agent contradicts its instructions | Agent Setup |
-| Agent misinterprets task scope | Agent Setup |
-| Agent ignores available tools | Agent Setup |
-| Prompt contains contradictory guidance | Agent Setup |
-
-## Safety Guardrails
-
-**DO actively explore**: Read files (check size first -- skip files over 1MB unless essential), run diagnostic commands with timeouts, test tool availability, inspect configurations.
-
-**DO NOT**: Modify any files or state, re-run commands that caused the original failure without safeguards, run unbounded searches without timeouts.
-
-## Required Report Format
+### Output format
 
 ` + "```markdown\n" + `# Investigation Report
 
@@ -289,14 +258,14 @@ For each finding: evidence, root cause, severity (Critical/Major/Gap/Minor), rec
 | 1 | ... | ... | ... | ... |
 
 ## Environment/Tooling Findings
-| ID | Finding | Evidence | Verification Performed | Severity | Recommendation |
-|---|---|---|---|---|---|
-| E1 | ... | ... | ... | ... | ... |
+| ID | Finding | Evidence | Severity | Recommendation |
+|---|---|---|---|---|
+| E1 | ... | ... | ... | ... |
 
 ## Agent Setup Findings
-| ID | Finding | Evidence | Prompt/Instruction Analysis | Severity | Recommendation |
-|---|---|---|---|---|---|
-| A1 | ... | ... | ... | ... | ... |
+| ID | Finding | Evidence | Severity | Recommendation |
+|---|---|---|---|---|
+| A1 | ... | ... | ... | ... |
 
 ## Recommendations Summary
 | Priority | ID | Category | Recommendation | Expected Impact |
@@ -305,76 +274,39 @@ For each finding: evidence, root cause, severity (Critical/Major/Gap/Minor), rec
 
 ## Risks and Caveats
 - ...
-` + "```"
+` + "```\n\nIf a category has no findings, include the header with \"No findings in this category.\""
 
-// DefaultApplyInvestigationPromptTemplate is the default prompt for apply investigation agents.
-// This template implements fixes from investigation reports organized by category.
-// Dynamic data (investigation run ID, CLI commands) is injected separately by the orchestrator.
-const DefaultApplyInvestigationPromptTemplate = `# Apply Investigation Recommendations
+// DefaultApplyInvestigationPromptTemplate is the fallback prompt for apply agents
+// when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
+// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation-apply/SKILL.md
+const DefaultApplyInvestigationPromptTemplate = `## Apply Investigation Fixes
 
-Implement fixes from an investigation report, organized by category, with per-change verification.
+Implement the recommendations from the attached investigation report. Produce a change report documenting what was applied, verified, and deferred.
 
-## Scope Boundaries
+### What you have
 
-**In scope:** Implementing investigation recommendations, fixing configs/paths/tools, modifying prompts/instructions, verifying fixes.
-**Out of scope:** Re-investigating, adding unrecommended improvements, completing original task.
+Context attachments contain the investigation report (in the investigation run's events/summary), the original failed run data, and any user-provided guidance.
 
-## Inputs
+### What to do
 
-Context attachments are provided automatically (investigation run summary, events, original run data, custom context).
+1. Find the investigation report in the attached investigation run events (look for the structured markdown report in the final assistant message)
+2. Extract all recommendations, noting their category and priority
+3. Apply **Environment/Tooling fixes first**, then Agent Setup fixes (each in priority order)
+4. For each fix:
+   - Read the target file to understand its current state
+   - Make the minimal change needed
+   - Verify: configs parse, paths exist, prompts are internally consistent
+5. After all fixes: check that Environment/Tooling changes don't conflict with Agent Setup changes
 
-For additional data, use the agent-manager CLI:
-` + "```bash\n" + `agent-manager run get <investigation-run-id>      # Full investigation run details
-agent-manager run events <investigation-run-id>   # All events from investigation
-agent-manager run diff <investigation-run-id>     # Any code changes investigation made
-` + "```\n" + `
-## Apply Workflow
+### Rules
 
-### Step 1: Parse and Prioritize
-Parse investigation report, extract recommendations by category, order by priority. Apply Environment/Tooling fixes first.
+- Only implement recommendations from the investigation report — no extras
+- All changes must be git-revertible
+- Don't remove existing safety checks unless the investigation explicitly recommends it with justification
+- If a recommendation is ambiguous, implement the narrower interpretation
+- If a fix causes a new problem, stop and document it — don't "fix the fix"
 
-### Step 2: Apply Environment/Tooling Fixes
-For each recommendation: read target file/config, plan minimal change, implement, verify.
-Common fixes: fix config syntax/values, correct paths, create missing files, fix tool settings.
-
-### Step 3: Apply Agent Setup Fixes
-For each recommendation: read target prompt/instruction file, plan minimal change, implement, verify.
-Common fixes: add guardrails, clarify instructions, resolve contradictions, add examples.
-
-### Step 4: Cross-Category Verification
-Check that Environment/Tooling fixes don't conflict with Agent Setup changes. Verify prompt changes reference tools/configs that now exist correctly.
-
-### Step 5: Produce Change Report
-Document all changes using the report format below.
-
-## Fix Order Decision
-
-| Situation | Action |
-|---|---|
-| Both categories have recommendations | Apply Environment/Tooling first, then Agent Setup |
-| Only one category | Apply and verify each in priority order |
-| A fix depends on another fix | Apply the dependency first regardless of category |
-
-## Verification Decision Table
-
-| Change Type | Verification Method |
-|---|---|
-| Config file change | Parse/validate the file format |
-| Path correction | Verify the path exists and is accessible |
-| Missing file creation | Verify file exists with expected content |
-| Prompt wording change | Read the full prompt and check for internal consistency |
-| Guardrail addition | Verify it doesn't conflict with existing instructions |
-
-## Safety Guardrails
-
-- Only implement listed recommendations
-- Verify each change individually
-- Don't remove existing safety checks (only add to them)
-- Git-revertible changes only
-- If unclear, use conservative interpretation
-- If fix causes new problem, stop and document -- don't "fix the fix"
-
-## Required Report Format
+### Output format
 
 ` + "```markdown\n" + `# Apply Investigation Report
 
@@ -405,7 +337,7 @@ Document all changes using the report format below.
 
 ## Follow-Up Actions
 - ...
-` + "```"
+` + "```\n\nIf a category has no changes, include the header with \"No changes in this category.\""
 
 // DefaultInvestigationSettings returns the default investigation settings.
 // Prompt templates are populated separately by the orchestration layer from

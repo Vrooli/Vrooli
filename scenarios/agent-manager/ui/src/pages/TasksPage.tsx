@@ -534,15 +534,15 @@ export function TasksPage({
       />
 
       {/* Create Task Modal */}
-      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
-        <DialogContent>
+      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetForm}>
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Define the work that an agent should perform
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
@@ -618,15 +618,15 @@ export function TasksPage({
       </Dialog>
 
       {/* Edit Task Modal */}
-      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && resetEditForm()}>
-        <DialogContent>
+      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && resetEditForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetEditForm}>
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
               Update task details and scope
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdate}>
+          <form onSubmit={handleUpdate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="editTitle">Title *</Label>
@@ -993,15 +993,15 @@ export function TasksPage({
       </Dialog>
 
       {/* Create Profile Modal (from Run dialog) */}
-      <Dialog open={showProfileDialog} onOpenChange={(open) => !open && resetProfileForm()}>
-        <DialogContent>
+      <Dialog open={showProfileDialog} onOpenChange={(open) => !open && resetProfileForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetProfileForm}>
             <DialogTitle>Create New Profile</DialogTitle>
             <DialogDescription>
               Create a reusable agent profile for running tasks
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateProfile}>
+          <form onSubmit={handleCreateProfile} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               {profileFormError && (
                 <Card className="border-destructive/50 bg-destructive/10">
@@ -1195,6 +1195,20 @@ export function TasksPage({
                     className="h-4 w-4 rounded border-input"
                   />
                   <span className="text-sm">Require Approval</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Network Access</span>
+                  <select
+                    value={profileFormData.networkAccess ?? "localhost"}
+                    onChange={(e) =>
+                      setProfileFormData({ ...profileFormData, networkAccess: e.target.value as "none" | "localhost" | "full" })
+                    }
+                    className="h-8 rounded border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="none">None</option>
+                    <option value="localhost">Localhost</option>
+                    <option value="full">Full</option>
+                  </select>
                 </label>
               </div>
             </DialogBody>

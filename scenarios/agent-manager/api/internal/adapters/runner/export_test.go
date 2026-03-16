@@ -25,6 +25,46 @@ func NewTestClaudeCodeRunner() *ClaudeCodeRunner {
 	}
 }
 
+// BuildEnvForTest exposes ClaudeCodeRunner.buildEnv for external testing.
+func (r *ClaudeCodeRunner) BuildEnvForTest(req ExecuteRequest) []string {
+	return r.buildEnv(req)
+}
+
+// BuildJSONArgsForTest exposes CodexRunner.buildJSONArgs for external testing.
+func (r *CodexRunner) BuildJSONArgsForTest(req ExecuteRequest) []string {
+	return r.buildJSONArgs(req)
+}
+
+// NewTestCodexRunner creates a CodexRunner for testing without
+// checking binary availability.
+func NewTestCodexRunner() *CodexRunner {
+	return &CodexRunner{
+		codexCLIPath:  "/fake/codex",
+		available:     false,
+		message:       "test runner",
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runModels:     make(map[uuid.UUID]string),
+		useJSONStream: true,
+	}
+}
+
+// BuildArgsForOpenCodeTest exposes OpenCodeRunner.buildArgs for external testing.
+func (r *OpenCodeRunner) BuildArgsForTest(req ExecuteRequest) []string {
+	return r.buildArgs(req)
+}
+
+// NewTestOpenCodeRunner creates an OpenCodeRunner for testing without
+// checking binary availability.
+func NewTestOpenCodeRunner() *OpenCodeRunner {
+	return &OpenCodeRunner{
+		binaryPath:    "/fake/opencode",
+		available:     false,
+		message:       "test runner",
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runSessionIDs: make(map[uuid.UUID]string),
+	}
+}
+
 // ParseCompactCommandForTest exposes parseCompactCommand for external testing.
 func ParseCompactCommandForTest(content string) (bool, string) {
 	return parseCompactCommand(content)

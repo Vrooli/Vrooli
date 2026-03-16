@@ -234,7 +234,8 @@ func escapeXMLAttr(s string) string {
 }
 
 // BuildPromptWithContext combines a base prompt with formatted context attachments.
-// This is the primary function for constructing the final prompt sent to agents.
+// This is the legacy function that concatenates everything into a single string.
+// Prefer BuildSplitPrompt for new code to enable system/user prompt separation.
 //
 // The base prompt should contain the core task instructions. Context attachments
 // are appended after the prompt, sorted by priority, with proper formatting.
@@ -245,4 +246,35 @@ func BuildPromptWithContext(basePrompt string, attachments []ContextAttachment) 
 
 	contextSection := FormatContextForPrompt(attachments)
 	return basePrompt + contextSection
+}
+
+// BuildSplitPrompt separates a task into system prompt and user message for
+// runners that support distinct instruction and data channels.
+//
+// Returns:
+//   - systemPrompt: the instructions/methodology (from overridePrompt or taskDescription)
+//   - userMessage: formatted context attachments with the task question last
+//
+// When there are no context attachments, the system prompt is empty and the
+// task description becomes the user message (legacy single-prompt behavior).
+func BuildSplitPrompt(taskDescription string, attachments []ContextAttachment, overridePrompt string) (systemPrompt, userMessage string) {
+	instructions := overridePrompt
+	if instructions == "" {
+		instructions = taskDescription
+	}
+
+	// Without context attachments, fall back to legacy behavior:
+	// everything in the user message, nothing in system prompt.
+	if len(attachments) == 0 {
+		return "", instructions
+	}
+
+	// With attachments: instructions → system prompt, data → user message.
+	// Context data comes first in the user message (primacy for reference material),
+	// then the task question last (recency bias for attention).
+	systemPrompt = instructions
+	contextSection := FormatContextForPrompt(attachments)
+	userMessage = strings.TrimSpace(contextSection)
+
+	return systemPrompt, userMessage
 }
