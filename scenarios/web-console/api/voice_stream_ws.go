@@ -40,6 +40,15 @@ const voiceStreamFlushInterval = 1 * time.Second
 // transcription is attempted. Very short clips produce poor Whisper results.
 const minDeltaSize = 8 * 1024
 
+// overlapBytes is the trailing audio overlap prepended to each delta for
+// partial transcription. At 48 kbps (~6 KB/s), 1.5 s ≈ 9 KB.
+var overlapBytes = 9 * 1024
+
+// skipFinalCoverageThreshold: when partial-transcribed bytes / total audio
+// exceeds this ratio and accumulated transcript is non-empty, use the
+// accumulated partials as the final result instead of re-transcribing.
+var skipFinalCoverageThreshold = 0.80
+
 // handleVoiceStreamWS upgrades to WebSocket and streams audio chunks to Whisper,
 // returning partial and final transcripts.
 func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
@@ -84,10 +93,11 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Background ticker: periodically send new audio delta to Whisper
 	// for partial transcripts, using initial_prompt for context continuity.
 	var previousTranscript string
+	var totalPartialBytes int
+	var accumulatedTranscript string
 	go func() {
 		ticker := time.NewTicker(voiceStreamFlushInterval)
 		defer ticker.Stop()
-		var accumulatedTranscript string
 		for {
 			select {
 			case <-done:
@@ -104,15 +114,30 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				}
 				deltaCopy := make([]byte, deltaSize)
 				copy(deltaCopy, audioBuffer.Bytes()[lastPartialOffset:currentLen])
+
+				// Prepend trailing overlap from previous audio for Whisper context.
+				prevOffset := currentLen - deltaSize // offset before this tick's delta
+				overlapStart := prevOffset - overlapBytes
+				if overlapStart < 0 {
+					overlapStart = 0
+				}
+				sendData := deltaCopy
+				if prevOffset > overlapStart {
+					overlap := make([]byte, prevOffset-overlapStart)
+					copy(overlap, audioBuffer.Bytes()[overlapStart:prevOffset])
+					sendData = append(overlap, deltaCopy...)
+				}
+
 				lastPartialOffset = currentLen
 				bufMu.Unlock()
 
 				prompt := lastNWords(accumulatedTranscript, 10)
-				text, err := transcribeBytes(ctx, deltaCopy, language, false, prompt)
+				text, err := transcribeBytes(ctx, sendData, language, false, prompt)
 				if err != nil {
 					log.Printf("voice-ws: partial transcribe: %v", err)
 					continue
 				}
+				totalPartialBytes += deltaSize
 				text = strings.TrimSpace(text)
 				if text == "" {
 					continue
@@ -168,6 +193,15 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	if len(finalAudio) == 0 {
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: ""})
 		return
+	}
+
+	// Use accumulated partials when coverage is sufficient.
+	if accumulatedTranscript != "" {
+		coverage := float64(totalPartialBytes) / float64(len(finalAudio))
+		if coverage >= skipFinalCoverageThreshold {
+			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(accumulatedTranscript)})
+			return
+		}
 	}
 
 	text, err := transcribeBytes(ctx, finalAudio, language, true, "")

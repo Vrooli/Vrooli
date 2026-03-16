@@ -262,6 +262,8 @@ export default function SettingsModal() {
   const setVoiceShortcut = useWorkspaceStore((s) => s.setVoiceShortcut);
   const vadAutoStop = useWorkspaceStore((s) => s.vadAutoStop);
   const setVadAutoStop = useWorkspaceStore((s) => s.setVadAutoStop);
+  const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
+  const setVadSilenceTimeoutMs = useWorkspaceStore((s) => s.setVadSilenceTimeoutMs);
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
   const setVoiceLanguage = useWorkspaceStore((s) => s.setVoiceLanguage);
   const [recordingShortcut, setRecordingShortcut] = useState(false);
@@ -636,6 +638,27 @@ export default function SettingsModal() {
                       />
                     </button>
                   </div>
+                  {vadAutoStop && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-wc-text-secondary">Silence timeout</span>
+                        <span className="text-[10px] text-wc-text-muted">How long to wait after speech stops</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          data-testid="vad-silence-timeout-slider"
+                          type="range"
+                          min={1000}
+                          max={5000}
+                          step={250}
+                          value={vadSilenceTimeoutMs}
+                          onChange={(e) => setVadSilenceTimeoutMs(Number(e.target.value))}
+                          className="w-20 accent-wc-accent"
+                        />
+                        <span className="text-xs text-wc-text-muted w-8 text-right">{(vadSilenceTimeoutMs / 1000).toFixed(1)}s</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-wc-text-secondary">Language</span>
                     <select

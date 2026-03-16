@@ -214,6 +214,8 @@ class WebSpeechProvider implements TranscriptionProvider {
   private recognition: SpeechRecognitionInstance | null = null;
   private micStream: MediaStream | null = null;
   private stopped = false;
+  /** Tracks how many results have already been dispatched via onResult. */
+  private processedResultCount = 0;
   lang = "en-US";
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
@@ -237,23 +239,30 @@ class WebSpeechProvider implements TranscriptionProvider {
       return;
     }
     this.stopped = false;
+    this.processedResultCount = 0;
     this.recognition = new Ctor();
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
     this.recognition.lang = this.lang;
     this.recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = "";
+      // event.results is cumulative — it contains ALL results from the start
+      // of the session. Only process results we haven't dispatched yet.
+      let newFinalText = "";
       let interimText = "";
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = this.processedResultCount; i < event.results.length; i++) {
         const result = event.results[i];
         if (result?.isFinal) {
-          finalText += result[0]?.transcript ?? "";
+          newFinalText += result[0]?.transcript ?? "";
+          // Mark all results up to and including this one as processed.
+          // We can't skip indices because the API guarantees results
+          // finalize in order.
+          this.processedResultCount = i + 1;
         } else {
           interimText += result?.[0]?.transcript ?? "";
         }
       }
       if (interimText) this.onPartial?.(interimText);
-      if (finalText.trim()) this.onResult?.(finalText.trim());
+      if (newFinalText.trim()) this.onResult?.(newFinalText.trim());
     };
     this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error !== "aborted") {
@@ -262,7 +271,11 @@ class WebSpeechProvider implements TranscriptionProvider {
     };
     this.recognition.onend = () => {
       // Browser may end continuous recognition spontaneously; restart unless
-      // intentionally stopped.
+      // intentionally stopped. There is a brief gap (~100-500ms) during which
+      // no audio is captured — this is an inherent browser limitation.
+      // processedResultCount persists across restarts (it's an instance field,
+      // not tied to the recognition instance), so previously finalized results
+      // are correctly skipped after restart.
       if (!this.stopped && this.recognition) {
         try { this.recognition.start(); } catch { /* already started or disposed */ }
       }
@@ -475,14 +488,15 @@ class VoiceStreamProvider implements TranscriptionProvider {
 type VadState = "idle" | "calibrating" | "waitingForSpeech" | "speechDetected" | "watchingSilence";
 
 const VAD_CALIBRATION_MS = 500;
-const VAD_SILENCE_TIMEOUT_MS = 1500;
+/** Default silence timeout (ms). Configurable via workspace store `vadSilenceTimeoutMs`. */
+export const VAD_DEFAULT_SILENCE_TIMEOUT_MS = 2000;
 const VAD_NO_SPEECH_TIMEOUT_MS = 15_000;
 const VAD_MIN_SILENCE_THRESHOLD = 0.02;
 const VAD_MIN_SPEECH_THRESHOLD = 0.06;
 const VAD_SLIDING_WINDOW_SIZE = 30;     // ~2s at 15Hz
 const VAD_NOISE_FLOOR_DECAY_RATE = 0.5; // max floor decrease per second
 
-interface VadRefs {
+export interface VadRefs {
   state: VadState;
   recordingStart: number;
   silenceStart: number;
@@ -494,7 +508,7 @@ interface VadRefs {
   lastFloorUpdateTime: number;
 }
 
-function createVadRefs(): VadRefs {
+export function createVadRefs(): VadRefs {
   return {
     state: "idle",
     recordingStart: 0,
@@ -536,8 +550,10 @@ export function computeSlidingNoiseFloor(
 /**
  * Run one VAD tick. Returns "stop" if recording should auto-stop,
  * "no-speech" if the no-speech timeout expired, or null to continue.
+ *
+ * Pure function — all inputs are explicit parameters with no external dependencies.
  */
-function vadTick(vad: VadRefs, rms: number, now: number): "stop" | "no-speech" | null {
+export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs: number = VAD_DEFAULT_SILENCE_TIMEOUT_MS): "stop" | "no-speech" | null {
   if (vad.state === "idle") return null;
 
   if (vad.state === "calibrating") {
@@ -602,7 +618,7 @@ function vadTick(vad: VadRefs, rms: number, now: number): "stop" | "no-speech" |
       vad.state = "speechDetected";
       return null;
     }
-    if (now - vad.silenceStart >= VAD_SILENCE_TIMEOUT_MS) {
+    if (now - vad.silenceStart >= silenceTimeoutMs) {
       return "stop";
     }
     return null;
@@ -616,6 +632,7 @@ function vadTick(vad: VadRefs, rms: number, now: number): "stop" | "no-speech" |
 export function useVoiceInput(onTranscript: (text: string) => void) {
   const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
+  const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
   const [state, setState] = useState<VoiceInputState>({
     supported: false,
     backend: "none",
@@ -650,6 +667,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const vadActiveRef = useRef(false);
   // Ref to allow stopRecording to be called from inside the tick loop
   const stopRecordingRef = useRef<(() => void) | null>(null);
+  // Keep silence timeout in a ref so the rAF tick loop always reads the latest value.
+  const vadSilenceTimeoutRef = useRef(vadSilenceTimeoutMs);
+  vadSilenceTimeoutRef.current = vadSilenceTimeoutMs;
 
   const startLevelMonitor = useCallback((stream: MediaStream) => {
     try {
@@ -699,7 +719,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
         // VAD check
         if (vadActiveRef.current) {
-          const result = vadTick(vadRef.current, rms, Date.now());
+          const result = vadTick(vadRef.current, rms, Date.now(), vadSilenceTimeoutRef.current);
           if (result === "stop") {
             stopRecordingRef.current?.();
           } else if (result === "no-speech") {

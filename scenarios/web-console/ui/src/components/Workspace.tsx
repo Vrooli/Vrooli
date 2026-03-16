@@ -259,13 +259,17 @@ export default function Workspace() {
     focusActiveTerminal(store.activePane ?? undefined);
   }, [focusActiveTerminal, store.activePane]);
 
-  // Auto-focus the terminal when the active tab changes
+  // Auto-focus the terminal when the active tab changes.
+  // Skip on mobile: focusing the terminal opens the on-screen keyboard, which
+  // obscures the terminal output. Users typically want to read output first,
+  // then tap to focus when ready to type. The MobileToolbar provides an
+  // alternative input path that doesn't require terminal focus.
   useEffect(() => {
-    if (!store.activePane) return;
+    if (!store.activePane || isMobile) return;
     // Don't steal focus from open modals
     if (store.settingsModalOpen || store.sessionsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
     focusActiveTerminal(store.activePane);
-  }, [store.activePane, store.settingsModalOpen, store.sessionsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
+  }, [store.activePane, isMobile, store.settingsModalOpen, store.sessionsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {

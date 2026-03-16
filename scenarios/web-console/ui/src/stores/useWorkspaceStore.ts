@@ -28,6 +28,8 @@ interface WorkspaceState {
   voiceEnabled: boolean;
   voiceShortcut: string;
   vadAutoStop: boolean;
+  /** Silence duration (ms) before VAD auto-stops recording. */
+  vadSilenceTimeoutMs: number;
   voiceLanguage: string;
   ttsVoice: string;
   ttsRate: number;
@@ -59,6 +61,7 @@ interface WorkspaceActions {
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceShortcut: (shortcut: string) => void;
   setVadAutoStop: (enabled: boolean) => void;
+  setVadSilenceTimeoutMs: (ms: number) => void;
   setVoiceLanguage: (lang: string) => void;
   setTtsVoice: (voice: string) => void;
   setTtsRate: (rate: number) => void;
@@ -89,6 +92,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
       vadAutoStop: true,
+      vadSilenceTimeoutMs: 2000,
       voiceLanguage: "en-US",
       ttsVoice: "",
       ttsRate: 1.0,
@@ -172,6 +176,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
       setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),
+      setVadSilenceTimeoutMs: (ms) => set({ vadSilenceTimeoutMs: ms }),
       setVoiceLanguage: (lang) => set({ voiceLanguage: lang }),
       setTtsVoice: (voice) => set({ ttsVoice: voice }),
       setTtsRate: (rate) => set({ ttsRate: rate }),
@@ -189,7 +194,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -204,6 +209,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           state.ttsRate ??= 1.0;
           state.ttsPitch ??= 1.0;
         }
+        if (version < 3) {
+          state.vadSilenceTimeoutMs ??= 2000;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -216,6 +224,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         voiceEnabled: state.voiceEnabled,
         voiceShortcut: state.voiceShortcut,
         vadAutoStop: state.vadAutoStop,
+        vadSilenceTimeoutMs: state.vadSilenceTimeoutMs,
         voiceLanguage: state.voiceLanguage,
         ttsVoice: state.ttsVoice,
         ttsRate: state.ttsRate,

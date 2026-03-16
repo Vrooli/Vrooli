@@ -146,6 +146,9 @@ Last updated: 2026-03-15
 | `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain → `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories; track `.connect()` call order |
 | `inputStream` provider property | When set, providers use injected filtered stream instead of acquiring own mic | Set property before `start()`, verify MediaRecorder uses injected stream |
 | `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ≈ 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5×/s) | Pure function, table-driven unit tests |
+| `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms, configurable via workspace store `vadSilenceTimeoutMs`) | Direct unit testing with synthetic VadRefs and timestamps |
+| `processedResultCount` | WebSpeechProvider instance field tracking dispatched result indices to prevent cumulative duplication; persists across spontaneous browser restarts | Controllable SpeechRecognition stub fires cumulative `onresult` events |
+| WebSpeechProvider `onend` restart | Auto-restarts recognition on spontaneous end. ~100-500ms audio gap is an inherent browser limitation. `processedResultCount` persists across restarts | Trigger `onend`, verify old results are skipped |
 
 **Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Bandpass filter chain is a pure function testable with mock AudioContext. Sliding-window VAD is a pure function testable with synthetic RMS sequences.
 
@@ -176,8 +179,10 @@ Last updated: 2026-03-15
 | `initial_prompt` context | `lastNWords(previousTranscript, 10)` appended to Whisper URL for context continuity | Tracking handler captures URLs — first partial has no prompt, subsequent partials have prompt with prior words |
 | `lastNWords(s, n)` | Returns last N whitespace-delimited words of string | Pure function, table-driven unit tests |
 | Language passthrough | Read from WS upgrade query `?language=`; empty = Whisper auto-detect | Verify mock Whisper URL has/lacks `language=` param |
+| `overlapBytes` package var | Trailing audio overlap (default 9KB ≈ 1.5s at 48kbps) prepended to each delta for partial transcription context | Override in tests to verify payload sizes include/exclude overlap |
+| `skipFinalCoverageThreshold` package var | When partial-transcribed bytes / total audio ≥ threshold (default 0.80) and accumulated transcript exists, skip full re-transcription | Override to 0.0 (always skip) or 1.0 (never skip) in tests |
 
-**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription reduces Whisper GPU time ~70% for long recordings. Transcode skip for partials reduces latency ~100-200ms per tick.
+**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription reduces Whisper GPU time ~70% for long recordings. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Coverage-based final skip avoids redundant full-buffer re-transcription for long recordings.
 
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`

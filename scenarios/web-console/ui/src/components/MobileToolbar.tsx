@@ -117,11 +117,15 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       const { data, consumed } = applyModifiers(key.input, mods);
       onInput(data);
       if (consumed) clearModifiers();
-      // Don't refocus the textarea here. Toolbar keys (Esc, Tab, Ctrl-C, arrows, etc.)
-      // send escape sequences to the terminal — stealing focus back to the input
-      // would yank the user out of the terminal session they're actively controlling.
+      // Re-focus the terminal after sending the key. On mobile, rapid taps can
+      // cause the browser to blur the terminal (moving activeElement to body),
+      // which dismisses the virtual keyboard. Since the user is actively pressing
+      // toolbar keys, they clearly want to interact with the terminal, so
+      // restoring focus is always correct here. This does NOT focus the
+      // MobileToolbar's textarea — it focuses the xterm.js terminal.
+      onFocusTerminal?.();
     },
-    [onInput, clearModifiers],
+    [onInput, clearModifiers, onFocusTerminal],
   );
 
   const submitCommand = useCallback(() => {
@@ -212,13 +216,26 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           <SendHorizontal className="h-3.5 w-3.5" />
         </button>
       </div>
-      {/* Toolbar keys row */}
-      <div className="flex items-center gap-0.5 px-1 py-1 touch-manipulation">
+      {/* Toolbar keys row.
+         Focus-preservation strategy (multiple layers to handle browser inconsistencies):
+         1. tabIndex={-1} on buttons: makes them non-focusable so they can't steal focus.
+         2. onPointerDown preventDefault on buttons: prevents default pointer focus behavior.
+         3. onMouseDown preventDefault on container: catches mobile compatibility mouse
+            events that slip through the pointerdown handler on rapid double-taps.
+         4. select-none: prevents double-tap text selection which can blur the terminal.
+         5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
+            in case the browser still manages to blur the terminal despite layers 1-4. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus */}
+      <div
+        className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
+        onMouseDown={(e) => e.preventDefault()}
+      >
         {/* Modifier toggle buttons */}
         {(["ctrl", "alt", "shift"] as const).map((mod) => (
           <button
             key={mod}
             data-testid={`toolbar-mod-${mod}`}
+            tabIndex={-1}
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => toggleModifier(mod)}
             className={cn(
@@ -237,6 +254,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             <button
               key={key.label}
               data-testid={`toolbar-key-${slugify(key.label)}`}
+              tabIndex={-1}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => handleKey(key)}
               className={cn(
@@ -251,6 +269,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         {onUploadImage && (
           <button
             data-testid="toolbar-upload-image"
+            tabIndex={-1}
             onPointerDown={(e) => e.preventDefault()}
             onClick={onUploadImage}
             className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"

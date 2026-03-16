@@ -232,6 +232,15 @@ func TestVoiceStreamWS_PartialTranscripts(t *testing.T) {
 }
 
 func TestVoiceStreamWS_DeltaPartials(t *testing.T) {
+	// Disable overlap and skip-final so this test isolates delta-only behaviour.
+	origOverlap := overlapBytes
+	overlapBytes = 0
+	t.Cleanup(func() { overlapBytes = origOverlap })
+
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 2.0 // never skip — exceeds maximum possible coverage
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
 	tracker := &trackingWhisperHandler{response: "delta"}
 	ts, _ := setupVoiceWSServer(t, tracker)
 
@@ -352,6 +361,11 @@ func TestVoiceStreamFlushInterval(t *testing.T) {
 }
 
 func TestVoiceStreamWS_TranscodeSeamCalled(t *testing.T) {
+	// Ensure final transcription always runs so transcode is invoked.
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 2.0
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
 	var transcodeCalls atomic.Int64
 	origTranscode := transcodeAudio
 	t.Cleanup(func() { transcodeAudio = origTranscode })
@@ -523,6 +537,11 @@ func TestLastNWords(t *testing.T) {
 }
 
 func TestVoiceStreamWS_PartialSkipsTranscode(t *testing.T) {
+	// Ensure final transcription always runs so we can verify transcode is called for it.
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 2.0
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
 	var transcodeCalls atomic.Int64
 	origTranscode := transcodeAudio
 	t.Cleanup(func() { transcodeAudio = origTranscode })
@@ -708,4 +727,336 @@ func TestVoiceStreamWS_MinDeltaSize(t *testing.T) {
 
 	// Cleanup
 	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+// --- Phase 3: Audio Overlap Tests ---
+
+func TestVoiceStreamWS_OverlapIncluded(t *testing.T) {
+	origOverlap := overlapBytes
+	overlapBytes = 2048
+	t.Cleanup(func() { overlapBytes = origOverlap })
+
+	// Disable skip-final so we get a clean final call.
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 2.0
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
+	tracker := &trackingWhisperHandler{response: "overlap"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	batch1Size := minDeltaSize + 1024
+	batch2Size := minDeltaSize + 1024
+
+	// Send batch1 and wait for partial
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, batch1Size)); err != nil {
+		t.Fatalf("write batch1: %v", err)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read partial 1: %v", err)
+		}
+		if msg.Type == VoiceMsgPartial {
+			break
+		}
+	}
+
+	// Send batch2 and wait for partial
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, batch2Size)); err != nil {
+		t.Fatalf("write batch2: %v", err)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read partial 2: %v", err)
+		}
+		if msg.Type == VoiceMsgPartial {
+			break
+		}
+	}
+
+	// Send done and wait for final
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgFinal || msg.Type == VoiceMsgError {
+			break
+		}
+	}
+
+	sizes := tracker.getSizes()
+	if len(sizes) < 2 {
+		t.Fatalf("expected at least 2 partial Whisper calls, got %d", len(sizes))
+	}
+
+	// Partial 1: no prior data to overlap from, so size ≈ batch1Size
+	if sizes[0] < batch1Size-512 || sizes[0] > batch1Size+512 {
+		t.Errorf("partial 1 size = %d, want ~%d (no overlap for first delta)", sizes[0], batch1Size)
+	}
+
+	// Partial 2: should include 2048 bytes of overlap + batch2Size
+	expectedMin := 2048 + batch2Size - 512
+	expectedMax := 2048 + batch2Size + 512
+	if sizes[1] < expectedMin || sizes[1] > expectedMax {
+		t.Errorf("partial 2 size = %d, want ~%d (overlap + delta)", sizes[1], 2048+batch2Size)
+	}
+}
+
+func TestVoiceStreamWS_OverlapClampedToStart(t *testing.T) {
+	origOverlap := overlapBytes
+	overlapBytes = 1 << 20 // huge overlap — should clamp to buffer start
+	t.Cleanup(func() { overlapBytes = origOverlap })
+
+	tracker := &trackingWhisperHandler{response: "clamped"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	batchSize := minDeltaSize + 1024
+
+	// Send one batch and wait for partial
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, batchSize)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read partial: %v", err)
+		}
+		if msg.Type == VoiceMsgPartial {
+			break
+		}
+	}
+
+	sizes := tracker.getSizes()
+	if len(sizes) < 1 {
+		t.Fatal("expected at least 1 Whisper call")
+	}
+	// First delta has no prior data, so no overlap — size ≈ batchSize
+	if sizes[0] < batchSize-512 || sizes[0] > batchSize+512 {
+		t.Errorf("partial size = %d, want ~%d (clamped to start)", sizes[0], batchSize)
+	}
+
+	// Cleanup
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+func TestVoiceStreamWS_OverlapZeroDisabled(t *testing.T) {
+	origOverlap := overlapBytes
+	overlapBytes = 0
+	t.Cleanup(func() { overlapBytes = origOverlap })
+
+	tracker := &trackingWhisperHandler{response: "no-overlap"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	batchSize := minDeltaSize + 1024
+
+	// Send 2 batches, waiting for each partial
+	for batch := 0; batch < 2; batch++ {
+		if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, batchSize)); err != nil {
+			t.Fatalf("write batch %d: %v", batch, err)
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		for {
+			var msg VoiceStreamMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Fatalf("read partial %d: %v", batch, err)
+			}
+			if msg.Type == VoiceMsgPartial {
+				break
+			}
+		}
+	}
+
+	sizes := tracker.getSizes()
+	if len(sizes) < 2 {
+		t.Fatalf("expected at least 2 partial calls, got %d", len(sizes))
+	}
+
+	// With overlap=0, each partial should be approximately batchSize
+	for i := 0; i < 2; i++ {
+		if sizes[i] < batchSize-512 || sizes[i] > batchSize+512 {
+			t.Errorf("partial %d size = %d, want ~%d (no overlap)", i, sizes[i], batchSize)
+		}
+	}
+
+	// Cleanup
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+// --- Phase 4: Skip Final Transcription Tests ---
+
+func TestVoiceStreamWS_SkipFinalWhenCoverageHigh(t *testing.T) {
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 0.0 // always skip
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
+	// Disable overlap to simplify size tracking.
+	origOverlap := overlapBytes
+	overlapBytes = 0
+	t.Cleanup(func() { overlapBytes = origOverlap })
+
+	tracker := &trackingWhisperHandler{response: "partial-text"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	batchSize := minDeltaSize + 1024
+
+	// Send 3 batches, waiting for each partial
+	for batch := 0; batch < 3; batch++ {
+		if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, batchSize)); err != nil {
+			t.Fatalf("write batch %d: %v", batch, err)
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		for {
+			var msg VoiceStreamMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Fatalf("read partial %d: %v", batch, err)
+			}
+			if msg.Type == VoiceMsgPartial {
+				break
+			}
+		}
+	}
+
+	// Send done and read final
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var finalText string
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read final: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			finalText = msg.Text
+			break
+		}
+	}
+
+	// Final text should be the accumulated partials
+	if !strings.Contains(finalText, "partial-text") {
+		t.Errorf("final text = %q, want it to contain %q", finalText, "partial-text")
+	}
+
+	// Should be exactly 3 calls (partials only, no extra final call)
+	sizes := tracker.getSizes()
+	if len(sizes) != 3 {
+		t.Errorf("Whisper call count = %d, want 3 (no extra final call)", len(sizes))
+	}
+}
+
+func TestVoiceStreamWS_FullFinalWhenCoverageLow(t *testing.T) {
+	origThreshold := skipFinalCoverageThreshold
+	skipFinalCoverageThreshold = 2.0 // never skip — exceeds maximum possible coverage
+	t.Cleanup(func() { skipFinalCoverageThreshold = origThreshold })
+
+	tracker := &trackingWhisperHandler{response: "final-result"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send data < minDeltaSize so no partials trigger
+	dataSize := minDeltaSize / 2
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, dataSize)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Send done immediately
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read final: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			break
+		}
+	}
+
+	// Whisper should have been called exactly once (the final transcription)
+	sizes := tracker.getSizes()
+	if len(sizes) != 1 {
+		t.Errorf("Whisper call count = %d, want 1 (final only)", len(sizes))
+	}
+	if len(sizes) > 0 && sizes[0] != dataSize {
+		t.Errorf("final payload size = %d, want %d", sizes[0], dataSize)
+	}
+}
+
+func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
+	tracker := &trackingWhisperHandler{response: "full-final"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send small data < minDeltaSize, then done immediately
+	dataSize := 1024
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, dataSize)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "full-final" {
+				t.Errorf("final text = %q, want %q", msg.Text, "full-final")
+			}
+			break
+		}
+	}
+
+	// Final transcription should happen normally via Whisper
+	sizes := tracker.getSizes()
+	if len(sizes) != 1 {
+		t.Errorf("Whisper call count = %d, want 1", len(sizes))
+	}
 }
