@@ -95,7 +95,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // Enable hold-to-delete on mobile virtual keyboards (see hook for details).
     useMobileBackspaceRepeat(terminal);
 
-    const closeContextMenu = useCallback(() => setContextMenu(null), []);
+    const closeContextMenu = useCallback(() => {
+      // Clear the selection when dismissing the menu so it doesn't
+      // immediately reopen (the selection triggers the context menu).
+      clearSelection();
+      setContextMenu(null);
+    }, [clearSelection]);
 
     const handleCtxCopy = useCallback(() => {
       copySelection();
