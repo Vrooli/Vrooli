@@ -53,6 +53,10 @@ interface DiffViewerProps {
   // View mode props
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  /** Callback for empty-state CTA (e.g. navigate to sandbox list on mobile) */
+  onEmptyAction?: () => void;
+  /** Label for the empty-state CTA button */
+  emptyActionLabel?: string;
 }
 
 interface ParsedHunk {
@@ -654,6 +658,8 @@ export function DiffViewer({
   onHunkSelectionChange,
   viewMode = "diff",
   onViewModeChange,
+  onEmptyAction,
+  emptyActionLabel,
 }: DiffViewerProps) {
   // Parse the unified diff
   const parsedFiles = useMemo(() => {
@@ -892,6 +898,16 @@ export function DiffViewer({
               <p className="text-xs text-slate-500 mt-1">
                 Click on a sandbox from the list
               </p>
+              {onEmptyAction && (
+                <button
+                  type="button"
+                  onClick={onEmptyAction}
+                  className="mt-4 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                  data-testid="diff-empty-action"
+                >
+                  {emptyActionLabel ?? "Go to Sandboxes"}
+                </button>
+              )}
             </div>
           )}
 

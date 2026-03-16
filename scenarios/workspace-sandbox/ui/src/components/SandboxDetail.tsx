@@ -563,14 +563,14 @@ export function SandboxDetail({
                 </Button>
               )}
 
-              {/* R1: Visual divider between lifecycle and review/approval groups */}
-              {hasLifecycleButtons && hasReviewButtons && (
+              {/* R1: Visual divider between lifecycle and review/approval groups (desktop only) */}
+              {!hideDiffViewer && hasLifecycleButtons && hasReviewButtons && (
                 <div className="w-px h-6 bg-slate-700 self-center" data-testid="action-divider" />
               )}
 
-              {/* R1: Review/approval group */}
+              {/* R1: Review/approval group (desktop only — on mobile these live on the Changes tab) */}
               {/* Review mode toggle */}
-              {canApproveReject && onApproveSelected && (
+              {!hideDiffViewer && canApproveReject && onApproveSelected && (
                 <Button
                   variant={isReviewMode ? "default" : "outline"}
                   size="sm"
@@ -590,8 +590,8 @@ export function SandboxDetail({
                 </Button>
               )}
 
-              {/* Approve Selected button - shows when hunks are selected */}
-              {canApproveReject && isReviewMode && hasSelection && onApproveSelected && (
+              {/* Approve Selected button - shows when hunks are selected (desktop only) */}
+              {!hideDiffViewer && canApproveReject && isReviewMode && hasSelection && onApproveSelected && (
                 <Button
                   variant="success"
                   size="sm"

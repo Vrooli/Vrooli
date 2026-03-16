@@ -19,6 +19,8 @@ interface FileTreeProps {
   selectedHunks: HunkSelection[];
   onFileClick: (filePath: string) => void;
   onExitReview: () => void;
+  /** Hide the header (title, exit button, path, counts). Used when embedded inline. */
+  hideHeader?: boolean;
 }
 
 // Group files by directory for tree structure
@@ -178,6 +180,7 @@ export function FileTree({
   selectedHunks,
   onFileClick,
   onExitReview,
+  hideHeader,
 }: FileTreeProps) {
   // Count total hunks per file (we need to parse the diff to get this)
   const hunkCountsByFile = useMemo(() => {
@@ -209,34 +212,36 @@ export function FileTree({
 
   return (
     <div className="h-full flex flex-col bg-slate-900/50">
-      {/* Header */}
-      <div className="flex-shrink-0 p-3 border-b border-slate-800">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-slate-200">Review Changes</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onExitReview}
-            className="h-7 px-2 text-xs"
-          >
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-            Exit
-          </Button>
-        </div>
-        <p className="text-xs text-slate-500 truncate" title={sandboxPath}>
-          {sandboxPath}
-        </p>
-        <div className="flex items-center gap-3 mt-2 text-xs">
-          <span className="text-slate-400">
-            {fileCount} {fileCount === 1 ? "file" : "files"}
-          </span>
-          {totalSelected > 0 && (
-            <span className="text-emerald-400">
-              {totalSelected} {totalSelected === 1 ? "hunk" : "hunks"} selected
+      {/* Header (hidden when embedded inline, e.g. mobile Changes tab) */}
+      {!hideHeader && (
+        <div className="flex-shrink-0 p-3 border-b border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-slate-200">Review Changes</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onExitReview}
+              className="h-7 px-2 text-xs"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+              Exit
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500 truncate" title={sandboxPath}>
+            {sandboxPath}
+          </p>
+          <div className="flex items-center gap-3 mt-2 text-xs">
+            <span className="text-slate-400">
+              {fileCount} {fileCount === 1 ? "file" : "files"}
             </span>
-          )}
+            {totalSelected > 0 && (
+              <span className="text-emerald-400">
+                {totalSelected} {totalSelected === 1 ? "hunk" : "hunks"} selected
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* File tree */}
       <ScrollArea className="flex-1">

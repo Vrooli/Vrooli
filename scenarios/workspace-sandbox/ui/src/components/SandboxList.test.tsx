@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { SandboxList } from "./SandboxList";
 import type { Sandbox } from "../lib/api";
 
@@ -134,6 +134,123 @@ describe("SandboxList", () => {
       render(<SandboxList sandboxes={sandboxes} {...defaultProps} />);
 
       expect(screen.getByText("my-sandbox")).toBeInTheDocument();
+    });
+  });
+
+  describe("Mount warning info and CTAs", () => {
+    it("shows info text when inline info button is clicked", () => {
+      const sandboxes = [
+        makeSandbox({
+          id: "a1",
+          mountHealth: { healthy: false, verified: true, error: "error A", hint: "" },
+        }),
+      ];
+      render(<SandboxList sandboxes={sandboxes} {...defaultProps} />);
+
+      expect(screen.queryByTestId("mount-info-text")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("mount-info-button"));
+      expect(screen.getByTestId("mount-info-text")).toBeInTheDocument();
+      expect(screen.getByTestId("mount-info-text")).toHaveTextContent("OverlayFS");
+    });
+
+    it("hides info text on second click", () => {
+      const sandboxes = [
+        makeSandbox({
+          id: "a1",
+          mountHealth: { healthy: false, verified: true, error: "error A", hint: "" },
+        }),
+      ];
+      render(<SandboxList sandboxes={sandboxes} {...defaultProps} />);
+
+      fireEvent.click(screen.getByTestId("mount-info-button"));
+      expect(screen.getByTestId("mount-info-text")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("mount-info-button"));
+      expect(screen.queryByTestId("mount-info-text")).not.toBeInTheDocument();
+    });
+
+    it("renders inline restart button when onRestartSandbox is provided", () => {
+      const onRestart = vi.fn();
+      const sandboxes = [
+        makeSandbox({
+          id: "a1",
+          mountHealth: { healthy: false, verified: true, error: "error A", hint: "" },
+        }),
+      ];
+      render(
+        <SandboxList sandboxes={sandboxes} {...defaultProps} onRestartSandbox={onRestart} />,
+      );
+
+      const btn = screen.getByTestId("mount-restart-button");
+      expect(btn).toHaveTextContent("Restart");
+
+      fireEvent.click(btn);
+      expect(onRestart).toHaveBeenCalledWith("a1");
+    });
+
+    it("disables inline restart button when sandbox is restarting", () => {
+      const sandboxes = [
+        makeSandbox({
+          id: "a1",
+          mountHealth: { healthy: false, verified: true, error: "error A", hint: "" },
+        }),
+      ];
+      render(
+        <SandboxList
+          sandboxes={sandboxes}
+          {...defaultProps}
+          onRestartSandbox={vi.fn()}
+          restartingIds={new Set(["a1"])}
+        />,
+      );
+
+      expect(screen.getByTestId("mount-restart-button")).toBeDisabled();
+    });
+
+    it("renders banner info button and restart-all button", () => {
+      const onRestartUnhealthy = vi.fn();
+      const mountHealth = { healthy: false, verified: true, error: "mount failed", hint: "Stop and restart" };
+      const sandboxes = [
+        makeSandbox({ id: "a1", mountHealth }),
+        makeSandbox({ id: "a2", mountHealth }),
+      ];
+
+      render(
+        <SandboxList
+          sandboxes={sandboxes}
+          {...defaultProps}
+          onRestartUnhealthy={onRestartUnhealthy}
+        />,
+      );
+
+      // Info button
+      const infoBtn = screen.getByTestId("banner-info-button");
+      expect(infoBtn).toBeInTheDocument();
+
+      // Click info to show explanation
+      fireEvent.click(infoBtn);
+      expect(screen.getByTestId("banner-info-text")).toHaveTextContent("OverlayFS");
+
+      // Restart all button
+      const restartBtn = screen.getByTestId("banner-restart-all-button");
+      expect(restartBtn).toHaveTextContent("Restart all");
+
+      fireEvent.click(restartBtn);
+      expect(onRestartUnhealthy).toHaveBeenCalled();
+    });
+
+    it("does not render restart buttons when callbacks are not provided", () => {
+      const sandboxes = [
+        makeSandbox({
+          id: "a1",
+          mountHealth: { healthy: false, verified: true, error: "error A", hint: "" },
+        }),
+      ];
+      render(<SandboxList sandboxes={sandboxes} {...defaultProps} />);
+
+      expect(screen.queryByTestId("mount-restart-button")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("banner-restart-all-button")).not.toBeInTheDocument();
     });
   });
 });

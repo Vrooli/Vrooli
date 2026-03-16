@@ -122,6 +122,7 @@ describe("SandboxDetail", () => {
         <SandboxDetail
           sandbox={makeSandbox({ status: "active" })}
           {...defaultProps}
+          hideDiffViewer={false}
           onLaunchAgent={vi.fn()}
         />,
       );
@@ -134,6 +135,7 @@ describe("SandboxDetail", () => {
         <SandboxDetail
           sandbox={makeSandbox({ status: "stopped" })}
           {...defaultProps}
+          hideDiffViewer={false}
         />,
       );
 
@@ -141,11 +143,12 @@ describe("SandboxDetail", () => {
       expect(screen.getByTestId("action-divider")).toBeInTheDocument();
     });
 
-    it("renders all expected action buttons for an active sandbox", () => {
+    it("renders all expected action buttons for an active sandbox (desktop)", () => {
       render(
         <SandboxDetail
           sandbox={makeSandbox({ status: "active" })}
           {...defaultProps}
+          hideDiffViewer={false}
           onLaunchAgent={vi.fn()}
           onOverrideAcceptance={vi.fn()}
         />,
@@ -157,6 +160,20 @@ describe("SandboxDetail", () => {
       expect(screen.getByTestId("approve-button")).toBeInTheDocument();
       expect(screen.getByTestId("reject-button")).toBeInTheDocument();
       expect(screen.getByTestId("delete-button")).toBeInTheDocument();
+    });
+
+    it("hides review toggle and divider on mobile (hideDiffViewer=true)", () => {
+      render(
+        <SandboxDetail
+          sandbox={makeSandbox({ status: "active" })}
+          {...defaultProps}
+          hideDiffViewer={true}
+          onLaunchAgent={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByTestId("action-divider")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("selection-mode-toggle")).not.toBeInTheDocument();
     });
   });
 
