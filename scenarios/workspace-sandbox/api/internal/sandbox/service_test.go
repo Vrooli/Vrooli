@@ -212,6 +212,14 @@ func (m *mockRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UU
 	return nil
 }
 
+func (m *mockRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	return len(filePaths), 0, nil
+}
+
+func (m *mockRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	return nil, nil
+}
+
 func (m *mockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return nil, errors.New("transactions not supported in mock")
 }

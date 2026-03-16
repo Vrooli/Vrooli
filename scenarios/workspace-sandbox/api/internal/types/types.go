@@ -721,18 +721,19 @@ type ConflictCheckResponse struct {
 // AppliedChange represents a file change that was applied from a sandbox.
 // Used for provenance tracking - knowing which sandbox modified which files.
 type AppliedChange struct {
-	ID               uuid.UUID  `json:"id" db:"id"`
-	SandboxID        uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
-	SandboxOwner     string     `json:"sandboxOwner" db:"sandbox_owner"`
-	SandboxOwnerType string     `json:"sandboxOwnerType" db:"sandbox_owner_type"`
-	FilePath         string     `json:"filePath" db:"file_path"`
-	ProjectRoot      string     `json:"projectRoot" db:"project_root"`
-	ChangeType       string     `json:"changeType" db:"change_type"`
-	FileSize         int64      `json:"fileSize" db:"file_size"`
-	AppliedAt        time.Time  `json:"appliedAt" db:"applied_at"`
-	CommittedAt      *time.Time `json:"committedAt,omitempty" db:"committed_at"`
-	CommitHash       string     `json:"commitHash,omitempty" db:"commit_hash"`
-	CommitMessage    string     `json:"commitMessage,omitempty" db:"commit_message"`
+	ID                uuid.UUID  `json:"id" db:"id"`
+	SandboxID         uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
+	SandboxOwner      string     `json:"sandboxOwner" db:"sandbox_owner"`
+	SandboxOwnerType  string     `json:"sandboxOwnerType" db:"sandbox_owner_type"`
+	FilePath          string     `json:"filePath" db:"file_path"`
+	ProjectRoot       string     `json:"projectRoot" db:"project_root"`
+	ChangeType        string     `json:"changeType" db:"change_type"`
+	FileSize          int64      `json:"fileSize" db:"file_size"`
+	AgentManagerRunID string     `json:"agentManagerRunId,omitempty" db:"agent_manager_run_id"`
+	AppliedAt         time.Time  `json:"appliedAt" db:"applied_at"`
+	CommittedAt       *time.Time `json:"committedAt,omitempty" db:"committed_at"`
+	CommitHash        string     `json:"commitHash,omitempty" db:"commit_hash"`
+	CommitMessage     string     `json:"commitMessage,omitempty" db:"commit_message"`
 }
 
 // PendingChangesSummary summarizes pending changes from a single sandbox.
@@ -777,12 +778,13 @@ type CommitPendingResult struct {
 
 // CommitPreviewFile represents a single file in the commit preview.
 type CommitPreviewFile struct {
-	FilePath     string    `json:"filePath"`
-	RelativePath string    `json:"relativePath"`
-	ChangeType   string    `json:"changeType"`
-	SandboxID    uuid.UUID `json:"sandboxId"`
-	SandboxOwner string    `json:"sandboxOwner"`
-	AppliedAt    time.Time `json:"appliedAt"`
+	FilePath          string    `json:"filePath"`
+	RelativePath      string    `json:"relativePath"`
+	ChangeType        string    `json:"changeType"`
+	SandboxID         uuid.UUID `json:"sandboxId"`
+	SandboxOwner      string    `json:"sandboxOwner"`
+	AgentManagerRunID string    `json:"agentManagerRunId,omitempty"`
+	AppliedAt         time.Time `json:"appliedAt"`
 	// Status indicates the file's current state relative to git
 	// "pending" = still uncommitted, "already_committed" = committed externally
 	Status string `json:"status"`
@@ -823,4 +825,40 @@ type CommitPreviewSandboxGroup struct {
 	Added        int       `json:"added"`
 	Modified     int       `json:"modified"`
 	Deleted      int       `json:"deleted"`
+}
+
+// --- External Commit Notification Types ---
+
+// MarkCommittedRequest is sent by external tools (e.g., git-control-tower) to notify
+// workspace-sandbox that files have been committed outside its own commit flow.
+type MarkCommittedRequest struct {
+	ProjectRoot   string   `json:"projectRoot"`
+	FilePaths     []string `json:"filePaths"`
+	CommitHash    string   `json:"commitHash"`
+	CommitMessage string   `json:"commitMessage"`
+}
+
+// MarkCommittedResult reports the outcome of marking files as committed.
+type MarkCommittedResult struct {
+	MarkedCount   int `json:"markedCount"`
+	NotFoundCount int `json:"notFoundCount"`
+}
+
+// --- Provenance By Run Types ---
+
+// ProvenanceRunGroup groups pending applied changes by agent-manager run ID.
+type ProvenanceRunGroup struct {
+	RunID           string           `json:"runId"`
+	SandboxID       string           `json:"sandboxId"`
+	SandboxOwner    string           `json:"sandboxOwner"`
+	Files           []ProvenanceFile `json:"files"`
+	LatestAppliedAt time.Time        `json:"latestAppliedAt"`
+}
+
+// ProvenanceFile represents a single file within a provenance run group.
+type ProvenanceFile struct {
+	FilePath     string    `json:"filePath"`
+	RelativePath string    `json:"relativePath"`
+	ChangeType   string    `json:"changeType"`
+	AppliedAt    time.Time `json:"appliedAt"`
 }

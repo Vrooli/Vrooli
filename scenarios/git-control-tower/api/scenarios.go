@@ -12,13 +12,13 @@ import (
 
 // ScenarioInfo holds metadata about a single scenario.
 type ScenarioInfo struct {
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Description  string         `json:"description"`
-	Status       string         `json:"status"`
-	HealthStatus *string        `json:"health_status"`
-	Tags         []string       `json:"tags"`
-	Runtime      string         `json:"runtime"`
+	Name         string   `json:"name"`
+	DisplayName  string   `json:"display_name"`
+	Description  string   `json:"description"`
+	Status       string   `json:"status"`
+	HealthStatus *string  `json:"health_status"`
+	Tags         []string `json:"tags"`
+	Runtime      string   `json:"runtime"`
 }
 
 // ScenarioLocator discovers available scenarios via the vrooli CLI.

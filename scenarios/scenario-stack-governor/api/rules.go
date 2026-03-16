@@ -58,8 +58,8 @@ func AllRules() []RuleEntry {
 			Definition: RuleDefinition{
 				ID:             "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
 				Title:          "React/Vite UI installs dependencies correctly",
-				Summary:        "Ensures React/Vite scenario UIs install `ui/package.json` dependencies in a way that makes `pnpm run build` actually find tools like `vite`.",
-				WhyImportant:   "In a monorepo, `pnpm install` can accidentally behave like a workspace install (and leave `ui/node_modules` missing), causing `vite: not found` during `build-ui`. This rule enforces an explicit lifecycle install command (`pnpm install --ignore-workspace`) so setup is deterministic.",
+				Summary:        "Ensures React/Vite scenario UIs install `ui/package.json` dependencies using `pnpm install --ignore-workspace` so `pnpm run build` can find tools like `vite`.",
+				WhyImportant:   "In a monorepo, `pnpm install` can accidentally behave like a workspace install (and leave `ui/node_modules` missing), causing `vite: not found` during `build-ui`. This rule enforces pnpm specifically (not npm or yarn) because the monorepo uses pnpm workspaces — mixing package managers causes lockfile conflicts and phantom dependencies. The `--ignore-workspace` flag ensures each UI installs its own deps deterministically.",
 				Category:       "typescript",
 				Severity:       "error",
 				DefaultEnabled: true,

@@ -50,17 +50,17 @@ func testSandbox() *types.Sandbox {
 				Mode: "allowlist",
 			},
 		},
-		CreatedAt:     now,
-		LastUsedAt:    now,
-		UpdatedAt:     now,
-		Version:       1,
+		CreatedAt:  now,
+		LastUsedAt: now,
+		UpdatedAt:  now,
+		Version:    1,
 	}
 }
 
 // sandboxColumns returns the column names for sandbox queries.
 func sandboxColumns() []string {
 	return []string{
-		"id", "scope_path", "reserved_path", "reserved_paths", "no_lock", "project_root", "owner", "owner_type", "status", "error_message",
+		"id", "name", "scope_path", "reserved_path", "reserved_paths", "no_lock", "project_root", "owner", "owner_type", "status", "error_message",
 		"created_at", "last_used_at", "stopped_at", "approved_at", "deleted_at",
 		"driver", "driver_version", "lower_dir", "upper_dir", "work_dir", "merged_dir",
 		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata", "behavior",
@@ -73,7 +73,7 @@ func sandboxRow(s *types.Sandbox) []driver.Value {
 	metadataJSON, _ := json.Marshal(s.Metadata)
 	behaviorJSON, _ := json.Marshal(s.Behavior)
 	return []driver.Value{
-		s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 		s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount,
@@ -125,7 +125,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				now := time.Now()
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
-						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+						s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
@@ -141,7 +141,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				now := time.Now()
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
-						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+						s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
@@ -223,8 +223,8 @@ func TestSandboxRepository_Get(t *testing.T) {
 						AddRow(sandboxRow(s)...))
 			},
 			validate: nil,
-			wantNil: false,
-			wantErr: false,
+			wantNil:  false,
+			wantErr:  false,
 		},
 		{
 			name: "found with null reserved_path",
@@ -236,8 +236,8 @@ func TestSandboxRepository_Get(t *testing.T) {
 				s.ReservedPath = ""
 				s.ReservedPaths = nil
 				row := sandboxRow(s)
-				row[2] = nil
-				row[3] = nil
+				row[3] = nil // reserved_path
+				row[4] = nil // reserved_paths
 				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
 					WithArgs(id).
 					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
@@ -260,8 +260,8 @@ func TestSandboxRepository_Get(t *testing.T) {
 					WillReturnError(sql.ErrNoRows)
 			},
 			validate: nil,
-			wantNil: true,
-			wantErr: false,
+			wantNil:  true,
+			wantErr:  false,
 		},
 		{
 			name: "database error",
@@ -272,8 +272,8 @@ func TestSandboxRepository_Get(t *testing.T) {
 					WillReturnError(errors.New("connection failed"))
 			},
 			validate: nil,
-			wantNil: true,
-			wantErr: true,
+			wantNil:  true,
+			wantErr:  true,
 		},
 	}
 
@@ -321,7 +321,7 @@ func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
 			AddRow(
-				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+				s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{123, 456}, s.SessionCount,
@@ -1586,7 +1586,7 @@ func TestSandboxRepository_Get_WithEmptyMetadata(t *testing.T) {
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
 			AddRow(
-				s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
+				s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,

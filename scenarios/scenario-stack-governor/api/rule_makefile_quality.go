@@ -55,7 +55,7 @@ func RunMakefileQuality(ctx context.Context, repoRoot, scenarioName string) (res
 	}
 	defer func() {
 		result.FinishedAt = time.Now()
-		result.Passed = len(result.Findings) == 0
+		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
 	paths, err := locateMakefiles(repoRoot, scenarioName)

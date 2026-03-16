@@ -59,6 +59,13 @@ export {
   createScenarioProxyHost,
 } from './host.js'
 
+// Embedded scenario proxy
+export {
+  createEmbeddedProxyRouter,
+  createPortResolver,
+  resolveExternalUrl,
+} from './embedded.js'
+
 // Performance instrumentation
 export {
   RequestTimer,
@@ -82,4 +89,5 @@ export type {
   ScenarioProxyHostController,
   ScenarioProxyAppMetadata,
   HostEndpointDefinition,
+  EmbeddedProxyOptions,
 } from '../shared/types.js'

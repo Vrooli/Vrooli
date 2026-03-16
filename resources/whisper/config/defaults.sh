@@ -38,6 +38,11 @@ defaults::export_config() {
         readonly WHISPER_CPU_IMAGE="${WHISPER_CPU_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}"
     fi
 
+    # Engine configuration (only set if not already defined)
+    if [[ -z "${WHISPER_ENGINE:-}" ]]; then
+        readonly WHISPER_ENGINE="${WHISPER_ENGINE:-faster_whisper}"
+    fi
+
     # Model configuration (only set if not already defined)
     if [[ -z "${WHISPER_DEFAULT_MODEL:-}" ]]; then
         readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-large}"
@@ -93,7 +98,7 @@ defaults::export_config() {
     # Export for global access
     export WHISPER_PORT WHISPER_BASE_URL WHISPER_CONTAINER_NAME
     export WHISPER_DATA_DIR WHISPER_MODELS_DIR WHISPER_UPLOADS_DIR
-    export WHISPER_IMAGE WHISPER_CPU_IMAGE WHISPER_DEFAULT_MODEL
+    export WHISPER_ENGINE WHISPER_IMAGE WHISPER_CPU_IMAGE WHISPER_DEFAULT_MODEL
     export WHISPER_HEALTH_CHECK_INTERVAL WHISPER_HEALTH_CHECK_MAX_ATTEMPTS
     export WHISPER_API_TIMEOUT WHISPER_STARTUP_MAX_WAIT
     export WHISPER_STARTUP_WAIT_INTERVAL WHISPER_INITIALIZATION_WAIT

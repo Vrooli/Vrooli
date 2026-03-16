@@ -4,7 +4,7 @@
   "kind": "idea",
   "name": "lifestyle-dashboard",
   "priority": 3,
-  "status": "queued",
+  "status": "backlog",
   "tags": [
     "lifestyle",
     "health",
@@ -16,5 +16,5 @@
     "foundation"
   ],
   "title": "Lifestyle Dashboard",
-  "updated": "2026-03-09T23:04:16Z"
+  "updated": "2026-03-15T16:40:51Z"
 }

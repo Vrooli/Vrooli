@@ -41,9 +41,10 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 	// Extract custom targets and variables from existing Makefile.
 	var customs []customTarget
 	var customVars []customVariable
+	var varCollisions []string
 	if len(existingContent) > 0 {
 		customs = extractCustomTargets(string(existingContent))
-		customVars = extractCustomVariables(string(existingContent))
+		customVars, varCollisions = extractCustomVariables(string(existingContent))
 	}
 
 	// Generate canonical Makefile.
@@ -101,6 +102,9 @@ func FixMakefileAll(ctx context.Context, repoRoot, scenarioName string, dryRun b
 			}
 			for _, c := range customs {
 				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "preserved_custom", Detail: fmt.Sprintf("Preserved custom target '%s'", c.name)})
+			}
+			for _, name := range varCollisions {
+				ruleSpecificChanges = append(ruleSpecificChanges, FixChange{Type: "skipped_variable", Detail: fmt.Sprintf("Skipped custom variable '%s' — collides with canonical variable (canonical value used instead)", name)})
 			}
 		}
 		perRule[id] = ruleChanges{fixed: needsFix, changes: ruleSpecificChanges}
@@ -294,6 +298,11 @@ func extractCustomTargets(content string) []customTarget {
 		if len(matches) == 3 {
 			flush()
 			name := matches[1]
+			// Skip pattern rules (e.g. %.o: %.c) — they use Make-specific
+			// syntax that shouldn't be merged into the canonical Makefile.
+			if strings.Contains(name, "%") {
+				continue
+			}
 			currentTarget = name
 			currentDef = raw
 			remainder := strings.TrimSpace(matches[2])
@@ -331,10 +340,13 @@ var varAssignRegexp = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)\s*(?:\?=|:=|
 
 // extractCustomVariables parses an existing Makefile and returns variable definitions
 // that are NOT in the canonical set. Handles multi-line assignments (backslash continuations).
-func extractCustomVariables(content string) []customVariable {
+// Any variables whose names collide with canonical names are reported in the second
+// return value so callers can warn about the silent override.
+func extractCustomVariables(content string) ([]customVariable, []string) {
 	// Join continuation lines so multi-line variable assignments are captured as one definition.
 	lines := joinContinuationLines(strings.Split(content, "\n"))
 	var vars []customVariable
+	var collisions []string
 
 	for _, raw := range lines {
 		// Skip recipe lines (start with tab).
@@ -358,8 +370,9 @@ func extractCustomVariables(content string) []customVariable {
 		}
 		name := matches[1]
 
-		// Skip canonical variables.
+		// Skip canonical variables but track the collision so the fixer can warn.
 		if _, isCanonical := canonicalVariableSet[name]; isCanonical {
+			collisions = append(collisions, name)
 			continue
 		}
 
@@ -369,7 +382,7 @@ func extractCustomVariables(content string) []customVariable {
 		})
 	}
 
-	return vars
+	return vars, collisions
 }
 
 // mergeCustomVariables inserts custom variable definitions into the canonical Makefile.

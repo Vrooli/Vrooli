@@ -127,12 +127,36 @@ func NewServer() (*Server, error) {
 		validationPolicy = policy.NewNoOpValidationPolicy()
 	}
 
+	// Initialize teardown policy
+	// If teardown hooks are configured, use HookTeardownPolicy to run
+	// pre-teardown hooks before sandbox unmount/delete. This allows external
+	// systems to evacuate processes from the sandbox's merged directory.
+	var teardownPolicy policy.TeardownPolicy
+	if len(cfg.Policy.TeardownHooks) > 0 {
+		hooks := make([]policy.TeardownHook, len(cfg.Policy.TeardownHooks))
+		for i, h := range cfg.Policy.TeardownHooks {
+			hooks[i] = policy.TeardownHook{
+				Name:        h.Name,
+				Description: h.Description,
+				Command:     h.Command,
+				Args:        h.Args,
+				Timeout:     h.Timeout,
+			}
+		}
+		teardownPolicy = policy.NewHookTeardownPolicy(hooks,
+			policy.WithTeardownGlobalTimeout(cfg.Policy.TeardownTimeout),
+		)
+		log.Printf("teardown hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.TeardownTimeout)
+	} else {
+		teardownPolicy = policy.NewNoOpTeardownPolicy()
+	}
+
 	// Initialize repository and service
 	repo := repository.NewSandboxRepository(db)
 	svcCfg := sandbox.ServiceConfig{
-		DefaultProjectRoot: cfg.Driver.ProjectRoot,
-		MaxSandboxes:       cfg.Limits.MaxSandboxes,
-		DefaultTTL:         cfg.Lifecycle.DefaultTTL,
+		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
+		MaxSandboxes:            cfg.Limits.MaxSandboxes,
+		DefaultTTL:              cfg.Lifecycle.DefaultTTL,
 		AgentManagerURL:         cfg.Integration.AgentManagerURL,
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
@@ -141,6 +165,7 @@ func NewServer() (*Server, error) {
 		sandbox.WithApprovalPolicy(approvalPolicy),
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
+		sandbox.WithTeardownPolicy(teardownPolicy),
 	)
 	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval)
 
@@ -206,10 +231,10 @@ func NewServer() (*Server, error) {
 	})
 
 	// Register all tool providers (4 tiers)
-	toolReg.RegisterProvider(toolregistry.NewSandboxToolProvider())    // Tier 1: Sandbox lifecycle
-	toolReg.RegisterProvider(toolregistry.NewExecutionToolProvider())  // Tier 2: Command execution
-	toolReg.RegisterProvider(toolregistry.NewFileToolProvider())       // Tier 3: File operations
-	toolReg.RegisterProvider(toolregistry.NewDiffToolProvider())       // Tier 4: Diff/approval
+	toolReg.RegisterProvider(toolregistry.NewSandboxToolProvider())   // Tier 1: Sandbox lifecycle
+	toolReg.RegisterProvider(toolregistry.NewExecutionToolProvider()) // Tier 2: Command execution
+	toolReg.RegisterProvider(toolregistry.NewFileToolProvider())      // Tier 3: File operations
+	toolReg.RegisterProvider(toolregistry.NewDiffToolProvider())      // Tier 4: Diff/approval
 
 	// Create adapters for tool execution
 	processExecutor := toolexecution.NewProcessExecutorAdapter(toolexecution.ProcessExecutorConfig{
@@ -458,6 +483,14 @@ func ensureSchema(db *sql.DB) error {
 			return fmt.Errorf("failed to create applied_changes table: %w", err)
 		}
 		log.Println("migration complete: applied_changes table created")
+	}
+
+	// --- agent_manager_run_id on applied_changes ---
+	if _, err := db.Exec(`ALTER TABLE applied_changes ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT`); err != nil {
+		return fmt.Errorf("failed to add agent_manager_run_id column: %w", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_applied_changes_run_id ON applied_changes(agent_manager_run_id)`); err != nil {
+		return fmt.Errorf("failed to create agent_manager_run_id index: %w", err)
 	}
 
 	// --- reserved_path support (soft safety reserved directory) ---

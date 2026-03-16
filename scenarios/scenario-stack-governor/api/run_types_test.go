@@ -108,6 +108,109 @@ func TestComputeCounts_Resets(t *testing.T) {
 	}
 }
 
+// --- Passed / info-level finding tests (Fix 3) ---
+
+func TestComputeCounts_RecomputesPassed(t *testing.T) {
+	r := RuleResult{
+		Passed: true,
+		Findings: []Finding{
+			{Level: "error", Message: "fail"},
+		},
+	}
+	r.ComputeCounts()
+	if r.Passed {
+		t.Error("expected Passed=false after ComputeCounts with error findings")
+	}
+}
+
+func TestComputeCounts_InfoOnlyDoesNotFailRule(t *testing.T) {
+	r := RuleResult{
+		Findings: []Finding{
+			{Level: "info", Message: "informational"},
+			{Level: "info", Message: "also informational"},
+		},
+	}
+	r.ComputeCounts()
+	if !r.Passed {
+		t.Error("expected Passed=true when only info-level findings exist")
+	}
+	if r.ErrorCount != 0 || r.WarnCount != 0 {
+		t.Errorf("expected 0 errors and 0 warnings, got %d errors %d warnings", r.ErrorCount, r.WarnCount)
+	}
+}
+
+func TestComputeCounts_MixedInfoAndErrorFailsRule(t *testing.T) {
+	r := RuleResult{
+		Findings: []Finding{
+			{Level: "info", Message: "ok"},
+			{Level: "error", Message: "bad"},
+		},
+	}
+	r.ComputeCounts()
+	if r.Passed {
+		t.Error("expected Passed=false when error findings exist alongside info")
+	}
+}
+
+func TestHasActionableFindings_Empty(t *testing.T) {
+	if hasActionableFindings(nil) {
+		t.Error("expected false for nil findings")
+	}
+	if hasActionableFindings([]Finding{}) {
+		t.Error("expected false for empty findings")
+	}
+}
+
+func TestHasActionableFindings_InfoOnly(t *testing.T) {
+	findings := []Finding{{Level: "info", Message: "note"}}
+	if hasActionableFindings(findings) {
+		t.Error("expected false for info-only findings")
+	}
+}
+
+func TestHasActionableFindings_WithError(t *testing.T) {
+	findings := []Finding{
+		{Level: "info", Message: "note"},
+		{Level: "error", Message: "problem"},
+	}
+	if !hasActionableFindings(findings) {
+		t.Error("expected true when error finding exists")
+	}
+}
+
+func TestHasActionableFindings_WithWarn(t *testing.T) {
+	findings := []Finding{{Level: "warn", Message: "caution"}}
+	if !hasActionableFindings(findings) {
+		t.Error("expected true when warn finding exists")
+	}
+}
+
+// --- Scenario directory filtering tests (Fix 2) ---
+
+func TestIsScenarioDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"normal scenario", "browser-automation-studio", true},
+		{"underscore prefix", "_artifacts", false},
+		{"dot prefix", ".git", false},
+		{"dot vrooli", ".vrooli", false},
+		{"empty string", "", false},
+		{"single char", "x", true},
+		{"hyphenated", "my-scenario", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isScenarioDir(tt.input)
+			if got != tt.expected {
+				t.Errorf("isScenarioDir(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
 // --- Registry validation tests ---
 
 func TestValidateRuleRegistry_ProductionRegistryIsValid(t *testing.T) {

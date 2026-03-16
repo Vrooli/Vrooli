@@ -159,7 +159,7 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 
 	scenarios := []string{}
 	for _, ent := range entries {
-		if ent.IsDir() {
+		if ent.IsDir() && isScenarioDir(ent.Name()) {
 			scenarios = append(scenarios, ent.Name())
 		}
 	}

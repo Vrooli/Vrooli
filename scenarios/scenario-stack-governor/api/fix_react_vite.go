@@ -144,9 +144,7 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 		}}
 	}
 
-	// Verify the patched JSON is still valid before writing. String-level
-	// patching can produce invalid JSON if the replacement doesn't match the
-	// exact encoding used in the file.
+	// Verify the patched JSON is valid AND contains the expected step.
 	var verifyDoc map[string]any
 	if err := json.Unmarshal(raw, &verifyDoc); err != nil {
 		return []FixResult{{
@@ -155,6 +153,15 @@ func FixReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 			Fixed:        false,
 			FilePath:     serviceJSONPath,
 			Error:        fmt.Sprintf("patched service.json is invalid JSON (bug in fixer): %v", err),
+		}}
+	}
+	if err := verifyUIInstallStep(verifyDoc); err != nil {
+		return []FixResult{{
+			ScenarioName: scenarioName,
+			RuleID:       ruleID,
+			Fixed:        false,
+			FilePath:     serviceJSONPath,
+			Error:        fmt.Sprintf("patched service.json failed semantic validation (bug in fixer): %v", err),
 		}}
 	}
 
@@ -190,25 +197,93 @@ func isUIRelatedStep(step map[string]any) bool {
 	return strings.Contains(run, "ui") || strings.Contains(name, "ui")
 }
 
-// replaceRunInRaw performs a targeted string replacement of a run value within
-// the raw JSON bytes, preserving all other formatting and key ordering.
+// verifyUIInstallStep checks that the parsed JSON contains a setup step with
+// "pnpm install --ignore-workspace". This catches cases where string-level
+// patching produced valid JSON but mangled the step content.
+func verifyUIInstallStep(doc map[string]any) error {
+	lifecycle, _ := doc["lifecycle"].(map[string]any)
+	if lifecycle == nil {
+		return fmt.Errorf("lifecycle field missing or not an object")
+	}
+	setup, _ := lifecycle["setup"].(map[string]any)
+	if setup == nil {
+		return fmt.Errorf("lifecycle.setup field missing or not an object")
+	}
+	steps, _ := setup["steps"].([]any)
+	if steps == nil {
+		return fmt.Errorf("lifecycle.setup.steps field missing or not an array")
+	}
+	for _, s := range steps {
+		step, _ := s.(map[string]any)
+		run, _ := step["run"].(string)
+		if strings.Contains(run, "pnpm install") && strings.Contains(run, "--ignore-workspace") {
+			return nil
+		}
+	}
+	return fmt.Errorf("no step found with 'pnpm install --ignore-workspace'")
+}
+
+// replaceRunInRaw performs a targeted replacement of a "run" field value within
+// raw JSON bytes. Unlike naive string replacement, it finds the value
+// specifically after a "run" key to avoid corrupting other occurrences of the
+// same string elsewhere in the document.
 func replaceRunInRaw(raw []byte, oldRun, newRun string) []byte {
-	// Use json.Marshal to produce the exact encoding the JSON encoder would use
-	// (e.g., & is escaped as \u0026 by the standard encoder). We try both the
-	// escaped and unescaped forms to handle hand-written vs machine-generated JSON.
-	oldEscaped, _ := json.Marshal(oldRun)
-	newEscaped, _ := json.Marshal(newRun)
-	// Also try the literal (unescaped) form for hand-written JSON.
+	oldEncoded, _ := json.Marshal(oldRun)
+	newEncoded, _ := json.Marshal(newRun)
 	oldLiteral := fmt.Sprintf("%q", oldRun)
 	newLiteral := fmt.Sprintf("%q", newRun)
 
 	text := string(raw)
-	// Try escaped form first (machine-generated JSON).
-	if strings.Contains(text, string(oldEscaped)) {
-		return []byte(strings.Replace(text, string(oldEscaped), string(newEscaped), 1))
+
+	// Search for "run": <value> patterns and replace only the value that
+	// matches oldRun, avoiding false matches in other fields.
+	runKeyPattern := `"run"`
+	pos := 0
+	for {
+		keyIdx := jsonAwareIndex(text, runKeyPattern, pos)
+		if keyIdx < 0 {
+			break
+		}
+		// Skip past the key and any whitespace/colon to find the value.
+		afterKey := keyIdx + len(runKeyPattern)
+		valueStart := skipJSONWhitespaceAndColon(text, afterKey)
+		if valueStart < 0 {
+			pos = afterKey
+			continue
+		}
+
+		// Try both encoded forms at this position.
+		remainder := text[valueStart:]
+		if strings.HasPrefix(remainder, string(oldEncoded)) {
+			return []byte(text[:valueStart] + string(newEncoded) + text[valueStart+len(oldEncoded):])
+		}
+		if strings.HasPrefix(remainder, oldLiteral) {
+			return []byte(text[:valueStart] + newLiteral + text[valueStart+len(oldLiteral):])
+		}
+		pos = afterKey
 	}
-	// Try literal form (hand-written JSON).
-	return []byte(strings.Replace(text, oldLiteral, newLiteral, 1))
+
+	// No "run" key found with the expected value. Return the input unchanged
+	// rather than doing a naive string replacement that could corrupt other
+	// fields containing the same text. The caller's semantic validation will
+	// catch the untouched value and report the failure.
+	return raw
+}
+
+// skipJSONWhitespaceAndColon advances past optional whitespace and a colon
+// after a JSON key. Returns the index of the value start, or -1 if no colon found.
+func skipJSONWhitespaceAndColon(text string, pos int) int {
+	for pos < len(text) && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' || text[pos] == '\r') {
+		pos++
+	}
+	if pos >= len(text) || text[pos] != ':' {
+		return -1
+	}
+	pos++ // skip colon
+	for pos < len(text) && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' || text[pos] == '\r') {
+		pos++
+	}
+	return pos
 }
 
 // insertStepInRaw inserts a new install-ui-deps step into the steps array
@@ -217,58 +292,52 @@ func replaceRunInRaw(raw []byte, oldRun, newRun string) []byte {
 func insertStepInRaw(raw []byte, desiredRun string, lifecycle, setup map[string]any, stepsAny []any) []byte {
 	text := string(raw)
 
-	if stepsAny != nil && len(stepsAny) > 0 {
-		stepsClose := findStepsArrayClose(text)
-		indent := detectStepIndent(text)
-		// Only attempt string-level insertion when we can detect indentation
-		// (i.e. the JSON is multi-line). Compact JSON falls through to marshal.
-		if stepsClose >= 0 && indent != "" {
-			closingIndent := detectClosingBracketIndent(text, stepsClose)
-			propIndent := indent + "  "
-			stepJSON := "{\n" + propIndent + `"name": "install-ui-deps",` + "\n" + propIndent + `"run": ` + fmt.Sprintf("%q", desiredRun) + "\n" + indent + "}"
+	stepsClose := findStepsArrayClose(text)
+	indent := detectStepIndent(text)
 
-			before := text[:stepsClose]
-			after := text[stepsClose:]
+	if stepsClose >= 0 && indent != "" {
+		closingIndent := detectClosingBracketIndent(text, stepsClose)
+		propIndent := indent + "  "
+		stepJSON := "{\n" + propIndent + `"name": "install-ui-deps",` + "\n" + propIndent + `"run": ` + fmt.Sprintf("%q", desiredRun) + "\n" + indent + "}"
+
+		before := text[:stepsClose]
+		after := text[stepsClose:]
+
+		if stepsAny != nil && len(stepsAny) > 0 {
 			trimmed := strings.TrimRight(before, " \t\n\r")
-			result := trimmed + ",\n" + indent + stepJSON + "\n" + closingIndent + after
-			return []byte(result)
+			return []byte(trimmed + ",\n" + indent + stepJSON + "\n" + closingIndent + after)
 		}
-	} else if stepsAny != nil {
-		stepsClose := findStepsArrayClose(text)
-		indent := detectStepIndent(text)
-		if stepsClose >= 0 && indent != "" {
-			closingIndent := detectClosingBracketIndent(text, stepsClose)
-			propIndent := indent + "  "
-			stepJSON := "{\n" + propIndent + `"name": "install-ui-deps",` + "\n" + propIndent + `"run": ` + fmt.Sprintf("%q", desiredRun) + "\n" + indent + "}"
-
-			before := text[:stepsClose]
-			after := text[stepsClose:]
-			result := before + "\n" + indent + stepJSON + "\n" + closingIndent + after
-			return []byte(result)
-		}
+		return []byte(before + "\n" + indent + stepJSON + "\n" + closingIndent + after)
 	}
 
-	// Fallback: marshal the whole thing (loses key order but at least works).
+	// Fallback: re-parse and marshal (loses key order but guarantees correctness).
+	var doc map[string]any
+	_ = json.Unmarshal(raw, &doc)
+
 	if lifecycle == nil {
 		lifecycle = map[string]any{}
 	}
 	if setup == nil {
 		setup = map[string]any{}
 	}
-	var doc map[string]any
-	_ = json.Unmarshal(raw, &doc)
+
+	// Guard against duplicate insertion: check if a step with the desired
+	// command already exists before appending.
+	for _, s := range stepsAny {
+		step, _ := s.(map[string]any)
+		run, _ := step["run"].(string)
+		if strings.Contains(run, "pnpm install") && strings.Contains(run, "--ignore-workspace") {
+			return raw // already present, nothing to do
+		}
+	}
+
 	newStep := map[string]any{
 		"name": "install-ui-deps",
 		"run":  desiredRun,
 	}
-	stepsAny = append(stepsAny, newStep)
-	if setup["steps"] == nil {
-		setup["steps"] = []any{}
-	}
-	setup["steps"] = stepsAny
-	if lifecycle["setup"] == nil {
-		lifecycle["setup"] = setup
-	}
+	steps := append(stepsAny, newStep)
+	setup["steps"] = steps
+	lifecycle["setup"] = setup
 	doc["lifecycle"] = lifecycle
 	afterBytes, _ := json.MarshalIndent(doc, "", "  ")
 	return append(afterBytes, '\n')
@@ -279,11 +348,11 @@ func insertStepInRaw(raw []byte, desiredRun string, lifecycle, setup map[string]
 // everything between the preceding newline and that brace.
 // Returns empty string if the text has no newlines (compact JSON).
 func detectStepIndent(text string) string {
-	idx := strings.Index(text, `"steps"`)
+	idx := jsonAwareIndex(text, `"steps"`, 0)
 	if idx < 0 {
 		return "        " // 8-space default
 	}
-	// Find the first '{' after "steps".
+	// Find the first '{' after "steps" (skipping the '[').
 	rest := text[idx:]
 	braceIdx := strings.Index(rest, "{")
 	if braceIdx < 0 {
@@ -317,23 +386,79 @@ func detectClosingBracketIndent(text string, closingPos int) string {
 }
 
 // findStepsArrayClose returns the index of the ']' that closes the "steps" array.
+// It uses JSON-aware scanning to correctly handle brackets inside string values.
 func findStepsArrayClose(text string) int {
-	// Find "steps" key.
-	idx := strings.Index(text, `"steps"`)
+	idx := jsonAwareIndex(text, `"steps"`, 0)
 	if idx < 0 {
 		return -1
 	}
 	// Find the opening '[' after "steps".
-	rest := text[idx:]
-	bracketStart := strings.Index(rest, "[")
+	bracketStart := -1
+	for i := idx + len(`"steps"`); i < len(text); i++ {
+		if text[i] == '[' {
+			bracketStart = i
+			break
+		}
+		if text[i] != ' ' && text[i] != '\t' && text[i] != '\n' && text[i] != '\r' && text[i] != ':' {
+			return -1 // unexpected token
+		}
+	}
 	if bracketStart < 0 {
 		return -1
 	}
-	absStart := idx + bracketStart
-	// Walk forward counting brackets to find the matching ']'.
+	return jsonAwareMatchingBracket(text, bracketStart)
+}
+
+// jsonAwareIndex finds the first occurrence of needle in text starting at pos,
+// but only when the needle is NOT inside a JSON string value. This prevents
+// matching keys or values that happen to contain the needle as a substring.
+func jsonAwareIndex(text, needle string, pos int) int {
+	inString := false
+	for i := pos; i < len(text); i++ {
+		if inString {
+			if text[i] == '\\' {
+				i++ // skip escaped character
+				continue
+			}
+			if text[i] == '"' {
+				inString = false
+			}
+			continue
+		}
+		if text[i] == '"' {
+			// Check if the needle starts here.
+			if strings.HasPrefix(text[i:], needle) {
+				return i
+			}
+			inString = true
+			continue
+		}
+	}
+	return -1
+}
+
+// jsonAwareMatchingBracket finds the matching closing bracket for an opening
+// '[' at the given position, correctly skipping brackets inside JSON strings.
+func jsonAwareMatchingBracket(text string, openPos int) int {
+	if openPos >= len(text) || text[openPos] != '[' {
+		return -1
+	}
 	depth := 0
-	for i := absStart; i < len(text); i++ {
+	inString := false
+	for i := openPos; i < len(text); i++ {
+		if inString {
+			if text[i] == '\\' {
+				i++ // skip escaped character
+				continue
+			}
+			if text[i] == '"' {
+				inString = false
+			}
+			continue
+		}
 		switch text[i] {
+		case '"':
+			inString = true
 		case '[':
 			depth++
 		case ']':

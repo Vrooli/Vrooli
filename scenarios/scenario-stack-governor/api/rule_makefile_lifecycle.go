@@ -39,7 +39,7 @@ func RunMakefileLifecycle(ctx context.Context, repoRoot, scenarioName string) (r
 	}
 	defer func() {
 		result.FinishedAt = time.Now()
-		result.Passed = len(result.Findings) == 0
+		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
 	paths, err := locateMakefiles(repoRoot, scenarioName)
@@ -400,7 +400,7 @@ func lifecycleMatchScenarioVerb(tokens []string, verb string) bool {
 
 func lifecycleMatchesScenarioToken(token string) bool {
 	trimmed := strings.Trim(token, "\"'")
-	return trimmed == "$(SCENARIO_NAME)"
+	return trimmed == "$(SCENARIO_NAME)" || trimmed == "${SCENARIO_NAME}"
 }
 
 func lifecycleHasCanonicalMessage(data lifecycleMakefileData, rawRecipe []string, expectedEcho string) (bool, int, string) {
@@ -419,7 +419,7 @@ func lifecycleHasCanonicalMessage(data lifecycleMakefileData, rawRecipe []string
 			firstEchoLine = lifecycleFindLine(data.lines, trimmed)
 		}
 
-		if sanitized == expectedEcho {
+		if normalizeVarSyntax(sanitized) == normalizeVarSyntax(expectedEcho) {
 			return true, lifecycleFindLine(data.lines, trimmed), sanitized
 		}
 	}
@@ -525,6 +525,14 @@ func parseLifecycleMakefile(content string) lifecycleMakefileData {
 	}
 
 	return data
+}
+
+// normalizeVarSyntax converts Make ${VAR} syntax to $(VAR) for comparison.
+// Both forms are valid in Make, so rules should accept either.
+var makeVarCurlyBrace = regexp.MustCompile(`\$\{([^}]+)\}`)
+
+func normalizeVarSyntax(s string) string {
+	return makeVarCurlyBrace.ReplaceAllString(s, "$($1)")
 }
 
 func lifecycleFindLine(lines []string, needle string) int {

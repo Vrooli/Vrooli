@@ -55,7 +55,7 @@ func RunMakefileStructure(ctx context.Context, repoRoot, scenarioName string) (r
 	}
 	defer func() {
 		result.FinishedAt = time.Now()
-		result.Passed = len(result.Findings) == 0
+		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
 	paths, err := locateMakefiles(repoRoot, scenarioName)
@@ -176,9 +176,10 @@ func structureValidateHeader(data structureMakefileData, path string) []Makefile
 }
 
 func structureValidatePhony(data structureMakefileData, path string) []MakefileStructureViolation {
-	// STRICT: All targets required for consistency and interoperability across scenarios
-	// Scenarios without UI/Go code should provide no-op implementations
-	required := []string{"help", "start", "stop", "test", "logs", "status", "clean", "build", "dev", "fmt", "fmt-go", "fmt-ui", "lint", "lint-go", "lint-ui"}
+	// STRICT: All 16 canonical targets required for consistency and interoperability.
+	// This list must match canonicalTargetSet() in makefile_util.go.
+	// Scenarios without UI/Go code should provide no-op implementations.
+	required := []string{"help", "start", "stop", "test", "logs", "status", "clean", "build", "dev", "fmt", "fmt-go", "fmt-ui", "lint", "lint-go", "lint-ui", "check"}
 	var violations []MakefileStructureViolation
 
 	if len(data.phony) == 0 {

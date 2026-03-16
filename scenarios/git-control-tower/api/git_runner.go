@@ -124,6 +124,10 @@ type GitRunner interface {
 	// SetUpstream sets the upstream tracking branch for a local branch.
 	SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error
 
+	// ListStagedFiles returns file paths that are currently staged in the index.
+	// Uses git diff --cached --name-only.
+	ListStagedFiles(ctx context.Context, repoDir string) ([]string, error)
+
 	// ListTrackedFiles returns all tracked files in the repository.
 	// Uses git ls-files --cached.
 	ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error)
@@ -910,6 +914,25 @@ func (r *ExecGitRunner) SetUpstream(ctx context.Context, repoDir string, branch 
 		return fmt.Errorf("git branch --set-upstream-to failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	args := []string{"-C", repoDir, "diff", "--cached", "--name-only"}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("git diff --cached --name-only failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git diff --cached --name-only failed: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []string{}, nil
+	}
+	return lines, nil
 }
 
 func (r *ExecGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {

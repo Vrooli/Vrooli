@@ -99,6 +99,13 @@ type ServiceAPI interface {
 
 	// CommitPending commits pending changes to git and updates provenance records.
 	CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
+
+	// MarkCommitted marks pending changes as committed for files that were committed
+	// by an external tool (e.g., git-control-tower).
+	MarkCommitted(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
+
+	// GetProvenanceByRun returns pending applied changes grouped by agent-manager run ID.
+	GetProvenanceByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
 }
 
 // Verify Service implements ServiceAPI interface at compile time.
@@ -117,6 +124,7 @@ type Service struct {
 	approvalPolicy    policy.ApprovalPolicy
 	attributionPolicy policy.AttributionPolicy
 	validationPolicy  policy.ValidationPolicy
+	teardownPolicy    policy.TeardownPolicy
 
 	// gitOps provides a seam for git operations, enabling test isolation.
 	// When nil, uses package-level diff functions (backwards compatible).
@@ -131,9 +139,9 @@ const (
 
 // ServiceConfig holds service configuration.
 type ServiceConfig struct {
-	DefaultProjectRoot string
-	MaxSandboxes       int
-	DefaultTTL         time.Duration
+	DefaultProjectRoot      string
+	MaxSandboxes            int
+	DefaultTTL              time.Duration
 	AgentManagerURL         string
 	AgentManagerSyncEnabled bool
 	AgentManagerSyncTimeout time.Duration
@@ -173,6 +181,16 @@ func WithValidationPolicy(p policy.ValidationPolicy) ServiceOption {
 	}
 }
 
+// WithTeardownPolicy sets the teardown policy.
+// The teardown policy runs pre-teardown hooks before sandbox unmount/delete,
+// allowing external systems to gracefully evacuate processes from the
+// sandbox's merged directory before the filesystem disappears.
+func WithTeardownPolicy(p policy.TeardownPolicy) ServiceOption {
+	return func(s *Service) {
+		s.teardownPolicy = p
+	}
+}
+
 // WithGitOps sets the git operations implementation.
 // This is the primary seam for test isolation of git-related functionality.
 // When testing, inject a MockGitOps to avoid touching real git repositories.
@@ -190,6 +208,7 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 		config: cfg,
 		// Default policies (no-op implementations for backwards compatibility)
 		validationPolicy: policy.NewNoOpValidationPolicy(),
+		teardownPolicy:   policy.NewNoOpTeardownPolicy(),
 		// Default GitOps (production implementation)
 		gitOps: diff.NewGitOps(),
 	}
@@ -629,6 +648,10 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
+	// Run pre-teardown hooks before unmounting, so external systems can
+	// evacuate processes from the merged directory while it's still accessible.
+	s.runPreTeardownHooks(ctx, sandbox, "stop")
+
 	// Unmount
 	if err := s.driver.Unmount(ctx, sandbox); err != nil {
 		return nil, fmt.Errorf("failed to unmount sandbox: %w", err)
@@ -725,6 +748,10 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	if sandbox.Status == types.StatusDeleted {
 		return nil
 	}
+
+	// Run pre-teardown hooks before cleanup, so external systems can
+	// evacuate processes from the merged directory before it's removed.
+	s.runPreTeardownHooks(ctx, sandbox, "delete")
 
 	// Cleanup driver resources
 	if err := s.driver.Cleanup(ctx, sandbox); err != nil {
@@ -1117,7 +1144,13 @@ func evaluateAcceptance(sandbox *types.Sandbox, change *types.FileChange) *types
 		}
 	}
 
-	if matchesCriteria(relPath, ext, acceptance.Deny) {
+	// IMPORTANT: Empty deny criteria must NOT match. matchesCriteria() defaults to
+	// true when both PathGlobs and Extensions are empty (since no conditions fail).
+	// Without this guard, `"deny": {}` (which agent-manager's proto serializer
+	// produces for unset deny rules) would deny ALL files — silently breaking
+	// auto-approve and manual approval for every sandbox created through agent-manager.
+	// This mirrors the isCriteriaEmpty guard on the allow check at line ~1155.
+	if !isCriteriaEmpty(acceptance.Deny) && matchesCriteria(relPath, ext, acceptance.Deny) {
 		return &types.AcceptanceInfo{
 			Status: types.AcceptanceStatusDenied,
 			Reason: "matched deny rules",
@@ -1296,6 +1329,24 @@ func filterChangesByAcceptance(sandbox *types.Sandbox, changes []*types.FileChan
 	return accepted, rejected
 }
 
+// runPreTeardownHooks calls the configured teardown policy before sandbox
+// unmount/delete. This gives external systems (e.g., the Vrooli scenario
+// lifecycle) a chance to evacuate processes from the merged directory.
+//
+// Failures are always best-effort: they are logged but never block teardown.
+func (s *Service) runPreTeardownHooks(ctx context.Context, sandbox *types.Sandbox, reason string) {
+	if s.teardownPolicy == nil {
+		return
+	}
+	results := s.teardownPolicy.RunPreTeardownHooks(ctx, sandbox, reason)
+	for _, r := range results {
+		if !r.Success {
+			fmt.Printf("warning: pre-teardown hook '%s' failed for sandbox %s: %v (output: %s)\n",
+				r.HookName, sandbox.ID, r.Error, r.Output)
+		}
+	}
+}
+
 func (s *Service) applyLifecycleOnTerminal(ctx context.Context, sandbox *types.Sandbox, status types.Status) {
 	if sandbox == nil {
 		return
@@ -1445,9 +1496,27 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 
 	accepted, rejected := filterChangesByAcceptance(sandbox, changes, req.OverrideAcceptance)
 	if !req.OverrideAcceptance && req.Mode != "all" && len(rejected) > 0 {
+		// Build diagnostic message showing which files were rejected and why.
+		// This is critical for debugging acceptance misconfigurations — without
+		// file-level detail, callers see only "files rejected" with no way to
+		// determine whether the issue is a bad glob, an empty deny, or an
+		// intentional restriction.
+		rejectedDetails := make([]string, 0, len(rejected))
+		for _, r := range rejected {
+			reason := "unknown"
+			if r.Acceptance != nil {
+				reason = r.Acceptance.Reason
+			}
+			rejectedDetails = append(rejectedDetails, fmt.Sprintf("%s (%s)", r.FilePath, reason))
+		}
+		msg := fmt.Sprintf(
+			"%d file(s) rejected by acceptance rules: %s",
+			len(rejected),
+			strings.Join(rejectedDetails, ", "),
+		)
 		return nil, types.NewValidationErrorWithHint(
 			"acceptance",
-			"selected changes include files rejected by acceptance rules",
+			msg,
 			"Use overrideAcceptance=true to apply files outside acceptance rules",
 		)
 	}
@@ -1539,17 +1608,19 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	}
 
 	// Record provenance for all applied changes
+	runID := metadataString(sandbox.Metadata, metadataAgentManagerRunID)
 	appliedChanges := make([]*types.AppliedChange, len(changes))
 	for i, c := range changes {
 		appliedChanges[i] = &types.AppliedChange{
-			ID:               uuid.New(),
-			SandboxID:        sandbox.ID,
-			SandboxOwner:     sandbox.Owner,
-			SandboxOwnerType: string(sandbox.OwnerType),
-			FilePath:         filepath.Join(sandbox.ProjectRoot, c.FilePath),
-			ProjectRoot:      sandbox.ProjectRoot,
-			ChangeType:       string(c.ChangeType),
-			FileSize:         c.FileSize,
+			ID:                uuid.New(),
+			SandboxID:         sandbox.ID,
+			SandboxOwner:      sandbox.Owner,
+			SandboxOwnerType:  string(sandbox.OwnerType),
+			FilePath:          filepath.Join(sandbox.ProjectRoot, c.FilePath),
+			ProjectRoot:       sandbox.ProjectRoot,
+			ChangeType:        string(c.ChangeType),
+			FileSize:          c.FileSize,
+			AgentManagerRunID: runID,
 		}
 	}
 
@@ -2358,13 +2429,14 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 		}
 
 		file := types.CommitPreviewFile{
-			FilePath:     change.FilePath,
-			RelativePath: relPath,
-			ChangeType:   change.ChangeType,
-			SandboxID:    change.SandboxID,
-			SandboxOwner: change.SandboxOwner,
-			AppliedAt:    change.AppliedAt,
-			Status:       status,
+			FilePath:          change.FilePath,
+			RelativePath:      relPath,
+			ChangeType:        change.ChangeType,
+			SandboxID:         change.SandboxID,
+			SandboxOwner:      change.SandboxOwner,
+			AgentManagerRunID: change.AgentManagerRunID,
+			AppliedAt:         change.AppliedAt,
+			Status:            status,
 		}
 		result.Files = append(result.Files, file)
 
@@ -2511,4 +2583,41 @@ func (s *Service) generateCommitMessage(preview *types.CommitPreviewResult) stri
 	}
 
 	return msg.String()
+}
+
+// MarkCommitted marks pending changes as committed for files that were committed
+// by an external tool (e.g., git-control-tower).
+func (s *Service) MarkCommitted(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error) {
+	projectRoot := req.ProjectRoot
+	if projectRoot == "" {
+		projectRoot = s.config.DefaultProjectRoot
+	}
+	if projectRoot == "" {
+		return nil, fmt.Errorf("project root is required")
+	}
+	if len(req.FilePaths) == 0 {
+		return &types.MarkCommittedResult{}, nil
+	}
+
+	marked, notFound, err := s.repo.MarkChangesCommittedByPath(ctx, projectRoot, req.FilePaths, req.CommitHash, req.CommitMessage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mark changes committed: %w", err)
+	}
+
+	return &types.MarkCommittedResult{
+		MarkedCount:   marked,
+		NotFoundCount: notFound,
+	}, nil
+}
+
+// GetProvenanceByRun returns pending applied changes grouped by agent-manager run ID.
+func (s *Service) GetProvenanceByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	if projectRoot == "" {
+		projectRoot = s.config.DefaultProjectRoot
+	}
+	if projectRoot == "" {
+		return nil, fmt.Errorf("project root is required")
+	}
+
+	return s.repo.GetPendingChangesByRun(ctx, projectRoot)
 }

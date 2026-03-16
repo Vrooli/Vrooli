@@ -171,15 +171,38 @@ type SandboxLifecycleConfig struct {
 	IdleTimeout time.Duration           `json:"idleTimeout,omitempty"`
 }
 
-// SandboxFileCriteria defines allow/deny matchers for acceptance.
+// SandboxFileCriteria defines allow/deny matchers for acceptance filtering.
+// Both PathGlobs and Extensions are AND-ed: a file must match at least one
+// glob AND have a matching extension (if both are specified) to match.
 type SandboxFileCriteria struct {
-	PathGlobs  []string `json:"pathGlobs,omitempty"`
-	Extensions []string `json:"extensions,omitempty"`
+	PathGlobs  []string `json:"pathGlobs,omitempty"`  // e.g. ["ui/**", "src/components/**"]
+	Extensions []string `json:"extensions,omitempty"` // e.g. [".tsx", ".css"]
 }
 
-// SandboxAcceptanceConfig controls which files are eligible for approval.
+// SandboxAcceptanceConfig controls which file changes are eligible for approval
+// after the agent finishes its run.
+//
+// IMPORTANT: Acceptance is about which changes survive the approval process,
+// NOT about restricting what the agent can write. The overlay allows writes to
+// any file within the scope. Acceptance filtering happens later, when the diff
+// is reviewed.
+//
+// This separation is intentional. It means:
+//   - ScopePath on the Task controls the overlay's filesystem coverage (what the
+//     lifecycle system can see when restarting scenarios — see SandboxEnvVars in
+//     run_executor.go).
+//   - AcceptanceConfig controls the blast radius of approved changes (what
+//     actually gets applied to the real repo).
+//
+// Example: An agent tasked with UI styling changes should have:
+//   - ScopePath = "scenarios/my-app"        (full scenario, so restarts work)
+//   - Allow     = {PathGlobs: ["ui/**"]}    (only UI changes get approved)
+//   - Deny      = {PathGlobs: ["api/**"]}   (API changes are always rejected)
+//
+// This way the agent can restart the scenario to see its UI changes rendered,
+// but any accidental API modifications are caught during approval review.
 type SandboxAcceptanceConfig struct {
-	Mode                      string              `json:"mode,omitempty"` // "allowlist"
+	Mode                      string              `json:"mode,omitempty"` // "allowlist" (default)
 	Allow                     SandboxFileCriteria `json:"allow,omitempty"`
 	Deny                      SandboxFileCriteria `json:"deny,omitempty"`
 	IgnoreBinary              bool                `json:"ignoreBinary,omitempty"`
@@ -189,10 +212,16 @@ type SandboxAcceptanceConfig struct {
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.
+//
+// Design note: SandboxConfig controls sandbox BEHAVIOR (when to clean up,
+// which files to accept). It does NOT control the sandbox's filesystem
+// SCOPE — that comes from Task.ScopePath, which determines what directory
+// the overlay covers. See the ScopePath vs Acceptance distinction documented
+// on SandboxAcceptanceConfig.
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
-	NoLock     bool                    `json:"noLock,omitempty"`
+	NoLock     bool                    `json:"noLock,omitempty"` // Disable mutual exclusion locking (for investigative/read-only sandboxes)
 }
 
 // FeatureFlags contains well-known typed feature flags.
@@ -223,7 +252,22 @@ type Task struct {
 	Title       string    `json:"title" db:"title"`
 	Description string    `json:"description,omitempty" db:"description"`
 
-	// Scope defines where the agent can operate
+	// ScopePath defines the directory that the overlayfs sandbox covers.
+	// It is relative to ProjectRoot (e.g., "scenarios/agent-inbox").
+	//
+	// IMPORTANT: The overlay's merged directory contains ONLY the contents of
+	// this path. The scope determines what the agent sees in the sandbox AND
+	// what the Vrooli CLI lifecycle system can build/run when the agent restarts
+	// a scenario (via the VROOLI_SANDBOX_* env vars — see run_executor.go).
+	//
+	// Best practice: Set ScopePath to the full scenario directory (e.g.,
+	// "scenarios/my-app"), not a subdirectory. If the scope is too narrow
+	// (e.g., "scenarios/my-app/ui"), the lifecycle system won't have the
+	// Makefile or service.json needed to restart the scenario, and will fall
+	// back to the real repo — making the agent's changes invisible on restart.
+	//
+	// To restrict WHICH changes get approved (blast radius), use
+	// SandboxAcceptanceConfig.Allow/Deny on the run's SandboxConfig instead.
 	ScopePath   string `json:"scopePath" db:"scope_path"`
 	ProjectRoot string `json:"projectRoot,omitempty" db:"project_root"`
 

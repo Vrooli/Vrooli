@@ -75,8 +75,9 @@ func FixGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	}
 
 	// Check for proto dependency needing local replace.
+	// Use the parsed modfile (not raw text) to avoid false positives from comments.
 	const protoModule = "github.com/vrooli/vrooli/packages/proto"
-	if strings.Contains(originalText, protoModule) && !goModFileHasReplace(mf, protoModule) {
+	if goModFileHasRequire(mf, protoModule) && !goModFileHasReplace(mf, protoModule) {
 		// Calculate relative path from cli/ to packages/proto.
 		cliDir := filepath.Join(scenarioDir, "cli")
 		protoDir := filepath.Join(repoRoot, "packages", "proto")

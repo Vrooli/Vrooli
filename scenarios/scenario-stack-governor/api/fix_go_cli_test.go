@@ -506,3 +506,37 @@ func main() {}
 		t.Error("module comment should not leak into replace directive")
 	}
 }
+
+// TestFixGoCli_ProtoCommentDoesNotTriggerFix verifies that a go.mod with
+// the proto module path appearing only in a comment does NOT trigger a fix.
+// This was a false positive caused by raw string matching on the go.mod text.
+func TestFixGoCli_ProtoCommentDoesNotTriggerFix(t *testing.T) {
+	scenarioName := "proto-comment-fix"
+	root := setupGoCliTestDir(t, scenarioName)
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	goMod := `module github.com/vrooli/proto-comment-fix/cli
+
+go 1.23
+
+// TODO: add github.com/vrooli/vrooli/packages/proto dependency later
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results := FixGoCliWorkspaceIndependence(t.Context(), root, scenarioName, false)
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Fixed {
+		t.Error("expected fixed=false — proto in comment should not trigger fix")
+	}
+
+	// Verify go.mod was NOT modified.
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "cli", "go.mod"))
+	if strings.Contains(string(content), "replace") {
+		t.Error("go.mod should NOT have a replace directive added from a comment reference")
+	}
+}

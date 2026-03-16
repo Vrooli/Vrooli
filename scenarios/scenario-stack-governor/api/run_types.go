@@ -25,7 +25,8 @@ type RuleResult struct {
 	WarnCount  int       `json:"warn_count"`
 }
 
-// ComputeCounts sets ErrorCount and WarnCount from the Findings slice.
+// ComputeCounts sets ErrorCount and WarnCount from the Findings slice and
+// recomputes Passed based on whether any actionable (error/warn) findings exist.
 func (r *RuleResult) ComputeCounts() {
 	r.ErrorCount = 0
 	r.WarnCount = 0
@@ -37,6 +38,18 @@ func (r *RuleResult) ComputeCounts() {
 			r.WarnCount++
 		}
 	}
+	r.Passed = r.ErrorCount+r.WarnCount == 0
+}
+
+// hasActionableFindings returns true if any finding has level "error" or "warn".
+// Info-level findings are informational and should not cause a rule to fail.
+func hasActionableFindings(findings []Finding) bool {
+	for _, f := range findings {
+		if f.Level == "error" || f.Level == "warn" {
+			return true
+		}
+	}
+	return false
 }
 
 type RunRequest struct {

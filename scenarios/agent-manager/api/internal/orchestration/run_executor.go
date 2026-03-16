@@ -850,10 +850,78 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		SystemPrompt:   e.systemPrompt,
 		EventSink:      eventSink,
 		Attachments:    e.attachments,
+		Environment:    e.SandboxEnvVars(),
 	}
 
 	// Execute
 	e.result, e.execErr = r.Execute(ctx, req)
+}
+
+// sandboxEnvVars returns environment variables that enable sandbox-aware scenario
+// lifecycle commands (start, stop, restart) inside the agent's process.
+//
+// # Problem
+//
+// When an agent runs in an overlayfs sandbox, its file changes are captured in
+// the overlay's upper/ layer — the real repo is untouched. But the Vrooli CLI
+// lifecycle system (vrooli scenario restart, make start, etc.) reads from the
+// real repo by default. Without these environment variables, an agent's code
+// changes would be invisible to restarted scenarios, making it impossible to
+// test changes while sandboxed.
+//
+// # Solution
+//
+// These env vars tell the Vrooli CLI (scripts/lib/scenario/runner.sh) to
+// redirect scenario path resolution to the sandbox's merged/ directory. The
+// agent doesn't need to pass any flags — it just runs "vrooli scenario restart"
+// normally and the CLI handles the redirection transparently.
+//
+// # Design constraints
+//
+//   - One instance per slug: restarting a scenario stops any existing instance
+//     of that slug, regardless of whether it was started from a sandbox, a
+//     different sandbox, or the real repo.
+//   - Path-only change: ports, process metadata, health checks, and logs are
+//     identical whether started from the sandbox or the real repo.
+//   - Scope-narrowed: only scenarios within VROOLI_SANDBOX_SCOPE are redirected.
+//     Other scenarios use the real repo, so an agent sandboxing scenario A
+//     won't affect scenario B's restarts.
+//
+// # Variables
+//
+//   - VROOLI_SANDBOX_ID: sandbox UUID, used for logging and debugging
+//   - VROOLI_SANDBOX_MERGED: absolute path to the overlay's merged/ directory
+//   - VROOLI_SANDBOX_SCOPE: relative scope path (e.g. "scenarios/my-scenario")
+//
+// # Example flow
+//
+//  1. Agent edits main.go inside the sandbox (changes go to overlay upper/)
+//  2. Agent runs "vrooli scenario restart my-scenario"
+//  3. CLI detects VROOLI_SANDBOX_MERGED and VROOLI_SANDBOX_SCOPE in env
+//  4. CLI checks that "my-scenario" falls within the scope
+//  5. CLI resolves path to {VROOLI_SANDBOX_MERGED}/scenarios/my-scenario
+//  6. Lifecycle rebuilds and starts from the merged directory (agent's changes)
+//
+// Returns nil for non-sandboxed runs, so callers can unconditionally assign the
+// result to ExecuteRequest.Environment.
+func (e *RunExecutor) SandboxEnvVars() map[string]string {
+	// Only inject sandbox context for sandboxed runs that have completed
+	// sandbox creation (sandboxID and workDir are populated).
+	if e.run.RunMode != domain.RunModeSandboxed {
+		return nil
+	}
+	if e.sandboxID == nil || e.workDir == "" {
+		return nil
+	}
+
+	vars := map[string]string{
+		"VROOLI_SANDBOX_ID":     e.sandboxID.String(),
+		"VROOLI_SANDBOX_MERGED": e.workDir,
+	}
+	if e.task != nil && e.task.ScopePath != "" {
+		vars["VROOLI_SANDBOX_SCOPE"] = e.task.ScopePath
+	}
+	return vars
 }
 
 func (e *RunExecutor) createEventSink() runner.EventSink {

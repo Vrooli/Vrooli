@@ -100,6 +100,14 @@ func (m *MockRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UU
 	return nil
 }
 
+func (m *MockRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	return 0, 0, nil
+}
+
+func (m *MockRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	return nil, nil
+}
+
 func (m *MockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return &MockTxRepository{MockRepository: m}, nil
 }
@@ -294,6 +302,14 @@ func (m *MockRepositoryWithError) GetFileProvenance(ctx context.Context, filePat
 
 func (m *MockRepositoryWithError) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
 	return nil
+}
+
+func (m *MockRepositoryWithError) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	return 0, 0, nil
+}
+
+func (m *MockRepositoryWithError) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	return nil, nil
 }
 
 func (m *MockRepositoryWithError) BeginTx(ctx context.Context) (repository.TxRepository, error) {

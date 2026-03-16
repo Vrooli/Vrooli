@@ -269,6 +269,8 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/commit-preview", h.GetCommitPreview).Methods("GET")
 	api.HandleFunc("/commit-preview", h.PostCommitPreview).Methods("POST")
 	api.HandleFunc("/commit-pending", h.CommitPending).Methods("POST")
+	api.HandleFunc("/mark-committed", h.MarkCommitted).Methods("POST")
+	api.HandleFunc("/provenance/by-run", h.GetProvenanceByRun).Methods("GET")
 
 	// --- Metrics (OT-P1-008) ---
 	// Supports Prometheus format (default) and JSON (?format=json)

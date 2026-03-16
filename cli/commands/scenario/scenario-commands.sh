@@ -150,6 +150,9 @@ main() {
         completeness)
             scenario::completeness::score "$@"
             ;;
+        heal-from-sandbox)
+            scenario::heal::from_sandbox "$@"
+            ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)
             log::error "Unknown scenario command: $subcommand"

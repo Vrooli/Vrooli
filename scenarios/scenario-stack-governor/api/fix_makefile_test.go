@@ -502,7 +502,7 @@ SIMPLE_VAR := value
 help: ## Help
 	@echo "help"
 `
-	vars := extractCustomVariables(content)
+	vars, _ := extractCustomVariables(content)
 
 	names := map[string]bool{}
 	for _, v := range vars {
@@ -577,7 +577,7 @@ help: ## Help
 deploy: ## Deploy
 	@echo "Deploying to $(API_URL)"
 `
-	vars := extractCustomVariables(content)
+	vars, _ := extractCustomVariables(content)
 
 	names := map[string]bool{}
 	for _, v := range vars {
@@ -988,5 +988,109 @@ func TestFixMakefile_CustomVarsPassChecks(t *testing.T) {
 		for _, v := range qualityViolations {
 			t.Errorf("quality violation: %s (line %d)", v.Message, v.Line)
 		}
+	}
+}
+
+// TestExtractCustomTargets_SkipsPatternRules verifies that Make pattern rules
+// (targets containing %) are not extracted as custom targets.
+func TestExtractCustomTargets_SkipsPatternRules(t *testing.T) {
+	content := `help:
+	@echo "help"
+
+%.o: %.c
+	$(CC) -c $< -o $@
+
+deploy: ## Deploy to production
+	@echo "deploying"
+
+%.pb.go: %.proto
+	protoc --go_out=. $<
+
+dev: start
+`
+	customs := extractCustomTargets(content)
+
+	names := map[string]bool{}
+	for _, c := range customs {
+		names[c.name] = true
+	}
+
+	if !names["deploy"] {
+		t.Error("expected deploy to be extracted as custom target")
+	}
+	for name := range names {
+		if strings.Contains(name, "%") {
+			t.Errorf("pattern rule %q should not be extracted as custom target", name)
+		}
+	}
+}
+
+// TestExtractCustomVariables_ReportsCollisions verifies that variables colliding
+// with canonical names are reported in the second return value.
+func TestExtractCustomVariables_ReportsCollisions(t *testing.T) {
+	content := `SCENARIO_NAME := custom-override
+GREEN := custom-green
+API_URL ?= http://localhost:3000
+`
+	vars, collisions := extractCustomVariables(content)
+
+	// SCENARIO_NAME and GREEN are canonical — should be reported as collisions.
+	collisionSet := map[string]bool{}
+	for _, c := range collisions {
+		collisionSet[c] = true
+	}
+	if !collisionSet["SCENARIO_NAME"] {
+		t.Error("expected SCENARIO_NAME in collisions")
+	}
+	if !collisionSet["GREEN"] {
+		t.Error("expected GREEN in collisions")
+	}
+
+	// API_URL is not canonical — should be in vars, not collisions.
+	varNames := map[string]bool{}
+	for _, v := range vars {
+		varNames[v.name] = true
+	}
+	if !varNames["API_URL"] {
+		t.Error("expected API_URL in extracted custom variables")
+	}
+	if varNames["SCENARIO_NAME"] || varNames["GREEN"] {
+		t.Error("canonical variables should not be in extracted custom variables")
+	}
+}
+
+// TestFixMakefile_ReportsVariableCollisions verifies that when an existing
+// Makefile redefines canonical variables, the fixer reports skipped_variable changes.
+func TestFixMakefile_ReportsVariableCollisions(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "var-collision"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a broken Makefile that redefines SCENARIO_NAME.
+	broken := `# Wrong Header
+SCENARIO_NAME := hardcoded-name
+
+help:
+	@echo "help"
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results := FixMakefileAll(t.Context(), root, scenarioName, false)
+
+	foundSkipped := false
+	for _, r := range results {
+		for _, c := range r.Changes {
+			if c.Type == "skipped_variable" && strings.Contains(c.Detail, "SCENARIO_NAME") {
+				foundSkipped = true
+			}
+		}
+	}
+	if !foundSkipped {
+		t.Error("expected skipped_variable change for SCENARIO_NAME collision")
 	}
 }

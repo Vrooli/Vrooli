@@ -205,7 +205,17 @@ func SandboxAcceptanceModeFromProto(mode pb.SandboxAcceptanceMode) string {
 }
 
 // SandboxFileCriteriaToProto converts domain SandboxFileCriteria to proto.
+//
+// Returns nil when both PathGlobs and Extensions are empty. This is important
+// because the proto JSON serializer would otherwise produce `"deny": {}` (or
+// `"allow": {}`), and workspace-sandbox's matchesCriteria() treats empty
+// criteria as "match everything" — meaning an empty deny would silently deny
+// ALL files. Returning nil causes the field to be omitted from JSON entirely,
+// which workspace-sandbox correctly interprets as "no criteria".
 func SandboxFileCriteriaToProto(criteria domain.SandboxFileCriteria) *pb.SandboxFileCriteria {
+	if len(criteria.PathGlobs) == 0 && len(criteria.Extensions) == 0 {
+		return nil
+	}
 	return &pb.SandboxFileCriteria{
 		PathGlobs:  criteria.PathGlobs,
 		Extensions: criteria.Extensions,

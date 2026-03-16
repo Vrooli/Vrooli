@@ -9,6 +9,7 @@ import {
   fetchSyncStatus,
   fetchApprovedChanges,
   fetchApprovedChangesPreview,
+  fetchProvenance,
   stageFiles,
   unstageFiles,
   createCommit,
@@ -176,6 +177,8 @@ export const queryKeys = {
   ) => ["repo", "diff", repoId ?? "default", path, staged, untracked, commit, mode, any] as const,
   approvedChanges: (repoId?: string | null) =>
     ["repo", "approved-changes", repoId ?? "default"] as const,
+  provenance: (repoId?: string | null) =>
+    ["repo", "provenance", repoId ?? "default"] as const,
   files: (pattern?: string, deep?: boolean, repoId?: string | null) =>
     ["repo", "files", repoId ?? "default", pattern, deep] as const,
   relatedFiles: (path: string, repoId?: string | null) =>
@@ -367,6 +370,7 @@ export function useCommit(repoId?: string | null) {
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.provenance(repoId) });
     }
   });
 }
@@ -443,6 +447,14 @@ export function useApprovedChangesPreview(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: ApprovedChangesPreviewRequest) =>
       fetchApprovedChangesPreview(request, repoId ?? undefined)
+  });
+}
+
+export function useProvenance(repoId?: string | null) {
+  return useQuery({
+    queryKey: queryKeys.provenance(repoId),
+    queryFn: () => fetchProvenance(repoId ?? undefined),
+    refetchInterval: 10_000
   });
 }
 

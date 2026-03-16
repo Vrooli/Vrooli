@@ -356,6 +356,14 @@ func (m *mockService) CommitPending(ctx context.Context, req *types.CommitPendin
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (m *mockService) MarkCommitted(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error) {
+	return &types.MarkCommittedResult{MarkedCount: len(req.FilePaths)}, nil
+}
+
+func (m *mockService) GetProvenanceByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	return nil, nil
+}
+
 // --- CreateSandbox Handler Tests ---
 
 // TestCreateSandboxSuccess tests successful sandbox creation.

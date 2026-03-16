@@ -14,6 +14,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1379,6 +1380,29 @@ func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	}
 	cfg.Acceptance.Allow = normalizeSandboxCriteria(cfg.Acceptance.Allow)
 	cfg.Acceptance.Deny = normalizeSandboxCriteria(cfg.Acceptance.Deny)
+
+	// Default lifecycle cleanup for auto-approve sandboxes.
+	//
+	// When autoApprove is enabled, the sandbox changes are applied to the
+	// canonical repo and committed automatically — no human reviews the
+	// sandbox. Without cleanup, the sandbox stays "active" indefinitely,
+	// which:
+	//   1. Blocks future runs that target the same scope path (mutual
+	//      exclusion via reserved_paths).
+	//   2. Leaks overlay mounts and disk space.
+	//
+	// We default deleteOn to ["terminal"] so the sandbox is cleaned up after
+	// any terminal event (run_completed, run_failed, run_cancelled). This
+	// matches the intent of auto-approve: the caller trusts the changes and
+	// doesn't need the sandbox preserved for inspection.
+	//
+	// Callers who want different behavior (e.g., keep the sandbox for
+	// debugging) can explicitly set lifecycle.deleteOn to override this
+	// default.
+	if cfg.Acceptance.AutoApprove && len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
+		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
+	}
+
 	return cfg
 }
 
@@ -1438,6 +1462,15 @@ func validateSandboxConfig(cfg *domain.SandboxConfig) error {
 				"Remove the leading '/' and use project-root relative patterns",
 			)
 		}
+	}
+	// Warn when auto_approve is enabled but no allow criteria are configured.
+	// This is valid (empty allow = accept all non-denied files), but surprising
+	// enough to warrant a log line — especially since an empty deny (from proto
+	// serialization) previously caused silent universal denial.
+	if cfg.Acceptance.AutoApprove &&
+		len(cfg.Acceptance.Allow.PathGlobs) == 0 &&
+		len(cfg.Acceptance.Allow.Extensions) == 0 {
+		log.Printf("[sandbox-config] auto_approve enabled with no allow criteria — all non-denied files will be approved")
 	}
 	return nil
 }

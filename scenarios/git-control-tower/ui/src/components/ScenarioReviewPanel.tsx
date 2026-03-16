@@ -9,11 +9,12 @@ import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInf
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton, type SentMessage } from "./AgentTab";
+import { AIProvenanceTab } from "./AIProvenanceTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
 
-type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "agent";
+type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
 
 interface ScenarioReviewPanelProps {
   scenarioSlug: string;
@@ -134,14 +135,20 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     tests: "Tests",
     "code-quality": "Code Quality",
     rules: "Rules",
+    "ai-provenance": "AI Changes",
     agent: "Agent",
   };
+
+  const workspaceSandboxAvailable = capabilities.data?.capabilities?.some(
+    c => c.id === "workspace-sandbox" && c.status === "available"
+  ) ?? false;
 
   const visibleTabs = (Object.keys(tabLabels) as Tab[]).filter(
     tab => {
       if (tab === "metrics") return Boolean(scenarioFileStats);
       if (tab === "code-quality") return tidinessAvailable;
       if (tab === "rules") return auditorAvailable;
+      if (tab === "ai-provenance") return workspaceSandboxAvailable;
       if (tab === "agent") return agentManagerAvailable;
       return true;
     }
@@ -259,6 +266,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
         />
+      ) : activeTab === "ai-provenance" ? (
+        <AIProvenanceTab repoId={repoId} />
       ) : (
         <AgentTab
           scenarioSlug={scenarioSlug}

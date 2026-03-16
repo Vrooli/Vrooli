@@ -456,6 +456,7 @@ export interface ApprovedChangeFile {
   sandboxId?: string;
   sandboxOwner?: string;
   changeType?: string;
+  agentManagerRunId?: string;
 }
 
 export interface ApprovedChangesResponse {
@@ -468,6 +469,28 @@ export interface ApprovedChangesResponse {
 
 export interface ApprovedChangesPreviewRequest {
   paths: string[];
+}
+
+// Provenance Types
+export interface ProvenanceFile {
+  filePath: string;
+  relativePath: string;
+  changeType: string;
+  appliedAt: string;
+}
+
+export interface ProvenanceRunGroup {
+  runId: string;
+  sandboxId: string;
+  sandboxOwner: string;
+  files: ProvenanceFile[];
+  latestAppliedAt: string;
+}
+
+export interface ProvenanceResponse {
+  available: boolean;
+  runGroups: ProvenanceRunGroup[];
+  warning?: string;
 }
 
 // File Search Types
@@ -874,6 +897,15 @@ export async function fetchApprovedChangesPreview(
     body: JSON.stringify(request)
   });
   return handleResponse<ApprovedChangesResponse>(res);
+}
+
+export async function fetchProvenance(repoId?: string): Promise<ProvenanceResponse> {
+  const url = buildApiUrl("/repo/provenance", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<ProvenanceResponse>(res);
 }
 
 export async function fetchBranches(repoId?: string): Promise<RepoBranchesResponse> {

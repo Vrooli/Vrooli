@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,7 +24,7 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	}
 	defer func() {
 		result.FinishedAt = time.Now()
-		result.Passed = len(result.Findings) == 0
+		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
 	glob := filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod")
@@ -56,9 +55,27 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 	g.SetLimit(5)
 	for _, goMod := range goMods {
 		goMod := goMod
-		g.Go(func() error {
+		g.Go(func() (retErr error) {
 			moduleDir := filepath.Dir(goMod)
 			name := filepath.Base(filepath.Dir(moduleDir)) // scenario slug
+
+			// Recover from unexpected panics so a single module can't crash
+			// the entire rule run.
+			defer func() {
+				if r := recover(); r != nil {
+					mu.Lock()
+					result.Findings = append(result.Findings, Finding{
+						Level:        "error",
+						Message:      fmt.Sprintf("%s: internal error (panic): %v", name, r),
+						ScenarioName: name,
+						Evidence: []Evidence{
+							{Type: "path", Ref: moduleDir},
+						},
+					})
+					mu.Unlock()
+				}
+			}()
+
 			buildCtx, cancel := context.WithTimeout(gCtx, 3*time.Minute)
 			out, buildErr := runGoBuild(buildCtx, moduleDir)
 			wasTimeout := buildCtx.Err() == context.DeadlineExceeded
@@ -92,7 +109,12 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName s
 			return nil
 		})
 	}
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		result.Findings = append(result.Findings, Finding{
+			Level:   "error",
+			Message: fmt.Sprintf("unexpected error during parallel build checks: %v", err),
+		})
+	}
 
 	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot, cleanedScenario)...)
 	result.Findings = append(result.Findings, checkProtoReplaceForCliModules(repoRoot, cleanedScenario)...)
@@ -142,24 +164,7 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 		}
 
 		cliDir := filepath.Dir(cliGoMod)
-		usesInternal := false
-		_ = filepath.WalkDir(cliDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(path, ".go") {
-				return nil
-			}
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-			if bytes.Contains(b, []byte(`"`+apiModule+`/internal/`)) {
-				usesInternal = true
-			}
-			return nil
-		})
-		if !usesInternal {
+		if !cliImportsAPI(cliDir, apiModule) {
 			continue
 		}
 
@@ -181,7 +186,7 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 		if len(missing) > 0 {
 			findings = append(findings, Finding{
 				Level:        "error",
-				Message:      fmt.Sprintf("%s: CLI imports %s/internal/* but is missing go.mod wiring", cliModule, apiModule),
+				Message:      fmt.Sprintf("%s: CLI imports %s/* but is missing go.mod wiring", cliModule, apiModule),
 				ScenarioName: scenSlug,
 				Evidence: []Evidence{
 					{Type: "file", Ref: cliGoMod},
@@ -215,28 +220,14 @@ func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
 			continue
 		}
 
-		// Check if proto is referenced (in require or anywhere in the parsed module).
-		hasProto := false
-		for _, req := range modFile.Require {
-			if req.Mod.Path == protoModule {
-				hasProto = true
-				break
-			}
+		// Check if proto is referenced in the parsed module's require or
+		// replace directives. We intentionally avoid raw string matching
+		// because it would false-positive on comments and string literals.
+		if !goModFileHasRequire(modFile, protoModule) {
+			continue // proto not required, nothing to check
 		}
-		if !hasProto {
-			// Also check raw text for proto references (could be in replace without require).
-			raw, err := os.ReadFile(cliGoMod)
-			if err != nil {
-				continue
-			}
-			if !strings.Contains(string(raw), protoModule) {
-				continue
-			}
-			hasProto = true
-		}
-
 		if goModFileHasReplace(modFile, protoModule) {
-			continue
+			continue // already has replace, all good
 		}
 
 		scenSlug := filepath.Base(filepath.Dir(filepath.Dir(cliGoMod)))

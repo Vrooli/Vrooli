@@ -115,10 +115,33 @@ Guardrails:
 - Binary/unsupported files remain read-only.
 - Stage/unstage/discard semantics are unchanged; save does not auto-stage.
 
+## Workspace-Sandbox Communication Seam
+
+**Location**: `api/workspace_sandbox_api.go`
+
+`WorkspaceSandboxAPI` is the seam for all workspace-sandbox operations. It isolates cross-scenario HTTP communication from handler and commit logic.
+
+Production implementation:
+- `WorkspaceSandboxClient` (in `api/workspace_sandbox_client.go`) makes HTTP requests to workspace-sandbox, resolved via `discovery.ResolveScenarioURLDefault`.
+
+Test implementation:
+- `FakeWorkspaceSandboxAPI` (in `api/workspace_sandbox_fake_test.go`) records calls and returns configurable responses.
+
+Methods:
+- `GetCommitPreview` / `GetCommitPreviewForPaths` — read pending approved changes
+- `MarkCommitted` — notify WS that files were committed externally (called async after successful commit)
+- `GetProvenanceByRun` — fetch pending changes grouped by agent-manager run ID
+
+Seam guardrails:
+- No direct HTTP calls to workspace-sandbox outside `WorkspaceSandboxClient`.
+- The `Server.sandbox` field is typed as `WorkspaceSandboxAPI` (interface), not the concrete client.
+- `MarkCommitted` is fire-and-forget; failures must not block the commit response.
+
 ## Verification Checklist
 
 When adding new behavior, verify:
 - Git operations go through `GitRunner`.
+- Workspace-sandbox operations go through `WorkspaceSandboxAPI`.
 - Repo-resolving handlers use `RepoOperation`.
 - Repo registry updates go through `RepoService`/`RepoStore`.
-- Tests can swap in `FakeGitRunner` or `SQLiteRepoStore` (memory DB).
+- Tests can swap in `FakeGitRunner`, `FakeWorkspaceSandboxAPI`, or `SQLiteRepoStore` (memory DB).

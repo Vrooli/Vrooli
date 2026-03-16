@@ -23,6 +23,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -193,6 +194,22 @@ type PolicyConfig struct {
 	// Higher = more accurate detection but slower for large files.
 	// Default: 8000
 	BinaryDetectionThreshold int
+
+	// TeardownHooks defines pre-teardown hooks to run before unmounting or
+	// deleting a sandbox. Each hook runs best-effort; failures are logged
+	// but never block teardown. This enables external systems to gracefully
+	// evacuate processes from the sandbox's merged directory before the
+	// filesystem disappears.
+	//
+	// In the Vrooli ecosystem, this is typically configured to call
+	// "vrooli scenario heal-from-sandbox" which detects scenarios running
+	// from the sandbox path and restarts them from the canonical repo.
+	TeardownHooks []TeardownHookConfig
+
+	// TeardownTimeout is the maximum time to wait for all teardown hooks.
+	// Shorter than validation timeout since teardown should be fast.
+	// Default: 30s
+	TeardownTimeout time.Duration
 }
 
 // ValidationHookConfig defines a single validation hook.
@@ -215,6 +232,27 @@ type ValidationHookConfig struct {
 
 	// Timeout is the maximum time for this specific hook.
 	// If zero, uses the global ValidationTimeout.
+	Timeout time.Duration
+}
+
+// TeardownHookConfig defines a single pre-teardown hook.
+// Unlike ValidationHookConfig, there is no Required field — all teardown
+// hooks are best-effort because teardown must never be blocked.
+type TeardownHookConfig struct {
+	// Name is a human-readable identifier for the hook.
+	Name string
+
+	// Description explains what the hook does.
+	Description string
+
+	// Command is the executable to run.
+	Command string
+
+	// Args are arguments to pass to the command.
+	Args []string
+
+	// Timeout is the maximum time for this specific hook.
+	// If zero, uses the global TeardownTimeout.
 	Timeout time.Duration
 }
 
@@ -360,6 +398,17 @@ func Default() Config {
 			ValidationHooks:           nil, // No hooks by default
 			ValidationTimeout:         5 * time.Minute,
 			BinaryDetectionThreshold:  8000,
+			TeardownHooks: nil, // No hooks by default
+			// TeardownTimeout caps ALL pre-teardown hooks combined. Set to 90s to
+			// give the per-hook budget (60s) room plus overhead for hook startup,
+			// process metadata scanning, and logging. In teardown.go's nested
+			// timeout model, each hook gets min(global, per-hook) time.
+			//
+			// If this timeout fires, exec.CommandContext sends SIGKILL to the hook
+			// process, which means affected scenarios may not be stopped before
+			// unmount — they become orphaned with no filesystem. This is why the
+			// timeout must be generous.
+			TeardownTimeout: 90 * time.Second,
 		},
 		Driver: DriverConfig{
 			BaseDir:          DefaultBaseDir(),
@@ -435,6 +484,44 @@ func LoadFromEnv() (Config, error) {
 	if mode := os.Getenv("WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE"); mode != "" {
 		cfg.Policy.CommitAuthorMode = mode
 	}
+
+	// Teardown hook config
+	//
+	// Pre-teardown hooks run before sandbox unmount/delete to give external
+	// systems a chance to evacuate processes from the merged directory. Hooks
+	// are always best-effort: failures are logged but never block teardown.
+	//
+	// Priority:
+	//   1. Explicit WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD env var
+	//   2. Auto-detect: if "vrooli" is on PATH, use the built-in heal command
+	//   3. No hooks (no-op)
+	if hookCmd := os.Getenv("WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD"); hookCmd != "" {
+		cfg.Policy.TeardownHooks = []TeardownHookConfig{{
+			Name:        "pre-teardown",
+			Description: "Configured via WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD",
+			Command:     hookCmd,
+		}}
+	} else if vrooliPath, err := exec.LookPath("vrooli"); err == nil {
+		// Auto-enable: when running inside a Vrooli environment, automatically
+		// configure the heal-from-sandbox hook. This ensures scenarios running
+		// from a sandbox's merged directory are gracefully restarted before the
+		// overlay is torn down.
+		//
+		// The hook reads SANDBOX_MERGED_DIR from the environment (set by the
+		// teardown policy) to find and restart affected scenarios.
+		cfg.Policy.TeardownHooks = []TeardownHookConfig{{
+			Name:        "vrooli-heal-from-sandbox",
+			Description: "Stops scenarios running from sandbox merged path before teardown, then restarts them from the canonical repo in the background",
+			Command:     vrooliPath,
+			Args:        []string{"scenario", "heal-from-sandbox"},
+			// Timeout budget: each scenario stop takes ~4s (SIGTERM + 2s grace +
+			// SIGKILL + 1s cleanup in lifecycle.sh), so 60s supports ~15 scenarios
+			// stopping sequentially. Restarts are backgrounded by heal.sh and don't
+			// count against this budget.
+			Timeout: 60 * time.Second,
+		}}
+	}
+	cfg.Policy.TeardownTimeout = envDuration("WORKSPACE_SANDBOX_TEARDOWN_TIMEOUT", cfg.Policy.TeardownTimeout)
 
 	// Driver config
 	// PROJECT_ROOT takes precedence, falls back to VROOLI_ROOT if not set

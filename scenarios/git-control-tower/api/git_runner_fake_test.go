@@ -643,6 +643,22 @@ func (f *FakeGitRunner) CatFile(ctx context.Context, repoDir string, path string
 	return []byte("line 1\nline 2\nline 3\nline 4\nline 5\n"), nil
 }
 
+// ListStagedFiles returns file paths that are currently staged in the index.
+func (f *FakeGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListStagedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	var files []string
+	for path := range f.Staged {
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
 // ListTrackedFiles returns all tracked files in the repository.
 func (f *FakeGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
 	f.recordCall("ListTrackedFiles", repoDir)

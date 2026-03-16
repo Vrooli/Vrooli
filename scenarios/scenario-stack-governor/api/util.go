@@ -12,8 +12,14 @@ func trimEnv(key string) string {
 }
 
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// isScenarioDir returns true if the directory name looks like a real scenario.
+// Directories starting with '_' or '.' are excluded (e.g. _artifacts, .git).
+func isScenarioDir(name string) bool {
+	return name != "" && name[0] != '_' && name[0] != '.'
 }
 
 func scenarioRootFromCWD() (string, error) {

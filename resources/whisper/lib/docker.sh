@@ -87,7 +87,7 @@ whisper::docker::start_container() {
     # Prepare environment variables
     local env_vars=(
         "ASR_MODEL=$model"
-        "ASR_ENGINE=openai_whisper"
+        "ASR_ENGINE=${WHISPER_ENGINE:-faster_whisper}"
     )
     
     # Prepare Docker options

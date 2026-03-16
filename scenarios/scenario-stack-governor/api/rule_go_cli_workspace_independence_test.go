@@ -172,6 +172,46 @@ func TestGoCliRule_CancelledContextReportsError(t *testing.T) {
 	}
 }
 
+// TestGoCliRule_DetectsSubpackageImportNotJustInternal verifies the rule
+// catches CLI imports of any API subpackage (e.g., /models, /types), not
+// just /internal/. This aligns the rule checker with the fixer scope.
+func TestGoCliRule_DetectsSubpackageImportNotJustInternal(t *testing.T) {
+	root := setupGoCliTestDir(t, "sub-import")
+	scenarioDir := filepath.Join(root, "scenarios", "sub-import")
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"),
+		[]byte("module github.com/vrooli/sub-import/api\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"),
+		[]byte("module github.com/vrooli/sub-import/cli\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// CLI imports api/models (not api/internal/).
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"), []byte(`package main
+
+import _ "github.com/vrooli/sub-import/api/models"
+
+func main() {}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, "sub-import")
+
+	// Should detect the import and report missing go.mod wiring.
+	found := false
+	for _, f := range result.Findings {
+		if strings.Contains(f.Message, "missing go.mod wiring") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected finding about missing go.mod wiring for api/models import")
+	}
+}
+
 func TestGoCliRule_BuildTimeoutReportsSpecificError(t *testing.T) {
 	// When a build times out, the finding should clearly indicate
 	// timeout rather than a generic build failure.
@@ -307,5 +347,38 @@ func TestGoCliRule_ScenarioFilter(t *testing.T) {
 
 	if !result.Passed {
 		t.Errorf("expected passed=true, got false; findings: %+v", result.Findings)
+	}
+}
+
+// TestGoCliRule_ProtoCommentDoesNotFalsePositive verifies that a go.mod
+// containing "github.com/vrooli/vrooli/packages/proto" only in a comment
+// does NOT trigger a proto replace finding. This was a false positive caused
+// by raw string matching on the go.mod text.
+func TestGoCliRule_ProtoCommentDoesNotFalsePositive(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "proto-comment"
+	cliDir := filepath.Join(root, "scenarios", scenarioName, "cli")
+	mkdirAll(t, cliDir)
+
+	// go.mod mentions proto only in a comment — not in require or replace.
+	goMod := `module example.com/proto-comment/cli
+
+go 1.25
+
+// TODO: add github.com/vrooli/vrooli/packages/proto when ready
+`
+	if err := os.WriteFile(filepath.Join(cliDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cliDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	for _, f := range result.Findings {
+		if strings.Contains(f.Message, "proto") && f.Level == "error" {
+			t.Errorf("false positive: proto comment should not trigger finding: %s", f.Message)
+		}
 	}
 }

@@ -344,6 +344,48 @@ func (h *Handlers) PostCommitPreview(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, result)
 }
 
+// MarkCommitted marks pending changes as committed for files committed by external tools.
+//
+// Request body: MarkCommittedRequest (projectRoot, filePaths, commitHash, commitMessage).
+func (h *Handlers) MarkCommitted(w http.ResponseWriter, r *http.Request) {
+	var req types.MarkCommittedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ProjectRoot == "" {
+		req.ProjectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	result, err := h.Service.MarkCommitted(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// GetProvenanceByRun returns pending applied changes grouped by agent-manager run ID.
+//
+// Query parameters:
+//   - projectRoot: Optional. Filter by project root.
+func (h *Handlers) GetProvenanceByRun(w http.ResponseWriter, r *http.Request) {
+	projectRoot := r.URL.Query().Get("projectRoot")
+	if projectRoot == "" {
+		projectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	groups, err := h.Service.GetProvenanceByRun(r.Context(), projectRoot)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, map[string]interface{}{
+		"runGroups": groups,
+	})
+}
+
 // parseInt is a helper for parsing integer query parameters.
 func parseInt(s string) (int, error) {
 	var i int

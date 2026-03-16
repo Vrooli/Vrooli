@@ -38,7 +38,7 @@ type Server struct {
 	git                  GitRunner
 	repoLock             *RepoLock
 	audit                AuditLogger
-	sandbox              *WorkspaceSandboxClient
+	sandbox              WorkspaceSandboxAPI
 	capabilities         *CapabilityRegistry
 	sshDeps              ssh.SSHDeps
 	repos                *RepoService
@@ -100,7 +100,7 @@ func NewServer() (*Server, error) {
 		git:      &ExecGitRunner{GitPath: "git"},
 		repoLock: NewRepoLock(),
 		audit:    auditLogger,
-		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
+		sandbox:  NewWorkspaceSandboxClient(5 * time.Second),
 		capabilities: NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{
 			"workspace-sandbox": &ScenarioChecker{
 				Slug:   "workspace-sandbox",
@@ -204,6 +204,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/approved-changes", s.handleApprovedChanges).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/approved-changes/preview", s.handleApprovedChangesPreview).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/provenance", s.handleProvenance).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/sync-status", s.handleSyncStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/discard", s.handleDiscard).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
@@ -532,6 +533,9 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture staged files before commit (needed for workspace-sandbox notification)
+	stagedFiles, _ := hctx.Git.ListStagedFiles(hctx.Ctx, hctx.RepoDir)
+
 	result, err := CreateCommit(hctx.Ctx, CommitDeps{
 		Git:     hctx.Git,
 		RepoDir: hctx.RepoDir,
@@ -566,6 +570,15 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 		defer logCancel()
 		_ = s.audit.Log(logCtx, auditEntry)
 	}()
+
+	// Notify workspace-sandbox that files have been committed (fire-and-forget)
+	if result != nil && result.Success && len(stagedFiles) > 0 {
+		go func() {
+			notifyCtx, notifyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer notifyCancel()
+			_ = s.sandbox.MarkCommitted(notifyCtx, hctx.RepoDir, stagedFiles, result.Hash, result.Message)
+		}()
+	}
 
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())

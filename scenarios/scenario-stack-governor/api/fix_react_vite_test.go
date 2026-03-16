@@ -788,6 +788,293 @@ func TestFixReactVite_InvalidJSON(t *testing.T) {
 	}
 }
 
+// TestCheckScenarioUIInstallRule_UIDirWithoutPackageJSON verifies that when
+// a ui/ directory exists but package.json is missing, the rule emits an
+// info-level finding rather than silently passing.
+func TestCheckScenarioUIInstallRule_UIDirWithoutPackageJSON(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "ui-no-package"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	// Create ui/ directory but do NOT create package.json.
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	findings := checkScenarioUIInstallRule(scenarioDir, scenarioName)
+
+	found := false
+	for _, f := range findings {
+		if f.Level == "info" && strings.Contains(f.Message, "package.json is missing") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected info finding about missing package.json; got findings: %+v", findings)
+	}
+}
+
+// TestCheckScenarioUIInstallRule_NoUIDir verifies that when neither ui/ nor
+// package.json exist, the rule emits nothing (no false positives).
+func TestCheckScenarioUIInstallRule_NoUIDir(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "no-ui-at-all"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	findings := checkScenarioUIInstallRule(scenarioDir, scenarioName)
+
+	if len(findings) != 0 {
+		t.Errorf("expected no findings when ui/ doesn't exist; got %d: %+v", len(findings), findings)
+	}
+}
+
+// TestCheckScenarioUIInstallRule_NpmOnlyMessage verifies that when the only
+// install step uses npm, the violation message clearly states pnpm is required.
+func TestCheckScenarioUIInstallRule_NpmOnlyMessage(t *testing.T) {
+	root := setupFixTestDir(t)
+	scenarioName := "npm-only-msg"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	// Create ui/package.json and service.json with npm install.
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "package.json"), []byte(`{"name":"test"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeServiceJSONRaw(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-ui-deps", "run": "cd ui && npm install"}
+      ]
+    }
+  }
+}`)
+
+	findings := checkScenarioUIInstallRule(scenarioDir, scenarioName)
+
+	if len(findings) == 0 {
+		t.Fatal("expected at least one finding for npm install")
+	}
+
+	// The error message should mention pnpm requirement.
+	errorFinding := findings[0]
+	if !strings.Contains(errorFinding.Message, "pnpm required") {
+		t.Errorf("expected violation message to mention 'pnpm required'; got: %s", errorFinding.Message)
+	}
+
+	// Evidence should explain that npm is not supported.
+	foundNpmNote := false
+	for _, e := range errorFinding.Evidence {
+		if strings.Contains(e.Detail, "npm is not supported") {
+			foundNpmNote = true
+			break
+		}
+	}
+	if !foundNpmNote {
+		t.Errorf("expected evidence note about npm not being supported; got evidence: %+v", errorFinding.Evidence)
+	}
+}
+
+// --- JSON-aware patching tests (Fix 1) ---
+
+// TestFixReactVite_BracketsInShellCommand verifies that shell commands containing
+// [ and ] characters (e.g., `if [ -f file ]`) don't corrupt the JSON.
+func TestFixReactVite_BracketsInShellCommand(t *testing.T) {
+	scenarioName := "test-brackets"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	rawJSON := `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-ui-deps", "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; fi"}
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+	}
+	if !strings.Contains(string(content), "--ignore-workspace") {
+		t.Error("expected --ignore-workspace in fixed service.json")
+	}
+}
+
+// TestFixReactVite_NestedBracketsInShellCommand verifies that multiple levels
+// of brackets in shell commands are handled correctly.
+func TestFixReactVite_NestedBracketsInShellCommand(t *testing.T) {
+	scenarioName := "test-nested-brackets"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	rawJSON := `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "check-env", "run": "if [ -z \"$NODE_ENV\" ]; then echo '[warn] NODE_ENV not set'; fi"},
+        {"name": "install-ui-deps", "run": "cd ui && pnpm install"}
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+	}
+	if !strings.Contains(string(content), "--ignore-workspace") {
+		t.Error("expected --ignore-workspace in fixed service.json")
+	}
+	// Verify original shell commands are preserved.
+	if !strings.Contains(string(content), "[warn]") {
+		t.Error("expected original shell commands to be preserved")
+	}
+}
+
+// TestFixReactVite_DuplicateRunValue verifies that when the same run command
+// appears in multiple steps, only the UI-related one is patched.
+func TestFixReactVite_DuplicateRunValue(t *testing.T) {
+	scenarioName := "test-dup-run"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	rawJSON := `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "build-api", "run": "cd ui && pnpm install", "description": "cd ui && pnpm install"},
+        {"name": "install-ui-deps", "run": "cd ui && pnpm install"}
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+	}
+	if !strings.Contains(string(content), "--ignore-workspace") {
+		t.Error("expected --ignore-workspace in fixed service.json")
+	}
+}
+
+// TestFixReactVite_StepsKeyInStringValue verifies that a "steps" string inside
+// another field value doesn't confuse the step insertion logic.
+func TestFixReactVite_StepsKeyInStringValue(t *testing.T) {
+	scenarioName := "test-steps-in-string"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	rawJSON := `{
+  "description": "This scenario has many steps in its pipeline",
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "build-api", "run": "cd api && go build ./..."}
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+	}
+
+	// Verify the step was added to the correct steps array.
+	lifecycle, _ := doc["lifecycle"].(map[string]any)
+	setup, _ := lifecycle["setup"].(map[string]any)
+	steps, _ := setup["steps"].([]any)
+	if len(steps) != 2 {
+		t.Fatalf("expected 2 steps, got %d", len(steps))
+	}
+}
+
+// TestJsonAwareIndex verifies JSON-aware string searching.
+func TestJsonAwareIndex(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		needle   string
+		pos      int
+		expected int
+	}{
+		{"finds key at top level", `{"steps": []}`, `"steps"`, 0, 1},
+		{"skips key inside string value", `{"desc": "has steps here", "steps": []}`, `"steps"`, 0, 27},
+		{"returns -1 when not found", `{"foo": "bar"}`, `"steps"`, 0, -1},
+		{"finds from offset", `{"a": 1, "steps": []}`, `"steps"`, 5, 9},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := jsonAwareIndex(tt.text, tt.needle, tt.pos)
+			if got != tt.expected {
+				t.Errorf("jsonAwareIndex(%q, %q, %d) = %d, want %d", tt.text, tt.needle, tt.pos, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestJsonAwareMatchingBracket verifies bracket matching skips string contents.
+func TestJsonAwareMatchingBracket(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		openPos  int
+		expected int
+	}{
+		{"simple array", `[1, 2, 3]`, 0, 8},
+		{"nested arrays", `[[1], [2]]`, 0, 9},
+		{"brackets in strings", `["[not]", "]"]`, 0, 13},
+		{"escaped quotes in strings", `["a\"[b", "]"]`, 0, 13},
+		{"no opening bracket", `hello`, 0, -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := jsonAwareMatchingBracket(tt.text, tt.openPos)
+			if got != tt.expected {
+				t.Errorf("jsonAwareMatchingBracket(%q, %d) = %d, want %d", tt.text, tt.openPos, got, tt.expected)
+			}
+		})
+	}
+}
+
 // TestDetectStepIndent verifies indentation detection for various formats.
 func TestDetectStepIndent(t *testing.T) {
 	tests := []struct {
@@ -829,5 +1116,97 @@ func TestDetectStepIndent(t *testing.T) {
 				t.Errorf("expected indent %q, got %q", tt.expected, got)
 			}
 		})
+	}
+}
+
+// TestFixReactVite_CompactJSONNoDuplicate verifies that compact JSON (no
+// newlines) uses the marshal fallback and produces exactly one install-ui-deps
+// step. This guards against the duplicate insertion bug where the string-level
+// path fails and the marshal fallback doesn't check for existing steps.
+func TestFixReactVite_CompactJSONNoDuplicate(t *testing.T) {
+	scenarioName := "test-compact-nodup"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	writeServiceJSONRaw(t, sjPath, `{"lifecycle":{"setup":{"steps":[{"name":"build","run":"go build"}]}}}`)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	text := string(content)
+
+	// Verify valid JSON.
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, text)
+	}
+
+	// Verify exactly one install-ui-deps step.
+	count := strings.Count(text, "install-ui-deps")
+	if count != 1 {
+		t.Errorf("expected exactly 1 install-ui-deps step, found %d\n%s", count, text)
+	}
+
+	// Verify exactly one pnpm install.
+	pnpmCount := strings.Count(text, "pnpm install")
+	if pnpmCount != 1 {
+		t.Errorf("expected exactly 1 pnpm install, found %d\n%s", pnpmCount, text)
+	}
+}
+
+// TestFixReactVite_ReplaceRunDoesNotCorruptOtherFields verifies that
+// replaceRunInRaw only modifies the "run" field value and does not corrupt
+// other fields that happen to contain the same string.
+func TestFixReactVite_ReplaceRunDoesNotCorruptOtherFields(t *testing.T) {
+	scenarioName := "test-no-corrupt"
+	root, sjPath := setupReactViteTestDir(t, scenarioName)
+
+	// The description field contains the same text as the run field.
+	// A naive string replacement would corrupt both.
+	rawJSON := `{
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "description": "Runs: cd ui && pnpm install",
+          "run": "cd ui && pnpm install"
+        }
+      ]
+    }
+  }
+}`
+	writeServiceJSONRaw(t, sjPath, rawJSON)
+
+	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
+	if !results[0].Fixed {
+		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+	}
+
+	content, _ := os.ReadFile(sjPath)
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("produced invalid JSON: %v\nContent:\n%s", err, string(content))
+	}
+
+	// The description should be unchanged (not patched with --ignore-workspace).
+	lifecycle, _ := doc["lifecycle"].(map[string]any)
+	setup, _ := lifecycle["setup"].(map[string]any)
+	steps, _ := setup["steps"].([]any)
+	step, _ := steps[0].(map[string]any)
+
+	desc, _ := step["description"].(string)
+	if strings.Contains(desc, "--ignore-workspace") {
+		t.Error("description field was corrupted — only the 'run' field should be modified")
+	}
+	if desc != "Runs: cd ui && pnpm install" {
+		t.Errorf("description should be unchanged; got: %q", desc)
+	}
+
+	run, _ := step["run"].(string)
+	if !strings.Contains(run, "--ignore-workspace") {
+		t.Error("run field should contain --ignore-workspace")
 	}
 }

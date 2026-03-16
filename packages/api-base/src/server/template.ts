@@ -16,6 +16,7 @@ import { createHealthEndpoint } from './health.js'
 import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
+import { createEmbeddedProxyRouter } from './embedded.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
 
 const IMMUTABLE_ASSET_EXTENSIONS = new Set([
@@ -459,6 +460,14 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     setupRoutes(app)
   }
 
+  // Built-in embedded scenario proxy
+  if (options.embeddedProxy) {
+    const proxyOpts = options.embeddedProxy === true ? {} : options.embeddedProxy
+    if (proxyOpts.enabled !== false) {
+      app.use('/embedded', createEmbeddedProxyRouter(proxyOpts))
+    }
+  }
+
   // Resolve dist directory
   const absoluteDistDir = path.isAbsolute(distDir) ? distDir : path.resolve(process.cwd(), distDir)
   const indexPath = path.join(absoluteDistDir, 'index.html')
@@ -488,7 +497,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
     // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
-    if (requestPath.includes('/proxy')) {
+    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/')) {
       // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
       if (verbose) {
         console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)

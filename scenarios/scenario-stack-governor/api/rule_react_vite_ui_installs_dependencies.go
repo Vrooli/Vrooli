@@ -18,7 +18,7 @@ func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 	}
 	defer func() {
 		result.FinishedAt = time.Now()
-		result.Passed = len(result.Findings) == 0
+		result.Passed = !hasActionableFindings(result.Findings)
 	}()
 
 	_ = ctx
@@ -38,7 +38,7 @@ func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioN
 	}
 
 	for _, ent := range entries {
-		if !ent.IsDir() {
+		if !ent.IsDir() || !isScenarioDir(ent.Name()) {
 			continue
 		}
 		scenarioDir := filepath.Join(scenariosRoot, ent.Name())
@@ -53,6 +53,18 @@ func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
 
 	uiPackageJSON := filepath.Join(scenarioDir, "ui", "package.json")
 	if !fileExists(uiPackageJSON) {
+		// If ui/ directory exists but package.json is missing, flag it.
+		uiDir := filepath.Join(scenarioDir, "ui")
+		if dirExists(uiDir) {
+			findings = append(findings, Finding{
+				Level:        "info",
+				Message:      fmt.Sprintf("%s: ui/ directory exists but package.json is missing — is this intentional?", scenarioName),
+				ScenarioName: scenarioName,
+				Evidence: []Evidence{
+					{Type: "path", Ref: uiDir},
+				},
+			})
+		}
 		return findings
 	}
 
@@ -81,13 +93,17 @@ func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
 			},
 		})
 	} else if !installResult.ok {
+		detail := "Expected setup step: cd ui && pnpm install --ignore-workspace"
+		if installResult.evidence != "" && strings.Contains(installResult.evidence, "npm install") && !strings.Contains(installResult.evidence, "pnpm") {
+			detail = "npm is not supported — this monorepo uses pnpm workspaces. Replace with: cd ui && pnpm install --ignore-workspace"
+		}
 		findings = append(findings, Finding{
 			Level:        "error",
-			Message:      fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace`", scenarioName),
+			Message:      fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace` (pnpm required, not npm/yarn)", scenarioName),
 			ScenarioName: scenarioName,
 			Evidence: []Evidence{
 				{Type: "file", Ref: serviceJSONPath},
-				{Type: "note", Detail: "Expected setup step like: cd ui && pnpm install --ignore-workspace"},
+				{Type: "note", Detail: detail},
 				{Type: "note", Detail: "Found: " + installResult.evidence},
 			},
 		})
