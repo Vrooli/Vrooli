@@ -1,0 +1,38 @@
+{
+  "module": {
+    "id": "evaluation-jobs",
+    "name": "Evaluation Job Management",
+    "description": "Core job lifecycle: create, queue, execute, track, and monitor evaluation jobs",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "requirements": [
+    {
+      "id": "EVAL-JOB-001",
+      "title": "Job Creation API",
+      "description": "REST endpoint to create evaluation jobs with input validation and queue assignment",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending"
+    },
+    {
+      "id": "EVAL-JOB-002",
+      "title": "Job Queue Management",
+      "description": "Priority queue for evaluation jobs with configurable concurrency limits",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending"
+    },
+    {
+      "id": "EVAL-JOB-003",
+      "title": "Job Execution Engine",
+      "description": "Worker pool to execute evaluation jobs and collect results",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending"
+    },
+    {
+      "id": "EVAL-JOB-004",
+      "title": "Job Status Tracking",
+      "description": "Real-time status updates via WebSocket with progress percentage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending"
+    }
+  ]
+}
