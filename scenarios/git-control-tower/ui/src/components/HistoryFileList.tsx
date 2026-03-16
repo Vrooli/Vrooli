@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { File, History, ChevronDown, ChevronRight } from "lucide-react";
+import { File, History, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import type { ViewingCommit } from "./HistoryModeHeader";
@@ -11,6 +11,7 @@ interface HistoryFileListProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
+  onDeletePath?: (path: string, isDir: boolean) => void;
 }
 
 function formatPath(path: string, maxChars: number) {
@@ -43,7 +44,8 @@ export function HistoryFileList({
   onSelectFile,
   collapsed = false,
   onToggleCollapse,
-  fillHeight = true
+  fillHeight = true,
+  onDeletePath
 }: HistoryFileListProps) {
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -106,7 +108,7 @@ export function HistoryFileList({
           <div className="mx-2 mb-2 rounded-md border border-amber-800/50 bg-amber-950/20 p-2 text-xs text-amber-200/80">
             <div className="flex items-center gap-2">
               <History className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-              <span>Viewing historical commit - read only</span>
+              <span>Viewing historical commit</span>
             </div>
           </div>
 
@@ -141,6 +143,20 @@ export function HistoryFileList({
                           {displayPath}
                         </span>
                       </div>
+                      {onDeletePath && (
+                        <button
+                          type="button"
+                          className="flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:bg-red-950/50 hover:text-red-300"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeletePath(file, false);
+                          }}
+                          aria-label={`Delete ${file}`}
+                          title="Delete file"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </li>
                   );
                 })}

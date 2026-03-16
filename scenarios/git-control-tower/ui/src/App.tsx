@@ -1890,6 +1890,7 @@ export default function App() {
               collapsed={changesCollapsed}
               onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
               fillHeight={isMain || !changesCollapsed}
+              onDeletePath={handleRequestDeletePath}
             />
           );
         }
@@ -2052,6 +2053,8 @@ export default function App() {
               isReadOnly={isViewingAnyFile}
               onSaveFileContent={handleSaveFileContent}
               isSavingFile={saveFileContentMutation.isPending}
+              onDeletePath={handleRequestDeletePath}
+              isDeleting={isDeleting}
             />
           </div>
         );
@@ -2150,6 +2153,7 @@ export default function App() {
               }}
               collapsed={false}
               fillHeight={true}
+              onDeletePath={handleRequestDeletePath}
             />
           );
         }
@@ -2239,6 +2243,8 @@ export default function App() {
             isReadOnly={isViewingAnyFile}
             onSaveFileContent={handleSaveFileContent}
             isSavingFile={saveFileContentMutation.isPending}
+            onDeletePath={handleRequestDeletePath}
+            isDeleting={isDeleting}
           />
         );
       case "commit":
