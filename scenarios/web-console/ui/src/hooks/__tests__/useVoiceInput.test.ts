@@ -4,6 +4,7 @@ import { apiBaseMock } from "../../test-utils";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import {
   AUDIO_BITRATE,
+  STREAM_CHUNK_INTERVAL_MS,
   VAD_DEFAULT_SILENCE_TIMEOUT_MS,
   computeFinalTimeout,
   createAudioFilterChain,
@@ -185,6 +186,12 @@ describe("useVoiceInput", () => {
 describe("AUDIO_BITRATE", () => {
   it("is 48kbps for optimal Whisper accuracy on localhost", () => {
     expect(AUDIO_BITRATE).toBe(48_000);
+  });
+});
+
+describe("STREAM_CHUNK_INTERVAL_MS", () => {
+  it("is 250ms for low-latency streaming", () => {
+    expect(STREAM_CHUNK_INTERVAL_MS).toBe(250);
   });
 });
 

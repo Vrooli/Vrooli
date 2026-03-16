@@ -19,15 +19,17 @@ export interface ToolbarKey {
   width?: "narrow" | "normal" | "wide";
 }
 
-/** Standard terminal keys for mobile usage. */
-export const TOOLBAR_KEYS: ToolbarKey[] = [
-  { label: "Esc", input: "\x1b", width: "normal" },
-  { label: "Tab", input: "\t", width: "normal" },
-  { label: "\u2191", input: "\x1b[A", width: "narrow" },
-  { label: "\u2193", input: "\x1b[B", width: "narrow" },
-  { label: "\u2190", input: "\x1b[D", width: "narrow" },
-  { label: "\u2192", input: "\x1b[C", width: "narrow" },
-];
+/** Named key constants — used directly by the expanded layout's positional rendering. */
+export const ESC_KEY: ToolbarKey = { label: "Esc", input: "\x1b", width: "normal" };
+export const TAB_KEY: ToolbarKey = { label: "Tab", input: "\t", width: "normal" };
+export const ENTER_KEY: ToolbarKey = { label: "Enter", input: "\r", width: "normal" };
+export const ARROW_UP: ToolbarKey = { label: "\u2191", input: "\x1b[A", width: "narrow" };
+export const ARROW_DOWN: ToolbarKey = { label: "\u2193", input: "\x1b[B", width: "narrow" };
+export const ARROW_LEFT: ToolbarKey = { label: "\u2190", input: "\x1b[D", width: "narrow" };
+export const ARROW_RIGHT: ToolbarKey = { label: "\u2192", input: "\x1b[C", width: "narrow" };
+
+/** Standard terminal keys for mobile usage (compact layout). */
+export const TOOLBAR_KEYS: ToolbarKey[] = [ESC_KEY, TAB_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT];
 
 /** Active modifier key state. */
 export interface ModifierState {

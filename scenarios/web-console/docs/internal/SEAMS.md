@@ -143,6 +143,7 @@ Last updated: 2026-03-15
 | WS reconnection | 2 attempts with exponential backoff (1s, 3s) + chunk buffering during reconnection | FakeWebSocket close simulation |
 | Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2× recording duration), capped at 60s | Pure function, table-driven unit tests |
 | Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |
+| Stream chunk interval | `STREAM_CHUNK_INTERVAL_MS = 250` — how often MediaRecorder sends audio chunks to WebSocket | Constant assertion |
 | `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain → `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories; track `.connect()` call order |
 | `inputStream` provider property | When set, providers use injected filtered stream instead of acquiring own mic | Set property before `start()`, verify MediaRecorder uses injected stream |
 | `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ≈ 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5×/s) | Pure function, table-driven unit tests |
@@ -173,16 +174,18 @@ Last updated: 2026-03-15
 | `transcribeBytes(ctx, audio, language, transcode, initialPrompt)` | Optionally transcodes via `transcodeAudio`, then calls Whisper; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
 | `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track `transcodeAudio` call count per WS lifecycle — 0 for partials, 1 for final |
 | `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg 16kHz mono WAV | No-op passthrough via `t.Cleanup` in `setupVoiceWSServer` |
-| `voiceStreamFlushInterval` | 1s ticker for partial transcripts | Testable via constant value assertion |
+| `voiceStreamFlushInterval` package var | 500ms ticker for partial transcripts | Override via `t.Cleanup` to verify timing behavior at different intervals |
+| `firstTick` eager bypass | On the first ticker tick, bypasses `minDeltaSize` gate to reduce perceived latency for the initial partial | `TestVoiceStreamWS_EagerFirstPartial` verifies sub-minDeltaSize audio triggers on first tick |
 | Delta offset tracking | `lastPartialOffset` advances per tick; only new bytes (`buf[offset:]`) sent to Whisper | `trackingWhisperHandler` records payload sizes — each partial ≈ delta size, not full buffer |
 | `minDeltaSize` | 8KB minimum delta before partial transcription attempted | Send tiny drip, verify Whisper not called until delta exceeds threshold |
 | `initial_prompt` context | `lastNWords(previousTranscript, 10)` appended to Whisper URL for context continuity | Tracking handler captures URLs — first partial has no prompt, subsequent partials have prompt with prior words |
 | `lastNWords(s, n)` | Returns last N whitespace-delimited words of string | Pure function, table-driven unit tests |
 | Language passthrough | Read from WS upgrade query `?language=`; empty = Whisper auto-detect | Verify mock Whisper URL has/lacks `language=` param |
-| `overlapBytes` package var | Trailing audio overlap (default 9KB ≈ 1.5s at 48kbps) prepended to each delta for partial transcription context | Override in tests to verify payload sizes include/exclude overlap |
-| `skipFinalCoverageThreshold` package var | When partial-transcribed bytes / total audio ≥ threshold (default 0.80) and accumulated transcript exists, skip full re-transcription | Override to 0.0 (always skip) or 1.0 (never skip) in tests |
+| `overlapBytes` package var | Trailing audio overlap (default 5KB ≈ 0.8s at 48kbps) prepended to each delta for partial transcription context | Override in tests to verify payload sizes include/exclude overlap |
+| `skipFinalCoverageThreshold` package var | When partial-transcribed bytes / total audio ≥ threshold (default 0.70) and accumulated transcript exists, skip full re-transcription | Override to 0.0 (always skip) or 2.0 (never skip) in tests |
+| Pipeline tail transcription | After `done`, un-transcribed audio since last partial is transcribed and merged with accumulated partials before the coverage check — often pushing coverage above threshold | `TestVoiceStreamWS_PipelineTailBoostsCoverage` verifies tail boosts coverage; `TestVoiceStreamWS_PipelineTailEmpty` verifies no call when tail is empty |
 
-**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription reduces Whisper GPU time ~70% for long recordings. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Coverage-based final skip avoids redundant full-buffer re-transcription for long recordings.
+**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription reduces Whisper GPU time ~70% for long recordings. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Coverage-based final skip avoids redundant full-buffer re-transcription for long recordings. Pipeline tail transcription reduces end-of-recording latency by processing the tail segment before deciding whether to re-transcribe the full buffer.
 
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`

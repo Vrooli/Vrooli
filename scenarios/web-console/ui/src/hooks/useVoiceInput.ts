@@ -65,8 +65,14 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 const WHISPER_FAILED_SENTINEL = "__WHISPER_FAILED__";
 
+/** Number of consecutive capability check failures before downgrading from Whisper. */
+const CAP_CHECK_FAIL_THRESHOLD = 2;
+
 /** 48kbps balances Whisper accuracy with minimal bandwidth (~6KB/s on localhost). */
 export const AUDIO_BITRATE = 48_000;
+
+/** How often MediaRecorder sends audio chunks to the WebSocket (ms). */
+export const STREAM_CHUNK_INTERVAL_MS = 250;
 
 /** Compute final transcription timeout: max(10s, 2× duration), capped at 60s. */
 export function computeFinalTimeout(recordingDurationMs: number): number {
@@ -308,6 +314,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
   private intentionallyStopped = false;
   private recordingStartTime = 0;
   private pendingChunks: ArrayBuffer[] = [];
+  /** All audio chunks collected for HTTP fallback if streaming fails entirely. */
+  private allChunks: Blob[] = [];
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
   language = "en";
@@ -345,7 +353,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
     };
 
     ws.onerror = () => {
-      this.onError?.(WHISPER_FAILED_SENTINEL);
+      console.warn("[voice] WebSocket error — will attempt HTTP fallback on close");
+      // Don't emit error here; onclose fires after onerror and will handle fallback.
     };
 
     ws.onclose = () => {
@@ -381,8 +390,33 @@ class VoiceStreamProvider implements TranscriptionProvider {
         return;
       }
 
-      this.onError?.(WHISPER_FAILED_SENTINEL);
+      // All reconnects exhausted — fall back to HTTP transcription
+      this.attemptHttpFallback();
     };
+  }
+
+  /**
+   * Fall back to HTTP transcription using all collected audio chunks.
+   * Called when WebSocket streaming fails and all reconnects are exhausted.
+   */
+  private attemptHttpFallback(): void {
+    if (this.allChunks.length === 0) {
+      this.onError?.(WHISPER_FAILED_SENTINEL);
+      return;
+    }
+    console.warn("[voice] Streaming failed — falling back to HTTP transcription");
+    const blob = new Blob(this.allChunks, { type: "audio/webm" });
+    this.allChunks = [];
+    transcribeAudioWithRetry(blob, 2, this.language)
+      .then((text) => {
+        if (text.trim()) {
+          this.finalReceived = true;
+          this.onResult?.(text.trim());
+        }
+      })
+      .catch(() => {
+        this.onError?.(WHISPER_FAILED_SENTINEL);
+      });
   }
 
   async start(): Promise<void> {
@@ -400,6 +434,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
     this.intentionallyStopped = false;
     this.recordingStartTime = Date.now();
     this.pendingChunks = [];
+    this.allChunks = [];
 
     this.ws.onopen = () => {
       if (!this.stream) return;
@@ -411,6 +446,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
       });
       this.mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
+          // Keep a copy for HTTP fallback in case streaming fails entirely.
+          this.allChunks.push(e.data);
           e.data.arrayBuffer().then((buf) => {
             if (this.ws?.readyState === WebSocket.OPEN) {
               this.ws.send(buf);
@@ -421,7 +458,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
           });
         }
       };
-      this.mediaRecorder.start(500); // Send chunks every 500ms
+      this.mediaRecorder.start(STREAM_CHUNK_INTERVAL_MS);
     };
 
     this.setupWsHandlers(this.ws);
@@ -772,8 +809,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           setState((s) => ({ ...s, supported: true, backend: "whisper" }));
           return;
         }
-      } catch {
-        // Capabilities fetch failed, fall through
+      } catch (err) {
+        console.warn("[voice] Capabilities fetch failed on mount:", err);
       }
 
       if (cancelled) return;
@@ -800,35 +837,59 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   // Pre-recording capability check debounce
   const lastCapCheckRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Consecutive failed capability checks. Reset on success. */
+  const capCheckFailCountRef = useRef(0);
 
   const startRecording = useCallback(async (opts?: StartRecordingOpts) => {
     if (state.isRecording) return;
 
     // Pre-recording capability check (debounced to every 10s)
-    if (state.backend === "whisper" && Date.now() - lastCapCheckRef.current > 10_000) {
+    const isWhisperOrFallback = state.backend === "whisper" || state.backend === "web-speech";
+    if (isWhisperOrFallback && Date.now() - lastCapCheckRef.current > 10_000) {
       lastCapCheckRef.current = Date.now();
       try {
         const caps = await fetchCapabilities();
         const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
         if (whisper?.status !== "available") {
-          const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-          if (Ctor) {
+          capCheckFailCountRef.current++;
+          console.warn(`[voice] Whisper unavailable (attempt ${capCheckFailCountRef.current}/${CAP_CHECK_FAIL_THRESHOLD})`);
+          // Only downgrade after consecutive failures exceed threshold
+          if (capCheckFailCountRef.current >= CAP_CHECK_FAIL_THRESHOLD && state.backend === "whisper") {
+            const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+            if (Ctor) {
+              providerRef.current?.dispose();
+              providerRef.current = null;
+              setState((s) => ({
+                ...s,
+                backend: "web-speech",
+                fallbackNotice: "Whisper unavailable \u2014 using browser speech recognition",
+              }));
+              if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+              fallbackTimerRef.current = setTimeout(() => {
+                setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+              }, 5000);
+              // Continue — provider will be created below with new backend
+            }
+          }
+        } else {
+          // Whisper is available — reset failure counter and recover if needed
+          capCheckFailCountRef.current = 0;
+          if (state.backend === "web-speech") {
+            // Recover from previous fallback
             providerRef.current?.dispose();
             providerRef.current = null;
+            streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
             setState((s) => ({
               ...s,
-              backend: "web-speech",
-              fallbackNotice: "Whisper unavailable \u2014 using browser speech recognition",
+              backend: "whisper",
+              fallbackNotice: null,
             }));
-            if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-            fallbackTimerRef.current = setTimeout(() => {
-              setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-            }, 5000);
-            // Continue — provider will be created below with new backend
           }
         }
-      } catch {
-        // Capabilities endpoint unreachable — proceed with current backend
+      } catch (err) {
+        console.warn("[voice] Capabilities check failed:", err);
+        // Network error — don't count as Whisper being unavailable,
+        // proceed with current backend
       }
     }
 

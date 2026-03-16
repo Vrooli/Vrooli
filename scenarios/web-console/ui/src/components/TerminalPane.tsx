@@ -195,6 +195,37 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       term.open(container);
       fitAddon.fit();
 
+      // === Mobile virtual-keyboard suppression ===
+      // On mobile, xterm.js focus() focuses a hidden <textarea>, which the
+      // browser interprets as "user wants to type" and opens the virtual
+      // keyboard. But many focus() calls are programmatic (toolbar button
+      // presses, paste, etc.) where the user does NOT intend to type.
+      //
+      // Setting inputMode="none" on xterm's textarea tells the browser
+      // "this element accepts focus but should not trigger the keyboard."
+      // We default to "none" and only flip to "" (show keyboard) in
+      // useTerminalTouch.ts when the user taps the terminal directly —
+      // the clearest signal of typing intent.
+      //
+      // The blur listener re-arms the guard after every focus/blur cycle,
+      // so the next programmatic focus() won't re-open the keyboard.
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      const xtermTextarea = term.textarea;
+      if (isTouchDevice && xtermTextarea) {
+        xtermTextarea.inputMode = "none";
+      }
+
+      const handleXtermBlur = () => {
+        // Re-arm keyboard suppression: when the terminal loses focus,
+        // reset inputMode to "none" so the next focus() call (likely
+        // programmatic) won't trigger the keyboard. Only a direct tap
+        // in useTerminalTouch.ts will flip this back to "" before focusing.
+        if (xtermTextarea) xtermTextarea.inputMode = "none";
+      };
+      if (isTouchDevice && xtermTextarea) {
+        xtermTextarea.addEventListener("blur", handleXtermBlur);
+      }
+
       // Listen for title changes from OSC escape sequences (e.g., from Claude Code, vim, ssh)
       const titleDisposable = term.onTitleChange((title) => {
         renamePaneById(sessionId, title);
@@ -204,6 +235,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setTerminal(term);
 
       return () => {
+        if (isTouchDevice && xtermTextarea) {
+          xtermTextarea.removeEventListener("blur", handleXtermBlur);
+        }
         titleDisposable.dispose();
         term.dispose();
         fitRef.current = null;

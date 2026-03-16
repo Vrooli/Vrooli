@@ -85,9 +85,9 @@ func NewServer(db *sql.DB) *Server {
 		idempotency: newIdempotencyCache(),
 	}
 	checkers := map[string]StatusChecker{
-		"whisper-stt": &ResourceChecker{
-			URL:    "http://localhost:8090/",
-			Client: &http.Client{Timeout: 5 * time.Second},
+		"whisper-stt": &WhisperChecker{
+			BaseURL: "http://localhost:8090",
+			Client:  &http.Client{Timeout: 10 * time.Second},
 		},
 	}
 	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)

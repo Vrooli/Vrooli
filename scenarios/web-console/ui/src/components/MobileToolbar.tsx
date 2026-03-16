@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Image, Maximize2, Minimize2, SendHorizontal } from "lucide-react";
-import { TOOLBAR_KEYS, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import VoiceMicButton from "./VoiceMicButton";
@@ -77,6 +77,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
+  const toolbarLayout = useWorkspaceStore((s) => s.toolbarLayout);
   const modifiers = useWorkspaceStore((s) => s.modifiers);
   const toggleModifier = useWorkspaceStore((s) => s.toggleModifier);
   const clearModifiers = useWorkspaceStore((s) => s.clearModifiers);
@@ -143,7 +144,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       dataToSend = data;
       clearModifiers();
     } else {
-      dataToSend = inputValue + "\n";
+      // Send exactly what the user typed — no appended newline.
+      // The user can explicitly include a newline via the Enter toolbar key
+      // if needed. Appending one automatically caused unwanted extra blank
+      // lines in the terminal output.
+      dataToSend = inputValue;
     }
 
     const sent = onInput(dataToSend);
@@ -216,7 +221,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           <SendHorizontal className="h-3.5 w-3.5" />
         </button>
       </div>
-      {/* Toolbar keys row.
+      {/* Toolbar keys area.
          Focus-preservation strategy (multiple layers to handle browser inconsistencies):
          1. tabIndex={-1} on buttons: makes them non-focusable so they can't steal focus.
          2. onPointerDown preventDefault on buttons: prevents default pointer focus behavior.
@@ -225,72 +230,190 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          4. select-none: prevents double-tap text selection which can blur the terminal.
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus */}
-      <div
-        className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        {/* Modifier toggle buttons */}
-        {(["ctrl", "alt", "shift"] as const).map((mod) => (
-          <button
-            key={mod}
-            data-testid={`toolbar-mod-${mod}`}
-            tabIndex={-1}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => toggleModifier(mod)}
-            className={cn(
-              "shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition touch-manipulation",
-              modifiers[mod]
-                ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
+      {toolbarLayout === "expanded" ? (
+        /* ── Expanded layout: two rows with D-pad arrow cluster ──
+           ┌────────────────────────────────────────────────────────────┐
+           │ [Ctrl] [Alt] [Shift] │     [↑]      │ [📷] │            │
+           │ [Esc]  [Tab] [Enter] │ [←] [↓] [→]  │      │    [🎤]   │
+           └────────────────────────────────────────────────────────────┘
+           The mic button spans both rows for easy access. */
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus
+        <div
+          className="grid gap-0.5 px-1 py-1 touch-manipulation select-none"
+          style={{ gridTemplateColumns: "auto auto 1fr auto", gridTemplateRows: "auto auto" }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {/* Column 1: Modifiers (row 1) + Special keys (row 2) */}
+          <div className="flex flex-col gap-0.5" style={{ gridRow: "1 / -1" }}>
+            <div className="flex items-center gap-0.5">
+              {(["ctrl", "alt", "shift"] as const).map((mod) => (
+                <button
+                  key={mod}
+                  data-testid={`toolbar-mod-${mod}`}
+                  tabIndex={-1}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => toggleModifier(mod)}
+                  className={cn(
+                    "shrink-0 rounded border px-2 py-1.5 text-sm font-medium transition touch-manipulation",
+                    modifiers[mod]
+                      ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
+                  )}
+                >
+                  {mod.charAt(0).toUpperCase() + mod.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-0.5">
+              {[ESC_KEY, TAB_KEY, ENTER_KEY].map((key) => (
+                <button
+                  key={key.label}
+                  data-testid={`toolbar-key-${slugify(key.label)}`}
+                  tabIndex={-1}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => handleKey(key)}
+                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.75rem]"
+                >
+                  {key.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: D-pad arrow cluster */}
+          <div className="flex flex-col items-center gap-0.5 px-1" style={{ gridRow: "1 / -1" }}>
+            {/* Row 1: Up arrow centered */}
+            <div className="flex justify-center">
+              <button
+                data-testid={`toolbar-key-${slugify(ARROW_UP.label)}`}
+                tabIndex={-1}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => handleKey(ARROW_UP)}
+                className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
+              >
+                {ARROW_UP.label}
+              </button>
+            </div>
+            {/* Row 2: Left, Down, Right */}
+            <div className="flex items-center gap-0.5">
+              {[ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT].map((key) => (
+                <button
+                  key={key.label}
+                  data-testid={`toolbar-key-${slugify(key.label)}`}
+                  tabIndex={-1}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => handleKey(key)}
+                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
+                >
+                  {key.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 3: Image upload button (top row only, right-aligned) */}
+          <div className="flex items-start justify-end" style={{ gridColumn: 3, gridRow: 1 }}>
+            {onUploadImage && (
+              <button
+                data-testid="toolbar-upload-image"
+                tabIndex={-1}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={onUploadImage}
+                className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+                title="Upload image"
+              >
+                <Image className="h-4 w-4" />
+              </button>
             )}
-          >
-            {mod.charAt(0).toUpperCase() + mod.slice(1)}
-          </button>
-        ))}
-        <div className="w-px h-4 bg-wc-default shrink-0" />
-        <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
-          {TOOLBAR_KEYS.map((key) => (
+          </div>
+
+          {/* Column 4: Voice mic button spanning both rows for easy access */}
+          {voiceSupported && onVoiceStart && onVoiceStop && (
+            <div className="flex items-stretch" style={{ gridColumn: 4, gridRow: "1 / -1" }}>
+              <VoiceMicButton
+                supported={voiceSupported}
+                isRecording={voiceRecording ?? false}
+                isTranscribing={voiceTranscribing ?? false}
+                error={voiceError ?? null}
+                audioLevel={voiceLevel}
+                partialTranscript={voicePartialTranscript}
+                onStart={onVoiceStart}
+                onStop={onVoiceStop}
+                className="h-full"
+                buttonClassName="h-full px-3"
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Compact layout: single row (original) ── */
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus
+        <div
+          className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {/* Modifier toggle buttons */}
+          {(["ctrl", "alt", "shift"] as const).map((mod) => (
             <button
-              key={key.label}
-              data-testid={`toolbar-key-${slugify(key.label)}`}
+              key={mod}
+              data-testid={`toolbar-mod-${mod}`}
               tabIndex={-1}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => handleKey(key)}
+              onClick={() => toggleModifier(mod)}
               className={cn(
-                "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-                key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
+                "shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition touch-manipulation",
+                modifiers[mod]
+                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
               )}
             >
-              {key.label}
+              {mod.charAt(0).toUpperCase() + mod.slice(1)}
             </button>
           ))}
+          <div className="w-px h-4 bg-wc-default shrink-0" />
+          <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
+            {TOOLBAR_KEYS.map((key) => (
+              <button
+                key={key.label}
+                data-testid={`toolbar-key-${slugify(key.label)}`}
+                tabIndex={-1}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => handleKey(key)}
+                className={cn(
+                  "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
+                  key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
+                )}
+              >
+                {key.label}
+              </button>
+            ))}
+          </div>
+          {onUploadImage && (
+            <button
+              data-testid="toolbar-upload-image"
+              tabIndex={-1}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onUploadImage}
+              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              title="Upload image"
+            >
+              <Image className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {voiceSupported && onVoiceStart && onVoiceStop && (
+            <VoiceMicButton
+              supported={voiceSupported}
+              isRecording={voiceRecording ?? false}
+              isTranscribing={voiceTranscribing ?? false}
+              error={voiceError ?? null}
+              audioLevel={voiceLevel}
+              partialTranscript={voicePartialTranscript}
+              onStart={onVoiceStart}
+              onStop={onVoiceStop}
+            />
+          )}
         </div>
-        {onUploadImage && (
-          <button
-            data-testid="toolbar-upload-image"
-            tabIndex={-1}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={onUploadImage}
-            className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-            title="Upload image"
-          >
-            <Image className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {voiceSupported && onVoiceStart && onVoiceStop && (
-          <VoiceMicButton
-            supported={voiceSupported}
-            isRecording={voiceRecording ?? false}
-            isTranscribing={voiceTranscribing ?? false}
-            error={voiceError ?? null}
-            audioLevel={voiceLevel}
-            partialTranscript={voicePartialTranscript}
-            onStart={onVoiceStart}
-            onStop={onVoiceStop}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 });

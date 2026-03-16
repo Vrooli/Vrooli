@@ -250,6 +250,8 @@ export default function SettingsModal() {
   const setMinimapVisible = useWorkspaceStore((s) => s.setMinimapVisible);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
   const setDisplayMode = useWorkspaceStore((s) => s.setDisplayMode);
+  const toolbarLayout = useWorkspaceStore((s) => s.toolbarLayout);
+  const setToolbarLayout = useWorkspaceStore((s) => s.setToolbarLayout);
   const defaultHeaderColor = useWorkspaceStore((s) => s.defaultHeaderColor);
   const defaultThemeId = useWorkspaceStore((s) => s.defaultThemeId);
   const defaultFontSize = useWorkspaceStore((s) => s.defaultFontSize);
@@ -563,6 +565,31 @@ export default function SettingsModal() {
                   >
                     <LayoutList className="h-3.5 w-3.5 mr-1" />
                     Tabs
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mobile Toolbar Layout */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-wc-text-secondary">Mobile toolbar</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    data-testid="toolbar-layout-compact"
+                    variant={toolbarLayout === "compact" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setToolbarLayout("compact")}
+                  >
+                    Compact
+                  </Button>
+                  <Button
+                    data-testid="toolbar-layout-expanded"
+                    variant={toolbarLayout === "expanded" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setToolbarLayout("expanded")}
+                  >
+                    Expanded
                   </Button>
                 </div>
               </div>

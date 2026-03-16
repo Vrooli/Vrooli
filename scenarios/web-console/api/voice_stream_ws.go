@@ -33,21 +33,36 @@ type VoiceStreamMessage struct {
 }
 
 // voiceStreamFlushInterval is how often accumulated audio is sent to Whisper
-// for partial transcription.
-const voiceStreamFlushInterval = 1 * time.Second
+// for partial transcription. Package-level var for testability.
+var voiceStreamFlushInterval = 500 * time.Millisecond
 
 // minDeltaSize is the minimum audio delta (in bytes) before a partial
 // transcription is attempted. Very short clips produce poor Whisper results.
 const minDeltaSize = 8 * 1024
 
 // overlapBytes is the trailing audio overlap prepended to each delta for
-// partial transcription. At 48 kbps (~6 KB/s), 1.5 s ≈ 9 KB.
-var overlapBytes = 9 * 1024
+// partial transcription. At 48 kbps (~6 KB/s), 0.8 s ≈ 5 KB. Combined
+// with initial_prompt context, this is sufficient for Whisper continuity.
+var overlapBytes = 5 * 1024
 
 // skipFinalCoverageThreshold: when partial-transcribed bytes / total audio
 // exceeds this ratio and accumulated transcript is non-empty, use the
 // accumulated partials as the final result instead of re-transcribing.
-var skipFinalCoverageThreshold = 0.80
+var skipFinalCoverageThreshold = 0.70
+
+// findWebMInitEnd locates the end of the WebM initialization segment (EBML
+// header + Segment + Tracks) by scanning for the first Cluster element ID
+// (0x1F43B675). Returns the byte offset of the Cluster start, or 0 if not
+// found (caller should treat the entire buffer as needing a header).
+func findWebMInitEnd(buf []byte) int {
+	// Cluster element ID in EBML: 0x1F 0x43 0xB6 0x75
+	clusterID := []byte{0x1F, 0x43, 0xB6, 0x75}
+	idx := bytes.Index(buf, clusterID)
+	if idx < 0 {
+		return 0
+	}
+	return idx
+}
 
 // handleVoiceStreamWS upgrades to WebSocket and streams audio chunks to Whisper,
 // returning partial and final transcripts.
@@ -90,6 +105,12 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var lastPartialOffset int
 	done := make(chan struct{})
 
+	// WebM init segment: everything before the first Cluster element.
+	// Detected lazily once enough data has arrived. Prepended to each
+	// partial chunk so Whisper receives a valid container.
+	var webmInitSegment []byte
+	var webmInitDetected bool
+
 	// Background ticker: periodically send new audio delta to Whisper
 	// for partial transcripts, using initial_prompt for context continuity.
 	var previousTranscript string
@@ -98,6 +119,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		ticker := time.NewTicker(voiceStreamFlushInterval)
 		defer ticker.Stop()
+		firstTick := true
 		for {
 			select {
 			case <-done:
@@ -108,10 +130,23 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				bufMu.Lock()
 				currentLen := audioBuffer.Len()
 				deltaSize := currentLen - lastPartialOffset
-				if deltaSize < minDeltaSize || currentLen == 0 {
+				// On the first tick, bypass minDeltaSize to reduce perceived
+				// latency for the initial partial transcript.
+				if currentLen == 0 || (!firstTick && deltaSize < minDeltaSize) {
 					bufMu.Unlock()
 					continue
 				}
+
+				// Lazily detect WebM init segment on first tick with data.
+				if !webmInitDetected {
+					initEnd := findWebMInitEnd(audioBuffer.Bytes()[:currentLen])
+					if initEnd > 0 {
+						webmInitSegment = make([]byte, initEnd)
+						copy(webmInitSegment, audioBuffer.Bytes()[:initEnd])
+					}
+					webmInitDetected = true
+				}
+
 				deltaCopy := make([]byte, deltaSize)
 				copy(deltaCopy, audioBuffer.Bytes()[lastPartialOffset:currentLen])
 
@@ -128,8 +163,15 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					sendData = append(overlap, deltaCopy...)
 				}
 
+				// Prepend WebM init segment so Whisper receives a valid
+				// container even for mid-stream partial chunks.
+				if len(webmInitSegment) > 0 && lastPartialOffset > 0 {
+					sendData = append(webmInitSegment, sendData...)
+				}
+
 				lastPartialOffset = currentLen
 				bufMu.Unlock()
+				firstTick = false
 
 				prompt := lastNWords(accumulatedTranscript, 10)
 				text, err := transcribeBytes(ctx, sendData, language, false, prompt)
@@ -183,6 +225,35 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	close(done)
+
+	// Pipeline: transcribe any un-transcribed tail from the last partial
+	// offset. This often pushes coverage above the threshold, avoiding the
+	// expensive full-buffer re-transcription.
+	bufMu.Lock()
+	tailOffset := lastPartialOffset
+	totalLen := audioBuffer.Len()
+	tailLen := totalLen - tailOffset
+	var tailCopy []byte
+	if tailLen > 0 {
+		tailCopy = make([]byte, tailLen)
+		copy(tailCopy, audioBuffer.Bytes()[tailOffset:])
+	}
+	bufMu.Unlock()
+
+	if len(tailCopy) > 0 {
+		prompt := lastNWords(accumulatedTranscript, 10)
+		if t, err := transcribeBytes(ctx, tailCopy, language, false, prompt); err == nil {
+			t = strings.TrimSpace(t)
+			totalPartialBytes += tailLen
+			if t != "" {
+				if accumulatedTranscript != "" {
+					accumulatedTranscript += " " + t
+				} else {
+					accumulatedTranscript = t
+				}
+			}
+		}
+	}
 
 	// Final transcription with the complete audio buffer.
 	bufMu.Lock()

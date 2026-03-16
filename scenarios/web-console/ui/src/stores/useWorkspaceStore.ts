@@ -13,6 +13,7 @@ export interface PaneMetadata {
 }
 
 export type DisplayMode = "grid" | "tabs";
+export type ToolbarLayout = "compact" | "expanded";
 
 interface WorkspaceState {
   panes: PaneMetadata[];
@@ -22,6 +23,8 @@ interface WorkspaceState {
   appearanceModalPane: string | null;
   isMinimapVisible: boolean;
   displayMode: DisplayMode;
+  /** Mobile toolbar key layout: "compact" (single row) or "expanded" (two rows with D-pad). */
+  toolbarLayout: ToolbarLayout;
   settingsModalOpen: boolean;
   sessionsModalOpen: boolean;
   aiModalOpen: boolean;
@@ -55,6 +58,7 @@ interface WorkspaceActions {
   setAppearanceModalPane: (sessionId: string | null) => void;
   setMinimapVisible: (visible: boolean) => void;
   setDisplayMode: (mode: DisplayMode) => void;
+  setToolbarLayout: (layout: ToolbarLayout) => void;
   setSettingsModalOpen: (open: boolean) => void;
   setSessionsModalOpen: (open: boolean) => void;
   setAiModalOpen: (open: boolean) => void;
@@ -86,6 +90,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       appearanceModalPane: null,
       isMinimapVisible: true,
       displayMode: "grid",
+      toolbarLayout: "expanded",
       settingsModalOpen: false,
       sessionsModalOpen: false,
       aiModalOpen: false,
@@ -170,6 +175,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setAppearanceModalPane: (sessionId) => set({ appearanceModalPane: sessionId }),
       setMinimapVisible: (visible) => set({ isMinimapVisible: visible }),
       setDisplayMode: (mode) => set({ displayMode: mode }),
+      setToolbarLayout: (layout) => set({ toolbarLayout: layout }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
@@ -194,7 +200,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -212,6 +218,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 3) {
           state.vadSilenceTimeoutMs ??= 2000;
         }
+        if (version < 4) {
+          state.toolbarLayout ??= "expanded";
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -221,6 +230,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         rowFractions: state.rowFractions,
         isMinimapVisible: state.isMinimapVisible,
         displayMode: state.displayMode,
+        toolbarLayout: state.toolbarLayout,
         voiceEnabled: state.voiceEnabled,
         voiceShortcut: state.voiceShortcut,
         vadAutoStop: state.vadAutoStop,

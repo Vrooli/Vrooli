@@ -595,7 +595,7 @@ export default function Workspace() {
       {/* Main content area */}
       {store.displayMode === "tabs" ? (
         /* Tab mode: stacked panes with display:none for inactive */
-        <div className="relative flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           {orderedPanes.map((paneMeta) => {
             const isActive = paneMeta.sessionId === store.activePane;
             return (
@@ -625,7 +625,7 @@ export default function Workspace() {
         </div>
       ) : (
         /* Grid mode: original grid layout with minimap */
-        <div className="relative flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           <div
             ref={scrollContainerRef}
             className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
@@ -656,7 +656,7 @@ export default function Workspace() {
       )}
 
       {/* Bottom bar */}
-      <div className="shrink-0">
+      <div className="relative z-10 shrink-0">
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}

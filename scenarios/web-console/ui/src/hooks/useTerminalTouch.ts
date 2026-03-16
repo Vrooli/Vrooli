@@ -394,6 +394,16 @@ export function useTerminalTouch({
           // and the terminal container has shrunk, so the click coordinates
           // may land outside the terminal and blur it.
           e.preventDefault();
+          // Signal typing intent to the browser by temporarily allowing the
+          // virtual keyboard. xterm's textarea defaults to inputMode="none"
+          // (set in TerminalPane.tsx) to suppress the keyboard on programmatic
+          // focus. A direct tap is the strongest signal that the user wants
+          // to type, so we flip to inputMode="" before focusing. The blur
+          // handler in TerminalPane.tsx will reset it back to "none" when
+          // the terminal later loses focus.
+          if (term.textarea) {
+            term.textarea.inputMode = "";
+          }
           term.focus();
         }
       } else if (g.type === "scrolling") {

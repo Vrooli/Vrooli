@@ -18,6 +18,10 @@ interface VoiceMicButtonProps {
   partialTranscript?: string;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
+  /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
+  className?: string;
+  /** Extra classes for the inner button element. */
+  buttonClassName?: string;
 }
 
 /** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
@@ -69,6 +73,8 @@ export default function VoiceMicButton({
   partialTranscript,
   onStart,
   onStop,
+  className: wrapperClassName,
+  buttonClassName,
 }: VoiceMicButtonProps) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const pressStartRef = useRef(0);
@@ -101,7 +107,7 @@ export default function VoiceMicButton({
   const hasError = error !== null && !isRecording && !isTranscribing;
 
   return (
-    <div className="relative shrink-0">
+    <div className={cn("relative shrink-0", wrapperClassName)}>
       <button
         ref={btnRef}
         data-testid="voice-mic-btn"
@@ -110,6 +116,7 @@ export default function VoiceMicButton({
         onPointerCancel={handlePointerUp}
         className={cn(
           "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
+          buttonClassName,
           isRecording
             ? "border-red-500 bg-red-500/20 text-red-400"
             : hasError
