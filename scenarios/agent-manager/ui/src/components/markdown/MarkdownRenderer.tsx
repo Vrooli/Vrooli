@@ -58,20 +58,20 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
       ),
 
       h1: ({ children }: { children?: ReactNode }) => (
-        <h1 className="text-2xl font-semibold mt-6 mb-3 text-foreground">{children}</h1>
+        <h1 className="text-lg font-semibold mt-3 mb-2 text-foreground">{children}</h1>
       ),
       h2: ({ children }: { children?: ReactNode }) => (
-        <h2 className="text-xl font-semibold mt-5 mb-3 text-foreground">{children}</h2>
+        <h2 className="text-base font-semibold mt-3 mb-2 text-foreground">{children}</h2>
       ),
       h3: ({ children }: { children?: ReactNode }) => (
-        <h3 className="text-lg font-semibold mt-4 mb-2 text-foreground">{children}</h3>
+        <h3 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h3>
       ),
       h4: ({ children }: { children?: ReactNode }) => (
-        <h4 className="text-base font-semibold mt-3 mb-2 text-foreground">{children}</h4>
+        <h4 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h4>
       ),
 
       p: ({ children }: { children?: ReactNode }) => (
-        <p className="my-2 leading-relaxed text-foreground">{children}</p>
+        <p className="my-1 leading-relaxed text-foreground">{children}</p>
       ),
 
       ul: ({ children }: { children?: ReactNode }) => (
@@ -93,8 +93,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
       hr: () => <hr className="my-6 border-border" />,
 
       table: ({ children }: { children?: ReactNode }) => (
-        <div className="overflow-x-auto my-4">
-          <table className="min-w-full border-collapse border border-border text-sm">
+        <div className="overflow-x-auto my-2">
+          <table className="border-collapse border border-border text-xs">
             {children}
           </table>
         </div>
@@ -103,12 +103,12 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <thead className="bg-muted/40">{children}</thead>
       ),
       th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-border px-3 py-2 text-left font-semibold">
+        <th className="border border-border px-2 py-1 text-left font-semibold">
           {children}
         </th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-border px-3 py-2">{children}</td>
+        <td className="border border-border px-2 py-1">{children}</td>
       ),
 
       strong: ({ children }: { children?: ReactNode }) => (

@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
-import { Send, Loader2, User, Bot, Copy, Check, AlertCircle, Trash2, Paperclip } from "lucide-react";
+import { Send, Loader2, Copy, Check, AlertCircle, Trash2, Paperclip } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { cn } from "../lib/utils";
@@ -47,10 +47,20 @@ export function ChatInterface({
   const [continueError, setContinueError] = useState<string | null>(null);
   const [revealedMessages, setRevealedMessages] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
   const { isDesktop } = useViewportSize();
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const threshold = 80;
+    isNearBottomRef.current =
+      container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+  }, []);
 
   const deletedMessages = useMemo(() => {
     const deleted = new Set<string>();
@@ -85,9 +95,11 @@ export function ChatInterface({
     return result;
   }, [events]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages.length]);
 
   // Check if the run is actively generating
@@ -102,7 +114,7 @@ export function ChatInterface({
 
   // Auto-scroll when generating state changes (show skeleton)
   useEffect(() => {
-    if (isGenerating) {
+    if (isGenerating && isNearBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [isGenerating]);
@@ -212,7 +224,7 @@ export function ChatInterface({
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto space-y-4 mb-4">
         {messages.map((message) => (
           (() => {
             const isDeleted = deletedMessages.has(message.id);
@@ -223,26 +235,10 @@ export function ChatInterface({
           <div
             key={message.id}
             className={cn(
-              "flex gap-3 min-w-0",
+              "flex min-w-0",
               message.role === "user" ? "flex-row-reverse" : "flex-row"
             )}
           >
-            {/* Avatar */}
-            <div
-              className={cn(
-                "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {message.role === "user" ? (
-                <User className="h-4 w-4" />
-              ) : (
-                <Bot className="h-4 w-4" />
-              )}
-            </div>
-
             {/* Message bubble */}
             <div
               className={cn(
@@ -350,12 +346,7 @@ export function ChatInterface({
 
         {/* Loading skeleton when agent is generating */}
         {isGenerating && (
-          <div className="flex gap-3 flex-row">
-            {/* Avatar */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
-              <Bot className="h-4 w-4" />
-            </div>
-
+          <div className="flex flex-row">
             {/* Skeleton bubble */}
             <div className="max-w-[95%] rounded-lg px-4 py-3 bg-muted">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

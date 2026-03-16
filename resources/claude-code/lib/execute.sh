@@ -180,6 +180,11 @@ claude_code::run() {
         cmd_args+=("--dangerously-skip-permissions")
         log::warn "⚠️  WARNING: Permission checks are disabled!"
     fi
+
+    # Append system prompt if provided (used by agent-manager for system/user separation)
+    if [[ -n "${APPEND_SYSTEM_PROMPT:-}" ]]; then
+        cmd_args+=("--append-system-prompt" "$APPEND_SYSTEM_PROMPT")
+    fi
     
     # Configure sudo override if enabled
     if [[ "${SUDO_OVERRIDE:-}" == "yes" ]]; then

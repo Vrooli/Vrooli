@@ -34,6 +34,63 @@ const (
 // NOTE: InvestigationDepth type is defined in domain/investigation.go
 // Use domain.InvestigationDepth, domain.InvestigationDepthQuick, etc.
 
+// investigationFrictionMethodologyExtract contains the useful subset of the
+// conversation-friction-analysis skill for investigation context. The full skill
+// is ~270 lines; we keep only root-cause attribution, priority scoring, severity
+// definitions, and friction signal patterns. Everything else (generic workflow,
+// output template, retirement mapping) either duplicates the investigation
+// skill's own structure or adds noise.
+const investigationFrictionMethodologyExtract = `
+
+---
+
+## Reference: Friction Analysis Concepts
+
+### Root-Cause Attribution Layers
+
+Classify each friction event into one primary layer:
+- **CLI/tool output**: weak next actions, poor defaults, selector/ID confusion
+- **Tool capability**: missing command for repeated manual pattern
+- **Skill design**: ambiguity, missing guardrails, scattered long-tail details
+- **Docs/discovery**: source of truth hard to find, stale references
+- **Process/policy**: no clear escalation path, conflicting governance rules
+- **Intent/inputs**: missing prerequisites or unstable objectives
+
+If multiple layers apply, identify a primary cause and contributing causes.
+
+### Priority Scoring
+
+For each recommendation, score:
+- **impact** (1-5): expected reduction in future friction
+- **recurrence** (1-5): how often this likely repeats
+- **cost** (1-5): effort/risk to implement
+
+Priority = (impact × recurrence) − cost
+
+Prefer fixes that remove repeated manual interpretation, improve CLI output contracts, or reduce policy ambiguity.
+
+### Severity Definitions
+
+| Severity | Definition | Typical action |
+|---|---|---|
+| Critical | Blocks delivery, risks unsafe action, or causes repeated hard failure | Immediate policy/tooling fix |
+| Major | Causes frequent retries/guessing and unstable execution | Patch skill/tool output soon |
+| Gap | Capability implied but not operationally enabled | Add capability or explicit handoff |
+| Minor | Clarity/friction improvements with low immediate risk | Queue for batch improvement |
+
+"Forces the agent to guess next action" is at least Major.
+
+### Friction Signal Patterns
+
+Common signals to look for in event timelines:
+- Repeated clarification on the same point
+- Conflicting instructions across skills/docs
+- Command examples that fail or force guessing
+- Output that is non-actionable for next step decisions
+- Repeated "manual interpretation" loops
+- If the same pattern appears 2+ times, treat it as systemic
+`
+
 // buildInvestigationContextAttachment creates a human-readable context attachment
 // describing the investigation scope and how to fetch additional data.
 func buildInvestigationContextAttachment(projectRoot string, scopePaths []string, runIDs []uuid.UUID) domain.ContextAttachment {
@@ -151,15 +208,16 @@ func (o *Orchestrator) CreateInvestigationRun(
 		prompt = settings.PromptTemplate
 	}
 
-	// Pre-fetch supporting methodology skills and append to the system prompt.
-	// This avoids the agent burning turns on `prompt-manager skill read` calls.
-	// NOTE: Only include skills that directly help with investigation analysis.
-	// "skill-principles" is excluded — it's guidance for skill *authors*, not consumers.
-	if supporting := o.readSupportingSkills(ctx, []string{
-		"conversation-friction-analysis",
-	}); supporting != "" {
-		prompt = prompt + "\n\n---\n\n## Reference Methodology\n\n" + supporting
-	}
+	// Append a trimmed extract of the friction-analysis methodology.
+	// The full conversation-friction-analysis skill is ~270 lines of generic
+	// methodology — most of it (workflow steps, output template, scope boundaries,
+	// retirement mapping) duplicates or conflicts with the investigation skill's
+	// own structure. We inline only the parts that add value:
+	//   - Root-cause attribution layers (helps classify findings)
+	//   - Priority scoring formula (helps rank recommendations)
+	//   - Severity model (shared vocabulary with investigation output)
+	//   - Friction signal patterns (helps spot issues in timelines)
+	prompt = prompt + investigationFrictionMethodologyExtract
 
 	// Create task with explicit project root
 	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, projectRoot)
@@ -844,35 +902,56 @@ func formatDuration(d time.Duration) string {
 
 // buildAgentSetupAttachment creates a context attachment with prompt-manager
 // entity paths so the investigation agent can explore the agent's configuration.
-// Returns (attachment, true) if the agent directory exists, (zero, false) otherwise.
+// Always returns an attachment with profile metadata. If the agent directory
+// exists in prompt-manager's store, file paths are included. If not, the
+// attachment notes the absence so the investigator knows to look elsewhere
+// (e.g., dynamically generated prompts, agent-manager profile settings).
 func buildAgentSetupAttachment(profile *domain.AgentProfile, projectRoot string, short string) (domain.ContextAttachment, bool) {
 	storeRoot := filepath.Join(projectRoot, "scenarios", "prompt-manager", "store")
 	agentDir := filepath.Join(storeRoot, "agents", profile.ProfileKey)
 
-	// Check if the agent directory actually exists before including paths.
-	if _, err := os.Stat(agentDir); err != nil {
-		return domain.ContextAttachment{}, false
-	}
-
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("### Agent: `%s`\n\n", profile.ProfileKey))
-	sb.WriteString(fmt.Sprintf("**Agent Directory**: `%s/`\n", agentDir))
 
-	// List known agent files with descriptions.
-	agentFiles := []struct {
-		name string
-		desc string
-	}{
-		{"agent.json", "Agent metadata and configuration"},
-		{"SOUL.md", "Core identity, boundaries, and domain focus"},
-		{"AGENTS.md", "Workflow procedures and coordination"},
-		{"TOOLS.md", "Available skills and resource access"},
+	// Always include profile metadata — useful even without on-disk files.
+	sb.WriteString(fmt.Sprintf("### Agent Profile: `%s`\n\n", profile.ProfileKey))
+	sb.WriteString(fmt.Sprintf("**Name**: %s\n", profile.Name))
+	if profile.Description != "" {
+		sb.WriteString(fmt.Sprintf("**Description**: %s\n", profile.Description))
 	}
-	for _, f := range agentFiles {
-		path := filepath.Join(agentDir, f.name)
-		if _, err := os.Stat(path); err == nil {
-			sb.WriteString(fmt.Sprintf("- `%s` — %s\n", f.name, f.desc))
+	sb.WriteString(fmt.Sprintf("**Runner**: %s\n", profile.RunnerType))
+	if len(profile.AllowedTools) > 0 {
+		sb.WriteString(fmt.Sprintf("**Allowed Tools**: %s\n", strings.Join(profile.AllowedTools, ", ")))
+	}
+	if len(profile.DeniedTools) > 0 {
+		sb.WriteString(fmt.Sprintf("**Denied Tools**: %s\n", strings.Join(profile.DeniedTools, ", ")))
+	}
+	sb.WriteString("\n")
+
+	agentDirExists := false
+	if _, err := os.Stat(agentDir); err == nil {
+		agentDirExists = true
+		sb.WriteString(fmt.Sprintf("**Agent Directory**: `%s/`\n", agentDir))
+
+		// List known agent files with descriptions.
+		agentFiles := []struct {
+			name string
+			desc string
+		}{
+			{"agent.json", "Agent metadata and configuration"},
+			{"SOUL.md", "Core identity, boundaries, and domain focus"},
+			{"AGENTS.md", "Workflow procedures and coordination"},
+			{"TOOLS.md", "Available skills and resource access"},
 		}
+		for _, f := range agentFiles {
+			path := filepath.Join(agentDir, f.name)
+			if _, err := os.Stat(path); err == nil {
+				sb.WriteString(fmt.Sprintf("- `%s` — %s\n", f.name, f.desc))
+			}
+		}
+	} else {
+		sb.WriteString(fmt.Sprintf("**No agent directory** at `%s/`\n", agentDir))
+		sb.WriteString("This agent's prompt may be generated dynamically (e.g., by a spawn template) rather than stored as files.\n")
+		sb.WriteString("Check the task description and runner configuration for how this agent receives its instructions.\n")
 	}
 
 	// Discover team memberships by scanning the relations directory.
@@ -938,7 +1017,9 @@ func buildAgentSetupAttachment(profile *domain.AgentProfile, projectRoot string,
 		}
 	}
 
-	sb.WriteString("\n*Read these files to understand the agent's identity, instructions, tools, team context, and scheduled responsibilities.*\n")
+	if agentDirExists {
+		sb.WriteString("\n*Read these files to understand the agent's identity, instructions, tools, team context, and scheduled responsibilities.*\n")
+	}
 
 	return domain.ContextAttachment{
 		Type:     "note",
@@ -947,7 +1028,7 @@ func buildAgentSetupAttachment(profile *domain.AgentProfile, projectRoot string,
 		Content:  sb.String(),
 		Format:   "markdown",
 		Priority: "high",
-		Summary:  fmt.Sprintf("Prompt-manager paths for agent %q and its team memberships", profile.ProfileKey),
+		Summary:  fmt.Sprintf("Profile metadata and prompt-manager paths for agent %q", profile.ProfileKey),
 		Tags:     []string{"agent", "setup", "investigation"},
 	}, true
 }

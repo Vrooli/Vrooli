@@ -394,6 +394,23 @@ export interface HealthOptions {
 }
 
 /**
+ * Options for the built-in embedded scenario proxy.
+ * When `true`, uses defaults. When an object, allows fine-tuning.
+ */
+export interface EmbeddedProxyOptions {
+  /** Enable/disable the proxy (default: true when object provided) */
+  enabled?: boolean
+  /** Restrict to specific scenario names (default: allow all) */
+  allowedScenarios?: string[]
+  /** TTL for port resolution cache in ms (default: 30000) */
+  cacheTtlMs?: number
+  /** Timeout for upstream proxy requests in ms (default: 30000) */
+  timeoutMs?: number
+  /** Upstream host where scenarios run (default: '127.0.0.1') */
+  upstreamHost?: string
+}
+
+/**
  * Options for creating scenario server
  */
 export interface ServerTemplateOptions {
@@ -441,6 +458,8 @@ export interface ServerTemplateOptions {
   bodyParser?: 'json' | false | ((app: any) => void)
   /** Cache dist/index.html between requests (auto-invalidates when the file changes) */
   cacheIndexHtml?: boolean
+  /** Enable built-in embedded scenario proxy at /embedded. Pass true for defaults or an options object */
+  embeddedProxy?: EmbeddedProxyOptions | boolean
 }
 
 /**

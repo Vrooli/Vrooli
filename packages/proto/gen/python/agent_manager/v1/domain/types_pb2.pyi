@@ -24,6 +24,13 @@ class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
     MODEL_PRESET_SMART: _ClassVar[ModelPreset]
 
+class NetworkAccess(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NETWORK_ACCESS_UNSPECIFIED: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_NONE: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_LOCALHOST: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_FULL: _ClassVar[NetworkAccess]
+
 class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: _ClassVar[SandboxLifecycleEvent]
@@ -147,6 +154,10 @@ MODEL_PRESET_UNSPECIFIED: ModelPreset
 MODEL_PRESET_FAST: ModelPreset
 MODEL_PRESET_CHEAP: ModelPreset
 MODEL_PRESET_SMART: ModelPreset
+NETWORK_ACCESS_UNSPECIFIED: NetworkAccess
+NETWORK_ACCESS_NONE: NetworkAccess
+NETWORK_ACCESS_LOCALHOST: NetworkAccess
+NETWORK_ACCESS_FULL: NetworkAccess
 SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_RUN_FAILED: SandboxLifecycleEvent

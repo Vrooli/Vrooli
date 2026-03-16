@@ -72,6 +72,23 @@ enum ModelPreset {
 }
 
 // =============================================================================
+// NETWORK ACCESS
+// =============================================================================
+
+// NetworkAccess controls the level of network access granted to an agent.
+//
+// This is independent of sandbox file isolation (RequiresSandbox).
+// Runners map this to runner-specific flags.
+//
+// @usage AgentProfile.network_access, RunConfig.network_access
+enum NetworkAccess {
+  NETWORK_ACCESS_UNSPECIFIED = 0;
+  NETWORK_ACCESS_NONE = 1;
+  NETWORK_ACCESS_LOCALHOST = 2;
+  NETWORK_ACCESS_FULL = 3;
+}
+
+// =============================================================================
 // SANDBOX CONFIG
 // =============================================================================
 

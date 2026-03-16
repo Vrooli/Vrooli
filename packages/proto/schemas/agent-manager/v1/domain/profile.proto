@@ -106,6 +106,9 @@ message AgentProfile {
   // Key is runner type string (e.g., "claude-code").
   map<string, ExtraFlagList> extra_flags = 24;
 
+  // Network access level for agent execution.
+  NetworkAccess network_access = 25;
+
   // Whether runs using this profile require sandbox isolation.
   // Default: true for safety.
   bool requires_sandbox = 11;
@@ -184,6 +187,9 @@ message RunConfig {
   // Extra CLI flags per runner type (validated escape hatch).
   map<string, ExtraFlagList> extra_flags = 17;
 
+  // Network access level for agent execution.
+  NetworkAccess network_access = 18;
+
   // Require sandbox isolation.
   bool requires_sandbox = 8;
 
@@ -246,6 +252,9 @@ message RunConfigOverrides {
 
   // Clear extra flags inherited from profile.
   bool clear_extra_flags = 23;
+
+  // Network access level override.
+  optional NetworkAccess network_access = 24;
 
   // Require sandbox isolation.
   optional bool requires_sandbox = 8;

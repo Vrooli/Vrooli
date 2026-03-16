@@ -243,11 +243,20 @@ export function RunsPage({
                 return { ...prev, [runId]: { ...existing, ...statusUpdate } as Run };
               });
             }
-            // Unsubscribe once run reaches terminal state
+            // When run reaches terminal state, refetch events after a short delay
+            // to catch any in-flight messages (subscription cleanup handles unsubscribe)
             const isTerminal = statusUpdate.status !== undefined &&
               [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
             if (isTerminal && selectedRunId) {
-              wsUnsubscribe(selectedRunId);
+              const runIdToRefetch = selectedRunId;
+              setTimeout(async () => {
+                try {
+                  const freshEvents = await onGetEvents(runIdToRefetch);
+                  setEvents(freshEvents || []);
+                } catch (err) {
+                  console.error("Failed to refetch events on completion:", err);
+                }
+              }, 500);
             }
             break;
           }
@@ -273,7 +282,7 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe]);
+  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe, onGetEvents]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {

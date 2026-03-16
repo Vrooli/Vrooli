@@ -76,6 +76,8 @@ type AgentProfile struct {
 	// Extra CLI flags per runner type (validated escape hatch).
 	// Key is runner type string (e.g., "claude-code").
 	ExtraFlags map[string]*ExtraFlagList `protobuf:"bytes,24,rep,name=extra_flags,json=extraFlags,proto3" json:"extra_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Network access level for agent execution.
+	NetworkAccess NetworkAccess `protobuf:"varint,25,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
 	// Whether runs using this profile require sandbox isolation.
 	// Default: true for safety.
 	RequiresSandbox bool `protobuf:"varint,11,opt,name=requires_sandbox,json=requiresSandbox,proto3" json:"requires_sandbox,omitempty"`
@@ -234,6 +236,13 @@ func (x *AgentProfile) GetExtraFlags() map[string]*ExtraFlagList {
 	return nil
 }
 
+func (x *AgentProfile) GetNetworkAccess() NetworkAccess {
+	if x != nil {
+		return x.NetworkAccess
+	}
+	return NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+}
+
 func (x *AgentProfile) GetRequiresSandbox() bool {
 	if x != nil {
 		return x.RequiresSandbox
@@ -326,6 +335,8 @@ type RunConfig struct {
 	Features *FeatureFlags `protobuf:"bytes,16,opt,name=features,proto3" json:"features,omitempty"`
 	// Extra CLI flags per runner type (validated escape hatch).
 	ExtraFlags map[string]*ExtraFlagList `protobuf:"bytes,17,rep,name=extra_flags,json=extraFlags,proto3" json:"extra_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Network access level for agent execution.
+	NetworkAccess NetworkAccess `protobuf:"varint,18,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess" json:"network_access,omitempty"`
 	// Require sandbox isolation.
 	RequiresSandbox bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3" json:"requires_sandbox,omitempty"`
 	// Require human approval.
@@ -447,6 +458,13 @@ func (x *RunConfig) GetExtraFlags() map[string]*ExtraFlagList {
 	return nil
 }
 
+func (x *RunConfig) GetNetworkAccess() NetworkAccess {
+	if x != nil {
+		return x.NetworkAccess
+	}
+	return NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+}
+
 func (x *RunConfig) GetRequiresSandbox() bool {
 	if x != nil {
 		return x.RequiresSandbox
@@ -515,6 +533,8 @@ type RunConfigOverrides struct {
 	ExtraFlags map[string]*ExtraFlagList `protobuf:"bytes,22,rep,name=extra_flags,json=extraFlags,proto3" json:"extra_flags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Clear extra flags inherited from profile.
 	ClearExtraFlags bool `protobuf:"varint,23,opt,name=clear_extra_flags,json=clearExtraFlags,proto3" json:"clear_extra_flags,omitempty"`
+	// Network access level override.
+	NetworkAccess *NetworkAccess `protobuf:"varint,24,opt,name=network_access,json=networkAccess,proto3,enum=agent_manager.v1.NetworkAccess,oneof" json:"network_access,omitempty"`
 	// Require sandbox isolation.
 	RequiresSandbox *bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3,oneof" json:"requires_sandbox,omitempty"`
 	// Require human approval.
@@ -651,6 +671,13 @@ func (x *RunConfigOverrides) GetClearExtraFlags() bool {
 		return x.ClearExtraFlags
 	}
 	return false
+}
+
+func (x *RunConfigOverrides) GetNetworkAccess() NetworkAccess {
+	if x != nil && x.NetworkAccess != nil {
+		return *x.NetworkAccess
+	}
+	return NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
 }
 
 func (x *RunConfigOverrides) GetRequiresSandbox() bool {
@@ -798,7 +825,8 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\t\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\n" +
+	"\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -822,7 +850,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	" \x01(\bR\x14skipPermissionPrompt\x12:\n" +
 	"\bfeatures\x18\x17 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12O\n" +
 	"\vextra_flags\x18\x18 \x03(\v2..agent_manager.v1.AgentProfile.ExtraFlagsEntryR\n" +
-	"extraFlags\x12)\n" +
+	"extraFlags\x12F\n" +
+	"\x0enetwork_access\x18\x19 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12)\n" +
 	"\x10requires_sandbox\x18\v \x01(\bR\x0frequiresSandbox\x12+\n" +
 	"\x11requires_approval\x18\f \x01(\bR\x10requiresApproval\x12F\n" +
 	"\x0esandbox_config\x18\x14 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
@@ -836,7 +865,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\x96\a\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\xde\a\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -850,7 +879,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12:\n" +
 	"\bfeatures\x18\x10 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12L\n" +
 	"\vextra_flags\x18\x11 \x03(\v2+.agent_manager.v1.RunConfig.ExtraFlagsEntryR\n" +
-	"extraFlags\x12)\n" +
+	"extraFlags\x12F\n" +
+	"\x0enetwork_access\x18\x12 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessR\rnetworkAccess\x12)\n" +
 	"\x10requires_sandbox\x18\b \x01(\bR\x0frequiresSandbox\x12+\n" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12F\n" +
 	"\x0esandbox_config\x18\r \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
@@ -859,7 +889,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
-	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\xa0\v\n" +
+	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01\"\x80\f\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
@@ -875,9 +905,10 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\bfeatures\x18\x15 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsH\x06R\bfeatures\x88\x01\x01\x12U\n" +
 	"\vextra_flags\x18\x16 \x03(\v24.agent_manager.v1.RunConfigOverrides.ExtraFlagsEntryR\n" +
 	"extraFlags\x12*\n" +
-	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12.\n" +
-	"\x10requires_sandbox\x18\b \x01(\bH\aR\x0frequiresSandbox\x88\x01\x01\x120\n" +
-	"\x11requires_approval\x18\t \x01(\bH\bR\x10requiresApproval\x88\x01\x01\x12F\n" +
+	"\x11clear_extra_flags\x18\x17 \x01(\bR\x0fclearExtraFlags\x12K\n" +
+	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\aR\rnetworkAccess\x88\x01\x01\x12.\n" +
+	"\x10requires_sandbox\x18\b \x01(\bH\bR\x0frequiresSandbox\x88\x01\x01\x120\n" +
+	"\x11requires_approval\x18\t \x01(\bH\tR\x10requiresApproval\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -898,7 +929,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
 	"\b_timeoutB\x19\n" +
 	"\x17_skip_permission_promptB\v\n" +
-	"\t_featuresB\x13\n" +
+	"\t_featuresB\x11\n" +
+	"\x0f_network_accessB\x13\n" +
 	"\x11_requires_sandboxB\x14\n" +
 	"\x12_requires_approval\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
@@ -931,9 +963,10 @@ var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(ModelPreset)(0),              // 8: agent_manager.v1.ModelPreset
 	(*durationpb.Duration)(nil),   // 9: google.protobuf.Duration
 	(*FeatureFlags)(nil),          // 10: agent_manager.v1.FeatureFlags
-	(*SandboxConfig)(nil),         // 11: agent_manager.v1.SandboxConfig
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*ExtraFlagList)(nil),         // 13: agent_manager.v1.ExtraFlagList
+	(NetworkAccess)(0),            // 11: agent_manager.v1.NetworkAccess
+	(*SandboxConfig)(nil),         // 12: agent_manager.v1.SandboxConfig
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*ExtraFlagList)(nil),         // 14: agent_manager.v1.ExtraFlagList
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	7,  // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
@@ -942,33 +975,36 @@ var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	7,  // 3: agent_manager.v1.AgentProfile.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
 	10, // 4: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
 	4,  // 5: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	11, // 6: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	12, // 7: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	12, // 8: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 9: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	8,  // 10: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
-	9,  // 11: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	7,  // 12: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	10, // 13: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
-	5,  // 14: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
-	11, // 15: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	7,  // 16: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	8,  // 17: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
-	9,  // 18: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	7,  // 19: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	10, // 20: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
-	6,  // 21: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	11, // 22: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	9,  // 23: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	9,  // 24: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	13, // 25: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	13, // 26: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	13, // 27: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	11, // 6: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
+	12, // 7: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	13, // 8: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	13, // 9: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 10: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 11: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
+	9,  // 12: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	7,  // 13: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	10, // 14: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
+	5,  // 15: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
+	11, // 16: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
+	12, // 17: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	7,  // 18: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 19: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
+	9,  // 20: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	7,  // 21: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	10, // 22: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
+	6,  // 23: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	11, // 24: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
+	12, // 25: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	9,  // 26: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	9,  // 27: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	14, // 28: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	14, // 29: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	14, // 30: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }
