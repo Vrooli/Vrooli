@@ -79,8 +79,10 @@ func TestSchedulerUsesDefaultProfileWhenEmpty(t *testing.T) {
 	if len(exec.calls) != 1 {
 		t.Fatalf("expected executor to be called once, got %d", len(exec.calls))
 	}
-	if exec.calls[0].profileKey != "prompt-manager-heartbeat" {
-		t.Fatalf("expected default profileKey, got %s", exec.calls[0].profileKey)
+	// When config.ProfileKey is empty, the scheduler passes an empty string
+	// so that Execute() can resolve the default based on the team's spawn mode.
+	if exec.calls[0].profileKey != "" {
+		t.Fatalf("expected empty profileKey (for Execute to resolve), got %q", exec.calls[0].profileKey)
 	}
 }
 

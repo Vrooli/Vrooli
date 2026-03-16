@@ -33,3 +33,40 @@ func validateTeamEnabled(team *store.Team) error {
 	}
 	return nil
 }
+
+// ProfileMismatchError indicates a profile's runner type is incompatible with
+// the team's spawn mode.
+type ProfileMismatchError struct {
+	TeamID     string
+	SpawnMode  string
+	ProfileKey string
+	RunnerType string
+}
+
+func (e *ProfileMismatchError) Error() string {
+	return fmt.Sprintf(
+		"profile %q uses runner %s which is incompatible with team %s spawn mode %q; single-process requires RUNNER_TYPE_CLAUDE_CODE",
+		e.ProfileKey, e.RunnerType, e.TeamID, e.SpawnMode,
+	)
+}
+
+// IsProfileMismatch reports whether an error (possibly wrapped) is a ProfileMismatchError.
+func IsProfileMismatch(err error) bool {
+	var mismatch *ProfileMismatchError
+	return errors.As(err, &mismatch)
+}
+
+// validateProfileCompatibility checks that a resolved profile's runner type
+// is compatible with the team's spawn mode. Single-process teams require
+// RUNNER_TYPE_CLAUDE_CODE. Multi-process teams allow any runner.
+func validateProfileCompatibility(team *store.Team, profile *AgentProfile) error {
+	if team.SpawnMode == "single-process" && profile.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
+		return &ProfileMismatchError{
+			TeamID:     team.ID,
+			SpawnMode:  team.SpawnMode,
+			ProfileKey: profile.ProfileKey,
+			RunnerType: profile.RunnerType,
+		}
+	}
+	return nil
+}

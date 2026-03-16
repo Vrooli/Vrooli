@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-03-15T22:16:00Z",
-    "endedAt": "2026-03-15T22:16:30Z",
-    "status": "completed",
-    "runId": "5ef45bec-06ce-4ec8-8445-876cf6ae52f8",
-    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-15T22-16-00Z.log"
+    "startedAt": "2026-03-16T21:12:05Z",
+    "endedAt": "2026-03-16T21:14:09Z",
+    "status": "failed",
+    "runId": "22fd6d4b-540d-467e-bf41-31ac3cd5bd8b",
+    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-16T21-12-05Z.log",
+    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" err=exit status 1"
   },
-  "revision": 77,
+  "revision": 80,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-15T22:16:30Z"
+  "updatedAt": "2026-03-16T21:14:09Z"
 }

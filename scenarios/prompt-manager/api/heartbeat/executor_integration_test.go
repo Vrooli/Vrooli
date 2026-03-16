@@ -393,6 +393,152 @@ func TestTriggerManual_MissingConfig(t *testing.T) {
 	}
 }
 
+// setupExecutorTestEnvWithSpawnMode is like setupExecutorTestEnv but allows
+// setting the team's SpawnMode.
+func setupExecutorTestEnvWithSpawnMode(t *testing.T, spawnMode string) (
+	*store.FileTeamStore,
+	*store.FileAgentStore,
+	string,
+) {
+	t.Helper()
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+
+	ctx := context.Background()
+	if err := teamStore.Create(ctx, &store.Team{
+		ID:          "team-1",
+		DisplayName: "Team One",
+		Enabled:     true,
+		SpawnMode:   spawnMode,
+	}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{
+		ID:          "agent-1",
+		DisplayName: "Agent One",
+	}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID:  "team-1",
+		AgentID: "agent-1",
+		Status:  store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("set member: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{
+		TeamID:   "team-1",
+		AgentID:  "agent-1",
+		Schedule: "0 * * * *",
+		Enabled:  true,
+	}); err != nil {
+		t.Fatalf("set heartbeat config: %v", err)
+	}
+
+	return teamStore, agentStore, storeDir
+}
+
+func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
+		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
+		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
+
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor.OnComplete = func(_, _ string) {}
+
+	// Empty profileKey should resolve to CC for single-process
+	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	if len(mockClient.createRunCalls) != 1 {
+		t.Fatalf("expected 1 CreateRun call, got %d", len(mockClient.createRunCalls))
+	}
+	ref := mockClient.createRunCalls[0].ProfileRef
+	if ref.ProfileKey != DefaultProfileKeyClaudeCode {
+		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyClaudeCode, ref.ProfileKey)
+	}
+	if ref.Defaults == nil {
+		t.Fatal("expected Defaults to be set")
+	}
+	if ref.Defaults.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
+		t.Errorf("expected RUNNER_TYPE_CLAUDE_CODE, got %s", ref.Defaults.RunnerType)
+	}
+}
+
+func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "multi-process")
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-1", Title: "test"}).
+		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
+		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
+
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor.OnComplete = func(_, _ string) {}
+
+	// Empty profileKey should resolve to Codex for multi-process
+	_, err := executor.Execute(context.Background(), "team-1", "agent-1", "")
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	ref := mockClient.createRunCalls[0].ProfileRef
+	if ref.ProfileKey != DefaultProfileKeyCodex {
+		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyCodex, ref.ProfileKey)
+	}
+	if ref.Defaults.RunnerType != "RUNNER_TYPE_CODEX" {
+		t.Errorf("expected RUNNER_TYPE_CODEX, got %s", ref.Defaults.RunnerType)
+	}
+}
+
+func TestExecute_SingleProcessWithCodexProfile_Fails(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+
+	mockClient := newMockAgentClient()
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+
+	result, err := executor.Execute(context.Background(), "team-1", "agent-1", DefaultProfileKeyCodex)
+	if err == nil {
+		t.Fatal("expected error for profile mismatch")
+	}
+	if !IsProfileMismatch(err) {
+		t.Errorf("expected ProfileMismatchError, got: %v", err)
+	}
+	if result.Status != store.HeartbeatStatusFailed {
+		t.Errorf("expected failed status, got %s", result.Status)
+	}
+}
+
+func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnvWithSpawnMode(t, "single-process")
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-1"}).
+		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
+		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
+
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor.OnComplete = func(_, _ string) {}
+
+	_, err := executor.TriggerManual(context.Background(), "team-1", "agent-1")
+	if err != nil {
+		t.Fatalf("TriggerManual: %v", err)
+	}
+
+	ref := mockClient.createRunCalls[0].ProfileRef
+	if ref.ProfileKey != DefaultProfileKeyClaudeCode {
+		t.Errorf("expected %q, got %q", DefaultProfileKeyClaudeCode, ref.ProfileKey)
+	}
+}
+
 // errForTest creates a simple error for test use.
 type testError string
 

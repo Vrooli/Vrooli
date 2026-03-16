@@ -74,6 +74,19 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
+	// Resolve default profile key based on spawn mode when not explicitly set.
+	if profileKey == "" {
+		profileKey = DefaultProfileKeyForSpawnMode(team.SpawnMode)
+	}
+
+	// Build the resolved profile and validate compatibility with spawn mode.
+	resolvedProfile := BuildDefaultProfileForSpawnMode(profileKey, team.SpawnMode)
+	if err := validateProfileCompatibility(team, resolvedProfile); err != nil {
+		result.Error = fmt.Errorf("profile mismatch: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
+
 	// Build the prompt (branch on spawnMode for single-process teams)
 	var prompt string
 	if team.SpawnMode == "single-process" {
@@ -148,7 +161,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
 			ProfileKey: profileKey,
-			Defaults:   BuildDefaultProfile(profileKey),
+			Defaults:   resolvedProfile,
 		},
 		Tag:     &runTag,
 		RunMode: "RUN_MODE_IN_PLACE",
@@ -313,10 +326,7 @@ func (e *Executor) TriggerManual(ctx context.Context, teamID, agentID string) (*
 		return nil, fmt.Errorf("heartbeat config not found")
 	}
 
-	profileKey := "prompt-manager-heartbeat"
-	if config.ProfileKey != "" {
-		profileKey = config.ProfileKey
-	}
-
-	return e.Execute(ctx, teamID, agentID, profileKey)
+	// Use config's profile key if set; otherwise pass empty string so
+	// Execute() resolves the default based on the team's spawn mode.
+	return e.Execute(ctx, teamID, agentID, config.ProfileKey)
 }

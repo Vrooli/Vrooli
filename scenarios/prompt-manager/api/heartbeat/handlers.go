@@ -308,6 +308,14 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate profile key compatibility with spawn mode for known defaults.
+	if req.ProfileKey != "" {
+		if req.ProfileKey == DefaultProfileKeyCodex && team.SpawnMode == "single-process" {
+			http.Error(w, "profile key "+req.ProfileKey+" uses Codex runner which is incompatible with single-process spawn mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Create config
 	config := &store.HeartbeatConfig{
 		TeamID:     teamID,
@@ -404,6 +412,14 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		config.Enabled = *req.Enabled
 	}
 
+	// Validate profile key compatibility with spawn mode for known defaults.
+	if req.ProfileKey != nil && *req.ProfileKey != "" {
+		if *req.ProfileKey == DefaultProfileKeyCodex && team.SpawnMode == "single-process" {
+			http.Error(w, "profile key "+*req.ProfileKey+" uses Codex runner which is incompatible with single-process spawn mode; use "+DefaultProfileKeyClaudeCode+" or a Claude Code profile", http.StatusBadRequest)
+			return
+		}
+	}
+
 	if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -489,7 +505,8 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 		return nil, http.StatusServiceUnavailable, errors.New("Executor not configured")
 	}
 
-	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil {
 		return nil, http.StatusNotFound, errors.New("Team not found")
 	}
 	if err := h.requireMember(ctx, teamID, agentID); err != nil {
@@ -504,8 +521,9 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 
 	// Route through team execution store for serialized execution
 	if h.teamExecStore != nil {
-		// Resolve profile key from heartbeat config
-		profileKey := "prompt-manager-heartbeat"
+		// Resolve profile key from heartbeat config; fall back to
+		// spawn-mode-aware default when not explicitly set.
+		profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
 		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err == nil && config != nil && config.ProfileKey != "" {
 			profileKey = config.ProfileKey
@@ -1150,7 +1168,7 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := "prompt-manager-heartbeat"
+			profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
 			config, cfgErr := h.teamStore.GetHeartbeatConfig(ctx, teamID, leadAgentID)
 			if cfgErr == nil && config != nil && config.ProfileKey != "" {
 				profileKey = config.ProfileKey
@@ -1209,7 +1227,7 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := "prompt-manager-heartbeat"
+			profileKey := DefaultProfileKeyForSpawnMode(team.SpawnMode)
 			if config.ProfileKey != "" {
 				profileKey = config.ProfileKey
 			}

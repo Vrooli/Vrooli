@@ -231,7 +231,9 @@ func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string) {
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
 
-	profileKey := s.profileKey
+	// Start with empty profileKey; Execute() resolves the default based on
+	// the team's spawn mode when the key is empty.
+	var profileKey string
 	if s.configStore != nil {
 		config, err := s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err != nil {
@@ -246,9 +248,7 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 			log.Printf("Heartbeat execution skipped for %s/%s: config disabled", teamID, agentID)
 			return
 		}
-		if config.ProfileKey != "" {
-			profileKey = config.ProfileKey
-		}
+		profileKey = config.ProfileKey
 	}
 
 	// Route through team execution store for serialized execution
@@ -278,28 +278,53 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		teamID, agentID, result.RunID, result.Status)
 }
 
-// ensureProfile ensures the heartbeat profile exists in agent-manager
+// ensureProfile ensures both heartbeat profiles exist in agent-manager.
 func (s *Scheduler) ensureProfile(ctx context.Context) error {
 	if s.agentClient == nil {
 		return nil
 	}
 
-	req := &EnsureProfileRequest{
-		ProfileKey:     s.profileKey,
-		Defaults:       s.buildDefaultProfile(),
-		UpdateExisting: false,
+	profiles := []struct {
+		key       string
+		spawnMode string
+	}{
+		{DefaultProfileKeyCodex, "multi-process"},
+		{DefaultProfileKeyClaudeCode, "single-process"},
 	}
-
-	resp, err := s.agentClient.EnsureProfile(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	if resp.Created {
-		log.Printf("Created heartbeat profile: %s", s.profileKey)
+	for _, p := range profiles {
+		req := &EnsureProfileRequest{
+			ProfileKey:     p.key,
+			Defaults:       BuildDefaultProfileForSpawnMode(p.key, p.spawnMode),
+			UpdateExisting: false,
+		}
+		resp, err := s.agentClient.EnsureProfile(ctx, req)
+		if err != nil {
+			return err
+		}
+		if resp.Created {
+			log.Printf("Created heartbeat profile: %s", p.key)
+		}
 	}
 
 	return nil
+}
+
+// Default profile key constants.
+const (
+	// DefaultProfileKeyCodex is used for multi-process teams (Codex runner).
+	DefaultProfileKeyCodex = "prompt-manager-heartbeat"
+	// DefaultProfileKeyClaudeCode is used for single-process teams (Claude Code runner).
+	DefaultProfileKeyClaudeCode = "prompt-manager-heartbeat-cc"
+)
+
+// DefaultProfileKeyForSpawnMode returns the appropriate default profile key
+// for the given spawn mode. Single-process teams get Claude Code; everything
+// else gets Codex.
+func DefaultProfileKeyForSpawnMode(spawnMode string) string {
+	if spawnMode == "single-process" {
+		return DefaultProfileKeyClaudeCode
+	}
+	return DefaultProfileKeyCodex
 }
 
 // buildDefaultProfile returns the default profile for heartbeat execution
@@ -307,18 +332,58 @@ func (s *Scheduler) buildDefaultProfile() *AgentProfile {
 	return BuildDefaultProfile(s.profileKey)
 }
 
-// BuildDefaultProfile returns the default agent profile for the given key.
+// BuildDefaultProfile returns the default Codex agent profile for the given key.
 // Exported so the executor can embed defaults in CreateRun requests.
+// For spawn-mode-aware resolution, use BuildDefaultProfileForSpawnMode instead.
 func BuildDefaultProfile(profileKey string) *AgentProfile {
+	return buildCodexProfile(profileKey)
+}
+
+// BuildDefaultProfileForSpawnMode returns the correct default AgentProfile
+// for the given profile key and spawn mode. Known default keys always map to
+// their specific runner; unknown custom keys use the spawn mode as a heuristic.
+func BuildDefaultProfileForSpawnMode(profileKey, spawnMode string) *AgentProfile {
+	switch profileKey {
+	case DefaultProfileKeyClaudeCode:
+		return buildClaudeCodeProfile(profileKey)
+	case DefaultProfileKeyCodex:
+		return buildCodexProfile(profileKey)
+	default:
+		// Custom keys: fall back to spawn-mode heuristic.
+		if spawnMode == "single-process" {
+			return buildClaudeCodeProfile(profileKey)
+		}
+		return buildCodexProfile(profileKey)
+	}
+}
+
+func buildCodexProfile(profileKey string) *AgentProfile {
 	return &AgentProfile{
 		Name:                 "Prompt Manager Heartbeat",
 		ProfileKey:           profileKey,
-		Description:          "Profile for team member heartbeat execution",
+		Description:          "Profile for multi-process team heartbeat execution",
 		RunnerType:           "RUNNER_TYPE_CODEX",
 		ModelPreset:          "MODEL_PRESET_SMART",
 		MaxTurns:             50,
 		Timeout:              DurationToProtojson(10 * time.Minute),
 		AllowedTools:         []string{"read_file", "write_file", "execute_command"},
+		SkipPermissionPrompt: true,
+		RequiresSandbox:      false,
+		RequiresApproval:     false,
+		CreatedBy:            "prompt-manager",
+	}
+}
+
+func buildClaudeCodeProfile(profileKey string) *AgentProfile {
+	return &AgentProfile{
+		Name:                 "Prompt Manager Heartbeat (Claude Code)",
+		ProfileKey:           profileKey,
+		Description:          "Profile for single-process team heartbeat execution",
+		RunnerType:           "RUNNER_TYPE_CLAUDE_CODE",
+		ModelPreset:          "MODEL_PRESET_SMART",
+		MaxTurns:             200,
+		Timeout:              DurationToProtojson(30 * time.Minute),
+		AllowedTools:         []string{},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      false,
 		RequiresApproval:     false,
