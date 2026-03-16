@@ -292,7 +292,7 @@ type CreateRequest struct {
 	ScopePath     string                 `json:"scopePath"`
 	ReservedPath  string                 `json:"reservedPath,omitempty"`
 	ReservedPaths []string               `json:"reservedPaths,omitempty"`
-	NoLock        bool                   `json:"noLock,omitempty"`
+	NoLock        *bool                  `json:"noLock,omitempty"`
 	ProjectRoot   string                 `json:"projectRoot,omitempty"`
 	Owner         string                 `json:"owner,omitempty"`
 	OwnerType     OwnerType              `json:"ownerType,omitempty"`

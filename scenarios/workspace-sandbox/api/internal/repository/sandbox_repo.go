@@ -1590,7 +1590,6 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 	if projectRoot != "" {
 		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
 		args = append(args, projectRoot)
-		argNum++
 	}
 
 	query := `

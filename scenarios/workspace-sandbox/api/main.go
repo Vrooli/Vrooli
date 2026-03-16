@@ -157,6 +157,7 @@ func NewServer() (*Server, error) {
 		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
 		MaxSandboxes:            cfg.Limits.MaxSandboxes,
 		DefaultTTL:              cfg.Lifecycle.DefaultTTL,
+		DefaultNoLock:           cfg.Policy.DefaultNoLock,
 		AgentManagerURL:         cfg.Integration.AgentManagerURL,
 		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,

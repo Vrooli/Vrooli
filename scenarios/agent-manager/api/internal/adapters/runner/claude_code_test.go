@@ -928,3 +928,61 @@ func TestClaudeCodeRunner_BuildEnv_SystemPrompt(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// CLAUDE CODE TAG ENV VAR TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildEnv_AgentTag(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	t.Run("includes CLAUDE_CODE_AGENT_TAG from request tag", func(t *testing.T) {
+		runID := uuid.New()
+		req := runner.ExecuteRequest{
+			RunID: runID,
+			Tag:   "heartbeat-team1-agent1-2026-01-01T00-00-00Z",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "CLAUDE_CODE_AGENT_TAG=") {
+				found = true
+				val := strings.TrimPrefix(e, "CLAUDE_CODE_AGENT_TAG=")
+				if val != "heartbeat-team1-agent1-2026-01-01T00-00-00Z" {
+					t.Errorf("CLAUDE_CODE_AGENT_TAG = %q, want %q", val, "heartbeat-team1-agent1-2026-01-01T00-00-00Z")
+				}
+			}
+		}
+		if !found {
+			t.Error("expected CLAUDE_CODE_AGENT_TAG in env vars")
+		}
+	})
+
+	t.Run("defaults to RunID when no explicit tag", func(t *testing.T) {
+		runID := uuid.New()
+		req := runner.ExecuteRequest{
+			RunID: runID,
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		expected := runID.String()
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "CLAUDE_CODE_AGENT_TAG=") {
+				found = true
+				val := strings.TrimPrefix(e, "CLAUDE_CODE_AGENT_TAG=")
+				if val != expected {
+					t.Errorf("CLAUDE_CODE_AGENT_TAG = %q, want %q", val, expected)
+				}
+			}
+		}
+		if !found {
+			t.Error("expected CLAUDE_CODE_AGENT_TAG in env vars")
+		}
+	})
+}

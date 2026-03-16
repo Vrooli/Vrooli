@@ -195,6 +195,14 @@ type PolicyConfig struct {
 	// Default: 8000
 	BinaryDetectionThreshold int
 
+	// DefaultNoLock controls whether new sandboxes skip scope locking by default.
+	// When true, sandboxes are created without mutual exclusion checks unless
+	// the caller explicitly requests locking (noLock: false).
+	// When false (default), sandboxes enforce mutual exclusion unless the caller
+	// explicitly disables it (noLock: true).
+	// Default: false
+	DefaultNoLock bool
+
 	// TeardownHooks defines pre-teardown hooks to run before unmounting or
 	// deleting a sandbox. Each hook runs best-effort; failures are logged
 	// but never block teardown. This enables external systems to gracefully
@@ -390,6 +398,7 @@ func Default() Config {
 			ProcessKillWait:      50 * time.Millisecond,
 		},
 		Policy: PolicyConfig{
+			DefaultNoLock:             true,
 			RequireHumanApproval:      true,
 			AutoApproveThresholdFiles: 10,
 			AutoApproveThresholdLines: 500,
@@ -398,7 +407,7 @@ func Default() Config {
 			ValidationHooks:           nil, // No hooks by default
 			ValidationTimeout:         5 * time.Minute,
 			BinaryDetectionThreshold:  8000,
-			TeardownHooks: nil, // No hooks by default
+			TeardownHooks:             nil, // No hooks by default
 			// TeardownTimeout caps ALL pre-teardown hooks combined. Set to 90s to
 			// give the per-hook budget (60s) room plus overhead for hook startup,
 			// process metadata scanning, and logging. In teardown.go's nested
@@ -478,6 +487,7 @@ func LoadFromEnv() (Config, error) {
 	cfg.Policy.AutoApproveThresholdFiles = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_FILES", cfg.Policy.AutoApproveThresholdFiles)
 	cfg.Policy.AutoApproveThresholdLines = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_LINES", cfg.Policy.AutoApproveThresholdLines)
 	cfg.Policy.BinaryDetectionThreshold = envInt("WORKSPACE_SANDBOX_BINARY_THRESHOLD", cfg.Policy.BinaryDetectionThreshold)
+	cfg.Policy.DefaultNoLock = envBool("WORKSPACE_SANDBOX_DEFAULT_NO_LOCK", cfg.Policy.DefaultNoLock)
 	if tmpl := os.Getenv("WORKSPACE_SANDBOX_COMMIT_TEMPLATE"); tmpl != "" {
 		cfg.Policy.CommitMessageTemplate = tmpl
 	}

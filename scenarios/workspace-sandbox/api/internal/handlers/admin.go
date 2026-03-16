@@ -10,6 +10,7 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/sandbox"
 )
 
 // APIInfo handles requests to the root and /api paths with helpful API documentation.
@@ -243,10 +244,20 @@ func join(strs []string, sep string) string {
 
 // --- Execution Config Endpoints ---
 
+// executionConfigResponse extends ExecutionConfig with policy settings
+// that are conceptually "sandbox creation defaults" shown in the same UI tab.
+type executionConfigResponse struct {
+	config.ExecutionConfig
+	DefaultNoLock bool `json:"defaultNoLock"`
+}
+
 // GetExecutionConfig returns the current execution configuration.
 // GET /api/v1/config/execution
 func (h *Handlers) GetExecutionConfig(w http.ResponseWriter, r *http.Request) {
-	h.JSONSuccess(w, h.Config.Execution)
+	h.JSONSuccess(w, executionConfigResponse{
+		ExecutionConfig: h.Config.Execution,
+		DefaultNoLock:   h.Config.Policy.DefaultNoLock,
+	})
 }
 
 // UpdateExecutionConfig updates execution configuration.
@@ -258,6 +269,7 @@ func (h *Handlers) UpdateExecutionConfig(w http.ResponseWriter, r *http.Request)
 		DefaultResourceLimits   config.ResourceLimitsConfig `json:"defaultResourceLimits"`
 		MaxResourceLimits       config.ResourceLimitsConfig `json:"maxResourceLimits"`
 		DefaultIsolationProfile string                      `json:"defaultIsolationProfile"`
+		DefaultNoLock           bool                        `json:"defaultNoLock"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.JSONError(w, "invalid request body", http.StatusBadRequest)
@@ -282,8 +294,17 @@ func (h *Handlers) UpdateExecutionConfig(w http.ResponseWriter, r *http.Request)
 	h.Config.Execution.DefaultResourceLimits = req.DefaultResourceLimits
 	h.Config.Execution.MaxResourceLimits = req.MaxResourceLimits
 	h.Config.Execution.DefaultIsolationProfile = req.DefaultIsolationProfile
+	h.Config.Policy.DefaultNoLock = req.DefaultNoLock
 
-	h.JSONSuccess(w, h.Config.Execution)
+	// Sync to service layer so new sandbox creates pick up the change
+	if svc, ok := h.Service.(*sandbox.Service); ok {
+		svc.SetDefaultNoLock(req.DefaultNoLock)
+	}
+
+	h.JSONSuccess(w, executionConfigResponse{
+		ExecutionConfig: h.Config.Execution,
+		DefaultNoLock:   h.Config.Policy.DefaultNoLock,
+	})
 }
 
 // validateResourceLimits checks that defaults don't exceed maximums.

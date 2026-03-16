@@ -162,7 +162,7 @@ function useReservedPathValidation(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPathsKey]);
+  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPaths, existingReservedPathsKey]);
 
   return validation;
 }

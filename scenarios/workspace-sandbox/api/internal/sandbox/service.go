@@ -142,6 +142,7 @@ type ServiceConfig struct {
 	DefaultProjectRoot      string
 	MaxSandboxes            int
 	DefaultTTL              time.Duration
+	DefaultNoLock           bool
 	AgentManagerURL         string
 	AgentManagerSyncEnabled bool
 	AgentManagerSyncTimeout time.Duration
@@ -154,6 +155,22 @@ func DefaultServiceConfig() ServiceConfig {
 		DefaultTTL:              24 * time.Hour,
 		AgentManagerSyncEnabled: true,
 		AgentManagerSyncTimeout: 5 * time.Second,
+	}
+}
+
+// SetDefaultNoLock updates the default NoLock setting at runtime.
+// Called by the config update handler when the user toggles scope locking.
+func (s *Service) SetDefaultNoLock(v bool) {
+	s.config.DefaultNoLock = v
+}
+
+// resolveNoLock applies the config default for NoLock when the caller didn't specify.
+// If req.NoLock is nil (not set in JSON), uses s.config.DefaultNoLock.
+// If req.NoLock is explicitly set (true or false), respects the caller's choice.
+func (s *Service) resolveNoLock(req *types.CreateRequest) {
+	if req.NoLock == nil {
+		v := s.config.DefaultNoLock
+		req.NoLock = &v
 	}
 }
 
@@ -351,6 +368,9 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 		return existing, nil
 	}
 
+	// Resolve effective NoLock: explicit request value takes precedence, then config default
+	s.resolveNoLock(req)
+
 	// Validate and normalize the request
 	projectRoot, normalizedScopePath, normalizedReservedPaths, err := s.validateCreateRequest(ctx, req)
 	if err != nil {
@@ -414,7 +434,7 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 		)
 	}
 
-	if req.NoLock {
+	if *req.NoLock {
 		return projectRoot, normalizedScopePath, []string{}, nil
 	}
 
@@ -519,7 +539,7 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedScopePath string, normalizedReservedPaths []string) (*types.Sandbox, error) {
 	// Create sandbox record
 	primaryReserved := ""
-	if !req.NoLock {
+	if !*req.NoLock {
 		primaryReserved = normalizedScopePath
 		if len(normalizedReservedPaths) > 0 {
 			primaryReserved = normalizedReservedPaths[0]
@@ -533,7 +553,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 		ScopePath:      normalizedScopePath,
 		ReservedPath:   primaryReserved,
 		ReservedPaths:  normalizedReservedPaths,
-		NoLock:         req.NoLock,
+		NoLock:         *req.NoLock,
 		ProjectRoot:    projectRoot,
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,

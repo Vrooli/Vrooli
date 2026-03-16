@@ -199,7 +199,13 @@ func (e *ServerExecutor) createSandbox(ctx context.Context, args map[string]inte
 
 	owner := getStringArg(args, "owner", "")
 	ownerTypeStr := getStringArg(args, "owner_type", "agent")
-	noLock := getBoolArg(args, "no_lock", false)
+	// Only set NoLock explicitly if the caller specified it; otherwise leave nil
+	// so the server-side default (WORKSPACE_SANDBOX_DEFAULT_NO_LOCK) applies.
+	var noLock *bool
+	if _, ok := args["no_lock"]; ok {
+		b := getBoolArg(args, "no_lock", false)
+		noLock = &b
+	}
 
 	// Extract metadata if provided
 	var metadata map[string]interface{}

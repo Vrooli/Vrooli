@@ -502,7 +502,10 @@ export default function App() {
   }, [sidebarWidth]);
 
   // Keep selected sandbox in sync with list updates
-  const sandboxes = sandboxesQuery.data?.sandboxes || [];
+  const sandboxes = useMemo(
+    () => sandboxesQuery.data?.sandboxes || [],
+    [sandboxesQuery.data?.sandboxes],
+  );
 
   // Update selected sandbox from list if it was updated
   const selectedFromList = selectedSandbox

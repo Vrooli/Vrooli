@@ -212,6 +212,11 @@ func TestExtractTagFromCommand(t *testing.T) {
 			command:  "resource-claude-code run --tag ecosystem-task-12345-run-1",
 			expected: "ecosystem-task-12345-run-1",
 		},
+		{
+			name:     "CLAUDE_CODE_AGENT_TAG env prefix",
+			command:  "env CLAUDE_CODE_AGENT_TAG=my-cc-tag-789 /usr/local/bin/resource-claude-code run -",
+			expected: "my-cc-tag-789",
+		},
 	}
 
 	for _, tt := range tests {
@@ -238,6 +243,7 @@ func TestLooksLikeAgentManagerTag(t *testing.T) {
 		{"a1b2c3d4-e5f6-7890-abcd-ef1234567890", true},
 
 		// Known prefixes
+		{"heartbeat-director-swarm-director-2026-03-16T21-12-05Z", true},
 		{"ecosystem-task-123", true},
 		{"test-genie-run-456", true},
 		{"agent-manager-task-789", true},

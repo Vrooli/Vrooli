@@ -653,6 +653,7 @@ export interface ExecutionConfig {
   defaultResourceLimits: ResourceLimitsConfig;
   maxResourceLimits: ResourceLimitsConfig;
   defaultIsolationProfile: string;
+  defaultNoLock: boolean;
 }
 
 export type NetworkAccess = "none" | "localhost" | "full";

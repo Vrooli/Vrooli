@@ -494,7 +494,7 @@ func (r *Reconciler) scanForProcess(tag string) bool {
 }
 
 func (r *Reconciler) scanForProcessByEnvTag(tag string) bool {
-	return r.scanRunnerProcessesByEnvTag("codex", tag) || r.scanRunnerProcessesByEnvTag("opencode", tag)
+	return r.scanRunnerProcessesByEnvTag("claude", tag) || r.scanRunnerProcessesByEnvTag("codex", tag) || r.scanRunnerProcessesByEnvTag("opencode", tag)
 }
 
 func (r *Reconciler) scanRunnerProcessesByEnvTag(runnerName, tag string) bool {
@@ -623,6 +623,9 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 func extractTagFromCommand(command string) string {
 	parts := strings.Fields(command)
 	for i, part := range parts {
+		if strings.HasPrefix(part, "CLAUDE_CODE_AGENT_TAG=") {
+			return strings.TrimPrefix(part, "CLAUDE_CODE_AGENT_TAG=")
+		}
 		if strings.HasPrefix(part, "CODEX_AGENT_TAG=") {
 			return strings.TrimPrefix(part, "CODEX_AGENT_TAG=")
 		}
@@ -650,6 +653,9 @@ func extractTagFromEnv(pid int) string {
 	}
 
 	for _, entry := range strings.Split(string(data), "\x00") {
+		if strings.HasPrefix(entry, "CLAUDE_CODE_AGENT_TAG=") {
+			return strings.TrimPrefix(entry, "CLAUDE_CODE_AGENT_TAG=")
+		}
 		if strings.HasPrefix(entry, "CODEX_AGENT_TAG=") {
 			return strings.TrimPrefix(entry, "CODEX_AGENT_TAG=")
 		}
@@ -674,6 +680,7 @@ func looksLikeAgentManagerTag(tag string) bool {
 	// Check for known prefixes
 	knownPrefixes := []string{
 		"ecosystem-",
+		"heartbeat-",
 		"test-genie-",
 		"agent-manager-",
 		"run-",

@@ -325,7 +325,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		runnerRegistry,
 		orchestration.WithReconcilerConfig(orchestration.ReconcilerConfig{
 			Interval:          30 * time.Second,
-			StaleThreshold:    2 * time.Minute,
+			StaleThreshold:    5 * time.Minute,
 			OrphanGracePeriod: 5 * time.Minute,
 			MaxStaleRuns:      10,
 			KillOrphans:       true, // Always kill orphan processes

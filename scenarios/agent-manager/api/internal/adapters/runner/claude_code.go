@@ -772,6 +772,9 @@ func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 	env := sanitizedBaseEnv()
 
+	// Tag for reconciler process detection via /proc/<pid>/environ.
+	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", req.GetTag()))
+
 	// Output format - use stream-json for event streaming
 	env = append(env, "OUTPUT_FORMAT=stream-json")
 
