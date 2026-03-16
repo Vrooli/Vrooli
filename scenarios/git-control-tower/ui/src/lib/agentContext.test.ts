@@ -95,12 +95,14 @@ describe("buildScenarioEnvelope", () => {
   it("renders all sections with full data", () => {
     const md = buildScenarioEnvelope(makeEnvelopeData());
 
-    expect(md).toContain("## Scenario Context");
+    expect(md).toContain("## Your Role");
+    expect(md).toContain("autonomous code improvement agent");
     expect(md).toContain("**My Scenario**");
     expect(md).toContain("`my-scenario`");
     expect(md).toContain("`scenarios/my-scenario`");
     expect(md).toContain("A test scenario for unit tests");
     expect(md).toContain("web, api");
+    expect(md).toContain("immediately begin fixing them");
 
     // Dependencies
     expect(md).toContain("### Dependencies");
@@ -185,29 +187,29 @@ describe("verificationHint", () => {
 
 describe("composePrompt", () => {
   it("prepends envelope before user message", () => {
-    const envelope = "## Scenario Context\nSome envelope text\n---";
-    const prompt = composePrompt("fix the bug", [], envelope);
+    const envelope = "## Your Role\nSome envelope text\n---";
+    const prompt = composePrompt("fix the bug please now immediately", [], envelope);
 
-    const envelopeIdx = prompt.indexOf("## Scenario Context");
-    const messageIdx = prompt.indexOf("fix the bug");
+    const envelopeIdx = prompt.indexOf("## Your Role");
+    const messageIdx = prompt.indexOf("fix the bug please now immediately");
     expect(envelopeIdx).toBeGreaterThanOrEqual(0);
     expect(messageIdx).toBeGreaterThan(envelopeIdx);
   });
 
   it("omits envelope when undefined", () => {
-    const prompt = composePrompt("fix the bug", []);
-    expect(prompt).toBe("fix the bug");
+    const prompt = composePrompt("fix the bug please now immediately", []);
+    expect(prompt).toBe("fix the bug please now immediately");
   });
 
   it("places screenshot paths before envelope", () => {
     const items: AgentContextItem[] = [
       makeContextItem({ kind: "screenshot", screenshotPaths: ["/tmp/shot.png"] }),
     ];
-    const envelope = "## Scenario Context\n---";
-    const prompt = composePrompt("check this", items, envelope);
+    const envelope = "## Your Role\n---";
+    const prompt = composePrompt("check this screenshot output please", items, envelope);
 
     const pathIdx = prompt.indexOf("/tmp/shot.png");
-    const envelopeIdx = prompt.indexOf("## Scenario Context");
+    const envelopeIdx = prompt.indexOf("## Your Role");
     expect(pathIdx).toBeGreaterThanOrEqual(0);
     expect(pathIdx).toBeLessThan(envelopeIdx);
   });
@@ -216,11 +218,12 @@ describe("composePrompt", () => {
     const items: AgentContextItem[] = [
       makeContextItem({ markdown: "### Issue details" }),
     ];
-    const envelope = "## Scenario Context\n---";
-    const prompt = composePrompt("fix it", items, envelope);
+    const envelope = "## Your Role\n---";
+    // Use a long message (>= 20 chars) to bypass auto-directive
+    const prompt = composePrompt("fix it according to the plan below", items, envelope);
 
-    const envelopeIdx = prompt.indexOf("## Scenario Context");
-    const messageIdx = prompt.indexOf("fix it");
+    const envelopeIdx = prompt.indexOf("## Your Role");
+    const messageIdx = prompt.indexOf("fix it according to the plan below");
     const contextIdx = prompt.indexOf("## Attached Context");
     const issueIdx = prompt.indexOf("### Issue details");
 
@@ -240,6 +243,62 @@ describe("composePrompt", () => {
   it("handles envelope-only prompt (no message, no items)", () => {
     const prompt = composePrompt("", [], "## Envelope\n---");
     expect(prompt).toBe("## Envelope\n---");
+  });
+
+  it("generates task directive when message is empty and actionable context attached", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "test-failure", markdown: "### Fix: Test failure in \"build\"" }),
+    ];
+    const prompt = composePrompt("", items);
+    expect(prompt).toContain("Fix all of the test failures");
+    expect(prompt).toContain("## Acceptance Criteria");
+  });
+
+  it("generates task directive when message is minimal (< 20 chars)", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "code-quality-issue", markdown: "### Fix: Unused import" }),
+    ];
+    const prompt = composePrompt("fix these", items);
+    expect(prompt).toContain("Fix all of the code quality issues");
+    expect(prompt).toContain("fix these");
+  });
+
+  it("skips task directive when user provides a long explicit message", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "test-failure", markdown: "### Fix: Test failure" }),
+    ];
+    const prompt = composePrompt("Please fix the test failures and also refactor the handler", items);
+    expect(prompt).not.toContain("Fix all of the");
+    expect(prompt).toContain("Please fix the test failures and also refactor the handler");
+  });
+
+  it("does not generate directive for non-actionable context (screenshot, change-summary)", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "screenshot", markdown: "### Screenshot" }),
+      makeContextItem({ kind: "change-summary", markdown: "### Change Summary" }),
+    ];
+    const prompt = composePrompt("", items);
+    expect(prompt).not.toContain("Fix all of the");
+    expect(prompt).not.toContain("## Acceptance Criteria");
+  });
+
+  it("combines multiple actionable context kinds in directive", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "test-failure", markdown: "### Fix: Test failure" }),
+      makeContextItem({ kind: "rule-violation", markdown: "### Fix: Missing target" }),
+    ];
+    const prompt = composePrompt("", items);
+    expect(prompt).toContain("test failures and rule violations");
+  });
+
+  it("appends acceptance criteria after context section", () => {
+    const items: AgentContextItem[] = [
+      makeContextItem({ kind: "test-failure", markdown: "### Fix: Test failure" }),
+    ];
+    const prompt = composePrompt("", items);
+    const contextIdx = prompt.indexOf("## Attached Context");
+    const criteriaIdx = prompt.indexOf("## Acceptance Criteria");
+    expect(contextIdx).toBeLessThan(criteriaIdx);
   });
 });
 
@@ -267,8 +326,7 @@ describe("testFailureContextItems", () => {
   it("includes phase metadata in markdown", () => {
     const items = testFailureContextItems([makeTestPhase()], "s");
     const md = items[0]!.markdown;
-    expect(md).toContain("### Test Phase: unit-tests");
-    expect(md).toContain("**Status:** failed");
+    expect(md).toContain('### Fix: Test failure in "unit-tests"');
     expect(md).toContain("**Duration:** 12s");
     expect(md).toContain("**Classification:** assertion-failure");
     expect(md).toContain("Expected 200 got 404");
@@ -285,7 +343,7 @@ describe("codeQualityContextItems", () => {
   it("includes issue details in markdown", () => {
     const items = codeQualityContextItems([makeTidinessIssue()], "s");
     const md = items[0]!.markdown;
-    expect(md).toContain("### Unused import");
+    expect(md).toContain("### Fix: Unused import");
     expect(md).toContain("`src/utils.ts`:5");
     expect(md).toContain("**Category:** lint");
     expect(md).toContain("**Remediation:** Remove the unused import.");
@@ -302,7 +360,8 @@ describe("ruleViolationContextItems", () => {
   it("includes violation details in markdown", () => {
     const items = ruleViolationContextItems([makeViolation()], "s");
     const md = items[0]!.markdown;
-    expect(md).toContain("### Rule Violation: makefile-lifecycle");
+    expect(md).toContain("### Fix: Missing test target");
+    expect(md).toContain("**Rule:** makefile-lifecycle");
     expect(md).toContain("**Severity:** high");
     expect(md).toContain("**Recommendation:** Add a test target");
   });
@@ -325,7 +384,8 @@ describe("rulesSummaryContextItem", () => {
       makeViolation({ severity: "low", id: "v-3" }),
     ];
     const item = rulesSummaryContextItem(violations, undefined, "s");
-    expect(item.markdown).toContain("**Total violations:** 3");
+    expect(item.markdown).toContain("### Fix: 3 standards compliance violations");
+    expect(item.markdown).toContain("**Total:** 3");
     expect(item.markdown).toContain("**High:** 1");
     expect(item.markdown).toContain("**Medium:** 1");
     expect(item.markdown).toContain("**Low:** 1");
@@ -343,7 +403,8 @@ describe("rulesSummaryContextItem", () => {
       },
       "s",
     );
-    expect(item.markdown).toContain("**Total violations:** 5");
+    expect(item.markdown).toContain("### Fix: 5 standards compliance violations");
+    expect(item.markdown).toContain("**Total:** 5");
     expect(item.markdown).toContain("Fix the Makefile");
     expect(item.markdown).toContain("Add health checks");
   });

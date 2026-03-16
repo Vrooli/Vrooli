@@ -13,6 +13,7 @@ import {
   ArrowDown,
   Wrench,
   Clock,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -287,6 +288,22 @@ export function AgentTab({
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Resolve agent-manager base URL (same pattern as ScenarioReviewPanel)
+  const [agentManagerBaseUrl, setAgentManagerBaseUrl] = useState(`/embedded/agent-manager/`);
+  useEffect(() => {
+    if (!agentManagerAvailable) return;
+    let cancelled = false;
+    fetch(`/embedded/agent-manager/external-url`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data?.url) {
+          setAgentManagerBaseUrl(data.url as string);
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, [agentManagerAvailable]);
 
   const profiles = useAgentProfiles(agentManagerAvailable);
   const envelopeQuery = useScenarioEnvelope(scenarioSlug, agentManagerAvailable);
@@ -563,6 +580,18 @@ export function AgentTab({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {activeRunId && (
+            <a
+              href={`${agentManagerBaseUrl.replace(/\/$/, "")}/runs/${activeRunId}`}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-colors text-blue-400 border-blue-800 hover:bg-blue-950/50"
+              aria-label="Open run in Agent Manager"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open
+            </a>
+          )}
           {activeRun.data?.actions?.canStop && (
             <Button
               variant="outline"

@@ -47,15 +47,25 @@ export function verificationHint(kind: VerifiableContextKind, scenarioName: stri
  * This is silently prepended to the first message of a conversation — it is not
  * a user-visible context chip. The output is agent-agnostic plain markdown.
  *
+ * The envelope is framed as a **directive** (not a description) so the agent
+ * treats incoming context as actionable work rather than information to discuss.
+ *
  * @param data - Enriched scenario metadata from the /scenarios/{slug}/envelope endpoint.
  * @returns Formatted markdown string ending with a horizontal rule separator.
  */
 export function buildScenarioEnvelope(data: ScenarioEnvelopeData): string {
   const lines: string[] = [];
 
-  lines.push("## Scenario Context");
+  lines.push("## Your Role");
   lines.push("");
-  lines.push(`You are working in the **${data.displayName}** scenario (\`${data.name}\`).`);
+  lines.push(
+    `You are an autonomous code improvement agent for the **${data.displayName}** scenario (\`${data.name}\`). ` +
+    "When issues are attached below, **immediately begin fixing them** — read the relevant source files, " +
+    "implement the necessary changes, and verify your fixes with the provided commands. " +
+    "Do not ask clarifying questions unless a critical ambiguity would lead to wasted work; " +
+    "instead state your assumption and proceed.",
+  );
+  lines.push("");
   lines.push(`- **Path:** \`${data.path}\``);
   lines.push(`- **Description:** ${data.description}`);
 
@@ -110,8 +120,7 @@ export function testFailureContextItems(phases: TestPhaseResult[], scenarioName:
   return phases
     .filter((p) => p.status === "failed")
     .map((phase) => {
-      let md = `### Test Phase: ${phase.name}\n`;
-      md += `- **Status:** ${phase.status}\n`;
+      let md = `### Fix: Test failure in "${phase.name}"\n`;
       md += `- **Duration:** ${phase.durationSeconds}s\n`;
       if (phase.classification) md += `- **Classification:** ${phase.classification}\n`;
       if (phase.remediation) md += `- **Remediation:** ${phase.remediation}\n`;
@@ -143,7 +152,7 @@ export function testFailureContextItems(phases: TestPhaseResult[], scenarioName:
  */
 export function codeQualityContextItems(issues: TidinessIssue[], scenarioName: string): AgentContextItem[] {
   return issues.map((issue) => {
-    let md = `### ${issue.title}\n`;
+    let md = `### Fix: ${issue.title}\n`;
     md += `- **File:** \`${issue.file_path}\``;
     if (issue.line_number) md += `:${issue.line_number}`;
     md += "\n";
@@ -239,8 +248,7 @@ export function scenarioQualityContextItem(scoreData: {
     duplication_issues: number;
   };
 }): AgentContextItem {
-  let md = `### Scenario Code Quality\n\n`;
-  md += `- **Score:** ${Math.round(scoreData.score)}/100\n`;
+  let md = `### Improve: Code quality score is ${Math.round(scoreData.score)}/100\n\n`;
   md += `- **Violations:** ${scoreData.violations}\n`;
   if (scoreData.breakdown) {
     md += `\n**Breakdown:**\n`;
@@ -273,9 +281,9 @@ export function scenarioQualityContextItem(scoreData: {
  */
 export function ruleViolationContextItems(violations: AuditorViolation[], scenarioName: string): AgentContextItem[] {
   return violations.map((v, i) => {
-    let md = `### Rule Violation: ${v.type}\n`;
+    let md = `### Fix: ${v.title}\n`;
+    md += `- **Rule:** ${v.type}\n`;
     md += `- **Severity:** ${v.severity}\n`;
-    md += `- **Title:** ${v.title}\n`;
     if (v.file_path) {
       md += `- **File:** \`${v.file_path}\``;
       if (v.line_number) md += `:${v.line_number}`;
@@ -315,8 +323,8 @@ export function rulesSummaryContextItem(
   const medium = bySev["medium"] ?? violations.filter(v => v.severity === "medium").length;
   const low = bySev["low"] ?? violations.filter(v => v.severity === "low").length;
 
-  let md = `### Standards Compliance Summary\n\n`;
-  md += `- **Total violations:** ${total}\n`;
+  let md = `### Fix: ${total} standards compliance violations\n\n`;
+  md += `- **Total:** ${total}\n`;
   md += `- **High:** ${high}\n`;
   md += `- **Medium:** ${medium}\n`;
   md += `- **Low:** ${low}\n`;
@@ -341,16 +349,69 @@ export function rulesSummaryContextItem(
 // Prompt composition
 // =============================================================================
 
+/** Minimum user-message length to treat as an explicit instruction (not empty/minimal). */
+const MIN_EXPLICIT_MESSAGE_LENGTH = 20;
+
+/**
+ * Build an imperative task directive from attached context kinds.
+ *
+ * When the user attaches context items but provides no (or minimal) typed
+ * message, this generates a clear "do this now" instruction so the agent
+ * starts working immediately instead of asking what to do.
+ */
+function buildTaskDirective(contextItems: AgentContextItem[]): string {
+  const kinds = [...new Set(contextItems.map((i) => i.kind))];
+  const actionable = kinds.filter((k) => k !== "change-summary" && k !== "screenshot");
+
+  if (actionable.length === 0) return "";
+
+  const labelMap: Record<string, string> = {
+    "test-failure": "test failures",
+    "code-quality-issue": "code quality issues",
+    "scenario-quality": "code quality violations",
+    "rule-violation": "rule violations",
+    "rules-summary": "standards compliance violations",
+  };
+  const issueLabels = actionable.map((k) => labelMap[k] ?? k).join(" and ");
+
+  return (
+    `Fix all of the ${issueLabels} detailed in the attached context below. ` +
+    "Read the relevant source files, implement the fixes, and verify each fix " +
+    "using the verification command listed in that context item."
+  );
+}
+
+/**
+ * Build acceptance criteria from the context items' verification commands.
+ *
+ * Appended at the end of the prompt so the agent knows what "done" looks like.
+ */
+function buildAcceptanceCriteria(contextItems: AgentContextItem[]): string {
+  const kinds = [...new Set(contextItems.map((i) => i.kind))];
+  const actionable = kinds.filter((k) => k !== "change-summary" && k !== "screenshot");
+  if (actionable.length === 0) return "";
+
+  return (
+    "\n\n---\n\n## Acceptance Criteria\n\n" +
+    "- All issues listed in the attached context have been addressed\n" +
+    "- Verification commands in each context item pass\n" +
+    "- No new issues introduced by your changes\n"
+  );
+}
+
 /**
  * Compose a full prompt from user message, attached context items, and optional envelope.
  *
  * The final prompt is structured as:
- *   [screenshot paths]  ← so the agent can read image files
- *   [envelope]          ← scenario orientation (first message only)
+ *   [screenshot paths]     ← so the agent can read image files
+ *   [envelope]             ← scenario orientation + autonomy directive (first message only)
+ *   [task directive]       ← auto-generated when message is empty/minimal and context attached
  *   [user message]
  *   ---
  *   ## Attached Context
  *   [context items]
+ *   ---
+ *   ## Acceptance Criteria  ← auto-generated when actionable context is attached
  *
  * Truncated to {@link MAX_PROMPT_CHARS} if the combined content exceeds the limit.
  *
@@ -363,7 +424,18 @@ export function composePrompt(message: string, contextItems: AgentContextItem[],
   const screenshotPaths = contextItems
     .flatMap((item) => item.screenshotPaths ?? []);
 
-  let prompt = message.trim();
+  let userMessage = message.trim();
+
+  // When actionable context is attached but the user didn't type a meaningful
+  // instruction, generate an imperative task directive so the agent acts immediately.
+  if (contextItems.length > 0 && userMessage.length < MIN_EXPLICIT_MESSAGE_LENGTH) {
+    const directive = buildTaskDirective(contextItems);
+    if (directive) {
+      userMessage = userMessage ? `${directive}\n\n${userMessage}` : directive;
+    }
+  }
+
+  let prompt = userMessage;
 
   // Prepend envelope before the user message (first message only).
   if (envelope) {
@@ -377,6 +449,9 @@ export function composePrompt(message: string, contextItems: AgentContextItem[],
     } else {
       prompt = "## Attached Context\n\n" + contextSection;
     }
+
+    // Append acceptance criteria for actionable context
+    prompt += buildAcceptanceCriteria(contextItems);
   }
 
   // Prepend screenshot file paths so Claude Code can read the images
