@@ -565,7 +565,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
 		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
-		NoLock:         e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock,
+		NoLock:         boolPtr(e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock),
 		ProjectRoot:    projectRoot,
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
@@ -1341,3 +1341,5 @@ func (e *RunExecutor) SandboxID() *uuid.UUID {
 func (e *RunExecutor) WorkDir() string {
 	return e.workDir
 }
+
+func boolPtr(v bool) *bool { return &v }

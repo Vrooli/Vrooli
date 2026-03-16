@@ -74,7 +74,8 @@ type CreateRequest struct {
 	ScopePath string
 
 	// NoLock disables reserved-path locking for investigative sandboxes.
-	NoLock bool
+	// When nil, the workspace-sandbox server default applies (WORKSPACE_SANDBOX_DEFAULT_NO_LOCK).
+	NoLock *bool
 
 	// ProjectRoot is the root directory of the project.
 	ProjectRoot string

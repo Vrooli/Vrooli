@@ -51,8 +51,8 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 	if req.Name != "" {
 		body["name"] = req.Name
 	}
-	if req.NoLock {
-		body["noLock"] = true
+	if req.NoLock != nil {
+		body["noLock"] = *req.NoLock
 	}
 	if req.Behavior != nil {
 		body["behavior"] = req.Behavior
