@@ -17,8 +17,8 @@ describe("Key combo definitions", () => {
 
   it("every combo's first step has no delay", () => {
     for (const combo of KEY_COMBOS) {
-      const first = combo.sequence[0]!;
-      expect(first.delayMs ?? 0).toBe(0);
+      const first = combo.sequence[0] as { delayMs?: number } | undefined;
+      expect(first?.delayMs ?? 0).toBe(0);
     }
   });
 

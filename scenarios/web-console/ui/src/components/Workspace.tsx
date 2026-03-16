@@ -412,6 +412,17 @@ export default function Workspace() {
   const rowSplittersHeight = Math.max(0, layout.rows - 1) * SPLITTER_SIZE_PX;
   const minimumGridHeightPx = (viewportPaneHeight * layout.rows) + rowSplittersHeight;
 
+  // While session hydration is in flight, show a loading screen to prevent
+  // the empty state ("New Terminal" button) from flashing before we know
+  // whether any sessions exist.
+  if (!isHydrated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-muted">
+        Loading...
+      </div>
+    );
+  }
+
   // Empty state
   if (sessionPanes.length === 0) {
     return (

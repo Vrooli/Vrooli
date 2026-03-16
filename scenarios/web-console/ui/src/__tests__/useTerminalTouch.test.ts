@@ -622,7 +622,7 @@ describe("useTerminalTouch", () => {
     expect(terminal.clearSelection).toHaveBeenCalled();
   });
 
-  it("long press with drag does NOT fire onContextMenu", () => {
+  it("long press with drag fires onContextMenu at release point", () => {
     const onContextMenu = vi.fn();
 
     renderHook(() =>
@@ -642,7 +642,9 @@ describe("useTerminalTouch", () => {
     fireTouchEvent(container, "touchmove", { clientX: 200, clientY: 100 });
     fireTouchEvent(container, "touchend", { clientX: 200, clientY: 100 });
 
-    expect(onContextMenu).not.toHaveBeenCalled();
+    // Context menu should open at the release point so the user can
+    // Copy/Speak the selected text.
+    expect(onContextMenu).toHaveBeenCalledWith(200, 100);
   });
 
   it("desktop right-click fires onContextMenu", () => {

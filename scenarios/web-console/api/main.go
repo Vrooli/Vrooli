@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,17 +49,20 @@ func initSchema(db *sql.DB) error {
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
-	db           *sql.DB
-	router       *mux.Router
-	sessions     *SessionManager
-	events       *EventLogger
-	metrics      *Metrics
-	aiChain      *AIProviderChain
-	shortcuts    ShortcutStore
-	aiConfig     AIConfigStore
-	sweeper      *ExpirationSweeper
-	idempotency  *idempotencyCache // replay-safe session creation
-	capabilities *CapabilityRegistry
+	db              *sql.DB
+	router          *mux.Router
+	sessions        *SessionManager
+	events          *EventLogger
+	metrics         *Metrics
+	aiChain         *AIProviderChain
+	shortcuts       ShortcutStore
+	aiConfig        AIConfigStore
+	sweeper         *ExpirationSweeper
+	idempotency     *idempotencyCache // replay-safe session creation
+	capabilities    *CapabilityRegistry
+	voiceConfigMu   sync.RWMutex
+	voiceConfig     VoiceStreamConfig
+	voiceConfigPath string
 }
 
 // NewServer initializes database, session manager, and routes.
@@ -69,20 +73,34 @@ func NewServer(db *sql.DB) *Server {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
 
+	// Load voice streaming config from disk (or use defaults).
+	exe, _ := os.Executable()
+	base := filepath.Dir(exe)
+	vcPath := filepath.Join(base, "..", "store", "voice-config.json")
+	vc, err := loadVoiceConfig(vcPath)
+	if err != nil {
+		log.Printf("voice-config: using defaults: %v", err)
+		vc = DefaultVoiceStreamConfig()
+	}
+	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d coverage=%.2f",
+		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes, vc.CoverageThreshold)
+
 	events := NewEventLogger(1000)
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
 	srv := &Server{
-		db:          db,
-		router:      mux.NewRouter(),
-		sessions:    sessions,
-		events:      events,
-		metrics:     metrics,
-		aiChain:     NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
-		shortcuts:   NewPGShortcutStore(db),
-		aiConfig:    NewPGAIConfigStore(db),
-		sweeper:     NewExpirationSweeper(sessions, events, metrics),
-		idempotency: newIdempotencyCache(),
+		db:              db,
+		router:          mux.NewRouter(),
+		sessions:        sessions,
+		events:          events,
+		metrics:         metrics,
+		aiChain:         NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
+		shortcuts:       NewPGShortcutStore(db),
+		aiConfig:        NewPGAIConfigStore(db),
+		sweeper:         NewExpirationSweeper(sessions, events, metrics),
+		idempotency:     newIdempotencyCache(),
+		voiceConfig:     vc,
+		voiceConfigPath: vcPath,
 	}
 	checkers := map[string]StatusChecker{
 		"whisper-stt": &WhisperChecker{
@@ -91,6 +109,13 @@ func NewServer(db *sql.DB) *Server {
 		},
 	}
 	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)
+	// Warm capability cache so the first /capabilities request returns instantly.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		srv.capabilities.Resolve(ctx)
+		log.Println("capabilities: initial check complete")
+	}()
 	srv.sweeper.Start()
 	srv.setupRoutes()
 	return srv
@@ -148,6 +173,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/transcribe", s.handleVoiceTranscribe).Methods("POST")
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
 }
 
 // Handler returns the router wrapped with panic-recovery middleware so that

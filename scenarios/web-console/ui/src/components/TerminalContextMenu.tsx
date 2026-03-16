@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ClipboardPaste, Copy, Image, TextSelect, Trash2, Volume2 } from "lucide-react";
 import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface TerminalContextMenuProps {
@@ -70,7 +71,7 @@ export default function TerminalContextMenu({
     : null;
 
   const itemClass =
-    "w-full text-left px-3 py-2 text-sm text-wc-text-primary hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-t-none last:rounded-b-lg";
+    "w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-wc-text-primary hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-t-none last:rounded-b-lg";
 
   return (
     <>
@@ -97,6 +98,7 @@ export default function TerminalContextMenu({
             className={itemClass}
             onClick={onCopy}
           >
+            <Copy className="h-4 w-4 shrink-0" />
             Copy
           </button>
         )}
@@ -106,6 +108,7 @@ export default function TerminalContextMenu({
             className={itemClass}
             onClick={onSpeak}
           >
+            <Volume2 className="h-4 w-4 shrink-0" />
             Speak
           </button>
         )}
@@ -114,6 +117,7 @@ export default function TerminalContextMenu({
           className={itemClass}
           onClick={handlePaste}
         >
+          <ClipboardPaste className="h-4 w-4 shrink-0" />
           {pasteError ? "Use Ctrl+V to paste" : "Paste"}
         </button>
         {onUploadImage && (
@@ -122,6 +126,7 @@ export default function TerminalContextMenu({
             className={itemClass}
             onClick={onUploadImage}
           >
+            <Image className="h-4 w-4 shrink-0" />
             Upload Image
           </button>
         )}
@@ -130,6 +135,7 @@ export default function TerminalContextMenu({
           className={itemClass}
           onClick={onSelectAll}
         >
+          <TextSelect className="h-4 w-4 shrink-0" />
           Select All
         </button>
         <button
@@ -137,6 +143,7 @@ export default function TerminalContextMenu({
           className={itemClass}
           onClick={onClear}
         >
+          <Trash2 className="h-4 w-4 shrink-0" />
           Clear Terminal
         </button>
       </div>

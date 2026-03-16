@@ -81,29 +81,33 @@ export default function VoiceMicButton({
 }: VoiceMicButtonProps) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const pressStartRef = useRef(0);
-  const wasRecordingRef = useRef(false);
+  /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
+  const pressIntentRef = useRef<"start" | "stop" | "none">("none");
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     pressStartRef.current = Date.now();
-    wasRecordingRef.current = isRecording;
-    if (!isRecording && !isTranscribing) {
+    if (isTranscribing) {
+      pressIntentRef.current = "none";
+    } else if (isRecording) {
+      pressIntentRef.current = "stop";
+    } else {
+      pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
   }, [isRecording, isTranscribing, onStart]);
 
   const handlePointerUp = useCallback(() => {
-    if (!isRecording) return;
-    const duration = Date.now() - pressStartRef.current;
-    if (wasRecordingRef.current) {
-      // Was already recording before this press — tap to stop
+    const intent = pressIntentRef.current;
+    pressIntentRef.current = "none";
+    if (intent === "stop") {
       onStop();
-    } else if (duration >= LONG_PRESS_MS) {
-      // Long press — stop on release (push-to-talk)
+    } else if (intent === "start" && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
+      // Long press release — push-to-talk: stop recording
       onStop();
     }
-    // Short press on fresh start — keep recording (tap-to-toggle)
-  }, [isRecording, onStop]);
+    // Short press on "start" — tap-to-toggle: keep recording
+  }, [onStop]);
 
   if (!supported) return null;
 
@@ -122,9 +126,11 @@ export default function VoiceMicButton({
           buttonClassName,
           isRecording
             ? "border-red-500 bg-red-500/20 text-red-400"
-            : hasError
-              ? "border-amber-500 bg-amber-500/10 text-amber-400"
-              : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+            : isTranscribing
+              ? "border-blue-500 bg-blue-500/20 text-blue-400"
+              : hasError
+                ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
         title={
           isRecording

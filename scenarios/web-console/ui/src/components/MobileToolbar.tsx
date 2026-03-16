@@ -133,8 +133,17 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   );
 
   const submitCommand = useCallback(() => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
+    // When the text box is exactly empty (length 0, NOT whitespace-only),
+    // act as an Enter key press. This lets mobile users tap Send twice to
+    // type a command and then confirm it with Enter — a very common pattern
+    // when using interactive CLI tools like Claude Code. Whitespace-only
+    // input is intentionally NOT treated as empty so it can still be
+    // submitted verbatim (some programs interpret whitespace input).
+    if (inputValue.length === 0) {
+      onInput(ENTER_KEY.input);
+      onFocusTerminal?.();
+      return;
+    }
 
     const mods = useWorkspaceStore.getState().modifiers;
     const hasModifier = mods.ctrl || mods.alt || mods.shift;
@@ -212,13 +221,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         >
           {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </button>
-        {/* Send button */}
+        {/* Send button — always enabled so that tapping it with an empty
+             input acts as Enter (see submitCommand for rationale). */}
         <button
           data-testid="mobile-command-submit"
           onPointerDown={(e) => e.preventDefault()}
           onClick={submitCommand}
-          disabled={!inputValue.trim()}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active disabled:opacity-40 touch-manipulation"
+          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
           title="Send command"
         >
           <SendHorizontal className="h-3.5 w-3.5" />
@@ -240,7 +249,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
            │ [Esc]  [Tab] [Enter] │ [←] [↓] [→]  │      │    [🎤]   │
            └────────────────────────────────────────────────────────────┘
            The mic button spans both rows for easy access. */
-        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus
         <div
           className="grid gap-0.5 px-1 py-1 touch-manipulation select-none"
           style={{ gridTemplateColumns: "auto auto 1fr auto", gridTemplateRows: "auto auto" }}
@@ -353,7 +361,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         </div>
       ) : (
         /* ── Compact layout: single row (original) ── */
-        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention is intentional to preserve terminal focus
         <div
           className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
           onMouseDown={(e) => e.preventDefault()}

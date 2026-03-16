@@ -123,6 +123,7 @@ export interface MockTerminal {
   getSelection: ReturnType<typeof vi.fn>;
   getSelectionPosition: ReturnType<typeof vi.fn>;
   clearSelection: ReturnType<typeof vi.fn>;
+  onSelectionChange: ReturnType<typeof vi.fn>;
   // Focus
   focus: ReturnType<typeof vi.fn>;
   // Buffer
@@ -169,6 +170,7 @@ export function createMockTerminal(): MockTerminal {
     getSelection: vi.fn().mockReturnValue(""),
     getSelectionPosition: vi.fn().mockReturnValue(undefined),
     clearSelection: vi.fn(),
+    onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
     focus: vi.fn(),
     buffer: {
       active: {

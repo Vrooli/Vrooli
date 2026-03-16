@@ -48,7 +48,7 @@ describe("useTerminalSocket hook", () => {
 
     // Resize message sent immediately on open with terminal dimensions
     expect(fakeWs.sent).toHaveLength(1);
-    expect(JSON.parse(fakeWs.sent[0]!)).toEqual({ type: "resize", cols: 80, rows: 24 });
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "resize", cols: 80, rows: 24 });
 
     // Should call onReady
     expect(onReady).toHaveBeenCalledOnce();
@@ -75,7 +75,7 @@ describe("useTerminalSocket hook", () => {
       }
     });
     expect(resizeMsg).toBeDefined();
-    expect(JSON.parse(resizeMsg!)).toEqual({ type: "resize", cols: 80, rows: 24 });
+    expect(JSON.parse(resizeMsg ?? "{}")).toEqual({ type: "resize", cols: 80, rows: 24 });
   });
 
   it("does not create WebSocket when terminal is null", () => {
@@ -384,7 +384,7 @@ describe("useTerminalSocket hook", () => {
       return m.type === "stdin";
     });
     expect(stdinMsg).toBeDefined();
-    expect(JSON.parse(stdinMsg!)).toEqual({ type: "stdin", data: "echo queued" });
+    expect(JSON.parse(stdinMsg ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
   });
 
   it("shows sync_warning with drop count in yellow", () => {

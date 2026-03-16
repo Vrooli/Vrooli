@@ -4,7 +4,6 @@ import { Search, SquareSlash } from "lucide-react";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { cn } from "../lib/classnames";
 
 interface KeyComboPickerProps {
   /** Callback to inject input into the active terminal. */
@@ -82,7 +81,6 @@ export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPic
       {/* Bottom sheet */}
       {open &&
         createPortal(
-          // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention preserves terminal focus
           <div
             className="fixed inset-0 z-40"
             onMouseDown={(e) => e.preventDefault()}

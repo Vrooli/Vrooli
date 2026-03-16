@@ -175,28 +175,34 @@ export default function FloatingToolbar({
     onLongPress: onOpenLauncher,
   });
 
-  // Voice button long-press logic
+  // Voice button intent-based interaction (matches VoiceMicButton pattern)
   const voicePressStartRef = useRef(0);
-  const voiceWasRecordingRef = useRef(false);
+  const voiceIntentRef = useRef<"start" | "stop" | "none">("none");
 
   const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent toolbar drag
     voicePressStartRef.current = Date.now();
-    voiceWasRecordingRef.current = !!voiceRecording;
-    if (!voiceRecording && !voiceTranscribing) {
+    if (voiceTranscribing) {
+      voiceIntentRef.current = "none";
+    } else if (voiceRecording) {
+      voiceIntentRef.current = "stop";
+    } else {
+      voiceIntentRef.current = "start";
       onVoiceStart?.({ vadEnabled: true });
     }
   }, [voiceRecording, voiceTranscribing, onVoiceStart]);
 
   const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
-    if (!voiceRecording) return;
-    const duration = Date.now() - voicePressStartRef.current;
-    if (voiceWasRecordingRef.current || duration >= VOICE_LONG_PRESS_MS) {
+    const intent = voiceIntentRef.current;
+    voiceIntentRef.current = "none";
+    if (intent === "stop") {
+      onVoiceStop?.();
+    } else if (intent === "start" && Date.now() - voicePressStartRef.current >= VOICE_LONG_PRESS_MS) {
       onVoiceStop?.();
     }
-  }, [voiceRecording, onVoiceStop]);
+  }, [onVoiceStop]);
 
   // The dock tab indicator — renders on the visible edge
   const dockTab = docked ? (
@@ -260,7 +266,7 @@ export default function FloatingToolbar({
             data-testid="toolbar-voice"
             variant="ghost"
             size="icon"
-            className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceError ? "text-amber-400" : ""}`}
+            className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceTranscribing ? "text-blue-400" : voiceError ? "text-amber-400" : ""}`}
             onPointerDown={handleVoicePointerDown}
             onPointerUp={handleVoicePointerUp}
             onPointerCancel={handleVoicePointerUp}

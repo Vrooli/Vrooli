@@ -13,6 +13,7 @@ import { parseShortcut, matchesShortcut } from "../lib/shortcutParser";
 import { useImageUpload } from "../hooks/useImageUpload";
 import TerminalContextMenu from "./TerminalContextMenu";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
+import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -90,6 +91,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         setContextMenu({ x, y });
       }, []),
     });
+
+    // Enable hold-to-delete on mobile virtual keyboards (see hook for details).
+    useMobileBackspaceRepeat(terminal);
 
     const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
@@ -346,19 +350,6 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {hasSelection && (
-          <button
-            data-testid="touch-copy-btn"
-            className="absolute top-2 right-2 z-10 rounded bg-[rgb(var(--wc-accent))] px-3 py-1.5 text-xs font-medium text-slate-900 shadow-lg active:opacity-80"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => {
-              copySelection();
-              clearSelection();
-            }}
-          >
-            Copy
-          </button>
-        )}
         {uploading && (
           <div data-testid="upload-overlay" className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 text-sm text-white">
             Uploading image…

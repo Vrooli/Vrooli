@@ -22,6 +22,7 @@ vi.mock("@xterm/xterm", () => ({
     loadAddon: vi.fn(),
     onData: vi.fn(() => ({ dispose: vi.fn() })),
     onTitleChange: vi.fn(() => ({ dispose: vi.fn() })),
+    onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
     scrollLines: vi.fn(),
     scrollToBottom: vi.fn(),
     select: vi.fn(),
@@ -93,26 +94,17 @@ describe("TerminalPane touch integration", () => {
     mockClearSelection.mockClear();
   });
 
-  it("does not render copy button when no selection", () => {
-    mockHasSelection = false;
+  it("does not render floating copy button (removed in favor of context menu)", () => {
+    mockHasSelection = true;
     render(<TerminalPane sessionId="test-session" />);
+    // The standalone copy button was removed — selection now triggers the
+    // context menu via useTerminalTouch, which provides Copy/Speak actions.
     expect(screen.queryByTestId("touch-copy-btn")).toBeNull();
   });
 
-  it("renders copy button when hasSelection is true", () => {
-    mockHasSelection = true;
+  it("does not render context menu when no selection and menu not triggered", () => {
+    mockHasSelection = false;
     render(<TerminalPane sessionId="test-session" />);
-    expect(screen.getByTestId("touch-copy-btn")).toBeTruthy();
-  });
-
-  it("copy button calls copySelection and clearSelection on click", async () => {
-    mockHasSelection = true;
-    render(<TerminalPane sessionId="test-session" />);
-
-    const btn = screen.getByTestId("touch-copy-btn");
-    btn.click();
-
-    expect(mockCopySelection).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
+    expect(screen.queryByTestId("terminal-context-menu")).toBeNull();
   });
 });

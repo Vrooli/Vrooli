@@ -416,6 +416,37 @@ export async function transcribeAudio(audioBlob: Blob, language?: string): Promi
   return data.text;
 }
 
+// Voice streaming configuration (server-side pipeline tuning)
+export interface VoiceStreamConfig {
+  flushIntervalMs: number;
+  minDeltaBytes: number;
+  overlapBytes: number;
+  coverageThreshold: number;
+}
+
+export async function getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
+  const url = buildApiUrl("/voice/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get voice config");
+  return (await res.json()) as VoiceStreamConfig;
+}
+
+export async function updateVoiceStreamConfig(
+  patch: Partial<VoiceStreamConfig>,
+): Promise<VoiceStreamConfig> {
+  const url = buildApiUrl("/voice/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to update voice config");
+  return (await res.json()) as VoiceStreamConfig;
+}
+
 export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {

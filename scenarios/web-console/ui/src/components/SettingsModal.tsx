@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X,
   GripHorizontal,
@@ -13,6 +13,9 @@ import {
   Circle,
   RefreshCw,
   Mic,
+  ChevronDown,
+  ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -30,6 +33,9 @@ import {
   deleteShortcutProfile,
   fetchCapabilities,
   toErrorInfo,
+  type VoiceStreamConfig,
+  getVoiceStreamConfig,
+  updateVoiceStreamConfig,
 } from "../lib/api";
 import { formatShortcutFromEvent } from "../lib/shortcutParser";
 
@@ -281,6 +287,13 @@ export default function SettingsModal() {
   const [micPermission, setMicPermission] = useState<"granted" | "denied" | "prompt" | "unknown">("unknown");
   const [micRequesting, setMicRequesting] = useState(false);
 
+  // Advanced voice streaming config (server-side pipeline tuning)
+  const [vsConfig, setVsConfig] = useState<VoiceStreamConfig | null>(null);
+  const [vsConfigLoading, setVsConfigLoading] = useState(false);
+  const [vsConfigError, setVsConfigError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const checkMicPermission = useCallback(async () => {
     try {
       const result = await navigator.permissions.query({ name: "microphone" as PermissionName });
@@ -338,6 +351,60 @@ export default function SettingsModal() {
     loadVoiceCaps(signal);
     return () => { signal.cancelled = true; };
   }, [settingsModalOpen, loadVoiceCaps]);
+
+  // Fetch voice streaming config when advanced section is expanded
+  const loadVoiceStreamConfig = useCallback(async (signal?: { cancelled: boolean }) => {
+    setVsConfigLoading(true);
+    setVsConfigError(null);
+    try {
+      const cfg = await getVoiceStreamConfig();
+      if (!signal?.cancelled) setVsConfig(cfg);
+    } catch (err) {
+      if (!signal?.cancelled) setVsConfigError(toErrorInfo(err).message);
+    } finally {
+      if (!signal?.cancelled) setVsConfigLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!advancedOpen) return;
+    const signal = { cancelled: false };
+    loadVoiceStreamConfig(signal);
+    return () => { signal.cancelled = true; };
+  }, [advancedOpen, loadVoiceStreamConfig]);
+
+  // Debounced save: update local state immediately, PUT after 500ms idle
+  const handleVsConfigChange = useCallback(
+    (patch: Partial<VoiceStreamConfig>) => {
+      setVsConfig((prev) => (prev ? { ...prev, ...patch } : null));
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        try {
+          const updated = await updateVoiceStreamConfig(patch);
+          setVsConfig(updated);
+          setVsConfigError(null);
+        } catch (err) {
+          setVsConfigError(toErrorInfo(err).message);
+        }
+      }, 500);
+    },
+    [],
+  );
+
+  const resetVsConfig = useCallback(async () => {
+    try {
+      const updated = await updateVoiceStreamConfig({
+        flushIntervalMs: 500,
+        minDeltaBytes: 4096,
+        overlapBytes: 2048,
+        coverageThreshold: 0.50,
+      });
+      setVsConfig(updated);
+      setVsConfigError(null);
+    } catch (err) {
+      setVsConfigError(toErrorInfo(err).message);
+    }
+  }, []);
 
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
     useDraggablePosition({
@@ -854,6 +921,127 @@ export default function SettingsModal() {
                   </Button>
                 )}
               </div>
+
+              {/* Advanced streaming config (server-side pipeline tuning) */}
+              {voiceEnabled && (
+                <div className="border-t border-wc-default pt-2 mt-1">
+                  <button
+                    data-testid="advanced-streaming-toggle"
+                    className="flex items-center gap-1 text-[11px] font-medium text-wc-text-muted uppercase tracking-wider w-full"
+                    onClick={() => setAdvancedOpen(!advancedOpen)}
+                  >
+                    {advancedOpen ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                    Advanced Streaming
+                  </button>
+                  {advancedOpen && (
+                    <div className="mt-2 space-y-3">
+                      {vsConfigLoading && (
+                        <div className="text-center text-xs text-wc-text-faint py-1">Loading...</div>
+                      )}
+                      {vsConfigError && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-wc-error-detail">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          {vsConfigError}
+                        </div>
+                      )}
+                      {vsConfig && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-wc-text-secondary">Flush interval</span>
+                              <span className="text-[10px] text-wc-text-muted">How often audio is sent to Whisper</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                data-testid="vs-flush-interval"
+                                type="range"
+                                min={100}
+                                max={5000}
+                                step={50}
+                                value={vsConfig.flushIntervalMs}
+                                onChange={(e) => handleVsConfigChange({ flushIntervalMs: Number(e.target.value) })}
+                                className="w-20 accent-wc-accent"
+                              />
+                              <span className="text-xs text-wc-text-muted w-12 text-right">{vsConfig.flushIntervalMs}ms</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-wc-text-secondary">Min chunk size</span>
+                              <span className="text-[10px] text-wc-text-muted">Min audio before a partial fires</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                data-testid="vs-min-delta"
+                                type="range"
+                                min={512}
+                                max={32768}
+                                step={512}
+                                value={vsConfig.minDeltaBytes}
+                                onChange={(e) => handleVsConfigChange({ minDeltaBytes: Number(e.target.value) })}
+                                className="w-20 accent-wc-accent"
+                              />
+                              <span className="text-xs text-wc-text-muted w-12 text-right">{(vsConfig.minDeltaBytes / 1024).toFixed(1)}KB</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-wc-text-secondary">Audio overlap</span>
+                              <span className="text-[10px] text-wc-text-muted">Trailing overlap for word continuity</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                data-testid="vs-overlap"
+                                type="range"
+                                min={0}
+                                max={16384}
+                                step={256}
+                                value={vsConfig.overlapBytes}
+                                onChange={(e) => handleVsConfigChange({ overlapBytes: Number(e.target.value) })}
+                                className="w-20 accent-wc-accent"
+                              />
+                              <span className="text-xs text-wc-text-muted w-12 text-right">{(vsConfig.overlapBytes / 1024).toFixed(1)}KB</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-wc-text-secondary">Coverage threshold</span>
+                              <span className="text-[10px] text-wc-text-muted">Skip retranscription above this %</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                data-testid="vs-coverage"
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={Math.round(vsConfig.coverageThreshold * 100)}
+                                onChange={(e) => handleVsConfigChange({ coverageThreshold: Number(e.target.value) / 100 })}
+                                className="w-20 accent-wc-accent"
+                              />
+                              <span className="text-xs text-wc-text-muted w-12 text-right">{Math.round(vsConfig.coverageThreshold * 100)}%</span>
+                            </div>
+                          </div>
+                          <Button
+                            data-testid="vs-reset-defaults"
+                            variant="ghost"
+                            size="sm"
+                            className="text-[11px] text-wc-text-faint"
+                            onClick={resetVsConfig}
+                          >
+                            <RotateCcw className="mr-1 h-3 w-3" />
+                            Reset to defaults
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 

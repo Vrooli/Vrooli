@@ -247,6 +247,14 @@ export function useTerminalTouch({
       const touch = e.touches[0] as Touch | undefined;
       if (!touch) return;
 
+      // Don't intercept touches on the context menu or its backdrop — let
+      // their native click handlers fire so buttons work and the backdrop
+      // dismisses the menu.
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-testid='terminal-context-menu'], [data-testid='ctx-backdrop']")) {
+        return;
+      }
+
       // Cancel any running momentum
       cancelMomentum();
 
@@ -271,6 +279,9 @@ export function useTerminalTouch({
           touch.clientY,
         );
         selectWordAt(col, row);
+        // Open context menu at the double-tap location so the user can
+        // immediately Copy/Speak the selected word.
+        onContextMenuRef.current?.(touch.clientX, touch.clientY);
         e.preventDefault();
         return;
       }
@@ -419,7 +430,11 @@ export function useTerminalTouch({
           setHasSelection(false);
           onContextMenuRef.current?.(touch.clientX, touch.clientY);
         }
-        // If dragged, keep the selection in place
+        if (g.hasDragged) {
+          // Long-press + drag completed a selection — open context menu at
+          // the release point so the user can Copy/Speak the selected text.
+          onContextMenuRef.current?.(touch.clientX, touch.clientY);
+        }
       }
 
       gestureRef.current = { type: "idle" };
@@ -435,6 +450,26 @@ export function useTerminalTouch({
       onContextMenuRef.current?.(e.clientX, e.clientY);
     }
 
+    // Desktop mouse-drag selection: after mouseup, check if xterm has a
+    // selection and auto-open the context menu at the release point.
+    function onMouseUp(e: MouseEvent) {
+      // Small delay lets xterm finalize the selection before we read it.
+      requestAnimationFrame(() => {
+        const sel = term.getSelection();
+        if (sel) {
+          setHasSelection(true);
+          onContextMenuRef.current?.(e.clientX, e.clientY);
+        }
+      });
+    }
+
+    // Sync hasSelection with xterm's native selection state (covers desktop
+    // mouse selection, programmatic select/clear, and Ctrl+Shift+A).
+    const selectionDisposable = term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      setHasSelection(!!sel);
+    });
+
     // Attach in capture phase to intercept before xterm's bundled gesture system
     container.addEventListener("touchstart", onTouchStart, { capture: true });
     container.addEventListener("touchmove", onTouchMove, {
@@ -444,6 +479,7 @@ export function useTerminalTouch({
     container.addEventListener("touchend", onTouchEnd, { capture: true });
     container.addEventListener("touchcancel", onTouchCancel, { capture: true });
     container.addEventListener("contextmenu", onContextMenuEvent);
+    container.addEventListener("mouseup", onMouseUp);
 
     return () => {
       container.removeEventListener("touchstart", onTouchStart, {
@@ -457,6 +493,8 @@ export function useTerminalTouch({
         capture: true,
       });
       container.removeEventListener("contextmenu", onContextMenuEvent);
+      container.removeEventListener("mouseup", onMouseUp);
+      selectionDisposable.dispose();
 
       // Clean up touch-action style
       if (screenEl) {

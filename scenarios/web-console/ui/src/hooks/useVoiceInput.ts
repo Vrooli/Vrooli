@@ -1,4 +1,33 @@
 // DOC: docs/internal/SEAMS.md#voice-input-provider-seam
+//
+// Voice Input Hook — Three-Provider Architecture
+// ================================================
+//
+// This module implements voice-to-text transcription with automatic fallback:
+//
+// 1. VoiceStreamProvider (preferred) — WebSocket streaming to the Go backend,
+//    which runs Whisper for server-side partial and final transcription.
+//    Audio chunks are sent every STREAM_CHUNK_INTERVAL_MS (250ms); the backend
+//    flushes to Whisper every 500ms (voiceStreamFlushInterval), meaning each
+//    flush typically processes ~2 chunks.
+//
+// 2. WhisperProvider — HTTP batch transcription. Used when the backend supports
+//    Whisper but not the streaming WebSocket endpoint. Collects all audio and
+//    sends a single POST on stop.
+//
+// 3. WebSpeechProvider — Browser-native Web Speech API. Final fallback when
+//    Whisper is entirely unavailable. Provides interim results but quality and
+//    availability vary by browser.
+//
+// Provider selection happens on mount (via capability check) and can change
+// at runtime if Whisper becomes unavailable (automatic downgrade after
+// CAP_CHECK_FAIL_THRESHOLD consecutive failures).
+//
+// The hook also provides:
+// - Audio level monitoring via Web Audio API (bandpass filter 80Hz–8kHz)
+// - Voice Activity Detection (VAD) with adaptive noise floor
+// - Dead-mic detection (warns after 2s of zero audio)
+
 // Web Speech API type declarations (not included in all TS libs)
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -305,9 +334,15 @@ class VoiceStreamProvider implements TranscriptionProvider {
   private reconnectAttempt = 0;
   private intentionallyStopped = false;
   private recordingStartTime = 0;
+  /** Timestamp when stop() was called — used to measure stop→final latency. */
+  private stopTime = 0;
   private pendingChunks: ArrayBuffer[] = [];
   /** All audio chunks collected for HTTP fallback if streaming fails entirely. */
   private allChunks: Blob[] = [];
+  /** Running count of audio chunks sent via WebSocket. */
+  private chunkCount = 0;
+  /** Running total of bytes sent via WebSocket. */
+  private totalBytesSent = 0;
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
   private firstPartialLogged = false;
@@ -326,7 +361,9 @@ class VoiceStreamProvider implements TranscriptionProvider {
         const msg = JSON.parse(event.data as string) as { type: string; text?: string };
         if (msg.type === "partial" && msg.text) {
           if (!this.firstPartialLogged) {
-            console.info("[voice] First partial received");
+            const latency = Date.now() - this.recordingStartTime;
+            console.info("[voice] First partial received, latency=%dms, text=%s",
+              latency, msg.text.length > 60 ? msg.text.slice(0, 60) + "…" : msg.text);
             this.firstPartialLogged = true;
           }
           this.onPartial?.(msg.text);
@@ -337,6 +374,10 @@ class VoiceStreamProvider implements TranscriptionProvider {
             this.finalTimeout = null;
           }
           const text = msg.text?.trim() ?? "";
+          const stopToFinal = this.stopTime > 0 ? Date.now() - this.stopTime : 0;
+          const totalDuration = Date.now() - this.recordingStartTime;
+          console.info("[voice] Final received: %d chars, stopToFinal=%dms, total=%dms, chunks=%d, bytes=%d",
+            text.length, stopToFinal, totalDuration, this.chunkCount, this.totalBytesSent);
           if (text) {
             this.onResult?.(text);
           }
@@ -362,6 +403,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
           && this.mediaRecorder?.state === "recording") {
         const delay = VoiceStreamProvider.RECONNECT_DELAYS[this.reconnectAttempt] ?? 3_000;
         this.reconnectAttempt++;
+        console.warn("[voice] WebSocket reconnect attempt %d/%d, delay=%dms, pendingChunks=%d",
+          this.reconnectAttempt, VoiceStreamProvider.MAX_RECONNECTS, delay, this.pendingChunks.length);
 
         setTimeout(() => {
           const newWs = new WebSocket(this.wsUrl);
@@ -431,8 +474,11 @@ class VoiceStreamProvider implements TranscriptionProvider {
     this.reconnectAttempt = 0;
     this.intentionallyStopped = false;
     this.recordingStartTime = Date.now();
+    this.stopTime = 0;
     this.pendingChunks = [];
     this.allChunks = [];
+    this.chunkCount = 0;
+    this.totalBytesSent = 0;
 
     this.ws.onopen = () => {
       console.info("[voice] WebSocket connected");
@@ -445,6 +491,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
       });
       this.mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
+          this.chunkCount++;
+          this.totalBytesSent += e.data.size;
           // Keep a copy for HTTP fallback in case streaming fails entirely.
           this.allChunks.push(e.data);
           e.data.arrayBuffer().then((buf) => {
@@ -465,6 +513,10 @@ class VoiceStreamProvider implements TranscriptionProvider {
 
   stop(): void {
     this.intentionallyStopped = true;
+    this.stopTime = Date.now();
+    const recordingDuration = this.stopTime - this.recordingStartTime;
+    console.info("[voice] Stop: recordingDuration=%dms, chunks=%d, bytes=%d",
+      recordingDuration, this.chunkCount, this.totalBytesSent);
 
     if (this.mediaRecorder?.state === "recording") {
       // Defer mic release and "done" signal until after final data is flushed.
@@ -702,6 +754,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   vadSilenceTimeoutRef.current = vadSilenceTimeoutMs;
   // Timer to warn if no audio is detected after recording starts
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Guards against concurrent startRecording calls during async startup. */
+  const startingRef = useRef(false);
+  /** When true, stopRecording was called during startup — recording should abort after start completes. */
+  const stopRequestedRef = useRef(false);
 
   const startLevelMonitor = useCallback((stream: MediaStream) => {
     try {
@@ -789,25 +845,34 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
   }, []);
 
-  // Detect available backend on mount — no mic permission request.
-  // The provider is created lazily on first startRecording().
+  // Pre-recording capability check debounce — declared before mount effect
+  // so the effect can seed the timestamp and prevent a redundant blocking check.
+  const lastCapCheckRef = useRef(0);
+
+  // Optimistic mount: show the mic button immediately and check Whisper in
+  // the background. WhisperProvider records audio locally (no backend needed
+  // during recording), so the user can start speaking before the check resolves.
   useEffect(() => {
     if (!voiceEnabled) {
       setState((s) => ({ ...s, supported: false, backend: "none" }));
       return;
     }
 
+    // Show button immediately — optimistic default assumes Whisper.
+    setState((s) => ({ ...s, supported: true, backend: "whisper" }));
+    // Seed the debounce timer so startRecording doesn't re-run the check.
+    lastCapCheckRef.current = Date.now();
+
     let cancelled = false;
     (async () => {
-      // Check if Whisper is available via capabilities API
       try {
         const caps = await fetchCapabilities();
         if (cancelled) return;
         const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
         if (whisper?.status === "available") {
           streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
-          console.info("[voice] Backend: whisper, features:", whisper.features);
-          setState((s) => ({ ...s, supported: true, backend: "whisper" }));
+          console.info("[voice] Backend confirmed: whisper, streaming=%s", streamingAvailableRef.current);
+          // Already optimistically set to "whisper" — no state change needed.
           return;
         }
       } catch (err) {
@@ -816,16 +881,18 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
       if (cancelled) return;
 
-      // Check if Web Speech API is available (no mic request needed)
+      // Whisper unavailable — downgrade (but don't disrupt an in-progress recording)
       const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
       if (Ctor) {
         console.info("[voice] Backend: web-speech (Whisper unavailable)");
-        setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
+        setState((s) => s.isRecording ? s : { ...s, backend: "web-speech" });
         return;
       }
 
       console.info("[voice] Backend: none (no voice backend available)");
-      setState((s) => ({ ...s, supported: false, backend: "none" }));
+      setState((s) => s.isRecording
+        ? { ...s, error: "Voice not available" }
+        : { ...s, supported: false, backend: "none" });
     })();
 
     return () => {
@@ -838,17 +905,17 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = null;
       }
+      startingRef.current = false;
     };
   }, [voiceEnabled]);
-
-  // Pre-recording capability check debounce
-  const lastCapCheckRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Consecutive failed capability checks. Reset on success. */
   const capCheckFailCountRef = useRef(0);
 
   const startRecording = useCallback(async (opts?: StartRecordingOpts) => {
-    if (state.isRecording) return;
+    if (state.isRecording || startingRef.current) return;
+    startingRef.current = true;
+    stopRequestedRef.current = false;
 
     // Pre-recording capability check (debounced to every 10s)
     const isWhisperOrFallback = state.backend === "whisper" || state.backend === "web-speech";
@@ -1011,10 +1078,37 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           console.warn("[voice] No audio detected after 2s");
         }
       }, 2000);
+
+      // If stop was requested during async start, abort immediately.
+      if (stopRequestedRef.current) {
+        stopRequestedRef.current = false;
+        startingRef.current = false;
+        if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+        vadActiveRef.current = false;
+        vadRef.current.state = "idle";
+        stopLevelMonitor();
+        setState((s) => ({
+          ...s,
+          isRecording: false,
+          isTranscribing: false,
+          audioLevel: 0,
+          partialTranscript: "",
+        }));
+        provider.dispose();
+        providerRef.current = null;
+        return;
+      }
     }
+    startingRef.current = false;
   }, [state.isRecording, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor]);
 
   const stopRecording = useCallback(() => {
+    // If start is in progress, signal it to abort after completing
+    if (startingRef.current) {
+      stopRequestedRef.current = true;
+      return;
+    }
+
     const provider = providerRef.current;
     if (!provider || !state.isRecording) return;
 
@@ -1023,12 +1117,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
-    const isStreaming = provider instanceof VoiceStreamProvider;
     setState((s) => ({
       ...s,
       isRecording: false,
-      // Streaming providers handle transcribing state via onResult/onError callbacks
-      isTranscribing: state.backend === "whisper" && !isStreaming,
+      isTranscribing: state.backend === "whisper",
       audioLevel: 0,
       partialTranscript: "",
     }));

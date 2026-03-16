@@ -32,24 +32,6 @@ type VoiceStreamMessage struct {
 	Text string `json:"text,omitempty"`
 }
 
-// voiceStreamFlushInterval is how often accumulated audio is sent to Whisper
-// for partial transcription. Package-level var for testability.
-var voiceStreamFlushInterval = 500 * time.Millisecond
-
-// minDeltaSize is the minimum audio delta (in bytes) before a partial
-// transcription is attempted. Very short clips produce poor Whisper results.
-const minDeltaSize = 8 * 1024
-
-// overlapBytes is the trailing audio overlap prepended to each delta for
-// partial transcription. At 48 kbps (~6 KB/s), 0.8 s ≈ 5 KB. Combined
-// with initial_prompt context, this is sufficient for Whisper continuity.
-var overlapBytes = 5 * 1024
-
-// skipFinalCoverageThreshold: when partial-transcribed bytes / total audio
-// exceeds this ratio and accumulated transcript is non-empty, use the
-// accumulated partials as the final result instead of re-transcribing.
-var skipFinalCoverageThreshold = 0.70
-
 // findWebMInitEnd locates the end of the WebM initialization segment (EBML
 // header + Segment + Tracks) by scanning for the first Cluster element ID
 // (0x1F43B675). Returns the byte offset of the Cluster start, or 0 if not
@@ -75,6 +57,10 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Snapshot config for this session — changes via PUT take effect on the
+	// next recording, not the one in progress.
+	vcfg := s.getVoiceConfig()
+
 	language := r.URL.Query().Get("language")
 
 	upgrader := websocket.Upgrader{
@@ -92,7 +78,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	sessionStart := time.Now()
-	log.Printf("voice-ws: session opened, language=%q", language)
+	log.Printf("voice-ws: session opened, language=%q, config: flush=%dms delta=%d overlap=%d coverage=%.2f",
+		language, vcfg.FlushIntervalMs, vcfg.MinDeltaBytes, vcfg.OverlapBytes, vcfg.CoverageThreshold)
 
 	var writeMu sync.Mutex
 
@@ -121,7 +108,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var accumulatedTranscript string
 	var partialCount int
 	go func() {
-		ticker := time.NewTicker(voiceStreamFlushInterval)
+		ticker := time.NewTicker(time.Duration(vcfg.FlushIntervalMs) * time.Millisecond)
 		defer ticker.Stop()
 		firstTick := true
 		for {
@@ -134,9 +121,9 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				bufMu.Lock()
 				currentLen := audioBuffer.Len()
 				deltaSize := currentLen - lastPartialOffset
-				// On the first tick, bypass minDeltaSize to reduce perceived
+				// On the first tick, bypass vcfg.MinDeltaBytes to reduce perceived
 				// latency for the initial partial transcript.
-				if currentLen == 0 || (!firstTick && deltaSize < minDeltaSize) {
+				if currentLen == 0 || (!firstTick && deltaSize < vcfg.MinDeltaBytes) {
 					bufMu.Unlock()
 					continue
 				}
@@ -147,6 +134,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					if initEnd > 0 {
 						webmInitSegment = make([]byte, initEnd)
 						copy(webmInitSegment, audioBuffer.Bytes()[:initEnd])
+						log.Printf("voice-ws: webm init segment detected, size=%d bytes", initEnd)
 					}
 					webmInitDetected = true
 				}
@@ -156,13 +144,15 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				// Prepend trailing overlap from previous audio for Whisper context.
 				prevOffset := currentLen - deltaSize // offset before this tick's delta
-				overlapStart := prevOffset - overlapBytes
+				overlapStart := prevOffset - vcfg.OverlapBytes
 				if overlapStart < 0 {
 					overlapStart = 0
 				}
 				sendData := deltaCopy
+				actualOverlap := 0
 				if prevOffset > overlapStart {
-					overlap := make([]byte, prevOffset-overlapStart)
+					actualOverlap = prevOffset - overlapStart
+					overlap := make([]byte, actualOverlap)
 					copy(overlap, audioBuffer.Bytes()[overlapStart:prevOffset])
 					sendData = append(overlap, deltaCopy...)
 				}
@@ -175,27 +165,44 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				lastPartialOffset = currentLen
 				bufMu.Unlock()
+				isFirst := firstTick
 				firstTick = false
 
 				prompt := lastNWords(accumulatedTranscript, 10)
 				t0 := time.Now()
 				text, err := transcribeBytes(ctx, sendData, language, false, prompt)
+				elapsed := time.Since(t0)
 				if err != nil {
-					log.Printf("voice-ws: partial transcribe failed (%v): %v", time.Since(t0), err)
+					log.Printf("voice-ws: partial transcribe failed (%v): %v", elapsed, err)
 					continue
 				}
-				log.Printf("voice-ws: partial transcribed %d bytes in %v", len(sendData), time.Since(t0))
+
 				totalPartialBytes += deltaSize
 				partialCount++
 				text = strings.TrimSpace(text)
+
+				// Log per-tick details: partial index, sizes, timing, and Whisper output.
+				// This is the primary signal for diagnosing duplication and slowness.
+				log.Printf("voice-ws: partial #%d: delta=%d overlap=%d sent=%d bytes, took=%v, first=%t, text=%q",
+					partialCount, deltaSize, actualOverlap, len(sendData), elapsed, isFirst, truncateForLog(text, 80))
+
 				if text == "" {
 					continue
 				}
-				if accumulatedTranscript != "" {
-					accumulatedTranscript += " " + text
-				} else {
-					accumulatedTranscript = text
+
+				prevAccum := accumulatedTranscript
+				accumulatedTranscript = deduplicateOverlap(accumulatedTranscript, text)
+
+				// Log dedup result when overlap was detected (words were merged).
+				if accumulatedTranscript != prevAccum+" "+text && prevAccum != "" {
+					addedWords := len(strings.Fields(accumulatedTranscript)) - len(strings.Fields(prevAccum))
+					whisperWords := len(strings.Fields(text))
+					mergedWords := whisperWords - addedWords
+					if mergedWords > 0 {
+						log.Printf("voice-ws: dedup: merged %d overlapping word(s), added %d new", mergedWords, addedWords)
+					}
 				}
+
 				if accumulatedTranscript != previousTranscript {
 					previousTranscript = accumulatedTranscript
 					if writeErr := writeJSON(VoiceStreamMessage{Type: VoiceMsgPartial, Text: accumulatedTranscript}); writeErr != nil {
@@ -256,16 +263,17 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 	if len(tailCopy) > 0 {
 		prompt := lastNWords(accumulatedTranscript, 10)
+		t0 := time.Now()
 		if t, err := transcribeBytes(ctx, tailCopy, language, false, prompt); err == nil {
 			t = strings.TrimSpace(t)
 			totalPartialBytes += tailLen
+			log.Printf("voice-ws: tail transcribed %d bytes in %v, text=%q",
+				tailLen, time.Since(t0), truncateForLog(t, 80))
 			if t != "" {
-				if accumulatedTranscript != "" {
-					accumulatedTranscript += " " + t
-				} else {
-					accumulatedTranscript = t
-				}
+				accumulatedTranscript = deduplicateOverlap(accumulatedTranscript, t)
 			}
+		} else {
+			log.Printf("voice-ws: tail transcribe failed (%v): %v", time.Since(t0), err)
 		}
 	}
 
@@ -284,21 +292,23 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Use accumulated partials when coverage is sufficient.
 	if accumulatedTranscript != "" {
 		coverage := float64(totalPartialBytes) / float64(len(finalAudio))
-		log.Printf("voice-ws: coverage=%.1f%% (threshold=%.0f%%), transcript=%d chars", coverage*100, skipFinalCoverageThreshold*100, len(accumulatedTranscript))
-		if coverage >= skipFinalCoverageThreshold {
+		log.Printf("voice-ws: coverage=%.1f%% (threshold=%.0f%%), transcript=%d chars", coverage*100, vcfg.CoverageThreshold*100, len(accumulatedTranscript))
+		if coverage >= vcfg.CoverageThreshold {
 			log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=coverage-skip", time.Since(sessionStart), len(finalAudio), partialCount)
 			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(accumulatedTranscript)})
 			return
 		}
 	}
 
+	t0 := time.Now()
 	text, err := transcribeBytes(ctx, finalAudio, language, true, "")
 	if err != nil {
-		log.Printf("voice-ws: final transcribe: %v", err)
+		log.Printf("voice-ws: final transcribe failed (%v): %v", time.Since(t0), err)
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgError, Text: "Final transcription failed"})
 		return
 	}
 
+	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), truncateForLog(strings.TrimSpace(text), 80))
 	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=full-retranscribe", time.Since(sessionStart), len(finalAudio), partialCount)
 	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
 }
@@ -313,6 +323,57 @@ func lastNWords(s string, n int) string {
 		return s
 	}
 	return strings.Join(words[len(words)-n:], " ")
+}
+
+// truncateForLog returns s truncated to maxLen runes with "…" appended if truncated.
+// Used for logging Whisper output without flooding log lines.
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "…"
+}
+
+// deduplicateOverlap merges newText into accumulated by detecting the longest
+// suffix of accumulated (in words) that matches a prefix of newText. This
+// prevents repeated words when audio chunks overlap.
+//
+// Example: deduplicateOverlap("the quick brown", "brown fox") → "the quick brown fox"
+func deduplicateOverlap(accumulated, newText string) string {
+	if accumulated == "" {
+		return newText
+	}
+	if newText == "" {
+		return accumulated
+	}
+
+	accWords := strings.Fields(accumulated)
+	newWords := strings.Fields(newText)
+	maxCheck := min(len(accWords), len(newWords))
+
+	bestOverlap := 0
+	for k := maxCheck; k >= 1; k-- {
+		match := true
+		for i := range k {
+			if accWords[len(accWords)-k+i] != newWords[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			bestOverlap = k
+			break
+		}
+	}
+
+	if bestOverlap > 0 && bestOverlap < len(newWords) {
+		return accumulated + " " + strings.Join(newWords[bestOverlap:], " ")
+	}
+	if bestOverlap == len(newWords) {
+		// newText is entirely contained as a suffix of accumulated — nothing new to add.
+		return accumulated
+	}
+	return accumulated + " " + newText
 }
 
 // transcribeBytes sends audio bytes to the Whisper /asr endpoint and returns

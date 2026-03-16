@@ -19,7 +19,7 @@ func serverWithCapability(available bool) *Server {
 	}
 	checker := &fakeChecker{status: status, message: "test"}
 	reg := NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{"whisper-stt": checker}, time.Minute)
-	return &Server{capabilities: reg}
+	return &Server{capabilities: reg, voiceConfig: DefaultVoiceStreamConfig()}
 }
 
 // bypassTranscode installs a no-op transcodeAudio for the duration of the test.
