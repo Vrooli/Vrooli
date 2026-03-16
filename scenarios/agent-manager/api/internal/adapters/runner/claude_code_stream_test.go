@@ -1004,5 +1004,46 @@ func TestParseStreamEvents_HighVolumeANSINoEventSpam(t *testing.T) {
 }
 
 // =============================================================================
+// POST-RESULT STREAM PARSING
+// =============================================================================
+
+// TestParseStreamEvents_ContinuesAfterResult verifies that stream parsing does
+// not short-circuit after receiving the "result" event. This is important because
+// the scanner loop no longer breaks on gotResult — it reads until stdout EOF
+// (process exit). Any events emitted after the result (e.g., from background
+// subagent output) must still be parsed correctly.
+func TestParseStreamEvents_ContinuesAfterResult(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Parse a result event — sets gotResult = true
+	events1, err := runner.parseStreamEvents(runID, claudeCodeSamples["result_success"])
+	if err != nil {
+		t.Fatalf("unexpected error parsing result: %v", err)
+	}
+	if len(events1) == 0 {
+		t.Fatal("expected events from result")
+	}
+
+	state := runner.streamStateFor(runID)
+	if !state.gotResult {
+		t.Fatal("expected gotResult=true after parsing result event")
+	}
+
+	// Parse more events after result — must still return valid events.
+	// This simulates background subagent output arriving after the main result.
+	events2, err := runner.parseStreamEvents(runID, claudeCodeSamples["assistant_text"])
+	if err != nil {
+		t.Fatalf("unexpected error parsing after result: %v", err)
+	}
+	if len(events2) == 0 {
+		t.Error("expected events to be parsed even after gotResult=true")
+	}
+}
+
+// =============================================================================
 // NOTE: ExtractTextContent and ExtractToolUses tests are in claude_message_test.go
 // =============================================================================

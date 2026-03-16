@@ -263,12 +263,12 @@ claude_code::run() {
         # Restore original stdout (fd 3) so the JSON stream goes to the calling
         # process's pipe, not to stderr where we redirected log output earlier.
         {
-            echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>"$stderr_file"
+            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>"$stderr_file"
             echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
         } | tee "$temp_output_file" >&3
     else
         {
-            echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
+            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
             echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
         } | tee "$temp_output_file"
     fi

@@ -437,13 +437,7 @@ export function ChatInterface({
         <div className="border-t border-border pt-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <AlertCircle className="h-4 w-4" />
-            {!run.sessionId ? (
-              <span>Session not available for this run</span>
-            ) : run.status === RunStatus.RUNNING ? (
-              <span>Run is in progress - wait for completion to continue</span>
-            ) : (
-              <span>Continuation not available</span>
-            )}
+            <span>{run.actions?.canContinueReason || "Continuation not available"}</span>
           </div>
         </div>
       )}

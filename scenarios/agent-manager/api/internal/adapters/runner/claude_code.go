@@ -295,15 +295,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			}
 		}
 
-		// The "result" event is the last meaningful event Claude Code emits.
-		// Break immediately so we don't block waiting for the bash wrapper's
-		// stdout pipe to close (wrapper cleanup can take 5-10s).
-		if streamState.gotResult {
-			break
-		}
 	}
 
-	// Check if scanner exited due to an error (vs clean EOF)
+	// Check if scanner exited due to an error (vs clean EOF).
+	// The scanner loop exits on stdout EOF (process closed its stdout) or
+	// on a read error. Either way, the process should be finishing.
 	scannerErr := scanner.Err()
 	if scannerErr != nil {
 		// Scanner hit an error - log it but continue to wait for process
@@ -316,14 +312,14 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Wait for command to complete with timeout.
-	// The bash wrapper script runs cleanup after Claude exits (agent unregistration,
-	// metrics, exit-trap child reaping with a 5s deadline). When we already received
-	// the "result" event from the stream, we have all output data and only need to
-	// reap the process — use a short timeout so the run status updates promptly.
+	// Wait for command to complete. The scanner loop above exits on stdout
+	// EOF (process finished) or scanner error. Use the context deadline as
+	// the authoritative timeout; fall back to 30s if no deadline is set.
 	cleanupTimeout := 30 * time.Second
-	if streamState != nil && streamState.gotResult {
-		cleanupTimeout = 2 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining > 0 && remaining < cleanupTimeout {
+			cleanupTimeout = remaining
+		}
 	}
 
 	waitDone := make(chan error, 1)
@@ -333,16 +329,16 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	select {
 	case err = <-waitDone:
-		// Normal completion - wrapper script exited cleanly
+		// Normal completion - process exited
 	case <-time.After(cleanupTimeout):
-		// Wrapper script hasn't exited — kill the process group and continue.
+		// Process hasn't exited after stdout closed — kill and continue.
 		if cmd.Process != nil {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 		err = <-waitDone
 		if streamState != nil && streamState.gotResult {
-			// We already have all data from the stream; the wrapper was just
-			// doing post-execution housekeeping. Treat this as success.
+			// We have result data from the stream. The process exceeded the
+			// cleanup timeout (likely stuck on post-execution housekeeping).
 			err = nil
 		} else if req.EventSink != nil {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
@@ -424,7 +420,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 }
 
 // Stop attempts to gracefully stop a running Claude Code instance.
-// Uses process group signals to ensure the entire subprocess tree is stopped.
+// Sends SIGTERM to the process group first, then escalates to SIGKILL
+// after a grace period. The actual process reaping is handled by the
+// Execute/Continue method's cmd.Wait() goroutine.
 func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
 	cmd, exists := r.runs[runID]
@@ -438,12 +436,26 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 		return nil
 	}
 
+	pgid := -cmd.Process.Pid
+
 	// Try graceful termination first (SIGTERM to process group)
-	// Negative PID sends signal to the entire process group
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
-		// If SIGTERM fails, force kill the process group
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if err := syscall.Kill(pgid, syscall.SIGTERM); err != nil {
+		// Process may already be gone; try SIGKILL as last resort
+		_ = syscall.Kill(pgid, syscall.SIGKILL)
+		return nil
 	}
+
+	// Escalate to SIGKILL after a grace period if the process hasn't exited.
+	// This runs in the background; the actual process reaping happens in
+	// Execute/Continue's cmd.Wait() goroutine.
+	go func() {
+		select {
+		case <-time.After(5 * time.Second):
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		case <-ctx.Done():
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		}
+	}()
 
 	return nil
 }
@@ -616,18 +628,15 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			}
 		}
 
-		// Break immediately after the final "result" event to avoid blocking
-		// on the bash wrapper's cleanup (same optimization as Execute).
-		if contStreamState.gotResult {
-			break
-		}
 	}
 
-	// Wait for command to complete with timeout.
-	// Use a short timeout when we already have the result event.
+	// Wait for command to complete. Use context deadline as the authoritative
+	// timeout; fall back to 30s if no deadline is set.
 	contCleanupTimeout := 30 * time.Second
-	if contStreamState.gotResult {
-		contCleanupTimeout = 2 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining > 0 && remaining < contCleanupTimeout {
+			contCleanupTimeout = remaining
+		}
 	}
 	waitDone := make(chan error, 1)
 	go func() {
@@ -636,14 +645,14 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 
 	select {
 	case err = <-waitDone:
-		// Normal completion
+		// Normal completion - process exited
 	case <-time.After(contCleanupTimeout):
 		if cmd.Process != nil {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 		err = <-waitDone
 		if contStreamState.gotResult {
-			err = nil // We have all data; wrapper was just doing housekeeping
+			err = nil // We have result data; process exceeded cleanup timeout
 		}
 	case <-ctx.Done():
 		if cmd.Process != nil {

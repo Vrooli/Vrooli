@@ -9,17 +9,18 @@ type RunActionContext struct {
 
 // RunActions captures which actions are allowed for a run.
 type RunActions struct {
-	CanInvestigate               bool `json:"canInvestigate"`
-	CanApplyInvestigation        bool `json:"canApplyInvestigation"`
-	CanDelete                    bool `json:"canDelete"`
-	CanStop                      bool `json:"canStop"`
-	CanRetry                     bool `json:"canRetry"`
-	CanContinue                  bool `json:"canContinue"`
-	CanApprove                   bool `json:"canApprove"`
-	CanReject                    bool `json:"canReject"`
-	CanReview                    bool `json:"canReview"`
-	CanExtractRecommendations    bool `json:"canExtractRecommendations"`
-	CanRegenerateRecommendations bool `json:"canRegenerateRecommendations"`
+	CanInvestigate               bool   `json:"canInvestigate"`
+	CanApplyInvestigation        bool   `json:"canApplyInvestigation"`
+	CanDelete                    bool   `json:"canDelete"`
+	CanStop                      bool   `json:"canStop"`
+	CanRetry                     bool   `json:"canRetry"`
+	CanContinue                  bool   `json:"canContinue"`
+	CanContinueReason            string `json:"canContinueReason,omitempty"`
+	CanApprove                   bool   `json:"canApprove"`
+	CanReject                    bool   `json:"canReject"`
+	CanReview                    bool   `json:"canReview"`
+	CanExtractRecommendations    bool   `json:"canExtractRecommendations"`
+	CanRegenerateRecommendations bool   `json:"canRegenerateRecommendations"`
 }
 
 // RunActionsFor computes the action flags for a run using the provided context.
@@ -35,7 +36,7 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 	canDelete, _ := CanDeleteRun(run)
 	canStop, _ := CanStopRun(run)
 	canRetry, _ := CanRetryRun(run)
-	canContinue, _ := CanContinueRun(run)
+	canContinue, canContinueReason := CanContinueRun(run)
 	canApprove, _ := CanApproveRun(run)
 	canReject, _ := CanRejectRun(run)
 	canReview, _ := CanReviewRun(run)
@@ -49,6 +50,7 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 		CanStop:                      canStop,
 		CanRetry:                     canRetry,
 		CanContinue:                  canContinue,
+		CanContinueReason:            canContinueReason,
 		CanApprove:                   canApprove,
 		CanReject:                    canReject,
 		CanReview:                    canReview,

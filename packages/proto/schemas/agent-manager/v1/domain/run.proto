@@ -163,6 +163,10 @@ message RunActions {
   bool can_review = 9;
   bool can_extract_recommendations = 10;
   bool can_regenerate_recommendations = 11;
+
+  // Human-readable reason why continuation is unavailable.
+  // Empty when can_continue is true.
+  string can_continue_reason = 12;
 }
 
 // =============================================================================

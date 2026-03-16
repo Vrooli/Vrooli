@@ -370,8 +370,11 @@ type RunActions struct {
 	CanReview                    bool                   `protobuf:"varint,9,opt,name=can_review,json=canReview,proto3" json:"can_review,omitempty"`
 	CanExtractRecommendations    bool                   `protobuf:"varint,10,opt,name=can_extract_recommendations,json=canExtractRecommendations,proto3" json:"can_extract_recommendations,omitempty"`
 	CanRegenerateRecommendations bool                   `protobuf:"varint,11,opt,name=can_regenerate_recommendations,json=canRegenerateRecommendations,proto3" json:"can_regenerate_recommendations,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Human-readable reason why continuation is unavailable.
+	// Empty when can_continue is true.
+	CanContinueReason string `protobuf:"bytes,12,opt,name=can_continue_reason,json=canContinueReason,proto3" json:"can_continue_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunActions) Reset() {
@@ -479,6 +482,13 @@ func (x *RunActions) GetCanRegenerateRecommendations() bool {
 		return x.CanRegenerateRecommendations
 	}
 	return false
+}
+
+func (x *RunActions) GetCanContinueReason() string {
+	if x != nil {
+		return x.CanContinueReason
+	}
+	return ""
 }
 
 // RunSummary contains the structured summary from an agent run.
@@ -2018,7 +2028,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
 	"_exit_codeB\x0e\n" +
 	"\f_approved_atB\x12\n" +
-	"\x10_resolved_config\"\xcc\x03\n" +
+	"\x10_resolved_config\"\xfc\x03\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -2036,7 +2046,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"can_review\x18\t \x01(\bR\tcanReview\x12>\n" +
 	"\x1bcan_extract_recommendations\x18\n" +
 	" \x01(\bR\x19canExtractRecommendations\x12D\n" +
-	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\"\x84\x02\n" +
+	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\x12.\n" +
+	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\"\x84\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12%\n" +
