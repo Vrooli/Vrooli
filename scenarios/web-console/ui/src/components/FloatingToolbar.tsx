@@ -57,6 +57,7 @@ interface FloatingToolbarProps {
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
+  onVoiceCancel?: () => void;
 }
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
@@ -78,6 +79,7 @@ export default function FloatingToolbar({
   voiceBackend,
   onVoiceStart,
   onVoiceStop,
+  onVoiceCancel,
 }: FloatingToolbarProps) {
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
@@ -177,32 +179,34 @@ export default function FloatingToolbar({
 
   // Voice button intent-based interaction (matches VoiceMicButton pattern)
   const voicePressStartRef = useRef(0);
-  const voiceIntentRef = useRef<"start" | "stop" | "none">("none");
+  const voiceIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
 
   const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent toolbar drag
     voicePressStartRef.current = Date.now();
     if (voiceTranscribing) {
-      voiceIntentRef.current = "none";
+      voiceIntentRef.current = onVoiceCancel ? "cancel" : "none";
     } else if (voiceRecording) {
       voiceIntentRef.current = "stop";
     } else {
       voiceIntentRef.current = "start";
       onVoiceStart?.({ vadEnabled: true });
     }
-  }, [voiceRecording, voiceTranscribing, onVoiceStart]);
+  }, [voiceRecording, voiceTranscribing, onVoiceStart, onVoiceCancel]);
 
   const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     const intent = voiceIntentRef.current;
     voiceIntentRef.current = "none";
-    if (intent === "stop") {
+    if (intent === "cancel") {
+      onVoiceCancel?.();
+    } else if (intent === "stop") {
       onVoiceStop?.();
     } else if (intent === "start" && Date.now() - voicePressStartRef.current >= VOICE_LONG_PRESS_MS) {
       onVoiceStop?.();
     }
-  }, [onVoiceStop]);
+  }, [onVoiceStop, onVoiceCancel]);
 
   // The dock tab indicator — renders on the visible edge
   const dockTab = docked ? (
@@ -274,7 +278,7 @@ export default function FloatingToolbar({
               voiceRecording
                 ? "Recording... tap to stop, or hold to talk"
                 : voiceTranscribing
-                  ? "Transcribing..."
+                  ? "Transcribing... tap to cancel"
                   : voiceError
                     ? `Voice error: ${voiceError}`
                     : `Tap to record, hold to talk${voiceBackend ? ` (${voiceBackend === "whisper" ? "Whisper" : "Browser"})` : ""}`

@@ -20,6 +20,7 @@ interface VoiceMicButtonProps {
   backend?: string;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
+  onCancel?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
   /** Extra classes for the inner button element. */
@@ -76,38 +77,41 @@ export default function VoiceMicButton({
   backend,
   onStart,
   onStop,
+  onCancel,
   className: wrapperClassName,
   buttonClassName,
 }: VoiceMicButtonProps) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const pressStartRef = useRef(0);
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
-  const pressIntentRef = useRef<"start" | "stop" | "none">("none");
+  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     pressStartRef.current = Date.now();
     if (isTranscribing) {
-      pressIntentRef.current = "none";
+      pressIntentRef.current = onCancel ? "cancel" : "none";
     } else if (isRecording) {
       pressIntentRef.current = "stop";
     } else {
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isRecording, isTranscribing, onStart]);
+  }, [isRecording, isTranscribing, onStart, onCancel]);
 
   const handlePointerUp = useCallback(() => {
     const intent = pressIntentRef.current;
     pressIntentRef.current = "none";
-    if (intent === "stop") {
+    if (intent === "cancel") {
+      onCancel?.();
+    } else if (intent === "stop") {
       onStop();
     } else if (intent === "start" && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
       // Long press release — push-to-talk: stop recording
       onStop();
     }
     // Short press on "start" — tap-to-toggle: keep recording
-  }, [onStop]);
+  }, [onStop, onCancel]);
 
   if (!supported) return null;
 
@@ -136,7 +140,7 @@ export default function VoiceMicButton({
           isRecording
             ? "Recording... tap to stop"
             : isTranscribing
-              ? "Transcribing..."
+              ? "Transcribing... tap to cancel"
               : hasError
                 ? `Voice error: ${error}`
                 : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`

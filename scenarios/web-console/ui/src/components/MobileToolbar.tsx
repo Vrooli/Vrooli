@@ -48,6 +48,7 @@ interface MobileToolbarProps {
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
+  onVoiceCancel?: () => void;
   onUploadImage?: () => void;
 }
 
@@ -65,6 +66,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceBackend,
   onVoiceStart,
   onVoiceStop,
+  onVoiceCancel,
   onUploadImage,
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
@@ -353,6 +355,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 backend={voiceBackend}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
+                onCancel={onVoiceCancel}
                 className="h-full"
                 buttonClassName="h-full px-3"
               />
@@ -426,6 +429,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               backend={voiceBackend}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
+              onCancel={onVoiceCancel}
             />
           )}
         </div>

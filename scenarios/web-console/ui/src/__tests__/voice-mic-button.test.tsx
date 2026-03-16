@@ -116,7 +116,7 @@ describe("VoiceMicButton", () => {
 
   it("shows transcribing title when transcribing", () => {
     render(<VoiceMicButton {...defaults} isTranscribing />);
-    expect(screen.getByTestId("voice-mic-btn").title).toBe("Transcribing...");
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("Transcribing... tap to cancel");
   });
 
   it("includes backend in idle title", () => {
@@ -181,5 +181,32 @@ describe("VoiceMicButton", () => {
     fireEvent.pointerUp(btn);
     // onStop called once from pointerCancel (which calls handlePointerUp)
     expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Cancel transcription ---
+
+  it("calls onCancel on tap when transcribing", () => {
+    const onCancel = vi.fn();
+    render(<VoiceMicButton {...defaults} isTranscribing onCancel={onCancel} />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on tap when transcribing without onCancel", () => {
+    render(<VoiceMicButton {...defaults} isTranscribing />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onStop).not.toHaveBeenCalled();
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("shows cancel hint in title when transcribing", () => {
+    render(<VoiceMicButton {...defaults} isTranscribing />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.title).toContain("cancel");
   });
 });

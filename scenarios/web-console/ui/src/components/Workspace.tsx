@@ -291,6 +291,10 @@ export default function Workspace() {
     voiceInput.stopRecording();
   }, [voiceInput]);
 
+  const handleVoiceCancel = useCallback(() => {
+    voiceInput.cancelTranscription();
+  }, [voiceInput]);
+
   // --- Mobile image upload ---
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -573,6 +577,7 @@ export default function Workspace() {
         voiceBackend={voiceInput.backend}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
+        onVoiceCancel={handleVoiceCancel}
       />
 
       {/* Voice fallback notice */}
@@ -684,6 +689,7 @@ export default function Workspace() {
           voiceBackend={voiceInput.backend}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
+          onVoiceCancel={handleVoiceCancel}
           onUploadImage={handleMobileUploadImage}
         />
         <input

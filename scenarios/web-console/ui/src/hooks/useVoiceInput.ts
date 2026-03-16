@@ -1127,6 +1127,33 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     provider.stop();
   }, [state.isRecording, state.backend, stopLevelMonitor]);
 
+  const cancelTranscription = useCallback(() => {
+    const provider = providerRef.current;
+    if (!provider || !state.isTranscribing) return;
+
+    console.info("[voice] Transcription cancelled");
+    // Null out callbacks so in-flight HTTP/WS operations don't update state
+    provider.onResult = null;
+    provider.onError = null;
+    if (provider.onPartial !== undefined) provider.onPartial = null;
+    provider.dispose();
+    providerRef.current = null;
+
+    if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+    vadActiveRef.current = false;
+    vadRef.current.state = "idle";
+    stopLevelMonitor();
+
+    setState((s) => ({
+      ...s,
+      isRecording: false,
+      isTranscribing: false,
+      error: null,
+      audioLevel: 0,
+      partialTranscript: "",
+    }));
+  }, [state.isTranscribing, stopLevelMonitor]);
+
   // Keep the ref in sync so the tick loop can call stopRecording
   stopRecordingRef.current = stopRecording;
 
@@ -1134,5 +1161,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     ...state,
     startRecording,
     stopRecording,
+    cancelTranscription,
   };
 }
