@@ -141,8 +141,6 @@ interface TranscriptionProvider {
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;
-  /** Optional pre-filtered stream. When set, providers use this instead of acquiring their own mic. */
-  inputStream?: MediaStream;
 }
 
 class WhisperProvider implements TranscriptionProvider {
@@ -150,7 +148,6 @@ class WhisperProvider implements TranscriptionProvider {
   private chunks: Blob[] = [];
   private stream: MediaStream | null = null;
   language = "en";
-  inputStream?: MediaStream;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
 
@@ -160,7 +157,7 @@ class WhisperProvider implements TranscriptionProvider {
 
   async start(): Promise<void> {
     try {
-      this.stream = this.inputStream ?? await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       this.onError?.("Microphone access denied");
       return;
@@ -176,11 +173,8 @@ class WhisperProvider implements TranscriptionProvider {
       if (e.data.size > 0) this.chunks.push(e.data);
     };
     this.mediaRecorder.onstop = async () => {
-      // Only release mic if we acquired it (not if it was injected via inputStream).
-      if (!this.inputStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
-      }
+      this.stream?.getTracks().forEach((t) => t.stop());
+      this.stream = null;
 
       const blob = new Blob(this.chunks, { type: "audio/webm" });
       this.chunks = [];
@@ -199,7 +193,7 @@ class WhisperProvider implements TranscriptionProvider {
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
       // Mic release happens in onstop after final data is flushed.
-    } else if (!this.inputStream) {
+    } else {
       this.stream?.getTracks().forEach((t) => t.stop());
       this.stream = null;
     }
@@ -209,10 +203,8 @@ class WhisperProvider implements TranscriptionProvider {
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
     }
-    if (!this.inputStream) {
-      this.stream?.getTracks().forEach((t) => t.stop());
-      this.stream = null;
-    }
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
   }
 }
 
@@ -318,8 +310,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
   private allChunks: Blob[] = [];
   private static readonly MAX_RECONNECTS = 2;
   private static readonly RECONNECT_DELAYS = [1_000, 3_000];
+  private firstPartialLogged = false;
   language = "en";
-  inputStream?: MediaStream;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
@@ -333,6 +325,10 @@ class VoiceStreamProvider implements TranscriptionProvider {
       try {
         const msg = JSON.parse(event.data as string) as { type: string; text?: string };
         if (msg.type === "partial" && msg.text) {
+          if (!this.firstPartialLogged) {
+            console.info("[voice] First partial received");
+            this.firstPartialLogged = true;
+          }
           this.onPartial?.(msg.text);
         } else if (msg.type === "final") {
           this.finalReceived = true;
@@ -358,6 +354,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
     };
 
     ws.onclose = () => {
+      console.info("[voice] WebSocket closed, finalReceived:", this.finalReceived);
       if (this.finalReceived || this.intentionallyStopped) return;
 
       // Attempt reconnect with exponential backoff if recording is still active.
@@ -421,7 +418,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
 
   async start(): Promise<void> {
     try {
-      this.stream = this.inputStream ?? await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       this.onError?.("Microphone access denied");
       return;
@@ -430,6 +427,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
     this.wsUrl = buildVoiceStreamWsUrl(this.language);
     this.ws = new WebSocket(this.wsUrl);
     this.finalReceived = false;
+    this.firstPartialLogged = false;
     this.reconnectAttempt = 0;
     this.intentionallyStopped = false;
     this.recordingStartTime = Date.now();
@@ -437,6 +435,7 @@ class VoiceStreamProvider implements TranscriptionProvider {
     this.allChunks = [];
 
     this.ws.onopen = () => {
+      console.info("[voice] WebSocket connected");
       if (!this.stream) return;
       this.mediaRecorder = new MediaRecorder(this.stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -473,20 +472,16 @@ class VoiceStreamProvider implements TranscriptionProvider {
         if (this.ws?.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ type: "done" }));
         }
-        if (!this.inputStream) {
-          this.stream?.getTracks().forEach((t) => t.stop());
-          this.stream = null;
-        }
+        this.stream?.getTracks().forEach((t) => t.stop());
+        this.stream = null;
       };
       this.mediaRecorder.stop();
     } else {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "done" }));
       }
-      if (!this.inputStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
-      }
+      this.stream?.getTracks().forEach((t) => t.stop());
+      this.stream = null;
     }
 
     if (!this.finalReceived) {
@@ -512,10 +507,8 @@ class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.ws?.close();
     this.ws = null;
-    if (!this.inputStream) {
-      this.stream?.getTracks().forEach((t) => t.stop());
-      this.stream = null;
-    }
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
     this.pendingChunks = [];
   }
 }
@@ -697,16 +690,18 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const audioLevelRef = useRef(0);
   const levelSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const filteredStreamRef = useRef<MediaStream | null>(null);
-
   // VAD refs
   const vadRef = useRef<VadRefs>(createVadRefs());
   const vadActiveRef = useRef(false);
   // Ref to allow stopRecording to be called from inside the tick loop
   const stopRecordingRef = useRef<(() => void) | null>(null);
+  // Track VAD state for diagnostic logging (only log on transitions)
+  const prevVadStateRef = useRef<string>("idle");
   // Keep silence timeout in a ref so the rAF tick loop always reads the latest value.
   const vadSilenceTimeoutRef = useRef(vadSilenceTimeoutMs);
   vadSilenceTimeoutRef.current = vadSilenceTimeoutMs;
+  // Timer to warn if no audio is detected after recording starts
+  const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startLevelMonitor = useCallback((stream: MediaStream) => {
     try {
@@ -721,9 +716,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       }
 
       const source = ctx.createMediaStreamSource(stream);
-      const { analyser, filteredStream } = createAudioFilterChain(ctx, source);
+      const { analyser } = createAudioFilterChain(ctx, source);
       analyserRef.current = analyser;
-      filteredStreamRef.current = filteredStream;
 
       const data = new Uint8Array(analyser.frequencyBinCount);
       lastTickRef.current = 0;
@@ -756,7 +750,13 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
         // VAD check
         if (vadActiveRef.current) {
+          const prevState = vadRef.current.state;
           const result = vadTick(vadRef.current, rms, Date.now(), vadSilenceTimeoutRef.current);
+          if (vadRef.current.state !== prevState) {
+            console.debug("[voice] VAD:", prevState, "\u2192", vadRef.current.state,
+              "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
+            prevVadStateRef.current = vadRef.current.state;
+          }
           if (result === "stop") {
             stopRecordingRef.current?.();
           } else if (result === "no-speech") {
@@ -806,6 +806,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
         if (whisper?.status === "available") {
           streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
+          console.info("[voice] Backend: whisper, features:", whisper.features);
           setState((s) => ({ ...s, supported: true, backend: "whisper" }));
           return;
         }
@@ -818,10 +819,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // Check if Web Speech API is available (no mic request needed)
       const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
       if (Ctor) {
+        console.info("[voice] Backend: web-speech (Whisper unavailable)");
         setState((s) => ({ ...s, supported: true, backend: "web-speech" }));
         return;
       }
 
+      console.info("[voice] Backend: none (no voice backend available)");
       setState((s) => ({ ...s, supported: false, backend: "none" }));
     })();
 
@@ -831,6 +834,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       providerRef.current = null;
       audioCtxRef.current?.close().catch(() => {});
       audioCtxRef.current = null;
+      if (noAudioTimerRef.current) {
+        clearTimeout(noAudioTimerRef.current);
+        noAudioTimerRef.current = null;
+      }
     };
   }, [voiceEnabled]);
 
@@ -873,6 +880,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           }
         } else {
           // Whisper is available — reset failure counter and recover if needed
+          console.info("[voice] Capability check: Whisper available");
           capCheckFailCountRef.current = 0;
           if (state.backend === "web-speech") {
             // Recover from previous fallback
@@ -899,8 +907,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         providerRef.current = streamingAvailableRef.current
           ? new VoiceStreamProvider()
           : new WhisperProvider();
+        console.info("[voice] Provider:", streamingAvailableRef.current ? "VoiceStream" : "WhisperHTTP");
       } else if (backendRef.current === "web-speech") {
         providerRef.current = new WebSpeechProvider();
+        console.info("[voice] Provider: WebSpeech");
       } else {
         return;
       }
@@ -918,6 +928,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         : voiceLanguage;
     }
     provider.onResult = (text) => {
+      console.info("[voice] Transcript:", text.length, "chars");
+      if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
       vadActiveRef.current = false;
       vadRef.current.state = "idle";
       stopLevelMonitor();
@@ -925,6 +937,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       onTranscriptRef.current(text);
     };
     provider.onError = (error) => {
+      if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
       vadActiveRef.current = false;
       vadRef.current.state = "idle";
       stopLevelMonitor();
@@ -968,11 +981,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       };
     }
 
-    // Inject filtered stream for Whisper-based providers (not WebSpeech — it has its own mic).
-    if (filteredStreamRef.current && !(provider instanceof WebSpeechProvider)) {
-      provider.inputStream = filteredStreamRef.current;
-    }
-
     // Clear previous error but don't set isRecording yet — provider.start()
     // may trigger a permission prompt. We only show recording state after
     // the mic is actually acquired.
@@ -991,8 +999,18 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         vadRef.current.recordingStart = Date.now();
       }
 
+      console.info("[voice] Recording started");
       setState((s) => ({ ...s, isRecording: true }));
       startLevelMonitor(stream);
+
+      // Warn if no audio detected after 2s (catches dead/muted mics)
+      if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current);
+      noAudioTimerRef.current = setTimeout(() => {
+        if (audioLevelRef.current === 0) {
+          setState((s) => s.isRecording ? { ...s, error: "No audio detected \u2014 check your microphone" } : s);
+          console.warn("[voice] No audio detected after 2s");
+        }
+      }, 2000);
     }
   }, [state.isRecording, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor]);
 
@@ -1000,6 +1018,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     const provider = providerRef.current;
     if (!provider || !state.isRecording) return;
 
+    console.info("[voice] Recording stopped");
+    if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();

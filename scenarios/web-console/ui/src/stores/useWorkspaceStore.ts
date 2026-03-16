@@ -40,6 +40,8 @@ interface WorkspaceState {
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
+  /** Recently used key combo IDs for the combo picker. Max 5, most recent first. */
+  recentCombos: string[];
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
 }
@@ -74,6 +76,7 @@ interface WorkspaceActions {
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
   resetLayout: () => void;
+  addRecentCombo: (comboId: string) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
 }
@@ -105,7 +108,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
+      recentCombos: [],
       modifiers: { ctrl: false, alt: false, shift: false },
+
+      addRecentCombo: (comboId) =>
+        set((state) => {
+          const filtered = state.recentCombos.filter((id) => id !== comboId);
+          return { recentCombos: [comboId, ...filtered].slice(0, 5) };
+        }),
 
       addPane: (sessionId, name, activate) =>
         set((state) => {
@@ -200,7 +210,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -220,6 +230,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }
         if (version < 4) {
           state.toolbarLayout ??= "expanded";
+        }
+        if (version < 5) {
+          state.recentCombos ??= [];
         }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
@@ -242,6 +255,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         defaultHeaderColor: state.defaultHeaderColor,
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,
+        recentCombos: state.recentCombos,
       }),
     },
   ),

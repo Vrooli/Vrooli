@@ -5,6 +5,7 @@ import { Image, Maximize2, Minimize2, SendHorizontal } from "lucide-react";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
+import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 import { slugify } from "../lib/slugify";
@@ -44,6 +45,7 @@ interface MobileToolbarProps {
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
   voicePartialTranscript?: string;
+  voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
   onUploadImage?: () => void;
@@ -60,6 +62,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceError,
   voiceLevel,
   voicePartialTranscript,
+  voiceBackend,
   onVoiceStart,
   onVoiceStop,
   onUploadImage,
@@ -243,9 +246,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           style={{ gridTemplateColumns: "auto auto 1fr auto", gridTemplateRows: "auto auto" }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          {/* Column 1: Modifiers (row 1) + Special keys (row 2) */}
+          {/* Column 1: Combo picker + Modifiers (row 1) + Special keys (row 2) */}
           <div className="flex flex-col gap-0.5" style={{ gridRow: "1 / -1" }}>
             <div className="flex items-center gap-0.5">
+              <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
+              <div className="w-px h-5 bg-wc-default shrink-0" />
               {(["ctrl", "alt", "shift"] as const).map((mod) => (
                 <button
                   key={mod}
@@ -337,6 +342,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 error={voiceError ?? null}
                 audioLevel={voiceLevel}
                 partialTranscript={voicePartialTranscript}
+                backend={voiceBackend}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
                 className="h-full"
@@ -352,7 +358,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
           onMouseDown={(e) => e.preventDefault()}
         >
-          {/* Modifier toggle buttons */}
+          {/* Combo picker + Modifier toggle buttons */}
+          <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
+          <div className="w-px h-4 bg-wc-default shrink-0" />
           {(["ctrl", "alt", "shift"] as const).map((mod) => (
             <button
               key={mod}
@@ -408,6 +416,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               error={voiceError ?? null}
               audioLevel={voiceLevel}
               partialTranscript={voicePartialTranscript}
+              backend={voiceBackend}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
             />

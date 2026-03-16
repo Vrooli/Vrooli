@@ -91,6 +91,9 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	sessionStart := time.Now()
+	log.Printf("voice-ws: session opened, language=%q", language)
+
 	var writeMu sync.Mutex
 
 	writeJSON := func(msg VoiceStreamMessage) error {
@@ -116,6 +119,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var previousTranscript string
 	var totalPartialBytes int
 	var accumulatedTranscript string
+	var partialCount int
 	go func() {
 		ticker := time.NewTicker(voiceStreamFlushInterval)
 		defer ticker.Stop()
@@ -174,12 +178,15 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				firstTick = false
 
 				prompt := lastNWords(accumulatedTranscript, 10)
+				t0 := time.Now()
 				text, err := transcribeBytes(ctx, sendData, language, false, prompt)
 				if err != nil {
-					log.Printf("voice-ws: partial transcribe: %v", err)
+					log.Printf("voice-ws: partial transcribe failed (%v): %v", time.Since(t0), err)
 					continue
 				}
+				log.Printf("voice-ws: partial transcribed %d bytes in %v", len(sendData), time.Since(t0))
 				totalPartialBytes += deltaSize
+				partialCount++
 				text = strings.TrimSpace(text)
 				if text == "" {
 					continue
@@ -200,6 +207,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Input loop: read binary audio chunks and JSON control messages.
+	firstChunk := true
 	for {
 		msgType, data, err := conn.ReadMessage()
 		if err != nil {
@@ -207,6 +215,10 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if msgType == websocket.BinaryMessage {
+			if firstChunk {
+				log.Printf("voice-ws: first audio chunk, size=%d bytes", len(data))
+				firstChunk = false
+			}
 			bufMu.Lock()
 			audioBuffer.Write(data)
 			bufMu.Unlock()
@@ -225,6 +237,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	close(done)
+
+	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d", audioBuffer.Len(), partialCount)
 
 	// Pipeline: transcribe any un-transcribed tail from the last partial
 	// offset. This often pushes coverage above the threshold, avoiding the
@@ -262,6 +276,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	bufMu.Unlock()
 
 	if len(finalAudio) == 0 {
+		log.Printf("voice-ws: session closed, duration=%v, audioBytes=0, partials=%d, strategy=empty", time.Since(sessionStart), partialCount)
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: ""})
 		return
 	}
@@ -269,7 +284,9 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Use accumulated partials when coverage is sufficient.
 	if accumulatedTranscript != "" {
 		coverage := float64(totalPartialBytes) / float64(len(finalAudio))
+		log.Printf("voice-ws: coverage=%.1f%% (threshold=%.0f%%), transcript=%d chars", coverage*100, skipFinalCoverageThreshold*100, len(accumulatedTranscript))
 		if coverage >= skipFinalCoverageThreshold {
+			log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=coverage-skip", time.Since(sessionStart), len(finalAudio), partialCount)
 			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(accumulatedTranscript)})
 			return
 		}
@@ -282,6 +299,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=full-retranscribe", time.Since(sessionStart), len(finalAudio), partialCount)
 	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
 }
 

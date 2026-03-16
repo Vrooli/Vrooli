@@ -12,6 +12,7 @@ Last updated: 2026-03-15
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
 - [CODE: ui/src/components/MobileToolbar.tsx] — Floating key toolbar for mobile input injection
+- [CODE: ui/src/components/KeyComboPicker.tsx] — Bottom sheet picker for sending key combos with a single tap
 
 ### 1b. Session Orchestration
 **Owner**: [CODE: ui/src/hooks/useSessionManager.ts]
@@ -199,6 +200,17 @@ Last updated: 2026-03-15
 
 **Benefits**: Time-dependent local echo behavior (stale prediction reset, overflow cap) can be tested deterministically without real delays. The clock injection is a single constructor parameter with a sensible default.
 
+### Combo Sequence Delay Seam (UI)
+**File**: `ui/src/lib/comboSequence.ts`
+**Purpose**: Decouple multi-step key combo timing from real `setTimeout` for deterministic tests.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `DelayFn` parameter | Default `setTimeout`-based delay | Synchronous `vi.fn(() => Promise.resolve())` |
+| `sendComboSequence(steps, onInput, delay?)` | Sends steps with real timing gaps | Sends steps instantly with tracked delay calls |
+
+**Benefits**: Multi-step combos (e.g., Ctrl+C ×2 with 80ms gap) can be tested without real timers. Delay call assertions verify correct timing values.
+
 ### Capability Registry Seam (API)
 **File**: `api/capabilities.go`, `api/capabilities_checkers.go`
 **Purpose**: Decouple capability detection from specific service health checks, enabling testable capability discovery.
@@ -273,11 +285,11 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 **Files to touch**: `consts/shortcuts.ts` (data), optionally `TerminalLauncher.tsx` (if UI changes needed)
 **Test coverage**: `shortcuts.test.ts` validates structural invariants (uniqueness, non-empty, PRD compliance)
 
-### Axis 2: Toolbar Keys (P0-007)
-**What changes**: Adding/removing mobile toolbar keys and escape sequences
-**Cost**: Already low — `TOOLBAR_KEYS` array in `MobileToolbar.tsx` is declarative and self-contained
-**Files to touch**: `MobileToolbar.tsx` (add entry to array)
-**Test coverage**: `toolbar-keys.test.ts` validates escape sequences per key
+### Axis 2: Toolbar Keys & Key Combos (P0-007)
+**What changes**: Adding/removing mobile toolbar keys, escape sequences, or key combos
+**Cost**: Already low — `TOOLBAR_KEYS` in `consts/toolbar-keys.ts` and `KEY_COMBOS` in `consts/key-combos.ts` are declarative arrays
+**Files to touch**: `consts/toolbar-keys.ts` (single keys), `consts/key-combos.ts` (multi-step combos)
+**Test coverage**: `toolbar-keys.test.ts` validates escape sequences; `key-combos.test.ts` validates combo definitions and search filter
 
 ### Axis 3: Error Codes & Recovery (API + UI)
 **What changes**: Adding new error types, adjusting recovery hints, new categories
@@ -324,7 +336,8 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 | `consts/config.ts` | **Volatile edge** | UI tunables — expected to grow with new features |
 | `config.go` | **Volatile edge** | API tunables — expected to grow with new policies (P1-001) |
 | `errorCatalog` (session_handlers.go) | **Volatile edge** | Error definitions — grows with new error paths |
-| `TOOLBAR_KEYS` (MobileToolbar.tsx) | **Volatile edge** | Key definitions — grows with new mobile keys |
+| `TOOLBAR_KEYS` (consts/toolbar-keys.ts) | **Volatile edge** | Single-key definitions — grows with new mobile keys |
+| `KEY_COMBOS` (consts/key-combos.ts) | **Volatile edge** | Multi-step combo definitions — grows with new terminal key combos |
 | `ErrorBanner.tsx` | **Volatile edge** | Error display — changes with new recovery UX |
 | `Workspace.tsx` | **Mixed** | Layout is stable; wiring to hooks is stable; grid behavior may evolve |
 

@@ -1,0 +1,158 @@
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { Search, SquareSlash } from "lucide-react";
+import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
+import { sendComboSequence } from "../lib/comboSequence";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { cn } from "../lib/classnames";
+
+interface KeyComboPickerProps {
+  /** Callback to inject input into the active terminal. */
+  onInput: (data: string) => boolean;
+  /** Move focus to the active terminal after sending a combo. */
+  onFocusTerminal?: () => void;
+}
+
+export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const recentCombos = useWorkspaceStore((s) => s.recentCombos);
+  const addRecentCombo = useWorkspaceStore((s) => s.addRecentCombo);
+
+  // Focus search input when sheet opens
+  useEffect(() => {
+    if (open) {
+      // Small delay to allow portal to mount
+      const id = setTimeout(() => searchRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+    setSearchQuery("");
+  }, [open]);
+
+  const filtered = useMemo(() => filterCombos(KEY_COMBOS, searchQuery), [searchQuery]);
+
+  const recentItems = useMemo(() => {
+    if (searchQuery) return [];
+    return recentCombos
+      .map((id) => KEY_COMBOS.find((c) => c.id === id))
+      .filter((c): c is KeyCombo => c !== undefined);
+  }, [recentCombos, searchQuery]);
+
+  const handleSelect = useCallback(
+    (combo: KeyCombo) => {
+      setOpen(false);
+      void sendComboSequence(combo.sequence, onInput);
+      addRecentCombo(combo.id);
+      onFocusTerminal?.();
+    },
+    [onInput, onFocusTerminal, addRecentCombo],
+  );
+
+  const comboButton = (combo: KeyCombo, testIdPrefix: string) => (
+    <button
+      key={combo.id}
+      data-testid={`${testIdPrefix}-${combo.id}`}
+      tabIndex={-1}
+      onPointerDown={(e) => e.preventDefault()}
+      onClick={() => handleSelect(combo)}
+      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition active:bg-wc-accent-active hover:bg-wc-surface-input"
+    >
+      <span className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-0.5 font-mono text-xs text-wc-text-primary">
+        {combo.keys}
+      </span>
+      <span className="min-w-0 truncate text-wc-text-secondary">{combo.label}</span>
+    </button>
+  );
+
+  return (
+    <>
+      {/* Trigger button */}
+      <button
+        data-testid="combo-picker-trigger"
+        tabIndex={-1}
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={() => setOpen(true)}
+        className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+        title="Key combos"
+      >
+        <SquareSlash className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Bottom sheet */}
+      {open &&
+        createPortal(
+          // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- mousedown prevention preserves terminal focus
+          <div
+            className="fixed inset-0 z-40"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {/* Backdrop */}
+            <div
+              data-testid="combo-picker-backdrop"
+              className="absolute inset-0 bg-wc-backdrop"
+              onClick={() => setOpen(false)}
+            />
+            {/* Panel */}
+            <div
+              data-testid="combo-picker-panel"
+              className="absolute bottom-0 left-0 right-0 z-50 flex max-h-[60vh] flex-col rounded-t-xl border-t border-wc-default bg-wc-surface-raised shadow-2xl"
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center py-2">
+                <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
+              </div>
+
+              {/* Search */}
+              <div className="flex items-center gap-2 border-b border-wc-default px-3 pb-2">
+                <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
+                <input
+                  ref={searchRef}
+                  data-testid="combo-picker-search"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search combos…"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
+                />
+              </div>
+
+              {/* Scrollable list */}
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                {/* Recent section */}
+                {recentItems.length > 0 && (
+                  <div className="mb-2">
+                    <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+                      Recent
+                    </h3>
+                    {recentItems.map((c) => comboButton(c, "combo-recent"))}
+                  </div>
+                )}
+
+                {/* Category sections */}
+                {CATEGORY_ORDER.map((cat) => {
+                  const items = filtered.filter((c) => c.category === cat);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={cat} className="mb-2">
+                      <h3 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
+                        {cat}
+                      </h3>
+                      {items.map((c) => comboButton(c, "combo-item"))}
+                    </div>
+                  );
+                })}
+
+                {filtered.length === 0 && (
+                  <p className="px-2 py-4 text-center text-sm text-wc-text-muted">
+                    No combos match &ldquo;{searchQuery}&rdquo;
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}

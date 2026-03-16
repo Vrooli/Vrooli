@@ -559,6 +559,7 @@ export default function Workspace() {
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
         voicePartialTranscript={voiceInput.partialTranscript}
+        voiceBackend={voiceInput.backend}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
       />
@@ -669,6 +670,7 @@ export default function Workspace() {
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
           voicePartialTranscript={voiceInput.partialTranscript}
+          voiceBackend={voiceInput.backend}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
           onUploadImage={handleMobileUploadImage}

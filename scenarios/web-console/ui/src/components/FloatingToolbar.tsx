@@ -54,6 +54,7 @@ interface FloatingToolbarProps {
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
   voicePartialTranscript?: string;
+  voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
 }
@@ -74,6 +75,7 @@ export default function FloatingToolbar({
   voiceError,
   voiceLevel = 0,
   voicePartialTranscript,
+  voiceBackend,
   onVoiceStart,
   onVoiceStop,
 }: FloatingToolbarProps) {
@@ -269,7 +271,7 @@ export default function FloatingToolbar({
                   ? "Transcribing..."
                   : voiceError
                     ? `Voice error: ${voiceError}`
-                    : "Tap to record, hold to talk"
+                    : `Tap to record, hold to talk${voiceBackend ? ` (${voiceBackend === "whisper" ? "Whisper" : "Browser"})` : ""}`
             }
             tabIndex={docked ? -1 : undefined}
           >

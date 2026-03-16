@@ -16,6 +16,8 @@ interface VoiceMicButtonProps {
   audioLevel?: number;
   /** Live partial transcript from streaming transcription. */
   partialTranscript?: string;
+  /** Active voice backend, shown in tooltip for diagnostics. */
+  backend?: string;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
@@ -71,6 +73,7 @@ export default function VoiceMicButton({
   error,
   audioLevel = 0,
   partialTranscript,
+  backend,
   onStart,
   onStop,
   className: wrapperClassName,
@@ -130,7 +133,7 @@ export default function VoiceMicButton({
               ? "Transcribing..."
               : hasError
                 ? `Voice error: ${error}`
-                : "Tap to speak"
+                : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
         }
       >
         {/* Audio level fill — rises from bottom */}
