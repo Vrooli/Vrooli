@@ -28,7 +28,6 @@ import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
 import FloatingToolbar from "./FloatingToolbar";
 import WorkspaceMinimap from "./WorkspaceMinimap";
-import SessionsModal from "./SessionsModal";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ConfirmCloseDialog from "./ConfirmCloseDialog";
@@ -267,9 +266,9 @@ export default function Workspace() {
   useEffect(() => {
     if (!store.activePane || isMobile) return;
     // Don't steal focus from open modals
-    if (store.settingsModalOpen || store.sessionsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
+    if (store.settingsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
     focusActiveTerminal(store.activePane);
-  }, [store.activePane, isMobile, store.settingsModalOpen, store.sessionsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
+  }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {
@@ -562,7 +561,6 @@ export default function Workspace() {
     >
       {/* Floating toolbar */}
       <FloatingToolbar
-        onOpenSessions={() => store.setSessionsModalOpen(true)}
         onOpenSettings={() => store.setSettingsModalOpen(true)}
         onOpenAi={() => store.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
@@ -711,14 +709,11 @@ export default function Workspace() {
         isCreating={isCreating}
       />
 
-      {/* Sessions Modal */}
-      <SessionsModal
+      {/* Settings Modal */}
+      <SettingsModal
         sessions={sessionPanes}
         onDeleteSession={handleRequestClose}
       />
-
-      {/* Settings Modal */}
-      <SettingsModal />
 
       {/* Appearance Modal */}
       <AppearanceModal />

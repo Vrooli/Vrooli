@@ -279,7 +279,6 @@ const literalSelectors: LiteralSelectorTree = {
   workspace: {
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
-    drawerToggle: 'drawer-toggle',
     paneContainer: 'terminal-pane-container',
   },
   terminal: {
@@ -291,23 +290,12 @@ const literalSelectors: LiteralSelectorTree = {
     customInput: 'launcher-custom-input',
     customLaunch: 'launcher-custom-launch',
   },
-  drawer: {
-    panel: 'session-drawer',
-    backdrop: 'drawer-backdrop',
-    close: 'drawer-close',
-  },
   nav: {
-    sessions: 'nav-sessions',
     settings: 'nav-settings',
   },
   settings: {
-    back: 'settings-back',
     error: 'settings-error',
     createProfile: 'create-profile',
-  },
-  sessions: {
-    back: 'sessions-back',
-    refresh: 'sessions-refresh',
   },
   toolbar: {
     container: 'mobile-toolbar',

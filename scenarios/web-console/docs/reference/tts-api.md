@@ -69,9 +69,10 @@ Returns runtime diagnostics for auto-TTS, including hook registration state and 
     "kokoroSpeed": 1.0
   },
   "hookRegistered": true,
+  "hookCode": "hook_registered",
   "hookReason": "Claude Stop hook is registered",
   "hookSettingsPath": "/home/user/Vrooli/.claude/settings.json",
-  "lastDelivery": {
+  "lastHookDelivery": {
     "delivered": true,
     "code": "tts_delivered",
     "reason": "TTS text was delivered to the terminal session",
@@ -79,13 +80,29 @@ Returns runtime diagnostics for auto-TTS, including hook registration state and 
     "sessionId": "sess-123",
     "usedTargetSession": true
   },
-  "lastDeliveryAt": "2026-03-17T20:55:12Z",
+  "lastHookDeliveryAt": "2026-03-17T20:55:12Z",
+  "lastTailerDelivery": {
+    "delivered": false,
+    "code": "tts_delivery_target_missing",
+    "reason": "No active terminal session is available for TTS delivery",
+    "source": "codex_tailer",
+    "usedTargetSession": false
+  },
+  "lastTailerDeliveryAt": "2026-03-17T20:55:10Z",
   "kokoroCapability": "available",
   "kokoroCapabilityLabel": "resource is healthy"
 }
 ```
 
 This endpoint is intended for settings/diagnostics UI rather than long-term persistence.
+
+`hookCode` is a stable machine-readable hook diagnostic:
+- `hook_registered`
+- `hook_missing_file`
+- `hook_missing`
+- `hook_stale`
+- `hook_invalid_json`
+- `hook_read_failed`
 
 ---
 
@@ -155,20 +172,25 @@ Returns available Kokoro TTS voices.
 
 Receives assistant response text from Claude Code's stop hook for TTS delivery.
 
-**Authentication**: `X-Hook-Token` header with the server-generated hook token (stored in `store/hook-token.txt`).
+**Authentication**: `X-Hook-Token` header with the server-generated hook token (stored in state and mirrored in the project-level Claude hook entry).
+
+The canonical Claude project hook file is `.claude/settings.json` in the repository root. The `claude-code` resource owns reconciling this file; `web-console` declares the desired hook and delegates the write/heal operation to the resource seam.
 
 **Request body**:
 ```json
 {
-  "assistantResponse": "The answer is 42.",
-  "sessionId": "optional-session-id"
+  "hook_event_name": "Stop",
+  "last_assistant_message": "The answer is 42.",
+  "session_id": "optional-session-id"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `assistantResponse` | string | Yes | Full text of the AI assistant's response |
-| `sessionId` | string | No | Target terminal session. When omitted, delivery falls back to the active pane. |
+| `last_assistant_message` | string | Yes | Full text of the AI assistant's response |
+| `session_id` | string | No | Target terminal session. When omitted, delivery falls back to the active pane. |
+| `assistantResponse` | string | Legacy | Backward-compatible alias for `last_assistant_message` |
+| `sessionId` | string | Legacy | Backward-compatible alias for `session_id` |
 
 **Response** `200 OK`:
 ```json
@@ -215,10 +237,11 @@ TTS messages are **not** written to the terminal — they are handled by the `on
 
 ### Delivery Pipeline
 
-1. Assistant response arrives via hook (`POST /hooks/stop`) or CodexTailer (rollout file polling)
-2. `deliverTTS()` validates: auto-TTS enabled → target session (or active pane) exists → ANSI stripped → text found in output history → dedup check
-3. `SendTTS()` fans out to all WebSocket subscribers on that session (non-blocking; drops if channel full)
-4. Client receives `tts` message → splits into paragraphs → speaks via the runtime backend decision (`auto`, strict `kokoro`, or strict `browser`)
+1. `web-console` asks the `claude-code` resource to reconcile the project-level `.claude/settings.json` Stop hook
+2. Assistant response arrives via hook (`POST /hooks/stop`) or CodexTailer (rollout file polling)
+3. `deliverTTS()` validates: auto-TTS enabled → target session (or active pane) exists → ANSI stripped → text found in output history → dedup check
+4. `SendTTS()` fans out to all WebSocket subscribers on that session (non-blocking; drops if channel full)
+5. Client receives `tts` message → splits into paragraphs → speaks via the runtime backend decision (`auto`, strict `kokoro`, or strict `browser`)
 
 ### Error Codes Reference
 

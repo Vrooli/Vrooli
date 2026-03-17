@@ -11,12 +11,14 @@ setup() {
 
     # Create temp directories for test settings files
     TEST_TMP_DIR=$(mktemp -d)
+    export HOME="$TEST_TMP_DIR/home"
     TEST_PROJECT_DIR="$TEST_TMP_DIR/project/.claude"
-    TEST_GLOBAL_DIR="$TEST_TMP_DIR/global/.claude"
+    TEST_GLOBAL_DIR="$HOME/.claude"
     mkdir -p "$TEST_PROJECT_DIR" "$TEST_GLOBAL_DIR"
 
     export CLAUDE_PROJECT_SETTINGS="$TEST_PROJECT_DIR/settings.json"
     export CLAUDE_SETTINGS_FILE="$TEST_GLOBAL_DIR/settings.json"
+    export CLAUDE_PROJECT_ROOT="$TEST_TMP_DIR/project"
 
     # Stub log functions (hooks.sh uses log::error)
     log::error() { echo "ERROR: $*" >&2; }
@@ -98,6 +100,12 @@ teardown() {
     [ "$result" = '"http"' ]
     result=$(jq '.hooks.Stop[0].matcher' "$CLAUDE_PROJECT_SETTINGS")
     [ "$result" = '"*"' ]
+}
+
+@test "settings_path resolves project scope from canonical project root" {
+    run claude_code::settings_path "project"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$CLAUDE_PROJECT_SETTINGS" ]
 }
 
 @test "hooks_add creates hook in empty/missing settings file (global scope)" {
@@ -324,4 +332,34 @@ teardown() {
     local has_hooks
     has_hooks=$(jq 'has("hooks")' "$CLAUDE_PROJECT_SETTINGS")
     [ "$has_hooks" = "true" ]
+}
+
+@test "hooks_reconcile returns unchanged when hook already matches" {
+    run claude_code::hooks_reconcile "Stop" "reconcile-hook" '{"type":"http","url":"http://same"}' "project"
+    [ "$status" -eq 0 ]
+    first="$output"
+
+    run claude_code::hooks_reconcile "Stop" "reconcile-hook" '{"type":"http","url":"http://same"}' "project"
+    [ "$status" -eq 0 ]
+
+    result_status=$(echo "$output" | jq -r '.status')
+    result_code=$(echo "$output" | jq -r '.code')
+    [ "$result_status" = "unchanged" ]
+    [ "$result_code" = "hook_unchanged" ]
+
+    count=$(jq '.hooks.Stop | length' "$CLAUDE_PROJECT_SETTINGS")
+    [ "$count" -eq 1 ]
+    [ -n "$first" ]
+}
+
+@test "hooks_reconcile fails when settings file is invalid JSON" {
+    echo "not-json" > "$CLAUDE_PROJECT_SETTINGS"
+
+    run claude_code::hooks_reconcile "Stop" "bad-settings" '{"type":"http","url":"http://same"}' "project"
+    [ "$status" -eq 1 ]
+
+    result_status=$(echo "$output" | jq -r '.status')
+    result_code=$(echo "$output" | jq -r '.code')
+    [ "$result_status" = "failed" ]
+    [ "$result_code" = "settings_invalid_json" ]
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import Workspace from "../components/Workspace";
 import type { SessionInfo } from "../lib/api";
@@ -64,7 +64,6 @@ const mockStoreState = {
   isMinimapVisible: true,
   displayMode: "grid",
   settingsModalOpen: false,
-  sessionsModalOpen: false,
   aiModalOpen: false,
 };
 
@@ -83,7 +82,6 @@ const mockStoreActions = {
   setMinimapVisible: vi.fn(),
   setDisplayMode: vi.fn(),
   setSettingsModalOpen: vi.fn(),
-  setSessionsModalOpen: vi.fn(),
   setAiModalOpen: vi.fn(),
   resetLayout: vi.fn(),
 };
@@ -141,7 +139,9 @@ vi.mock("../components/TerminalLauncher", () => ({
 }));
 
 vi.mock("../components/MobileToolbar", () => ({
-  default: vi.fn(() => <div data-testid="mock-mobile-toolbar" />),
+  default: forwardRef<HTMLDivElement>(function MockMobileToolbar(_, ref) {
+    return <div ref={ref} data-testid="mock-mobile-toolbar" />;
+  }),
 }));
 
 vi.mock("../components/AiInput", () => ({
@@ -149,21 +149,16 @@ vi.mock("../components/AiInput", () => ({
 }));
 
 vi.mock("../components/FloatingToolbar", () => ({
-  default: vi.fn(({ onOpenSessions, onOpenSettings, onNewTerminal, onOpenLauncher, isCreating: creating }: {
-    onOpenSessions: () => void; onOpenSettings: () => void;
+  default: vi.fn(({ onOpenSettings, onNewTerminal, onOpenLauncher, isCreating: creating }: {
+    onOpenSettings: () => void;
     onNewTerminal: () => void; onOpenLauncher: () => void; isCreating: boolean;
   }) => (
     <div data-testid="floating-toolbar">
-      <button data-testid="toolbar-sessions" onClick={onOpenSessions}>Sessions</button>
       <button data-testid="toolbar-settings" onClick={onOpenSettings}>Settings</button>
       <button data-testid="toolbar-new" onClick={onNewTerminal} disabled={creating}>New</button>
       <button data-testid="toolbar-launcher" onClick={onOpenLauncher}>Launcher</button>
     </div>
   )),
-}));
-
-vi.mock("../components/SessionsModal", () => ({
-  default: vi.fn(() => null),
 }));
 
 vi.mock("../components/ErrorBanner", () => ({
@@ -188,7 +183,6 @@ describe("Workspace", () => {
     mockStoreState.activePane = null;
     mockStoreState.isMinimapVisible = true;
     mockStoreState.settingsModalOpen = false;
-    mockStoreState.sessionsModalOpen = false;
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
@@ -227,12 +221,14 @@ describe("Workspace", () => {
     expect(screen.getByText("Connection refused")).toBeTruthy();
   });
 
-  it("provides retry handler in empty state when error has retry flag", () => {
+  it("provides retry handler in empty state when error has retry flag", async () => {
     hookState.createError = { message: "Connection refused", retry: true };
     render(<Workspace />);
     fireEvent.click(screen.getByTestId("mock-retry"));
     expect(mockClearError).toHaveBeenCalledOnce();
-    expect(mockLaunchSession).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockLaunchSession).toHaveBeenCalledOnce();
+    });
   });
 
   // --- Pane grid state ---
@@ -258,12 +254,14 @@ describe("Workspace", () => {
     expect(screen.queryByTestId("floating-toolbar")).toBeNull();
   });
 
-  it("toolbar new button launches empty shell", () => {
+  it("toolbar new button launches empty shell", async () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     render(<Workspace />);
     fireEvent.click(screen.getByTestId("toolbar-new"));
-    expect(mockLaunchSession).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockLaunchSession).toHaveBeenCalledOnce();
+    });
   });
 
   it("toolbar launcher button opens launcher dialog", () => {

@@ -39,11 +39,11 @@ help: ## Show this help message
 start: ## Start this scenario
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
-	@bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook' 2>/dev/null || true
+	@bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook' 2>/dev/null || true
+	@bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'
 	@vrooli scenario stop $(SCENARIO_NAME)
 
 test: ## Run scenario tests
@@ -114,4 +114,3 @@ check: fmt lint test ## Run full quality gates
 # Development shortcuts
 dev: start
 run: start
-

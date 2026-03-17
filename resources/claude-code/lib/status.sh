@@ -148,10 +148,16 @@ claude_code::status::collect_data() {
         # Configuration file existence
         local config_exists="false"
         local project_config_exists="false"
-        if [[ -f "${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}" ]]; then
+        local global_settings="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
+        local project_settings="${CLAUDE_PROJECT_SETTINGS:-$(pwd)/.claude/settings.json}"
+        if declare -F claude_code::settings_path >/dev/null 2>&1; then
+            global_settings="$(claude_code::settings_path global)"
+            project_settings="$(claude_code::settings_path project)"
+        fi
+        if [[ -f "$global_settings" ]]; then
             config_exists="true"
         fi
-        if [[ -f "${CLAUDE_PROJECT_SETTINGS:-$(pwd)/.claude/settings.json}" ]]; then
+        if [[ -f "$project_settings" ]]; then
             project_config_exists="true"
         fi
         status_data+=("config_exists" "$config_exists")

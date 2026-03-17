@@ -138,9 +138,9 @@ describe("Policy types", () => {
   });
 });
 
-describe("SessionsModal policy controls", () => {
-  it("sessions modal module exports default component", async () => {
-    const mod = await import("../components/SessionsModal");
+describe("Session management settings controls", () => {
+  it("session management section module exports default component", async () => {
+    const mod = await import("../components/settings/SessionManagementSection");
     expect(typeof mod.default).toBe("function");
   });
 });

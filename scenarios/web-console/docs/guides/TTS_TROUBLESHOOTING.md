@@ -26,12 +26,24 @@ During `make start`, you should see:
 tts-hook: registered Stop hook -> localhost:<port>
 ```
 
-If Settings shows `Claude hook: Not registered`, or you saw `hook token not available after 5 attempts`, the API had not created the token file before hook registration ran. Fix:
+The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. `tts-hooks.sh` no longer writes the file directly; it delegates to the resource-owned reconciliation seam.
+
+If Settings shows `Claude hook: Not registered`, `hook_missing`, or `hook_stale`, or you saw `hook token not available after 5 attempts`, fix:
 ```bash
 source lib/tts-hooks.sh && wc::register_tts_hook
 ```
 
-Important: the hook is only auto-registered by the scenario `Makefile` path today. If you started the scenario another way, confirm registration manually.
+To inspect the project-level Claude settings file directly:
+```bash
+cat /path/to/repo/.claude/settings.json
+```
+
+You should see a `hooks.Stop[].hooks[]` entry with `_id: "web-console-tts"` and `type: "http"`.
+
+Important:
+- The canonical project hook file is repo-root `.claude/settings.json`
+- `~/.claude/settings.json` is global, not project-level
+- Starting web-console through the lifecycle now auto-heals the project hook via the `claude-code` resource
 
 ### Check 3: Is auto-TTS enabled?
 
@@ -54,7 +66,7 @@ Verify `autoEnabled: true`. The server-backed settings also include `backend`, `
 
 `deliverTTS` validates that the AI response text appears in the target terminal's recent output buffer. This prevents stale or spoofed text from being spoken.
 
-If the terminal was cleared, the wrong pane/session was targeted, or the text was never displayed, the correlation check fails. The Settings panel now shows the last delivery result and reason from `/api/v1/tts/status`.
+If the terminal was cleared, the wrong pane/session was targeted, or the text was never displayed, the correlation check fails. The Settings panel now shows the last Claude-hook delivery result and the last Codex-tailer delivery result separately from `/api/v1/tts/status`.
 
 ### Check 5: Browser audio policy
 

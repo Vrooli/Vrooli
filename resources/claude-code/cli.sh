@@ -90,6 +90,7 @@ cli::register_subcommand "manage" "session" "Session management" "claude_code_se
 cli::register_subcommand "manage" "mcp" "MCP server management" "claude_code_mcp"
 cli::register_subcommand "manage" "settings" "Settings management" "claude_code_settings"
 cli::register_subcommand "manage" "hooks" "Hook management" "claude_code_hooks"
+cli::register_command "hooks" "Hook management" "claude_code_hooks" "modifies-system"
 
 # TOP-LEVEL CUSTOM COMMANDS - Essential for auto/ folder functionality
 cli::register_command "run" "Run prompt with Claude Code (CRITICAL for auto/)" "claude_code_run" "modifies-system"
@@ -383,6 +384,9 @@ claude_code_hooks() {
         remove)
             claude_code::hooks_remove "$@"
             ;;
+        reconcile)
+            claude_code::hooks_reconcile "$@"
+            ;;
         *)
             log::error "Unknown hooks action: $action"
             echo "Usage: resource-claude-code manage hooks <action>"
@@ -390,6 +394,7 @@ claude_code_hooks() {
             echo "Available actions:"
             echo "  add <event> <identifier> <hook_json> <scope>    Add or update a hook"
             echo "  remove <event> <identifier> <scope>             Remove a hook"
+            echo "  reconcile <event> <identifier> <hook_json> <scope>  Idempotently heal a hook and emit JSON status"
             return 1
             ;;
     esac

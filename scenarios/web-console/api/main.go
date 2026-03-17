@@ -80,6 +80,12 @@ type Server struct {
 	ttsStatusMu     sync.RWMutex
 	lastTTSDelivery *TTSDeliveryResult
 	lastTTSAt       time.Time
+	lastTTSBySource map[string]ttsDeliverySnapshot
+}
+
+type ttsDeliverySnapshot struct {
+	Result TTSDeliveryResult
+	At     time.Time
 }
 
 // NewServer initializes database, session manager, and routes.
@@ -133,6 +139,7 @@ func NewServer(db *sql.DB) *Server {
 		ttsConfigPath:   ttsPath,
 		hookAuthToken:   hookToken,
 		ttsDedup:        newTTSDedup(),
+		lastTTSBySource: make(map[string]ttsDeliverySnapshot),
 	}
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
@@ -460,6 +467,9 @@ func fallbackHookTokenPath() string {
 }
 
 func resolveClaudeProjectSettingsPath() string {
+	if explicit := os.Getenv("CLAUDE_PROJECT_SETTINGS"); explicit != "" {
+		return explicit
+	}
 	exe, err := os.Executable()
 	if err == nil {
 		candidate := filepath.Clean(filepath.Join(filepath.Dir(exe), "..", "..", "..", ".claude", "settings.json"))
@@ -476,44 +486,72 @@ func resolveClaudeProjectSettingsPath() string {
 	return filepath.Join(".claude", "settings.json")
 }
 
-func (s *Server) getClaudeHookStatus() (bool, string, string) {
+func (s *Server) expectedClaudeHookURL() string {
+	apiPort := strings.TrimSpace(os.Getenv("API_PORT"))
+	if apiPort == "" {
+		return ""
+	}
+	return fmt.Sprintf("http://localhost:%s/api/v1/hooks/stop", apiPort)
+}
+
+func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 	settingsPath := resolveClaudeProjectSettingsPath()
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return false, "Claude project settings file does not exist; the Stop hook has not been registered", settingsPath
+			return false, "hook_missing_file", "Claude project settings file does not exist; the Stop hook has not been registered", settingsPath
 		}
-		return false, "Claude project settings could not be read", settingsPath
+		return false, "hook_read_failed", "Claude project settings could not be read", settingsPath
 	}
 
 	var doc struct {
 		Hooks map[string][]struct {
 			Hooks []struct {
-				ID  string `json:"_id"`
-				URL string `json:"url"`
+				ID      string            `json:"_id"`
+				Type    string            `json:"type"`
+				URL     string            `json:"url"`
+				Timeout int               `json:"timeout"`
+				Headers map[string]string `json:"headers"`
 			} `json:"hooks"`
 		} `json:"hooks"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return false, "Claude project settings file is not valid JSON", settingsPath
+		return false, "hook_invalid_json", "Claude project settings file is not valid JSON", settingsPath
 	}
 
+	expectedURL := s.expectedClaudeHookURL()
 	for _, group := range doc.Hooks["Stop"] {
 		for _, hook := range group.Hooks {
 			if hook.ID == "web-console-tts" {
-				return true, "Claude Stop hook is registered", settingsPath
+				if hook.Type != "http" {
+					return false, "hook_stale", "Claude Stop hook exists but is not configured as an HTTP hook", settingsPath
+				}
+				if expectedURL != "" && hook.URL != expectedURL {
+					return false, "hook_stale", "Claude Stop hook exists but points to a different API URL", settingsPath
+				}
+				if token := strings.TrimSpace(hook.Headers["X-Hook-Token"]); token == "" || token != s.hookAuthToken {
+					return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
+				}
+				return true, "hook_registered", "Claude Stop hook is registered", settingsPath
 			}
 		}
 	}
-	return false, "Claude Stop hook is not registered in project settings", settingsPath
+	return false, "hook_missing", "Claude Stop hook is not registered in project settings", settingsPath
 }
 
 func (s *Server) recordLastTTSDelivery(result TTSDeliveryResult) {
 	s.ttsStatusMu.Lock()
 	defer s.ttsStatusMu.Unlock()
+	if s.lastTTSBySource == nil {
+		s.lastTTSBySource = make(map[string]ttsDeliverySnapshot)
+	}
 	cp := result
 	s.lastTTSDelivery = &cp
 	s.lastTTSAt = time.Now()
+	s.lastTTSBySource[result.Source] = ttsDeliverySnapshot{
+		Result: cp,
+		At:     s.lastTTSAt,
+	}
 	log.Printf("tts-delivery: source=%s code=%s delivered=%v session=%s target=%v reason=%s",
 		result.Source, result.Code, result.Delivered, sanitizeID(result.SessionID), result.UsedTargetSession, result.Reason)
 }
@@ -526,6 +564,17 @@ func (s *Server) getLastTTSDelivery() (*TTSDeliveryResult, time.Time) {
 	}
 	cp := *s.lastTTSDelivery
 	return &cp, s.lastTTSAt
+}
+
+func (s *Server) getLastTTSDeliveryBySource(source string) (*TTSDeliveryResult, time.Time) {
+	s.ttsStatusMu.RLock()
+	defer s.ttsStatusMu.RUnlock()
+	snapshot, ok := s.lastTTSBySource[source]
+	if !ok {
+		return nil, time.Time{}
+	}
+	cp := snapshot.Result
+	return &cp, snapshot.At
 }
 
 // loadOrCreateHookToken reads a hook auth token from file, or generates a new

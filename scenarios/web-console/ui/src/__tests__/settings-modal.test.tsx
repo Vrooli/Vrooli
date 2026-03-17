@@ -1,31 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import SettingsModal from "../components/SettingsModal";
-import { HEADER_COLORS } from "../consts/config";
-import type { ShortcutProfile } from "../lib/api";
 
-// Mock workspace store
 const mockStoreState = {
   settingsModalOpen: true,
   setSettingsModalOpen: vi.fn(),
-  isMinimapVisible: true,
-  setMinimapVisible: vi.fn(),
-  displayMode: "grid",
-  setDisplayMode: vi.fn(),
-  defaultHeaderColor: "transparent",
-  defaultThemeId: "slate-ocean",
-  defaultFontSize: 14,
-  setDefaultHeaderColor: vi.fn(),
-  setDefaultThemeId: vi.fn(),
-  setDefaultFontSize: vi.fn(),
+};
+
+const mediaQueryState = {
+  isMobile: false,
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector(mockStoreState),
+  useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mockStoreState),
 }));
 
-// Mock draggable position hook
+vi.mock("../hooks/useMediaQuery", () => ({
+  useMediaQuery: () => mediaQueryState.isMobile,
+}));
+
 vi.mock("../hooks/useDraggablePosition", () => ({
   useDraggablePosition: () => ({
     elementRef: { current: null },
@@ -37,146 +30,67 @@ vi.mock("../hooks/useDraggablePosition", () => ({
       onPointerCancel: vi.fn(),
     },
     handleClickCapture: vi.fn(),
-    resetPosition: vi.fn(),
-    moveTo: vi.fn(),
-    isDragging: false,
-    position: { x: 100, y: 100 },
   }),
 }));
 
-// Mock API
-let mockListProfiles: ReturnType<typeof vi.fn>;
-
-vi.mock("../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/api")>();
-  return {
-    ...actual,
-    listShortcutProfiles: vi.fn(),
-    upsertShortcutProfile: vi.fn(),
-    deleteShortcutProfile: vi.fn(),
-  };
-});
-
-vi.mock("../components/IntegrationsPanel", () => ({
-  default: () => <div data-testid="integrations-panel">IntegrationsPanel</div>,
+vi.mock("../components/settings/SessionManagementSection", () => ({
+  default: () => <div data-testid="sessions-section">Sessions section</div>,
+}));
+vi.mock("../components/settings/WorkspaceSection", () => ({
+  default: () => <div data-testid="workspace-section">Workspace section</div>,
+}));
+vi.mock("../components/settings/VoiceInputSection", () => ({
+  default: () => <div data-testid="voice-input-section">Voice input section</div>,
+}));
+vi.mock("../components/settings/TtsSettingsSection", () => ({
+  default: () => <div data-testid="voice-output-section">Voice output section</div>,
+}));
+vi.mock("../components/settings/ShortcutProfilesSection", () => ({
+  default: () => <div data-testid="shortcuts-section">Shortcuts section</div>,
+}));
+vi.mock("../components/settings/NewPaneDefaultsSection", () => ({
+  default: () => <div data-testid="defaults-section">Defaults section</div>,
+}));
+vi.mock("../components/settings/IntegrationsSection", () => ({
+  default: () => <div data-testid="integrations-section">Integrations section</div>,
 }));
 
-const mockProfile: ShortcutProfile = {
-  id: "prof-1",
-  scope: "workspace",
-  name: "Dev Shortcuts",
-  shortcuts: [
-    { label: "List files", command: "ls -la" },
-  ],
-  created_at: "2026-01-01T00:00:00Z",
-  updated_at: "2026-01-01T00:00:00Z",
-};
-
 describe("SettingsModal", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     mockStoreState.settingsModalOpen = true;
-    mockStoreState.isMinimapVisible = true;
-    mockStoreState.setMinimapVisible = vi.fn();
-    mockStoreState.displayMode = "grid";
-    mockStoreState.setDisplayMode = vi.fn();
-    mockStoreState.defaultHeaderColor = "transparent";
-    mockStoreState.defaultThemeId = "slate-ocean";
-    mockStoreState.defaultFontSize = 14;
-    mockStoreState.setDefaultHeaderColor = vi.fn();
-    mockStoreState.setDefaultThemeId = vi.fn();
-    mockStoreState.setDefaultFontSize = vi.fn();
-    const api = await import("../lib/api");
-    mockListProfiles = api.listShortcutProfiles as ReturnType<typeof vi.fn>;
-    mockListProfiles.mockResolvedValue([]);
+    mediaQueryState.isMobile = false;
   });
 
-  it("does not render when settingsModalOpen is false", () => {
+  it("does not render when closed", () => {
     mockStoreState.settingsModalOpen = false;
-    render(<SettingsModal />);
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     expect(screen.queryByTestId("settings-modal")).toBeNull();
   });
 
-  it("renders modal when settingsModalOpen is true", () => {
-    render(<SettingsModal />);
+  it("renders desktop shell with sidebar by default", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     expect(screen.getByTestId("settings-modal")).toBeTruthy();
-    expect(screen.getByTestId("settings-backdrop")).toBeTruthy();
+    expect(screen.getByTestId("settings-sidebar")).toBeTruthy();
+    expect(screen.getByTestId("workspace-section")).toBeTruthy();
+  });
+
+  it("switches sections when a desktop tab is clicked", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("settings-tab-sessions"));
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
   });
 
   it("closes on backdrop click", () => {
-    render(<SettingsModal />);
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     fireEvent.click(screen.getByTestId("settings-backdrop"));
     expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
   });
 
-  it("closes on X button click", () => {
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("settings-close"));
-    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
-  });
-
-  it("renders shortcut profiles section", async () => {
-    mockListProfiles.mockResolvedValueOnce([mockProfile]);
-    render(<SettingsModal />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("shortcut-profile-prof-1")).toBeTruthy();
-    });
-  });
-
-  it("renders integrations section", () => {
-    render(<SettingsModal />);
-    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
-  });
-
-  it("minimap toggle reflects store value", () => {
-    render(<SettingsModal />);
-    const toggle = screen.getByTestId("minimap-toggle");
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
-  });
-
-  it("minimap toggle calls setMinimapVisible", () => {
-    render(<SettingsModal />);
-    fireEvent.click(screen.getByTestId("minimap-toggle"));
-    expect(mockStoreState.setMinimapVisible).toHaveBeenCalledWith(false);
-  });
-
-  it("minimap toggle reflects false state", () => {
-    mockStoreState.isMinimapVisible = false;
-    render(<SettingsModal />);
-    const toggle = screen.getByTestId("minimap-toggle");
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-  });
-
-  describe("Appearance Defaults section", () => {
-    it("renders New Pane Defaults section", () => {
-      render(<SettingsModal />);
-      expect(screen.getByText("New Pane Defaults")).toBeTruthy();
-    });
-
-    it("clicking a default color swatch calls setDefaultHeaderColor", () => {
-      render(<SettingsModal />);
-      const firstColor = HEADER_COLORS[0] ?? "transparent";
-      fireEvent.click(screen.getByTestId(`defaults-header-color-${firstColor}`));
-      expect(mockStoreState.setDefaultHeaderColor).toHaveBeenCalledWith(firstColor);
-    });
-
-    it("clicking a default theme card calls setDefaultThemeId", () => {
-      render(<SettingsModal />);
-      fireEvent.click(screen.getByTestId("defaults-theme-dracula"));
-      expect(mockStoreState.setDefaultThemeId).toHaveBeenCalledWith("dracula");
-    });
-
-    it("default font increase button calls setDefaultFontSize", () => {
-      render(<SettingsModal />);
-      fireEvent.click(screen.getByTestId("defaults-font-increase"));
-      expect(mockStoreState.setDefaultFontSize).toHaveBeenCalledWith(15);
-    });
-
-    it("default font decrease button calls setDefaultFontSize", () => {
-      render(<SettingsModal />);
-      fireEvent.click(screen.getByTestId("defaults-font-decrease"));
-      expect(mockStoreState.setDefaultFontSize).toHaveBeenCalledWith(13);
-    });
+  it("renders mobile tabs row on mobile", () => {
+    mediaQueryState.isMobile = true;
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-tabs-row")).toBeTruthy();
+    expect(screen.queryByTestId("settings-sidebar")).toBeNull();
   });
 });

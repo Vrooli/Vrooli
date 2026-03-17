@@ -49,19 +49,12 @@ describe("selectors registry", () => {
     expect(sel.toolbar?.container).toBe("mobile-toolbar");
   });
 
-  // [REQ:P0-008a] Drawer Layout Component - selector registry
-  it("exposes drawer selectors", () => {
-    expect(sel.drawer?.panel).toBe("session-drawer");
-    expect(sel.drawer?.backdrop).toBe("drawer-backdrop");
-    expect(sel.drawer?.close).toBe("drawer-close");
-  });
-
   it("manifest contains new component selectors", () => {
     const keys = Object.keys(selectorsManifest.selectors);
     expect(keys).toContain("launcher.dialog");
     expect(keys).toContain("toolbar.container");
-    expect(keys).toContain("drawer.panel");
-    expect(keys).toContain("workspace.drawerToggle");
+    expect(keys).toContain("settings.error");
+    expect(keys).toContain("nav.settings");
   });
 
   it("exposes dynamic terminal/session selectors for BAS", () => {

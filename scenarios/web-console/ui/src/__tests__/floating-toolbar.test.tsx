@@ -25,15 +25,14 @@ vi.mock("../hooks/useLongPress", () => ({
     onPointerDown: vi.fn(),
     onPointerUp: () => onPress(),
     onPointerCancel: vi.fn(),
-    onContextMenu: (e: { preventDefault: () => void }) => {
-      e.preventDefault();
+    onContextMenu: (event: { preventDefault: () => void }) => {
+      event.preventDefault();
       onLongPress();
     },
   }),
 }));
 
 describe("FloatingToolbar", () => {
-  const onOpenSessions = vi.fn();
   const onOpenSettings = vi.fn();
   const onOpenAi = vi.fn();
   const onNewTerminal = vi.fn();
@@ -44,176 +43,64 @@ describe("FloatingToolbar", () => {
     localStorage.removeItem("wc-toolbar-dock");
   });
 
-  it("renders all three buttons", () => {
-    render(
+  function renderToolbar(isCreating = false) {
+    return render(
       <FloatingToolbar
-        onOpenSessions={onOpenSessions}
         onOpenSettings={onOpenSettings}
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
-        isCreating={false}
+        isCreating={isCreating}
       />,
     );
+  }
+
+  it("renders settings, AI, and new terminal buttons", () => {
+    renderToolbar();
     expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
-    expect(screen.getByTestId("toolbar-sessions")).toBeTruthy();
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
     expect(screen.getByTestId("toolbar-new")).toBeTruthy();
   });
 
-  it("calls onOpenSessions when sessions button is clicked", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
-    fireEvent.click(screen.getByTestId("toolbar-sessions"));
-    expect(onOpenSessions).toHaveBeenCalledOnce();
-  });
-
   it("calls onOpenSettings when settings button is clicked", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
+    renderToolbar();
     fireEvent.click(screen.getByTestId("toolbar-settings"));
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
-  it("calls onNewTerminal on short press (pointerUp) of plus button", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
-    // The mock useLongPress fires onPress on pointerUp
+  it("calls onNewTerminal on short press of the plus button", () => {
+    renderToolbar();
     fireEvent.pointerUp(screen.getByTestId("toolbar-new"));
     expect(onNewTerminal).toHaveBeenCalledOnce();
   });
 
-  it("calls onOpenLauncher on right-click of plus button", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
+  it("calls onOpenLauncher on right-click of the plus button", () => {
+    renderToolbar();
     fireEvent.contextMenu(screen.getByTestId("toolbar-new"));
     expect(onOpenLauncher).toHaveBeenCalledOnce();
   });
 
-  it("disables plus button when isCreating", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={true}
-      />,
-    );
+  it("disables the plus button when creating", () => {
+    renderToolbar(true);
     expect(screen.getByTestId("toolbar-new")).toHaveProperty("disabled", true);
   });
 
   it("does not show dock tab when not docked", () => {
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
+    renderToolbar();
     expect(screen.queryByTestId("dock-tab")).toBeNull();
   });
 
   it("shows dock tab when docked via localStorage", () => {
     localStorage.setItem("wc-toolbar-dock", "right");
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
+    renderToolbar();
     expect(screen.getByTestId("dock-tab")).toBeTruthy();
   });
 
   it("marks toolbar buttons aria-hidden when docked", () => {
     localStorage.setItem("wc-toolbar-dock", "left");
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
-    const buttonsContainer = screen.getByTestId("toolbar-sessions").parentElement;
+    renderToolbar();
+    const buttonsContainer = screen.getByTestId("toolbar-settings").parentElement;
     expect(buttonsContainer?.getAttribute("aria-hidden")).toBe("true");
-  });
-
-  it("renders dock tab after buttons for left dock", () => {
-    localStorage.setItem("wc-toolbar-dock", "left");
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
-    const toolbar = screen.getByTestId("floating-toolbar");
-    const tab = screen.getByTestId("dock-tab");
-    // Tab should be the last child (right side = visible edge for left dock)
-    expect(toolbar.lastElementChild).toBe(tab);
-  });
-
-  it("renders dock tab before buttons for right dock", () => {
-    localStorage.setItem("wc-toolbar-dock", "right");
-    render(
-      <FloatingToolbar
-        onOpenSessions={onOpenSessions}
-        onOpenSettings={onOpenSettings}
-        onOpenAi={onOpenAi}
-        onNewTerminal={onNewTerminal}
-        onOpenLauncher={onOpenLauncher}
-        isCreating={false}
-      />,
-    );
-    const toolbar = screen.getByTestId("floating-toolbar");
-    const tab = screen.getByTestId("dock-tab");
-    // Tab should be the first child (left side = visible edge for right dock)
-    expect(toolbar.firstElementChild).toBe(tab);
   });
 });

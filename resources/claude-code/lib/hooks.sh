@@ -13,6 +13,59 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
+if [[ -f "${APP_ROOT}/resources/claude-code/lib/settings.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/resources/claude-code/lib/settings.sh"
+fi
+
+claude_code::hooks_scope_path() {
+    local scope="${1:-project}"
+    if declare -F claude_code::settings_path >/dev/null 2>&1; then
+        claude_code::settings_path "$scope"
+        return $?
+    fi
+
+    case "$scope" in
+        project)
+            echo "${CLAUDE_PROJECT_SETTINGS:-$(pwd)/.claude/settings.json}"
+            ;;
+        global)
+            echo "${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+claude_code::hooks_result_json() {
+    local status="$1"
+    local code="$2"
+    local reason="$3"
+    local event="$4"
+    local identifier="$5"
+    local scope="$6"
+    local settings_path="$7"
+
+    jq -cn \
+        --arg status "$status" \
+        --arg code "$code" \
+        --arg reason "$reason" \
+        --arg event "$event" \
+        --arg identifier "$identifier" \
+        --arg scope "$scope" \
+        --arg settingsPath "$settings_path" \
+        '{
+            status: $status,
+            code: $code,
+            reason: $reason,
+            event: $event,
+            identifier: $identifier,
+            scope: $scope,
+            settingsPath: $settingsPath
+        }'
+}
+
 #######################################
 # Add or update a hook in Claude settings
 # Arguments:
@@ -40,18 +93,10 @@ claude_code::hooks_add() {
 
     # Determine settings file from scope
     local settings_file=""
-    case "$scope" in
-        project)
-            settings_file="$CLAUDE_PROJECT_SETTINGS"
-            ;;
-        global)
-            settings_file="$CLAUDE_SETTINGS_FILE"
-            ;;
-        *)
-            log::error "Invalid scope: $scope (use 'project' or 'global')"
-            return 1
-            ;;
-    esac
+    if ! settings_file="$(claude_code::hooks_scope_path "$scope")"; then
+        log::error "Invalid scope: $scope (use 'project' or 'global')"
+        return 1
+    fi
 
     # Ensure parent directory exists
     mkdir -p "${settings_file%/*}"
@@ -144,18 +189,10 @@ claude_code::hooks_remove() {
 
     # Determine settings file from scope
     local settings_file=""
-    case "$scope" in
-        project)
-            settings_file="$CLAUDE_PROJECT_SETTINGS"
-            ;;
-        global)
-            settings_file="$CLAUDE_SETTINGS_FILE"
-            ;;
-        *)
-            log::error "Invalid scope: $scope (use 'project' or 'global')"
-            return 1
-            ;;
-    esac
+    if ! settings_file="$(claude_code::hooks_scope_path "$scope")"; then
+        log::error "Invalid scope: $scope (use 'project' or 'global')"
+        return 1
+    fi
 
     # If file doesn't exist, nothing to remove (idempotent)
     if [[ ! -f "$settings_file" ]]; then
@@ -212,4 +249,93 @@ claude_code::hooks_remove() {
     fi
 
     return 0
+}
+
+#######################################
+# Reconcile a hook in Claude settings and return a structured result.
+# Arguments:
+#   $1 - event name
+#   $2 - identifier
+#   $3 - hook JSON
+#   $4 - scope ("project" or "global")
+# Outputs:
+#   JSON result on stdout
+# Returns:
+#   0 for applied/unchanged, 1 for failure
+#######################################
+claude_code::hooks_reconcile() {
+    local event="${1:-}"
+    local identifier="${2:-}"
+    local hook_json="${3:-}"
+    local scope="${4:-project}"
+
+    if [[ -z "$event" || -z "$identifier" || -z "$hook_json" ]]; then
+        claude_code::hooks_result_json \
+            "failed" "invalid_arguments" "Event, identifier, and hook_json are required" \
+            "$event" "$identifier" "$scope" ""
+        return 1
+    fi
+
+    if ! system::is_command jq; then
+        claude_code::hooks_result_json \
+            "failed" "jq_missing" "jq is required for hook reconciliation" \
+            "$event" "$identifier" "$scope" ""
+        return 1
+    fi
+
+    local settings_file=""
+    if ! settings_file="$(claude_code::hooks_scope_path "$scope")"; then
+        claude_code::hooks_result_json \
+            "failed" "invalid_scope" "Scope must be 'project' or 'global'" \
+            "$event" "$identifier" "$scope" ""
+        return 1
+    fi
+
+    if [[ -f "$settings_file" ]] && ! jq empty "$settings_file" >/dev/null 2>&1; then
+        claude_code::hooks_result_json \
+            "failed" "settings_invalid_json" "Claude settings file is not valid JSON" \
+            "$event" "$identifier" "$scope" "$settings_file"
+        return 1
+    fi
+
+    local desired
+    desired=$(echo "$hook_json" | jq --arg id "$identifier" '. + {"_id": $id}' 2>/dev/null)
+    if [[ -z "$desired" ]]; then
+        claude_code::hooks_result_json \
+            "failed" "invalid_hook_json" "Hook JSON is not valid" \
+            "$event" "$identifier" "$scope" "$settings_file"
+        return 1
+    fi
+
+    local existing=""
+    if [[ -f "$settings_file" ]]; then
+        existing=$(jq -c \
+            --arg event "$event" \
+            --arg id "$identifier" \
+            'first(.hooks[$event][]?.hooks[]? | select(._id == $id)) // empty' \
+            "$settings_file" 2>/dev/null || true)
+    fi
+
+    if [[ -n "$existing" ]]; then
+        local same
+        same=$(jq -cn --argjson existing "$existing" --argjson desired "$desired" '$existing == $desired')
+        if [[ "$same" == "true" ]]; then
+            claude_code::hooks_result_json \
+                "unchanged" "hook_unchanged" "Claude hook is already configured" \
+                "$event" "$identifier" "$scope" "$settings_file"
+            return 0
+        fi
+    fi
+
+    if claude_code::hooks_add "$event" "$identifier" "$hook_json" "$scope"; then
+        claude_code::hooks_result_json \
+            "applied" "hook_reconciled" "Claude hook was written to settings" \
+            "$event" "$identifier" "$scope" "$settings_file"
+        return 0
+    fi
+
+    claude_code::hooks_result_json \
+        "failed" "hook_write_failed" "Claude hook could not be written to settings" \
+        "$event" "$identifier" "$scope" "$settings_file"
+    return 1
 }

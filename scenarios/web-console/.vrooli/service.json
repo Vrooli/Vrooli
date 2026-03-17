@@ -147,7 +147,7 @@
         },
         {
           "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook' 2>/dev/null || true",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
           "description": "Register Claude Code Stop hook for auto-TTS"
         },
         {
@@ -199,7 +199,7 @@
         },
         {
           "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook' 2>/dev/null || true",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
           "description": "Register Claude Code Stop hook for auto-TTS"
         }
       ]
@@ -209,7 +209,7 @@
       "steps": [
         {
           "name": "deregister-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook' 2>/dev/null || true",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'",
           "description": "Deregister Claude Code Stop hook before shutdown"
         },
         {

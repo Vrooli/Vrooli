@@ -89,3 +89,33 @@ func TestHandleHookStop_ValidToken_NoSession(t *testing.T) {
 		t.Errorf("expected delivered=false (no session), got %v", resp["delivered"])
 	}
 }
+
+func TestHandleHookStop_AnthropicPayloadShape(t *testing.T) {
+	srv := newHookTestServer("secret-token")
+	body := strings.NewReader(`{"hook_event_name":"Stop","last_assistant_message":"hello from claude","session_id":"s1"}`)
+	req := httptest.NewRequest("POST", "/api/v1/hooks/stop", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hook-Token", "secret-token")
+	rec := httptest.NewRecorder()
+
+	srv.handleHookStop(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleHookStop_MissingAssistantText(t *testing.T) {
+	srv := newHookTestServer("secret-token")
+	body := strings.NewReader(`{"hook_event_name":"Stop","session_id":"s1"}`)
+	req := httptest.NewRequest("POST", "/api/v1/hooks/stop", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hook-Token", "secret-token")
+	rec := httptest.NewRecorder()
+
+	srv.handleHookStop(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}

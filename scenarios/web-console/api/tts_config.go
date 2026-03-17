@@ -131,17 +131,24 @@ func (s *Server) handleGetTTSConfig(w http.ResponseWriter, _ *http.Request) {
 type TTSRuntimeStatus struct {
 	Config                TTSConfig          `json:"config"`
 	HookRegistered        bool               `json:"hookRegistered"`
+	HookCode              string             `json:"hookCode,omitempty"`
 	HookReason            string             `json:"hookReason"`
 	HookSettingsPath      string             `json:"hookSettingsPath,omitempty"`
 	LastDelivery          *TTSDeliveryResult `json:"lastDelivery,omitempty"`
 	LastDeliveryAt        string             `json:"lastDeliveryAt,omitempty"`
+	LastHookDelivery      *TTSDeliveryResult `json:"lastHookDelivery,omitempty"`
+	LastHookDeliveryAt    string             `json:"lastHookDeliveryAt,omitempty"`
+	LastTailerDelivery    *TTSDeliveryResult `json:"lastTailerDelivery,omitempty"`
+	LastTailerDeliveryAt  string             `json:"lastTailerDeliveryAt,omitempty"`
 	KokoroCapability      string             `json:"kokoroCapability,omitempty"`
 	KokoroCapabilityLabel string             `json:"kokoroCapabilityLabel,omitempty"`
 }
 
 func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {
-	hookRegistered, hookReason, hookSettingsPath := s.getClaudeHookStatus()
+	hookRegistered, hookCode, hookReason, hookSettingsPath := s.getClaudeHookStatus()
 	lastDelivery, lastDeliveryAt := s.getLastTTSDelivery()
+	lastHookDelivery, lastHookDeliveryAt := s.getLastTTSDeliveryBySource("claude_hook")
+	lastTailerDelivery, lastTailerDeliveryAt := s.getLastTTSDeliveryBySource("codex_tailer")
 
 	kokoroCapability := "unknown"
 	kokoroCapabilityLabel := "Kokoro status not checked yet"
@@ -159,14 +166,23 @@ func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {
 	status := TTSRuntimeStatus{
 		Config:                s.getTTSConfig(),
 		HookRegistered:        hookRegistered,
+		HookCode:              hookCode,
 		HookReason:            hookReason,
 		HookSettingsPath:      hookSettingsPath,
 		LastDelivery:          lastDelivery,
+		LastHookDelivery:      lastHookDelivery,
+		LastTailerDelivery:    lastTailerDelivery,
 		KokoroCapability:      kokoroCapability,
 		KokoroCapabilityLabel: kokoroCapabilityLabel,
 	}
 	if !lastDeliveryAt.IsZero() {
 		status.LastDeliveryAt = lastDeliveryAt.UTC().Format(time.RFC3339)
+	}
+	if !lastHookDeliveryAt.IsZero() {
+		status.LastHookDeliveryAt = lastHookDeliveryAt.UTC().Format(time.RFC3339)
+	}
+	if !lastTailerDeliveryAt.IsZero() {
+		status.LastTailerDeliveryAt = lastTailerDeliveryAt.UTC().Format(time.RFC3339)
 	}
 	writeJSON(w, http.StatusOK, status)
 }

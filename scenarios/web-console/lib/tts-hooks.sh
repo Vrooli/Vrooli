@@ -22,6 +22,39 @@ _WC_HOOK_EVENT="Stop"
 _WC_HOOK_ID="web-console-tts"
 _WC_HOOK_SCOPE="project"
 
+_wc::source_claude_code_hooks() {
+    local hooks_lib="${APP_ROOT}/resources/claude-code/lib/hooks.sh"
+    local settings_lib="${APP_ROOT}/resources/claude-code/lib/settings.sh"
+    local defaults_file="${APP_ROOT}/resources/claude-code/config/defaults.sh"
+
+    if [[ ! -f "$hooks_lib" || ! -f "$settings_lib" || ! -f "$defaults_file" ]]; then
+        return 1
+    fi
+
+    # Source required Vrooli utilities before the Claude resource files.
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/scripts/lib/system/system_commands.sh" 2>/dev/null || true
+
+    # shellcheck disable=SC1091
+    source "$defaults_file"
+    # shellcheck disable=SC1091
+    source "$settings_lib"
+    # shellcheck disable=SC1091
+    source "$hooks_lib"
+    if declare -F claude_code::export_settings_context >/dev/null 2>&1; then
+        claude_code::export_settings_context
+    fi
+    if declare -F claude_code::hooks_reconcile >/dev/null 2>&1; then
+        return 0
+    fi
+
+    return 1
+}
+
 #######################################
 # Resolve the API port from the lifecycle process state.
 # Outputs the port number on stdout; returns 1 if unavailable.
@@ -91,10 +124,7 @@ _wc::resolve_hook_token() {
 # Silently skips if prerequisites are not met (idempotent, safe to call anytime).
 #######################################
 wc::register_tts_hook() {
-    # Check if the hooks library is available
-    local hooks_lib="${APP_ROOT}/resources/claude-code/lib/hooks.sh"
-    if [[ ! -f "$hooks_lib" ]]; then
-        # Claude Code resource not installed -- skip silently
+    if ! _wc::source_claude_code_hooks; then
         return 0
     fi
 
@@ -126,21 +156,6 @@ wc::register_tts_hook() {
         return 2
     fi
 
-    # Source required Vrooli utilities (hooks.sh depends on var.sh, log, system_commands)
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/system/system_commands.sh" 2>/dev/null || true
-
-    # Source the hooks library
-    # shellcheck disable=SC1091
-    if ! source "$hooks_lib" 2>/dev/null; then
-        echo "tts-hook: failed to source hooks library" >&2
-        return 0
-    fi
-
     # Build the hook JSON payload
     local hook_json
     hook_json=$(cat <<ENDJSON
@@ -153,12 +168,35 @@ wc::register_tts_hook() {
 ENDJSON
 )
 
-    # Register (or update) the hook
-    if claude_code::hooks_add "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$hook_json" "$_WC_HOOK_SCOPE"; then
-        echo "tts-hook: registered Stop hook -> localhost:${api_port}"
-    else
-        echo "tts-hook: registration failed (non-fatal)" >&2
+    local result=""
+    if ! result=$(claude_code::hooks_reconcile "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$hook_json" "$_WC_HOOK_SCOPE"); then
+        echo "tts-hook: reconciliation failed" >&2
+        if [[ -n "$result" ]]; then
+            echo "$result" >&2
+        fi
+        return 1
     fi
+
+    local status=""
+    local reason=""
+    if command -v jq &>/dev/null; then
+        status=$(echo "$result" | jq -r '.status // empty' 2>/dev/null || true)
+        reason=$(echo "$result" | jq -r '.reason // empty' 2>/dev/null || true)
+    fi
+
+    case "$status" in
+        applied)
+            echo "tts-hook: registered Stop hook -> localhost:${api_port}"
+            ;;
+        unchanged)
+            echo "tts-hook: hook already healthy -> localhost:${api_port}"
+            ;;
+        *)
+            echo "tts-hook: unexpected reconcile result${reason:+ -- ${reason}}" >&2
+            echo "$result" >&2
+            return 1
+            ;;
+    esac
 
     return 0
 }
@@ -169,32 +207,16 @@ ENDJSON
 # Silently skips if the hooks library is not available (idempotent).
 #######################################
 wc::deregister_tts_hook() {
-    # Check if the hooks library is available
-    local hooks_lib="${APP_ROOT}/resources/claude-code/lib/hooks.sh"
-    if [[ ! -f "$hooks_lib" ]]; then
-        return 0
-    fi
-
-    # Source required Vrooli utilities
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/system/system_commands.sh" 2>/dev/null || true
-
-    # Source the hooks library
-    # shellcheck disable=SC1091
-    if ! source "$hooks_lib" 2>/dev/null; then
-        echo "tts-hook: failed to source hooks library" >&2
+    if ! _wc::source_claude_code_hooks; then
         return 0
     fi
 
     # Remove the hook
-    if claude_code::hooks_remove "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$_WC_HOOK_SCOPE"; then
+    if claude_code::hooks_remove "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null; then
         echo "tts-hook: deregistered Stop hook"
     else
-        echo "tts-hook: deregistration failed (non-fatal)" >&2
+        echo "tts-hook: deregistration failed" >&2
+        return 1
     fi
 
     return 0

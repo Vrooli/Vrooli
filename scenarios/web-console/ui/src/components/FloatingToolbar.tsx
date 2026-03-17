@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { List, Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
@@ -41,7 +41,6 @@ function saveDockedEdge(edge: DockedEdge) {
 }
 
 interface FloatingToolbarProps {
-  onOpenSessions: () => void;
   onOpenSettings: () => void;
   onOpenAi: () => void;
   onNewTerminal: () => void;
@@ -63,7 +62,6 @@ interface FloatingToolbarProps {
 }
 
 export default function FloatingToolbar({
-  onOpenSessions,
   onOpenSettings,
   onOpenAi,
   onNewTerminal,
@@ -200,17 +198,6 @@ export default function FloatingToolbar({
       className="flex items-center gap-1 px-2 py-1"
       aria-hidden={!!docked}
     >
-      <Button
-        data-testid="toolbar-sessions"
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7"
-        onClick={onOpenSessions}
-        title="Sessions"
-        tabIndex={docked ? -1 : undefined}
-      >
-        <List className="h-4 w-4" />
-      </Button>
       <Button
         data-testid="toolbar-settings"
         variant="ghost"

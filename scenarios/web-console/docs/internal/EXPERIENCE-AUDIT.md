@@ -1,7 +1,7 @@
 # Experience Architecture Audit
 
 ## Last Updated
-2026-02-19
+2026-03-17
 
 ## Personas Identified
 
@@ -18,20 +18,19 @@
 - **AI input requires explicit mode switch**: User must click into AiInput component, type prompt, then decide execute vs copy. Could benefit from keyboard shortcut to toggle AI input.
 
 ### Cognitive Friction
-- **Session vs pane distinction**: Users may not immediately understand that a "pane" is a UI viewport and a "session" is a server-side process. The drawer shows sessions; the workspace shows panes. Terminology is consistent but the mental model requires learning.
+- **Session vs pane distinction**: Users may not immediately understand that a "pane" is a UI viewport and a "session" is a server-side process. The unified settings surface now explains the relationship more clearly in the Sessions tab, but the model still requires some onboarding.
 - **Policy options**: Expiration policies (never, 1h, 8h, 24h) are clear, but the countdown timer could be confusing if the user doesn't understand it represents remaining session lifetime.
 
 ### Discoverability Friction
-- **Settings page**: Shortcut profile management and AI provider configuration are on a separate settings page accessed via hash routing. No visual cue on the workspace page that these exist.
+- **Settings density**: Consolidation improved discoverability by placing sessions, workspace settings, voice, shortcuts, defaults, and integrations behind one entry point, but a few advanced controls still require drilling into dense forms.
 - **Keyboard shortcuts**: No keyboard shortcut help/cheatsheet. Mobile toolbar keys are visible but desktop keyboard shortcuts (if any) are not documented in-UI.
 
 ## Navigation Integrity
-- **Hash routing**: Three routes (`#workspace`, `#sessions`, `#settings`) via [CODE: ui/src/hooks/useHashRoute.ts]. Default is workspace.
-- **Label→destination mismatches**: None found — navigation labels match page content.
-- **Back/forward coherence**: Hash routing works with browser back/forward buttons correctly.
-- **Deep link handling**: Direct URL with hash fragment works correctly (e.g., `#settings` loads settings page).
+- **Primary settings access**: A single toolbar Settings entry opens the unified settings surface.
+- **Responsive behavior**: Desktop uses a wider draggable modal with sidebar tabs. Mobile uses a drawer with a horizontal tab row.
+- **Label→destination mismatches**: None found — navigation labels match tab content.
 
 ## Priority Improvements
 1. **Add keyboard shortcut for AI input toggle** — reduces mechanical friction for power users
-2. **Add subtle navigation indicator** for settings/sessions pages — improves discoverability
+2. **Add inline explanatory copy for policies/countdowns** — reduces remaining cognitive friction in the Sessions tab
 3. **Mobile pane swipe gestures** — reduces friction for multi-pane mobile use (P2 scope)

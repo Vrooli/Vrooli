@@ -39,7 +39,6 @@ interface WorkspaceState {
   /** Mobile toolbar key layout: "compact" (single row) or "expanded" (two rows with D-pad). */
   toolbarLayout: ToolbarLayout;
   settingsModalOpen: boolean;
-  sessionsModalOpen: boolean;
   aiModalOpen: boolean;
   voiceEnabled: boolean;
   voiceShortcut: string;
@@ -81,7 +80,6 @@ interface WorkspaceActions {
   setDisplayMode: (mode: DisplayMode) => void;
   setToolbarLayout: (layout: ToolbarLayout) => void;
   setSettingsModalOpen: (open: boolean) => void;
-  setSessionsModalOpen: (open: boolean) => void;
   setAiModalOpen: (open: boolean) => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceShortcut: (shortcut: string) => void;
@@ -125,7 +123,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       displayMode: "grid",
       toolbarLayout: "expanded",
       settingsModalOpen: false,
-      sessionsModalOpen: false,
       aiModalOpen: false,
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
@@ -223,7 +220,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setDisplayMode: (mode) => set({ displayMode: mode }),
       setToolbarLayout: (layout) => set({ toolbarLayout: layout }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
-      setSessionsModalOpen: (open) => set({ sessionsModalOpen: open }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),

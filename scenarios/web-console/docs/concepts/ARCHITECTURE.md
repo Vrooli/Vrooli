@@ -149,7 +149,7 @@ The API uses a **hybrid organization** strategy:
 - **AI generation** (`ai_generate.go`) owns the full generation pipeline — providers, prompt building, extraction, and the config-aware orchestrator (`generateWithConfig`). The companion `ai_provider_config.go` owns only config storage, health tracking, and config HTTP endpoints.
 - **Policy handlers** are co-located with session handlers in `session_handlers.go` because they operate on session sub-resource endpoints (`/sessions/{id}/policy`). Policy domain logic (types, validation, TTL, sweeper) lives in `session_policy.go`.
 
-The UI uses **component-per-file** with hooks extracted into `hooks/`, constants into `consts/`, and utilities into `lib/`. Pages (`pages/`) represent top-level routes; components (`components/`) are reusable building blocks. Shared domain constants (policy options, shortcuts, toolbar keys) live in `consts/` and are imported by multiple components to avoid duplication.
+The UI uses **component-per-file** with hooks extracted into `hooks/`, constants into `consts/`, and utilities into `lib/`. The app now ships as a single workspace surface with feature-local section modules under `components/settings/` for the unified settings experience. Shared domain constants (policy options, shortcuts, toolbar keys) live in `consts/` and are imported by multiple components to avoid duplication.
 
 ## File Map
 
@@ -171,18 +171,22 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `api/shortcut_profiles_sql.go` | SQLite shortcut profile store |
 | `api/events.go` | Structured event logging (session lifecycle, AI) |
 | `api/metrics.go` | Operational metrics collection + metrics HTTP handler |
-| `ui/src/App.tsx` | Entry point — health check gate + hash routing |
-| `ui/src/pages/SessionsPage.tsx` | Session list with policy controls |
-| `ui/src/pages/SettingsPage.tsx` | Shortcut profiles + AI provider settings |
+| `ui/src/App.tsx` | Entry point — health check gate + workspace shell |
 | `ui/src/components/Workspace.tsx` | Pane grid layout |
+| `ui/src/components/SettingsModal.tsx` | Unified responsive settings shell (desktop modal, mobile drawer) |
+| `ui/src/components/settings/SessionManagementSection.tsx` | Sessions tab: policy controls, ordering, focus, terminate |
+| `ui/src/components/settings/VoiceInputSection.tsx` | Voice input tab |
+| `ui/src/components/settings/TtsSettingsSection.tsx` | Voice output tab |
+| `ui/src/components/settings/ShortcutProfilesSection.tsx` | Shortcut profiles tab |
+| `ui/src/components/settings/NewPaneDefaultsSection.tsx` | New pane appearance defaults tab |
+| `ui/src/components/settings/IntegrationsSection.tsx` | Integrations tab |
 | `ui/src/hooks/useSessionManager.ts` | Session lifecycle orchestration |
 | `ui/src/hooks/useTerminalSocket.ts` | WebSocket protocol handling |
-| `ui/src/hooks/useHashRoute.ts` | Hash-based page routing |
+| `ui/src/hooks/useMediaQuery.ts` | Responsive settings shell behavior |
 | `ui/src/hooks/useCountdown.ts` | Policy countdown timer (shared by SessionDrawer + SessionsPage) |
 | `ui/src/components/TerminalPane.tsx` | xterm.js rendering |
 | `ui/src/components/TerminalLauncher.tsx` | New-terminal modal with shortcuts |
 | `ui/src/components/MobileToolbar.tsx` | Floating keyboard toolbar |
-| `ui/src/components/SessionDrawer.tsx` | Session list sidebar |
 | `ui/src/components/AiInput.tsx` | AI command input with generate/execute flow |
 | `ui/src/components/IntegrationsPanel.tsx` | Dependency health status display (all resources/scenarios) |
 | `ui/src/components/ErrorBanner.tsx` | Structured error display |
@@ -194,7 +198,7 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/consts/config.ts` | UI tunable constants |
 | `ui/src/consts/shortcuts.ts` | Launch shortcut definitions |
 | `ui/src/consts/toolbar-keys.ts` | Mobile toolbar key definitions |
-| `ui/src/consts/policy-options.ts` | Expiration policy option definitions (shared by SessionDrawer + SessionsPage) |
+| `ui/src/consts/policy-options.ts` | Expiration policy option definitions (shared by settings sections) |
 | `ui/src/consts/selectors.ts` | Test automation selector registry |
 
 ## Operational Target Implementation Map
@@ -212,14 +216,14 @@ This section maps each PRD operational target to its implementing code and docum
 | OT-P0-005 | AI Input with Provider Fallback | [CODE: api/ai_generate.go] (provider chain, fallback), [CODE: ui/src/components/AiInput.tsx] | [DOC: docs/internal/ASSUMPTIONS.md#behavioral-assumptions] |
 | OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | [CODE: ui/src/components/TerminalLauncher.tsx], [CODE: ui/src/consts/shortcuts.ts], [CODE: api/shortcut_profiles.go] | [DOC: docs/concepts/GLOSSARY.md#shortcut] |
 | OT-P0-007 | Mobile Terminal Usability Toolbar | [CODE: ui/src/components/MobileToolbar.tsx], [CODE: ui/src/consts/toolbar-keys.ts] | [DOC: docs/internal/EXPERIENCE-AUDIT.md] |
-| OT-P0-008 | Sidebar/Drawer Controls Surface | [CODE: ui/src/components/SessionDrawer.tsx] | [DOC: docs/internal/SEAMS.md#1-entry--presentation] |
+| OT-P0-008 | Sidebar/Drawer Controls Surface | [CODE: ui/src/components/SettingsModal.tsx], [CODE: ui/src/components/settings/SessionManagementSection.tsx] | [DOC: docs/internal/SEAMS.md#1-entry--presentation] |
 
 ### P1 – Should Have
 
 | Target | Description | Implementation | Docs |
 |--------|-------------|----------------|------|
 | OT-P1-001 | Session Policy Controls | [CODE: api/session_policy.go], [CODE: ui/src/consts/policy-options.ts], [CODE: ui/src/hooks/useCountdown.ts] | [DOC: docs/concepts/GLOSSARY.md#policy] |
-| OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_pg.go], [CODE: ui/src/pages/SettingsPage.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
+| OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_pg.go], [CODE: ui/src/components/settings/ShortcutProfilesSection.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
 | OT-P1-003 | AI Provider Policy Controls | [CODE: api/ai_provider_config.go], [CODE: api/ai_provider_config_pg.go], [CODE: ui/src/components/IntegrationsPanel.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
 | OT-P1-004 | Operational Observability Coverage | [CODE: api/metrics.go], [CODE: api/events.go] | [DOC: docs/internal/SEAMS.md#6-cross-cutting] |
 

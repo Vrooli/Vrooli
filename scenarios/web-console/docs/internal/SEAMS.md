@@ -298,20 +298,21 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → Claude Code Stop hook → `handleHookStop` → `deliverTTS` → `SendTTS` → WebSocket TTS side-channel → UI `useTerminalSocket` `onTTS` → `useTextToSpeech.speakParagraphs`
+**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` → `deliverTTS` → `SendTTS` → WebSocket TTS side-channel → UI `useTerminalSocket` `onTTS` → `useTextToSpeech.speakParagraphs`
 
 **Seam points**:
-1. `tts-hooks.sh` ↔ API: HTTP POST with `X-Hook-Token` auth header
-2. `deliverTTS` ↔ `Session`: explicit `sessionId` targeting first, active-pane fallback second
-3. `deliverTTS` ↔ `Session`: `ContainsRecentText` correlation validates text is genuine
-4. `SendTTS` ↔ WebSocket: buffered channel fan-out (non-blocking, drops on full)
-5. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
+1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
+2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
+3. `deliverTTS` ↔ `Session`: explicit `sessionId` targeting first, active-pane fallback second
+4. `deliverTTS` ↔ `Session`: `ContainsRecentText` correlation validates text is genuine
+5. `SendTTS` ↔ WebSocket: buffered channel fan-out (non-blocking, drops on full)
+6. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
 **Testing**: `tts_hook_handler_test.go` covers token auth. `tts_deliver_test.go` covers the `deliverTTS` pipeline. `codex_tailer_test.go` includes an E2E test from rollout file → TTS subscriber.
 
 ### Two Independent TTS Trigger Paths
 
-1. **Claude Code Hook** (`tts-hooks.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Low latency, but requires hook registration at scenario start. `sessionId` is now honored when present.
+1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Low latency, and hook registration is now healed through the resource-owned reconciliation seam into repo-root `.claude/settings.json`. `sessionId` / `session_id` is honored when present.
 2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches `~/.codex/sessions/` for JSONL rollout files and extracts assistant text. Works even without hook registration (e.g., for Codex CLI).
 
 Both paths converge at `deliverTTS()` which gates on: `autoEnabled`, target session (or active pane), text correlation via `ContainsRecentText`, and **dedup check**. The function now returns a structured `TTSDeliveryResult` used by `/api/v1/tts/status` and the settings diagnostics panel.

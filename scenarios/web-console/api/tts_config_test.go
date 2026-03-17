@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadTTSConfig_MissingFile(t *testing.T) {
@@ -135,5 +136,130 @@ func TestHandleUpdateTTSConfig(t *testing.T) {
 	}
 	if !diskCfg.AutoEnabled {
 		t.Error("expected disk config autoEnabled=true")
+	}
+}
+
+func TestGetClaudeHookStatus_Registered(t *testing.T) {
+	t.Setenv("API_PORT", "17086")
+	dir := t.TempDir()
+	settingsPath := filepath.Join(dir, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(settingsPath, []byte(`{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "_id": "web-console-tts",
+            "type": "http",
+            "url": "http://localhost:17086/api/v1/hooks/stop",
+            "headers": {
+              "X-Hook-Token": "secret-token"
+            },
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+
+	t.Setenv("CLAUDE_PROJECT_SETTINGS", settingsPath)
+	srv := newFakeTestServer()
+	srv.hookAuthToken = "secret-token"
+
+	registered, code, reason, gotPath := srv.getClaudeHookStatus()
+	if !registered {
+		t.Fatalf("expected hook to be registered, got code=%s reason=%s", code, reason)
+	}
+	if code != "hook_registered" {
+		t.Fatalf("expected hook_registered, got %s", code)
+	}
+	if gotPath != settingsPath {
+		t.Fatalf("expected settings path %s, got %s", settingsPath, gotPath)
+	}
+}
+
+func TestGetClaudeHookStatus_StaleToken(t *testing.T) {
+	t.Setenv("API_PORT", "17086")
+	dir := t.TempDir()
+	settingsPath := filepath.Join(dir, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(settingsPath, []byte(`{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "_id": "web-console-tts",
+            "type": "http",
+            "url": "http://localhost:17086/api/v1/hooks/stop",
+            "headers": {
+              "X-Hook-Token": "stale-token"
+            },
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+
+	t.Setenv("CLAUDE_PROJECT_SETTINGS", settingsPath)
+	srv := newFakeTestServer()
+	srv.hookAuthToken = "fresh-token"
+
+	registered, code, _, _ := srv.getClaudeHookStatus()
+	if registered {
+		t.Fatal("expected stale hook to be reported as not registered")
+	}
+	if code != "hook_stale" {
+		t.Fatalf("expected hook_stale, got %s", code)
+	}
+}
+
+func TestHandleGetTTSStatus_SeparatesHookAndTailerDeliveries(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.hookAuthToken = "secret-token"
+	srv.ttsConfig = TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
+	srv.capabilities = NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{}, 0)
+	srv.recordLastTTSDelivery(TTSDeliveryResult{
+		Delivered: true,
+		Code:      "tts_delivered",
+		Reason:    "hook delivered",
+		Source:    "claude_hook",
+	})
+	time.Sleep(10 * time.Millisecond)
+	srv.recordLastTTSDelivery(TTSDeliveryResult{
+		Delivered: false,
+		Code:      "tts_delivery_target_missing",
+		Reason:    "tailer skipped",
+		Source:    "codex_tailer",
+	})
+
+	req := httptest.NewRequest("GET", "/api/v1/tts/status", nil)
+	rec := httptest.NewRecorder()
+	srv.handleGetTTSStatus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var status TTSRuntimeStatus
+	if err := json.Unmarshal(rec.Body.Bytes(), &status); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if status.LastHookDelivery == nil || status.LastHookDelivery.Source != "claude_hook" {
+		t.Fatalf("expected last hook delivery, got %+v", status.LastHookDelivery)
+	}
+	if status.LastTailerDelivery == nil || status.LastTailerDelivery.Source != "codex_tailer" {
+		t.Fatalf("expected last tailer delivery, got %+v", status.LastTailerDelivery)
 	}
 }

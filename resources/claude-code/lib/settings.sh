@@ -2,12 +2,87 @@
 # Claude Code Settings Management Functions
 # Handles viewing and updating Claude settings
 
+# Source guard
+[[ -n "${_CLAUDE_CODE_SETTINGS_SOURCED:-}" ]] && return 0
+_CLAUDE_CODE_SETTINGS_SOURCED=1
+
 # Source var.sh for directory variables if not already sourced
 # shellcheck disable=SC1091
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
+
+#######################################
+# Resolve the Claude project root. This should be the repository root when
+# Claude is being used against a checked-out repo, not the caller's cwd.
+# Outputs the resolved root on stdout.
+#######################################
+claude_code::resolve_project_root() {
+    if [[ -n "${CLAUDE_PROJECT_ROOT:-}" ]]; then
+        echo "$CLAUDE_PROJECT_ROOT"
+        return 0
+    fi
+
+    if command -v git &>/dev/null; then
+        local git_root=""
+        git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+        if [[ -n "$git_root" ]]; then
+            echo "$git_root"
+            return 0
+        fi
+    fi
+
+    if [[ -n "${VROOLI_PROJECT_ROOT:-}" ]]; then
+        echo "$VROOLI_PROJECT_ROOT"
+        return 0
+    fi
+
+    pwd
+}
+
+#######################################
+# Resolve a Claude settings path for the requested scope.
+# Arguments:
+#   $1 - scope (project|project-local|global)
+# Outputs the settings file path on stdout.
+#######################################
+claude_code::settings_path() {
+    local scope="${1:-project}"
+    local project_root
+    project_root="$(claude_code::resolve_project_root)"
+
+    case "$scope" in
+        project)
+            echo "${project_root}/.claude/settings.json"
+            ;;
+        project-local)
+            echo "${project_root}/.claude/settings.local.json"
+            ;;
+        global)
+            echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Export the canonical Claude settings context for child processes.
+#######################################
+claude_code::export_settings_context() {
+    export CLAUDE_PROJECT_ROOT
+    CLAUDE_PROJECT_ROOT="$(claude_code::resolve_project_root)"
+    export CLAUDE_PROJECT_SETTINGS
+    CLAUDE_PROJECT_SETTINGS="$(claude_code::settings_path project)"
+    export CLAUDE_PROJECT_LOCAL_SETTINGS
+    CLAUDE_PROJECT_LOCAL_SETTINGS="$(claude_code::settings_path project-local)"
+    export CLAUDE_SETTINGS_FILE
+    CLAUDE_SETTINGS_FILE="$(claude_code::settings_path global)"
+}
+
+claude_code::export_settings_context
 
 #######################################
 # View or update Claude settings
@@ -21,26 +96,31 @@ claude_code::settings() {
     fi
     
     # Check for settings files
-    if [[ -f "$CLAUDE_PROJECT_SETTINGS" ]]; then
-        log::info "Project settings found: $CLAUDE_PROJECT_SETTINGS"
+    local project_settings
+    local global_settings
+    project_settings="$(claude_code::settings_path project)"
+    global_settings="$(claude_code::settings_path global)"
+
+    if [[ -f "$project_settings" ]]; then
+        log::info "Project settings found: $project_settings"
         echo
         log::info "Current project settings:"
         if system::is_command jq; then
-            cat "$CLAUDE_PROJECT_SETTINGS" | jq . 2>/dev/null || cat "$CLAUDE_PROJECT_SETTINGS"
+            cat "$project_settings" | jq . 2>/dev/null || cat "$project_settings"
         else
-            cat "$CLAUDE_PROJECT_SETTINGS"
+            cat "$project_settings"
         fi
         echo
     fi
     
-    if [[ -f "$CLAUDE_SETTINGS_FILE" ]]; then
-        log::info "Global settings found: $CLAUDE_SETTINGS_FILE"
+    if [[ -f "$global_settings" ]]; then
+        log::info "Global settings found: $global_settings"
         echo
         log::info "Current global settings:"
         if system::is_command jq; then
-            cat "$CLAUDE_SETTINGS_FILE" | jq . 2>/dev/null || cat "$CLAUDE_SETTINGS_FILE"
+            cat "$global_settings" | jq . 2>/dev/null || cat "$global_settings"
         else
-            cat "$CLAUDE_SETTINGS_FILE"
+            cat "$global_settings"
         fi
     else
         log::warn "No global settings file found"
@@ -76,15 +156,19 @@ claude_code::settings_get() {
     
     # Determine which settings file to use
     if [[ "$scope" == "project" ]]; then
-        settings_file="$CLAUDE_PROJECT_SETTINGS"
+        settings_file="$(claude_code::settings_path project)"
     elif [[ "$scope" == "global" ]]; then
-        settings_file="$CLAUDE_SETTINGS_FILE"
+        settings_file="$(claude_code::settings_path global)"
     else
         # Auto: check project first, then global
-        if [[ -f "$CLAUDE_PROJECT_SETTINGS" ]]; then
-            settings_file="$CLAUDE_PROJECT_SETTINGS"
-        elif [[ -f "$CLAUDE_SETTINGS_FILE" ]]; then
-            settings_file="$CLAUDE_SETTINGS_FILE"
+        local project_settings
+        local global_settings
+        project_settings="$(claude_code::settings_path project)"
+        global_settings="$(claude_code::settings_path global)"
+        if [[ -f "$project_settings" ]]; then
+            settings_file="$project_settings"
+        elif [[ -f "$global_settings" ]]; then
+            settings_file="$global_settings"
         fi
     fi
     
@@ -122,10 +206,10 @@ claude_code::settings_set() {
     
     # Determine which settings file to use
     if [[ "$scope" == "project" ]]; then
-        settings_file="$CLAUDE_PROJECT_SETTINGS"
+        settings_file="$(claude_code::settings_path project)"
         mkdir -p "${settings_file%/*}"
     elif [[ "$scope" == "global" ]]; then
-        settings_file="$CLAUDE_SETTINGS_FILE"
+        settings_file="$(claude_code::settings_path global)"
         mkdir -p "${settings_file%/*}"
     else
         log::error "Invalid scope: $scope (use 'project' or 'global')"
@@ -177,9 +261,11 @@ claude_code::settings_reset() {
     
     case "$scope" in
         "project")
-            if [[ -f "$CLAUDE_PROJECT_SETTINGS" ]]; then
+            local project_settings
+            project_settings="$(claude_code::settings_path project)"
+            if [[ -f "$project_settings" ]]; then
                 if confirm "Reset project settings to defaults?"; then
-                    trash::safe_remove "$CLAUDE_PROJECT_SETTINGS" --temp
+                    trash::safe_remove "$project_settings" --temp
                     log::success "✓ Project settings reset"
                 else
                     log::info "Reset cancelled"
@@ -189,9 +275,11 @@ claude_code::settings_reset() {
             fi
             ;;
         "global")
-            if [[ -f "$CLAUDE_SETTINGS_FILE" ]]; then
+            local global_settings
+            global_settings="$(claude_code::settings_path global)"
+            if [[ -f "$global_settings" ]]; then
                 if confirm "Reset global settings to defaults?"; then
-                    trash::safe_remove "$CLAUDE_SETTINGS_FILE" --temp
+                    trash::safe_remove "$global_settings" --temp
                     log::success "✓ Global settings reset"
                 else
                     log::info "Reset cancelled"

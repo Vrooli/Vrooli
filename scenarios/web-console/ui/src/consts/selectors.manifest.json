@@ -8,10 +8,6 @@
       "testId": "new-terminal-button",
       "selector": "[data-testid=\"new-terminal-button\"]"
     },
-    "workspace.drawerToggle": {
-      "testId": "drawer-toggle",
-      "selector": "[data-testid=\"drawer-toggle\"]"
-    },
     "workspace.paneContainer": {
       "testId": "terminal-pane-container",
       "selector": "[data-testid=\"terminal-pane-container\"]"
@@ -36,29 +32,9 @@
       "testId": "launcher-custom-launch",
       "selector": "[data-testid=\"launcher-custom-launch\"]"
     },
-    "drawer.panel": {
-      "testId": "session-drawer",
-      "selector": "[data-testid=\"session-drawer\"]"
-    },
-    "drawer.backdrop": {
-      "testId": "drawer-backdrop",
-      "selector": "[data-testid=\"drawer-backdrop\"]"
-    },
-    "drawer.close": {
-      "testId": "drawer-close",
-      "selector": "[data-testid=\"drawer-close\"]"
-    },
-    "nav.sessions": {
-      "testId": "nav-sessions",
-      "selector": "[data-testid=\"nav-sessions\"]"
-    },
     "nav.settings": {
       "testId": "nav-settings",
       "selector": "[data-testid=\"nav-settings\"]"
-    },
-    "settings.back": {
-      "testId": "settings-back",
-      "selector": "[data-testid=\"settings-back\"]"
     },
     "settings.error": {
       "testId": "settings-error",
@@ -67,14 +43,6 @@
     "settings.createProfile": {
       "testId": "create-profile",
       "selector": "[data-testid=\"create-profile\"]"
-    },
-    "sessions.back": {
-      "testId": "sessions-back",
-      "selector": "[data-testid=\"sessions-back\"]"
-    },
-    "sessions.refresh": {
-      "testId": "sessions-refresh",
-      "selector": "[data-testid=\"sessions-refresh\"]"
     },
     "toolbar.container": {
       "testId": "mobile-toolbar",

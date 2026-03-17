@@ -550,10 +550,15 @@ export interface TTSDeliveryResult {
 export interface TTSStatus {
   config: TTSConfig;
   hookRegistered: boolean;
+  hookCode?: string;
   hookReason: string;
   hookSettingsPath?: string;
   lastDelivery?: TTSDeliveryResult;
   lastDeliveryAt?: string;
+  lastHookDelivery?: TTSDeliveryResult;
+  lastHookDeliveryAt?: string;
+  lastTailerDelivery?: TTSDeliveryResult;
+  lastTailerDeliveryAt?: string;
   kokoroCapability?: string;
   kokoroCapabilityLabel?: string;
 }

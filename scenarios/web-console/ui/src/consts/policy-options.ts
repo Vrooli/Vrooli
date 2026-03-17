@@ -3,7 +3,7 @@
 import type { PolicyMode } from "../lib/api";
 
 // [REQ:P1-001b] Policy Configuration UI
-// Shared policy option definitions used by SessionDrawer and SessionsPage.
+// Shared policy option definitions used by the unified settings surface.
 
 export interface PolicyOption {
   mode: PolicyMode;

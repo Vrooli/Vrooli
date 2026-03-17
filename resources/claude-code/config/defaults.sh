@@ -70,9 +70,9 @@ if claude_code::is_test_environment; then
 else
     readonly CLAUDE_CONFIG_DIR="$HOME/.claude"
     readonly CLAUDE_SESSIONS_DIR="$CLAUDE_CONFIG_DIR/sessions"
-    readonly CLAUDE_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
-    readonly CLAUDE_PROJECT_SETTINGS="$(pwd)/.claude/settings.json"
-    readonly CLAUDE_USAGE_FILE="$CLAUDE_CONFIG_DIR/usage_tracking.json"
+    CLAUDE_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
+    CLAUDE_PROJECT_SETTINGS="$(pwd)/.claude/settings.json"
+    CLAUDE_USAGE_FILE="$CLAUDE_CONFIG_DIR/usage_tracking.json"
 fi
 
 # Log file locations
