@@ -78,6 +78,31 @@ On reconnect, the client resets the terminal (`terminal.reset()`) before history
 
 This does **not** restore cursor position, scroll regions (DECSTBM), alternate screen buffer (smcup/rmcup), or character set state. Full terminal state restoration would require a server-side terminal emulator, which adds significant complexity for marginal benefit in the single-operator use case.
 
+### Terminal History Caching
+
+**Problem**: On page refresh, the server re-sends the entire output history over WebSocket even when the client already has most of it. For long-running sessions this causes noticeable delay and redundant bandwidth.
+
+**Two-layer strategy**:
+
+1. **Client cache**: xterm `SerializeAddon` serializes terminal state to `sessionStorage` on `visibilitychange` (tab hidden) and `beforeunload`.
+2. **Server resume**: Client sends `?history_offset=N` on WS connect; server validates the offset against `totalOutputBytes` and sends only the delta.
+
+**Flow**:
+
+```
+Page Load → Check sessionStorage
+├─ Cache hit → Deserialize to xterm (instant) → Connect WS with ?history_offset=N
+│              └─ Server validates offset
+│                 ├─ Valid → Send delta + history_end{resumed:true}
+│                 └─ Invalid → Send full history + history_end{resumed:false}
+│                              └─ Client calls terminal.reset() first
+└─ Cache miss → Connect WS without offset → Full history replay (existing behavior)
+```
+
+**Cache lifecycle**: Saved on `visibilitychange` (tab hidden) and `beforeunload`. 30-minute TTL. 2 MB max size. Uses `sessionStorage` (per-tab, cleared on tab close).
+
+**Key files**: `ui/src/lib/terminalCache.ts` (save/load/clear), `ui/src/hooks/useTerminalSocket.ts` (historyOffset negotiation), `ui/src/components/TerminalPane.tsx` (SerializeAddon integration), `api/session.go` (totalOutputBytes, Subscribe), `api/terminal_ws.go` (history_offset query param).
+
 ### Voice Input
 
 1. User presses Alt+Space (desktop) or taps mic button (mobile toolbar)

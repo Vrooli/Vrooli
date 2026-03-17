@@ -192,7 +192,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     let cancelled = false;
     (async () => {
       try {
+        const mountCapStart = Date.now();
         const caps = await fetchCapabilities();
+        console.info("[voice] Mount capability check took %dms", Date.now() - mountCapStart);
         if (cancelled) return;
         const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
         if (whisper?.status === "available") {
@@ -242,6 +244,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     stopRequestedRef.current = false;
 
     // Show "preparing" state immediately for visual feedback
+    const prepareStart = Date.now();
     setState((s) => ({ ...s, voiceState: "preparing", error: null }));
 
     try {
@@ -252,7 +255,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         try {
           // Use liveness check (GET-only) for pre-recording checks,
           // not the full capability check that includes a test transcription.
+          const capCheckStart = Date.now();
           const caps = await fetchCapabilitiesLiveness();
+          console.info("[voice] Pre-record liveness check took %dms", Date.now() - capCheckStart);
           const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
           if (whisper?.status !== "available") {
             capCheckFailCountRef.current++;
@@ -297,7 +302,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // capability check before creating the provider so we get the right one.
       if (!capCheckResolvedRef.current && backendRef.current === "whisper") {
         try {
+          const mountFallbackStart = Date.now();
           const caps = await fetchCapabilitiesLiveness();
+          console.info("[voice] Mount-fallback liveness check took %dms", Date.now() - mountFallbackStart);
           const whisper = caps.capabilities.find((c) => c.id === "whisper-stt");
           if (whisper?.status === "available") {
             streamingAvailableRef.current = whisper.features?.includes("voice-streaming") ?? false;
@@ -385,7 +392,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         };
       }
 
+      const providerStartTime = Date.now();
       await provider.start();
+      console.info("[voice] Provider.start() took %dms (includes getUserMedia)", Date.now() - providerStartTime);
 
       // If start() failed (e.g. permission denied), onError already set state.
       // Check if the mic stream was acquired before entering recording state.
@@ -399,7 +408,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           vadRef.current.recordingStart = Date.now();
         }
 
-        console.info("[voice] Recording started");
+        console.info("[voice] Recording started (preparing took %dms)", Date.now() - prepareStart);
         setState((s) => ({ ...s, voiceState: "recording" }));
         startLevelMonitor(stream);
 

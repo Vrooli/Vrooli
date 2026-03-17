@@ -48,6 +48,24 @@ type ClientInfo struct {
 	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
 }
 
+// SubscribeResult holds the channels and metadata returned by Subscribe.
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+type SubscribeResult struct {
+	// OutputCh receives PTY output frames. A nil value acts as a sentinel
+	// marking the end of replayed history data.
+	OutputCh chan []byte
+	// NotifyCh fires when coalesced frames exceed the configured threshold.
+	NotifyCh chan int
+	// HadData is true when buffered history was replayed into OutputCh.
+	HadData bool
+	// Resumed is true when the client's resume offset was valid and only
+	// delta data (not full history) was sent.
+	Resumed bool
+	// TotalBytes is the server's monotonic output byte count at subscribe
+	// time. Clients store this to resume from the same offset on reconnect.
+	TotalBytes int64
+}
+
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
 // DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
 // Session represents a terminal session backed by a PTY process.
@@ -72,6 +90,12 @@ type Session struct {
 	processExitCode int  // exit code from the PTY process (-1 if unknown)
 	historyTrimmed  bool // set once when history cap is hit (log once)
 
+	// totalOutputBytes is the monotonic count of bytes ever appended to
+	// outputHistory. Never decremented, even when history is trimmed.
+	// Used by clients to resume from a known offset after reconnect.
+	// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+	totalOutputBytes int64
+
 	// utf8Buf holds an incomplete multi-byte UTF-8 sequence from the previous
 	// PTY read. Prepended to the next read before broadcasting so that
 	// string(data) + JSON encoding never sees partial codepoints.
@@ -92,31 +116,65 @@ func (s *Session) Write(data []byte) (int, error) {
 	return s.pty.Write(data)
 }
 
-// Subscribe returns a channel that receives PTY output, a notification
-// channel that fires when coalesced frames exceed the configured threshold,
-// and a bool indicating whether buffered history was replayed.
+// historyStart returns the byte offset of the first byte in the current
+// outputHistory buffer. Bytes before this offset have been trimmed.
+// Must be called with s.mu held.
+func (s *Session) historyStart() int64 {
+	return s.totalOutputBytes - int64(len(s.outputHistory))
+}
+
+// Subscribe returns a SubscribeResult containing channels for receiving PTY
+// output and coalescing notifications, plus metadata about the subscription.
 //
-// When hadHistory is true, the caller should expect a nil sentinel value
-// on the output channel after all history chunks have been delivered. This
-// sentinel tells the WebSocket forwarder to send a "history_end" message
-// so the client can batch-render history in one pass.
+// When resumeOffset > 0 and falls within the current history buffer's range
+// [historyStart, totalOutputBytes], only the delta (bytes after the offset)
+// is replayed and Resumed is set to true. Otherwise, full history is sent
+// and Resumed is false. An offset of 0 always triggers full history replay.
 //
-// Caller must call Unsubscribe when done. Recent output history is replayed
-// immediately, prefixed with an SGR reset to clear any dangling
-// color/attribute state that may have been lost when the history buffer
-// was trimmed.
+// When HadData is true, the caller should expect a nil sentinel value on
+// OutputCh after all history chunks have been delivered. This sentinel tells
+// the WebSocket forwarder to send a "history_end" message so the client can
+// batch-render history in one pass.
+//
+// Caller must call Unsubscribe when done. Replayed history is prefixed with
+// an SGR reset to clear any dangling color/attribute state that may have
+// been lost when the history buffer was trimmed.
 // [REQ:P0-003b] Reconnect State Restoration
-func (s *Session) Subscribe() (chan []byte, chan int, bool) {
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+func (s *Session) Subscribe(resumeOffset int64) SubscribeResult {
 	notifyCh := make(chan int, 1)
 	s.mu.Lock()
 
-	// Build history chunks (if any) before allocating the channel so we
-	// can size it to hold all chunks plus the nil sentinel without blocking.
+	totalBytes := s.totalOutputBytes
+	hStart := s.historyStart()
+
+	// Determine whether to send delta or full history.
+	resumed := false
+	var source []byte // raw bytes to chunk and send
+	if resumeOffset > 0 && resumeOffset >= hStart && resumeOffset <= totalBytes {
+		resumed = true
+		deltaStart := resumeOffset - hStart
+		if deltaStart < int64(len(s.outputHistory)) {
+			source = s.outputHistory[deltaStart:]
+		}
+		// else: offset == totalBytes → no delta, but still "resumed"
+	} else if len(s.outputHistory) > 0 {
+		source = s.outputHistory
+	}
+
+	// Build chunks from the selected source, prepending SGR reset when
+	// sending full history (not delta) to clear dangling color state.
 	var chunks [][]byte
-	if len(s.outputHistory) > 0 {
-		snapshot := make([]byte, 0, len(sgrReset)+len(s.outputHistory))
-		snapshot = append(snapshot, sgrReset...)
-		snapshot = append(snapshot, s.outputHistory...)
+	if len(source) > 0 {
+		var snapshot []byte
+		if !resumed {
+			snapshot = make([]byte, 0, len(sgrReset)+len(source))
+			snapshot = append(snapshot, sgrReset...)
+			snapshot = append(snapshot, source...)
+		} else {
+			snapshot = make([]byte, len(source))
+			copy(snapshot, source)
+		}
 		for off := 0; off < len(snapshot); off += historyChunkSize {
 			end := off + historyChunkSize
 			if end > len(snapshot) {
@@ -128,7 +186,7 @@ func (s *Session) Subscribe() (chan []byte, chan int, bool) {
 		}
 	}
 
-	hadHistory := len(chunks) > 0
+	hadData := len(chunks) > 0
 
 	// Ensure the channel can hold all history chunks + the nil sentinel
 	// without blocking, while still respecting the configured buffer size
@@ -142,13 +200,20 @@ func (s *Session) Subscribe() (chan []byte, chan int, bool) {
 	for _, chunk := range chunks {
 		ch <- chunk
 	}
-	if hadHistory {
+	if hadData {
 		ch <- nil // sentinel: history replay complete
 	}
 
 	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
 	s.mu.Unlock()
-	return ch, notifyCh, hadHistory
+
+	return SubscribeResult{
+		OutputCh:   ch,
+		NotifyCh:   notifyCh,
+		HadData:    hadData,
+		Resumed:    resumed,
+		TotalBytes: totalBytes,
+	}
 }
 
 // Unsubscribe removes a client channel. The PTY size is unchanged.
@@ -210,7 +275,11 @@ func (s *Session) ExitCode() int {
 }
 
 func (s *Session) appendHistory(data []byte) {
-	if s.offlineBufferMax <= 0 || len(data) == 0 {
+	if len(data) == 0 {
+		return
+	}
+	s.totalOutputBytes += int64(len(data))
+	if s.offlineBufferMax <= 0 {
 		return
 	}
 

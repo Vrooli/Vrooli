@@ -306,8 +306,8 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write output from fake PTY
 	testData := []byte("hello from fake")
@@ -316,7 +316,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	}()
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if string(data) != "hello from fake" {
 			t.Errorf("expected 'hello from fake', got %q", string(data))
 		}
@@ -344,11 +344,11 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Subscribe and expect buffered data (prefixed with SGR reset)
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		// Subscribe prepends SGR reset (\x1b[0m) to replayed history
 		expected := "\x1b[0m" + "offline data"
 		if string(data) != expected {
@@ -373,8 +373,8 @@ func TestFakePTY_Resize(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	sess.Resize(200, 60)
 

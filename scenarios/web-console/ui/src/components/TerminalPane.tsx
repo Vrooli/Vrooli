@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef, type DragEvent, type ClipboardEvent } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SerializeAddon } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalSocket } from "../hooks/useTerminalSocket";
+import { loadTerminalCache, saveTerminalCache } from "../lib/terminalCache";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from "../consts/config";
@@ -36,6 +38,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
   function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
+    const serializeRef = useRef<SerializeAddon | null>(null);
+    const cachedOffsetRef = useRef<number | undefined>(undefined);
+    const hadCacheRef = useRef(false);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
 
     // Per-pane selectors with fallbacks for old persisted data
@@ -51,7 +56,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [paneThemeId]);
 
     // Delegate all WebSocket protocol handling to the socket hook
-    const { sendInput, sendResize } = useTerminalSocket({
+    const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({
       sessionId,
       terminal,
       onExit,
@@ -68,6 +73,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         });
         onReady?.();
       },
+      historyOffset: cachedOffsetRef.current,
+      hasCachedState: hadCacheRef.current,
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
@@ -197,12 +204,30 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       });
 
       const fitAddon = new FitAddon();
+      const serializeAddon = new SerializeAddon();
       const webLinksAddon = new WebLinksAddon();
       term.loadAddon(fitAddon);
+      term.loadAddon(serializeAddon);
       term.loadAddon(webLinksAddon);
 
       term.open(container);
       fitAddon.fit();
+
+      // Restore cached terminal state for instant visual display on refresh.
+      // The cache entry includes the byte offset so useTerminalSocket can
+      // request only delta output from the server.
+      // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+      const cached = loadTerminalCache(sessionId);
+      if (cached) {
+        term.write(cached.serialized);
+        cachedOffsetRef.current = cached.totalBytes;
+        hadCacheRef.current = true;
+      } else {
+        cachedOffsetRef.current = undefined;
+        hadCacheRef.current = false;
+      }
+
+      serializeRef.current = serializeAddon;
 
       // === Mobile virtual-keyboard suppression ===
       // On mobile, xterm.js focus() focuses a hidden <textarea>, which the
@@ -250,6 +275,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         titleDisposable.dispose();
         term.dispose();
         fitRef.current = null;
+        serializeRef.current = null;
         setTerminal(null);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps -- Initial font size only; font updates handled by separate effect
@@ -319,6 +345,39 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         container.removeEventListener("keyup", handler, { capture: true });
       };
     }, [onVoiceStart, onVoiceStop, voiceShortcut]);
+
+    // Save terminal state to sessionStorage on visibility change (tab
+    // backgrounded) and beforeunload (page refresh). On next mount the
+    // cached state is written to xterm instantly, and the byte offset is
+    // sent to the server for delta-only history replay.
+    // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+    useEffect(() => {
+      if (!terminal || !serializeRef.current) return;
+
+      const save = () => {
+        const addon = serializeRef.current;
+        if (!addon) return;
+        const serialized = addon.serialize();
+        saveTerminalCache(sessionId, {
+          serialized,
+          totalBytes: totalBytesRef.current,
+          savedAt: Date.now(),
+        });
+      };
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "hidden") save();
+      };
+      const handleBeforeUnload = () => save();
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      return () => {
+        save(); // Final save on unmount
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }, [terminal, sessionId, totalBytesRef]);
 
     // Handle container resize -> fit terminal -> notify server.
     // Throttled via requestAnimationFrame to avoid flooding the WebSocket

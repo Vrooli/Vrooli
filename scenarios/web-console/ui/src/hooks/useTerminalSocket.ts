@@ -29,6 +29,10 @@ export interface TerminalMessage {
   code?: number;
   /** Cumulative coalesced frame count (sent with "sync_warning" messages). */
   coalesced_frames?: number;
+  /** Server's monotonic output byte count (sent with "history_end"). */
+  total_bytes?: number;
+  /** True when the server honored the client's resume offset (delta-only). */
+  resumed?: boolean;
 }
 
 /** Factory function for creating WebSocket connections. Override in tests. */
@@ -85,6 +89,10 @@ interface UseTerminalSocketOptions {
   onReady?: () => void;
   /** Injectable WebSocket factory for testing without real connections. */
   createSocket?: SocketFactory;
+  /** Byte offset for history resume (from terminal cache). */
+  historyOffset?: number;
+  /** Whether the terminal was restored from a serialized cache entry. */
+  hasCachedState?: boolean;
 }
 
 /**
@@ -100,18 +108,23 @@ export function useTerminalSocket({
   onExit,
   onReady,
   createSocket = defaultSocketFactory,
+  historyOffset,
+  hasCachedState,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingInputRef = useRef<string[]>([]);
+  const totalBytesRef = useRef<number>(0);
 
-  // Store event-handler callbacks in refs so they can be updated without
-  // tearing down the WebSocket connection. These are "fire-and-forget"
+  // Store event-handler callbacks and options in refs so they can be updated
+  // without tearing down the WebSocket connection. These are "fire-and-forget"
   // handlers — the connection effect reads them at call time, not setup time.
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
+  const hasCachedStateRef = useRef(hasCachedState ?? false);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
+  hasCachedStateRef.current = hasCachedState ?? false;
 
   const enqueueInput = useCallback((data: string) => {
     if (!data) return;
@@ -156,7 +169,14 @@ export function useTerminalSocket({
   useEffect(() => {
     if (!terminal) return;
 
-    const wsUrl = buildSessionWsUrl(sessionId);
+    // Append resume offset to the WS URL when the client has a cached
+    // terminal state. The server validates the offset and sends only delta
+    // data, or falls back to full history if the offset is stale.
+    // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+    const baseWsUrl = buildSessionWsUrl(sessionId);
+    const wsUrl = historyOffset && historyOffset > 0
+      ? `${baseWsUrl}${baseWsUrl.includes("?") ? "&" : "?"}history_offset=${historyOffset}`
+      : baseWsUrl;
     const localEcho = new LocalEchoController();
     let disposed = false;
     let reconnectAttempts = 0;
@@ -251,9 +271,22 @@ export function useTerminalSocket({
               }
             }
             break;
-          case "history_end":
+          case "history_end": {
+            const resumed = msg.resumed === true;
+            if (!resumed && hasCachedStateRef.current) {
+              // Server rejected our offset — cache was stale. Clear the
+              // deserialized content before writing fresh full history.
+              terminal.reset();
+            }
+            if (msg.total_bytes !== undefined) {
+              totalBytesRef.current = msg.total_bytes;
+            }
+            // After processing metadata, mark cache as consumed so
+            // reconnect within the same session doesn't double-reset.
+            hasCachedStateRef.current = false;
             flushHistoryBuffer();
             break;
+          }
           case "exit": {
             // Flush any pending history so the user sees terminal state
             // before the exit label.
@@ -399,7 +432,7 @@ export function useTerminalSocket({
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [sessionId, terminal, sendResize, createSocket, enqueueInput]);
+  }, [sessionId, terminal, sendResize, createSocket, enqueueInput, historyOffset]);
 
-  return { sendInput, sendResize };
+  return { sendInput, sendResize, totalBytesRef };
 }

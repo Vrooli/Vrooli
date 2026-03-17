@@ -866,3 +866,143 @@ describe("useTerminalSocket — history replay batching", () => {
     expect(findWriteCall(terminal.write, "immediate")).toBeTruthy();
   });
 });
+
+// --- History resume caching tests ---
+
+describe("useTerminalSocket — history resume caching", () => {
+  let fakeWs: FakeWebSocket;
+  let createSocket: ReturnType<typeof createFakeSocketPair>["createSocket"];
+  let terminal: MockTerminal;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const pair = createFakeSocketPair();
+    fakeWs = pair.fakeWs;
+    createSocket = pair.createSocket;
+    terminal = createMockTerminal();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("appends history_offset query param when historyOffset provided", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+        historyOffset: 5000,
+      }),
+    );
+
+    expect(createSocket).toHaveBeenCalledTimes(1);
+    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain("?history_offset=5000");
+  });
+
+  it("does not append history_offset when zero or undefined", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+        historyOffset: 0,
+      }),
+    );
+
+    expect(createSocket).toHaveBeenCalledTimes(1);
+    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).not.toContain("history_offset");
+  });
+
+  it("resets terminal on history_end with resumed=false and cached state", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+        hasCachedState: true,
+        historyOffset: 5000,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "history-data" }));
+    act(() => fakeWs.triggerMessage({ type: "history_end", resumed: false, total_bytes: 10000 }));
+
+    // terminal.reset() should have been called when the server rejected
+    // the cached offset (resumed=false with hasCachedState=true).
+    // Note: reset is also called on reconnect, but this is the first connection,
+    // so any reset call here is from the history_end handler.
+    expect(terminal.reset).toHaveBeenCalled();
+  });
+
+  it("does NOT reset terminal on history_end with resumed=true", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+        hasCachedState: true,
+        historyOffset: 5000,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "delta-data" }));
+    act(() => fakeWs.triggerMessage({ type: "history_end", resumed: true, total_bytes: 10000 }));
+
+    // terminal.reset() should NOT have been called — the server honored
+    // the offset and sent only delta data.
+    expect(terminal.reset).not.toHaveBeenCalled();
+  });
+
+  it("does NOT reset terminal on history_end without cached state", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "full-history" }));
+    act(() => fakeWs.triggerMessage({ type: "history_end", resumed: false, total_bytes: 10000 }));
+
+    // No cached state means no reset needed — this is a fresh connection.
+    expect(terminal.reset).not.toHaveBeenCalled();
+  });
+
+  it("exposes totalBytesRef updated from history_end", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "history_end", total_bytes: 42000 }));
+
+    expect(result.current.totalBytesRef.current).toBe(42000);
+  });
+
+  it("handles history_end without total_bytes field (old server compat)", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
+
+    // Should not crash and totalBytesRef stays at default (0).
+    expect(result.current.totalBytesRef.current).toBe(0);
+  });
+});

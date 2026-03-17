@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -40,6 +41,12 @@ type TerminalMessage struct {
 	Rows            int    `json:"rows,omitempty"`
 	Code            int    `json:"code,omitempty"`
 	CoalescedFrames int    `json:"coalesced_frames,omitempty"`
+	// TotalBytes is the server's monotonic output byte count. Sent with
+	// history_end so the client can cache and resume from this offset.
+	TotalBytes int64 `json:"total_bytes,omitempty"`
+	// Resumed indicates that the client's resume offset was valid and only
+	// delta data was sent (not the full history).
+	Resumed bool `json:"resumed,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -86,9 +93,16 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		s.metrics.ActiveConnections.Add(-1)
 	}()
 
+	// Parse optional history resume offset from query string.
+	// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+	var resumeOffset int64
+	if raw := r.URL.Query().Get("history_offset"); raw != "" {
+		resumeOffset, _ = strconv.ParseInt(raw, 10, 64)
+	}
+
 	// Subscribe to PTY output (the client's first resize message sets dimensions)
-	outputCh, notifyCh, hadHistory := sess.Subscribe()
-	defer sess.Unsubscribe(outputCh)
+	sub := sess.Subscribe(resumeOffset)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
@@ -107,6 +121,14 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		writeMu.Unlock()
 	}
 
+	// historyEndMsg is the history_end message for this subscription, built
+	// once and reused for both the immediate (no-history) and sentinel paths.
+	historyEndMsg := TerminalMessage{
+		Type:       MsgTypeHistoryEnd,
+		TotalBytes: sub.TotalBytes,
+		Resumed:    sub.Resumed,
+	}
+
 	// Output forwarder: PTY output + coalescing notifications → WebSocket client.
 	// Guaranteed to exit: either ctx.Done() fires (input loop returned) or
 	// outputCh is closed (PTY exited) or WS write fails.
@@ -115,15 +137,15 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 		// If no history was buffered, tell the client immediately so it
 		// can skip waiting for the sentinel and enter live pass-through.
-		if !hadHistory {
+		if !sub.HadData {
 			writeMu.Lock()
-			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+			_ = conn.WriteJSON(historyEndMsg)
 			writeMu.Unlock()
 		}
 
 		for {
 			select {
-			case data, ok := <-outputCh:
+			case data, ok := <-sub.OutputCh:
 				if !ok {
 					// Channel closed = process exited; forward the real exit code.
 					writeMu.Lock()
@@ -135,7 +157,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 					// Nil sentinel from Subscribe: all history chunks have
 					// been forwarded. Signal the client to flush its buffer.
 					writeMu.Lock()
-					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+					_ = conn.WriteJSON(historyEndMsg)
 					writeMu.Unlock()
 					continue
 				}
@@ -151,8 +173,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 				// Drain coalesced data after a successful write so the
 				// broadcast loop can resume normal per-frame delivery.
-				sess.FlushPending(outputCh)
-			case coalesced := <-notifyCh:
+				sess.FlushPending(sub.OutputCh)
+			case coalesced := <-sub.NotifyCh:
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
 					Type:            MsgTypeSyncWarning,

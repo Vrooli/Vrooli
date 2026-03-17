@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 )
@@ -138,8 +139,8 @@ func TestSession_Resize(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	sess.Resize(120, 40)
 
@@ -162,10 +163,10 @@ func TestSession_Resize_LastWriterWins(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch1, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch1)
-	ch2, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch2)
+	sub1 := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub1.OutputCh)
+	sub2 := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub2.OutputCh)
 
 	// Desktop resizes to 120x40
 	sess.Resize(120, 40)
@@ -195,9 +196,9 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
+	sub := sess.Subscribe(0)
 	sess.Resize(120, 40)
-	sess.Unsubscribe(ch)
+	sess.Unsubscribe(sub.OutputCh)
 
 	// PTY size should remain at last resize value
 	cols, rows := sess.EffectiveSize()
@@ -219,8 +220,8 @@ func TestSession_SubscribeAndBroadcast(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write to stdin - the shell should echo something back
 	_, err = sess.Write([]byte("echo hello\n"))
@@ -230,7 +231,7 @@ func TestSession_SubscribeAndBroadcast(t *testing.T) {
 
 	// Read output with timeout
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if len(data) == 0 {
 			t.Error("expected non-empty output")
 		}
@@ -259,11 +260,11 @@ func TestSession_OfflineBuffer(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Now subscribe - should get buffered output
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if len(data) == 0 {
 			t.Error("expected buffered offline output")
 		}
@@ -392,11 +393,11 @@ func TestSubscribe_PrependsSGRReset(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Subscribe and check that replay starts with SGR reset
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if len(data) < 4 {
 			t.Fatalf("replayed data too short: %q", data)
 		}
@@ -428,11 +429,11 @@ func TestSession_Broadcast_Coalescing_Notifies(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, notifyCh, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Fill the output channel (buffer size 1).
-	// Don't read from ch — let coalescing kick in.
+	// Don't read from sub.OutputCh — let coalescing kick in.
 	for i := 0; i < 4; i++ {
 		_, _ = fake.outW.Write([]byte("data\n"))
 		time.Sleep(10 * time.Millisecond)
@@ -440,7 +441,7 @@ func TestSession_Broadcast_Coalescing_Notifies(t *testing.T) {
 
 	// Should have received a coalescing notification (threshold=2).
 	select {
-	case coalesced := <-notifyCh:
+	case coalesced := <-sub.NotifyCh:
 		if coalesced < 2 {
 			t.Errorf("expected at least 2 coalesced frames, got %d", coalesced)
 		}
@@ -463,8 +464,8 @@ func TestSession_Broadcast_CoalescingThreshold(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, notifyCh, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Cause a few coalesced frames (less than threshold).
 	for i := 0; i < 5; i++ {
@@ -474,7 +475,7 @@ func TestSession_Broadcast_CoalescingThreshold(t *testing.T) {
 
 	// Should NOT have a notification yet (only ~4 coalesced, threshold is 10).
 	select {
-	case <-notifyCh:
+	case <-sub.NotifyCh:
 		t.Error("should not receive notification before threshold is reached")
 	case <-time.After(200 * time.Millisecond):
 		// Expected: no notification.
@@ -496,8 +497,8 @@ func TestSession_Broadcast_CoalescingPreservesAllData(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write 20 small messages without reading from the channel.
 	var expected []byte
@@ -512,9 +513,9 @@ func TestSession_Broadcast_CoalescingPreservesAllData(t *testing.T) {
 	var received []byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
-			sess.FlushPending(ch)
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto done
 		}
@@ -523,7 +524,7 @@ done:
 	// Drain anything flushed.
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
 		case <-time.After(100 * time.Millisecond):
 			goto verify
@@ -550,8 +551,8 @@ func TestSession_Broadcast_CoalescingCapRespected(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write more data than the cap allows while consumer is blocked.
 	for i := 0; i < 10; i++ {
@@ -563,9 +564,9 @@ func TestSession_Broadcast_CoalescingCapRespected(t *testing.T) {
 	var received []byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
-			sess.FlushPending(ch)
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto done2
 		}
@@ -573,7 +574,7 @@ func TestSession_Broadcast_CoalescingCapRespected(t *testing.T) {
 done2:
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
 		case <-time.After(100 * time.Millisecond):
 			goto verify2
@@ -655,8 +656,8 @@ func TestReadLoop_UTF8BoundarySafety(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write a 3-byte UTF-8 char (✓ = 0xe2 0x9c 0x93) split across two writes.
 	// First write: ASCII + first 2 bytes of the char.
@@ -670,7 +671,7 @@ func TestReadLoop_UTF8BoundarySafety(t *testing.T) {
 	var received []byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
 		case <-time.After(300 * time.Millisecond):
 			goto verify
@@ -714,11 +715,11 @@ func TestAppendHistory_TrimDoesNotSplitANSISequence(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 
 	// Subscribe to get the replayed (trimmed) history
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		s := string(data)
 		// The replayed data should NOT contain raw partial sequence bytes
 		// like "[31m" without the preceding ESC. Check that any '[' is
@@ -754,8 +755,8 @@ func TestSession_Broadcast_CoalescingCapSnapsToCleanBoundary(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write data containing ANSI sequences. The coalescing cap should trim
 	// at an ANSI-clean boundary rather than slicing mid-escape-sequence.
@@ -768,9 +769,9 @@ func TestSession_Broadcast_CoalescingCapSnapsToCleanBoundary(t *testing.T) {
 	var received []byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
-			sess.FlushPending(ch)
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto coalesceDone
 		}
@@ -778,7 +779,7 @@ func TestSession_Broadcast_CoalescingCapSnapsToCleanBoundary(t *testing.T) {
 coalesceDone:
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
 		case <-time.After(100 * time.Millisecond):
 			goto coalesceVerify
@@ -821,27 +822,27 @@ func TestAppendHistory_NoSliceAliasing(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 
 	// Subscribe to see the current history state.
-	ch1, _, _ := sess.Subscribe()
+	sub1 := sess.Subscribe(0)
 	select {
-	case data := <-ch1:
+	case data := <-sub1.OutputCh:
 		if !bytes.Contains(data, []byte("BBBB")) {
 			t.Errorf("history should contain second write, got %q", data)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for history")
 	}
-	sess.Unsubscribe(ch1)
+	sess.Unsubscribe(sub1.OutputCh)
 
 	// Write more data to trigger another trim cycle.
 	_, _ = fake.outW.Write([]byte("CCCCCCCCCCCCCCCC\n")) // 17 bytes — triggers trim again
 	time.Sleep(30 * time.Millisecond)
 
 	// Verify the history is not corrupted by slice aliasing.
-	ch2, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch2)
+	sub2 := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub2.OutputCh)
 
 	select {
-	case data := <-ch2:
+	case data := <-sub2.OutputCh:
 		if !bytes.Contains(data, []byte("CCCC")) {
 			t.Errorf("history should contain third write after re-trim, got %q", data)
 		}
@@ -871,13 +872,13 @@ func TestSubscribe_ChunksLargeHistory(t *testing.T) {
 	_, _ = fake.outW.Write(bigData)
 	time.Sleep(100 * time.Millisecond)
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	var chunks [][]byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			if data == nil {
 				continue // skip nil sentinel
 			}
@@ -927,13 +928,13 @@ func TestSubscribe_SmallHistoryNotChunked(t *testing.T) {
 	_, _ = fake.outW.Write([]byte("small output\n"))
 	time.Sleep(50 * time.Millisecond)
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	var chunks [][]byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			if data == nil {
 				continue // skip nil sentinel
 			}
@@ -963,9 +964,9 @@ func TestSubscribe_ReturnsHadHistoryFalse(t *testing.T) {
 	}
 
 	// Fresh session with no output history.
-	_, _, hadHistory := sess.Subscribe()
-	if hadHistory {
-		t.Error("expected hadHistory=false for session with no output")
+	sub := sess.Subscribe(0)
+	if sub.HadData {
+		t.Error("expected HadData=false for session with no output")
 	}
 
 	fake.Close()
@@ -985,9 +986,9 @@ func TestSubscribe_ReturnsHadHistoryTrue(t *testing.T) {
 	_, _ = fake.outW.Write([]byte("some output"))
 	time.Sleep(50 * time.Millisecond)
 
-	_, _, hadHistory := sess.Subscribe()
-	if !hadHistory {
-		t.Error("expected hadHistory=true for session with output history")
+	sub := sess.Subscribe(0)
+	if !sub.HadData {
+		t.Error("expected HadData=true for session with output history")
 	}
 
 	fake.Close()
@@ -1006,16 +1007,16 @@ func TestSubscribe_NilSentinelAfterHistoryChunks(t *testing.T) {
 	_, _ = fake.outW.Write([]byte("hello world"))
 	time.Sleep(50 * time.Millisecond)
 
-	ch, _, hadHistory := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
-	if !hadHistory {
-		t.Fatal("expected hadHistory=true")
+	if !sub.HadData {
+		t.Fatal("expected HadData=true")
 	}
 
 	// First message should be the history chunk (non-nil).
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if data == nil {
 			t.Fatal("expected history chunk, got nil sentinel")
 		}
@@ -1028,7 +1029,7 @@ func TestSubscribe_NilSentinelAfterHistoryChunks(t *testing.T) {
 
 	// Next message should be the nil sentinel.
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		if data != nil {
 			t.Errorf("expected nil sentinel after history, got %d bytes", len(data))
 		}
@@ -1050,15 +1051,15 @@ func TestSubscribe_NoSentinelWithoutHistory(t *testing.T) {
 	}
 
 	// No output written — channel should be empty (no sentinel).
-	ch, _, hadHistory := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
-	if hadHistory {
-		t.Fatal("expected hadHistory=false")
+	if sub.HadData {
+		t.Fatal("expected HadData=false")
 	}
 
 	select {
-	case data := <-ch:
+	case data := <-sub.OutputCh:
 		t.Errorf("expected empty channel, got %d bytes (nil=%v)", len(data), data == nil)
 	case <-time.After(100 * time.Millisecond):
 		// Expected: nothing in channel.
@@ -1089,16 +1090,16 @@ func TestSubscribe_ChannelCapacityFitsChunksAndSentinel(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		ch, _, hadHistory := sess.Subscribe()
-		defer sess.Unsubscribe(ch)
-		if !hadHistory {
-			t.Error("expected hadHistory=true")
+		sub := sess.Subscribe(0)
+		defer sess.Unsubscribe(sub.OutputCh)
+		if !sub.HadData {
+			t.Error("expected HadData=true")
 		}
 		// Drain all chunks and verify we get the nil sentinel.
 		var gotSentinel bool
 		for {
 			select {
-			case data := <-ch:
+			case data := <-sub.OutputCh:
 				if data == nil {
 					gotSentinel = true
 					goto verify
@@ -1135,14 +1136,14 @@ func TestFlushPending_ChunksLargeData(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Drain history replay if any
 	drainWithTimeout := func() {
 		for {
 			select {
-			case <-ch:
+			case <-sub.OutputCh:
 			case <-time.After(50 * time.Millisecond):
 				return
 			}
@@ -1163,20 +1164,20 @@ func TestFlushPending_ChunksLargeData(t *testing.T) {
 
 	// Drain the one message in the channel (first broadcast that fit)
 	select {
-	case <-ch:
+	case <-sub.OutputCh:
 	case <-time.After(200 * time.Millisecond):
 	}
 
 	// Now flush pending data — channel has room
-	sess.FlushPending(ch)
+	sess.FlushPending(sub.OutputCh)
 
 	// Collect all flushed chunks
 	var chunks [][]byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			chunks = append(chunks, data)
-			sess.FlushPending(ch) // try to flush more
+			sess.FlushPending(sub.OutputCh) // try to flush more
 		case <-time.After(200 * time.Millisecond):
 			goto verify
 		}
@@ -1207,13 +1208,13 @@ func TestFlushPending_StopsWhenChannelFull(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Drain initial history replay
 	for {
 		select {
-		case <-ch:
+		case <-sub.OutputCh:
 		case <-time.After(50 * time.Millisecond):
 			goto write
 		}
@@ -1232,23 +1233,23 @@ write:
 
 	// Drain the one message that fit in the channel
 	select {
-	case <-ch:
+	case <-sub.OutputCh:
 	case <-time.After(200 * time.Millisecond):
 	}
 
 	// Fill the channel with a dummy message so FlushPending can't send everything
-	ch <- []byte("blocker")
+	sub.OutputCh <- []byte("blocker")
 
 	// FlushPending should send one chunk (if channel drains the blocker first) or stop
-	sess.FlushPending(ch)
+	sess.FlushPending(sub.OutputCh)
 
 	// Drain everything and call FlushPending repeatedly
 	var total int
 	for {
 		select {
-		case d := <-ch:
+		case d := <-sub.OutputCh:
 			total += len(d)
-			sess.FlushPending(ch)
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto done
 		}
@@ -1280,8 +1281,8 @@ func TestDeliver_PrependsSGRResetOnTrim(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write enough data with ANSI color codes to overflow the coalescing cap.
 	for i := 0; i < 20; i++ {
@@ -1293,9 +1294,9 @@ func TestDeliver_PrependsSGRResetOnTrim(t *testing.T) {
 	var received []byte
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
-			sess.FlushPending(ch)
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto sgrDrain
 		}
@@ -1303,7 +1304,7 @@ func TestDeliver_PrependsSGRResetOnTrim(t *testing.T) {
 sgrDrain:
 	for {
 		select {
-		case data := <-ch:
+		case data := <-sub.OutputCh:
 			received = append(received, data...)
 		case <-time.After(100 * time.Millisecond):
 			goto sgrVerify
@@ -1338,8 +1339,8 @@ func TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Record initial SetSize calls (from session creation).
 	fake.mu.Lock()
@@ -1355,8 +1356,8 @@ func TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain(t *testing.T) {
 	// Drain channel and flush pending until fully drained.
 	for {
 		select {
-		case <-ch:
-			sess.FlushPending(ch)
+		case <-sub.OutputCh:
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto sigwinchDrainRemainder
 		}
@@ -1364,7 +1365,7 @@ func TestFlushPending_TriggersSIGWINCHAfterTrimmedDrain(t *testing.T) {
 sigwinchDrainRemainder:
 	for {
 		select {
-		case <-ch:
+		case <-sub.OutputCh:
 		case <-time.After(100 * time.Millisecond):
 			goto sigwinchCheck
 		}
@@ -1401,8 +1402,8 @@ func TestFlushPending_NoSIGWINCHWithoutTrim(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	fake.mu.Lock()
 	initialCalls := fake.setSizeCalls
@@ -1417,8 +1418,8 @@ func TestFlushPending_NoSIGWINCHWithoutTrim(t *testing.T) {
 	// Drain + flush.
 	for {
 		select {
-		case <-ch:
-			sess.FlushPending(ch)
+		case <-sub.OutputCh:
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto noTrimDrain
 		}
@@ -1426,7 +1427,7 @@ func TestFlushPending_NoSIGWINCHWithoutTrim(t *testing.T) {
 noTrimDrain:
 	for {
 		select {
-		case <-ch:
+		case <-sub.OutputCh:
 		case <-time.After(100 * time.Millisecond):
 			goto noTrimCheck
 		}
@@ -1461,8 +1462,8 @@ func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _, _ := sess.Subscribe()
-	defer sess.Unsubscribe(ch)
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
 
 	fake.mu.Lock()
 	initialCalls := fake.setSizeCalls
@@ -1484,13 +1485,13 @@ func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
 	// Drain one message from the channel — this makes room for FlushPending
 	// to send one 64KB chunk, but the channel is too small for the rest.
 	select {
-	case <-ch:
+	case <-sub.OutputCh:
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("expected at least one message in channel")
 	}
 
 	// First FlushPending: partial drain (channel capacity = 1, pending > 64KB).
-	sess.FlushPending(ch)
+	sess.FlushPending(sub.OutputCh)
 
 	fake.mu.Lock()
 	callsAfterPartial := fake.setSizeCalls - initialCalls
@@ -1503,8 +1504,8 @@ func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
 	// Now fully drain everything.
 	for {
 		select {
-		case <-ch:
-			sess.FlushPending(ch)
+		case <-sub.OutputCh:
+			sess.FlushPending(sub.OutputCh)
 		case <-time.After(200 * time.Millisecond):
 			goto onceFinalDrain
 		}
@@ -1512,7 +1513,7 @@ func TestFlushPending_SIGWINCHOnlyOncePerTrim(t *testing.T) {
 onceFinalDrain:
 	for {
 		select {
-		case <-ch:
+		case <-sub.OutputCh:
 		case <-time.After(100 * time.Millisecond):
 			goto onceFinalCheck
 		}
@@ -1524,6 +1525,321 @@ onceFinalCheck:
 
 	if totalExtraCalls != 1 {
 		t.Errorf("expected exactly 1 SIGWINCH SetSize call after full drain, got %d", totalExtraCalls)
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// --- Byte-offset resume tests ---
+
+// TestSubscribe_TotalOutputBytesTracking verifies that TotalBytes in
+// SubscribeResult correctly reflects the cumulative bytes written to the PTY.
+func TestSubscribe_TotalOutputBytesTracking(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write "hello" (5 bytes) and wait for readLoop to process.
+	_, _ = fake.outW.Write([]byte("hello"))
+	time.Sleep(100 * time.Millisecond)
+
+	sub1 := sess.Subscribe(0)
+	sess.Unsubscribe(sub1.OutputCh)
+	if sub1.TotalBytes != 5 {
+		t.Errorf("expected TotalBytes=5 after first write, got %d", sub1.TotalBytes)
+	}
+
+	// Write "world" (5 more bytes).
+	_, _ = fake.outW.Write([]byte("world"))
+	time.Sleep(100 * time.Millisecond)
+
+	sub2 := sess.Subscribe(0)
+	sess.Unsubscribe(sub2.OutputCh)
+	if sub2.TotalBytes != 10 {
+		t.Errorf("expected TotalBytes=10 after second write, got %d", sub2.TotalBytes)
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResumeValidOffset verifies that subscribing with a valid
+// offset within the history buffer returns only the delta (no SGR reset).
+func TestSubscribe_ResumeValidOffset(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write 100 bytes of known output.
+	payload := strings.Repeat("A", 100)
+	_, _ = fake.outW.Write([]byte(payload))
+	time.Sleep(100 * time.Millisecond)
+
+	// Get full history to learn TotalBytes.
+	full := sess.Subscribe(0)
+	sess.Unsubscribe(full.OutputCh)
+	if full.TotalBytes != 100 {
+		t.Fatalf("expected TotalBytes=100, got %d", full.TotalBytes)
+	}
+
+	// Resume from offset 50 — should get last 50 bytes as delta.
+	sub := sess.Subscribe(50)
+	defer sess.Unsubscribe(sub.OutputCh)
+
+	if !sub.Resumed {
+		t.Error("expected Resumed=true for valid offset")
+	}
+	if !sub.HadData {
+		t.Error("expected HadData=true for valid offset with data remaining")
+	}
+
+	// Drain the output channel: collect all data chunks before the nil sentinel.
+	var collected []byte
+	for {
+		select {
+		case data := <-sub.OutputCh:
+			if data == nil {
+				goto doneValidResume
+			}
+			collected = append(collected, data...)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out draining output channel")
+		}
+	}
+doneValidResume:
+
+	// Delta should be exactly the last 50 bytes, no SGR reset prefix.
+	expected := strings.Repeat("A", 50)
+	if string(collected) != expected {
+		t.Errorf("expected delta of 50 'A' bytes, got %d bytes: %q", len(collected), string(collected))
+	}
+	if bytes.HasPrefix(collected, []byte("\x1b[0m")) {
+		t.Error("delta data should NOT have SGR reset prefix")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResumeExactMatch verifies that resuming at exactly
+// TotalBytes returns Resumed=true, HadData=false, and an empty channel.
+func TestSubscribe_ResumeExactMatch(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	_, _ = fake.outW.Write([]byte("some output"))
+	time.Sleep(100 * time.Millisecond)
+
+	full := sess.Subscribe(0)
+	totalBytes := full.TotalBytes
+	sess.Unsubscribe(full.OutputCh)
+
+	sub := sess.Subscribe(totalBytes)
+	defer sess.Unsubscribe(sub.OutputCh)
+
+	if !sub.Resumed {
+		t.Error("expected Resumed=true when offset equals TotalBytes")
+	}
+	if sub.HadData {
+		t.Error("expected HadData=false when offset equals TotalBytes")
+	}
+
+	// Channel should be empty — no data, no sentinel.
+	select {
+	case data := <-sub.OutputCh:
+		t.Errorf("expected empty channel, got data: %v", data)
+	case <-time.After(100 * time.Millisecond):
+		// Expected: nothing in channel.
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResumeStaleOffset verifies that an offset before the history
+// buffer's start falls back to full history replay with SGR reset.
+func TestSubscribe_ResumeStaleOffset(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Override offlineBufferMax to a small value so history gets trimmed.
+	sess.mu.Lock()
+	sess.offlineBufferMax = 100
+	sess.mu.Unlock()
+
+	// Write 200+ bytes so history is trimmed.
+	payload := strings.Repeat("B", 250)
+	_, _ = fake.outW.Write([]byte(payload))
+	time.Sleep(100 * time.Millisecond)
+
+	// Subscribe with offset 10 — before historyStart, should get full history.
+	sub := sess.Subscribe(10)
+	defer sess.Unsubscribe(sub.OutputCh)
+
+	if sub.Resumed {
+		t.Error("expected Resumed=false for stale offset")
+	}
+	if !sub.HadData {
+		t.Error("expected HadData=true for stale offset with history")
+	}
+
+	// Drain and verify SGR reset prefix.
+	var collected []byte
+	for {
+		select {
+		case data := <-sub.OutputCh:
+			if data == nil {
+				goto doneStale
+			}
+			collected = append(collected, data...)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out draining output channel")
+		}
+	}
+doneStale:
+
+	if !bytes.HasPrefix(collected, []byte("\x1b[0m")) {
+		t.Error("full history replay should have SGR reset prefix")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResumeZeroOffset verifies that offset=0 always triggers
+// full history replay with SGR reset prefix.
+func TestSubscribe_ResumeZeroOffset(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	_, _ = fake.outW.Write([]byte("zero offset test"))
+	time.Sleep(100 * time.Millisecond)
+
+	sub := sess.Subscribe(0)
+	defer sess.Unsubscribe(sub.OutputCh)
+
+	if sub.Resumed {
+		t.Error("expected Resumed=false for zero offset")
+	}
+
+	// Drain and verify SGR reset prefix.
+	var collected []byte
+	for {
+		select {
+		case data := <-sub.OutputCh:
+			if data == nil {
+				goto doneZero
+			}
+			collected = append(collected, data...)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out draining output channel")
+		}
+	}
+doneZero:
+
+	if !bytes.HasPrefix(collected, []byte("\x1b[0m")) {
+		t.Error("zero offset should produce full history with SGR reset prefix")
+	}
+	// The data after the SGR reset should contain our original output.
+	if !bytes.Contains(collected, []byte("zero offset test")) {
+		t.Error("full history should contain the original output")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResumeFutureOffset verifies that an offset beyond the
+// current total falls back to full history replay.
+func TestSubscribe_ResumeFutureOffset(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	_, _ = fake.outW.Write([]byte("future test"))
+	time.Sleep(100 * time.Millisecond)
+
+	full := sess.Subscribe(0)
+	totalBytes := full.TotalBytes
+	sess.Unsubscribe(full.OutputCh)
+
+	// Resume with an offset beyond totalBytes.
+	sub := sess.Subscribe(totalBytes + 100)
+	defer sess.Unsubscribe(sub.OutputCh)
+
+	if sub.Resumed {
+		t.Error("expected Resumed=false for future offset")
+	}
+	if !sub.HadData {
+		t.Error("expected HadData=true for future offset (full history sent)")
+	}
+
+	// Drain and verify full history with SGR reset prefix.
+	var collected []byte
+	for {
+		select {
+		case data := <-sub.OutputCh:
+			if data == nil {
+				goto doneFuture
+			}
+			collected = append(collected, data...)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out draining output channel")
+		}
+	}
+doneFuture:
+
+	if !bytes.HasPrefix(collected, []byte("\x1b[0m")) {
+		t.Error("future offset should produce full history with SGR reset prefix")
+	}
+
+	fake.Close()
+	<-sess.Done()
+}
+
+// TestSubscribe_ResultTotalBytes verifies that TotalBytes in the
+// SubscribeResult accurately reflects the number of bytes written.
+func TestSubscribe_ResultTotalBytes(t *testing.T) {
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write known bytes in two batches.
+	_, _ = fake.outW.Write([]byte("abcde")) // 5 bytes
+	time.Sleep(100 * time.Millisecond)
+	_, _ = fake.outW.Write([]byte("fghij")) // 5 bytes
+	time.Sleep(100 * time.Millisecond)
+
+	sub := sess.Subscribe(0)
+	sess.Unsubscribe(sub.OutputCh)
+
+	if sub.TotalBytes != 10 {
+		t.Errorf("expected TotalBytes=10, got %d", sub.TotalBytes)
 	}
 
 	fake.Close()

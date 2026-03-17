@@ -13,6 +13,7 @@ const maxAudioSize = 10 << 20 // 10 MB
 var whisperURL = "http://localhost:8090/asr?output=json"
 
 func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
+	reqStart := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
@@ -44,13 +45,17 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "voice_transcribe_failed", "Failed to read audio data")
 		return
 	}
+	log.Printf("voice-http: received %d bytes, parse took %dms", len(raw), time.Since(reqStart).Milliseconds())
 
+	whisperStart := time.Now()
 	text, err := transcribeBytes(ctx, raw, language, true, "")
 	if err != nil {
-		log.Printf("voice transcribe: %v", err)
+		log.Printf("voice-http: whisper failed after %dms: %v", time.Since(whisperStart).Milliseconds(), err)
 		writeCatalogError(w, "voice_transcribe_failed", "Whisper request failed")
 		return
 	}
 
+	log.Printf("voice-http: transcribed %d bytes -> %d chars in %dms (total %dms)",
+		len(raw), len(text), time.Since(whisperStart).Milliseconds(), time.Since(reqStart).Milliseconds())
 	writeJSON(w, http.StatusOK, map[string]string{"text": text})
 }

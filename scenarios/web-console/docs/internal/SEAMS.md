@@ -212,6 +212,20 @@ Last updated: 2026-03-15
 
 **Benefits**: Time-dependent local echo behavior (stale prediction reset, overflow cap) can be tested deterministically without real delays. The clock injection is a single constructor parameter with a sensible default.
 
+### Terminal Cache Storage Seam (UI)
+**File**: `ui/src/lib/terminalCache.ts`
+**Purpose**: Abstracts terminal state persistence for cache-based history resume.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `saveTerminalCache()` | Serializes terminal state to `sessionStorage` | Direct `sessionStorage.clear()` in `beforeEach`; tested via public API without mocking internal storage |
+| `loadTerminalCache()` | Reads and deserializes cached terminal state from `sessionStorage` | Same — tested via public API |
+| `clearTerminalCache()` | Removes cached state from `sessionStorage` | Same — tested via public API |
+
+**Benefits**: Enables instant visual restore on page refresh. Server sends only delta output. Tests verify cache lifecycle without browser dependencies.
+
+**Boundary**: `terminalCache.ts` ↔ `TerminalPane.tsx` (serialize/restore) ↔ `useTerminalSocket.ts` (offset negotiation)
+
 ### Combo Sequence Delay Seam (UI)
 **File**: `ui/src/lib/comboSequence.ts`
 **Purpose**: Decouple multi-step key combo timing from real `setTimeout` for deterministic tests.

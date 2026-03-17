@@ -136,14 +136,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     console.warn("[voice] Streaming failed \u2014 falling back to HTTP transcription");
     const blob = new Blob(this.allChunks, { type: "audio/webm" });
     this.allChunks = [];
+    const httpFallbackStart = Date.now();
     transcribeAudioWithRetry(blob, 2, this.language)
       .then((text) => {
+        console.info("[voice] HTTP fallback transcription took %dms, %d chars", Date.now() - httpFallbackStart, text.trim().length);
         if (text.trim()) {
           this.finalReceived = true;
           this.onResult?.(text.trim());
         }
       })
       .catch(() => {
+        console.warn("[voice] HTTP fallback failed after %dms", Date.now() - httpFallbackStart);
         this.onError?.(WHISPER_FAILED_SENTINEL);
       });
   }
@@ -160,12 +163,14 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.mediaRecorder = null;
 
+    const micStart = Date.now();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       this.onError?.("Microphone access denied");
       return;
     }
+    console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
 
     // Reset session state
     this.wsUrl = buildVoiceStreamWsUrl(this.language);
@@ -208,9 +213,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.mediaRecorder.start(STREAM_CHUNK_INTERVAL_MS);
 
     // Open WebSocket connection (audio is already being captured above)
+    const wsConnStart = Date.now();
     this.ws = new WebSocket(this.wsUrl);
     this.ws.onopen = () => {
-      console.info("[voice] WebSocket connected, flushing %d buffered chunks", this.pendingChunks.length);
+      console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
       // Flush chunks that were buffered before the WebSocket connected
       for (const chunk of this.pendingChunks) {
         if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(chunk);

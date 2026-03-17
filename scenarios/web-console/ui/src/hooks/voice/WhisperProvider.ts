@@ -20,14 +20,21 @@ export class WhisperProvider implements TranscriptionProvider {
     return this.stream;
   }
 
+  private micAcquireTime = 0;
+  private recordingStartTime = 0;
+
   async start(): Promise<void> {
+    const micStart = Date.now();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       this.onError?.("Microphone access denied");
       return;
     }
+    this.micAcquireTime = Date.now() - micStart;
+    console.info("[voice] WhisperHTTP: getUserMedia took %dms", this.micAcquireTime);
     this.chunks = [];
+    this.recordingStartTime = Date.now();
     this.mediaRecorder = new MediaRecorder(this.stream, {
       mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
@@ -38,16 +45,25 @@ export class WhisperProvider implements TranscriptionProvider {
       if (e.data.size > 0) this.chunks.push(e.data);
     };
     this.mediaRecorder.onstop = async () => {
+      const stopTime = Date.now();
+      const recordingDuration = stopTime - this.recordingStartTime;
       this.stream?.getTracks().forEach((t) => t.stop());
       this.stream = null;
 
       const blob = new Blob(this.chunks, { type: "audio/webm" });
       this.chunks = [];
-      if (blob.size === 0) return;
+      if (blob.size === 0) {
+        console.info("[voice] WhisperHTTP: empty recording (%dms), skipping transcription", recordingDuration);
+        return;
+      }
+      console.info("[voice] WhisperHTTP: recording=%dms, audioSize=%d bytes, sending POST", recordingDuration, blob.size);
+      const transcribeStart = Date.now();
       try {
         const text = await transcribeAudioWithRetry(blob, 2, this.language);
+        console.info("[voice] WhisperHTTP: transcription took %dms, %d chars", Date.now() - transcribeStart, text.trim().length);
         if (text.trim()) this.onResult?.(text.trim());
       } catch {
+        console.warn("[voice] WhisperHTTP: transcription failed after %dms", Date.now() - transcribeStart);
         this.onError?.(WHISPER_FAILED_SENTINEL);
       }
     };
