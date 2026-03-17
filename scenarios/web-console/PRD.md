@@ -55,7 +55,7 @@
 ## 🤝 Dependencies & Launch Plan
 
 - Required resources: Go toolchain, POSIX runtime, `resource-ollama`, authenticated proxy headers, scenario-managed storage
-- Optional resources: `resource-openrouter` fallback provider, Redis/Postgres durability adapters, parent callback integrations
+- Optional resources: `resource-openrouter` fallback provider, Redis/SQLite durability adapters, parent callback integrations
 - Operational risks: Session loss regressions, interactive CLI incompatibilities, provider outages, mobile input friction
 - Launch sequencing: Ship P0 fidelity and durability first, then P1 policy/configuration and observability hardening, then P2 collaboration/presets
 

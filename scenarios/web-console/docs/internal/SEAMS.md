@@ -299,18 +299,18 @@ Last updated: 2026-03-15
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `WorkspaceStore` interface | `PGWorkspaceStore` backed by PostgreSQL | `MemWorkspaceStore` backed by in-memory maps |
+| `WorkspaceStore` interface | `SQLWorkspaceStore` backed by SQLite | `MemWorkspaceStore` backed by in-memory maps |
 | `workspace_panes` table | `ON DELETE CASCADE` from sessions; `ON DELETE SET NULL` from tab_groups | Same semantics in `MemWorkspaceStore` |
 | `useWorkspaceSync` (UI) | Fire-and-forget API calls with debounced reorder saves | Mock API functions in tests |
 | Tab groups | `tab_groups` table with sort_order and collapse state | In-memory group map with UUID generation |
 
-**Benefits**: Workspace layout (pane order, tab groups, active pane) syncs across devices via PostgreSQL. UI remains snappy via optimistic Zustand updates. In-memory store enables handler tests without database. Tab groups support is built into the data model from the start.
+**Benefits**: Workspace layout (pane order, tab groups, active pane) syncs across devices via SQLite. UI remains snappy via optimistic Zustand updates. In-memory store enables handler tests without database. Tab groups support is built into the data model from the start.
 
 ## Remaining Ownership Issues
 
 1. ~~**Shortcut defaults hardcoded** in `TerminalLauncher.tsx`~~ — **Resolved Phase 8**: Extracted to `consts/shortcuts.ts`
 2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSocket` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
-3. ~~**No session persistence**~~ — **Resolved**: Workspace pane metadata persisted in PostgreSQL `workspace_panes` table with cross-device sync via `WorkspaceStore` interface
+3. ~~**No session persistence**~~ — **Resolved**: Workspace pane metadata persisted in SQLite `workspace_panes` table with cross-device sync via `WorkspaceStore` interface
 4. **No structured logging** — Simple `log.Printf` across API; should use structured logger at integration boundaries
 5. ~~**API client hardcoded in Workspace**~~ — **Resolved Phase 8**: Session lifecycle extracted to `useSessionManager` hook
 6. **Drop detection as transport concern** — Per-client frame drop counting with configurable threshold (`WC_DROP_NOTIFY_THRESHOLD`) sends `sync_warning` messages to affected clients

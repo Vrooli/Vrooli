@@ -20,8 +20,8 @@
 
 ## Environment Assumptions
 - **POSIX runtime with PTY support**: The API requires `creack/pty` which needs `/dev/ptmx`. Will not run on Windows without WSL. Made in [CODE: api/pty.go].
-- **PostgreSQL available via `api-core/database`**: The database connection string is resolved by the `api-core` library from environment variables. Made in [CODE: api/main.go].
-- **SQL files exist relative to binary**: `initSchema()` reads `../initialization/postgres/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
+- **SQLite available via `api-core/database`**: The database connection string is resolved by the `api-core` library from environment variables. Made in [CODE: api/main.go].
+- **SQL files exist relative to binary**: `initSchema()` reads `../initialization/sqlite/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
 
 ## Hardening Status
 | Assumption | Status | Moved to INVARIANTS |

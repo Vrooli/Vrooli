@@ -14,11 +14,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 )
 
 // initSchema runs the idempotent schema and seed SQL against the database.
@@ -31,8 +32,8 @@ func initSchema(db *sql.DB) error {
 	base := filepath.Dir(exe)
 
 	for _, file := range []string{
-		filepath.Join(base, "..", "initialization", "postgres", "schema.sql"),
-		filepath.Join(base, "..", "initialization", "postgres", "seed.sql"),
+		filepath.Join(base, "..", "initialization", "sqlite", "schema.sql"),
+		filepath.Join(base, "..", "initialization", "sqlite", "seed.sql"),
 	} {
 		sql, err := os.ReadFile(file)
 		if err != nil {
@@ -68,16 +69,14 @@ type Server struct {
 
 // NewServer initializes database, session manager, and routes.
 // It runs the schema initialization against the database and creates
-// PostgreSQL-backed stores for shortcuts and AI config.
+// SQLite-backed stores for shortcuts and AI config.
 func NewServer(db *sql.DB) *Server {
 	if err := initSchema(db); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
 
-	// Load voice streaming config from disk (or use defaults).
-	exe, _ := os.Executable()
-	base := filepath.Dir(exe)
-	vcPath := filepath.Join(base, "..", "store", "voice-config.json")
+	// Resolve voice config path via api-core/storage (mutable state outside deploy dir).
+	vcPath := resolveVoiceConfigPath()
 	vc, err := loadVoiceConfig(vcPath)
 	if err != nil {
 		log.Printf("voice-config: using defaults: %v", err)
@@ -96,11 +95,11 @@ func NewServer(db *sql.DB) *Server {
 		events:          events,
 		metrics:         metrics,
 		aiChain:         NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
-		shortcuts:       NewPGShortcutStore(db),
-		aiConfig:        NewPGAIConfigStore(db),
+		shortcuts:       NewSQLShortcutStore(db),
+		aiConfig:        NewSQLAIConfigStore(db),
 		sweeper:         NewExpirationSweeper(sessions, events, metrics),
 		idempotency:     newIdempotencyCache(),
-		workspace:       NewPGWorkspaceStore(db),
+		workspace:       NewSQLWorkspaceStore(db),
 		voiceConfig:     vc,
 		voiceConfigPath: vcPath,
 	}
@@ -242,6 +241,65 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// resolveSQLiteDSN builds the SQLite DSN with performance pragmas.
+// Path is resolved via api-core/storage for cross-platform portability.
+func resolveSQLiteDSN() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Fatalf("storage resolver: %v", err)
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassData, 0); err != nil {
+		log.Fatalf("ensure data dir: %v", err)
+	}
+
+	dbPath, err := resolver.Path(opts, storage.ClassData, "web-console.db")
+	if err != nil {
+		log.Fatalf("resolve db path: %v", err)
+	}
+
+	log.Printf("SQLite database: %s", dbPath)
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		dbPath,
+	)
+}
+
+// resolveVoiceConfigPath returns the voice config file path using api-core/storage.
+// Falls back to a path relative to the binary if storage resolution fails.
+func resolveVoiceConfigPath() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("voice-config: storage resolver failed, using fallback: %v", err)
+		return fallbackVoiceConfigPath()
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
+		log.Printf("voice-config: ensure state dir failed, using fallback: %v", err)
+		return fallbackVoiceConfigPath()
+	}
+
+	path, err := resolver.Path(opts, storage.ClassState, "voice-config.json")
+	if err != nil {
+		log.Printf("voice-config: resolve path failed, using fallback: %v", err)
+		return fallbackVoiceConfigPath()
+	}
+	return path
+}
+
+func fallbackVoiceConfigPath() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "..", "store", "voice-config.json")
+}
+
 func main() {
 	if preflight.Run(preflight.Config{
 		ScenarioName: "web-console",
@@ -249,8 +307,12 @@ func main() {
 		return
 	}
 
+	dsn := resolveSQLiteDSN()
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
+		Driver:       "sqlite",
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)

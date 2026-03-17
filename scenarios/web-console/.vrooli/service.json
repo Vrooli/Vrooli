@@ -212,12 +212,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
-        "schema": "web-console"
+        "description": "Portable storage for workspace layout, shortcuts, and AI provider config"
       },
       "whisper": {
         "type": "whisper",

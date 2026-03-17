@@ -124,8 +124,8 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 
 | Decision | Rationale |
 |----------|-----------|
-| Repository interfaces (`ShortcutStore`, `AIConfigStore`) | Decouples handlers from storage backend; in-memory for tests, PostgreSQL for production |
-| PostgreSQL for shortcuts and AI config | User configuration survives restarts; health metrics stay in-memory (ephemeral, high-frequency) |
+| Repository interfaces (`ShortcutStore`, `AIConfigStore`) | Decouples handlers from storage backend; in-memory for tests, SQLite for production |
+| SQLite for shortcuts and AI config | User configuration survives restarts; health metrics stay in-memory (ephemeral, high-frequency) |
 | In-memory sessions (PTY process-bound) | PTY state cannot persist across restarts; session metadata persistence is a future target |
 | PTY interface + factory pattern | Enables testing without real shell processes |
 | Single `exitCh` channel per session | Session signals exit; SessionManager owns cleanup |
@@ -137,7 +137,7 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 
 - **Parent scenarios** embed web-console via iframe; `@vrooli/iframe-bridge` handles `postMessage` coordination
 - **`@vrooli/api-base`** resolves API/WS URLs for proxy-correct networking
-- **PostgreSQL** persists shortcut profiles and AI provider configuration via `PGShortcutStore` and `PGAIConfigStore`
+- **SQLite persists shortcut profiles, workspace layout, and AI provider configuration via `SQLShortcutStore`, `SQLWorkspaceStore`, and `SQLAIConfigStore`
 
 ## Code Organization Pattern
 
@@ -166,9 +166,9 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `api/ai_generate.go` | AI command generation: provider chain, prompt building, extraction, config-aware orchestration |
 | `api/repository.go` | Storage interfaces: `ShortcutStore`, `AIConfigStore` |
 | `api/ai_provider_config.go` | In-memory AI provider config store + health tracking |
-| `api/ai_provider_config_pg.go` | PostgreSQL AI provider config store (hybrid: config in PG, health in-memory) |
+| `api/ai_provider_config_sql.go` | SQLite AI provider config store (hybrid: config in SQLite, health in-memory) |
 | `api/shortcut_profiles.go` | In-memory shortcut profile store + domain types |
-| `api/shortcut_profiles_pg.go` | PostgreSQL shortcut profile store |
+| `api/shortcut_profiles_sql.go` | SQLite shortcut profile store |
 | `api/events.go` | Structured event logging (session lifecycle, AI) |
 | `api/metrics.go` | Operational metrics collection + metrics HTTP handler |
 | `ui/src/App.tsx` | Entry point — health check gate + hash routing |

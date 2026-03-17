@@ -28,7 +28,7 @@ Status: **by-design** — auth is parent's responsibility. If web-console is eve
 - [x] AI config validation (timeout 1-120s, retries 0-5)
 - [x] Policy validation (valid duration strings, clamp to bounds)
 - [x] Path parameters extracted via gorilla/mux (no manual parsing)
-- [x] SQL parameterized queries in PG stores (no string interpolation)
+- [x] SQL parameterized queries in SQLite stores (no string interpolation)
 Status: **hardened**
 
 ### Error Response Security
@@ -62,4 +62,4 @@ None identified. The primary security boundary is the parent proxy — if bypass
 ## Priority Hardening Areas
 1. **If direct exposure is ever needed**: Add JWT or session-based auth middleware
 2. **Rate limiting**: Consider per-IP connection limits if multi-user support is added
-3. **Audit logging**: Session creation/deletion events could be logged to PostgreSQL for forensic review
+3. **Audit logging**: Session creation/deletion events could be logged to SQLite for forensic review

@@ -9,25 +9,27 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-// PGWorkspaceStore persists workspace layout in PostgreSQL.
+// SQLWorkspaceStore persists workspace layout in SQLite.
 // It implements WorkspaceStore.
-type PGWorkspaceStore struct {
+type SQLWorkspaceStore struct {
 	db *sql.DB
 }
 
-// NewPGWorkspaceStore creates a PostgreSQL-backed workspace store.
-func NewPGWorkspaceStore(db *sql.DB) *PGWorkspaceStore {
-	return &PGWorkspaceStore{db: db}
+// NewSQLWorkspaceStore creates a SQLite-backed workspace store.
+func NewSQLWorkspaceStore(db *sql.DB) *SQLWorkspaceStore {
+	return &SQLWorkspaceStore{db: db}
 }
 
 // GetLayout returns the full workspace layout: ordered panes and tab groups.
-func (s *PGWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
+func (s *SQLWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 	// Fetch panes ordered by sort_order
 	paneRows, err := s.db.Query(`
 		SELECT session_id, name, header_color, theme_id, font_size,
-		       sort_order, COALESCE(group_id::text, ''), is_active,
+		       sort_order, COALESCE(group_id, ''), is_active,
 		       created_at, updated_at
 		FROM workspace_panes
 		ORDER BY sort_order, created_at`)
@@ -41,7 +43,7 @@ func (s *PGWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 	for paneRows.Next() {
 		p, err := scanWorkspacePane(paneRows)
 		if err != nil {
-			log.Printf("PGWorkspaceStore.GetLayout: scan pane: %v", err)
+			log.Printf("SQLWorkspaceStore.GetLayout: scan pane: %v", err)
 			continue
 		}
 		if p.IsActive {
@@ -67,7 +69,7 @@ func (s *PGWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 	for groupRows.Next() {
 		g, err := scanTabGroup(groupRows)
 		if err != nil {
-			log.Printf("PGWorkspaceStore.GetLayout: scan group: %v", err)
+			log.Printf("SQLWorkspaceStore.GetLayout: scan group: %v", err)
 			continue
 		}
 		groups = append(groups, g)
@@ -85,27 +87,30 @@ func (s *PGWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 
 // SavePaneOrder updates sort_order and is_active for the given pane ordering.
 // Uses a single transaction for atomicity.
-func (s *PGWorkspaceStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
+func (s *SQLWorkspaceStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
 
-	now := time.Now().UTC()
+	now := formatTime(time.Now())
 
 	// Reset all active flags
-	if _, err := tx.Exec(`UPDATE workspace_panes SET is_active = false, updated_at = $1`, now); err != nil {
+	if _, err := tx.Exec(`UPDATE workspace_panes SET is_active = 0, updated_at = ?`, now); err != nil {
 		return fmt.Errorf("reset active: %w", err)
 	}
 
 	// Update sort_order and is_active per pane
 	for i, sid := range paneOrder {
-		isActive := sid == activePaneID
+		isActive := 0
+		if sid == activePaneID {
+			isActive = 1
+		}
 		_, err := tx.Exec(`
 			UPDATE workspace_panes
-			SET sort_order = $1, is_active = $2, updated_at = $3
-			WHERE session_id = $4`,
+			SET sort_order = ?, is_active = ?, updated_at = ?
+			WHERE session_id = ?`,
 			i, isActive, now, sid)
 		if err != nil {
 			return fmt.Errorf("update pane %s: %w", sid, err)
@@ -116,8 +121,8 @@ func (s *PGWorkspaceStore) SavePaneOrder(activePaneID string, paneOrder []string
 }
 
 // UpsertPane creates or updates a pane's metadata. Replay-safe via ON CONFLICT.
-func (s *PGWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
-	now := time.Now().UTC()
+func (s *SQLWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
+	now := formatTime(time.Now())
 
 	// Convert empty group_id to NULL
 	var groupID interface{}
@@ -142,19 +147,24 @@ func (s *PGWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 		fontSize = defaultPaneFontSize
 	}
 
+	isActive := 0
+	if pane.IsActive {
+		isActive = 1
+	}
+
 	_, err := s.db.Exec(`
 		INSERT INTO workspace_panes (session_id, name, header_color, theme_id, font_size, sort_order, group_id, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (session_id) DO UPDATE SET
-			name = EXCLUDED.name,
-			header_color = EXCLUDED.header_color,
-			theme_id = EXCLUDED.theme_id,
-			font_size = EXCLUDED.font_size,
-			sort_order = EXCLUDED.sort_order,
-			group_id = EXCLUDED.group_id,
-			updated_at = EXCLUDED.updated_at`,
+			name = excluded.name,
+			header_color = excluded.header_color,
+			theme_id = excluded.theme_id,
+			font_size = excluded.font_size,
+			sort_order = excluded.sort_order,
+			group_id = excluded.group_id,
+			updated_at = excluded.updated_at`,
 		pane.SessionID, name, headerColor, themeID, fontSize,
-		pane.SortOrder, groupID, pane.IsActive, now)
+		pane.SortOrder, groupID, isActive, now, now)
 	if err != nil {
 		return fmt.Errorf("upsert pane %s: %w", pane.SessionID, err)
 	}
@@ -162,8 +172,8 @@ func (s *PGWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 }
 
 // DeletePane removes pane metadata. Idempotent.
-func (s *PGWorkspaceStore) DeletePane(sessionID string) error {
-	_, err := s.db.Exec(`DELETE FROM workspace_panes WHERE session_id = $1`, sessionID)
+func (s *SQLWorkspaceStore) DeletePane(sessionID string) error {
+	_, err := s.db.Exec(`DELETE FROM workspace_panes WHERE session_id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("delete pane %s: %w", sessionID, err)
 	}
@@ -171,7 +181,7 @@ func (s *PGWorkspaceStore) DeletePane(sessionID string) error {
 }
 
 // CreateGroup adds a new tab group.
-func (s *PGWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
+func (s *SQLWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
 	if name == "" {
 		name = "Group"
 	}
@@ -189,12 +199,14 @@ func (s *PGWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
 		nextOrder = int(maxOrder.Int32) + 1
 	}
 
-	now := time.Now().UTC()
+	now := formatTime(time.Now())
+	id := uuid.New().String()
+
 	row := s.db.QueryRow(`
-		INSERT INTO tab_groups (name, color, sort_order, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $4)
+		INSERT INTO tab_groups (id, name, color, sort_order, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
 		RETURNING id, name, color, sort_order, is_collapsed, created_at, updated_at`,
-		name, color, nextOrder, now)
+		id, name, color, nextOrder, now, now)
 
 	g, err := scanTabGroupRow(row)
 	if err != nil {
@@ -204,34 +216,34 @@ func (s *PGWorkspaceStore) CreateGroup(name, color string) (*TabGroup, error) {
 }
 
 // UpdateGroup modifies a tab group. Nil pointer fields are left unchanged.
-func (s *PGWorkspaceStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (*TabGroup, error) {
+func (s *SQLWorkspaceStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (*TabGroup, error) {
 	// Build dynamic SET clause
-	setClauses := []string{"updated_at = $1"}
-	args := []interface{}{time.Now().UTC()}
-	argIdx := 2
+	setClauses := []string{"updated_at = ?"}
+	args := []interface{}{formatTime(time.Now())}
 
 	if name != nil {
-		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		setClauses = append(setClauses, "name = ?")
 		args = append(args, *name)
-		argIdx++
 	}
 	if color != nil {
-		setClauses = append(setClauses, fmt.Sprintf("color = $%d", argIdx))
+		setClauses = append(setClauses, "color = ?")
 		args = append(args, *color)
-		argIdx++
 	}
 	if collapsed != nil {
-		setClauses = append(setClauses, fmt.Sprintf("is_collapsed = $%d", argIdx))
-		args = append(args, *collapsed)
-		argIdx++
+		val := 0
+		if *collapsed {
+			val = 1
+		}
+		setClauses = append(setClauses, "is_collapsed = ?")
+		args = append(args, val)
 	}
 
 	args = append(args, id)
 	query := fmt.Sprintf(`
 		UPDATE tab_groups SET %s
-		WHERE id = $%d
+		WHERE id = ?
 		RETURNING id, name, color, sort_order, is_collapsed, created_at, updated_at`,
-		strings.Join(setClauses, ", "), argIdx)
+		strings.Join(setClauses, ", "))
 
 	row := s.db.QueryRow(query, args...)
 	g, err := scanTabGroupRow(row)
@@ -246,8 +258,8 @@ func (s *PGWorkspaceStore) UpdateGroup(id string, name *string, color *string, c
 
 // DeleteGroup removes a tab group. ON DELETE SET NULL handles pane cleanup.
 // Returns true if a group was actually removed.
-func (s *PGWorkspaceStore) DeleteGroup(id string) (bool, error) {
-	result, err := s.db.Exec(`DELETE FROM tab_groups WHERE id = $1`, id)
+func (s *SQLWorkspaceStore) DeleteGroup(id string) (bool, error) {
+	result, err := s.db.Exec(`DELETE FROM tab_groups WHERE id = ?`, id)
 	if err != nil {
 		return false, fmt.Errorf("delete group %s: %w", id, err)
 	}
@@ -258,38 +270,35 @@ func (s *PGWorkspaceStore) DeleteGroup(id string) (bool, error) {
 // scanWorkspacePane reads a WorkspacePane from a *sql.Rows cursor.
 func scanWorkspacePane(rows *sql.Rows) (*WorkspacePane, error) {
 	var p WorkspacePane
-	var createdAt, updatedAt time.Time
+	var isActive int
 	if err := rows.Scan(
 		&p.SessionID, &p.Name, &p.HeaderColor, &p.ThemeID, &p.FontSize,
-		&p.SortOrder, &p.GroupID, &p.IsActive, &createdAt, &updatedAt,
+		&p.SortOrder, &p.GroupID, &isActive, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
-	p.CreatedAt = formatTime(createdAt)
-	p.UpdatedAt = formatTime(updatedAt)
+	p.IsActive = isActive != 0
 	return &p, nil
 }
 
 // scanTabGroup reads a TabGroup from a *sql.Rows cursor.
 func scanTabGroup(rows *sql.Rows) (*TabGroup, error) {
 	var g TabGroup
-	var createdAt, updatedAt time.Time
-	if err := rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &g.IsCollapsed, &createdAt, &updatedAt); err != nil {
+	var isCollapsed int
+	if err := rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &isCollapsed, &g.CreatedAt, &g.UpdatedAt); err != nil {
 		return nil, err
 	}
-	g.CreatedAt = formatTime(createdAt)
-	g.UpdatedAt = formatTime(updatedAt)
+	g.IsCollapsed = isCollapsed != 0
 	return &g, nil
 }
 
 // scanTabGroupRow reads a TabGroup from a *sql.Row.
 func scanTabGroupRow(row *sql.Row) (*TabGroup, error) {
 	var g TabGroup
-	var createdAt, updatedAt time.Time
-	if err := row.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &g.IsCollapsed, &createdAt, &updatedAt); err != nil {
+	var isCollapsed int
+	if err := row.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &isCollapsed, &g.CreatedAt, &g.UpdatedAt); err != nil {
 		return nil, err
 	}
-	g.CreatedAt = formatTime(createdAt)
-	g.UpdatedAt = formatTime(updatedAt)
+	g.IsCollapsed = isCollapsed != 0
 	return &g, nil
 }

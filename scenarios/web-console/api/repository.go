@@ -6,7 +6,7 @@ import "time"
 // DOC: docs/internal/SEAMS.md#axis-5-storage-abstraction
 
 // ShortcutStore abstracts shortcut profile storage. Implementations may be
-// in-memory (for tests) or PostgreSQL-backed (for production persistence).
+// in-memory (for tests) or SQLite-backed (for production persistence).
 type ShortcutStore interface {
 	List() []*ShortcutProfile
 	Get(id string) (*ShortcutProfile, bool)

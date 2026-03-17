@@ -10,10 +10,12 @@ import (
 
 // Compile-time interface compliance checks
 var (
-	_ ShortcutStore = (*ShortcutProfileStore)(nil)
-	_ ShortcutStore = (*PGShortcutStore)(nil)
-	_ AIConfigStore = (*AIProviderConfigStore)(nil)
-	_ AIConfigStore = (*PGAIConfigStore)(nil)
+	_ ShortcutStore  = (*ShortcutProfileStore)(nil)
+	_ ShortcutStore  = (*SQLShortcutStore)(nil)
+	_ AIConfigStore  = (*AIProviderConfigStore)(nil)
+	_ AIConfigStore  = (*SQLAIConfigStore)(nil)
+	_ WorkspaceStore = (*MemWorkspaceStore)(nil)
+	_ WorkspaceStore = (*SQLWorkspaceStore)(nil)
 )
 
 // TestShortcutStoreInterface verifies both implementations satisfy the
@@ -108,7 +110,6 @@ func TestAIConfigStoreInterface(t *testing.T) {
 }
 
 // TestInitSchemaIdempotent verifies initSchema handles missing files gracefully.
-// (Full PG integration tests require testcontainers, deferred to future phase.)
 func TestInitSchemaIdempotent(t *testing.T) {
 	// With a nil DB, initSchema should fail at the exec step, not panic
 	err := initSchema(nil)

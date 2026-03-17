@@ -366,11 +366,13 @@ func deduplicateOverlap(accumulated, newText string) string {
 // transcribeBytes sends audio bytes to the Whisper /asr endpoint and returns
 // the transcribed text.
 //
-// Performance note: With the Whisper `large` model on CPU, each call takes
-// ~4-9 seconds. For better latency, use a GPU-accelerated Whisper instance or
-// a smaller model (e.g. `medium` or `small`). Since the final result always
-// comes from a single full-buffer retranscribe, model speed directly impacts
-// perceived finalization latency. When transcode is true, audio is transcoded to 16kHz
+// Performance note: The default `medium` model on GPU takes ~0.3s per call.
+// On CPU, expect ~2-4s. For lower VRAM usage at the cost of accuracy, use
+// `small` (~0.2s GPU, 1.9 GB VRAM) or `base` (~0.2s GPU, 1.1 GB VRAM).
+// For best accuracy, use `large` (~0.5s GPU, 8.2 GB VRAM).
+// Since the final result always comes from a single full-buffer retranscribe,
+// model speed directly impacts perceived finalization latency.
+// When transcode is true, audio is transcoded to 16kHz
 // mono WAV via ffmpeg for best accuracy. The language parameter is an ISO-639-1
 // code (e.g. "en"); when empty, Whisper auto-detects. initialPrompt provides
 // Whisper with context from previous transcription segments.

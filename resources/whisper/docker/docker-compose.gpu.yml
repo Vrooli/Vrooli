@@ -12,7 +12,7 @@ services:
       - whisper_models:/root/.cache/whisper:rw
       - whisper_uploads:/app/uploads:rw
     environment:
-      - ASR_MODEL=${WHISPER_MODEL_SIZE:-large}
+      - ASR_MODEL=${WHISPER_MODEL_SIZE:-medium}
       - ASR_ENGINE=${WHISPER_ENGINE:-faster_whisper}
     networks:
       - whisper-network

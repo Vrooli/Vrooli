@@ -6,7 +6,7 @@ package main
 import "time"
 
 // WorkspaceStore abstracts workspace layout persistence. Implementations may be
-// in-memory (for tests) or PostgreSQL-backed (for cross-device sync).
+// in-memory (for tests) or SQLite-backed (for cross-device sync).
 type WorkspaceStore interface {
 	// GetLayout returns the full workspace state: ordered panes and tab groups.
 	GetLayout() (*WorkspaceLayout, error)

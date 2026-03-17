@@ -11,29 +11,29 @@ import (
 	"time"
 )
 
-// [REQ:P1-003a] Provider Configuration Storage — PostgreSQL implementation
+// [REQ:P1-003a] Provider Configuration Storage — SQLite implementation
 // [REQ:P1-003b] Provider Health Dashboard (API support)
 
-// PGAIConfigStore persists AI provider configuration in PostgreSQL and tracks
+// SQLAIConfigStore persists AI provider configuration in SQLite and tracks
 // health metrics in memory. Config operations survive restarts; health data
 // resets on restart (it reflects runtime provider availability, not durable state).
-type PGAIConfigStore struct {
+type SQLAIConfigStore struct {
 	db     *sql.DB
 	mu     sync.RWMutex
 	health map[string]*providerHealthTracker
 }
 
-// NewPGAIConfigStore creates a PostgreSQL-backed AI config store.
+// NewSQLAIConfigStore creates a SQLite-backed AI config store.
 // Health trackers are initialized for all configured providers.
-func NewPGAIConfigStore(db *sql.DB) *PGAIConfigStore {
-	store := &PGAIConfigStore{
+func NewSQLAIConfigStore(db *sql.DB) *SQLAIConfigStore {
+	store := &SQLAIConfigStore{
 		db:     db,
 		health: make(map[string]*providerHealthTracker),
 	}
 	// Initialize health trackers from existing configs
 	rows, err := db.Query(`SELECT name FROM ai_provider_configs`)
 	if err != nil {
-		log.Printf("PGAIConfigStore: failed to load provider names: %v", err)
+		log.Printf("SQLAIConfigStore: failed to load provider names: %v", err)
 		// Fall back to known defaults
 		store.health["ollama"] = &providerHealthTracker{}
 		store.health["openrouter"] = &providerHealthTracker{}
@@ -51,10 +51,10 @@ func NewPGAIConfigStore(db *sql.DB) *PGAIConfigStore {
 }
 
 // GetConfigs returns all provider configurations sorted by priority.
-func (s *PGAIConfigStore) GetConfigs() []ProviderConfig {
+func (s *SQLAIConfigStore) GetConfigs() []ProviderConfig {
 	rows, err := s.db.Query(`SELECT name, enabled, priority, timeout_sec, max_retries FROM ai_provider_configs ORDER BY priority`)
 	if err != nil {
-		log.Printf("PGAIConfigStore.GetConfigs: query failed: %v", err)
+		log.Printf("SQLAIConfigStore.GetConfigs: query failed: %v", err)
 		return nil
 	}
 	defer rows.Close()
@@ -62,10 +62,12 @@ func (s *PGAIConfigStore) GetConfigs() []ProviderConfig {
 	var configs []ProviderConfig
 	for rows.Next() {
 		var c ProviderConfig
-		if err := rows.Scan(&c.Name, &c.Enabled, &c.Priority, &c.TimeoutSec, &c.MaxRetries); err != nil {
-			log.Printf("PGAIConfigStore.GetConfigs: scan failed: %v", err)
+		var enabled int
+		if err := rows.Scan(&c.Name, &enabled, &c.Priority, &c.TimeoutSec, &c.MaxRetries); err != nil {
+			log.Printf("SQLAIConfigStore.GetConfigs: scan failed: %v", err)
 			continue
 		}
+		c.Enabled = enabled != 0
 		configs = append(configs, c)
 	}
 	if configs == nil {
@@ -74,15 +76,19 @@ func (s *PGAIConfigStore) GetConfigs() []ProviderConfig {
 	return configs
 }
 
-// UpdateConfig updates a single provider's configuration in PostgreSQL.
-func (s *PGAIConfigStore) UpdateConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
+// UpdateConfig updates a single provider's configuration in SQLite.
+func (s *SQLAIConfigStore) UpdateConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
 	result, err := s.db.Exec(`
 		UPDATE ai_provider_configs
-		SET enabled = $2, priority = $3, timeout_sec = $4, max_retries = $5
-		WHERE name = $1`,
-		name, enabled, priority, timeoutSec, maxRetries)
+		SET enabled = ?, priority = ?, timeout_sec = ?, max_retries = ?
+		WHERE name = ?`,
+		enabledInt, priority, timeoutSec, maxRetries, name)
 	if err != nil {
-		log.Printf("PGAIConfigStore.UpdateConfig: exec failed: %v", err)
+		log.Printf("SQLAIConfigStore.UpdateConfig: exec failed: %v", err)
 		return false
 	}
 	n, _ := result.RowsAffected()
@@ -90,7 +96,7 @@ func (s *PGAIConfigStore) UpdateConfig(name string, enabled bool, priority, time
 }
 
 // RecordSuccess records a successful provider call (in-memory only).
-func (s *PGAIConfigStore) RecordSuccess(name string, latency time.Duration) {
+func (s *SQLAIConfigStore) RecordSuccess(name string, latency time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -104,7 +110,7 @@ func (s *PGAIConfigStore) RecordSuccess(name string, latency time.Duration) {
 }
 
 // RecordError records a failed provider call (in-memory only).
-func (s *PGAIConfigStore) RecordError(name string) {
+func (s *SQLAIConfigStore) RecordError(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -117,7 +123,7 @@ func (s *PGAIConfigStore) RecordError(name string) {
 }
 
 // GetHealth returns health status for all providers.
-func (s *PGAIConfigStore) GetHealth() []ProviderHealth {
+func (s *SQLAIConfigStore) GetHealth() []ProviderHealth {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]ProviderHealth, 0, len(s.health))
@@ -143,22 +149,22 @@ func (s *PGAIConfigStore) GetHealth() []ProviderHealth {
 	return result
 }
 
-// GetProviderTimeout returns the configured timeout for a provider from PostgreSQL.
-func (s *PGAIConfigStore) GetProviderTimeout(name string) time.Duration {
+// GetProviderTimeout returns the configured timeout for a provider from SQLite.
+func (s *SQLAIConfigStore) GetProviderTimeout(name string) time.Duration {
 	var timeoutSec int
-	err := s.db.QueryRow(`SELECT timeout_sec FROM ai_provider_configs WHERE name = $1`, name).Scan(&timeoutSec)
+	err := s.db.QueryRow(`SELECT timeout_sec FROM ai_provider_configs WHERE name = ?`, name).Scan(&timeoutSec)
 	if err != nil {
 		return defaultProviderTimeout
 	}
 	return time.Duration(timeoutSec) * time.Second
 }
 
-// IsEnabled returns whether a provider is enabled in PostgreSQL.
-func (s *PGAIConfigStore) IsEnabled(name string) bool {
-	var enabled bool
-	err := s.db.QueryRow(`SELECT enabled FROM ai_provider_configs WHERE name = $1`, name).Scan(&enabled)
+// IsEnabled returns whether a provider is enabled in SQLite.
+func (s *SQLAIConfigStore) IsEnabled(name string) bool {
+	var enabled int
+	err := s.db.QueryRow(`SELECT enabled FROM ai_provider_configs WHERE name = ?`, name).Scan(&enabled)
 	if err != nil {
 		return false
 	}
-	return enabled
+	return enabled != 0
 }
