@@ -22,6 +22,13 @@ const (
 	EventPaneResized         = "pane.resized"
 	EventAIGenerate          = "ai.generate"
 	EventSessionPolicyUpdate = "session.policy_updated"
+
+	// Workspace layout events
+	EventWorkspaceLayoutUpdated = "workspace.layout_updated"
+	EventPaneUpdated            = "pane.updated"
+	EventTabGroupCreated        = "group.created"
+	EventTabGroupUpdated        = "group.updated"
+	EventTabGroupDeleted        = "group.deleted"
 )
 
 // Event is a structured lifecycle event emitted by the system.

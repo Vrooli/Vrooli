@@ -25,6 +25,7 @@ func newTestServer() *Server {
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
 		idempotency: newIdempotencyCache(),
+		workspace:   NewMemWorkspaceStore(),
 	}
 }
 
@@ -40,6 +41,7 @@ func newFakeTestServer() *Server {
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
 		idempotency: newIdempotencyCache(),
+		workspace:   NewMemWorkspaceStore(),
 	}
 }
 

@@ -473,3 +473,119 @@ export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2,
   }
   throw lastError;
 }
+
+// Workspace layout (cross-device sync)
+export interface WorkspacePaneDTO {
+  session_id: string;
+  name: string;
+  header_color: string;
+  theme_id: string;
+  font_size: number;
+  sort_order: number;
+  group_id: string | null;
+}
+
+export interface TabGroupDTO {
+  id: string;
+  name: string;
+  color: string;
+  sort_order: number;
+  is_collapsed: boolean;
+}
+
+export interface WorkspaceLayoutDTO {
+  active_pane: string;
+  panes: WorkspacePaneDTO[];
+  groups: TabGroupDTO[];
+}
+
+export async function getWorkspaceLayout(): Promise<WorkspaceLayoutDTO> {
+  const url = buildApiUrl("/workspace/layout", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to get workspace layout");
+  }
+  return (await res.json()) as WorkspaceLayoutDTO;
+}
+
+export async function saveWorkspaceLayout(req: {
+  active_pane: string | null;
+  pane_order: string[];
+}): Promise<void> {
+  const url = buildApiUrl("/workspace/layout", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to save workspace layout");
+  }
+}
+
+export async function updateWorkspacePane(
+  sessionId: string,
+  update: Partial<Omit<WorkspacePaneDTO, "session_id">>,
+): Promise<WorkspacePaneDTO> {
+  const url = buildApiUrl(`/workspace/panes/${sessionId}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to update workspace pane");
+  }
+  return (await res.json()) as WorkspacePaneDTO;
+}
+
+export async function deleteWorkspacePane(sessionId: string): Promise<void> {
+  const url = buildApiUrl(`/workspace/panes/${sessionId}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to delete workspace pane");
+  }
+}
+
+export async function createTabGroup(req: {
+  name: string;
+  color: string;
+}): Promise<TabGroupDTO> {
+  const url = buildApiUrl("/workspace/groups", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to create tab group");
+  }
+  return (await res.json()) as TabGroupDTO;
+}
+
+export async function updateTabGroup(
+  id: string,
+  update: Partial<Omit<TabGroupDTO, "id">>,
+): Promise<TabGroupDTO> {
+  const url = buildApiUrl(`/workspace/groups/${id}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to update tab group");
+  }
+  return (await res.json()) as TabGroupDTO;
+}
+
+export async function deleteTabGroup(id: string): Promise<void> {
+  const url = buildApiUrl(`/workspace/groups/${id}`, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to delete tab group");
+  }
+}

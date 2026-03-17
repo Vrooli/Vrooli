@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { ClipboardPaste, Copy, Image, TextSelect, Trash2, Volume2 } from "lucide-react";
-import { useFloatingPosition } from "../hooks/useFloatingPosition";
+import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 
 interface TerminalContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -28,29 +28,7 @@ export default function TerminalContextMenu({
   onSpeak,
   onClose,
 }: TerminalContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuSize, setMenuSize] = useState<{ width: number; height: number } | null>(null);
   const [pasteError, setPasteError] = useState(false);
-  const { clampPosition } = useFloatingPosition();
-
-  // Measure menu after first render
-  useLayoutEffect(() => {
-    const el = menuRef.current;
-    if (!el) return;
-    setMenuSize({ width: el.offsetWidth, height: el.offsetHeight });
-  }, []);
-
-  // Dismiss on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -65,88 +43,62 @@ export default function TerminalContextMenu({
     }
   }, [onPaste, onClose]);
 
-  // Compute clamped position (invisible until measured)
-  const clamped = menuSize
-    ? clampPosition(position.x, position.y, menuSize)
-    : null;
-
-  const itemClass =
-    "w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-wc-text-primary hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-t-none last:rounded-b-lg";
-
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        data-testid="ctx-backdrop"
-        className="fixed inset-0 z-40"
-        onClick={onClose}
-      />
-      {/* Menu */}
-      <div
-        ref={menuRef}
-        data-testid="terminal-context-menu"
-        className="fixed z-50 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
-        style={
-          clamped
-            ? { left: clamped.x, top: clamped.y }
-            : { left: position.x, top: position.y, opacity: 0, pointerEvents: "none" as const }
-        }
+    <ContextMenuBase position={position} onClose={onClose} data-testid="terminal-context-menu">
+      {hasSelection && (
+        <button
+          data-testid="ctx-copy"
+          className={contextMenuItemClass}
+          onClick={onCopy}
+        >
+          <Copy className="h-4 w-4 shrink-0" />
+          Copy
+        </button>
+      )}
+      {hasSelection && onSpeak && (
+        <button
+          data-testid="ctx-speak"
+          className={contextMenuItemClass}
+          onClick={onSpeak}
+        >
+          <Volume2 className="h-4 w-4 shrink-0" />
+          Speak
+        </button>
+      )}
+      <button
+        data-testid="ctx-paste"
+        className={contextMenuItemClass}
+        onClick={handlePaste}
       >
-        {hasSelection && (
-          <button
-            data-testid="ctx-copy"
-            className={itemClass}
-            onClick={onCopy}
-          >
-            <Copy className="h-4 w-4 shrink-0" />
-            Copy
-          </button>
-        )}
-        {hasSelection && onSpeak && (
-          <button
-            data-testid="ctx-speak"
-            className={itemClass}
-            onClick={onSpeak}
-          >
-            <Volume2 className="h-4 w-4 shrink-0" />
-            Speak
-          </button>
-        )}
+        <ClipboardPaste className="h-4 w-4 shrink-0" />
+        {pasteError ? "Use Ctrl+V to paste" : "Paste"}
+      </button>
+      {onUploadImage && (
         <button
-          data-testid="ctx-paste"
-          className={itemClass}
-          onClick={handlePaste}
+          data-testid="ctx-upload-image"
+          className={contextMenuItemClass}
+          onClick={onUploadImage}
         >
-          <ClipboardPaste className="h-4 w-4 shrink-0" />
-          {pasteError ? "Use Ctrl+V to paste" : "Paste"}
+          <Image className="h-4 w-4 shrink-0" />
+          Upload Image
         </button>
-        {onUploadImage && (
-          <button
-            data-testid="ctx-upload-image"
-            className={itemClass}
-            onClick={onUploadImage}
-          >
-            <Image className="h-4 w-4 shrink-0" />
-            Upload Image
-          </button>
-        )}
-        <button
-          data-testid="ctx-select-all"
-          className={itemClass}
-          onClick={onSelectAll}
-        >
-          <TextSelect className="h-4 w-4 shrink-0" />
-          Select All
-        </button>
-        <button
-          data-testid="ctx-clear"
-          className={itemClass}
-          onClick={onClear}
-        >
-          <Trash2 className="h-4 w-4 shrink-0" />
-          Clear Terminal
-        </button>
-      </div>
-    </>
+      )}
+      <button
+        data-testid="ctx-select-all"
+        className={contextMenuItemClass}
+        onClick={onSelectAll}
+      >
+        <TextSelect className="h-4 w-4 shrink-0" />
+        Select All
+      </button>
+      <button
+        data-testid="ctx-clear"
+        className={contextMenuItemClass}
+        onClick={onClear}
+      >
+        <Trash2 className="h-4 w-4 shrink-0" />
+        Clear Terminal
+      </button>
+    </ContextMenuBase>
   );
 }

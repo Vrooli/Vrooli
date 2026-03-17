@@ -145,6 +145,20 @@ var errorCatalog = map[string]appError{
 		Message:  "File exceeds maximum upload size",
 		Recovery: "Reduce the file size and try again (max 20MB)",
 	},
+	"group_not_found": {
+		Status:   http.StatusNotFound,
+		Code:     "group_not_found",
+		Category: "validation",
+		Message:  "Tab group not found",
+		Recovery: "The group may have been deleted. Refresh the workspace.",
+	},
+	"pane_not_found": {
+		Status:   http.StatusNotFound,
+		Code:     "pane_not_found",
+		Category: "validation",
+		Message:  "Workspace pane not found",
+		Recovery: "The pane may have been removed. Refresh the workspace.",
+	},
 	"invalid_upload_type": {
 		Status:   http.StatusBadRequest,
 		Code:     "invalid_upload_type",

@@ -51,6 +51,8 @@ human users and automated agents.
 | `session_not_found` | 404 | validation | No | The session may have ended. Open a new terminal. |
 | `profile_not_found` | 404 | validation | No | The profile may have been deleted. Refresh the profile list. |
 | `session_terminated` | 410 | dependency | No | The terminal process exited. Open a new terminal. |
+| `group_not_found` | 404 | validation | No | The group may have been deleted. Refresh the workspace. |
+| `pane_not_found` | 404 | validation | No | The pane may have been removed. Refresh the workspace. |
 
 ---
 

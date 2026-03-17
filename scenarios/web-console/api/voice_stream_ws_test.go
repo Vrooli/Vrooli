@@ -1488,3 +1488,99 @@ func TestFindWebMInitEnd_ClusterAtStart(t *testing.T) {
 		t.Errorf("findWebMInitEnd = %d, want 0", got)
 	}
 }
+
+// TestVoiceStreamWS_PartialCancelledOnDone verifies that when the client sends
+// "done", any in-flight partial transcription is cancelled so the final
+// retranscribe isn't blocked by a slow partial.
+func TestVoiceStreamWS_PartialCancelledOnDone(t *testing.T) {
+	var callCount atomic.Int64
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := callCount.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		if n == 1 {
+			// First call (partial) — block until cancelled or 10s.
+			select {
+			case <-r.Context().Done():
+				// Cancelled — return error so transcribeBytes sees a failure.
+				http.Error(w, "cancelled", http.StatusServiceUnavailable)
+				return
+			case <-time.After(10 * time.Second):
+				// Should not reach here.
+			}
+		}
+		// Subsequent calls (final retranscribe) — respond immediately.
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": "final result"})
+	})
+
+	ts, srv := setupVoiceWSServer(t, handler)
+	cfg := srv.getVoiceConfig()
+	cfg.FlushIntervalMs = 100 // fast tick to ensure partial fires
+	srv.setVoiceConfig(cfg)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send enough data to trigger a partial (> MinDeltaBytes).
+	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, 8192)); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Wait for the partial to start (mock will block on it).
+	time.Sleep(300 * time.Millisecond)
+
+	// Signal done — should cancel in-flight partial.
+	start := time.Now()
+	if err := conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone}); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	// Final should arrive quickly (not blocked by the 10s partial).
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			elapsed := time.Since(start)
+			if elapsed > 3*time.Second {
+				t.Errorf("final took %v, want < 3s (partial should have been cancelled)", elapsed)
+			}
+			if msg.Text != "final result" {
+				t.Errorf("final text = %q, want %q", msg.Text, "final result")
+			}
+			return
+		}
+		// Skip any partial messages that arrived before cancellation.
+	}
+}
+
+func TestTruncateForLog_Runes(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		maxLen int
+		want   string
+	}{
+		{"ascii short", "hello", 10, "hello"},
+		{"ascii exact", "hello", 5, "hello"},
+		{"ascii over", "hello world", 5, "hello…"},
+		{"multibyte under", "café", 10, "café"},
+		{"multibyte truncate", "世界你好", 2, "世界…"},
+		{"empty", "", 10, ""},
+		{"zero max", "hello", 0, "…"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := truncateForLog(tc.input, tc.maxLen)
+			if got != tc.want {
+				t.Errorf("truncateForLog(%q, %d) = %q, want %q", tc.input, tc.maxLen, got, tc.want)
+			}
+		})
+	}
+}

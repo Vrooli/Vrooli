@@ -92,7 +92,16 @@ defaults::export_config() {
 
     # GPU configuration (only set if not already defined)
     if [[ -z "${WHISPER_GPU_ENABLED:-}" ]]; then
-        readonly WHISPER_GPU_ENABLED="${GPU:-no}"
+        # Auto-detect: nvidia-smi present + functional + Docker nvidia runtime.
+        # Uses command -v (not system::is_command) because utility libs aren't
+        # sourced yet when defaults.sh loads.
+        if command -v nvidia-smi >/dev/null 2>&1 \
+            && nvidia-smi >/dev/null 2>&1 \
+            && docker info 2>/dev/null | grep -q nvidia; then
+            readonly WHISPER_GPU_ENABLED="yes"
+        else
+            readonly WHISPER_GPU_ENABLED="no"
+        fi
     fi
 
     # Export for global access

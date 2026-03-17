@@ -76,6 +76,7 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 		aiChain:   NewAIProviderChain(),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
+		workspace: NewMemWorkspaceStore(),
 	}
 	deadSess, _ := sm.Create("/fake/shell", 80, 24)
 	sessID := deadSess.ID
@@ -391,6 +392,7 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *fakePTYWithO
 		shortcuts:   NewShortcutProfileStore(),
 		aiConfig:    NewAIProviderConfigStore(),
 		idempotency: newIdempotencyCache(),
+		workspace:   NewMemWorkspaceStore(),
 	}
 	srv.setupRoutes()
 	ts := httptest.NewServer(srv.router)

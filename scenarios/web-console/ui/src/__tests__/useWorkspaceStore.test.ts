@@ -36,6 +36,7 @@ describe("useWorkspaceStore", () => {
         headerColor: "transparent",
         themeId: "slate-ocean",
         fontSize: 14,
+        groupId: null,
       });
     });
 

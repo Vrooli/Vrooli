@@ -10,10 +10,23 @@ export interface PaneMetadata {
   headerColor: string;
   themeId: string;
   fontSize: number;
+  groupId: string | null;
 }
 
 export type DisplayMode = "grid" | "tabs";
 export type ToolbarLayout = "compact" | "expanded";
+
+export interface TabGroupMeta {
+  id: string;
+  name: string;
+  color: string;
+  isCollapsed: boolean;
+}
+
+export interface TabContextMenuState {
+  sessionId: string;
+  position: { x: number; y: number };
+}
 
 interface WorkspaceState {
   panes: PaneMetadata[];
@@ -44,6 +57,8 @@ interface WorkspaceState {
   recentCombos: string[];
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
+  groups: TabGroupMeta[];
+  tabContextMenu: TabContextMenuState | null;
 }
 
 interface WorkspaceActions {
@@ -79,6 +94,13 @@ interface WorkspaceActions {
   addRecentCombo: (comboId: string) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
+  setGroups: (groups: TabGroupMeta[]) => void;
+  addGroup: (group: TabGroupMeta) => void;
+  removeGroup: (groupId: string) => void;
+  updateGroup: (groupId: string, update: Partial<Omit<TabGroupMeta, "id">>) => void;
+  setPaneGroup: (sessionId: string, groupId: string | null) => void;
+  toggleGroupCollapsed: (groupId: string) => void;
+  setTabContextMenu: (menu: TabContextMenuState | null) => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -110,6 +132,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultFontSize: TERMINAL_FONT_SIZE,
       recentCombos: [],
       modifiers: { ctrl: false, alt: false, shift: false },
+      groups: [],
+      tabContextMenu: null,
 
       addRecentCombo: (comboId) =>
         set((state) => {
@@ -125,7 +149,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return {
             panes: [
               ...state.panes,
-              { sessionId, name, headerColor: state.defaultHeaderColor, themeId: state.defaultThemeId, fontSize: state.defaultFontSize },
+              { sessionId, name, headerColor: state.defaultHeaderColor, themeId: state.defaultThemeId, fontSize: state.defaultFontSize, groupId: null },
             ],
             ...(activate ? { activePane: sessionId } : {}),
           };
@@ -207,10 +231,28 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((state) => ({ modifiers: { ...state.modifiers, [key]: !state.modifiers[key] } })),
       clearModifiers: () =>
         set({ modifiers: { ctrl: false, alt: false, shift: false } }),
+      setGroups: (groups) => set({ groups }),
+      addGroup: (group) => set((state) => ({ groups: [...state.groups, group] })),
+      removeGroup: (groupId) => set((state) => ({
+        groups: state.groups.filter((g) => g.id !== groupId),
+        panes: state.panes.map((p) => p.groupId === groupId ? { ...p, groupId: null } : p),
+      })),
+      updateGroup: (groupId, update) => set((state) => ({
+        groups: state.groups.map((g) => g.id === groupId ? { ...g, ...update } : g),
+      })),
+      setPaneGroup: (sessionId, groupId) => set((state) => ({
+        panes: state.panes.map((p) => p.sessionId === sessionId ? { ...p, groupId } : p),
+      })),
+      toggleGroupCollapsed: (groupId) => set((state) => ({
+        groups: state.groups.map((g) =>
+          g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g
+        ),
+      })),
+      setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
     }),
     {
       name: "wc-workspace",
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -234,11 +276,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 5) {
           state.recentCombos ??= [];
         }
+        if (version < 6) {
+          // Panes and activePane are now backend-persisted; clear stale localStorage data
+          delete state.panes;
+          delete state.activePane;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
-        activePane: state.activePane,
-        panes: state.panes,
         columnFractions: state.columnFractions,
         rowFractions: state.rowFractions,
         isMinimapVisible: state.isMinimapVisible,

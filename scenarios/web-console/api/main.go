@@ -60,6 +60,7 @@ type Server struct {
 	sweeper         *ExpirationSweeper
 	idempotency     *idempotencyCache // replay-safe session creation
 	capabilities    *CapabilityRegistry
+	workspace       WorkspaceStore
 	voiceConfigMu   sync.RWMutex
 	voiceConfig     VoiceStreamConfig
 	voiceConfigPath string
@@ -99,6 +100,7 @@ func NewServer(db *sql.DB) *Server {
 		aiConfig:        NewPGAIConfigStore(db),
 		sweeper:         NewExpirationSweeper(sessions, events, metrics),
 		idempotency:     newIdempotencyCache(),
+		workspace:       NewPGWorkspaceStore(db),
 		voiceConfig:     vc,
 		voiceConfigPath: vcPath,
 	}
@@ -156,6 +158,15 @@ func (s *Server) setupRoutes() {
 
 	// Image upload for terminal path injection
 	s.router.HandleFunc("/api/v1/sessions/{id}/upload", s.handleUpload).Methods("POST")
+
+	// Workspace layout (cross-device pane ordering and tab groups)
+	s.router.HandleFunc("/api/v1/workspace/layout", s.handleGetLayout).Methods("GET")
+	s.router.HandleFunc("/api/v1/workspace/layout", s.handleSaveLayout).Methods("PUT")
+	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleUpdatePane).Methods("PUT")
+	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleDeletePane).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")
+	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleUpdateGroup).Methods("PUT")
+	s.router.HandleFunc("/api/v1/workspace/groups/{id}", s.handleDeleteGroup).Methods("DELETE")
 
 	// AI command generation - [REQ:P0-005a]
 	s.router.HandleFunc("/api/v1/ai/generate", s.handleAIGenerate).Methods("POST")

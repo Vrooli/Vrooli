@@ -196,8 +196,11 @@ Last updated: 2026-03-15
 | `initial_prompt` context | `lastNWords(previousTranscript, 10)` appended to Whisper URL for context continuity | Tracking handler captures URLs — first partial has no prompt, subsequent partials have prompt with prior words |
 | `lastNWords(s, n)` | Returns last N whitespace-delimited words of string | Pure function, table-driven unit tests |
 | Language passthrough | Read from WS upgrade query `?language=`; empty = Whisper auto-detect | Verify mock Whisper URL has/lacks `language=` param |
+| `partialCtx` / `partialCancel` | Derived context for ticker goroutine's `transcribeBytes` calls; cancelled on recording stop to abort in-flight Whisper HTTP requests, freeing the (often single-threaded) Whisper server for the final retranscribe | `TestVoiceStreamWS_PartialCancelledOnDone` — slow mock partial is cancelled, final arrives within 3s |
+| `finalCtx` (30s timeout) | Independent context for final retranscribe, derived from `context.Background()` | Decouples final transcription timeout from session recording duration; existing final transcription tests exercise this path |
+| `tickerDone` WaitGroup | Ensures ticker goroutine has fully exited before final retranscribe starts — prevents race where partial and final compete for Whisper | Implicit in `TestVoiceStreamWS_PartialCancelledOnDone` sequencing |
 
-**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription provides real-time UI feedback during recording. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Full retranscription always produces the final result for maximum accuracy. All pipeline parameters are runtime-tunable via `VoiceStreamConfig` (GET/PUT `/api/v1/voice/config`) and exposed in the Settings modal as "Advanced Streaming" controls.
+**Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription provides real-time UI feedback during recording. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Full retranscription always produces the final result for maximum accuracy. Partial cancellation on recording stop prevents Whisper contention and reduces finalization latency. All pipeline parameters are runtime-tunable via `VoiceStreamConfig` (GET/PUT `/api/v1/voice/config`) and exposed in the Settings modal as "Advanced Streaming" controls.
 
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`
@@ -290,11 +293,24 @@ Last updated: 2026-03-15
 | Session logic in layout | Workspace.tsx mixed pane layout with session CRUD, ref management, error state | Extracted `useSessionManager` hook; Workspace is pure layout |
 | No variation tests | Tests validated specific values only | Added structural invariant tests (`TestErrorCatalog_StructuralInvariants`, `TestSessionLimit_VariousLimits`, `shortcuts.test.ts`) |
 
+### Workspace Store Seam (API + UI)
+**Files**: `api/workspace_store.go` (interface), `api/workspace_store_pg.go` (production), `api/workspace_store_mem.go` (test), `ui/src/hooks/useWorkspaceSync.ts` (client)
+**Purpose**: Decouple workspace layout persistence from HTTP handlers and UI components for cross-device sync with testable storage.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `WorkspaceStore` interface | `PGWorkspaceStore` backed by PostgreSQL | `MemWorkspaceStore` backed by in-memory maps |
+| `workspace_panes` table | `ON DELETE CASCADE` from sessions; `ON DELETE SET NULL` from tab_groups | Same semantics in `MemWorkspaceStore` |
+| `useWorkspaceSync` (UI) | Fire-and-forget API calls with debounced reorder saves | Mock API functions in tests |
+| Tab groups | `tab_groups` table with sort_order and collapse state | In-memory group map with UUID generation |
+
+**Benefits**: Workspace layout (pane order, tab groups, active pane) syncs across devices via PostgreSQL. UI remains snappy via optimistic Zustand updates. In-memory store enables handler tests without database. Tab groups support is built into the data model from the start.
+
 ## Remaining Ownership Issues
 
 1. ~~**Shortcut defaults hardcoded** in `TerminalLauncher.tsx`~~ — **Resolved Phase 8**: Extracted to `consts/shortcuts.ts`
 2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSocket` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
-3. **No session persistence** — In-memory only; SQLite backend is a P1 domain concern
+3. ~~**No session persistence**~~ — **Resolved**: Workspace pane metadata persisted in PostgreSQL `workspace_panes` table with cross-device sync via `WorkspaceStore` interface
 4. **No structured logging** — Simple `log.Printf` across API; should use structured logger at integration boundaries
 5. ~~**API client hardcoded in Workspace**~~ — **Resolved Phase 8**: Session lifecycle extracted to `useSessionManager` hook
 6. **Drop detection as transport concern** — Per-client frame drop counting with configurable threshold (`WC_DROP_NOTIFY_THRESHOLD`) sends `sync_warning` messages to affected clients
@@ -515,6 +531,11 @@ The API uses a hybrid organization:
 | `EventPaneResized` | `pane.resized` | cols, rows |
 | `EventAIGenerate` | `ai.generate` | provider, prompt |
 | `EventSessionPolicyUpdate` | `session.policy_updated` | mode, duration |
+| `EventWorkspaceLayoutUpdated` | `workspace.layout_updated` | active_pane |
+| `EventPaneUpdated` | `pane.updated` | name |
+| `EventTabGroupCreated` | `group.created` | group_id, name |
+| `EventTabGroupUpdated` | `group.updated` | group_id, name |
+| `EventTabGroupDeleted` | `group.deleted` | group_id |
 
 **WebSocket Protocol Signals:**
 | Message | Direction | Signal |

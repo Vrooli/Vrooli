@@ -243,6 +243,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 		aiChain:   NewAIProviderChain(primary, fallback),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
+		workspace: NewMemWorkspaceStore(),
 	}
 
 	// Disable ollama

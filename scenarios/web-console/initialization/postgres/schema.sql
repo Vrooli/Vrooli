@@ -1,7 +1,6 @@
 -- Web Console PostgreSQL Schema
--- Currently used for health checks only; session/shortcut/AI config data is
--- managed in-memory. This schema is the canonical reference for the data model
--- and will be activated when session persistence is implemented.
+-- Workspace layout (pane ordering, tab groups) is persisted here for
+-- cross-device sync. Session PTY state remains process-bound.
 
 -- Enable extensions (idempotent)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -46,6 +45,38 @@ CREATE TABLE IF NOT EXISTS shortcut_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shortcut_profiles_scope ON shortcut_profiles(scope);
+
+-- Tab groups for organizing terminal panes
+CREATE TABLE IF NOT EXISTS tab_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL DEFAULT 'Group',
+    color VARCHAR(32) NOT NULL DEFAULT '#3b82f6',
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    is_collapsed BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tab_groups_sort ON tab_groups(sort_order);
+
+-- Workspace pane metadata (ordering, appearance, group membership)
+-- session_id FK cascades: deleting a session auto-removes its pane metadata.
+-- group_id FK sets null: deleting a group ungroups its panes.
+CREATE TABLE IF NOT EXISTS workspace_panes (
+    session_id UUID PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL DEFAULT 'terminal',
+    header_color VARCHAR(32) NOT NULL DEFAULT 'transparent',
+    theme_id VARCHAR(100) NOT NULL DEFAULT 'default',
+    font_size SMALLINT NOT NULL DEFAULT 14,
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    group_id UUID REFERENCES tab_groups(id) ON DELETE SET NULL,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspace_panes_sort ON workspace_panes(sort_order);
+CREATE INDEX IF NOT EXISTS idx_workspace_panes_group ON workspace_panes(group_id);
 
 -- AI provider configuration
 CREATE TABLE IF NOT EXISTS ai_provider_configs (

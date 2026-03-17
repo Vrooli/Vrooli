@@ -7,6 +7,8 @@ vi.mock("../lib/api", () => ({
   createSession: vi.fn(),
   listSessions: vi.fn(),
   deleteSession: vi.fn(),
+  getWorkspaceLayout: vi.fn().mockResolvedValue({ active_pane: "", panes: [], groups: [] }),
+  updateWorkspacePane: vi.fn().mockResolvedValue({}),
   toErrorInfo: vi.fn((err: unknown) => ({
     code: "test_error",
     message: String(err),
@@ -55,8 +57,9 @@ describe("useSessionManager", () => {
 
     const { result } = renderHook(() => useSessionManager());
 
+    // Wait for both Promise.allSettled (listSessions + getWorkspaceLayout) to settle
     await act(async () => {
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
     });
 
     expect(result.current.panes).toHaveLength(2);

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createSession, deleteSession, listSessions, toErrorInfo, type SessionInfo, type ErrorInfo } from "../lib/api";
+import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateWorkspacePane, toErrorInfo, type SessionInfo, type ErrorInfo } from "../lib/api";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 
@@ -49,10 +50,84 @@ export function useSessionManager() {
 
     const hydratePanes = async () => {
       try {
-        const sessions = await listSessions();
+        const [sessionsResult, layoutResult] = await Promise.allSettled([
+          listSessions(),
+          getWorkspaceLayout(),
+        ]);
+
+        const sessions = sessionsResult.status === "fulfilled" ? sessionsResult.value : [];
+        const layout = layoutResult.status === "fulfilled" ? layoutResult.value : null;
+
         if (canceled) return;
+
         if (sessions.length > 0) {
           setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session }))));
+        }
+
+        // Sync workspace store from backend layout
+        const store = useWorkspaceStore.getState();
+        if (layout) {
+          // Map backend panes to PaneMetadata
+          const sessionSet = new Set(sessions.map((s) => s.id));
+          const paneMetadata = layout.panes
+            .filter((p) => sessionSet.has(p.session_id))
+            .map((p) => ({
+              sessionId: p.session_id,
+              name: p.name,
+              headerColor: p.header_color,
+              themeId: p.theme_id,
+              fontSize: p.font_size,
+              groupId: p.group_id,
+            }));
+
+          // Sessions without pane metadata get defaults
+          const knownPanes = new Set(layout.panes.map((p) => p.session_id));
+          for (const session of sessions) {
+            if (!knownPanes.has(session.id)) {
+              const newPane = {
+                sessionId: session.id,
+                name: session.shell.split("/").pop() ?? "terminal",
+                headerColor: store.defaultHeaderColor,
+                themeId: store.defaultThemeId,
+                fontSize: store.defaultFontSize,
+                groupId: null,
+              };
+              paneMetadata.push(newPane);
+              // Persist new pane to backend (fire-and-forget)
+              updateWorkspacePane(session.id, {
+                name: newPane.name,
+                header_color: newPane.headerColor,
+                theme_id: newPane.themeId,
+                font_size: newPane.fontSize,
+                sort_order: paneMetadata.length - 1,
+              }).catch(() => {});
+            }
+          }
+
+          // Update store
+          if (store.panes.length === 0) useWorkspaceStore.setState({
+            panes: paneMetadata,
+            activePane: layout.active_pane || paneMetadata[0]?.sessionId || null,
+            groups: layout.groups.map((g) => ({
+              id: g.id,
+              name: g.name,
+              color: g.color,
+              isCollapsed: g.is_collapsed,
+            })),
+          });
+        } else if (sessions.length > 0 && store.panes.length === 0) {
+          // Fallback: no layout from backend, build from sessions
+          useWorkspaceStore.setState({
+            panes: sessions.map((s) => ({
+              sessionId: s.id,
+              name: s.shell.split("/").pop() ?? "terminal",
+              headerColor: store.defaultHeaderColor,
+              themeId: store.defaultThemeId,
+              fontSize: store.defaultFontSize,
+              groupId: null,
+            })),
+            activePane: sessions[0]?.id || null,
+          });
         }
       } catch {
         // Best-effort hydration: keep empty-state on API/list failures.

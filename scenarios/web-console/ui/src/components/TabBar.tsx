@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
+import TabContextMenu from "./TabContextMenu";
+import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 
 interface TabBarProps {
   panes: PaneMetadata[];
@@ -11,6 +13,7 @@ interface TabBarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
+  onRenamePane?: (sessionId: string) => void;
   isCreating?: boolean;
 }
 
@@ -20,15 +23,23 @@ export default function TabBar({
   onNewTerminal,
   onOpenLauncher,
   onClosePane,
+  onRenamePane,
   isCreating,
 }: TabBarProps) {
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
+  const groups = useWorkspaceStore((s) => s.groups);
+  const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
+  const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
+  const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
+  const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
+  const addGroup = useWorkspaceStore((s) => s.addGroup);
+  const { syncCreateGroup, syncPaneUpdate } = useWorkspaceSync();
 
-  // Long-press detection for opening appearance modal on tabs.
-  // The timer sets longPressReady; the modal only opens on pointerUp
+  // Long-press detection for opening context menu on tabs.
+  // The timer sets longPressReady; the menu only opens on pointerUp
   // so that drag gestures take priority over long-press.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -188,6 +199,41 @@ export default function TabBar({
 
   const isDragging = dragState !== null;
 
+  /** Open the tab context menu at the given position. */
+  const openContextMenu = (sessionId: string, x: number, y: number) => {
+    setTabContextMenu({ sessionId, position: { x, y } });
+  };
+
+  // Group tabs by their groupId, preserving the pane array order.
+  // Build a rendering list of: group labels (with collapse toggle) interleaved with tabs.
+  type RenderItem =
+    | { kind: "group-label"; group: (typeof groups)[0]; tabCount: number }
+    | { kind: "tab"; pane: PaneMetadata; globalIndex: number };
+
+  const renderItems: RenderItem[] = [];
+  const groupMap = new Map(groups.map((g) => [g.id, g]));
+  let lastGroupId: string | null | undefined = undefined; // sentinel to detect group transitions
+
+  panes.forEach((pane, idx) => {
+    const gid = pane.groupId;
+
+    // Emit group label when entering a new group
+    if (gid && gid !== lastGroupId) {
+      const group = groupMap.get(gid);
+      if (group) {
+        const tabCount = panes.filter((p) => p.groupId === gid).length;
+        renderItems.push({ kind: "group-label", group, tabCount });
+      }
+    }
+    lastGroupId = gid;
+
+    // Collapsed group: skip individual tabs (the label shows the count)
+    const group = gid ? groupMap.get(gid) : undefined;
+    if (group?.isCollapsed) return;
+
+    renderItems.push({ kind: "tab", pane, globalIndex: idx });
+  });
+
   return (
     <div
       data-testid="tab-bar"
@@ -198,11 +244,40 @@ export default function TabBar({
         ref={tabContainerRef}
         className="flex-1 flex items-stretch overflow-x-auto wc-hide-scrollbar"
       >
-        {panes.map((pane, idx) => {
+        {renderItems.map((item) => {
+          if (item.kind === "group-label") {
+            const { group, tabCount } = item;
+            return (
+              <button
+                key={`group-${group.id}`}
+                data-testid={`tab-group-${group.id}`}
+                className="flex items-center gap-1 px-2 text-xs shrink-0 border-r border-wc-default text-wc-text-secondary hover:bg-wc-surface-raised transition-colors"
+                onClick={() => toggleGroupCollapsed(group.id)}
+                title={group.isCollapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: group.color }}
+                />
+                <span className="truncate max-w-[80px] font-medium">{group.name}</span>
+                {group.isCollapsed && (
+                  <span className="text-[10px] bg-wc-surface-input rounded px-1">{tabCount}</span>
+                )}
+                {group.isCollapsed ? (
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                )}
+              </button>
+            );
+          }
+
+          const { pane, globalIndex: idx } = item;
           const isActive = pane.sessionId === activePane;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget =
             isDragging && !isBeingDragged && dragState?.dropIndex === idx;
+          const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
 
           return (
             <button
@@ -221,6 +296,11 @@ export default function TabBar({
                 isBeingDragged && "opacity-40",
                 isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
               )}
+              style={
+                paneGroup
+                  ? { borderBottomColor: paneGroup.color, borderBottomWidth: "2px" }
+                  : undefined
+              }
               onClick={() => {
                 // Suppress click if a drag just completed
                 if (isDragging) return;
@@ -233,7 +313,7 @@ export default function TabBar({
                   longPressTimer.current = null;
                 }
                 longPressFired.current = true;
-                setAppearanceModalPane(pane.sessionId);
+                openContextMenu(pane.sessionId, e.clientX, e.clientY);
               }}
               onPointerDown={(e) => {
                 // Left-click on mouse: start tracking for drag threshold
@@ -248,7 +328,7 @@ export default function TabBar({
                   return;
                 }
                 // Start long-press timer for touch/pen.
-                // Sets longPressReady flag; modal opens on pointerUp so
+                // Sets longPressReady flag; context menu opens on pointerUp so
                 // drag gestures can cancel the long-press.
                 if (e.pointerType !== "mouse" && e.button === 0) {
                   longPressFired.current = false;
@@ -266,16 +346,16 @@ export default function TabBar({
                   }, 500);
                 }
               }}
-              onPointerUp={() => {
+              onPointerUp={(e) => {
                 if (longPressTimer.current) {
                   clearTimeout(longPressTimer.current);
                   longPressTimer.current = null;
                 }
-                // Long-press ready + no drag: open appearance modal on touch-up
+                // Long-press ready + no drag: open context menu on touch-up
                 if (longPressReady.current && !isDragging && longPressPaneId.current) {
                   longPressFired.current = true;
                   longPressReady.current = false;
-                  setAppearanceModalPane(longPressPaneId.current);
+                  openContextMenu(longPressPaneId.current, e.clientX, e.clientY);
                   longPressPaneId.current = null;
                   return;
                 }
@@ -346,6 +426,47 @@ export default function TabBar({
       >
         <Plus className="h-4 w-4" />
       </Button>
+
+      {/* Tab context menu */}
+      {tabContextMenu && (() => {
+        const pane = panes.find((p) => p.sessionId === tabContextMenu.sessionId);
+        if (!pane) return null;
+        return (
+          <TabContextMenu
+            position={tabContextMenu.position}
+            sessionId={tabContextMenu.sessionId}
+            currentGroupId={pane.groupId}
+            groups={groups}
+            onRename={() => onRenamePane?.(tabContextMenu.sessionId)}
+            onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
+            onAddToGroup={(groupId) => {
+              setPaneGroup(tabContextMenu.sessionId, groupId);
+              syncPaneUpdate(tabContextMenu.sessionId, { group_id: groupId });
+            }}
+            onRemoveFromGroup={() => {
+              setPaneGroup(tabContextMenu.sessionId, null);
+              syncPaneUpdate(tabContextMenu.sessionId, { group_id: null });
+            }}
+            onCreateGroup={async () => {
+              try {
+                const serverGroup = await syncCreateGroup("New Group", "#3b82f6");
+                addGroup({
+                  id: serverGroup.id,
+                  name: serverGroup.name,
+                  color: serverGroup.color,
+                  isCollapsed: false,
+                });
+                setPaneGroup(tabContextMenu.sessionId, serverGroup.id);
+                syncPaneUpdate(tabContextMenu.sessionId, { group_id: serverGroup.id });
+              } catch (err) {
+                console.error("Failed to create group:", err);
+              }
+            }}
+            onClose={onClosePane}
+            onDismiss={() => setTabContextMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

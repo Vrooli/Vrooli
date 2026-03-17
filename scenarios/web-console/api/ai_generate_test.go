@@ -128,6 +128,7 @@ func newTestServerWithAI(providers ...AIProvider) *Server {
 		aiChain:   NewAIProviderChain(providers...),
 		shortcuts: NewShortcutProfileStore(),
 		aiConfig:  NewAIProviderConfigStore(),
+		workspace: NewMemWorkspaceStore(),
 	}
 }
 

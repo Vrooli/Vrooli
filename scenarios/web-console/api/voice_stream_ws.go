@@ -81,6 +81,12 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	log.Printf("voice-ws: session opened, language=%q, config: flush=%dms delta=%d overlap=%d",
 		language, vcfg.FlushIntervalMs, vcfg.MinDeltaBytes, vcfg.OverlapBytes)
 
+	// Derived context for partial transcriptions — cancelled on recording stop
+	// so in-flight Whisper HTTP calls abort immediately, freeing the (often
+	// single-threaded) Whisper server for the final retranscribe.
+	partialCtx, partialCancel := context.WithCancel(ctx)
+	defer partialCancel()
+
 	var writeMu sync.Mutex
 
 	writeJSON := func(msg VoiceStreamMessage) error {
@@ -94,6 +100,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var audioBuffer bytes.Buffer
 	var lastPartialOffset int
 	done := make(chan struct{})
+	var tickerDone sync.WaitGroup
+	tickerDone.Add(1)
 
 	// WebM init segment: everything before the first Cluster element.
 	// Detected lazily once enough data has arrived. Prepended to each
@@ -107,6 +115,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var accumulatedTranscript string
 	var partialCount int
 	go func() {
+		defer tickerDone.Done()
 		ticker := time.NewTicker(time.Duration(vcfg.FlushIntervalMs) * time.Millisecond)
 		defer ticker.Stop()
 		firstTick := true
@@ -114,7 +123,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 			select {
 			case <-done:
 				return
-			case <-ctx.Done():
+			case <-partialCtx.Done():
 				return
 			case <-ticker.C:
 				bufMu.Lock()
@@ -169,9 +178,12 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				prompt := lastNWords(accumulatedTranscript, 10)
 				t0 := time.Now()
-				text, err := transcribeBytes(ctx, sendData, language, false, prompt)
+				text, err := transcribeBytes(partialCtx, sendData, language, false, prompt)
 				elapsed := time.Since(t0)
 				if err != nil {
+					if partialCtx.Err() != nil {
+						return // cancelled during shutdown — expected
+					}
 					log.Printf("voice-ws: partial transcribe failed (%v): %v", elapsed, err)
 					continue
 				}
@@ -182,7 +194,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				// Log per-tick details: partial index, sizes, timing, and Whisper output.
 				// This is the primary signal for diagnosing duplication and slowness.
 				log.Printf("voice-ws: partial #%d: delta=%d overlap=%d sent=%d bytes, took=%v, first=%t, text=%q",
-					partialCount, deltaSize, actualOverlap, len(sendData), elapsed, isFirst, truncateForLog(text, 80))
+					partialCount, deltaSize, actualOverlap, len(sendData), elapsed, isFirst, truncateForLog(text, 200))
 
 				if text == "" {
 					continue
@@ -242,6 +254,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	close(done)
+	partialCancel()   // cancel any in-flight partial HTTP request to Whisper
+	tickerDone.Wait() // wait for goroutine to fully exit before final retranscribe
 
 	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d", audioBuffer.Len(), partialCount)
 
@@ -260,15 +274,20 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fresh context for final retranscribe — decoupled from the session
+	// timeout so recording duration doesn't eat into transcription time.
+	finalCtx, finalCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer finalCancel()
+
 	t0 := time.Now()
-	text, err := transcribeBytes(ctx, finalAudio, language, true, "")
+	text, err := transcribeBytes(finalCtx, finalAudio, language, true, "")
 	if err != nil {
 		log.Printf("voice-ws: final transcribe failed (%v): %v", time.Since(t0), err)
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgError, Text: "Final transcription failed"})
 		return
 	}
 
-	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), truncateForLog(strings.TrimSpace(text), 80))
+	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), strings.TrimSpace(text))
 	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d", time.Since(sessionStart), len(finalAudio), partialCount)
 	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
 }
@@ -288,10 +307,11 @@ func lastNWords(s string, n int) string {
 // truncateForLog returns s truncated to maxLen runes with "…" appended if truncated.
 // Used for logging Whisper output without flooding log lines.
 func truncateForLog(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "…"
+	return string(runes[:maxLen]) + "…"
 }
 
 // stripTrailingPunct removes trailing punctuation from a word for comparison.
