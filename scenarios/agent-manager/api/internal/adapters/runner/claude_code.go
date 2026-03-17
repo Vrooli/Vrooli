@@ -142,16 +142,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -171,14 +162,18 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	// Uses a manual os.Pipe for stdout so that cmd.Wait() runs in a background
+	// goroutine and kills grandchildren on exit, giving the scanner a clean EOF.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -218,17 +213,16 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output with idle timeout.
-	// Use a larger buffer for the scanner - Claude's stream-json can output very long lines
-	// when reading large files or returning tool results (default is 64KB, we use 10MB)
+	// Parse streaming JSON output. The managed process handles lifecycle:
+	// when the runner process exits, grandchildren are killed and the
+	// scanner gets EOF automatically.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 64*1024), maxScannerBuffer)
-	defer is.Stop()
+	scanner := bufio.NewScanner(mp.Stdout())
+	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
-	r.streamStateFor(req.RunID) // initialize stream state for event parsing
-	for is.Scan() {
-		line := is.Text()
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
@@ -266,10 +260,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 				_ = req.EventSink.Emit(event)
 			}
 		}
-
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -277,11 +270,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	}
 
 	// Check if scanner exited due to an error (vs clean EOF).
-	// The scanner loop exits on stdout EOF (process closed its stdout) or
-	// on a read error. Either way, the process should be finishing.
-	scannerErr := is.Err()
-	if scannerErr != nil {
-		// Scanner hit an error - log it but continue to wait for process
+	if scannerErr := scanner.Err(); scannerErr != nil {
 		if req.EventSink != nil {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
@@ -291,11 +280,8 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Reap the process. The scanner loop exited (EOF, idle timeout, or error),
-	// so we have all the stream data. Many runner CLIs keep their event loop
-	// alive after finishing (inotify watches, timers, etc.), so we kill the
-	// process group immediately rather than waiting for a voluntary exit.
-	err = reapProcess(cmd)
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	err = mp.Wait()
 
 	duration := time.Since(startTime)
 
@@ -458,16 +444,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -487,14 +464,16 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "continue",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -534,15 +513,14 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		}
 	}()
 
-	// Parse streaming JSON output with idle timeout.
+	// Parse streaming JSON output with managed process lifecycle.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 64*1024), maxScannerBuffer)
-	defer is.Stop()
+	scanner := bufio.NewScanner(mp.Stdout())
+	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
-	r.streamStateFor(req.RunID) // initialize stream state for event parsing
-	for is.Scan() {
-		line := is.Text()
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
@@ -575,18 +553,17 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 				_ = req.EventSink.Emit(event)
 			}
 		}
-
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
 		))
 	}
 
-	// Reap the process immediately — see Execute() comment.
-	err = reapProcess(cmd)
+	// Wait for process cleanup.
+	err = mp.Wait()
 
 	duration := time.Since(startTime)
 

@@ -163,16 +163,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -193,14 +184,16 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeOpenCode,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()
@@ -231,12 +224,12 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}()
 
-	// Parse streaming JSON output with idle timeout
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
-	defer is.Stop()
-	for is.Scan() {
-		line := is.Text()
+	// Parse streaming JSON output with managed process lifecycle.
+	scanner := bufio.NewScanner(mp.Stdout())
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
@@ -252,14 +245,14 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 
 		// Parse the streaming event(s) and capture session ID
-		events, sessionID, err := r.parseStreamEventsWithSessionID(req.RunID, line)
-		if err != nil {
+		events, sessionID, parseErr := r.parseStreamEventsWithSessionID(req.RunID, line)
+		if parseErr != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
 				_ = req.EventSink.Emit(domain.NewLogEvent(
 					req.RunID,
 					"warn",
-					fmt.Sprintf("Failed to parse event: %v", err),
+					fmt.Sprintf("Failed to parse event: %v", parseErr),
 				))
 			}
 			continue
@@ -290,13 +283,13 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
 		))
 	}
-	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -304,30 +297,18 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		))
 	}
 
-	// If step finished but process is still running, terminate it gracefully
-	if stepFinished && cmd.Process != nil {
-		// Give a brief moment for cleanup, then terminate
-		time.Sleep(100 * time.Millisecond)
-		_ = cmd.Process.Signal(os.Interrupt)
-		// Wait briefly for graceful shutdown
-		done := make(chan error, 1)
-		go func() { done <- cmd.Wait() }()
-		select {
-		case <-done:
-			// Process exited gracefully
-		case <-time.After(2 * time.Second):
-			// Force kill if it doesn't exit gracefully
-			_ = cmd.Process.Kill()
-			<-done
-		}
+	// If step finished, kill process group immediately for early exit.
+	// The managed process background goroutine handles cleanup.
+	if stepFinished {
+		mp.Kill()
 	}
 
-	// Reap the process (if not already done by stepFinished cleanup above).
-	// Runner CLIs may keep their event loop alive after finishing work.
-	if !stepFinished {
-		err = reapProcess(cmd)
-	} else {
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	waitErr := mp.Wait()
+	if stepFinished {
 		err = nil // Step finished successfully
+	} else {
+		err = waitErr
 	}
 	duration := time.Since(startTime)
 
@@ -1237,16 +1218,7 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -1266,14 +1238,16 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeOpenCode,
 			Operation:  "continue",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()
@@ -1304,12 +1278,12 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output with idle timeout
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
-	defer is.Stop()
-	for is.Scan() {
-		line := is.Text()
+	// Parse streaming JSON output with managed process lifecycle.
+	contScanner := bufio.NewScanner(mp.Stdout())
+	contScanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for contScanner.Scan() {
+		mp.ResetTimer()
+		line := contScanner.Text()
 		if line == "" {
 			continue
 		}
@@ -1356,13 +1330,13 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
 		))
 	}
-	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
+	if scanErr := contScanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -1370,25 +1344,17 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		))
 	}
 
-	// If step finished but process is still running, terminate it gracefully
-	if stepFinished && cmd.Process != nil {
-		time.Sleep(100 * time.Millisecond)
-		_ = cmd.Process.Signal(os.Interrupt)
-		done := make(chan error, 1)
-		go func() { done <- cmd.Wait() }()
-		select {
-		case <-done:
-		case <-time.After(2 * time.Second):
-			_ = cmd.Process.Kill()
-			<-done
-		}
+	// If step finished, kill process group immediately for early exit.
+	if stepFinished {
+		mp.Kill()
 	}
 
-	// Wait for command to complete (if not already done above)
-	if !stepFinished {
-		err = cmd.Wait()
-	} else {
+	// Wait for process cleanup.
+	waitErr := mp.Wait()
+	if stepFinished {
 		err = nil
+	} else {
+		err = waitErr
 	}
 	duration := time.Since(startTime)
 

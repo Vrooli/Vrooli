@@ -310,16 +310,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -339,14 +330,16 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeCodex,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -384,12 +377,12 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}()
 
-	// Parse streaming JSON output (and capture thread_id for session continuation)
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
-	defer is.Stop()
-	for is.Scan() {
-		line := is.Text()
+	// Parse streaming JSON output with managed process lifecycle.
+	scanner := bufio.NewScanner(mp.Stdout())
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
@@ -414,13 +407,13 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
 		))
 	}
-	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -428,9 +421,8 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		))
 	}
 
-	// Reap the process — kill the process group and collect exit status.
-	// Runner CLIs may keep their event loop alive after finishing work.
-	err = reapProcess(cmd)
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	err = mp.Wait()
 	duration := time.Since(startTime)
 
 	// Capture thread ID before clearing
@@ -512,16 +504,7 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -541,14 +524,16 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeCodex,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -587,10 +572,10 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 	}()
 
 	// Read stdout — strip ANSI and skip pure-formatting lines
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout)
-	defer is.Stop()
-	for is.Scan() {
-		line := is.Text()
+	scanner := bufio.NewScanner(mp.Stdout())
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if isOnlyANSI(line) {
 			continue
 		}
@@ -608,9 +593,8 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		}
 	}
 
-	// Reap the process — kill the process group and collect exit status.
-	// Runner CLIs may keep their event loop alive after finishing work.
-	err = reapProcess(cmd)
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	err = mp.Wait()
 	duration := time.Since(startTime)
 
 	// Determine result
@@ -1156,16 +1140,7 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeCodex,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -1175,14 +1150,16 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeCodex,
 			Operation:  "continue",
 			Cause:      err,
 		}
 	}
+	defer mp.Wait()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -1208,12 +1185,12 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}()
 
-	// Parse streaming JSONL output using the same parser as Execute
-	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
-		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
-	defer is.Stop()
-	for is.Scan() {
-		line := is.Text()
+	// Parse streaming JSONL output with managed process lifecycle.
+	scanner := bufio.NewScanner(mp.Stdout())
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		mp.ResetTimer()
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
@@ -1238,13 +1215,13 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}
 
-	if is.TimedOut() && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
 		))
 	}
-	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -1252,9 +1229,8 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		))
 	}
 
-	// Reap the process — kill the process group and collect exit status.
-	// Runner CLIs may keep their event loop alive after finishing work.
-	err = reapProcess(cmd)
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	err = mp.Wait()
 	duration := time.Since(startTime)
 
 	// Capture thread ID (may have been updated during continuation)

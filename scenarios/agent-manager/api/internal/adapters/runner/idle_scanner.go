@@ -1,103 +1,134 @@
 package runner
 
 import (
-	"bufio"
-	"io"
+	"os"
 	"os/exec"
-	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
-// DefaultStreamIdleTimeout is how long the scanner waits for output before
-// killing the process. This catches runner processes that finish their work
-// but fail to exit (e.g., Node.js event loop kept alive by unclosed handles).
+// DefaultStreamIdleTimeout is a safety-net timeout that fires only when the
+// runner process has produced no output for an extended period. It is NOT the
+// primary completion mechanism — process exit is. This timeout exists solely
+// for catastrophic cases where the process hangs without producing any output
+// at all (dead API, frozen process, etc.).
 const DefaultStreamIdleTimeout = 5 * time.Minute
 
-// idleScanner wraps a bufio.Scanner with an idle timeout. If no lines are
-// read for the configured duration, the associated process group is killed
-// so the pipe closes and the scanner unblocks.
+// managedProcess wraps an exec.Cmd with a manual stdout pipe and a background
+// goroutine that calls cmd.Wait(). When the main process exits, the goroutine
+// kills the process group (terminating grandchildren), which closes all
+// write-ends of the stdout pipe and lets the scanner get EOF.
 //
-// Usage:
-//
-//	is := newIdleScanner(stdout, cmd, 5*time.Minute)
-//	defer is.Stop()
-//	for is.Scan() {
-//	    line := is.Text()
-//	    // ... process line
-//	}
-//	// is.Err() returns scanner error (nil on clean EOF)
-//	// is.TimedOut() returns true if the idle timeout fired
-type idleScanner struct {
-	scanner  *bufio.Scanner
+// This solves the deadlock where cmd.StdoutPipe() + cmd.Wait() after the
+// scanner loop causes the scanner to block forever when grandchild processes
+// inherit the pipe's write-end.
+type managedProcess struct {
 	cmd      *exec.Cmd
-	timeout  time.Duration
+	stdout   *os.File // read end of manual pipe (NOT in Go's parentIOPipes)
 	timer    *time.Timer
-	mu       sync.Mutex
-	timedOut bool
+	timeout  time.Duration
+	waitCh   chan struct{} // closed when cmd.Wait() returns
+	waitErr  error         // result of cmd.Wait()
+	timedOut atomic.Bool
+	waited   atomic.Bool // ensures Wait() logic runs only once
 }
 
-// newIdleScanner creates a scanner that kills the process group after
-// idleTimeout without output. Pass 0 to disable the idle timeout.
-func newIdleScanner(r io.Reader, cmd *exec.Cmd, idleTimeout time.Duration) *idleScanner {
-	s := &idleScanner{
-		scanner: bufio.NewScanner(r),
+// startManagedProcess creates a manual stdout pipe, starts the command, and
+// launches a background goroutine to wait for process exit and clean up.
+//
+// The caller MUST defer mp.Wait() after a successful return.
+func startManagedProcess(cmd *exec.Cmd, timeout time.Duration) (*managedProcess, error) {
+	// Create stdout pipe manually. Because we assign an *os.File directly
+	// to cmd.Stdout (not via cmd.StdoutPipe), Go does NOT add it to
+	// parentIOPipes, so cmd.Wait() won't try to close/wait on it.
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Stdout = stdoutW
+
+	mp := &managedProcess{
 		cmd:     cmd,
-		timeout: idleTimeout,
+		stdout:  stdoutR,
+		timeout: timeout,
+		waitCh:  make(chan struct{}),
 	}
-	if idleTimeout > 0 {
-		s.timer = time.AfterFunc(idleTimeout, s.kill)
+
+	if err := cmd.Start(); err != nil {
+		stdoutR.Close()
+		stdoutW.Close()
+		return nil, err
 	}
-	return s
-}
 
-// WithBuffer sets the scanner buffer size (same as bufio.Scanner.Buffer).
-func (s *idleScanner) WithBuffer(buf []byte, max int) *idleScanner {
-	s.scanner.Buffer(buf, max)
-	return s
-}
+	// Close the parent's copy of the write-end. Only the child process
+	// (and any grandchildren that inherit it) hold write-ends now.
+	stdoutW.Close()
 
-// Scan advances the scanner. Resets the idle timer on each successful read.
-func (s *idleScanner) Scan() bool {
-	ok := s.scanner.Scan()
-	if ok && s.timer != nil {
-		s.timer.Reset(s.timeout)
+	// Start safety-net timer
+	if timeout > 0 {
+		mp.timer = time.AfterFunc(timeout, mp.kill)
 	}
-	return ok
+
+	// Background goroutine: wait for process exit, then kill grandchildren.
+	go func() {
+		mp.waitErr = cmd.Wait()
+		if mp.timer != nil {
+			mp.timer.Stop()
+		}
+		// Kill the process group to terminate grandchildren. This closes
+		// their inherited pipe write-ends, causing the scanner to get EOF.
+		killProcessGroup(cmd)
+		close(mp.waitCh)
+	}()
+
+	return mp, nil
 }
 
-// Text returns the current token (same as bufio.Scanner.Text).
-func (s *idleScanner) Text() string {
-	return s.scanner.Text()
+// Stdout returns the read end of the stdout pipe for use with bufio.Scanner.
+func (mp *managedProcess) Stdout() *os.File {
+	return mp.stdout
 }
 
-// Err returns the first non-EOF error from the underlying scanner.
-func (s *idleScanner) Err() error {
-	return s.scanner.Err()
-}
-
-// TimedOut returns true if the idle timeout fired and killed the process.
-func (s *idleScanner) TimedOut() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.timedOut
-}
-
-// Stop cancels the idle timer. Always call via defer after newIdleScanner.
-func (s *idleScanner) Stop() {
-	if s.timer != nil {
-		s.timer.Stop()
+// ResetTimer resets the safety-net timer. Call this from the scanner loop
+// on each successful read to prevent the timeout from firing during normal
+// operation.
+func (mp *managedProcess) ResetTimer() {
+	if mp.timer != nil {
+		mp.timer.Reset(mp.timeout)
 	}
 }
 
-// kill sends SIGKILL to the process group, causing the pipe to close
-// and the scanner to return EOF.
-func (s *idleScanner) kill() {
-	s.mu.Lock()
-	s.timedOut = true
-	s.mu.Unlock()
+// TimedOut returns true if the safety-net timer fired and killed the process.
+func (mp *managedProcess) TimedOut() bool {
+	return mp.timedOut.Load()
+}
 
-	killProcessGroup(s.cmd)
+// Kill explicitly kills the process group. Use this for early exit scenarios
+// (e.g., OpenCode's stepFinished).
+func (mp *managedProcess) Kill() {
+	killProcessGroup(mp.cmd)
+}
+
+// Wait blocks until the background goroutine finishes (process exited and
+// grandchildren killed), then closes the stdout pipe read-end. Returns the
+// process exit error.
+//
+// Safe to call multiple times — only the first call does cleanup.
+// Must be called at least once (typically via defer) to avoid leaking the
+// stdout file descriptor.
+func (mp *managedProcess) Wait() error {
+	<-mp.waitCh
+	if mp.waited.CompareAndSwap(false, true) {
+		mp.stdout.Close()
+	}
+	return mp.waitErr
+}
+
+// kill sends SIGKILL to the process group. Called by the safety-net timer.
+func (mp *managedProcess) kill() {
+	mp.timedOut.Store(true)
+	killProcessGroup(mp.cmd)
 }
 
 // killProcessGroup sends SIGKILL to the process group of cmd.
@@ -106,32 +137,4 @@ func killProcessGroup(cmd *exec.Cmd) {
 	if cmd != nil && cmd.Process != nil {
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
-}
-
-// reapProcess kills the process group and waits for exit.
-// Call this after the scanner loop exits to ensure the process is cleaned up
-// promptly — many runner CLIs (Node.js-based) keep the event loop alive after
-// finishing their work (inotify watches, timers, etc.), so we cannot rely on
-// them to exit on their own.
-//
-// Returns nil if we killed the process ourselves (the stream data is
-// authoritative). Returns the real exit error if the process had already
-// exited before our kill signal.
-func reapProcess(cmd *exec.Cmd) error {
-	if cmd == nil || cmd.Process == nil {
-		return nil
-	}
-
-	// Try to kill the process group. If the process already exited,
-	// Kill returns ESRCH and we fall through to Wait for the real status.
-	killErr := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	waitErr := cmd.Wait()
-
-	if killErr != nil {
-		// Process was already dead — return the real exit status.
-		return waitErr
-	}
-	// We killed it ourselves — the stream data is authoritative, not the
-	// exit status (which would be "signal: killed").
-	return nil
 }
