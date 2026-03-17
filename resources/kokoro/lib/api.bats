@@ -1,33 +1,17 @@
 #!/usr/bin/env bats
 # Tests for Kokoro API functions
 
-# Source trash module for safe test cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/kokoro/lib"
+# Load Kokoro-local Bats test helpers
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-
-# Load Vrooli test infrastructure (REQUIRED)
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../test/test-helper.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
     # Use appropriate setup function
     vrooli_setup_service_test "kokoro"
 
-    # Load dependencies once
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    KOKORO_DIR="$(dirname "$SCRIPT_DIR")"
-
-    # Source necessary files
-    source "${KOKORO_DIR}/config/defaults.sh"
-    source "${KOKORO_DIR}/config/messages.sh"
-
-    # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
-    export SETUP_FILE_KOKORO_DIR="$KOKORO_DIR"
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    export SETUP_FILE_KOKORO_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
 }
 
 # Lightweight per-test setup
@@ -45,7 +29,10 @@ setup() {
     export KOKORO_API_TIMEOUT="10"
     export KOKORO_DEFAULT_VOICE="af_heart"
 
-    # Export config functions
+    source "${KOKORO_DIR}/config/defaults.sh"
+    source "${KOKORO_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/api.sh"
+
     defaults::export_config
     messages::export_messages
 
@@ -66,7 +53,11 @@ teardown() {
     # Mock successful health check
     curl() {
         if [[ "$*" == *"/v1/audio/voices"* ]]; then
-            echo '["af_heart","af_bella","am_adam"]'
+            echo "200"
+            return 0
+        fi
+        if [[ "$*" == *"/v1/audio/speech"* ]]; then
+            echo "422"
             return 0
         fi
         return 1
@@ -78,8 +69,11 @@ teardown() {
 }
 
 @test "kokoro::test_api fails when service unhealthy" {
-    # Mock failed health check
-    kokoro::is_healthy() { return 1; }
+    # Mock failed voices endpoint
+    curl() {
+        echo "503"
+        return 0
+    }
 
     run kokoro::test_api
     [ "$status" -eq 1 ]
@@ -94,6 +88,7 @@ teardown() {
         if [[ "$*" == *"/v1/audio/speech"* ]]; then
             # Create a fake audio file
             local output_arg=""
+            local prev_arg=""
             for arg in "$@"; do
                 if [[ "$prev_arg" == "-o" ]]; then
                     output_arg="$arg"

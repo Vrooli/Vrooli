@@ -4,13 +4,9 @@
 # Get script directory first
 MANAGE_BATS_DIR="${BATS_TEST_DIRNAME}"
 
-# Source var.sh first to get directory variables
+# Load Kokoro-local Bats test helpers
 # shellcheck disable=SC1091
-source "${MANAGE_BATS_DIR}/../../../lib/utils/var.sh"
-
-# Load Vrooli test infrastructure using var_ variables
-# shellcheck disable=SC1091
-source "${var_TEST_DIR}/fixtures/setup.bash"
+source "${MANAGE_BATS_DIR}/test/test-helper.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {

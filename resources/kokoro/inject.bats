@@ -4,27 +4,16 @@
 # Get script directory first
 INJECT_BATS_DIR="${BATS_TEST_DIRNAME}"
 
-# Source var.sh first to get directory variables
+# Load Kokoro-local Bats test helpers
 # shellcheck disable=SC1091
-source "${INJECT_BATS_DIR}/../../../lib/utils/var.sh"
-
-# Load Vrooli test infrastructure using var_ variables
-# shellcheck disable=SC1091
-source "${var_TEST_DIR}/fixtures/setup.bash"
+source "${INJECT_BATS_DIR}/test/test-helper.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
     # Use appropriate setup function
     vrooli_setup_service_test "kokoro"
 
-    # Load dependencies once
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-
-    # Source inject.sh and all dependencies
-    source "${SCRIPT_DIR}/inject.sh"
-
-    # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
 }
 
 # Lightweight per-test setup
@@ -39,6 +28,8 @@ setup() {
     export KOKORO_HOST="http://localhost:9999"
     export KOKORO_DATA_DIR="${HOME}/.kokoro"
     export KOKORO_VOICES_DIR="${KOKORO_DATA_DIR}/voices"
+
+    source "${SCRIPT_DIR}/inject.sh"
 }
 
 # BATS teardown function - runs after each test
@@ -113,12 +104,12 @@ teardown() {
 # Test main function parameter validation
 @test "main function requires parameters" {
     # Test main function without parameters
-    run inject::main
+    run inject::main "--validate"
     [ "$status" -eq 1 ]
 }
 
 # Test help action
 @test "help action works" {
-    run inject::main "--help"
+    run inject::main "--help" "{}"
     [ "$status" -eq 0 ]
 }

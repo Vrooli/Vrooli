@@ -260,7 +260,12 @@ func TestKokoroChecker_ConnectionRefused(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	checker := &KokoroChecker{BaseURL: url}
+	checker := &KokoroChecker{
+		BaseURL: url,
+		InspectState: func(context.Context, string) (bool, bool, error) {
+			return true, true, nil
+		},
+	}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
@@ -268,6 +273,48 @@ func TestKokoroChecker_ConnectionRefused(t *testing.T) {
 	}
 	if msg != "resource is not responding" {
 		t.Errorf("message = %q, want %q", msg, "resource is not responding")
+	}
+}
+
+func TestKokoroChecker_NotInstalled(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := srv.URL
+	srv.Close()
+
+	checker := &KokoroChecker{
+		BaseURL: url,
+		InspectState: func(context.Context, string) (bool, bool, error) {
+			return false, false, nil
+		},
+	}
+	status, msg := checker.Check(context.Background())
+
+	if status != StatusUnavailable {
+		t.Errorf("status = %q, want %q", status, StatusUnavailable)
+	}
+	if msg != "resource is not installed" {
+		t.Errorf("message = %q, want %q", msg, "resource is not installed")
+	}
+}
+
+func TestKokoroChecker_Stopped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	url := srv.URL
+	srv.Close()
+
+	checker := &KokoroChecker{
+		BaseURL: url,
+		InspectState: func(context.Context, string) (bool, bool, error) {
+			return true, false, nil
+		},
+	}
+	status, msg := checker.Check(context.Background())
+
+	if status != StatusUnavailable {
+		t.Errorf("status = %q, want %q", status, StatusUnavailable)
+	}
+	if msg != "resource is stopped" {
+		t.Errorf("message = %q, want %q", msg, "resource is stopped")
 	}
 }
 

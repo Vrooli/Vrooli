@@ -96,8 +96,15 @@ kokoro::docker::start_container() {
         log::debug "GPU support enabled"
     fi
 
-    # Volumes
-    local volumes="${KOKORO_VOICES_DIR}:/app/api/src/voices"
+    # Only mount a host voice directory when custom voices exist locally.
+    # An empty bind mount hides the image's bundled default voices.
+    local volumes=""
+    if find "${KOKORO_VOICES_DIR}" -type f \( -name '*.pt' -o -name '*.onnx' -o -name '*.bin' \) -print -quit 2>/dev/null | grep -q .; then
+        volumes="${KOKORO_VOICES_DIR}:/app/api/src/voices"
+        log::debug "Using host-provided Kokoro voices from ${KOKORO_VOICES_DIR}"
+    else
+        log::info "No custom Kokoro voices found; using bundled in-image voices"
+    fi
 
     # Use advanced creation
     docker_resource::create_service_advanced \

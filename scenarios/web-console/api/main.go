@@ -152,8 +152,9 @@ func NewServer(db *sql.DB) *Server {
 			Client:  &http.Client{Timeout: 10 * time.Second},
 		},
 		"kokoro-tts": &KokoroChecker{
-			BaseURL: kokoroURL,
-			Client:  &http.Client{Timeout: 10 * time.Second},
+			BaseURL:       kokoroURL,
+			Client:        &http.Client{Timeout: 10 * time.Second},
+			ContainerName: "kokoro",
 		},
 		"ollama": &OllamaChecker{
 			BaseURL: ollamaURL,

@@ -430,3 +430,4 @@ dmypy.json
 cython_debug/
 /scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring
 api/api
+.claude/settings.json

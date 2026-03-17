@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 # Tests for Kokoro lib/common.sh functions
 
-# Load Vrooli test infrastructure (REQUIRED)
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Load Kokoro-local Bats test helpers
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../test/test-helper.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -13,7 +14,7 @@ setup_file() {
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
 
     # Source var.sh and dependencies first
-    source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+    source "${SCRIPT_DIR}/../../../scripts/lib/utils/var.sh"
     source "${var_LOG_FILE}"
     source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
@@ -48,7 +49,7 @@ setup_file() {
     export KOKORO_GPU_ENABLED="no"
 
     # Source the common.sh library
-    source "${SCRIPT_DIR}/../common.sh"
+    source "${SCRIPT_DIR}/common.sh"
 
     # Export paths for use in setup()
     export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
@@ -124,4 +125,17 @@ teardown() {
 # Test wait for health function exists
 @test "kokoro::wait_for_health function is defined" {
     declare -f kokoro::wait_for_health >/dev/null
+}
+
+@test "kokoro::create_directories makes data directories world-writable for container user" {
+    export KOKORO_DATA_DIR="${BATS_TEST_TMPDIR}/data"
+    export KOKORO_VOICES_DIR="${KOKORO_DATA_DIR}/voices"
+
+    run kokoro::create_directories
+
+    [ "$status" -eq 0 ]
+    [ -d "$KOKORO_DATA_DIR" ]
+    [ -d "$KOKORO_VOICES_DIR" ]
+    [ "$(stat -c '%a' "$KOKORO_DATA_DIR")" = "777" ]
+    [ "$(stat -c '%a' "$KOKORO_VOICES_DIR")" = "777" ]
 }

@@ -99,7 +99,7 @@ kokoro::start() {
     fi
 
     if ! common::container_exists "$KOKORO_CONTAINER_NAME"; then
-        log::error "Kokoro container does not exist. Install first with: resource-kokoro install"
+        log::error "Kokoro container does not exist. Install first with: resource-kokoro manage install"
         return 1
     fi
 

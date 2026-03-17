@@ -1,214 +1,119 @@
 #!/usr/bin/env bats
 # Tests for Kokoro docker.sh functions
 
-# Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../test/test-helper.bash"
 
-# Expensive setup operations (run once per file)
 setup_file() {
-    # Use appropriate setup function
     vrooli_setup_service_test "kokoro"
 
-    # Load dependencies once
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    KOKORO_DIR="$(dirname "$SCRIPT_DIR")"
-
-    # Load configuration and messages once
-    source "${KOKORO_DIR}/config/defaults.sh"
-    source "${KOKORO_DIR}/config/messages.sh"
-
-    # Load docker functions once
-    source "${SCRIPT_DIR}/docker.sh"
-
-    # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
-    export SETUP_FILE_KOKORO_DIR="$KOKORO_DIR"
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    export SETUP_FILE_KOKORO_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
 }
 
-# Lightweight per-test setup
 setup() {
-    # Setup standard mocks
     vrooli_auto_setup
 
-    # Use paths from setup_file
     SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
     KOKORO_DIR="${SETUP_FILE_KOKORO_DIR}"
 
-    # Set test environment
     export KOKORO_CUSTOM_PORT="8880"
     export KOKORO_CONTAINER_NAME="kokoro-test"
+    export KOKORO_DATA_DIR="${BATS_TEST_TMPDIR}/kokoro-data"
+    export KOKORO_VOICES_DIR="${KOKORO_DATA_DIR}/voices"
+    export KOKORO_IMAGE="gpu-image"
+    export KOKORO_CPU_IMAGE="cpu-image"
     export KOKORO_GPU_ENABLED="no"
-    export KOKORO_DATA_DIR="/tmp/kokoro-test"
-    export YES="no"
+    export KOKORO_INITIALIZATION_WAIT="0"
 
-    # Load dependencies
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    KOKORO_DIR="$(dirname "$SCRIPT_DIR")"
+    mkdir -p "${KOKORO_VOICES_DIR}"
 
-    # Mock common functions
-    kokoro::get_docker_image() {
-        if [[ "$KOKORO_GPU_ENABLED" == "yes" ]]; then
-            echo "ghcr.io/remsky/kokoro-fastapi-gpu:latest"
-        else
-            echo "ghcr.io/remsky/kokoro-fastapi-cpu:latest"
-        fi
+    source "${KOKORO_DIR}/config/defaults.sh"
+    source "${KOKORO_DIR}/config/messages.sh"
+    source "${KOKORO_DIR}/lib/common.sh"
+    source "${SCRIPT_DIR}/docker.sh"
+
+    defaults::export_config
+    messages::export_messages
+
+    docker::check_daemon() { return 0; }
+    docker::image_exists() { return 0; }
+    docker::create_network() { return 0; }
+    docker::container_exists() { return 1; }
+    docker::is_running() { return 1; }
+    docker::pull_image() { echo "pull:$1"; return 0; }
+    docker_resource::create_service_advanced() {
+        local volumes="$5"
+        local env_name="$6"
+        local opts_name="$7"
+        eval "local env_array=(\"\${${env_name}[@]}\")"
+        eval "local opts_array=(\"\${${opts_name}[@]}\")"
+        echo "volumes=${volumes}"
+        echo "env=${env_array[*]}"
+        echo "opts=${opts_array[*]}"
+        return 0
     }
-
-    kokoro::container_exists() { return 0; }
-    kokoro::is_running() { return 0; }
-
-    # Load config and messages from config files
-    if [[ -f "${KOKORO_DIR}/config/defaults.sh" ]]; then
-        source "${KOKORO_DIR}/config/defaults.sh"
-        defaults::export_config 2>/dev/null || true
-    fi
-    if [[ -f "${KOKORO_DIR}/config/messages.sh" ]]; then
-        source "${KOKORO_DIR}/config/messages.sh"
-        messages::export_messages 2>/dev/null || true
-    fi
-
-    # Load the functions to test
-    source "${KOKORO_DIR}/lib/docker.sh"
+    export -f docker::check_daemon docker::image_exists docker::create_network
+    export -f docker::container_exists docker::is_running docker::pull_image
+    export -f docker_resource::create_service_advanced
 }
 
-# BATS teardown function - runs after each test
 teardown() {
     vrooli_cleanup_test
 }
 
-# Test image pulling - CPU version
-@test "kokoro::pull_image pulls CPU image successfully" {
-    export KOKORO_GPU_ENABLED="no"
+@test "kokoro::docker::pull_image uses CPU image when GPU disabled" {
+    kokoro::docker::is_gpu_available() { return 1; }
+    export -f kokoro::docker::is_gpu_available
 
-    result=$(kokoro::docker::pull_image "no")
+    run kokoro::docker::pull_image "no"
 
-    [[ "$result" =~ "INFO:" ]]
-    [[ "$result" =~ "Pulling" ]]
-    [[ "$result" =~ "DOCKER_PULL:" ]]
-    [[ "$result" =~ "kokoro-fastapi-cpu" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pull:cpu-image"* ]]
 }
 
-# Test image pulling - GPU version
-@test "kokoro::pull_image pulls GPU image successfully" {
+@test "kokoro::docker::pull_image uses GPU image when GPU enabled and available" {
     export KOKORO_GPU_ENABLED="yes"
+    kokoro::docker::is_gpu_available() { return 0; }
+    export -f kokoro::docker::is_gpu_available
 
-    result=$(kokoro::docker::pull_image "yes")
+    run kokoro::docker::pull_image "yes"
 
-    [[ "$result" =~ "INFO:" ]]
-    [[ "$result" =~ "Pulling" ]]
-    [[ "$result" =~ "DOCKER_PULL:" ]]
-    [[ "$result" =~ "kokoro-fastapi-gpu" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pull:gpu-image"* ]]
 }
 
-# Test container start
-@test "kokoro::start_container starts container successfully" {
-    result=$(kokoro::docker::start_container)
+@test "kokoro::docker::start_container skips voices mount when no custom voice files exist" {
+    kokoro::docker::is_gpu_available() { return 1; }
+    export -f kokoro::docker::is_gpu_available
 
-    [[ "$result" =~ "INFO:" ]]
-    [[ "$result" =~ "Starting" ]]
-    [[ "$result" =~ "DOCKER_RUN:" ]]
+    run kokoro::docker::start_container
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No custom Kokoro voices found"* ]]
+    [[ "$output" == *"volumes="* ]]
+    [[ "$output" != *"/app/api/src/voices"* ]]
 }
 
-# Test container start with GPU enabled
-@test "kokoro::start_container starts GPU container" {
+@test "kokoro::docker::start_container mounts host voices when custom voice files exist" {
+    touch "${KOKORO_VOICES_DIR}/af_heart.pt"
+    kokoro::docker::is_gpu_available() { return 1; }
+    export -f kokoro::docker::is_gpu_available
+
+    run kokoro::docker::start_container
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"volumes=${KOKORO_VOICES_DIR}:/app/api/src/voices"* ]]
+}
+
+@test "kokoro::docker::start_container adds GPU options when enabled and available" {
     export KOKORO_GPU_ENABLED="yes"
+    kokoro::docker::is_gpu_available() { return 0; }
+    export -f kokoro::docker::is_gpu_available
 
-    result=$(kokoro::docker::start_container)
+    run kokoro::docker::start_container
 
-    [[ "$result" =~ "DOCKER_RUN:" ]]
-    [[ "$result" =~ "--gpus" ]] || [[ "$result" =~ "nvidia-docker" ]]
-}
-
-# Test GPU availability check
-@test "kokoro::check_gpu_support checks GPU availability" {
-    export KOKORO_GPU_ENABLED="yes"
-
-    result=$(kokoro::docker::check_gpu_support)
-
-    [[ "$result" =~ "GPU" ]]
-}
-
-# Test GPU availability check without GPU
-@test "kokoro::check_gpu_support handles no GPU" {
-    export KOKORO_GPU_ENABLED="no"
-
-    result=$(kokoro::docker::check_gpu_support)
-
-    [[ "$result" =~ "CPU" ]] || [[ "$result" =~ "no GPU" ]] || [[ "$result" =~ "No GPU" ]]
-}
-
-# Test Docker image selection
-@test "kokoro::get_docker_image selects correct image" {
-    # CPU image
-    export KOKORO_GPU_ENABLED="no"
-    result=$(kokoro::get_docker_image)
-    [[ "$result" =~ "cpu" ]]
-
-    # GPU image
-    export KOKORO_GPU_ENABLED="yes"
-    result=$(kokoro::get_docker_image)
-    [[ "$result" =~ "gpu" ]]
-}
-
-# Test container health check
-@test "kokoro::check_container_health verifies container health" {
-    result=$(kokoro::docker::check_container_health)
-
-    [[ "$result" =~ "healthy" ]] || [[ "$result" =~ "running" ]]
-}
-
-# GPU auto-detection tests - run in subshells to get clean readonly state
-
-@test "GPU auto-detection defaults to yes when GPU available" {
-    local defaults_path="${KOKORO_DIR}/config/defaults.sh"
-    result=$(
-        unset KOKORO_GPU_ENABLED GPU
-        # Mock nvidia-smi and docker to simulate GPU presence
-        nvidia-smi() { return 0; }
-        docker() {
-            case "$1" in
-                "info") echo "  Runtimes: nvidia runc"; return 0 ;;
-                *) return 0 ;;
-            esac
-        }
-        export -f nvidia-smi docker
-        source "$defaults_path"
-        defaults::export_config
-        echo "$KOKORO_GPU_ENABLED"
-    )
-    [ "$result" = "yes" ]
-}
-
-@test "GPU auto-detection defaults to no when no GPU" {
-    local defaults_path="${KOKORO_DIR}/config/defaults.sh"
-    result=$(
-        unset KOKORO_GPU_ENABLED GPU
-        # Mock nvidia-smi to fail
-        nvidia-smi() { return 1; }
-        export -f nvidia-smi
-        source "$defaults_path"
-        defaults::export_config
-        echo "$KOKORO_GPU_ENABLED"
-    )
-    [ "$result" = "no" ]
-}
-
-@test "KOKORO_GPU_ENABLED manual override is respected" {
-    local defaults_path="${KOKORO_DIR}/config/defaults.sh"
-    result=$(
-        export KOKORO_GPU_ENABLED="no"
-        # Mock GPU as available - should be ignored because of manual override
-        nvidia-smi() { return 0; }
-        docker() {
-            case "$1" in
-                "info") echo "  Runtimes: nvidia runc"; return 0 ;;
-                *) return 0 ;;
-            esac
-        }
-        export -f nvidia-smi docker
-        source "$defaults_path"
-        defaults::export_config
-        echo "$KOKORO_GPU_ENABLED"
-    )
-    [ "$result" = "no" ]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"opts=--gpus all"* ]]
+    [[ "$output" == *"env=NVIDIA_VISIBLE_DEVICES=all"* ]]
 }

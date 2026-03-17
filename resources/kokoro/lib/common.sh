@@ -90,6 +90,13 @@ kokoro::create_directories() {
         return 1
     fi
 
+    # Kokoro runs in-container as "appuser", so the bind-mounted voice cache
+    # must be writable by a non-host UID/GID as well.
+    if ! chmod 0777 "$KOKORO_DATA_DIR" "$KOKORO_VOICES_DIR"; then
+        log::error "Failed to update Kokoro data directory permissions"
+        return 1
+    fi
+
     log::debug "${MSG_DIRECTORIES_CREATED}"
     return 0
 }
