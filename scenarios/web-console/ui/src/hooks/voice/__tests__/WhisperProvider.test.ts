@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WhisperProvider } from "../WhisperProvider";
 import { WHISPER_FAILED_SENTINEL, AUDIO_BITRATE } from "../types";
 
+// --- Helpers ---
+
+/** Narrows away null/undefined — throws (fails the test) if the value is nullish. */
+function defined<T>(val: T | null | undefined): T {
+  if (val == null) throw new Error("Expected defined value");
+  return val;
+}
+
 // --- Mock infrastructure ---
 
 const mockTrackStop = vi.fn();
@@ -31,7 +39,9 @@ class MockMediaRecorder {
 
   constructor(_stream: MediaStream, options?: MediaRecorderOptions) {
     this.options = options ?? {};
-    recorderInstance = this;
+    // Store reference for test assertions
+    const instance = this as unknown as typeof recorderInstance;
+    recorderInstance = instance;
   }
 
   static isTypeSupported() { return true; }
@@ -76,8 +86,8 @@ describe("WhisperProvider", () => {
     await provider.start();
 
     expect(provider.getStream()).toBe(mockStream);
-    expect(recorderInstance).toBeTruthy();
-    expect(recorderInstance!.start).toHaveBeenCalled();
+    const recorder = defined(recorderInstance);
+    expect(recorder.start).toHaveBeenCalled();
   });
 
   it("uses AUDIO_BITRATE for MediaRecorder options", async () => {
@@ -86,7 +96,7 @@ describe("WhisperProvider", () => {
 
     await provider.start();
 
-    expect(recorderInstance!.options.audioBitsPerSecond).toBe(AUDIO_BITRATE);
+    expect(defined(recorderInstance).options.audioBitsPerSecond).toBe(AUDIO_BITRATE);
   });
 
   it("calls onError when microphone access is denied", async () => {
@@ -113,7 +123,7 @@ describe("WhisperProvider", () => {
 
     // Simulate audio data
     const chunk = new Blob([new Uint8Array(100)], { type: "audio/webm" });
-    recorderInstance!.ondataavailable?.({ data: chunk });
+    defined(recorderInstance).ondataavailable?.({ data: chunk });
 
     // Stop triggers onstop which transcribes
     provider.stop();
@@ -135,7 +145,7 @@ describe("WhisperProvider", () => {
     await provider.start();
 
     const chunk = new Blob([new Uint8Array(100)], { type: "audio/webm" });
-    recorderInstance!.ondataavailable?.({ data: chunk });
+    defined(recorderInstance).ondataavailable?.({ data: chunk });
 
     provider.stop();
 
@@ -195,7 +205,7 @@ describe("WhisperProvider", () => {
     await provider.start();
 
     const chunk = new Blob([new Uint8Array(100)], { type: "audio/webm" });
-    recorderInstance!.ondataavailable?.({ data: chunk });
+    defined(recorderInstance).ondataavailable?.({ data: chunk });
 
     provider.stop();
 

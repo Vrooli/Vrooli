@@ -82,8 +82,8 @@ func NewServer(db *sql.DB) *Server {
 		log.Printf("voice-config: using defaults: %v", err)
 		vc = DefaultVoiceStreamConfig()
 	}
-	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d coverage=%.2f",
-		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes, vc.CoverageThreshold)
+	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
+		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
 
 	events := NewEventLogger(1000)
 	metrics := NewMetrics()

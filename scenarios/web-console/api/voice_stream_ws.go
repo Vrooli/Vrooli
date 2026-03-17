@@ -78,8 +78,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	sessionStart := time.Now()
-	log.Printf("voice-ws: session opened, language=%q, config: flush=%dms delta=%d overlap=%d coverage=%.2f",
-		language, vcfg.FlushIntervalMs, vcfg.MinDeltaBytes, vcfg.OverlapBytes, vcfg.CoverageThreshold)
+	log.Printf("voice-ws: session opened, language=%q, config: flush=%dms delta=%d overlap=%d",
+		language, vcfg.FlushIntervalMs, vcfg.MinDeltaBytes, vcfg.OverlapBytes)
 
 	var writeMu sync.Mutex
 
@@ -104,7 +104,6 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Background ticker: periodically send new audio delta to Whisper
 	// for partial transcripts, using initial_prompt for context continuity.
 	var previousTranscript string
-	var totalPartialBytes int
 	var accumulatedTranscript string
 	var partialCount int
 	go func() {
@@ -177,7 +176,6 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				totalPartialBytes += deltaSize
 				partialCount++
 				text = strings.TrimSpace(text)
 
@@ -247,37 +245,10 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d", audioBuffer.Len(), partialCount)
 
-	// Pipeline: transcribe any un-transcribed tail from the last partial
-	// offset. This often pushes coverage above the threshold, avoiding the
-	// expensive full-buffer re-transcription.
-	bufMu.Lock()
-	tailOffset := lastPartialOffset
-	totalLen := audioBuffer.Len()
-	tailLen := totalLen - tailOffset
-	var tailCopy []byte
-	if tailLen > 0 {
-		tailCopy = make([]byte, tailLen)
-		copy(tailCopy, audioBuffer.Bytes()[tailOffset:])
-	}
-	bufMu.Unlock()
-
-	if len(tailCopy) > 0 {
-		prompt := lastNWords(accumulatedTranscript, 10)
-		t0 := time.Now()
-		if t, err := transcribeBytes(ctx, tailCopy, language, false, prompt); err == nil {
-			t = strings.TrimSpace(t)
-			totalPartialBytes += tailLen
-			log.Printf("voice-ws: tail transcribed %d bytes in %v, text=%q",
-				tailLen, time.Since(t0), truncateForLog(t, 80))
-			if t != "" {
-				accumulatedTranscript = deduplicateOverlap(accumulatedTranscript, t)
-			}
-		} else {
-			log.Printf("voice-ws: tail transcribe failed (%v): %v", time.Since(t0), err)
-		}
-	}
-
-	// Final transcription with the complete audio buffer.
+	// Full retranscription of entire audio buffer. Partials above are for
+	// real-time UI feedback only; the final result always comes from a single
+	// Whisper pass over the complete audio with transcode=true (ffmpeg WAV)
+	// for maximum accuracy.
 	bufMu.Lock()
 	finalAudio := make([]byte, audioBuffer.Len())
 	copy(finalAudio, audioBuffer.Bytes())
@@ -289,17 +260,6 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use accumulated partials when coverage is sufficient.
-	if accumulatedTranscript != "" {
-		coverage := float64(totalPartialBytes) / float64(len(finalAudio))
-		log.Printf("voice-ws: coverage=%.1f%% (threshold=%.0f%%), transcript=%d chars", coverage*100, vcfg.CoverageThreshold*100, len(accumulatedTranscript))
-		if coverage >= vcfg.CoverageThreshold {
-			log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=coverage-skip", time.Since(sessionStart), len(finalAudio), partialCount)
-			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(accumulatedTranscript)})
-			return
-		}
-	}
-
 	t0 := time.Now()
 	text, err := transcribeBytes(ctx, finalAudio, language, true, "")
 	if err != nil {
@@ -309,7 +269,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), truncateForLog(strings.TrimSpace(text), 80))
-	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, strategy=full-retranscribe", time.Since(sessionStart), len(finalAudio), partialCount)
+	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d", time.Since(sessionStart), len(finalAudio), partialCount)
 	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
 }
 
@@ -334,9 +294,16 @@ func truncateForLog(s string, maxLen int) string {
 	return s[:maxLen] + "…"
 }
 
+// stripTrailingPunct removes trailing punctuation from a word for comparison.
+// This allows "world," to match "world" during overlap detection.
+func stripTrailingPunct(w string) string {
+	return strings.TrimRight(w, ".,;:!?\"')")
+}
+
 // deduplicateOverlap merges newText into accumulated by detecting the longest
-// suffix of accumulated (in words) that matches a prefix of newText. This
-// prevents repeated words when audio chunks overlap.
+// suffix of accumulated (in words) that matches a prefix of newText. Comparison
+// is case-insensitive and ignores trailing punctuation, so "Hello," matches
+// "hello". Original casing and punctuation from accumulated are preserved.
 //
 // Example: deduplicateOverlap("the quick brown", "brown fox") → "the quick brown fox"
 func deduplicateOverlap(accumulated, newText string) string {
@@ -355,7 +322,7 @@ func deduplicateOverlap(accumulated, newText string) string {
 	for k := maxCheck; k >= 1; k-- {
 		match := true
 		for i := range k {
-			if accWords[len(accWords)-k+i] != newWords[i] {
+			if !strings.EqualFold(stripTrailingPunct(accWords[len(accWords)-k+i]), stripTrailingPunct(newWords[i])) {
 				match = false
 				break
 			}
@@ -377,7 +344,13 @@ func deduplicateOverlap(accumulated, newText string) string {
 }
 
 // transcribeBytes sends audio bytes to the Whisper /asr endpoint and returns
-// the transcribed text. When transcode is true, audio is transcoded to 16kHz
+// the transcribed text.
+//
+// Performance note: With the Whisper `large` model on CPU, each call takes
+// ~4-9 seconds. For better latency, use a GPU-accelerated Whisper instance or
+// a smaller model (e.g. `medium` or `small`). Since the final result always
+// comes from a single full-buffer retranscribe, model speed directly impacts
+// perceived finalization latency. When transcode is true, audio is transcoded to 16kHz
 // mono WAV via ffmpeg for best accuracy. The language parameter is an ISO-639-1
 // code (e.g. "en"); when empty, Whisper auto-detects. initialPrompt provides
 // Whisper with context from previous transcription segments.

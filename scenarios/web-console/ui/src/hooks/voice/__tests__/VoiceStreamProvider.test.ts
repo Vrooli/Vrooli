@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { VoiceStreamProvider } from "../VoiceStreamProvider";
 
+// --- Helpers ---
+
+/** Narrows away null/undefined — throws (fails the test) if the value is nullish. */
+function defined<T>(val: T | null | undefined): T {
+  if (val == null) throw new Error("Expected defined value");
+  return val;
+}
+
 // --- Mock infrastructure ---
 
 class MockMediaRecorder {
@@ -109,9 +117,8 @@ describe("VoiceStreamProvider", () => {
     await provider.start();
 
     // MediaRecorder should be recording even though WS hasn't connected yet
-    const ws = MockWebSocket.instances[0];
-    expect(ws).toBeTruthy();
-    expect(ws!.readyState).toBe(WebSocket.CONNECTING); // WS not yet open
+    const ws = defined(MockWebSocket.instances[0]);
+    expect(ws.readyState).toBe(WebSocket.CONNECTING); // WS not yet open
     expect(provider.getStream()).toBe(mockStream); // Stream acquired
   });
 
@@ -122,7 +129,7 @@ describe("VoiceStreamProvider", () => {
 
     await provider.start();
 
-    const ws = MockWebSocket.instances[0]!;
+    const ws = defined(MockWebSocket.instances[0]);
 
     // WebSocket is still CONNECTING — nothing sent yet
     expect(ws.sentMessages.length).toBe(0);
@@ -143,7 +150,7 @@ describe("VoiceStreamProvider", () => {
 
     // First start
     await provider.start();
-    const firstWs = MockWebSocket.instances[0]!;
+    const firstWs = defined(MockWebSocket.instances[0]);
     expect(firstWs.readyState).toBe(WebSocket.CONNECTING);
 
     // Second start should close the first WebSocket
@@ -178,7 +185,7 @@ describe("VoiceStreamProvider", () => {
     provider.onResult = onResult;
 
     await provider.start();
-    const ws = MockWebSocket.instances[0]!;
+    const ws = defined(MockWebSocket.instances[0]);
     ws.simulateOpen();
 
     ws.simulateMessage({ type: "final", text: "Hello world" });
@@ -192,7 +199,7 @@ describe("VoiceStreamProvider", () => {
     provider.onPartial = onPartial;
 
     await provider.start();
-    const ws = MockWebSocket.instances[0]!;
+    const ws = defined(MockWebSocket.instances[0]);
     ws.simulateOpen();
 
     ws.simulateMessage({ type: "partial", text: "Hel" });
@@ -205,13 +212,13 @@ describe("VoiceStreamProvider", () => {
     provider.onResult = vi.fn();
 
     await provider.start();
-    const ws = MockWebSocket.instances[0]!;
+    const ws = defined(MockWebSocket.instances[0]);
     ws.simulateOpen();
 
     provider.stop();
 
     const doneMsg = ws.sentMessages.find(
-      (m) => typeof m === "string" && JSON.parse(m).type === "done",
+      (m) => typeof m === "string" && (JSON.parse(m) as { type: string }).type === "done",
     );
     expect(doneMsg).toBeTruthy();
   });
@@ -221,7 +228,7 @@ describe("VoiceStreamProvider", () => {
     provider.onResult = vi.fn();
 
     await provider.start();
-    const ws = MockWebSocket.instances[0]!;
+    const ws = defined(MockWebSocket.instances[0]);
     ws.simulateOpen();
 
     provider.dispose();

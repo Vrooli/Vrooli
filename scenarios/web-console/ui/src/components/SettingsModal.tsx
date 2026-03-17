@@ -397,7 +397,6 @@ export default function SettingsModal() {
         flushIntervalMs: 500,
         minDeltaBytes: 4096,
         overlapBytes: 2048,
-        coverageThreshold: 0.50,
       });
       setVsConfig(updated);
       setVsConfigError(null);
@@ -1005,25 +1004,6 @@ export default function SettingsModal() {
                                 className="w-20 accent-wc-accent"
                               />
                               <span className="text-xs text-wc-text-muted w-12 text-right">{(vsConfig.overlapBytes / 1024).toFixed(1)}KB</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-wc-text-secondary">Coverage threshold</span>
-                              <span className="text-[10px] text-wc-text-muted">Skip retranscription above this %</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                data-testid="vs-coverage"
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={5}
-                                value={Math.round(vsConfig.coverageThreshold * 100)}
-                                onChange={(e) => handleVsConfigChange({ coverageThreshold: Number(e.target.value) / 100 })}
-                                className="w-20 accent-wc-accent"
-                              />
-                              <span className="text-xs text-wc-text-muted w-12 text-right">{Math.round(vsConfig.coverageThreshold * 100)}%</span>
                             </div>
                           </div>
                           <Button

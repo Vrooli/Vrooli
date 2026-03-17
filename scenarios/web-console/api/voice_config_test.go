@@ -21,9 +21,6 @@ func TestDefaultVoiceStreamConfig(t *testing.T) {
 	if cfg.OverlapBytes != 2048 {
 		t.Errorf("OverlapBytes = %d, want 2048", cfg.OverlapBytes)
 	}
-	if cfg.CoverageThreshold != 0.50 {
-		t.Errorf("CoverageThreshold = %f, want 0.50", cfg.CoverageThreshold)
-	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("defaults should be valid, got: %v", err)
 	}
@@ -54,12 +51,6 @@ func TestVoiceStreamConfig_Validate(t *testing.T) {
 		{"overlap_at_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16384 }, ""},
 		{"overlap_below_min", func(c *VoiceStreamConfig) { c.OverlapBytes = -1 }, "overlapBytes"},
 		{"overlap_above_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16385 }, "overlapBytes"},
-
-		// CoverageThreshold bounds
-		{"coverage_at_min", func(c *VoiceStreamConfig) { c.CoverageThreshold = 0.0 }, ""},
-		{"coverage_at_max", func(c *VoiceStreamConfig) { c.CoverageThreshold = 1.0 }, ""},
-		{"coverage_below_min", func(c *VoiceStreamConfig) { c.CoverageThreshold = -0.01 }, "coverageThreshold"},
-		{"coverage_above_max", func(c *VoiceStreamConfig) { c.CoverageThreshold = 1.01 }, "coverageThreshold"},
 	}
 
 	for _, tc := range tests {
@@ -99,25 +90,20 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 		if result.OverlapBytes != base.OverlapBytes {
 			t.Errorf("OverlapBytes changed: %d != %d", result.OverlapBytes, base.OverlapBytes)
 		}
-		if result.CoverageThreshold != base.CoverageThreshold {
-			t.Errorf("CoverageThreshold changed: %f != %f", result.CoverageThreshold, base.CoverageThreshold)
-		}
 	})
 
 	t.Run("full_update", func(t *testing.T) {
 		flush := 300
 		delta := 8192
 		overlap := 4096
-		coverage := 0.75
 		patch := VoiceStreamConfigPatch{
-			FlushIntervalMs:   &flush,
-			MinDeltaBytes:     &delta,
-			OverlapBytes:      &overlap,
-			CoverageThreshold: &coverage,
+			FlushIntervalMs: &flush,
+			MinDeltaBytes:   &delta,
+			OverlapBytes:    &overlap,
 		}
 		result := patch.Apply(base)
 		if result.FlushIntervalMs != 300 || result.MinDeltaBytes != 8192 ||
-			result.OverlapBytes != 4096 || result.CoverageThreshold != 0.75 {
+			result.OverlapBytes != 4096 {
 			t.Errorf("unexpected result: %+v", result)
 		}
 	})
@@ -136,10 +122,9 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "voice-config.json")
 
 	cfg := VoiceStreamConfig{
-		FlushIntervalMs:   200,
-		MinDeltaBytes:     8192,
-		OverlapBytes:      1024,
-		CoverageThreshold: 0.80,
+		FlushIntervalMs: 200,
+		MinDeltaBytes:   8192,
+		OverlapBytes:    1024,
 	}
 
 	if err := saveVoiceConfig(path, cfg); err != nil {
@@ -247,10 +232,6 @@ func TestHandleUpdateVoiceConfig_Valid(t *testing.T) {
 	if cfg.MinDeltaBytes != 4096 {
 		t.Errorf("MinDeltaBytes = %d, want 4096 (unchanged)", cfg.MinDeltaBytes)
 	}
-	if cfg.CoverageThreshold != 0.50 {
-		t.Errorf("CoverageThreshold = %f, want 0.50 (unchanged)", cfg.CoverageThreshold)
-	}
-
 	// Verify in-memory config was updated
 	mem := srv.getVoiceConfig()
 	if mem.FlushIntervalMs != 200 || mem.OverlapBytes != 0 {
@@ -304,7 +285,7 @@ func TestHandleGetVoiceConfig_AfterPut(t *testing.T) {
 	srv := voiceConfigTestServer(t)
 
 	// PUT to change config
-	putBody := `{"minDeltaBytes": 8192, "coverageThreshold": 0.90}`
+	putBody := `{"minDeltaBytes": 8192}`
 	putReq := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(putBody))
 	putReq.Header.Set("Content-Type", "application/json")
 	putRec := httptest.NewRecorder()
@@ -327,8 +308,5 @@ func TestHandleGetVoiceConfig_AfterPut(t *testing.T) {
 	}
 	if cfg.MinDeltaBytes != 8192 {
 		t.Errorf("MinDeltaBytes = %d, want 8192", cfg.MinDeltaBytes)
-	}
-	if cfg.CoverageThreshold != 0.90 {
-		t.Errorf("CoverageThreshold = %f, want 0.90", cfg.CoverageThreshold)
 	}
 }

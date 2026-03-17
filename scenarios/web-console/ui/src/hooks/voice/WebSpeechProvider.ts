@@ -75,6 +75,7 @@ export class WebSpeechProvider implements TranscriptionProvider {
   async start(): Promise<void> {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) {
+      console.info("[voice] WebSpeech: API not available");
       this.onError?.("Web Speech API not available");
       return;
     }
@@ -82,6 +83,7 @@ export class WebSpeechProvider implements TranscriptionProvider {
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      console.info("[voice] WebSpeech: mic access denied");
       this.onError?.("Microphone access denied");
       return;
     }
@@ -109,10 +111,14 @@ export class WebSpeechProvider implements TranscriptionProvider {
         }
       }
       if (interimText) this.onPartial?.(interimText);
-      if (newFinalText.trim()) this.onResult?.(newFinalText.trim());
+      if (newFinalText.trim()) {
+        console.info("[voice] WebSpeech: result, %d chars", newFinalText.trim().length);
+        this.onResult?.(newFinalText.trim());
+      }
     };
     this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error !== "aborted") {
+        console.info("[voice] WebSpeech: error=%s", event.error);
         this.onError?.(`Speech recognition error: ${event.error}`);
       }
     };
@@ -124,13 +130,16 @@ export class WebSpeechProvider implements TranscriptionProvider {
       // not tied to the recognition instance), so previously finalized results
       // are correctly skipped after restart.
       if (!this.stopped && this.recognition) {
+        console.info("[voice] WebSpeech: auto-restart");
         try { this.recognition.start(); } catch { /* already started or disposed */ }
       }
     };
+    console.info("[voice] WebSpeech: started, lang=%s", this.lang);
     this.recognition.start();
   }
 
   stop(): void {
+    console.info("[voice] WebSpeech: stopped");
     this.stopped = true;
     this.recognition?.stop();
     this.recognition = null;

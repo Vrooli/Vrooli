@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WebSpeechProvider } from "../WebSpeechProvider";
 
+// --- Helpers ---
+
+/** Narrows away null/undefined — throws (fails the test) if the value is nullish. */
+function defined<T>(val: T | null | undefined): T {
+  if (val == null) throw new Error("Expected defined value");
+  return val;
+}
+
 // --- Mock infrastructure ---
 
 const mockTrackStop = vi.fn();
@@ -90,10 +98,10 @@ describe("WebSpeechProvider", () => {
     await provider.start();
 
     expect(provider.getStream()).toBe(mockStream);
-    expect(srInstance).toBeTruthy();
-    expect(srInstance!.start).toHaveBeenCalled();
-    expect(srInstance!.continuous).toBe(true);
-    expect(srInstance!.interimResults).toBe(true);
+    const sr = defined(srInstance);
+    expect(sr.start).toHaveBeenCalled();
+    expect(sr.continuous).toBe(true);
+    expect(sr.interimResults).toBe(true);
   });
 
   it("sets language from lang property", async () => {
@@ -103,7 +111,7 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
-    expect(srInstance!.lang).toBe("fr-FR");
+    expect(defined(srInstance).lang).toBe("fr-FR");
   });
 
   it("calls onError when Web Speech API is not available", async () => {
@@ -160,7 +168,7 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
-    srInstance!.onresult?.(makeSpeechEvent([
+    defined(srInstance).onresult?.(makeSpeechEvent([
       { transcript: "hello", isFinal: true },
     ]));
 
@@ -176,7 +184,7 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
-    srInstance!.onresult?.(makeSpeechEvent([
+    defined(srInstance).onresult?.(makeSpeechEvent([
       { transcript: "hel", isFinal: false },
     ]));
 
@@ -191,15 +199,17 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
+    const sr = defined(srInstance);
+
     // First result
-    srInstance!.onresult?.(makeSpeechEvent([
+    sr.onresult?.(makeSpeechEvent([
       { transcript: "hello", isFinal: true },
     ]));
     expect(onResult).toHaveBeenCalledTimes(1);
     expect(onResult).toHaveBeenLastCalledWith("hello");
 
     // Second cumulative event includes old "hello" + new " world"
-    srInstance!.onresult?.(makeSpeechEvent([
+    sr.onresult?.(makeSpeechEvent([
       { transcript: "hello", isFinal: true },
       { transcript: " world", isFinal: true },
     ]));
@@ -214,17 +224,19 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
+    const sr = defined(srInstance);
+
     // First result
-    srInstance!.onresult?.(makeSpeechEvent([
+    sr.onresult?.(makeSpeechEvent([
       { transcript: "hello", isFinal: true },
     ]));
     expect(onResult).toHaveBeenCalledTimes(1);
 
     // Browser spontaneously ends recognition (triggers restart)
-    srInstance!.onend?.();
+    sr.onend?.();
 
     // After restart, cumulative event includes old + new
-    srInstance!.onresult?.(makeSpeechEvent([
+    sr.onresult?.(makeSpeechEvent([
       { transcript: "hello", isFinal: true },
       { transcript: " world", isFinal: true },
     ]));
@@ -241,7 +253,7 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
-    srInstance!.onerror?.({ error: "network", message: "Network error" });
+    defined(srInstance).onerror?.({ error: "network", message: "Network error" });
 
     expect(onError).toHaveBeenCalledWith("Speech recognition error: network");
   });
@@ -253,7 +265,7 @@ describe("WebSpeechProvider", () => {
 
     await provider.start();
 
-    srInstance!.onerror?.({ error: "aborted", message: "" });
+    defined(srInstance).onerror?.({ error: "aborted", message: "" });
 
     expect(onError).not.toHaveBeenCalled();
   });
@@ -263,13 +275,14 @@ describe("WebSpeechProvider", () => {
     provider.onResult = vi.fn();
 
     await provider.start();
-    const firstCallCount = srInstance!.start.mock.calls.length;
+    const sr = defined(srInstance);
+    const firstCallCount = sr.start.mock.calls.length;
 
     // Simulate spontaneous end
-    srInstance!.onend?.();
+    sr.onend?.();
 
     // Should have called start again
-    expect(srInstance!.start.mock.calls.length).toBe(firstCallCount + 1);
+    expect(sr.start.mock.calls.length).toBe(firstCallCount + 1);
   });
 
   it("does not restart on end when intentionally stopped", async () => {
@@ -277,11 +290,12 @@ describe("WebSpeechProvider", () => {
     provider.onResult = vi.fn();
 
     await provider.start();
-    const startCallCount = srInstance!.start.mock.calls.length;
+    const sr = defined(srInstance);
+    const startCallCount = sr.start.mock.calls.length;
 
     provider.stop(); // triggers onend via mock
 
     // Should NOT have restarted
-    expect(srInstance!.start.mock.calls.length).toBe(startCallCount);
+    expect(sr.start.mock.calls.length).toBe(startCallCount);
   });
 });

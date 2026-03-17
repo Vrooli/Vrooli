@@ -28,7 +28,6 @@ import type {
   VoiceBackend,
   VoiceInputState,
   StartRecordingOpts,
-  VoiceState,
 } from "./voice/types";
 
 // Re-export public types and utilities for consumers and tests

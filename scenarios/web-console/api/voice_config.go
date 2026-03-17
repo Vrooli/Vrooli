@@ -37,24 +37,15 @@ type VoiceStreamConfig struct {
 	// At 48 kbps (~6 KB/s), 2048 bytes ≈ 0.33s.
 	// Range: 0–16384.
 	OverlapBytes int `json:"overlapBytes"`
-
-	// CoverageThreshold is the ratio of partial-transcribed bytes to total
-	// audio above which the accumulated partials are used as the final result,
-	// skipping the expensive full-buffer re-transcription. With the tail
-	// pipeline, coverage is typically >90%. A lower threshold makes it more
-	// likely to skip the final retranscribe.
-	// Range: 0.0–1.0.
-	CoverageThreshold float64 `json:"coverageThreshold"`
 }
 
 // DefaultVoiceStreamConfig returns production defaults matching the original
 // hardcoded values. These are known to work well on a local Whisper instance.
 func DefaultVoiceStreamConfig() VoiceStreamConfig {
 	return VoiceStreamConfig{
-		FlushIntervalMs:   500,
-		MinDeltaBytes:     4096,
-		OverlapBytes:      2048,
-		CoverageThreshold: 0.50,
+		FlushIntervalMs: 500,
+		MinDeltaBytes:   4096,
+		OverlapBytes:    2048,
 	}
 }
 
@@ -70,19 +61,15 @@ func (c VoiceStreamConfig) Validate() error {
 	if c.OverlapBytes < 0 || c.OverlapBytes > 16384 {
 		return fmt.Errorf("overlapBytes must be between 0 and 16384, got %d", c.OverlapBytes)
 	}
-	if c.CoverageThreshold < 0.0 || c.CoverageThreshold > 1.0 {
-		return fmt.Errorf("coverageThreshold must be between 0.0 and 1.0, got %.2f", c.CoverageThreshold)
-	}
 	return nil
 }
 
 // VoiceStreamConfigPatch is the partial update type for voice config. Pointer
 // fields allow distinguishing "not provided" from "set to zero value".
 type VoiceStreamConfigPatch struct {
-	FlushIntervalMs   *int     `json:"flushIntervalMs,omitempty"`
-	MinDeltaBytes     *int     `json:"minDeltaBytes,omitempty"`
-	OverlapBytes      *int     `json:"overlapBytes,omitempty"`
-	CoverageThreshold *float64 `json:"coverageThreshold,omitempty"`
+	FlushIntervalMs *int `json:"flushIntervalMs,omitempty"`
+	MinDeltaBytes   *int `json:"minDeltaBytes,omitempty"`
+	OverlapBytes    *int `json:"overlapBytes,omitempty"`
 }
 
 // Apply merges non-nil patch fields into base, returning the updated config.
@@ -95,9 +82,6 @@ func (p VoiceStreamConfigPatch) Apply(base VoiceStreamConfig) VoiceStreamConfig 
 	}
 	if p.OverlapBytes != nil {
 		base.OverlapBytes = *p.OverlapBytes
-	}
-	if p.CoverageThreshold != nil {
-		base.CoverageThreshold = *p.CoverageThreshold
 	}
 	return base
 }
@@ -185,7 +169,7 @@ func (s *Server) handleUpdateVoiceConfig(w http.ResponseWriter, r *http.Request)
 	if err := saveVoiceConfig(s.voiceConfigPath, updated); err != nil {
 		log.Printf("voice-config: persist failed (in-memory updated): %v", err)
 	}
-	log.Printf("voice-config: updated: flush=%dms delta=%d overlap=%d coverage=%.2f",
-		updated.FlushIntervalMs, updated.MinDeltaBytes, updated.OverlapBytes, updated.CoverageThreshold)
+	log.Printf("voice-config: updated: flush=%dms delta=%d overlap=%d",
+		updated.FlushIntervalMs, updated.MinDeltaBytes, updated.OverlapBytes)
 	writeJSON(w, http.StatusOK, updated)
 }

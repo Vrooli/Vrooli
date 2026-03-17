@@ -434,7 +434,6 @@ export interface VoiceStreamConfig {
   flushIntervalMs: number;
   minDeltaBytes: number;
   overlapBytes: number;
-  coverageThreshold: number;
 }
 
 export async function getVoiceStreamConfig(): Promise<VoiceStreamConfig> {

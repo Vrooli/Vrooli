@@ -897,7 +897,7 @@ describe("useTerminalSocket — history resume caching", () => {
     );
 
     expect(createSocket).toHaveBeenCalledTimes(1);
-    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string;
     expect(url).toContain("?history_offset=5000");
   });
 
@@ -912,7 +912,7 @@ describe("useTerminalSocket — history resume caching", () => {
     );
 
     expect(createSocket).toHaveBeenCalledTimes(1);
-    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    const url = (createSocket as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string;
     expect(url).not.toContain("history_offset");
   });
 
