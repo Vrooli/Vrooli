@@ -131,9 +131,8 @@ func TestList_OmitsHeavyFields(t *testing.T) {
 	if got.LastCheckpointID != nil {
 		t.Errorf("List() should omit LastCheckpointID, got %v", got.LastCheckpointID)
 	}
-	if got.LastHeartbeat != nil {
-		t.Errorf("List() should omit LastHeartbeat, got %v", got.LastHeartbeat)
-	}
+	// LastHeartbeat is intentionally included in List() — the reconciler
+	// depends on it to detect stale runs.
 	if got.ApprovedBy != "" {
 		t.Errorf("List() should omit ApprovedBy, got %q", got.ApprovedBy)
 	}

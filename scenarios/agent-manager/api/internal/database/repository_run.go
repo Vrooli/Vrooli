@@ -205,10 +205,12 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 // listRunColumns contains the pruned column set for List() queries.
 // Omits heavy fields: summary, resolved_config, sandbox_config, sandbox_id,
 // recommendation_result, recommendation_error, recommendation_queued_at,
-// idempotency_key, last_checkpoint_id, last_heartbeat, diff_path, log_path,
+// idempotency_key, last_checkpoint_id, diff_path, log_path,
 // approved_by, approved_at.
+// NOTE: last_heartbeat MUST be included — the reconciler depends on it
+// to detect stale runs. Without it, every run appears stale after creation.
 const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
-	started_at, ended_at, phase, progress_percent,
+	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state,
 	changed_files, total_size_bytes, session_id,
 	source_run_ids, source_investigation_run_id,
@@ -226,6 +228,7 @@ type listRunLiteRow struct {
 	StartedAt                NullableTime   `db:"started_at"`
 	EndedAt                  NullableTime   `db:"ended_at"`
 	Phase                    string         `db:"phase"`
+	LastHeartbeat            NullableTime   `db:"last_heartbeat"`
 	ProgressPercent          int            `db:"progress_percent"`
 	ErrorMsg                 string         `db:"error_msg"`
 	ExitCode                 sql.NullInt32  `db:"exit_code"`
@@ -255,6 +258,7 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		StartedAt:                row.StartedAt.ToPtr(),
 		EndedAt:                  row.EndedAt.ToPtr(),
 		Phase:                    domain.RunPhase(row.Phase),
+		LastHeartbeat:            row.LastHeartbeat.ToPtr(),
 		ProgressPercent:          row.ProgressPercent,
 		ErrorMsg:                 row.ErrorMsg,
 		ApprovalState:            domain.ApprovalState(row.ApprovalState),

@@ -20,6 +20,10 @@ func TestDefaultReconcilerConfig(t *testing.T) {
 		t.Errorf("StaleThreshold = %v, want 5m", cfg.StaleThreshold)
 	}
 
+	if cfg.MaxRecoveryAge != 10*time.Minute {
+		t.Errorf("MaxRecoveryAge = %v, want 10m", cfg.MaxRecoveryAge)
+	}
+
 	if cfg.OrphanGracePeriod != 10*time.Minute {
 		t.Errorf("OrphanGracePeriod = %v, want 10m", cfg.OrphanGracePeriod)
 	}

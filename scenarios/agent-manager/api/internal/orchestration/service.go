@@ -27,6 +27,7 @@ import (
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
@@ -107,6 +108,11 @@ type Service interface {
 	GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error)
 	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
 	ResetInvestigationSettings(ctx context.Context) error
+
+	// --- Orchestration Settings Operations ---
+	GetOrchestrationSettings(ctx context.Context) (*agentconfig.OrchestrationSettings, error)
+	UpdateOrchestrationSettings(ctx context.Context, settings *agentconfig.OrchestrationSettings) error
+	ResetOrchestrationSettings(ctx context.Context) error
 
 	// --- Recommendation Extraction Operations ---
 	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
@@ -421,6 +427,12 @@ type Orchestrator struct {
 
 	// File storage for uploaded attachments.
 	storage storage.Service
+
+	// Orchestration settings store (file-backed, hot-reloadable).
+	orchestrationSettings *agentconfig.OrchestrationSettingsStore
+
+	// Reconciler reference for hot-reload propagation.
+	reconciler *Reconciler
 }
 
 // OrchestratorConfig holds service configuration.
@@ -569,6 +581,19 @@ func WithAttachmentStorage(s storage.Service) Option {
 	return func(o *Orchestrator) {
 		o.storage = s
 	}
+}
+
+// WithOrchestrationSettings sets the orchestration settings store.
+func WithOrchestrationSettings(store *agentconfig.OrchestrationSettingsStore) Option {
+	return func(o *Orchestrator) {
+		o.orchestrationSettings = store
+	}
+}
+
+// SetReconciler sets the reconciler reference for hot-reload propagation.
+// This is called after construction because the reconciler depends on the orchestrator.
+func (o *Orchestrator) SetReconciler(r *Reconciler) {
+	o.reconciler = r
 }
 
 // New creates a new Orchestrator with the given dependencies.
@@ -1965,6 +1990,17 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		prompt,
 		systemPrompt,
 	)
+	// Apply orchestration settings to executor config if store is available.
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		executor.WithConfig(ExecutorConfig{
+			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
+			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
+			CheckpointInterval: 1 * time.Minute,
+			MaxRetries:         3,
+			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+		})
+	}
 	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
@@ -2066,6 +2102,17 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No new prompt for resume
 		"", // No system prompt for resume (session persists instructions)
 	)
+	// Apply orchestration settings to executor config if store is available.
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		executor.WithConfig(ExecutorConfig{
+			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
+			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
+			CheckpointInterval: 1 * time.Minute,
+			MaxRetries:         3,
+			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+		})
+	}
 
 	// Configure for resumption
 	if o.checkpoints != nil {
@@ -2759,4 +2806,73 @@ func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
 
 	// Reset operational config in DB
 	return o.investigationSettings.Reset(ctx)
+}
+
+// -----------------------------------------------------------------------------
+// Orchestration Settings Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetOrchestrationSettings(_ context.Context) (*agentconfig.OrchestrationSettings, error) {
+	if o.orchestrationSettings == nil {
+		defaults := agentconfig.DefaultOrchestrationSettings()
+		return &defaults, nil
+	}
+	settings := o.orchestrationSettings.Get()
+	return &settings, nil
+}
+
+func (o *Orchestrator) UpdateOrchestrationSettings(_ context.Context, settings *agentconfig.OrchestrationSettings) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
+	}
+	if err := o.orchestrationSettings.Update(*settings); err != nil {
+		return err
+	}
+	o.propagateOrchestrationSettings(settings)
+	return nil
+}
+
+func (o *Orchestrator) ResetOrchestrationSettings(_ context.Context) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
+	}
+	if err := o.orchestrationSettings.Reset(); err != nil {
+		return err
+	}
+	defaults := agentconfig.DefaultOrchestrationSettings()
+	o.propagateOrchestrationSettings(&defaults)
+	return nil
+}
+
+// propagateOrchestrationSettings applies updated settings to running components.
+func (o *Orchestrator) propagateOrchestrationSettings(s *agentconfig.OrchestrationSettings) {
+	// Update orchestrator config (affects new runs).
+	o.config.DefaultTimeout = time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute
+	o.config.MaxConcurrentRuns = s.RunExecution.MaxConcurrentRuns
+	o.config.RequireSandboxByDefault = s.SafetyIsolation.RequireSandbox
+
+	// Propagate to reconciler.
+	if o.reconciler != nil {
+		o.reconciler.UpdateConfig(ReconcilerConfig{
+			Interval:          time.Duration(s.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
+			StaleThreshold:    time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+			MaxRecoveryAge:    time.Duration(s.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
+			OrphanGracePeriod: time.Duration(s.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
+			MaxStaleRuns:      10,
+			KillOrphans:       s.ProcessTermination.KillOrphans,
+			AutoRecover:       true,
+		})
+	}
+
+	// Propagate to terminator.
+	if o.terminator != nil {
+		o.terminator.UpdateConfig(TerminatorConfig{
+			GracePeriod:      time.Duration(s.ProcessTermination.GracePeriodSeconds) * time.Second,
+			MaxRetries:       s.ProcessTermination.TerminationMaxRetries,
+			BaseBackoff:      500 * time.Millisecond,
+			MaxBackoff:       5 * time.Second,
+			VerifyTimeout:    2 * time.Second,
+			KillProcessGroup: s.ProcessTermination.KillProcessGroup,
+		})
+	}
 }

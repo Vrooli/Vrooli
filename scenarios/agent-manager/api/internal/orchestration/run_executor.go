@@ -577,7 +577,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
 		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
-		NoLock:         boolPtr(e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock),
+		NoLock:         noLockFromSandboxConfig(e.run.SandboxConfig),
 		ProjectRoot:    projectRoot,
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
@@ -1369,3 +1369,14 @@ func (e *RunExecutor) WorkDir() string {
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+// noLockFromSandboxConfig returns the NoLock value from a SandboxConfig,
+// or nil if the config doesn't explicitly set it. Returning nil lets the
+// workspace-sandbox server apply its own DefaultNoLock setting, rather than
+// the agent-manager always overriding with false when NoLock isn't specified.
+func noLockFromSandboxConfig(cfg *domain.SandboxConfig) *bool {
+	if cfg == nil || !cfg.NoLock {
+		return nil // let workspace-sandbox server default apply
+	}
+	return boolPtr(true)
+}

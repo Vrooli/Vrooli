@@ -42,6 +42,12 @@ type ReconcilerConfig struct {
 	// StaleThreshold is how long without heartbeat before marking a run as stale
 	StaleThreshold time.Duration
 
+	// MaxRecoveryAge is the maximum time a run can be stale before the reconciler
+	// stops auto-recovering it and kills the process instead. This prevents
+	// orphaned processes (e.g., after agent-manager restart) from being kept
+	// alive indefinitely by auto-recovery.
+	MaxRecoveryAge time.Duration
+
 	// OrphanGracePeriod is how long to wait before killing orphan processes
 	OrphanGracePeriod time.Duration
 
@@ -57,11 +63,15 @@ type ReconcilerConfig struct {
 
 // DefaultReconcilerConfig returns sensible defaults.
 // StaleThreshold is 5 minutes to match executor config and allow for slow operations.
+// MaxRecoveryAge is 10 minutes — if the executor heartbeat has been absent that long
+// while the process is still alive, the executor is gone (e.g., agent-manager restarted)
+// and the process should be killed rather than perpetually recovered.
 // OrphanGracePeriod is 10 minutes to avoid killing newly started processes.
 func DefaultReconcilerConfig() ReconcilerConfig {
 	return ReconcilerConfig{
 		Interval:          30 * time.Second,
 		StaleThreshold:    5 * time.Minute,  // More forgiving - allows for slow DB updates
+		MaxRecoveryAge:    10 * time.Minute, // Kill process if stale beyond this
 		OrphanGracePeriod: 10 * time.Minute, // Longer grace period for safety
 		MaxStaleRuns:      10,
 		KillOrphans:       true, // Always kill orphan processes
@@ -206,16 +216,27 @@ func (r *Reconciler) RunOnce(ctx context.Context) ReconcileStats {
 	return r.reconcile(ctx)
 }
 
-// loop runs the reconciliation loop.
+// UpdateConfig applies new configuration to the reconciler at runtime.
+// The new interval takes effect after the current cycle completes.
+func (r *Reconciler) UpdateConfig(cfg ReconcilerConfig) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.config = cfg
+}
+
+// loop runs the reconciliation loop using a timer for hot-reloadable intervals.
 func (r *Reconciler) loop(ctx context.Context) {
 	defer close(r.doneCh)
 
-	ticker := time.NewTicker(r.config.Interval)
-	defer ticker.Stop()
-
-	// Run once immediately on startup
+	// Run once immediately on startup.
 	stats := r.reconcile(ctx)
 	r.updateStats(stats)
+
+	r.mu.Lock()
+	interval := r.config.Interval
+	r.mu.Unlock()
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
 
 	for {
 		select {
@@ -223,9 +244,14 @@ func (r *Reconciler) loop(ctx context.Context) {
 			return
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			stats := r.reconcile(ctx)
 			r.updateStats(stats)
+			// Re-read interval (may have changed via UpdateConfig).
+			r.mu.Lock()
+			interval = r.config.Interval
+			r.mu.Unlock()
+			timer.Reset(interval)
 		}
 	}
 }
@@ -406,20 +432,31 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		return
 	}
 
-	// Process is alive but heartbeat is stale - could be legitimate slow work
+	// Process is alive but heartbeat is stale - could be legitimate slow work,
+	// or the executor is gone (e.g., agent-manager restarted) and nobody is
+	// managing this process anymore.
 	log.Printf("[reconciler] Run %s is stale (last heartbeat: %v) but process is alive",
 		run.ID, run.LastHeartbeat)
 
+	// If the heartbeat has been absent beyond MaxRecoveryAge, the executor
+	// is gone. Kill the process and mark the run as failed rather than
+	// perpetually recovering it.
+	if r.config.MaxRecoveryAge > 0 && heartbeatAge > r.config.MaxRecoveryAge {
+		log.Printf("[reconciler] Run %s (tag=%s) exceeded max recovery age (%v > %v), killing process and marking failed",
+			run.ID, tag, heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge)
+		r.killRunProcesses(ctx, run)
+		r.markRunFailed(ctx, run, fmt.Sprintf(
+			"executor heartbeat absent for %v (max recovery age %v exceeded) — process killed by reconciler (tag=%s)",
+			heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge, tag))
+		return
+	}
+
 	if r.config.AutoRecover {
-		// Attempt to recover by updating heartbeat and continuing
-		now := time.Now()
-		run.LastHeartbeat = &now
-		run.UpdatedAt = now
-		if err := r.runs.Update(ctx, run); err != nil {
-			stats.Errors = append(stats.Errors, fmt.Sprintf("failed to update run %s: %v", run.ID, err))
-		} else {
-			stats.RunsRecovered++
-		}
+		// The process is alive but the executor heartbeat loop isn't updating.
+		// Don't reset LastHeartbeat here — we need heartbeat age to keep growing
+		// so MaxRecoveryAge can eventually trigger. Just count this as a recovery
+		// (i.e., "we chose not to kill it yet").
+		stats.RunsRecovered++
 	}
 }
 
@@ -796,6 +833,44 @@ func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// killRunProcesses finds and kills all processes associated with a run's tag.
+func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
+	tag := run.GetTag()
+
+	// Find PIDs matching the tag via runner process scan
+	for _, runnerName := range []string{"claude", "codex", "opencode"} {
+		cmd := exec.Command("pgrep", "-af", runnerName)
+		output, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+
+		for _, line := range strings.Split(string(output), "\n") {
+			if line == "" {
+				continue
+			}
+			parts := strings.SplitN(line, " ", 2)
+			if len(parts) < 2 {
+				continue
+			}
+			pid, err := strconv.Atoi(parts[0])
+			if err != nil {
+				continue
+			}
+
+			command := parts[1]
+			if extractTagFromCommand(command) == tag || extractTagFromEnv(pid) == tag {
+				log.Printf("[reconciler] Killing run process: PID=%d tag=%s", pid, tag)
+				if err := r.killProcess(pid); err != nil {
+					log.Printf("[reconciler] Warning: failed to kill PID %d: %v", pid, err)
+				}
+			}
+		}
+	}
+
+	r.cleanupResourceRegistries(ctx)
 }
 
 // killProcess kills a process with retry and escalation.

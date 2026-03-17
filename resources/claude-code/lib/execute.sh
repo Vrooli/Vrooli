@@ -257,18 +257,25 @@ claude_code::run() {
     # Merging these into stdout contaminates the JSON stream, causing the calling
     # process to receive thousands of non-JSON ANSI lines alongside valid events.
     # For text mode, 2>&1 is fine since there's no structured stream to protect.
+    #
+    # FD HYGIENE: The `3>&-` closes fd 3 for the timeout/claude process. Without
+    # this, claude inherits fd 3 (our saved stdout from `exec 3>&1 1>&2`), which
+    # is the write end of the pipe back to the calling process (e.g., agent-manager).
+    # This leaked fd prevents claude's Node.js event loop from exiting after
+    # completing its work (open handle keeps the loop alive), causing the run to
+    # appear stuck in "Running" state indefinitely.
     if [[ "$OUTPUT_FORMAT" == "stream-json" ]]; then
         local stderr_file
         stderr_file=$(mktemp)
         # Restore original stdout (fd 3) so the JSON stream goes to the calling
         # process's pipe, not to stderr where we redirected log output earlier.
         {
-            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>"$stderr_file"
+            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>"$stderr_file" 3>&-
             echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
         } | tee "$temp_output_file" >&3
     else
         {
-            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
+            echo "$PROMPT" | timeout --foreground "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1 3>&-
             echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
         } | tee "$temp_output_file"
     fi

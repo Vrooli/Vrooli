@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/adapters/event"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
@@ -158,6 +159,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
 	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")
+
+	// Orchestration Settings endpoints
+	r.HandleFunc("/api/v1/orchestration-settings", h.GetOrchestrationSettings).Methods("GET")
+	r.HandleFunc("/api/v1/orchestration-settings", h.UpdateOrchestrationSettings).Methods("PUT")
+	r.HandleFunc("/api/v1/orchestration-settings/reset", h.ResetOrchestrationSettings).Methods("POST")
 
 	// Attachment endpoints
 	if h.storage != nil {
@@ -2622,6 +2628,57 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
 		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
+}
+
+// =============================================================================
+// ORCHESTRATION SETTINGS
+// =============================================================================
+
+// GetOrchestrationSettings returns the current orchestration settings.
+func (h *Handler) GetOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
+// UpdateOrchestrationSettings updates the orchestration settings.
+func (h *Handler) UpdateOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	var settings agentconfig.OrchestrationSettings
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	if err := h.svc.UpdateOrchestrationSettings(r.Context(), &settings); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Return the updated settings.
+	updated, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// ResetOrchestrationSettings resets the orchestration settings to defaults.
+func (h *Handler) ResetOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.ResetOrchestrationSettings(r.Context()); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	settings, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
 }
 
 // =============================================================================

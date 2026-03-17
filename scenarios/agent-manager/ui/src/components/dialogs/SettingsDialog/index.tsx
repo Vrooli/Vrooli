@@ -14,17 +14,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
 import { InvestigationTab } from "./InvestigationTab";
 import type { InvestigationTabHandle } from "./InvestigationTab";
+import { OrchestrationTab } from "./OrchestrationTab";
+import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
 import { ModelRegistryTab } from "./ModelRegistryTab";
 import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
 import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
   models: "Configure per-runner model lists and preset mappings",
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
+  orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
   maintenance: "Purge data and manage service controls",
 };
 
@@ -57,6 +61,11 @@ export function SettingsDialog({
   // Investigation ref + dirty state for unified footer
   const investigationRef = useRef<InvestigationTabHandle>(null);
   const [investigationDirty, setInvestigationDirty] = useState(false);
+
+  // Orchestration ref + dirty state for unified footer
+  const orchestrationSettings = useOrchestrationSettings();
+  const orchestrationRef = useRef<OrchestrationTabHandle>(null);
+  const [orchestrationDirty, setOrchestrationDirty] = useState(false);
 
   // Purge state
   const [purgePattern, setPurgePattern] = useState("^test-.*");
@@ -117,10 +126,11 @@ export function SettingsDialog({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
             {/* Tab bar — sticky, scrollable on mobile */}
             <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
-              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-4">
+              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
                 <TabsTrigger value="models" className="shrink-0">Model Registry</TabsTrigger>
                 <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
                 <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
+                <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
                 <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
               </TabsList>
             </div>
@@ -161,6 +171,17 @@ export function SettingsDialog({
                   onDirtyChange={setInvestigationDirty}
                 />
               </TabsContent>
+              <TabsContent value="orchestration" className="mt-0">
+                <OrchestrationTab
+                  ref={orchestrationRef}
+                  settings={orchestrationSettings.data}
+                  loading={orchestrationSettings.loading}
+                  error={orchestrationSettings.error}
+                  onSave={orchestrationSettings.updateSettings}
+                  onReset={orchestrationSettings.resetSettings}
+                  onDirtyChange={setOrchestrationDirty}
+                />
+              </TabsContent>
               <TabsContent value="maintenance" className="mt-0">
                 <MaintenanceTab
                   purgePattern={purgePattern}
@@ -184,6 +205,23 @@ export function SettingsDialog({
                   disabled={!editor.draft || editor.saving}
                 >
                   {editor.saving ? "Saving..." : "Save"}
+                </Button>
+              </>
+            )}
+            {activeTab === "orchestration" && orchestrationDirty && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => orchestrationRef.current?.reset()}
+                  disabled={orchestrationRef.current?.saving}
+                >
+                  Reset to Defaults
+                </Button>
+                <Button
+                  onClick={() => orchestrationRef.current?.save()}
+                  disabled={orchestrationRef.current?.saving}
+                >
+                  {orchestrationRef.current?.saving ? "Saving..." : "Save"}
                 </Button>
               </>
             )}

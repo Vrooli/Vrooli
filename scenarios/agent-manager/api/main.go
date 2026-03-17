@@ -252,11 +252,32 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	}
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 
+	// Load orchestration settings (file-backed, git-checked-in).
+	orchSettingsPath := agentconfig.ResolveOrchestrationSettingsPath()
+	orchSettingsStore, err := agentconfig.NewOrchestrationSettingsStore(orchSettingsPath)
+	if err != nil {
+		log.Printf("Warning: failed to load orchestration settings from %s: %v", orchSettingsPath, err)
+	}
+
+	// Build terminator config from orchestration settings (or defaults).
+	terminatorCfg := orchestration.DefaultTerminatorConfig()
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		terminatorCfg = orchestration.TerminatorConfig{
+			GracePeriod:      time.Duration(os.ProcessTermination.GracePeriodSeconds) * time.Second,
+			MaxRetries:       os.ProcessTermination.TerminationMaxRetries,
+			BaseBackoff:      500 * time.Millisecond,
+			MaxBackoff:       5 * time.Second,
+			VerifyTimeout:    2 * time.Second,
+			KillProcessGroup: os.ProcessTermination.KillProcessGroup,
+		}
+	}
+
 	// Create terminator for robust process termination (Phase 2)
 	terminator := orchestration.NewTerminator(
 		runRepo,
 		runnerRegistry,
-		orchestration.DefaultTerminatorConfig(),
+		terminatorCfg,
 	)
 
 	modelRegistryPath := modelregistry.ResolvePath()
@@ -291,6 +312,14 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 	}
 
+	// Apply orchestration settings on top of levers (settings file is the primary source).
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		orchConfig.DefaultTimeout = time.Duration(os.RunExecution.RunTimeoutMinutes) * time.Minute
+		orchConfig.MaxConcurrentRuns = os.RunExecution.MaxConcurrentRuns
+		orchConfig.RequireSandboxByDefault = os.SafetyIsolation.RequireSandbox
+	}
+
 	// Create prompt-manager client for investigation prompt skills
 	promptClient := promptmanager.NewHTTPClient()
 
@@ -317,23 +346,35 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithPromptClient(promptClient),
 		orchestration.WithFlagValidator(flagValidator),
 		orchestration.WithAttachmentStorage(uploadStorage),
+		orchestration.WithOrchestrationSettings(orchSettingsStore),
 	)
+
+	// Build reconciler config from orchestration settings (or defaults).
+	reconcilerCfg := orchestration.DefaultReconcilerConfig()
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		reconcilerCfg = orchestration.ReconcilerConfig{
+			Interval:          time.Duration(os.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
+			StaleThreshold:    time.Duration(os.HealthDetection.StaleThresholdSeconds) * time.Second,
+			MaxRecoveryAge:    time.Duration(os.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
+			OrphanGracePeriod: time.Duration(os.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
+			MaxStaleRuns:      10,
+			KillOrphans:       os.ProcessTermination.KillOrphans,
+			AutoRecover:       true,
+		}
+	}
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
 	reconciler := orchestration.NewReconciler(
 		runRepo,
 		runnerRegistry,
-		orchestration.WithReconcilerConfig(orchestration.ReconcilerConfig{
-			Interval:          30 * time.Second,
-			StaleThreshold:    5 * time.Minute,
-			OrphanGracePeriod: 5 * time.Minute,
-			MaxStaleRuns:      10,
-			KillOrphans:       true, // Always kill orphan processes
-			AutoRecover:       true, // Auto-recover stale runs if process is alive
-		}),
+		orchestration.WithReconcilerConfig(reconcilerCfg),
 		orchestration.WithReconcilerBroadcaster(wsHub),
 		orchestration.WithReconcilerSandbox(sandboxProvider),
 	)
+
+	// Wire reconciler back to orchestrator for hot-reload propagation.
+	orch.SetReconciler(reconciler)
 
 	// Create recommendation worker for passive extraction from investigation runs
 	// Uses the investigation settings repository for tag allowlist filtering

@@ -87,6 +87,11 @@ func NewTerminator(
 	}
 }
 
+// UpdateConfig applies new configuration at runtime.
+func (t *Terminator) UpdateConfig(cfg TerminatorConfig) {
+	t.config = cfg
+}
+
 // TerminateResult contains the outcome of a termination attempt.
 type TerminateResult struct {
 	Success        bool

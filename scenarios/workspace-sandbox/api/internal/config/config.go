@@ -198,9 +198,9 @@ type PolicyConfig struct {
 	// DefaultNoLock controls whether new sandboxes skip scope locking by default.
 	// When true, sandboxes are created without mutual exclusion checks unless
 	// the caller explicitly requests locking (noLock: false).
-	// When false (default), sandboxes enforce mutual exclusion unless the caller
+	// When false, sandboxes enforce mutual exclusion unless the caller
 	// explicitly disables it (noLock: true).
-	// Default: false
+	// Default: true
 	DefaultNoLock bool
 
 	// TeardownHooks defines pre-teardown hooks to run before unmounting or
