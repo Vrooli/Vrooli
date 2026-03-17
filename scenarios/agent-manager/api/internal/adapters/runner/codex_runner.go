@@ -385,10 +385,11 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 	}()
 
 	// Parse streaming JSON output (and capture thread_id for session continuation)
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
+	defer is.Stop()
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -413,7 +414,13 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -421,8 +428,9 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		))
 	}
 
-	// Wait for command to complete
-	err = cmd.Wait()
+	// Reap the process — kill the process group and collect exit status.
+	// Runner CLIs may keep their event loop alive after finishing work.
+	err = reapProcess(cmd)
 	duration := time.Since(startTime)
 
 	// Capture thread ID before clearing
@@ -579,9 +587,10 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 	}()
 
 	// Read stdout — strip ANSI and skip pure-formatting lines
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout)
+	defer is.Stop()
+	for is.Scan() {
+		line := is.Text()
 		if isOnlyANSI(line) {
 			continue
 		}
@@ -599,8 +608,9 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		}
 	}
 
-	// Wait for command to complete
-	err = cmd.Wait()
+	// Reap the process — kill the process group and collect exit status.
+	// Runner CLIs may keep their event loop alive after finishing work.
+	err = reapProcess(cmd)
 	duration := time.Since(startTime)
 
 	// Determine result
@@ -1199,10 +1209,11 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}()
 
 	// Parse streaming JSONL output using the same parser as Execute
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
+	defer is.Stop()
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -1227,7 +1238,13 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -1235,8 +1252,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 		))
 	}
 
-	// Wait for command to complete
-	err = cmd.Wait()
+	// Reap the process — kill the process group and collect exit status.
+	// Runner CLIs may keep their event loop alive after finishing work.
+	err = reapProcess(cmd)
 	duration := time.Since(startTime)
 
 	// Capture thread ID (may have been updated during continuation)

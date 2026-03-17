@@ -817,7 +817,6 @@ func (r *Reconciler) handleOrphan(ctx context.Context, orphan OrphanProcess, sta
 func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
 	// List of resource CLI commands that maintain agent registries
 	resourceCommands := []string{
-		"resource-claude-code",
 		"resource-codex",
 		"resource-opencode",
 	}

@@ -231,11 +231,12 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}()
 
-	// Parse streaming JSON output
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	// Parse streaming JSON output with idle timeout
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
+	defer is.Stop()
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -289,7 +290,13 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -315,9 +322,10 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	// Wait for command to complete (if not already done above)
+	// Reap the process (if not already done by stepFinished cleanup above).
+	// Runner CLIs may keep their event loop alive after finishing work.
 	if !stepFinished {
-		err = cmd.Wait()
+		err = reapProcess(cmd)
 	} else {
 		err = nil // Step finished successfully
 	}
@@ -1296,11 +1304,12 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	// Parse streaming JSON output with idle timeout
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 0, 64*1024), 1024*1024)
+	defer is.Stop()
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -1347,7 +1356,13 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+	if scanErr := is.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",

@@ -1,7 +1,7 @@
 // Package runner provides runner adapter implementations.
 //
 // This file implements the Claude Code runner adapter for executing
-// Claude Code via the resource-claude-code wrapper within agent-manager.
+// Claude Code via direct CLI invocation within agent-manager.
 package runner
 
 import (
@@ -23,7 +23,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// ResourceCommand is the Vrooli resource wrapper command
+// ClaudeCodeCLICommand is the direct Claude CLI binary name.
+const ClaudeCodeCLICommand = "claude"
+
+// ClaudeCodeResourceCommand is the legacy Vrooli resource wrapper (kept for
+// transition-period process detection in the reconciler/terminator).
 const ClaudeCodeResourceCommand = "resource-claude-code"
 
 // =============================================================================
@@ -43,63 +47,24 @@ type ClaudeCodeRunner struct {
 
 // NewClaudeCodeRunner creates a new Claude Code runner.
 func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
-	// Look for resource-claude-code in PATH (the Vrooli wrapper)
-	binaryPath, err := exec.LookPath(ClaudeCodeResourceCommand)
+	binaryPath, err := exec.LookPath(ClaudeCodeCLICommand)
 	if err != nil {
 		return &ClaudeCodeRunner{
 			available:   false,
-			message:     "resource-claude-code not found in PATH",
-			installHint: "Run: vrooli resource install claude-code",
+			message:     "claude CLI not found in PATH",
+			installHint: "Install: npm install -g @anthropic-ai/claude-code",
 			runs:        make(map[uuid.UUID]*exec.Cmd),
 			streamState: make(map[uuid.UUID]*claudeStreamState),
 		}, nil
 	}
 
-	// Verify the resource is healthy by checking status
-	runner := &ClaudeCodeRunner{
+	return &ClaudeCodeRunner{
 		binaryPath:  binaryPath,
 		available:   true,
-		message:     "resource-claude-code available",
+		message:     "claude CLI available",
 		runs:        make(map[uuid.UUID]*exec.Cmd),
 		streamState: make(map[uuid.UUID]*claudeStreamState),
-	}
-
-	// Quick health check via status command
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, binaryPath, "status", "--format", "json", "--fast")
-	output, err := cmd.Output()
-	if err != nil {
-		runner.available = false
-		runner.message = fmt.Sprintf("resource-claude-code status check failed: %v", err)
-		runner.installHint = "Run: resource-claude-code manage install"
-		return runner, nil
-	}
-
-	// Parse JSON status to check health
-	var statusData map[string]interface{}
-	if err := json.Unmarshal(output, &statusData); err == nil {
-		// Check health status - handle both boolean and string formats
-		isHealthy := true
-		if healthy, ok := statusData["healthy"].(bool); ok {
-			isHealthy = healthy
-		} else if healthyStr, ok := statusData["healthy"].(string); ok {
-			isHealthy = healthyStr == "true"
-		}
-
-		if !isHealthy {
-			runner.available = false
-			if msg, ok := statusData["health_message"].(string); ok {
-				runner.message = msg
-			} else {
-				runner.message = "resource-claude-code is not healthy"
-			}
-			runner.installHint = "Run: resource-claude-code manage install"
-		}
-	}
-
-	return runner, nil
+	}, nil
 }
 
 // Type returns the runner type identifier.
@@ -127,7 +92,7 @@ func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 			"claude-haiku-4-5-20251001",
 		},
 		SupportedFeatures: []string{"EnableBrowser"},
-		AllowedExtraFlags: []string{"--verbose", "--allowedTools", "--disallowedTools"},
+		AllowedExtraFlags: []string{"--disallowedTools"},
 	}
 }
 
@@ -149,16 +114,22 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	// Build command arguments
 	args := r.buildArgs(req)
 
-	// Create command using resource-claude-code
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	// Invoke claude directly using env prefix to surface the tag in /proc/<pid>/cmdline
+	// for reconciler process detection (same pattern as codex runner).
+	tag := req.GetTag()
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	cmd.Dir = req.WorkingDir
 
-	// Set environment using buildEnv (handles all configuration via env vars)
+	// Set environment
 	cmd.Env = r.buildEnv(req)
 
-	// Create a new process group so we can kill the entire subprocess tree
-	// This is needed because resource-claude-code is a bash wrapper that may have
-	// child processes (tee, cleanup handlers) that outlive the main Claude process
+	// Create a new process group so we can kill the entire subprocess tree.
+	// Claude Code may spawn child processes for tools (bash, etc.) that should
+	// be terminated when the run is stopped.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	// Track the running command for cancellation
@@ -247,16 +218,17 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output
+	// Parse streaming JSON output with idle timeout.
 	// Use a larger buffer for the scanner - Claude's stream-json can output very long lines
 	// when reading large files or returning tool results (default is 64KB, we use 10MB)
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 64*1024), maxScannerBuffer)
+	defer is.Stop()
 
-	streamState := r.streamStateFor(req.RunID)
-	for scanner.Scan() {
-		line := scanner.Text()
+	r.streamStateFor(req.RunID) // initialize stream state for event parsing
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -297,10 +269,17 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	}
 
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+
 	// Check if scanner exited due to an error (vs clean EOF).
 	// The scanner loop exits on stdout EOF (process closed its stdout) or
 	// on a read error. Either way, the process should be finishing.
-	scannerErr := scanner.Err()
+	scannerErr := is.Err()
 	if scannerErr != nil {
 		// Scanner hit an error - log it but continue to wait for process
 		if req.EventSink != nil {
@@ -312,48 +291,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Wait for command to complete. The scanner loop above exits on stdout
-	// EOF (process finished) or scanner error. Use the context deadline as
-	// the authoritative timeout; fall back to 30s if no deadline is set.
-	cleanupTimeout := 30 * time.Second
-	if deadline, ok := ctx.Deadline(); ok {
-		if remaining := time.Until(deadline); remaining > 0 && remaining < cleanupTimeout {
-			cleanupTimeout = remaining
-		}
-	}
-
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
-
-	select {
-	case err = <-waitDone:
-		// Normal completion - process exited
-	case <-time.After(cleanupTimeout):
-		// Process hasn't exited after stdout closed — kill and continue.
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-		if streamState != nil && streamState.gotResult {
-			// We have result data from the stream. The process exceeded the
-			// cleanup timeout (likely stuck on post-execution housekeeping).
-			err = nil
-		} else if req.EventSink != nil {
-			_ = req.EventSink.Emit(domain.NewLogEvent(
-				req.RunID,
-				"warn",
-				"Wrapper script did not exit cleanly after stdout closed; killed process group",
-			))
-		}
-	case <-ctx.Done():
-		// Context cancelled - kill the process group
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-	}
+	// Reap the process. The scanner loop exited (EOF, idle timeout, or error),
+	// so we have all the stream data. Many runner CLIs keep their event loop
+	// alive after finishing (inotify watches, timers, etc.), so we kill the
+	// process group immediately rather than waiting for a voluntary exit.
+	err = reapProcess(cmd)
 
 	duration := time.Since(startTime)
 
@@ -480,22 +422,27 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	r.initStreamState(req.RunID)
 	defer r.clearStreamState(req.RunID)
 
-	// Build command arguments with --resume flag
+	// Build command arguments for continuation
 	args := []string{
-		"run",
-		"--tag", req.RunID.String(),
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose",
 		"--resume", req.SessionID,
+		"--dangerously-skip-permissions",
 		"-", // Read prompt from stdin
 	}
 
-	// Create command using resource-claude-code
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	// Invoke claude directly using env prefix (same pattern as Execute)
+	tag := fmt.Sprintf("claude-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	cmd.Dir = req.WorkingDir
 
-	// Set environment - use stream-json for event streaming
 	env := sanitizedBaseEnv()
-	env = append(env, "OUTPUT_FORMAT=stream-json")
-	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
+	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag))
 	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Create a new process group so we can kill the entire subprocess tree
@@ -587,14 +534,15 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		}
 	}()
 
-	// Parse streaming JSON output
+	// Parse streaming JSON output with idle timeout.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
+	is := newIdleScanner(stdout, cmd, DefaultStreamIdleTimeout).
+		WithBuffer(make([]byte, 64*1024), maxScannerBuffer)
+	defer is.Stop()
 
-	contStreamState := r.streamStateFor(req.RunID)
-	for scanner.Scan() {
-		line := scanner.Text()
+	r.streamStateFor(req.RunID) // initialize stream state for event parsing
+	for is.Scan() {
+		line := is.Text()
 		if line == "" {
 			continue
 		}
@@ -630,36 +578,15 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 
 	}
 
-	// Wait for command to complete. Use context deadline as the authoritative
-	// timeout; fall back to 30s if no deadline is set.
-	contCleanupTimeout := 30 * time.Second
-	if deadline, ok := ctx.Deadline(); ok {
-		if remaining := time.Until(deadline); remaining > 0 && remaining < contCleanupTimeout {
-			contCleanupTimeout = remaining
-		}
+	if is.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
 	}
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
 
-	select {
-	case err = <-waitDone:
-		// Normal completion - process exited
-	case <-time.After(contCleanupTimeout):
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-		if contStreamState.gotResult {
-			err = nil // We have result data; process exceeded cleanup timeout
-		}
-	case <-ctx.Done():
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-	}
+	// Reap the process immediately — see Execute() comment.
+	err = reapProcess(cmd)
 
 	duration := time.Since(startTime)
 
@@ -741,10 +668,10 @@ func (r *ClaudeCodeRunner) IsAvailable(ctx context.Context) (bool, string) {
 
 	// Verify the binary still exists
 	if _, err := os.Stat(r.binaryPath); os.IsNotExist(err) {
-		return false, "resource-claude-code binary not found. Run: vrooli resource install claude-code"
+		return false, "claude CLI not found. Install: npm install -g @anthropic-ai/claude-code"
 	}
 
-	return true, "resource-claude-code is available"
+	return true, "claude CLI is available"
 }
 
 // InstallHint returns instructions for installing this runner.
@@ -752,18 +679,44 @@ func (r *ClaudeCodeRunner) InstallHint() string {
 	return r.installHint
 }
 
-// buildArgs constructs command-line arguments for resource-claude-code run.
+// buildArgs constructs command-line arguments for direct claude CLI invocation.
 func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
-	// Use the "run" subcommand with --tag for agent tracking
-	// Tag defaults to RunID if not set, but can be customized for readability
 	args := []string{
-		"run",
-		"--tag", req.GetTag(),
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose", // Required with --print --output-format stream-json for full event stream
 	}
 
 	cfg := req.GetConfig()
 
-	// Typed features → CLI flags (only this runner knows the mapping)
+	// Max turns
+	if cfg.MaxTurns > 0 {
+		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
+	} else {
+		args = append(args, "--max-turns", "30")
+	}
+
+	// Model selection
+	if cfg.Model != "" {
+		args = append(args, "--model", cfg.Model)
+	}
+
+	// Skip permission prompts for autonomous execution
+	if cfg.SkipPermissionPrompt {
+		args = append(args, "--dangerously-skip-permissions")
+	}
+
+	// Allowed tools
+	if len(cfg.AllowedTools) > 0 {
+		args = append(args, "--allowedTools", strings.Join(cfg.AllowedTools, ","))
+	}
+
+	// System prompt
+	if req.SystemPrompt != "" {
+		args = append(args, "--append-system-prompt", req.SystemPrompt)
+	}
+
+	// Feature flags
 	if cfg.Features.EnableBrowser {
 		args = append(args, "--chrome")
 	}
@@ -777,53 +730,13 @@ func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 	return args
 }
 
-// buildEnv constructs environment variables for resource-claude-code run.
+// buildEnv constructs environment variables for direct claude CLI invocation.
+// All configuration is passed via CLI args; only the agent tag and custom env remain.
 func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 	env := sanitizedBaseEnv()
 
 	// Tag for reconciler process detection via /proc/<pid>/environ.
 	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", req.GetTag()))
-
-	// Output format - use stream-json for event streaming
-	env = append(env, "OUTPUT_FORMAT=stream-json")
-
-	// Non-interactive mode for autonomous execution
-	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
-
-	// Get the resolved config (handles profile + inline overrides)
-	cfg := req.GetConfig()
-
-	// Model selection via environment
-	if cfg.Model != "" {
-		env = append(env, fmt.Sprintf("CLAUDE_MODEL=%s", cfg.Model))
-	}
-
-	// Max turns
-	if cfg.MaxTurns > 0 {
-		env = append(env, fmt.Sprintf("MAX_TURNS=%d", cfg.MaxTurns))
-	} else {
-		env = append(env, "MAX_TURNS=30") // Default
-	}
-
-	// Timeout in seconds
-	if cfg.Timeout > 0 {
-		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(cfg.Timeout.Seconds())))
-	}
-
-	// Allowed tools
-	if len(cfg.AllowedTools) > 0 {
-		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(cfg.AllowedTools, ",")))
-	}
-
-	// Skip permission prompts if configured (for sandboxed environments)
-	if cfg.SkipPermissionPrompt {
-		env = append(env, "SKIP_PERMISSIONS=yes")
-	}
-
-	// System prompt via --append-system-prompt (passed through resource wrapper)
-	if req.SystemPrompt != "" {
-		env = append(env, fmt.Sprintf("APPEND_SYSTEM_PROMPT=%s", req.SystemPrompt))
-	}
 
 	// Add any custom environment from the request
 	return appendEnvMap(env, req.Environment)

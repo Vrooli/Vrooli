@@ -293,7 +293,10 @@ func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
 
 	switch run.ResolvedConfig.RunnerType {
 	case domain.RunnerTypeClaudeCode:
-		return findProcessPIDByResourceTag("resource-claude-code", tag)
+		if pid := findProcessPIDByRunnerEnvTag("claude", tag); pid != 0 {
+			return pid
+		}
+		return findProcessPIDByResourceTag("resource-claude-code", tag) // transition fallback
 	case domain.RunnerTypeCodex:
 		if pid := findProcessPIDByRunnerEnvTag("codex", tag); pid != 0 {
 			return pid
@@ -310,6 +313,9 @@ func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
 }
 
 func (t *Terminator) findProcessPIDByTag(tag string) int {
+	if pid := findProcessPIDByRunnerEnvTag("claude", tag); pid != 0 {
+		return pid
+	}
 	if pid := findProcessPIDByRunnerEnvTag("codex", tag); pid != 0 {
 		return pid
 	}

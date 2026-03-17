@@ -598,8 +598,6 @@ func TestClaudeCodeRunner_Capabilities_AllowedExtraFlags(t *testing.T) {
 		t.Fatal("expected AllowedExtraFlags to be non-empty")
 	}
 	expected := map[string]bool{
-		"--verbose":         false,
-		"--allowedTools":    false,
 		"--disallowedTools": false,
 	}
 	for _, f := range caps.AllowedExtraFlags {
@@ -882,13 +880,13 @@ func TestExecuteRequest_EffectivePrompt(t *testing.T) {
 }
 
 // =============================================================================
-// CLAUDE CODE SYSTEM PROMPT ENV VAR TESTS
+// CLAUDE CODE SYSTEM PROMPT CLI ARG TESTS
 // =============================================================================
 
-func TestClaudeCodeRunner_BuildEnv_SystemPrompt(t *testing.T) {
+func TestClaudeCodeRunner_BuildArgs_SystemPrompt(t *testing.T) {
 	r := runner.NewTestClaudeCodeRunner()
 
-	t.Run("includes APPEND_SYSTEM_PROMPT when set", func(t *testing.T) {
+	t.Run("includes --append-system-prompt when set", func(t *testing.T) {
 		req := runner.ExecuteRequest{
 			RunID:        uuid.New(),
 			SystemPrompt: "You are an investigation agent.",
@@ -896,23 +894,22 @@ func TestClaudeCodeRunner_BuildEnv_SystemPrompt(t *testing.T) {
 				RunnerType: domain.RunnerTypeClaudeCode,
 			},
 		}
-		env := r.BuildEnvForTest(req)
+		args := r.BuildArgsForTest(req)
 		found := false
-		for _, e := range env {
-			if strings.HasPrefix(e, "APPEND_SYSTEM_PROMPT=") {
+		for i, a := range args {
+			if a == "--append-system-prompt" && i+1 < len(args) {
 				found = true
-				val := strings.TrimPrefix(e, "APPEND_SYSTEM_PROMPT=")
-				if val != "You are an investigation agent." {
-					t.Errorf("APPEND_SYSTEM_PROMPT = %q, want %q", val, "You are an investigation agent.")
+				if args[i+1] != "You are an investigation agent." {
+					t.Errorf("--append-system-prompt value = %q, want %q", args[i+1], "You are an investigation agent.")
 				}
 			}
 		}
 		if !found {
-			t.Error("expected APPEND_SYSTEM_PROMPT in env vars")
+			t.Error("expected --append-system-prompt in args")
 		}
 	})
 
-	t.Run("omits APPEND_SYSTEM_PROMPT when empty", func(t *testing.T) {
+	t.Run("omits --append-system-prompt when empty", func(t *testing.T) {
 		req := runner.ExecuteRequest{
 			RunID:        uuid.New(),
 			SystemPrompt: "",
@@ -920,10 +917,10 @@ func TestClaudeCodeRunner_BuildEnv_SystemPrompt(t *testing.T) {
 				RunnerType: domain.RunnerTypeClaudeCode,
 			},
 		}
-		env := r.BuildEnvForTest(req)
-		for _, e := range env {
-			if strings.HasPrefix(e, "APPEND_SYSTEM_PROMPT=") {
-				t.Error("expected no APPEND_SYSTEM_PROMPT when system prompt is empty")
+		args := r.BuildArgsForTest(req)
+		for _, a := range args {
+			if a == "--append-system-prompt" {
+				t.Error("expected no --append-system-prompt when system prompt is empty")
 			}
 		}
 	})
