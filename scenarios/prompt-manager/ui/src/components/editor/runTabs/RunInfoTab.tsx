@@ -8,11 +8,13 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
+import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, ExternalLink, Loader2, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getRunDetails, retryRun, type RunDetails } from '@/services/heartbeatService'
 import { CopyButton } from '@/components/shared/EventsDisplay'
 import { toast } from '@/hooks/use-toast'
+import { useSelectionStore } from '@/stores/selectionStore'
+import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 
 interface RunInfoTabProps {
   runId: string
@@ -200,6 +202,24 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
       <section className="bg-muted/30 rounded-lg p-4">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Execution Details</h4>
         <dl className="grid gap-2.5">
+          {runDetails?.teamId && runDetails?.agentId && (
+            <div className="flex items-center gap-3">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <dt className="text-xs text-muted-foreground min-w-[72px]">Source</dt>
+              <dd className="text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    useSelectionStore.getState().setSelectedTeamId(runDetails.teamId!)
+                    useTeamEditorStore.getState().setSelectedMemberId(runDetails.agentId!)
+                  }}
+                  className="text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  {runDetails.teamId} / {runDetails.agentId}
+                </button>
+              </dd>
+            </div>
+          )}
           {runDetails?.tag && (
             <div className="flex items-center gap-3">
               <Tag className="h-4 w-4 text-muted-foreground" />

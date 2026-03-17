@@ -62,10 +62,20 @@ function parseProtoMessage(raw: unknown): WebSocketMessage | null {
       {
         const runId = message.payload.value.runId || message.runId;
         if (!runId) return null;
+        const statusPayload: Record<string, unknown> = {
+          id: runId,
+          status: message.payload.value.status,
+        };
+        if (message.payload.value.taskId) {
+          statusPayload.taskId = message.payload.value.taskId;
+        }
+        if (message.payload.value.promptPreview) {
+          statusPayload.promptPreview = message.payload.value.promptPreview;
+        }
         return {
           type: "run_status",
           runId,
-          payload: { id: runId, status: message.payload.value.status },
+          payload: statusPayload,
         };
       }
     case AgentManagerWsMessageType.TASK_STATUS:

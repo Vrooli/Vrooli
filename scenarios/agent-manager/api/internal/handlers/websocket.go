@@ -84,6 +84,7 @@ func (h *WebSocketHub) Run() {
 				continue
 			}
 
+			var stale []*WebSocketClient
 			h.mu.RLock()
 			for client := range h.clients {
 				// Check if client should receive this message
@@ -97,12 +98,23 @@ func (h *WebSocketHub) Run() {
 				select {
 				case client.send <- data:
 				default:
-					// Client buffer full, close connection
-					close(client.send)
-					delete(h.clients, client)
+					// Client buffer full, schedule for removal
+					stale = append(stale, client)
 				}
 			}
 			h.mu.RUnlock()
+
+			// Remove stale clients under write lock
+			if len(stale) > 0 {
+				h.mu.Lock()
+				for _, client := range stale {
+					if _, ok := h.clients[client]; ok {
+						close(client.send)
+						delete(h.clients, client)
+					}
+				}
+				h.mu.Unlock()
+			}
 		}
 	}
 }
@@ -127,8 +139,10 @@ func (h *WebSocketHub) BroadcastRunStatus(run *domain.Run) {
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
 			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:  runID,
-				Status: protoconv.RunStatusToProto(run.Status),
+				RunId:         runID,
+				Status:        protoconv.RunStatusToProto(run.Status),
+				TaskId:        run.TaskID.String(),
+				PromptPreview: run.PromptPreview,
 			},
 		},
 	}
@@ -328,21 +342,17 @@ func (c *WebSocketClient) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
+			// Send each message as its own WebSocket frame to preserve JSON validity
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
-			_, _ = w.Write(message)
 
-			// Batch any queued messages
+			// Drain any queued messages, each as a separate frame
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				_, _ = w.Write([]byte{'\n'})
-				_, _ = w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
+				if err := c.conn.WriteMessage(websocket.TextMessage, <-c.send); err != nil {
+					return
+				}
 			}
 
 		case <-ticker.C:

@@ -142,6 +142,9 @@ message AgentManagerWsMessage {
 
 // RunStatusUpdate reports a run status change.
 //
+// Includes display fields so the UI can render meaningful info
+// without a separate REST fetch (e.g. for newly created runs).
+//
 // @usage AgentManagerWsMessage.run_status
 message RunStatusUpdate {
   // Run ID.
@@ -150,6 +153,13 @@ message RunStatusUpdate {
 
   // New status.
   RunStatus status = 2;
+
+  // Task ID associated with this run.
+  // @format uuid
+  string task_id = 3;
+
+  // First ~120 characters of the task description for display.
+  string prompt_preview = 4;
 }
 
 // TaskStatusUpdate reports a task status change.

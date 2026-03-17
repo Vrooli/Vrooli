@@ -526,6 +526,8 @@ export interface RunDetails {
   error?: string
   tag?: string
   sessionId?: string
+  teamId?: string
+  agentId?: string
   actions?: RunActions
 }
 
@@ -580,7 +582,7 @@ function normalizeRunStatus(status: string): string {
  * Fetch details for a single run by ID.
  */
 export async function getRunDetails(runId: string): Promise<RunDetails> {
-  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } } }>(
+  const raw = await apiRequest<{ run: { id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string; actions?: { can_investigate?: boolean; can_apply_investigation?: boolean; can_delete?: boolean; can_stop?: boolean; can_retry?: boolean; can_continue?: boolean } }; team_id?: string; agent_id?: string }>(
     `/runs/${encodeURIComponent(runId)}`
   )
   const r = raw.run
@@ -594,6 +596,8 @@ export async function getRunDetails(runId: string): Promise<RunDetails> {
     error: r.error_msg,
     tag: r.tag,
     sessionId: r.session_id,
+    teamId: raw.team_id,
+    agentId: raw.agent_id,
     actions: r.actions ? {
       canInvestigate: r.actions.can_investigate ?? false,
       canApplyInvestigation: r.actions.can_apply_investigation ?? false,

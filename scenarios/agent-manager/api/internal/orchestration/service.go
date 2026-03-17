@@ -1048,6 +1048,14 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		CreatedAt:                time.Now(),
 		UpdatedAt:                time.Now(),
 	}
+	// Populate PromptPreview so WebSocket broadcasts include display text.
+	// This is normally a computed field from the List query JOIN, but we need it
+	// for real-time broadcasts during execution.
+	if len(task.Description) > 120 {
+		run.PromptPreview = task.Description[:120]
+	} else {
+		run.PromptPreview = task.Description
+	}
 	if run.ResolvedConfig != nil {
 		run.ResolvedConfig.SandboxConfig = sandboxConfig
 	}
@@ -2635,7 +2643,7 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 	if b.store != nil {
 		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
 			// Log but don't fail - broadcasting is more important for UX
-			_ = err
+			log.Printf("[broadcast-sink] failed to store event for run %s: %v", b.runID, err)
 		}
 	}
 

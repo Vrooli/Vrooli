@@ -21,6 +21,41 @@ import (
 )
 
 // =============================================================================
+// MOCK BROADCASTER
+// =============================================================================
+
+// testBroadcaster implements orchestration.EventBroadcaster for tests.
+type testBroadcaster struct {
+	mu               sync.Mutex
+	statusBroadcasts []*domain.Run
+	eventBroadcasts  []*domain.RunEvent
+}
+
+func (b *testBroadcaster) BroadcastEvent(event *domain.RunEvent) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.eventBroadcasts = append(b.eventBroadcasts, event)
+}
+
+func (b *testBroadcaster) BroadcastRunStatus(run *domain.Run) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	// Copy status to avoid races with the executor mutating the run
+	snapshot := *run
+	b.statusBroadcasts = append(b.statusBroadcasts, &snapshot)
+}
+
+func (b *testBroadcaster) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+	// no-op
+}
+
+func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]*domain.Run{}, b.statusBroadcasts...)
+}
+
+// =============================================================================
 // TEST FIXTURES
 // =============================================================================
 
@@ -1352,4 +1387,166 @@ func TestSandboxEnvVars_EmptyScopePath(t *testing.T) {
 	if _, exists := vars["VROOLI_SANDBOX_SCOPE"]; exists {
 		t.Error("VROOLI_SANDBOX_SCOPE should be omitted when ScopePath is empty")
 	}
+}
+
+// =============================================================================
+// BROADCAST ON COMPLETION TESTS (Bug 1 fix validation)
+// =============================================================================
+
+func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config).WithBroadcaster(broadcaster)
+
+	executor.Execute(context.Background())
+
+	broadcasts := broadcaster.getStatusBroadcasts()
+	if len(broadcasts) == 0 {
+		t.Fatal("expected at least one status broadcast on successful completion")
+	}
+
+	// The last broadcast should have the terminal status
+	last := broadcasts[len(broadcasts)-1]
+	if last.Status != domain.RunStatusNeedsReview {
+		t.Errorf("expected final broadcast status needs_review, got %s", last.Status)
+	}
+}
+
+func TestRunExecutor_BroadcastsStatusOnFailure(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return nil, errors.New("execution failed")
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config).WithBroadcaster(broadcaster)
+
+	executor.Execute(context.Background())
+
+	broadcasts := broadcaster.getStatusBroadcasts()
+	if len(broadcasts) == 0 {
+		t.Fatal("expected at least one status broadcast on failure")
+	}
+
+	last := broadcasts[len(broadcasts)-1]
+	if last.Status != domain.RunStatusFailed {
+		t.Errorf("expected final broadcast status failed, got %s", last.Status)
+	}
+}
+
+func TestRunExecutor_BroadcastsStatusOnCancellation(t *testing.T) {
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		wg.Done()
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           30 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config).WithBroadcaster(broadcaster)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		executor.Execute(ctx)
+		close(done)
+	}()
+
+	wg.Wait()
+	cancel()
+	<-done
+
+	broadcasts := broadcaster.getStatusBroadcasts()
+	if len(broadcasts) == 0 {
+		t.Fatal("expected at least one status broadcast on cancellation")
+	}
+
+	last := broadcasts[len(broadcasts)-1]
+	if last.Status != domain.RunStatusCancelled {
+		t.Errorf("expected final broadcast status cancelled, got %s", last.Status)
+	}
+}
+
+func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
+	// Verify that nil broadcaster doesn't cause a panic
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	// No WithBroadcaster call — broadcaster stays nil
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+	// If we get here without panic, the nil guard works
 }

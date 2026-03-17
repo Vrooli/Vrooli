@@ -91,6 +91,10 @@ export default function App() {
             terminalRunIdsRef.current.add(message.runId);
           }
           debouncedRunRefetch();
+          // Refetch tasks if this run references a task we don't have yet
+          if (statusUpdate.taskId && tasks.data && !tasks.data.some((t) => t.id === statusUpdate.taskId)) {
+            tasks.refetch();
+          }
           break;
         }
         case "run_event":

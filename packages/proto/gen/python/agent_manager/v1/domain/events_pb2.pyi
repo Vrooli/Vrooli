@@ -105,12 +105,16 @@ class AgentManagerWsMessage(_message.Message):
     def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ...) -> None: ...
 
 class RunStatusUpdate(_message.Message):
-    __slots__ = ("run_id", "status")
+    __slots__ = ("run_id", "status", "task_id", "prompt_preview")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: _types_pb2.RunStatus
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ...) -> None: ...
+    task_id: str
+    prompt_preview: str
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ...) -> None: ...
 
 class TaskStatusUpdate(_message.Message):
     __slots__ = ("task_id", "status")

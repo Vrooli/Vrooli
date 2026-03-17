@@ -1302,8 +1302,16 @@ func (h *Handlers) GetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp := map[string]interface{}{"run": run}
+	if tag := strings.TrimSpace(run.Tag); tag != "" {
+		if teamID, agentID, err := h.resolveHeartbeatTargetFromRunTag(r.Context(), tag); err == nil {
+			resp["team_id"] = teamID
+			resp["agent_id"] = agentID
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"run": run})
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // GetRunEvents handles GET /runs/{runId}/events - proxies event requests to agent-manager.

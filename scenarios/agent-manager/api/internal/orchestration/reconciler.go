@@ -468,36 +468,42 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 	return alive
 }
 
-// scanForProcess scans the process list for a process with the given tag.
+// scanForProcess checks if the runner process for a run is still alive.
+//
+// We intentionally avoid "pgrep -f <tag>" because it matches ANY process whose
+// command line contains the tag string — including child processes (shells, tee,
+// cleanup handlers) that inherited the tag via environment variables. These
+// lingering children cause false positives that prevent the reconciler from
+// detecting dead runs.
+//
+// Instead, we scan only for known runner executables (claude, codex, opencode)
+// and verify they carry the tag via either:
+//   - --tag <tag> in their command line arguments, OR
+//   - *_AGENT_TAG=<tag> in their /proc/<pid>/environ
 func (r *Reconciler) scanForProcess(tag string) bool {
-	// Use pgrep to find processes with the tag in their command line
-	cmd := exec.Command("pgrep", "-f", tag)
-	output, err := cmd.Output()
-	if err != nil {
-		// pgrep returns exit code 1 if no processes found
-		log.Printf("[reconciler] DEBUG: pgrep -f '%s' returned no matches, trying env tag scan", tag)
-		found := r.scanForProcessByEnvTag(tag)
-		if found {
-			log.Printf("[reconciler] DEBUG: Found process via env tag scan for '%s'", tag)
-		} else {
-			log.Printf("[reconciler] DEBUG: No process found via env tag scan for '%s'", tag)
+	found := r.scanRunnerProcessesByTag(tag)
+	if found {
+		log.Printf("[reconciler] DEBUG: Found runner process with tag '%s'", tag)
+	} else {
+		log.Printf("[reconciler] DEBUG: No runner process found with tag '%s'", tag)
+	}
+	return found
+}
+
+// scanRunnerProcessesByTag checks if any known runner process (claude, codex, opencode)
+// is alive with the given tag. It checks both command-line --tag arguments and
+// environment variables for precise matching.
+func (r *Reconciler) scanRunnerProcessesByTag(tag string) bool {
+	for _, runnerName := range []string{"claude", "codex", "opencode"} {
+		if r.scanRunnerProcessByTag(runnerName, tag) {
+			return true
 		}
-		return found
 	}
-	pids := strings.TrimSpace(string(output))
-	if pids != "" {
-		log.Printf("[reconciler] DEBUG: pgrep -f '%s' found PIDs: %s", tag, pids)
-		return true
-	}
-	log.Printf("[reconciler] DEBUG: pgrep -f '%s' returned empty, trying env tag scan", tag)
-	return r.scanForProcessByEnvTag(tag)
+	return false
 }
 
-func (r *Reconciler) scanForProcessByEnvTag(tag string) bool {
-	return r.scanRunnerProcessesByEnvTag("claude", tag) || r.scanRunnerProcessesByEnvTag("codex", tag) || r.scanRunnerProcessesByEnvTag("opencode", tag)
-}
-
-func (r *Reconciler) scanRunnerProcessesByEnvTag(runnerName, tag string) bool {
+// scanRunnerProcessByTag checks if a specific runner type has a process with the given tag.
+func (r *Reconciler) scanRunnerProcessByTag(runnerName, tag string) bool {
 	cmd := exec.Command("pgrep", "-af", runnerName)
 	output, err := cmd.Output()
 	if err != nil {
@@ -520,7 +526,17 @@ func (r *Reconciler) scanRunnerProcessesByEnvTag(runnerName, tag string) bool {
 			continue
 		}
 
+		command := parts[1]
+
+		// First check: does the command line have --tag with our specific tag?
+		if cmdTag := extractTagFromCommand(command); cmdTag == tag {
+			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via command-line --tag", pid, tag)
+			return true
+		}
+
+		// Second check: does the process environment have the tag?
 		if extractTagFromEnv(pid) == tag {
+			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via environment variable", pid, tag)
 			return true
 		}
 	}

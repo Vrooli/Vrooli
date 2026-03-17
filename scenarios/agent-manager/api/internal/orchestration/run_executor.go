@@ -517,6 +517,11 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		}
 	}
 
+	// Broadcast terminal status so WebSocket clients see the change
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
+
 	e.cleanupOnFailure(ctx)
 }
 
@@ -529,7 +534,14 @@ func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
 	e.run.Status = domain.RunStatusStarting
 	e.run.StartedAt = &now
 	e.run.UpdatedAt = now
-	return e.runs.Update(ctx, e.run)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		return err
+	}
+	// Broadcast so WebSocket clients see the transition to Starting
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
+	return nil
 }
 
 // =============================================================================
@@ -833,6 +845,10 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	if err := e.runs.Update(ctx, e.run); err != nil {
 		e.emitSystemEvent(ctx, "warn", "failed to persist run start: "+err.Error())
 	}
+	// Broadcast so WebSocket clients see the transition to Running
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
 
 	// Create event sink
 	eventSink := e.createEventSink()
@@ -967,6 +983,11 @@ func (e *RunExecutor) handleResult(ctx context.Context) {
 	if err := e.runs.Update(ctx, e.run); err != nil {
 		e.emitSystemEvent(ctx, "warn", "failed to persist run result: "+err.Error())
 	}
+
+	// Broadcast final status so WebSocket clients see the terminal state
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
 }
 
 func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
@@ -1085,6 +1106,11 @@ func (e *RunExecutor) failWithError(ctx context.Context, err error) {
 	if updateErr := e.runs.Update(ctx, e.run); updateErr != nil {
 		// Log but don't override - the original error is more important
 		e.emitSystemEvent(ctx, "error", "failed to persist failure state: "+updateErr.Error())
+	}
+
+	// Broadcast failure status so WebSocket clients see the change
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
 	}
 }
 

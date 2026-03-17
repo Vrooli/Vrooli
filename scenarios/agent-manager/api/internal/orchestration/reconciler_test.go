@@ -352,6 +352,46 @@ func TestWithReconcilerConfig(t *testing.T) {
 }
 
 // =============================================================================
+// SCAN FOR PROCESS TESTS
+// =============================================================================
+
+func TestScanForProcess_NoMatchForNonRunnerProcesses(t *testing.T) {
+	// Regression test: scanForProcess must NOT match non-runner processes
+	// that happen to contain the tag string in their command line.
+	// This was the root cause of stale runs never being marked as failed —
+	// child processes (bash wrappers, tee, cleanup handlers) inherited the
+	// tag via environment and were falsely detected as "alive" by the old
+	// broad "pgrep -f <tag>" approach.
+	rec := NewReconciler(nil, nil)
+
+	// Use a unique tag that won't match any real process
+	tag := "test-nonexistent-tag-for-regression-" + t.Name()
+
+	if rec.scanForProcess(tag) {
+		t.Error("scanForProcess should return false for a tag with no matching runner process")
+	}
+}
+
+func TestScanRunnerProcessByTag_VerifiesRunnerName(t *testing.T) {
+	// Ensure that scanRunnerProcessByTag only matches processes that are
+	// known runner executables, not arbitrary processes
+	rec := NewReconciler(nil, nil)
+
+	tag := "test-verify-runner-" + t.Name()
+
+	// Should not find any process since no real runners are running with this tag
+	if rec.scanRunnerProcessByTag("claude", tag) {
+		t.Error("should not find claude process with test tag")
+	}
+	if rec.scanRunnerProcessByTag("codex", tag) {
+		t.Error("should not find codex process with test tag")
+	}
+	if rec.scanRunnerProcessByTag("opencode", tag) {
+		t.Error("should not find opencode process with test tag")
+	}
+}
+
+// =============================================================================
 // RECONCILER STOP BEFORE START TESTS
 // =============================================================================
 

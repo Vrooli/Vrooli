@@ -648,6 +648,9 @@ func (*AgentManagerWsMessage_Pong) isAgentManagerWsMessage_Payload() {}
 
 // RunStatusUpdate reports a run status change.
 //
+// Includes display fields so the UI can render meaningful info
+// without a separate REST fetch (e.g. for newly created runs).
+//
 // @usage AgentManagerWsMessage.run_status
 type RunStatusUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -655,7 +658,12 @@ type RunStatusUpdate struct {
 	// @format uuid
 	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	// New status.
-	Status        RunStatus `protobuf:"varint,2,opt,name=status,proto3,enum=agent_manager.v1.RunStatus" json:"status,omitempty"`
+	Status RunStatus `protobuf:"varint,2,opt,name=status,proto3,enum=agent_manager.v1.RunStatus" json:"status,omitempty"`
+	// Task ID associated with this run.
+	// @format uuid
+	TaskId string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	// First ~120 characters of the task description for display.
+	PromptPreview string `protobuf:"bytes,4,opt,name=prompt_preview,json=promptPreview,proto3" json:"prompt_preview,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -702,6 +710,20 @@ func (x *RunStatusUpdate) GetStatus() RunStatus {
 		return x.Status
 	}
 	return RunStatus_RUN_STATUS_UNSPECIFIED
+}
+
+func (x *RunStatusUpdate) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *RunStatusUpdate) GetPromptPreview() string {
+	if x != nil {
+		return x.PromptPreview
+	}
+	return ""
 }
 
 // TaskStatusUpdate reports a task status change.
@@ -2208,10 +2230,12 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\tconnected\x18\x0e \x01(\v2\x1d.agent_manager.v1.WsConnectedH\x00R\tconnected\x12.\n" +
 	"\x04pong\x18\x0f \x01(\v2\x18.agent_manager.v1.WsPongH\x00R\x04pongB\t\n" +
 	"\apayloadB\t\n" +
-	"\a_run_id\"]\n" +
+	"\a_run_id\"\x9d\x01\n" +
 	"\x0fRunStatusUpdate\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x123\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1b.agent_manager.v1.RunStatusR\x06status\"a\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1b.agent_manager.v1.RunStatusR\x06status\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12%\n" +
+	"\x0eprompt_preview\x18\x04 \x01(\tR\rpromptPreview\"a\n" +
 	"\x10TaskStatusUpdate\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x124\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1c.agent_manager.v1.TaskStatusR\x06status\"a\n" +
