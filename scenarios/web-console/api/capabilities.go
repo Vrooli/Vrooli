@@ -50,6 +50,30 @@ var knownCapabilities = []CapabilityDef{
 		DependencySlug: "whisper",
 		Features:       []string{"voice-input", "voice-streaming"},
 	},
+	{
+		ID:             "kokoro-tts",
+		Name:           "Kokoro TTS",
+		Description:    "Text-to-speech synthesis via Kokoro",
+		DependencyKind: DependencyResource,
+		DependencySlug: "kokoro",
+		Features:       []string{"voice-output"},
+	},
+	{
+		ID:             "ollama",
+		Name:           "Ollama",
+		Description:    "Local LLM inference for AI command generation",
+		DependencyKind: DependencyResource,
+		DependencySlug: "ollama",
+		Features:       []string{"ai-command-generation"},
+	},
+	{
+		ID:             "openrouter",
+		Name:           "OpenRouter",
+		Description:    "Cloud LLM API for AI command generation",
+		DependencyKind: DependencyResource,
+		DependencySlug: "openrouter",
+		Features:       []string{"ai-command-generation"},
+	},
 }
 
 type CapabilityRegistry struct {

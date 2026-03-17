@@ -16,7 +16,7 @@ they belong in the same category.
 ### Adding a New Error Code
 
 1. Assign it to exactly one category above
-2. Define its `appError` entry in the `errorCatalog` map in [CODE: api/session_handlers.go#errorCatalog]
+2. Define its `appError` entry in the `errorCatalog` map in [CODE: api/errors.go]
 3. Update this document
 4. Add a test in [CODE: api/session_handlers_test.go]
 
@@ -53,8 +53,29 @@ human users and automated agents.
 | `session_terminated` | 410 | dependency | No | The terminal process exited. Open a new terminal. |
 | `group_not_found` | 404 | validation | No | The group may have been deleted. Refresh the workspace. |
 | `pane_not_found` | 404 | validation | No | The pane may have been removed. Refresh the workspace. |
+| `tts_auto_disabled` | 409 | validation | No | Enable Auto-speak AI responses in Settings before retrying. |
+| `tts_delivery_target_missing` | 404 | validation | No | Keep the target terminal open, or switch to the intended pane and retry. |
+| `tts_correlation_failed` | 409 | validation | No | Keep the assistant response visible in the same pane, then retry. |
+| `tts_hook_not_registered` | 503 | dependency | No | Restart web-console through its lifecycle or re-register the TTS hook. |
+| `tts_browser_audio_blocked` | 409 | validation | No | Click or press a key in the page, then retry playback. |
+| `tts_playback_failed` | 502 | dependency | Yes | Retry playback or switch to another backend. |
 
 ---
+
+## TTS-Specific Recovery Semantics
+
+Auto-TTS now distinguishes between three common failure domains that previously looked identical to the user:
+
+- **Delivery targeting**: the server could not find the intended terminal session
+- **Correlation**: the assistant text never appeared in the terminal output buffer
+- **Playback**: delivery reached the browser, but the chosen backend could not speak
+
+The settings panel consumes `/api/v1/tts/status` and exposes:
+- hook registration state
+- Kokoro liveness summary
+- last delivery result
+- active backend + backend reason
+- browser audio readiness
 
 ## Request Correlation
 

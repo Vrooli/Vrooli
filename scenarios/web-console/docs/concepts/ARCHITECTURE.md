@@ -184,7 +184,7 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/components/MobileToolbar.tsx` | Floating keyboard toolbar |
 | `ui/src/components/SessionDrawer.tsx` | Session list sidebar |
 | `ui/src/components/AiInput.tsx` | AI command input with generate/execute flow |
-| `ui/src/components/ProviderHealthPanel.tsx` | AI provider health status display |
+| `ui/src/components/IntegrationsPanel.tsx` | Dependency health status display (all resources/scenarios) |
 | `ui/src/components/ErrorBanner.tsx` | Structured error display |
 | `ui/src/components/ErrorBoundary.tsx` | React error boundary with region labels |
 | `ui/src/lib/api.ts` | HTTP/WS client functions |
@@ -220,7 +220,7 @@ This section maps each PRD operational target to its implementing code and docum
 |--------|-------------|----------------|------|
 | OT-P1-001 | Session Policy Controls | [CODE: api/session_policy.go], [CODE: ui/src/consts/policy-options.ts], [CODE: ui/src/hooks/useCountdown.ts] | [DOC: docs/concepts/GLOSSARY.md#policy] |
 | OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_pg.go], [CODE: ui/src/pages/SettingsPage.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
-| OT-P1-003 | AI Provider Policy Controls | [CODE: api/ai_provider_config.go], [CODE: api/ai_provider_config_pg.go], [CODE: ui/src/components/ProviderHealthPanel.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
+| OT-P1-003 | AI Provider Policy Controls | [CODE: api/ai_provider_config.go], [CODE: api/ai_provider_config_pg.go], [CODE: ui/src/components/IntegrationsPanel.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
 | OT-P1-004 | Operational Observability Coverage | [CODE: api/metrics.go], [CODE: api/events.go] | [DOC: docs/internal/SEAMS.md#6-cross-cutting] |
 
 ### P2 – Future

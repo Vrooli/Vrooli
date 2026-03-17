@@ -1,164 +1,357 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useTextToSpeech, type SpeechSynthesisAdapter } from "../hooks/useTextToSpeech";
+import { renderHook, act, waitFor } from "@testing-library/react";
 
-// SpeechSynthesisUtterance is not available in the test environment (jsdom/happy-dom),
-// so we provide a minimal stub that the hook's speak() function can construct.
+// Must set up speechSynthesis BEFORE the hook module is imported,
+// because the hook evaluates `browserSupported` at module load time.
+const mockSynthSpeak = vi.fn();
+const mockSynthCancel = vi.fn();
+const mockSynthGetVoices = vi.fn().mockReturnValue([]);
+
+Object.defineProperty(window, "speechSynthesis", {
+  value: {
+    speak: mockSynthSpeak,
+    cancel: mockSynthCancel,
+    getVoices: mockSynthGetVoices,
+    speaking: false,
+    paused: false,
+    onvoiceschanged: null,
+  },
+  writable: true,
+  configurable: true,
+});
+
 class FakeUtterance {
   text: string;
   rate = 1;
   pitch = 1;
   voice: SpeechSynthesisVoice | null = null;
-  onstart: (() => void) | null = null;
   onend: (() => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
-  onpause: (() => void) | null = null;
-  onresume: (() => void) | null = null;
-  constructor(text: string) { this.text = text; }
+  constructor(text: string) {
+    this.text = text;
+  }
 }
+
+Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
+  value: FakeUtterance,
+  writable: true,
+  configurable: true,
+});
+
+// Mock api module — include the cached wrapper the hook actually imports
+const { _mockFetchCaps } = vi.hoisted(() => ({
+  _mockFetchCaps: vi.fn(),
+}));
+vi.mock("../lib/api", () => ({
+  fetchCapabilitiesLiveness: _mockFetchCaps,
+  fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
+  getTTSVoices: vi.fn(),
+  synthesizeTTS: vi.fn(),
+  _resetCapabilitiesCache: vi.fn(),
+}));
+
+import { fetchCapabilitiesLiveness, getTTSVoices, synthesizeTTS } from "../lib/api";
+import { useTextToSpeech, type TTSSettings } from "../hooks/useTextToSpeech";
+
+const mockFetchCaps = fetchCapabilitiesLiveness as ReturnType<typeof vi.fn>;
+const mockGetVoices = getTTSVoices as ReturnType<typeof vi.fn>;
+const mockSynthesizeTTS = synthesizeTTS as ReturnType<typeof vi.fn>;
+
+const defaultSettings: TTSSettings = {
+  voice: "",
+  rate: 1.0,
+  pitch: 1.0,
+  kokoroVoice: "af_heart",
+  kokoroSpeed: 1.0,
+  backendPreference: "auto",
+};
 
 beforeEach(() => {
-  Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
-    value: FakeUtterance,
-    writable: true,
-    configurable: true,
-  });
+  vi.clearAllMocks();
 });
+
 afterEach(() => {
-  Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
-    value: undefined,
-    writable: true,
-    configurable: true,
-  });
+  vi.clearAllMocks();
+  // Re-setup speechSynthesis mock after clearing (vi.clearAllMocks resets fn implementations)
+  mockSynthGetVoices.mockReturnValue([]);
 });
-
-function createFakeAdapter(overrides: Partial<SpeechSynthesisAdapter> = {}): SpeechSynthesisAdapter {
-  return {
-    getVoices: vi.fn().mockReturnValue([]),
-    speak: vi.fn(),
-    cancel: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
-    speaking: false,
-    paused: false,
-    onvoiceschanged: null,
-    ...overrides,
-  };
-}
-
-const defaultSettings = { voice: "", rate: 1.0, pitch: 1.0 };
 
 describe("useTextToSpeech", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  function unlockBrowserAudio() {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  }
+
+  it("selects kokoro backend when capability is available", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([
+      { id: "af_heart", name: "af_heart" },
+      { id: "bf_emma", name: "bf_emma" },
+    ]);
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+    expect(result.current.supported).toBe(true);
+    expect(result.current.voices).toHaveLength(2);
   });
 
-  it("reports supported when adapter is available", () => {
-    const adapter = createFakeAdapter();
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
+  it("falls back to browser when kokoro is unavailable", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "unavailable" }],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
     expect(result.current.supported).toBe(true);
   });
 
-  it("reports unsupported when adapter is null", () => {
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, null));
-    expect(result.current.supported).toBe(false);
+  it("falls back to browser when capabilities fetch fails", async () => {
+    mockFetchCaps.mockRejectedValue(new Error("Network error"));
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+    expect(result.current.supported).toBe(true);
   });
 
-  it("speak calls adapter.cancel then adapter.speak", () => {
-    const adapter = createFakeAdapter();
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
+  it("uses browser directly when backendPreference is browser", async () => {
+    const settings = { ...defaultSettings, backendPreference: "browser" as const };
+    const { result } = renderHook(() => useTextToSpeech(settings));
 
-    act(() => result.current.speak("hello"));
-
-    expect(adapter.cancel).toHaveBeenCalledTimes(1);
-    expect(adapter.speak).toHaveBeenCalledTimes(1);
-    const calls = (adapter.speak as ReturnType<typeof vi.fn>).mock.calls;
-    const utterance = (calls[0] as [FakeUtterance])[0];
-    expect(utterance.text).toBe("hello");
-    expect(utterance.rate).toBe(1.0);
-    expect(utterance.pitch).toBe(1.0);
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+    // Should not have called capabilities check
+    expect(mockFetchCaps).not.toHaveBeenCalled();
   });
 
-  it("applies custom rate and pitch to utterance", () => {
-    const adapter = createFakeAdapter();
-    const settings = { voice: "", rate: 1.5, pitch: 0.8 };
-    const { result } = renderHook(() => useTextToSpeech(settings, adapter));
+  it("stop resets isSpeaking state", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [],
+      timestamp: new Date().toISOString(),
+    });
 
-    act(() => result.current.speak("test"));
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
-    const calls = (adapter.speak as ReturnType<typeof vi.fn>).mock.calls;
-    const utterance = (calls[0] as [FakeUtterance])[0];
-    expect(utterance.rate).toBe(1.5);
-    expect(utterance.pitch).toBe(0.8);
-  });
-
-  it("stop calls adapter.cancel and resets state", () => {
-    const adapter = createFakeAdapter();
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
 
     act(() => result.current.stop());
-
-    expect(adapter.cancel).toHaveBeenCalled();
     expect(result.current.isSpeaking).toBe(false);
-    expect(result.current.isPaused).toBe(false);
   });
 
-  it("pause and resume delegate to adapter", () => {
-    const adapter = createFakeAdapter();
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
+  it("speak triggers provider and sets isSpeaking", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [],
+      timestamp: new Date().toISOString(),
+    });
 
-    act(() => result.current.pause());
-    expect(adapter.pause).toHaveBeenCalledTimes(1);
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      setTimeout(() => u.onend?.(), 10);
+    });
 
-    act(() => result.current.resume());
-    expect(adapter.resume).toHaveBeenCalledTimes(1);
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+
+    unlockBrowserAudio();
+    act(() => result.current.speak("hello world"));
+    expect(result.current.isSpeaking).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
   });
 
-  it("loads voices on voiceschanged event", () => {
-    const mockVoices = [{ name: "English", lang: "en-US" }] as SpeechSynthesisVoice[];
-    let voicesChangedCb: (() => void) | null = null;
-    const getVoices = vi.fn().mockReturnValue([]);
-    const adapter: SpeechSynthesisAdapter = {
-      getVoices,
-      speak: vi.fn(),
-      cancel: vi.fn(),
-      pause: vi.fn(),
-      resume: vi.fn(),
-      speaking: false,
-      paused: false,
-      set onvoiceschanged(fn: (() => void) | null) { voicesChangedCb = fn; },
-      get onvoiceschanged() { return voicesChangedCb; },
-    };
+  it("speakParagraphs speaks multiple paragraphs sequentially", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [],
+      timestamp: new Date().toISOString(),
+    });
 
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
-    expect(result.current.voices).toHaveLength(0);
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      setTimeout(() => u.onend?.(), 5);
+    });
 
-    // Simulate voices loading
-    getVoices.mockReturnValue(mockVoices);
-    act(() => voicesChangedCb?.());
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
-    expect(result.current.voices).toHaveLength(1);
-    expect(result.current.voices[0]?.name).toBe("English");
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+
+    unlockBrowserAudio();
+    act(() => result.current.speakParagraphs(["para 1", "para 2"]));
+    expect(result.current.isSpeaking).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
+
+    // Both paragraphs should have been spoken (cancel + speak for each)
+    expect(mockSynthSpeak).toHaveBeenCalledTimes(2);
   });
 
-  it("cancels speech on unmount", () => {
-    const adapter = createFakeAdapter();
-    const { unmount } = renderHook(() => useTextToSpeech(defaultSettings, adapter));
+  it("speak() falls back to browser when kokoro synthesis fails at runtime", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([
+      { id: "af_heart", name: "af_heart" },
+    ]);
+    mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
 
-    unmount();
+    // Browser fallback should complete via onend
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      setTimeout(() => u.onend?.(), 10);
+    });
 
-    expect(adapter.cancel).toHaveBeenCalled();
-  });
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
-  it("is a no-op when adapter unavailable", () => {
-    const { result } = renderHook(() => useTextToSpeech(defaultSettings, null));
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
 
-    // Should not throw
+    unlockBrowserAudio();
     act(() => result.current.speak("hello"));
-    act(() => result.current.stop());
-    act(() => result.current.pause());
-    act(() => result.current.resume());
 
-    expect(result.current.isSpeaking).toBe(false);
+    // The kokoro provider rejects, triggering browser fallback
+    await waitFor(() => {
+      expect(mockSynthSpeak).toHaveBeenCalled();
+    });
+
+    // isSpeaking resets after the error handler runs (kokoro path sets it false on rejection)
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
+  });
+
+  it("runtime fallback does not crash when both backends fail", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([
+      { id: "af_heart", name: "af_heart" },
+    ]);
+    mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
+
+    // Browser fallback also fails via onerror
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      setTimeout(() => u.onerror?.(new Error("Browser speech failed")), 10);
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+
+    unlockBrowserAudio();
+    // Should not throw an unhandled rejection
+    act(() => result.current.speak("hello"));
+
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
+
+    // Verify both backends were attempted
+    expect(mockSynthesizeTTS).toHaveBeenCalled();
+    expect(mockSynthSpeak).toHaveBeenCalled();
+  });
+
+  it("defaults kokoro voices to af_heart when voice fetch fails", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockRejectedValue(new Error("Failed"));
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+    expect(result.current.voices).toEqual([{ id: "af_heart", name: "af_heart" }]);
+  });
+
+  it("uses strict kokoro mode without silently falling back to browser", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "unavailable" }],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech({
+      ...defaultSettings,
+      backendPreference: "kokoro",
+    }));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("none");
+    });
+    expect(result.current.backendReason).toContain("Kokoro backend was selected explicitly");
+  });
+
+  it("speakParagraphs falls back to browser in auto mode when kokoro fails", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+    mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      setTimeout(() => u.onend?.(), 10);
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+
+    unlockBrowserAudio();
+    act(() => result.current.speakParagraphs(["para 1", "para 2"]));
+
+    await waitFor(() => {
+      expect(mockSynthSpeak).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
+    expect(result.current.backendReason).toContain("Browser handled playback");
+  });
+
+  it("reports browser audio readiness after user interaction", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+    expect(result.current.browserAudioReady).toBe(false);
+
+    unlockBrowserAudio();
+
+    await waitFor(() => {
+      expect(result.current.browserAudioReady).toBe(true);
+    });
   });
 });

@@ -49,7 +49,7 @@ else
 fi
 
 # Load other libraries in dependency order (common.sh is already loaded)
-for lib in status install session mcp settings execute error-handling content agents; do
+for lib in status install session mcp settings execute error-handling content agents hooks; do
     lib_file="${CLAUDE_CODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -89,6 +89,7 @@ cli::register_subcommand "content" "inject" "Inject templates/prompts (legacy)" 
 cli::register_subcommand "manage" "session" "Session management" "claude_code_session"
 cli::register_subcommand "manage" "mcp" "MCP server management" "claude_code_mcp"
 cli::register_subcommand "manage" "settings" "Settings management" "claude_code_settings"
+cli::register_subcommand "manage" "hooks" "Hook management" "claude_code_hooks"
 
 # TOP-LEVEL CUSTOM COMMANDS - Essential for auto/ folder functionality
 cli::register_command "run" "Run prompt with Claude Code (CRITICAL for auto/)" "claude_code_run" "modifies-system"
@@ -366,6 +367,29 @@ claude_code_settings() {
             echo "  set <key>    Set a setting"
             echo "  reset        Reset to defaults"
             echo "  tips         Show configuration tips"
+            return 1
+            ;;
+    esac
+}
+
+# Hook management wrapper
+claude_code_hooks() {
+    local action="${1:-}"
+    shift || true
+    case "$action" in
+        add)
+            claude_code::hooks_add "$@"
+            ;;
+        remove)
+            claude_code::hooks_remove "$@"
+            ;;
+        *)
+            log::error "Unknown hooks action: $action"
+            echo "Usage: resource-claude-code manage hooks <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  add <event> <identifier> <hook_json> <scope>    Add or update a hook"
+            echo "  remove <event> <identifier> <scope>             Remove a hook"
             return 1
             ;;
     esac

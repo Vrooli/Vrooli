@@ -121,8 +121,4 @@ describe("Provider types", () => {
     expect(health.error_rate).toBe(0);
   });
 
-  it("ProviderHealthPanel module exports default function", async () => {
-    const mod = await import("../components/ProviderHealthPanel");
-    expect(typeof mod.default).toBe("function");
-  });
 });

@@ -40,7 +40,7 @@ Last updated: 2026-02-20
   - `createMockSession()` — single session factory with overrides
   - `mockFetchSuccess()` / `mockFetchError()` — fetch mock installers
 - [x] Per-test module mocking via `vi.mock()` where component-specific
-- [x] Component seam injection available where needed (`ProviderHealthPanelApi`)
+- [x] Component testability via `renderWithProviders` and react-query QueryClient injection
 
 ## Testability Status
 
@@ -107,7 +107,7 @@ const terminal = createMockTerminal();
 ### TypeScript: Render Infrastructure Pattern
 ```typescript
 import { renderWithProviders } from "../test-utils";
-renderWithProviders(<ProviderHealthPanel open api={fakeApi} />);
+renderWithProviders(<IntegrationsPanel open={true} />);
 ```
 Provides a consistent QueryClient-backed render path with retries disabled.
 
@@ -120,7 +120,7 @@ Provides a consistent QueryClient-backed render path with retries disabled.
   - Lines: `77.22%`
 - New seam-focused coverage:
   - `consts/policy-options.ts`: `100%` statements/lines/functions
-  - `components/ProviderHealthPanel.tsx`: `98.16%` statements/lines, `100%` functions
+  - `components/IntegrationsPanel.tsx`: unified dependency health display with 9 test cases
 
 ## Remaining Improvements
 

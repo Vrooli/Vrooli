@@ -360,6 +360,8 @@ export function buildVoiceStreamWsUrl(language?: string): string {
 }
 
 // Voice input capabilities
+export type CapabilityStatus = "available" | "unavailable" | "unknown";
+
 export interface CapabilityState {
   id: string;
   name: string;
@@ -367,7 +369,7 @@ export interface CapabilityState {
   dependencyKind: string;
   dependencySlug: string;
   features: string[];
-  status: "available" | "unavailable" | "unknown";
+  status: CapabilityStatus;
   message?: string;
   checkedAt?: string;
 }
@@ -400,6 +402,31 @@ export async function fetchCapabilitiesLiveness(): Promise<CapabilitiesResponse>
     throw await extractAPIError(res, "Failed to fetch capabilities liveness");
   }
   return (await res.json()) as CapabilitiesResponse;
+}
+
+/**
+ * Cached wrapper around fetchCapabilitiesLiveness.
+ * Concurrent and near-simultaneous callers share a single in-flight request.
+ * Cache TTL matches the server-side capability cache (30 s).
+ */
+let _capCache: { promise: Promise<CapabilitiesResponse>; at: number } | null = null;
+const CAP_CACHE_TTL = 30_000;
+
+export function fetchCapabilitiesLivenessCached(): Promise<CapabilitiesResponse> {
+  const now = Date.now();
+  if (_capCache && now - _capCache.at < CAP_CACHE_TTL) return _capCache.promise;
+  const promise = fetchCapabilitiesLiveness();
+  _capCache = { promise, at: now };
+  // Clear cache on rejection so next caller retries instead of getting a stale error.
+  promise.catch(() => {
+    if (_capCache?.promise === promise) _capCache = null;
+  });
+  return promise;
+}
+
+/** Reset the capabilities liveness cache. Exported for tests. */
+export function _resetCapabilitiesCache(): void {
+  _capCache = null;
 }
 
 export async function uploadFile(sessionId: string, file: File | Blob, filename?: string): Promise<string> {
@@ -457,6 +484,111 @@ export async function updateVoiceStreamConfig(
   });
   if (!res.ok) throw await extractAPIError(res, "Failed to update voice config");
   return (await res.json()) as VoiceStreamConfig;
+}
+
+/** Maximum time (ms) to wait for Kokoro to return synthesized audio. */
+const TTS_SYNTHESIS_TIMEOUT_MS = 15_000;
+
+/** Synthesize text to audio via the Kokoro TTS backend. */
+export async function synthesizeTTS(
+  input: string,
+  voice?: string,
+  speed?: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const url = buildApiUrl("/tts/synthesize", { baseUrl: API_BASE });
+  // Combine caller-provided abort signal with a hard timeout so a stalled
+  // Kokoro server doesn't leave speech hanging silently for 60+ seconds.
+  const timeout = AbortSignal.timeout(TTS_SYNTHESIS_TIMEOUT_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      input,
+      voice,
+      speed,
+      response_format: "mp3",
+    }),
+    signal: combined,
+  });
+  if (!res.ok) throw new Error("TTS synthesis failed");
+  return res.blob();
+}
+
+export interface TTSVoiceInfo {
+  id: string;
+  name: string;
+}
+
+/** Fetch available TTS voices from the Kokoro backend. */
+export async function getTTSVoices(): Promise<TTSVoiceInfo[]> {
+  const url = buildApiUrl("/tts/voices", { baseUrl: API_BASE });
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to get TTS voices");
+  return (await res.json()) as TTSVoiceInfo[];
+}
+
+// TTS auto-speak configuration (server-side)
+export interface TTSConfig {
+  autoEnabled: boolean;
+  backend: "auto" | "kokoro" | "browser";
+  kokoroVoice: string;
+  kokoroSpeed: number;
+}
+
+export interface TTSDeliveryResult {
+  delivered: boolean;
+  code: string;
+  reason: string;
+  source: string;
+  sessionId?: string;
+  usedTargetSession?: boolean;
+  duplicate?: boolean;
+}
+
+export interface TTSStatus {
+  config: TTSConfig;
+  hookRegistered: boolean;
+  hookReason: string;
+  hookSettingsPath?: string;
+  lastDelivery?: TTSDeliveryResult;
+  lastDeliveryAt?: string;
+  kokoroCapability?: string;
+  kokoroCapabilityLabel?: string;
+}
+
+export async function getTTSConfig(): Promise<TTSConfig> {
+  const url = buildApiUrl("/tts/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS config");
+  return (await res.json()) as TTSConfig;
+}
+
+export async function updateTTSConfig(
+  patch: Partial<TTSConfig>,
+): Promise<TTSConfig> {
+  const url = buildApiUrl("/tts/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to update TTS config");
+  return (await res.json()) as TTSConfig;
+}
+
+export async function getTTSStatus(): Promise<TTSStatus> {
+  const url = buildApiUrl("/tts/status", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS status");
+  return (await res.json()) as TTSStatus;
 }
 
 export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {

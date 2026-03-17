@@ -1,113 +1,420 @@
-// DOC: docs/internal/SEAMS.md#text-to-speech-seam
+// DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
-
-/** Adapter interface for testability — wraps window.speechSynthesis. */
-export interface SpeechSynthesisAdapter {
-  getVoices(): SpeechSynthesisVoice[];
-  speak(utterance: SpeechSynthesisUtterance): void;
-  cancel(): void;
-  pause(): void;
-  resume(): void;
-  readonly speaking: boolean;
-  readonly paused: boolean;
-  onvoiceschanged: (() => void) | null;
-}
-
-/** Default adapter wrapping the real browser API. */
-export function createDefaultAdapter(): SpeechSynthesisAdapter | null {
-  if (typeof window === "undefined" || !window.speechSynthesis) return null;
-  const synth = window.speechSynthesis;
-  return {
-    getVoices: () => synth.getVoices(),
-    speak: (u) => synth.speak(u),
-    cancel: () => synth.cancel(),
-    pause: () => synth.pause(),
-    resume: () => synth.resume(),
-    get speaking() { return synth.speaking; },
-    get paused() { return synth.paused; },
-    set onvoiceschanged(fn: (() => void) | null) { synth.onvoiceschanged = fn; },
-  };
-}
+import { fetchCapabilitiesLivenessCached, getTTSVoices, _resetCapabilitiesCache } from "../lib/api";
+import type { TTSBackend, TTSProvider, TTSVoiceInfo } from "./tts/types";
+import { KokoroProvider } from "./tts/KokoroProvider";
+import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
 
 export interface TTSSettings {
-  voice: string;  // SpeechSynthesisVoice.name, "" = browser default
-  rate: number;   // 0.5 - 2.0
-  pitch: number;  // 0.5 - 2.0
+  /** Browser TTS voice name */
+  voice: string;
+  rate: number;
+  pitch: number;
+  /** Kokoro voice ID */
+  kokoroVoice: string;
+  kokoroSpeed: number;
+  /** User preference: "auto" picks best available */
+  backendPreference: "auto" | "kokoro" | "browser";
 }
 
 export interface TTSState {
   supported: boolean;
   isSpeaking: boolean;
-  isPaused: boolean;
-  voices: SpeechSynthesisVoice[];
+  backend: TTSBackend;
+  voices: TTSVoiceInfo[];
   error: string | null;
+  backendReason: string;
+  browserAudioReady: boolean;
+  lastSuccessfulBackend: TTSBackend;
+  lastSuccessfulAt: string | null;
 }
 
-export function useTextToSpeech(
-  settings: TTSSettings,
-  adapter?: SpeechSynthesisAdapter | null,
-) {
-  const resolvedAdapter = useRef(adapter ?? createDefaultAdapter());
-  const [state, setState] = useState<TTSState>({
-    supported: !!resolvedAdapter.current,
-    isSpeaking: false,
-    isPaused: false,
-    voices: resolvedAdapter.current?.getVoices() ?? [],
-    error: null,
-  });
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+/** Default Kokoro voice used when the voice list cannot be fetched. */
+const KOKORO_DEFAULT_VOICE = "af_heart";
+const TEST_TTS_SAMPLE = "This is a TTS test from web console.";
 
-  // Load voices (some browsers load asynchronously)
+function isBrowserSupported(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+function isAbortLikeError(err: unknown): boolean {
+  return err instanceof Error && (err.name === "AbortError" || err.message === "The operation was aborted.");
+}
+
+export function useTextToSpeech(settings: TTSSettings) {
+  const [state, setState] = useState<TTSState>({
+    supported: isBrowserSupported(),
+    isSpeaking: false,
+    backend: "none",
+    voices: [],
+    error: null,
+    backendReason: "Checking TTS backend availability…",
+    browserAudioReady: false,
+    lastSuccessfulBackend: "none",
+    lastSuccessfulAt: null,
+  });
+
+  const providerRef = useRef<TTSProvider | null>(null);
+  const backendRef = useRef<TTSBackend>("none");
+  const speakChainRef = useRef<AbortController | null>(null);
+  const fallbackProviderRef = useRef<BrowserTTSProvider | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const resolveBackendRef = useRef<(() => Promise<void>) | null>(null);
+
   useEffect(() => {
-    const a = resolvedAdapter.current;
-    if (!a) return;
+    if (typeof window === "undefined") return;
+    const unlock = () => {
+      audioUnlockedRef.current = true;
+      setState((s) => ({ ...s, browserAudioReady: true }));
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock, { passive: true });
+    window.addEventListener("touchstart", unlock, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
+  const updateSuccess = useCallback((backend: TTSBackend) => {
+    setState((s) => ({
+      ...s,
+      isSpeaking: false,
+      error: null,
+      lastSuccessfulBackend: backend,
+      lastSuccessfulAt: new Date().toISOString(),
+    }));
+  }, []);
+
+  const runBrowserSpeak = useCallback(
+    async (text: string, suppressBlockedError = false): Promise<"browser"> => {
+      if (!isBrowserSupported()) {
+        throw new Error("Browser speech synthesis is not supported");
+      }
+      if (!audioUnlockedRef.current && !suppressBlockedError) {
+        throw new Error("Browser audio is blocked until you interact with the page");
+      }
+      if (!fallbackProviderRef.current) {
+        fallbackProviderRef.current = new BrowserTTSProvider();
+      }
+      await fallbackProviderRef.current.speak(text, {
+        voice: settings.voice,
+        rate: settings.rate,
+        pitch: settings.pitch,
+      });
+      return "browser";
+    },
+    [settings.pitch, settings.rate, settings.voice],
+  );
+
+  const executeSpeak = useCallback(async (text: string, paragraphs?: string[]): Promise<TTSBackend> => {
+    const provider = providerRef.current;
+    const segments = paragraphs ?? [text];
+    if (!provider || segments.length === 0) {
+      throw new Error("No TTS backend is available");
+    }
+
+    const kokoroOpts = { voice: settings.kokoroVoice, rate: settings.kokoroSpeed };
+    const browserOpts = {
+      voice: settings.voice,
+      rate: settings.rate,
+      pitch: settings.pitch,
+    };
+
+    const speakWithProvider = async () => {
+      if (backendRef.current === "browser" && !audioUnlockedRef.current) {
+        throw new Error("Browser audio is blocked until you interact with the page");
+      }
+      for (const segment of segments) {
+        await provider.speak(segment, backendRef.current === "kokoro" ? kokoroOpts : browserOpts);
+      }
+      return backendRef.current;
+    };
+
+    try {
+      return await speakWithProvider();
+    } catch (err) {
+      if (isAbortLikeError(err)) {
+        throw err;
+      }
+      if (backendRef.current === "kokoro" && settings.backendPreference === "auto" && isBrowserSupported()) {
+        const browserBackend = await runBrowserSpeak(paragraphs ? paragraphs.join("\n\n") : text, true);
+        setState((s) => ({
+          ...s,
+          backendReason: "Kokoro failed at runtime; Browser handled playback for this request",
+        }));
+        return browserBackend;
+      }
+      throw err;
+    }
+  }, [
+    runBrowserSpeak,
+    settings.backendPreference,
+    settings.kokoroSpeed,
+    settings.kokoroVoice,
+    settings.pitch,
+    settings.rate,
+    settings.voice,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkBackend(forceRefresh = false) {
+      if (forceRefresh) {
+        _resetCapabilitiesCache();
+      }
+
+      if (settings.backendPreference === "browser") {
+        if (isBrowserSupported()) {
+          backendRef.current = "browser";
+          providerRef.current = new BrowserTTSProvider();
+          if (!cancelled) {
+            const voices = window.speechSynthesis.getVoices() ?? [];
+            setState((s) => ({
+              ...s,
+              supported: true,
+              backend: "browser",
+              voices: voices.map((v) => ({ id: v.name, name: v.name })),
+              backendReason: "Browser backend selected explicitly",
+            }));
+          }
+        } else if (!cancelled) {
+          backendRef.current = "none";
+          providerRef.current = null;
+          setState((s) => ({
+            ...s,
+            supported: false,
+            backend: "none",
+            voices: [],
+            backendReason: "Browser backend was selected, but speech synthesis is not supported in this browser",
+          }));
+        }
+        return;
+      }
+
+      try {
+        const caps = await fetchCapabilitiesLivenessCached();
+        const kokoro = caps.capabilities.find(
+          (c) => c.id === "kokoro-tts" && c.status === "available",
+        );
+
+        if (!cancelled && kokoro) {
+          backendRef.current = "kokoro";
+          providerRef.current = new KokoroProvider();
+          try {
+            const voices = await getTTSVoices();
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                supported: true,
+                backend: "kokoro",
+                voices,
+                backendReason: settings.backendPreference === "kokoro"
+                  ? "Kokoro backend selected explicitly"
+                  : "Kokoro is available and preferred over browser speech synthesis",
+              }));
+            }
+          } catch {
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                supported: true,
+                backend: "kokoro",
+                voices: [{ id: KOKORO_DEFAULT_VOICE, name: KOKORO_DEFAULT_VOICE }],
+                backendReason: settings.backendPreference === "kokoro"
+                  ? "Kokoro backend selected explicitly"
+                  : "Kokoro is available and preferred over browser speech synthesis",
+              }));
+            }
+          }
+          return;
+        }
+      } catch {
+        if (settings.backendPreference === "kokoro" && !cancelled) {
+          backendRef.current = "none";
+          providerRef.current = null;
+          setState((s) => ({
+            ...s,
+            supported: false,
+            backend: "none",
+            voices: [],
+            backendReason: "Kokoro backend was selected explicitly, but availability could not be confirmed",
+          }));
+          return;
+        }
+      }
+
+      if (!cancelled && isBrowserSupported()) {
+        if (settings.backendPreference === "kokoro") {
+          backendRef.current = "none";
+          providerRef.current = null;
+          setState((s) => ({
+            ...s,
+            supported: false,
+            backend: "none",
+            voices: [],
+            backendReason: "Kokoro backend was selected explicitly, but Kokoro is unavailable",
+          }));
+        } else {
+          backendRef.current = "browser";
+          providerRef.current = new BrowserTTSProvider();
+          const voices = window.speechSynthesis.getVoices();
+          setState((s) => ({
+            ...s,
+            supported: true,
+            backend: "browser",
+            voices: voices.map((v) => ({ id: v.name, name: v.name })),
+            backendReason: "Kokoro is unavailable, so browser speech synthesis is active",
+          }));
+        }
+      } else if (!cancelled) {
+        backendRef.current = "none";
+        providerRef.current = null;
+        setState((s) => ({
+          ...s,
+          supported: false,
+          backend: "none",
+          voices: [],
+          backendReason: settings.backendPreference === "kokoro"
+            ? "Kokoro backend was selected explicitly, but Kokoro is unavailable and browser speech synthesis is not supported"
+            : "No TTS backend is available. Kokoro is unavailable and browser speech synthesis is not supported",
+        }));
+      }
+    }
+
+    resolveBackendRef.current = () => checkBackend(true);
+    checkBackend();
+    return () => {
+      cancelled = true;
+      resolveBackendRef.current = null;
+    };
+  }, [settings.backendPreference]);
+
+  // Load browser voices asynchronously (some browsers load them lazily)
+  useEffect(() => {
+    if (backendRef.current !== "browser" || !isBrowserSupported()) return;
     const loadVoices = () => {
-      const voices = a.getVoices();
+      const voices = window.speechSynthesis.getVoices() ?? [];
       if (voices.length > 0) {
-        setState((s) => ({ ...s, voices }));
+        setState((s) => ({
+          ...s,
+          voices: voices.map((v) => ({ id: v.name, name: v.name })),
+        }));
       }
     };
     loadVoices();
-    a.onvoiceschanged = loadVoices;
-    return () => { a.onvoiceschanged = null; };
-  }, []);
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [state.backend]);
 
   // Cleanup on unmount
   useEffect(() => {
-    const adapter = resolvedAdapter.current;
-    return () => { adapter?.cancel(); };
+    return () => {
+      providerRef.current?.dispose();
+      fallbackProviderRef.current?.dispose();
+      speakChainRef.current?.abort();
+    };
   }, []);
 
-  const speak = useCallback((text: string) => {
-    const a = resolvedAdapter.current;
-    if (!a) return;
+  const speak = useCallback(
+    (text: string) => {
+      speakChainRef.current?.abort();
+      providerRef.current?.stop();
 
-    a.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = settings.rate;
-    utterance.pitch = settings.pitch;
+      if (!providerRef.current) return;
 
-    if (settings.voice) {
-      const match = a.getVoices().find((v) => v.name === settings.voice);
-      if (match) utterance.voice = match;
-    }
+      setState((s) => ({ ...s, isSpeaking: true, error: null }));
 
-    utterance.onstart = () => setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
-    utterance.onend = () => setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
-    utterance.onerror = (e) => setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: (e as SpeechSynthesisErrorEvent).error ?? "Speech synthesis failed" }));
-    utterance.onpause = () => setState((s) => ({ ...s, isPaused: true }));
-    utterance.onresume = () => setState((s) => ({ ...s, isPaused: false }));
+      executeSpeak(text).then(
+        (usedBackend) => updateSuccess(usedBackend),
+        (err: unknown) => {
+          if (isAbortLikeError(err)) {
+            setState((s) => ({ ...s, isSpeaking: false }));
+            return;
+          }
+          const message = err instanceof Error ? err.message : "Speech failed";
+          setState((s) => ({
+            ...s,
+            isSpeaking: false,
+            error: message,
+          }));
+        },
+      );
+    },
+    [executeSpeak, updateSuccess],
+  );
 
-    utteranceRef.current = utterance;
-    a.speak(utterance);
-  }, [settings.rate, settings.pitch, settings.voice]);
+  const speakParagraphs = useCallback(
+    (paragraphs: string[]) => {
+      speakChainRef.current?.abort();
+      const controller = new AbortController();
+      speakChainRef.current = controller;
 
-  const pause = useCallback(() => { resolvedAdapter.current?.pause(); }, []);
-  const resume = useCallback(() => { resolvedAdapter.current?.resume(); }, []);
+      if (!providerRef.current || paragraphs.length === 0) return;
+
+      setState((s) => ({ ...s, isSpeaking: true, error: null }));
+
+      (async () => {
+        try {
+          const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
+          if (!controller.signal.aborted) {
+            updateSuccess(usedBackend);
+          }
+        } catch (err: unknown) {
+          if (controller.signal.aborted || isAbortLikeError(err)) {
+            setState((s) => ({ ...s, isSpeaking: false }));
+            return;
+          }
+          const message =
+            err instanceof Error ? err.message : "Speech failed";
+          setState((s) => ({ ...s, isSpeaking: false, error: message }));
+        } finally {
+          if (!controller.signal.aborted) {
+            speakChainRef.current = null;
+          }
+        }
+        if (controller.signal.aborted) {
+          setState((s) => ({ ...s, isSpeaking: false }));
+        }
+      })();
+    },
+    [executeSpeak, updateSuccess],
+  );
+
   const stop = useCallback(() => {
-    resolvedAdapter.current?.cancel();
-    setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+    speakChainRef.current?.abort();
+    providerRef.current?.stop();
+    fallbackProviderRef.current?.stop();
+    setState((s) => ({ ...s, isSpeaking: false }));
   }, []);
 
-  return { ...state, speak, pause, resume, stop };
+  const refresh = useCallback(async () => {
+    await resolveBackendRef.current?.();
+  }, []);
+
+  const testSpeak = useCallback(async () => {
+    if (!providerRef.current) {
+      setState((s) => ({ ...s, error: "No TTS backend is available" }));
+      return;
+    }
+    setState((s) => ({ ...s, isSpeaking: true, error: null }));
+    try {
+      const usedBackend = await executeSpeak(TEST_TTS_SAMPLE);
+      updateSuccess(usedBackend);
+    } catch (err) {
+      if (isAbortLikeError(err)) {
+        setState((s) => ({ ...s, isSpeaking: false }));
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Speech failed";
+      setState((s) => ({ ...s, isSpeaking: false, error: message }));
+      throw err;
+    }
+  }, [executeSpeak, updateSuccess]);
+
+  return { ...state, speak, speakParagraphs, stop, refresh, testSpeak };
 }

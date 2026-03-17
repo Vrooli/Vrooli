@@ -60,12 +60,31 @@ vi.mock("../stores/useWorkspaceStore", () => {
     panes: [],
     voiceShortcut: "",
     renamePaneById: vi.fn(),
+    ttsVoice: "",
+    ttsRate: 1,
+    ttsPitch: 1,
+    kokoroVoice: "af_heart",
+    kokoroSpeed: 1,
+    ttsBackendPreference: "auto" as const,
+    autoTtsEnabled: false,
   };
   return {
     useWorkspaceStore: (selector?: (s: typeof store) => unknown) =>
       selector ? selector(store) : store,
   };
 });
+vi.mock("../hooks/useTextToSpeech", () => ({
+  useTextToSpeech: () => ({
+    supported: false,
+    isSpeaking: false,
+    backend: "none",
+    voices: [],
+    error: null,
+    speak: vi.fn(),
+    speakParagraphs: vi.fn(),
+    stop: vi.fn(),
+  }),
+}));
 
 // Use dynamic import to get the component after mocks are in place
 const { default: TerminalPane } = await import("../components/TerminalPane");

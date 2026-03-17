@@ -13,7 +13,6 @@ interface TabBarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
-  onRenamePane?: (sessionId: string) => void;
   isCreating?: boolean;
 }
 
@@ -23,11 +22,11 @@ export default function TabBar({
   onNewTerminal,
   onOpenLauncher,
   onClosePane,
-  onRenamePane,
   isCreating,
 }: TabBarProps) {
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
+  const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const displayMode = useWorkspaceStore((s) => s.displayMode);
   const groups = useWorkspaceStore((s) => s.groups);
@@ -36,7 +35,67 @@ export default function TabBar({
   const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
-  const { syncCreateGroup, syncPaneUpdate } = useWorkspaceSync();
+  const updateGroup = useWorkspaceStore((s) => s.updateGroup);
+  const { syncPaneOrder, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
+
+  // Inline rename state for tabs
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editTabName, setEditTabName] = useState("");
+  const editTabInputRef = useRef<HTMLInputElement>(null);
+
+  // Inline rename state for groups
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const editGroupInputRef = useRef<HTMLInputElement>(null);
+
+  /** Start inline rename for a tab. */
+  const startTabRename = useCallback((sessionId: string, currentName: string) => {
+    setEditingTabId(sessionId);
+    setEditTabName(currentName);
+  }, []);
+
+  /** Commit tab rename. */
+  const commitTabRename = useCallback(() => {
+    if (editingTabId && editTabName.trim()) {
+      const trimmed = editTabName.trim();
+      renamePaneById(editingTabId, trimmed);
+      syncPaneUpdate(editingTabId, { name: trimmed });
+    }
+    setEditingTabId(null);
+    setEditTabName("");
+  }, [editingTabId, editTabName, renamePaneById, syncPaneUpdate]);
+
+  /** Start inline rename for a group. */
+  const startGroupRename = useCallback((groupId: string, currentName: string) => {
+    setEditingGroupId(groupId);
+    setEditGroupName(currentName);
+  }, []);
+
+  /** Commit group rename. */
+  const commitGroupRename = useCallback(() => {
+    if (editingGroupId && editGroupName.trim()) {
+      const trimmed = editGroupName.trim();
+      updateGroup(editingGroupId, { name: trimmed });
+      syncUpdateGroup(editingGroupId, { name: trimmed });
+    }
+    setEditingGroupId(null);
+    setEditGroupName("");
+  }, [editingGroupId, editGroupName, updateGroup, syncUpdateGroup]);
+
+  // Auto-focus rename inputs when they appear
+  useEffect(() => {
+    if (editingTabId && editTabInputRef.current) {
+      editTabInputRef.current.focus();
+      editTabInputRef.current.select();
+    }
+  }, [editingTabId]);
+
+  useEffect(() => {
+    if (editingGroupId && editGroupInputRef.current) {
+      editGroupInputRef.current.focus();
+      editGroupInputRef.current.select();
+    }
+  }, [editingGroupId]);
 
   // Long-press detection for opening context menu on tabs.
   // The timer sets longPressReady; the menu only opens on pointerUp
@@ -182,7 +241,12 @@ export default function TabBar({
     const handleUp = () => {
       dragStartRef.current = null;
       setDragState((prev) => {
-        if (prev) movePaneToIndex(prev.paneId, prev.dropIndex);
+        if (prev) {
+          movePaneToIndex(prev.paneId, prev.dropIndex);
+          // Zustand set() is synchronous, so getState() reflects the new order
+          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
+          syncPaneOrder(updated.map((p) => p.sessionId), active);
+        }
         return null;
       });
     };
@@ -195,7 +259,7 @@ export default function TabBar({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [dragState, movePaneToIndex, commitDrag]);
+  }, [dragState, movePaneToIndex, syncPaneOrder, commitDrag]);
 
   const isDragging = dragState !== null;
 
@@ -259,7 +323,23 @@ export default function TabBar({
                   className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: group.color }}
                 />
-                <span className="truncate max-w-[80px] font-medium">{group.name}</span>
+                {editingGroupId === group.id ? (
+                  <input
+                    ref={editGroupInputRef}
+                    data-testid={`group-rename-input-${group.id}`}
+                    className="bg-wc-surface-input text-wc-text-primary text-xs px-1 rounded w-[80px] outline-none ring-1 ring-wc-accent font-medium"
+                    value={editGroupName}
+                    onChange={(e) => setEditGroupName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitGroupRename();
+                      if (e.key === "Escape") { setEditingGroupId(null); setEditGroupName(""); }
+                    }}
+                    onBlur={commitGroupRename}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="truncate max-w-[80px] font-medium">{group.name}</span>
+                )}
                 {group.isCollapsed && (
                   <span className="text-[10px] bg-wc-surface-input rounded px-1">{tabCount}</span>
                 )}
@@ -386,8 +466,24 @@ export default function TabBar({
                 />
               )}
 
-              {/* Tab name */}
-              <span className="truncate max-w-[120px]">{pane.name}</span>
+              {/* Tab name (inline editable) */}
+              {editingTabId === pane.sessionId ? (
+                <input
+                  ref={editTabInputRef}
+                  data-testid={`tab-rename-input-${pane.sessionId}`}
+                  className="bg-wc-surface-input text-wc-text-primary text-xs px-1 rounded w-[100px] outline-none ring-1 ring-wc-accent"
+                  value={editTabName}
+                  onChange={(e) => setEditTabName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitTabRename();
+                    if (e.key === "Escape") { setEditingTabId(null); setEditTabName(""); }
+                  }}
+                  onBlur={commitTabRename}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span className="truncate max-w-[120px]">{pane.name}</span>
+              )}
 
               {/* Close button - visible on hover or when active */}
               <button
@@ -437,7 +533,10 @@ export default function TabBar({
             sessionId={tabContextMenu.sessionId}
             currentGroupId={pane.groupId}
             groups={groups}
-            onRename={() => onRenamePane?.(tabContextMenu.sessionId)}
+            onRename={() => {
+              const p = panes.find((p) => p.sessionId === tabContextMenu.sessionId);
+              if (p) startTabRename(p.sessionId, p.name);
+            }}
             onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
             onAddToGroup={(groupId) => {
               setPaneGroup(tabContextMenu.sessionId, groupId);
@@ -448,6 +547,7 @@ export default function TabBar({
               syncPaneUpdate(tabContextMenu.sessionId, { group_id: null });
             }}
             onCreateGroup={async () => {
+              const targetSessionId = tabContextMenu.sessionId;
               try {
                 const serverGroup = await syncCreateGroup("New Group", "#3b82f6");
                 addGroup({
@@ -456,8 +556,10 @@ export default function TabBar({
                   color: serverGroup.color,
                   isCollapsed: false,
                 });
-                setPaneGroup(tabContextMenu.sessionId, serverGroup.id);
-                syncPaneUpdate(tabContextMenu.sessionId, { group_id: serverGroup.id });
+                setPaneGroup(targetSessionId, serverGroup.id);
+                syncPaneUpdate(targetSessionId, { group_id: serverGroup.id });
+                // Immediately enter rename mode so user can name the group
+                startGroupRename(serverGroup.id, serverGroup.name);
               } catch (err) {
                 console.error("Failed to create group:", err);
               }

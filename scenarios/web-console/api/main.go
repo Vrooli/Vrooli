@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -65,6 +69,17 @@ type Server struct {
 	voiceConfigMu   sync.RWMutex
 	voiceConfig     VoiceStreamConfig
 	voiceConfigPath string
+	ttsConfigMu     sync.RWMutex
+	ttsConfig       TTSConfig
+	ttsConfigPath   string
+	hookAuthToken   string
+	codexTailer     *CodexTailer
+	ttsSynthesizer  TTSSynthesizer
+	ttsVoiceLister  TTSVoiceLister
+	ttsDedup        *ttsDedup
+	ttsStatusMu     sync.RWMutex
+	lastTTSDelivery *TTSDeliveryResult
+	lastTTSAt       time.Time
 }
 
 // NewServer initializes database, session manager, and routes.
@@ -85,6 +100,18 @@ func NewServer(db *sql.DB) *Server {
 	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
 		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
 
+	// Resolve TTS config path
+	ttsPath := resolveTTSConfigPath()
+	ttsCfg, err := loadTTSConfig(ttsPath)
+	if err != nil {
+		log.Printf("tts-config: using defaults: %v", err)
+		ttsCfg = DefaultTTSConfig()
+	}
+	log.Printf("tts-config: loaded: autoEnabled=%v", ttsCfg.AutoEnabled)
+
+	// Generate or load hook auth token for TTS hook validation
+	hookToken := loadOrCreateHookToken(resolveHookTokenPath())
+
 	events := NewEventLogger(1000)
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
@@ -102,20 +129,60 @@ func NewServer(db *sql.DB) *Server {
 		workspace:       NewSQLWorkspaceStore(db),
 		voiceConfig:     vc,
 		voiceConfigPath: vcPath,
+		ttsConfig:       ttsCfg,
+		ttsConfigPath:   ttsPath,
+		hookAuthToken:   hookToken,
+		ttsDedup:        newTTSDedup(),
 	}
+	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
+	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
+	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
+	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
+
 	checkers := map[string]StatusChecker{
 		"whisper-stt": &WhisperChecker{
-			BaseURL: "http://localhost:8090",
+			BaseURL: whisperURL,
 			Client:  &http.Client{Timeout: 10 * time.Second},
+		},
+		"kokoro-tts": &KokoroChecker{
+			BaseURL: kokoroURL,
+			Client:  &http.Client{Timeout: 10 * time.Second},
+		},
+		"ollama": &OllamaChecker{
+			BaseURL: ollamaURL,
+			Client:  &http.Client{Timeout: 5 * time.Second},
+		},
+		"openrouter": &OpenRouterChecker{
+			APIKey: openrouterKey,
+			Client: &http.Client{Timeout: 5 * time.Second},
 		},
 	}
 	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)
+	srv.ttsSynthesizer = &KokoroSynthesizer{
+		BaseURL: kokoroURL,
+		Client:  &http.Client{Timeout: 30 * time.Second},
+	}
+	srv.ttsVoiceLister = &KokoroVoiceLister{
+		BaseURL: kokoroURL,
+		Client:  &http.Client{Timeout: 5 * time.Second},
+	}
 	// Register lightweight liveness-only checkers for fast pre-recording checks.
-	// These use GET-only health checks (no test transcription).
+	// These use GET-only health checks (no test transcription/synthesis).
 	srv.capabilities.SetLivenessCheckers(map[string]StatusChecker{
 		"whisper-stt": &ResourceChecker{
-			URL:    "http://localhost:8090/",
+			URL:    whisperURL + "/",
 			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+		"kokoro-tts": &ResourceChecker{
+			URL:    kokoroURL + "/v1/audio/voices",
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+		"ollama": &ResourceChecker{
+			URL:    ollamaURL + "/api/tags",
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+		"openrouter": &OpenRouterChecker{
+			APIKey: openrouterKey,
 		},
 	})
 	// Warm capability cache so the first /capabilities request returns instantly.
@@ -127,6 +194,18 @@ func NewServer(db *sql.DB) *Server {
 	}()
 	srv.sweeper.Start()
 	srv.setupRoutes()
+
+	// Start Codex rollout tailer for auto-TTS.
+	home, _ := os.UserHomeDir()
+	if home != "" {
+		codexDir := filepath.Join(home, ".codex")
+		if _, err := os.Stat(codexDir); err == nil {
+			srv.codexTailer = NewCodexTailer(srv)
+			srv.codexTailer.Start()
+			log.Println("codex-tailer: started watching for rollout files")
+		}
+	}
+
 	return srv
 }
 
@@ -194,6 +273,16 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
+
+	// TTS hooks and config
+	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")
+	s.router.HandleFunc("/api/v1/tts/config", s.handleGetTTSConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/tts/config", s.handleUpdateTTSConfig).Methods("PUT")
+	s.router.HandleFunc("/api/v1/tts/status", s.handleGetTTSStatus).Methods("GET")
+
+	// TTS synthesis and voices (Kokoro backend)
+	s.router.HandleFunc("/api/v1/tts/synthesize", s.handleTTSSynthesize).Methods("POST")
+	s.router.HandleFunc("/api/v1/tts/voices", s.handleTTSVoices).Methods("GET")
 }
 
 // Handler returns the router wrapped with panic-recovery middleware so that
@@ -239,6 +328,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 		}
 	})
+}
+
+// getEnvOrDefault returns the value of the named environment variable, or
+// fallback if the variable is empty or unset.
+func getEnvOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 // resolveSQLiteDSN builds the SQLite DSN with performance pragmas.
@@ -300,6 +398,164 @@ func fallbackVoiceConfigPath() string {
 	return filepath.Join(filepath.Dir(exe), "..", "store", "voice-config.json")
 }
 
+// resolveTTSConfigPath returns the TTS config file path using api-core/storage.
+// Falls back to a path relative to the binary if storage resolution fails.
+func resolveTTSConfigPath() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("tts-config: storage resolver failed, using fallback: %v", err)
+		return fallbackTTSConfigPath()
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
+		log.Printf("tts-config: ensure state dir failed, using fallback: %v", err)
+		return fallbackTTSConfigPath()
+	}
+
+	path, err := resolver.Path(opts, storage.ClassState, "tts-config.json")
+	if err != nil {
+		log.Printf("tts-config: resolve path failed, using fallback: %v", err)
+		return fallbackTTSConfigPath()
+	}
+	return path
+}
+
+func fallbackTTSConfigPath() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "..", "store", "tts-config.json")
+}
+
+// resolveHookTokenPath returns the hook token file path using api-core/storage.
+func resolveHookTokenPath() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("hook-token: storage resolver failed, using fallback: %v", err)
+		return fallbackHookTokenPath()
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
+		log.Printf("hook-token: ensure state dir failed, using fallback: %v", err)
+		return fallbackHookTokenPath()
+	}
+
+	path, err := resolver.Path(opts, storage.ClassState, "hook-token.txt")
+	if err != nil {
+		log.Printf("hook-token: resolve path failed, using fallback: %v", err)
+		return fallbackHookTokenPath()
+	}
+	return path
+}
+
+func fallbackHookTokenPath() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "..", "store", "hook-token.txt")
+}
+
+func resolveClaudeProjectSettingsPath() string {
+	exe, err := os.Executable()
+	if err == nil {
+		candidate := filepath.Clean(filepath.Join(filepath.Dir(exe), "..", "..", "..", ".claude", "settings.json"))
+		if _, statErr := os.Stat(candidate); statErr == nil || !os.IsNotExist(statErr) {
+			return candidate
+		}
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidate := filepath.Join(cwd, ".claude", "settings.json")
+		if _, statErr := os.Stat(candidate); statErr == nil || !os.IsNotExist(statErr) {
+			return candidate
+		}
+	}
+	return filepath.Join(".claude", "settings.json")
+}
+
+func (s *Server) getClaudeHookStatus() (bool, string, string) {
+	settingsPath := resolveClaudeProjectSettingsPath()
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, "Claude project settings file does not exist; the Stop hook has not been registered", settingsPath
+		}
+		return false, "Claude project settings could not be read", settingsPath
+	}
+
+	var doc struct {
+		Hooks map[string][]struct {
+			Hooks []struct {
+				ID  string `json:"_id"`
+				URL string `json:"url"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return false, "Claude project settings file is not valid JSON", settingsPath
+	}
+
+	for _, group := range doc.Hooks["Stop"] {
+		for _, hook := range group.Hooks {
+			if hook.ID == "web-console-tts" {
+				return true, "Claude Stop hook is registered", settingsPath
+			}
+		}
+	}
+	return false, "Claude Stop hook is not registered in project settings", settingsPath
+}
+
+func (s *Server) recordLastTTSDelivery(result TTSDeliveryResult) {
+	s.ttsStatusMu.Lock()
+	defer s.ttsStatusMu.Unlock()
+	cp := result
+	s.lastTTSDelivery = &cp
+	s.lastTTSAt = time.Now()
+	log.Printf("tts-delivery: source=%s code=%s delivered=%v session=%s target=%v reason=%s",
+		result.Source, result.Code, result.Delivered, sanitizeID(result.SessionID), result.UsedTargetSession, result.Reason)
+}
+
+func (s *Server) getLastTTSDelivery() (*TTSDeliveryResult, time.Time) {
+	s.ttsStatusMu.RLock()
+	defer s.ttsStatusMu.RUnlock()
+	if s.lastTTSDelivery == nil {
+		return nil, time.Time{}
+	}
+	cp := *s.lastTTSDelivery
+	return &cp, s.lastTTSAt
+}
+
+// loadOrCreateHookToken reads a hook auth token from file, or generates a new
+// one if the file doesn't exist. The token is 32 random bytes encoded as hex.
+func loadOrCreateHookToken(path string) string {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		token := strings.TrimSpace(string(data))
+		if token != "" {
+			return token
+		}
+	}
+
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("hook-token: failed to generate random token: %v", err)
+	}
+	token := hex.EncodeToString(b)
+
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		log.Printf("hook-token: failed to create directory: %v", err)
+		return token
+	}
+	if err := os.WriteFile(path, []byte(token+"\n"), 0o600); err != nil {
+		log.Printf("hook-token: failed to persist token: %v", err)
+	}
+	return token
+}
+
 func main() {
 	if preflight.Run(preflight.Config{
 		ScenarioName: "web-console",
@@ -324,6 +580,9 @@ func main() {
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error {
 			srv.sweeper.Stop()
+			if srv.codexTailer != nil {
+				srv.codexTailer.Stop()
+			}
 			return db.Close()
 		},
 	}); err != nil {

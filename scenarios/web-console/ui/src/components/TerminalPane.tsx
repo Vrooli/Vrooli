@@ -55,6 +55,57 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       return TERMINAL_THEMES[paneThemeId]?.colors ?? TERMINAL_THEMES[DEFAULT_THEME_ID]?.colors ?? fallback;
     }, [paneThemeId]);
 
+    const ttsVoice = useWorkspaceStore((s) => s.ttsVoice);
+    const ttsRate = useWorkspaceStore((s) => s.ttsRate);
+    const ttsPitch = useWorkspaceStore((s) => s.ttsPitch);
+    const kokoroVoice = useWorkspaceStore((s) => s.kokoroVoice);
+    const kokoroSpeed = useWorkspaceStore((s) => s.kokoroSpeed);
+    const ttsBackendPreference = useWorkspaceStore((s) => s.ttsBackendPreference);
+    const ttsSettings = useMemo(
+      () => ({
+        voice: ttsVoice,
+        rate: ttsRate,
+        pitch: ttsPitch,
+        kokoroVoice,
+        kokoroSpeed,
+        backendPreference: ttsBackendPreference,
+      }),
+      [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
+    );
+    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError } = useTextToSpeech(ttsSettings);
+
+    // Auto-dismiss TTS error after 5 seconds
+    const [showTtsError, setShowTtsError] = useState<string | null>(null);
+    useEffect(() => {
+      if (!ttsError) {
+        setShowTtsError(null);
+        return;
+      }
+      setShowTtsError(ttsError);
+      const timer = setTimeout(() => setShowTtsError(null), 5000);
+      return () => clearTimeout(timer);
+    }, [ttsError]);
+
+    // Auto-TTS: speak AI responses received via WebSocket
+    const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
+
+    const handleTTS = useCallback((text: string) => {
+      if (!autoTtsEnabled || !ttsSupported) return;
+      ttsStop();
+      // Split on double-newlines first; if that yields very long blocks,
+      // sub-split on single newlines so utterances stay manageable.
+      const raw = text.split(/\n\n+/).filter((p) => p.trim());
+      const paragraphs: string[] = [];
+      for (const block of raw) {
+        if (block.length > 500) {
+          paragraphs.push(...block.split(/\n/).filter((l) => l.trim()));
+        } else {
+          paragraphs.push(block);
+        }
+      }
+      speakParagraphs(paragraphs);
+    }, [autoTtsEnabled, ttsSupported, ttsStop, speakParagraphs]);
+
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({
       sessionId,
@@ -75,6 +126,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       },
       historyOffset: cachedOffsetRef.current,
       hasCachedState: hadCacheRef.current,
+      onTTS: handleTTS,
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
@@ -82,12 +134,6 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendInput,
       focus: () => terminal?.focus(),
     }), [sendInput, terminal]);
-
-    const ttsVoice = useWorkspaceStore((s) => s.ttsVoice);
-    const ttsRate = useWorkspaceStore((s) => s.ttsRate);
-    const ttsPitch = useWorkspaceStore((s) => s.ttsPitch);
-    const ttsSettings = useMemo(() => ({ voice: ttsVoice, rate: ttsRate, pitch: ttsPitch }), [ttsVoice, ttsRate, ttsPitch]);
-    const { speak, supported: ttsSupported } = useTextToSpeech(ttsSettings);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -422,6 +468,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         {uploadError && (
           <div data-testid="upload-error" className="absolute top-2 left-2 z-20 rounded bg-red-600/90 px-3 py-1.5 text-xs text-white shadow-lg">
             {uploadError}
+          </div>
+        )}
+        {showTtsError && (
+          <div data-testid="tts-error" className="absolute top-2 right-2 z-20 rounded bg-amber-600/90 px-3 py-1.5 text-xs text-white shadow-lg">
+            TTS: {showTtsError}
           </div>
         )}
         {contextMenu && (

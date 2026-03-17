@@ -28,7 +28,7 @@
 | **AI generation** | `AiInput.tsx:29` | User prompt submit | API call | command, provider, error, isLoading | Generation ID guards stale responses on unmount |
 | **Countdown timer** | `useCountdown.ts` | Session with expiry policy | 1s setInterval | Remaining seconds display | Interval cleared on unmount |
 | **Settings load** | `SettingsPage.tsx:131` | Page mount | API call | profiles, error, loading | Cancellation signal on unmount |
-| **Provider health** | `ProviderHealthPanel.tsx:34` | Panel open | API call | Provider health data | Single fetch, no polling |
+| **Integrations health** | `IntegrationsPanel.tsx` + `useCapabilities.ts` | Panel open | react-query 30s poll | Capability states | Polling paused when `open=false` |
 
 ## Ordering Assumptions & Stability
 

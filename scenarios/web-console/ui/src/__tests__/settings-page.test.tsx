@@ -32,8 +32,8 @@ vi.mock("../lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("../components/ProviderHealthPanel", () => ({
-  default: () => <div data-testid="provider-health-panel">ProviderHealthPanel</div>,
+vi.mock("../components/IntegrationsPanel", () => ({
+  default: () => <div data-testid="integrations-panel">IntegrationsPanel</div>,
 }));
 
 // Mock workspace store
@@ -204,15 +204,15 @@ describe("SettingsModal (shortcut profiles)", () => {
     });
   });
 
-  it("renders ProviderHealthPanel in the AI Providers section", async () => {
+  it("renders IntegrationsPanel in the Integrations section", async () => {
     mockListProfiles.mockResolvedValueOnce([]);
     render(<SettingsModal />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
+      expect(screen.getByTestId("integrations-panel")).toBeTruthy();
     });
 
-    expect(screen.getByText("AI Providers")).toBeTruthy();
+    expect(screen.getByText("Integrations")).toBeTruthy();
   });
 
   it("shows error and refetches when save fails", async () => {

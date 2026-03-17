@@ -529,6 +529,11 @@
       "virustotal": {
         "enabled": true
       },
+      "kokoro": {
+        "enabled": true,
+        "required": false,
+        "description": "Text-to-speech synthesis service"
+      },
       "whisper": {
         "enabled": true,
         "required": false,

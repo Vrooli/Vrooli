@@ -43,6 +43,23 @@
           "path": "reference/configuration.md",
           "title": "Configuration Reference",
           "description": "All tunable levers — API environment variables and UI compile-time constants"
+        },
+        {
+          "path": "reference/tts-api.md",
+          "title": "TTS API Reference",
+          "description": "Text-to-Speech endpoints: synthesis, voice listing, config, hooks, and WebSocket delivery"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "guides/TTS_TROUBLESHOOTING.md",
+          "title": "TTS Troubleshooting",
+          "description": "Diagnosing auto-TTS issues: Kokoro status, hook registration, text correlation, browser audio policy"
         }
       ]
     },
@@ -140,7 +157,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference"],
+    "primary": ["getting-started", "concepts", "guides", "reference"],
     "secondary": ["internal"]
   }
 }

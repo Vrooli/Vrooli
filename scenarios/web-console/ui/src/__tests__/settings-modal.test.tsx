@@ -57,8 +57,8 @@ vi.mock("../lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("../components/ProviderHealthPanel", () => ({
-  default: () => <div data-testid="provider-health-panel">ProviderHealthPanel</div>,
+vi.mock("../components/IntegrationsPanel", () => ({
+  default: () => <div data-testid="integrations-panel">IntegrationsPanel</div>,
 }));
 
 const mockProfile: ShortcutProfile = {
@@ -124,9 +124,9 @@ describe("SettingsModal", () => {
     });
   });
 
-  it("renders AI provider section", () => {
+  it("renders integrations section", () => {
     render(<SettingsModal />);
-    expect(screen.getByTestId("provider-health-panel")).toBeTruthy();
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
   });
 
   it("minimap toggle reflects store value", () => {

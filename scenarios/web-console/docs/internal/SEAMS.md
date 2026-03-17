@@ -116,16 +116,16 @@ Last updated: 2026-03-15
 
 **Benefits**: Single source of truth for UI policy parsing decisions, tighter edge-case tests at seam boundaries, and reduced drift risk between pages.
 
-### Provider Health API Injection Seam (UI)
-**File**: `ui/src/components/ProviderHealthPanel.tsx`
-**Purpose**: Decouple ProviderHealthPanel UI behavior from hard-coded API module imports by allowing seam-level dependency injection.
+### Integrations Panel Seam (UI)
+**Files**: `ui/src/components/IntegrationsPanel.tsx`, `ui/src/hooks/useCapabilities.ts`
+**Purpose**: Display all resource/scenario dependency statuses via the CapabilityRegistry. Uses react-query with 30s polling, gated by `open` prop to avoid fetching when the settings modal is closed.
 
 | Component | Production | Test |
 |-----------|------------|------|
-| `ProviderHealthPanel` API dependency | Default `getAIConfig`/`updateAIConfig` adapter | Injected `ProviderHealthPanelApi` fake |
-| Refresh/toggle behavior tests | Required global/module mocking | Uses direct fake API object with deterministic calls |
+| `useCapabilities` hook | Calls `fetchCapabilities` with 30s refetch | Mock `fetchCapabilities` via `globalThis.fetch` |
+| `IntegrationsPanel` | Renders capability cards with status icons, feature pills, diagnostic messages | `renderWithProviders` + mocked fetch |
 
-**Benefits**: Reduced global mocking, lower test setup coupling, and easier behavior-focused tests for loading, refresh, toggle, and error states.
+**Benefits**: Unified view of all dependency health (Whisper, Kokoro, Ollama, OpenRouter) in one panel. No API injection seam needed — react-query's QueryClient injection in test-utils handles test isolation.
 
 ### Voice Input Provider Seam (UI)
 **Files**: `ui/src/hooks/useVoiceInput.ts` (orchestrator), `ui/src/hooks/voice/` (modules)
@@ -250,19 +250,79 @@ Last updated: 2026-03-15
 
 **Benefits**: New capabilities can be added by implementing `StatusChecker` and registering in the registry. Tests verify caching and fallback without network calls.
 
-### Text-to-Speech Seam (UI)
-**File**: `ui/src/hooks/useTextToSpeech.ts`
-**Purpose**: Decouple TTS lifecycle from browser `speechSynthesis` API for testable voice output.
+## Text-to-Speech Provider Seam
 
-| Component | Production | Test |
-|-----------|-----------|------|
-| `SpeechSynthesisAdapter` interface | Wraps `window.speechSynthesis` via `createDefaultAdapter()` | Fake adapter with tracked `speak`/`cancel`/`getVoices` calls |
-| `useTextToSpeech(settings, adapter?)` | Manages utterance lifecycle, voice selection, error handling | Inject fake adapter, assert state transitions (speaking/paused/error) |
-| TTS settings | `ttsVoice`/`ttsRate`/`ttsPitch` from workspace store | Set store values, assert utterance properties match |
-| Voice loading | `adapter.getVoices()` + `onvoiceschanged` listener | Fake adapter fires voiceschanged, verify voice list updates |
-| Cleanup | `adapter.cancel()` on unmount | Unmount hook, verify cancel called |
+**Location (frontend):** `ui/src/hooks/tts/types.ts` (`TTSProvider` interface)
+**Location (backend):** `api/tts_synthesize.go` (`TTSSynthesizer` interface), `api/tts_voices.go` (`TTSVoiceLister` interface)
 
-**Benefits**: TTS can be tested without real `speechSynthesis` API. Adapter pattern enables deterministic testing of all state transitions (speak, pause, resume, stop, error). Context menu integration tested independently via `onSpeak` prop on `TerminalContextMenu`.
+### Frontend Provider Pattern
+
+The `TTSProvider` interface enables swapping between synthesis backends:
+
+| Implementation | Module | When used |
+|---------------|--------|-----------|
+| `KokoroProvider` | `hooks/tts/KokoroProvider.ts` | Runtime backend decision resolves to Kokoro |
+| `BrowserTTSProvider` | `hooks/tts/BrowserTTSProvider.ts` | Runtime backend decision resolves to browser speech synthesis or auto-mode fallback |
+
+**Provider selection** is handled by `useTextToSpeech` hook:
+1. Read server-backed preference from `/api/v1/tts/config`
+2. Check `kokoro-tts` capability via `/api/v1/capabilities/liveness`
+3. Resolve the runtime backend:
+   - `auto`: prefer Kokoro, else browser
+   - `kokoro`: strict Kokoro only
+   - `browser`: strict browser only
+4. Expose both the active backend and a human-readable `backendReason`
+
+**Fallback**: If `backend=auto` and `KokoroProvider` fails at runtime, both `speak()` and `speakParagraphs()` attempt a best-effort fallback to `BrowserTTSProvider`.
+
+**Testing**: Replace provider instance in tests with mock implementing `TTSProvider`. No global mocking needed.
+
+### Backend Seams
+
+**`TTSSynthesizer` interface** (`tts_synthesize.go`):
+- Production: `KokoroSynthesizer` — proxies to Kokoro-FastAPI `/v1/audio/speech`
+- Test: Mock returning `io.ReadCloser` with test audio bytes
+- Injected via `Server.ttsSynthesizer` field
+
+**`TTSVoiceLister` interface** (`tts_voices.go`):
+- Production: `KokoroVoiceLister` — proxies to Kokoro-FastAPI `/v1/audio/voices`
+- Test: Mock returning `[]TTSVoice` slice
+- Injected via `Server.ttsVoiceLister` field
+
+### Capability Gating
+
+**`KokoroChecker`** (`capabilities_checkers.go`):
+- Liveness: GET `/v1/audio/voices` → 200
+- Full check: POST `/v1/audio/speech` with test text, verify non-empty audio response
+- Cached by `CapabilityRegistry` with 30s TTL
+
+### Hook Delivery Chain
+
+**Path**: `tts-hooks.sh` → Claude Code Stop hook → `handleHookStop` → `deliverTTS` → `SendTTS` → WebSocket TTS side-channel → UI `useTerminalSocket` `onTTS` → `useTextToSpeech.speakParagraphs`
+
+**Seam points**:
+1. `tts-hooks.sh` ↔ API: HTTP POST with `X-Hook-Token` auth header
+2. `deliverTTS` ↔ `Session`: explicit `sessionId` targeting first, active-pane fallback second
+3. `deliverTTS` ↔ `Session`: `ContainsRecentText` correlation validates text is genuine
+4. `SendTTS` ↔ WebSocket: buffered channel fan-out (non-blocking, drops on full)
+5. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
+
+**Testing**: `tts_hook_handler_test.go` covers token auth. `tts_deliver_test.go` covers the `deliverTTS` pipeline. `codex_tailer_test.go` includes an E2E test from rollout file → TTS subscriber.
+
+### Two Independent TTS Trigger Paths
+
+1. **Claude Code Hook** (`tts-hooks.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Low latency, but requires hook registration at scenario start. `sessionId` is now honored when present.
+2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches `~/.codex/sessions/` for JSONL rollout files and extracts assistant text. Works even without hook registration (e.g., for Codex CLI).
+
+Both paths converge at `deliverTTS()` which gates on: `autoEnabled`, target session (or active pane), text correlation via `ContainsRecentText`, and **dedup check**. The function now returns a structured `TTSDeliveryResult` used by `/api/v1/tts/status` and the settings diagnostics panel.
+
+**Dedup cache** (`ttsDedup` in `tts_deliver.go`): Since both trigger paths can fire for the same assistant response, `deliverTTS()` maintains a time-bounded dedup cache keyed on the first `ttsMatchNeedleLen` (200) characters of the cleaned text. Entries expire after `ttsDeliveryDedupTTL` (30s). The cache is lazy-evicted on each call. The `ttl` field is injectable for testing.
+
+**ANSI stripping**: `deliverTTS()` calls `stripANSI()` on the response text before both matching and sending. This ensures TTS subscribers always receive clean, speakable text regardless of whether the source contained terminal escape codes.
+
+**`ttsMatchNeedleLen=200` rationale**: `ContainsRecentText` uses only the first 200 characters of the cleaned text as the search needle (named constant in `tts_deliver.go`). This avoids false negatives on long responses where the tail may differ between the source (agent JSON) and terminal output (line-wrapped, truncated, or decorated by the shell). 200 chars is long enough to prevent accidental matches on common short phrases.
+
+**`staleTimeout` injectable field** (`codex_tailer.go`): The `CodexTailer.staleTimeout` field overrides the default `codexStaleTimeout` (1 hour) for testing. When non-zero, `tailFile()` uses this value for the stale timer. Tests use short values (100ms) to verify watcher cleanup without waiting an hour.
 
 ## Boundary Violations Fixed
 
@@ -508,7 +568,11 @@ The API uses a hybrid organization:
 | AI provider failure | API log, `GET /api/v1/ai/health`, UI error in AiInput | Per-provider error count/rate; structured error with recovery hint |
 | Offline buffer overflow | API log (once per session) | `session %s: offline buffer full` — de-duplicated, one-shot |
 | Policy update failure | UI inline error banner in SessionDrawer | Red banner with recovery hint, auto-dismiss 5s |
-| Provider panel failure | UI inline error in ProviderHealthPanel | Amber warning with error message |
+| Integrations panel failure | UI inline error in IntegrationsPanel | Red text with error message |
+| TTS backend decision | Settings -> Voice Output (TTS) | Active backend + `backendReason` |
+| Claude hook registration | Settings -> Voice Output (TTS), `GET /api/v1/tts/status` | `hookRegistered`, `hookReason`, settings file path |
+| Last auto-TTS delivery | Settings -> Voice Output (TTS), API logs | `lastDelivery` object + `tts-delivery:` log line |
+| Browser audio lockout | Settings -> Voice Output (TTS), terminal banner | `Browser audio: Blocked until you interact with the page` |
 
 #### Signal Inventory
 
@@ -519,6 +583,7 @@ The API uses a hybrid organization:
 | `GET /api/v1/metrics` | Atomic counters: sessions, connections, messages, AI, uptime |
 | `GET /api/v1/events?limit=N` | Recent structured events from in-memory ring buffer (default 50, max 1000) |
 | `GET /api/v1/ai/health` | Per-provider availability, latency, error rate |
+| `GET /api/v1/tts/status` | Hook registration, last delivery result, Kokoro liveness, persisted TTS config |
 
 **Structured Events** (all emitted via `EventLogger`, logged as `[EVENT] {json}`):
 | Constant | Value | Details |

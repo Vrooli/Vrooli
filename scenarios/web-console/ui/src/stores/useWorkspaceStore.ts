@@ -50,6 +50,10 @@ interface WorkspaceState {
   ttsVoice: string;
   ttsRate: number;
   ttsPitch: number;
+  autoTtsEnabled: boolean;
+  ttsBackendPreference: "auto" | "kokoro" | "browser";
+  kokoroVoice: string;
+  kokoroSpeed: number;
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
@@ -87,6 +91,10 @@ interface WorkspaceActions {
   setTtsVoice: (voice: string) => void;
   setTtsRate: (rate: number) => void;
   setTtsPitch: (pitch: number) => void;
+  setAutoTtsEnabled: (enabled: boolean) => void;
+  setTtsBackendPreference: (pref: "auto" | "kokoro" | "browser") => void;
+  setKokoroVoice: (voice: string) => void;
+  setKokoroSpeed: (speed: number) => void;
   setDefaultHeaderColor: (color: string) => void;
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
@@ -127,6 +135,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       ttsVoice: "",
       ttsRate: 1.0,
       ttsPitch: 1.0,
+      autoTtsEnabled: false,
+      ttsBackendPreference: "auto",
+      kokoroVoice: "af_heart",
+      kokoroSpeed: 1.0,
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
@@ -221,6 +233,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setTtsVoice: (voice) => set({ ttsVoice: voice }),
       setTtsRate: (rate) => set({ ttsRate: rate }),
       setTtsPitch: (pitch) => set({ ttsPitch: pitch }),
+      setAutoTtsEnabled: (enabled) => set({ autoTtsEnabled: enabled }),
+      setTtsBackendPreference: (pref) => set({ ttsBackendPreference: pref }),
+      setKokoroVoice: (voice) => set({ kokoroVoice: voice }),
+      setKokoroSpeed: (speed) => set({ kokoroSpeed: speed }),
       setDefaultHeaderColor: (color) => set({ defaultHeaderColor: color }),
       setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
       setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
@@ -252,7 +268,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 6,
+      version: 8,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -281,6 +297,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           delete state.panes;
           delete state.activePane;
         }
+        if (version < 7) {
+          state.autoTtsEnabled ??= false;
+        }
+        if (version < 8) {
+          state.ttsBackendPreference ??= "auto";
+          state.kokoroVoice ??= "af_heart";
+          state.kokoroSpeed ??= 1.0;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -297,6 +321,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         ttsVoice: state.ttsVoice,
         ttsRate: state.ttsRate,
         ttsPitch: state.ttsPitch,
+        autoTtsEnabled: state.autoTtsEnabled,
+        ttsBackendPreference: state.ttsBackendPreference,
+        kokoroVoice: state.kokoroVoice,
+        kokoroSpeed: state.kokoroSpeed,
         defaultHeaderColor: state.defaultHeaderColor,
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,

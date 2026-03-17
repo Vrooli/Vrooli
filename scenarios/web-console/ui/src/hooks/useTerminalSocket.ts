@@ -18,7 +18,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "tts";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -93,6 +93,8 @@ interface UseTerminalSocketOptions {
   historyOffset?: number;
   /** Whether the terminal was restored from a serialized cache entry. */
   hasCachedState?: boolean;
+  /** Called when a TTS message arrives from the server. */
+  onTTS?: (text: string) => void;
 }
 
 /**
@@ -110,6 +112,7 @@ export function useTerminalSocket({
   createSocket = defaultSocketFactory,
   historyOffset,
   hasCachedState,
+  onTTS,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,8 +125,10 @@ export function useTerminalSocket({
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
   const hasCachedStateRef = useRef(hasCachedState ?? false);
+  const onTTSRef = useRef(onTTS);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
+  onTTSRef.current = onTTS;
   hasCachedStateRef.current = hasCachedState ?? false;
 
   const enqueueInput = useCallback((data: string) => {
@@ -323,6 +328,11 @@ export function useTerminalSocket({
             );
             break;
           }
+          case "tts":
+            if (msg.data) {
+              onTTSRef.current?.(msg.data);
+            }
+            break;
           case "resize_info":
             // Informational: the server reports the effective PTY size.
             // xterm.js handles reflow for smaller viewports automatically.

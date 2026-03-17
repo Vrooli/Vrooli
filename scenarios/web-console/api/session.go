@@ -109,6 +109,11 @@ type Session struct {
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
+
+	// TTS side-channel: fan-out of text-to-speech messages to WebSocket clients.
+	ttsMu         sync.Mutex
+	ttsClients    map[chan string]struct{}
+	ttsDropLogged bool // log once per session when a TTS message is dropped
 }
 
 // Write sends data to the PTY stdin.
@@ -701,6 +706,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+		ttsClients:              make(map[chan string]struct{}),
 	}
 
 	sm.mu.Lock()
@@ -774,6 +780,63 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Cols, s.Rows
+}
+
+// SubscribeTTS returns a buffered channel that receives TTS text messages.
+// Caller must call UnsubscribeTTS when done.
+func (s *Session) SubscribeTTS() chan string {
+	ch := make(chan string, 8)
+	s.ttsMu.Lock()
+	s.ttsClients[ch] = struct{}{}
+	s.ttsMu.Unlock()
+	return ch
+}
+
+// UnsubscribeTTS removes and closes a TTS channel.
+// close(ch) must happen inside the lock so that SendTTS (which iterates
+// ttsClients under the same lock) can never write to a closed channel.
+func (s *Session) UnsubscribeTTS(ch chan string) {
+	s.ttsMu.Lock()
+	delete(s.ttsClients, ch)
+	close(ch)
+	s.ttsMu.Unlock()
+}
+
+// SendTTS fans out a TTS text message to all subscribed clients.
+// Non-blocking: if a client's channel is full, the message is skipped.
+func (s *Session) SendTTS(text string) {
+	s.ttsMu.Lock()
+	defer s.ttsMu.Unlock()
+	for ch := range s.ttsClients {
+		select {
+		case ch <- text:
+		default:
+			if !s.ttsDropLogged {
+				log.Printf("session %s: TTS message dropped (client channel full)", s.ID)
+				s.ttsDropLogged = true
+			}
+		}
+	}
+}
+
+// ContainsRecentText checks whether the session's recent terminal output
+// (with ANSI sequences stripped) contains the beginning of the given text.
+// minMatchLen controls how many characters of text are used as the search
+// needle; if text is shorter than minMatchLen, the full text is used.
+func (s *Session) ContainsRecentText(text string, minMatchLen int) bool {
+	s.mu.Lock()
+	history := make([]byte, len(s.outputHistory))
+	copy(history, s.outputHistory)
+	s.mu.Unlock()
+
+	stripped := stripANSI(history)
+
+	needle := text
+	if len(needle) > minMatchLen && minMatchLen > 0 {
+		needle = needle[:minMatchLen]
+	}
+
+	return bytes.Contains(stripped, []byte(needle))
 }
 
 // HasChildProcess reports whether the shell has any running child processes.

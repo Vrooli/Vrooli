@@ -146,6 +146,11 @@
           }
         },
         {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook' 2>/dev/null || true",
+          "description": "Register Claude Code Stop hook for auto-TTS"
+        },
+        {
           "name": "show-urls",
           "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
           "description": "Display access URLs"
@@ -191,12 +196,22 @@
           "run": "cd ui && node server.js",
           "background": true,
           "description": "Serve production UI bundle"
+        },
+        {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook' 2>/dev/null || true",
+          "description": "Register Claude Code Stop hook for auto-TTS"
         }
       ]
     },
     "stop": {
       "description": "Stop background processes",
       "steps": [
+        {
+          "name": "deregister-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook' 2>/dev/null || true",
+          "description": "Deregister Claude Code Stop hook before shutdown"
+        },
         {
           "name": "stop-api",
           "run": "pkill -f 'web-console-api' || true",
@@ -217,6 +232,12 @@
         "enabled": true,
         "required": true,
         "description": "Portable storage for workspace layout, shortcuts, and AI provider config"
+      },
+      "kokoro": {
+        "type": "kokoro",
+        "enabled": false,
+        "required": false,
+        "description": "Text-to-speech synthesis for voice output"
       },
       "whisper": {
         "type": "whisper",

@@ -31,6 +31,8 @@ const (
 	// uses this to batch-render history in a single write, avoiding the
 	// visible "fast-forward replay" effect on page load/refresh.
 	MsgTypeHistoryEnd = "history_end"
+	// MsgTypeTTS carries text-to-speech content to the client.
+	MsgTypeTTS = "tts"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -103,6 +105,10 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// Subscribe to PTY output (the client's first resize message sets dimensions)
 	sub := sess.Subscribe(resumeOffset)
 	defer sess.Unsubscribe(sub.OutputCh)
+
+	// Subscribe to TTS side-channel for text-to-speech delivery.
+	ttsCh := sess.SubscribeTTS()
+	defer sess.UnsubscribeTTS(ttsCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
@@ -182,6 +188,13 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
+			case text, ok := <-ttsCh:
+				if !ok {
+					continue
+				}
+				writeMu.Lock()
+				_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeTTS, Data: text})
+				writeMu.Unlock()
 			case <-ctx.Done():
 				// Input loop exited (WS disconnect) — stop forwarding.
 				return

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   X,
   GripHorizontal,
@@ -20,7 +20,7 @@ import {
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { Button } from "./ui/button";
-import ProviderHealthPanel from "./ProviderHealthPanel";
+import IntegrationsPanel from "./IntegrationsPanel";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
 import ThemePicker from "./appearance/ThemePicker";
 import FontSizeStepper from "./appearance/FontSizeStepper";
@@ -36,8 +36,11 @@ import {
   type VoiceStreamConfig,
   getVoiceStreamConfig,
   updateVoiceStreamConfig,
+  updateTTSConfig,
+  getTTSStatus,
 } from "../lib/api";
 import { formatShortcutFromEvent } from "../lib/shortcutParser";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 
 function ShortcutEditor({
   profile,
@@ -165,22 +168,131 @@ function TtsSettingsSection() {
   const setTtsRate = useWorkspaceStore((s) => s.setTtsRate);
   const ttsPitch = useWorkspaceStore((s) => s.ttsPitch);
   const setTtsPitch = useWorkspaceStore((s) => s.setTtsPitch);
+  const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
+  const setAutoTtsEnabled = useWorkspaceStore((s) => s.setAutoTtsEnabled);
+  const ttsBackendPreference = useWorkspaceStore((s) => s.ttsBackendPreference);
+  const setTtsBackendPreference = useWorkspaceStore((s) => s.setTtsBackendPreference);
+  const kokoroVoice = useWorkspaceStore((s) => s.kokoroVoice);
+  const setKokoroVoice = useWorkspaceStore((s) => s.setKokoroVoice);
+  const kokoroSpeed = useWorkspaceStore((s) => s.kokoroSpeed);
+  const setKokoroSpeed = useWorkspaceStore((s) => s.setKokoroSpeed);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [hookRegistered, setHookRegistered] = useState(false);
+  const [hookReason, setHookReason] = useState("Checking Claude hook status…");
+  const [hookSettingsPath, setHookSettingsPath] = useState<string | null>(null);
+  const [lastDeliverySummary, setLastDeliverySummary] = useState<string | null>(null);
+  const [kokoroCapabilityLabel, setKokoroCapabilityLabel] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
+  const [testMessage, setTestMessage] = useState<string | null>(null);
 
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const ttsSettings = useMemo(
+    () => ({
+      voice: ttsVoice,
+      rate: ttsRate,
+      pitch: ttsPitch,
+      kokoroVoice,
+      kokoroSpeed,
+      backendPreference: ttsBackendPreference,
+    }),
+    [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
+  );
+  const {
+    backend,
+    voices: ttsVoices,
+    backendReason,
+    browserAudioReady,
+    refresh,
+    testSpeak,
+    isSpeaking,
+    error,
+    lastSuccessfulAt,
+    lastSuccessfulBackend,
+  } = useTextToSpeech(ttsSettings);
+
+  const backendLabel = backend === "kokoro" ? "Kokoro" : backend === "browser" ? "Browser" : "Unavailable";
+  const backendColor = backend === "kokoro" ? "text-green-400" : backend === "browser" ? "text-yellow-400" : "text-wc-text-faint";
+  const preferenceLabel = ttsBackendPreference === "auto"
+    ? "Auto"
+    : ttsBackendPreference === "kokoro"
+      ? "Kokoro only"
+      : "Browser only";
+
+  const loadTtsStatus = useCallback(async () => {
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      const status = await getTTSStatus();
+      setAutoTtsEnabled(status.config.autoEnabled);
+      setTtsBackendPreference(status.config.backend);
+      setKokoroVoice(status.config.kokoroVoice);
+      setKokoroSpeed(status.config.kokoroSpeed);
+      setHookRegistered(status.hookRegistered);
+      setHookReason(status.hookReason);
+      setHookSettingsPath(status.hookSettingsPath ?? null);
+      setKokoroCapabilityLabel(status.kokoroCapabilityLabel ?? null);
+      if (status.lastDelivery) {
+        const sourceLabel = status.lastDelivery.source.split("_").join(" ");
+        const summary = `${status.lastDelivery.delivered ? "Delivered" : "Skipped"} via ${sourceLabel}: ${status.lastDelivery.reason}`;
+        setLastDeliverySummary(summary);
+      } else {
+        setLastDeliverySummary(null);
+      }
+    } catch (err) {
+      setStatusError(toErrorInfo(err).message);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [
+    setAutoTtsEnabled,
+    setKokoroSpeed,
+    setKokoroVoice,
+    setTtsBackendPreference,
+  ]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const synth = window.speechSynthesis;
-    const loadVoices = () => {
-      const v = synth.getVoices();
-      if (v.length > 0) setVoices(v);
-    };
-    loadVoices();
-    synth.onvoiceschanged = loadVoices;
-    return () => { synth.onvoiceschanged = null; };
-  }, []);
+    loadTtsStatus();
+  }, [loadTtsStatus]);
 
-  const hasTts = typeof window !== "undefined" && !!window.speechSynthesis;
+  const persistTtsConfig = useCallback(async (patch: Parameters<typeof updateTTSConfig>[0]) => {
+    setSaveError(null);
+    try {
+      const updated = await updateTTSConfig(patch);
+      setAutoTtsEnabled(updated.autoEnabled);
+      setTtsBackendPreference(updated.backend);
+      setKokoroVoice(updated.kokoroVoice);
+      setKokoroSpeed(updated.kokoroSpeed);
+      await refresh();
+      await loadTtsStatus();
+    } catch (err) {
+      setSaveError(toErrorInfo(err).message);
+    }
+  }, [
+    loadTtsStatus,
+    refresh,
+    setAutoTtsEnabled,
+    setKokoroSpeed,
+    setKokoroVoice,
+    setTtsBackendPreference,
+  ]);
+
+  const runTtsTest = useCallback(async () => {
+    setTestState("running");
+    setTestMessage(null);
+    try {
+      await refresh();
+      await loadTtsStatus();
+      await testSpeak();
+      setTestState("success");
+      setTestMessage("Test playback succeeded.");
+    } catch (err) {
+      setTestState("error");
+      setTestMessage(toErrorInfo(err).message);
+    } finally {
+      await loadTtsStatus();
+    }
+  }, [loadTtsStatus, refresh, testSpeak]);
 
   return (
     <section>
@@ -188,11 +300,200 @@ function TtsSettingsSection() {
         Voice Output (TTS)
       </h3>
       <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3 space-y-3">
-        {!hasTts ? (
-          <p className="text-[11px] text-wc-text-faint">
-            Speech synthesis is not supported in this browser.
-          </p>
-        ) : (
+        {statusError && (
+          <div className="text-[11px] text-wc-error-detail">
+            Failed to load TTS status: {statusError}
+          </div>
+        )}
+
+        {/* Backend indicator */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-wc-text-secondary">Active backend</span>
+          <span data-testid="tts-backend-indicator" className={`text-xs font-medium ${backendColor}`}>{backendLabel}</span>
+        </div>
+        <p className="text-[11px] text-wc-text-faint">
+          Preference: {preferenceLabel}. {backendReason}
+        </p>
+
+        {/* Backend preference */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-wc-text-secondary">Backend preference</span>
+          <select
+            data-testid="tts-backend-select"
+            className="text-xs bg-wc-surface-base border border-wc-default rounded px-1.5 py-0.5 text-wc-text-primary"
+            value={ttsBackendPreference}
+            onChange={(e) => {
+              const next = e.target.value as "auto" | "kokoro" | "browser";
+              setTtsBackendPreference(next);
+              persistTtsConfig({ backend: next });
+            }}
+          >
+            <option value="auto">Auto (best available)</option>
+            <option value="kokoro">Kokoro only</option>
+            <option value="browser">Browser only</option>
+          </select>
+        </div>
+
+        {/* Auto-speak toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm text-wc-text-secondary">Auto-speak AI responses</span>
+            <span className="text-[10px] text-wc-text-muted">Automatically speak AI assistant responses</span>
+          </div>
+          <button
+            data-testid="auto-tts-toggle"
+            role="switch"
+            aria-checked={autoTtsEnabled}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              autoTtsEnabled ? "bg-wc-accent" : "bg-wc-surface-base"
+            }`}
+            onClick={() => {
+              const next = !autoTtsEnabled;
+              setAutoTtsEnabled(next);
+              persistTtsConfig({ autoEnabled: next });
+            }}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                autoTtsEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+          <div>
+            <div className="text-sm text-wc-text-secondary">Runtime checks</div>
+            <div className="text-[11px] text-wc-text-faint">
+              {statusLoading ? "Refreshing TTS diagnostics…" : "Refresh backend and hook status."}
+            </div>
+          </div>
+          <Button
+            data-testid="tts-refresh"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2"
+            onClick={async () => {
+              await refresh();
+              await loadTtsStatus();
+            }}
+          >
+            <RefreshCw className="mr-1 h-3 w-3" />
+            Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+          <div>
+            <div className="text-sm text-wc-text-secondary">Test TTS</div>
+            <div className="text-[11px] text-wc-text-faint">
+              Play a short sample using the current backend decision.
+            </div>
+          </div>
+          <Button
+            data-testid="tts-test-button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2"
+            disabled={testState === "running" || isSpeaking}
+            onClick={runTtsTest}
+          >
+            {testState === "running" || isSpeaking ? "Testing…" : "Test"}
+          </Button>
+        </div>
+
+        {testMessage && (
+          <div className={`text-[11px] ${testState === "error" ? "text-wc-error-detail" : "text-green-400"}`}>
+            {testMessage}
+          </div>
+        )}
+
+        {saveError && (
+          <div className="text-[11px] text-wc-error-detail">
+            Failed to save TTS settings: {saveError}
+          </div>
+        )}
+
+        {error && (
+          <div className="text-[11px] text-wc-error-detail">
+            Playback error: {error}
+          </div>
+        )}
+
+        <div className="rounded border border-wc-default bg-wc-surface-base px-2 py-2 text-[11px] text-wc-text-faint space-y-1">
+          <div>
+            Claude hook:{" "}
+            <span className={hookRegistered ? "text-green-400" : "text-wc-error-detail"}>
+              {hookRegistered ? "Registered" : "Not registered"}
+            </span>
+            {" "}· {hookReason}
+          </div>
+          <div>
+            Kokoro: {kokoroCapabilityLabel ?? "Status unavailable"}
+          </div>
+          <div>
+            Browser audio: {browserAudioReady ? "Ready" : "Blocked until you interact with the page"}
+          </div>
+          <div>
+            Last delivery: {lastDeliverySummary ?? "No auto-TTS delivery has been recorded yet"}
+          </div>
+          <div>
+            Last successful playback: {lastSuccessfulAt ? `${new Date(lastSuccessfulAt).toLocaleString()} via ${lastSuccessfulBackend === "kokoro" ? "Kokoro" : lastSuccessfulBackend === "browser" ? "Browser" : "Unknown"}` : "None in this tab yet"}
+          </div>
+          {hookSettingsPath && (
+            <div className="break-all">
+              Hook settings file: {hookSettingsPath}
+            </div>
+          )}
+        </div>
+
+        {/* Kokoro-specific settings */}
+        {(backend === "kokoro" || ttsBackendPreference === "kokoro") && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-wc-text-secondary">Kokoro voice</span>
+              <select
+                data-testid="kokoro-voice-select"
+                className="text-xs bg-wc-surface-base border border-wc-default rounded px-1.5 py-0.5 text-wc-text-primary max-w-[180px]"
+                value={kokoroVoice}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setKokoroVoice(next);
+                  persistTtsConfig({ kokoroVoice: next });
+                }}
+              >
+                {ttsVoices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-wc-text-secondary">Speed</span>
+              <div className="flex items-center gap-2">
+                <input
+                  data-testid="kokoro-speed-slider"
+                  type="range"
+                  min="0.5"
+                  max="4"
+                  step="0.1"
+                  value={kokoroSpeed}
+                  onChange={(e) => {
+                    const next = parseFloat(e.target.value);
+                    setKokoroSpeed(next);
+                    persistTtsConfig({ kokoroSpeed: next });
+                  }}
+                  className="w-24 accent-[rgb(var(--wc-accent))]"
+                />
+                <span className="text-xs text-wc-text-muted w-7 text-right">{kokoroSpeed.toFixed(1)}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Browser-specific settings */}
+        {backend === "browser" && (
           <>
             <div className="flex items-center justify-between">
               <span className="text-sm text-wc-text-secondary">Voice</span>
@@ -203,9 +504,9 @@ function TtsSettingsSection() {
                 onChange={(e) => setTtsVoice(e.target.value)}
               >
                 <option value="">System default</option>
-                {voices.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.lang})
+                {ttsVoices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
                   </option>
                 ))}
               </select>
@@ -243,6 +544,12 @@ function TtsSettingsSection() {
               </div>
             </div>
           </>
+        )}
+
+        {backend === "none" && (
+          <p className="text-[11px] text-wc-text-faint">
+            No TTS backend is currently usable. {backendReason}
+          </p>
         )}
       </div>
     </section>
@@ -1052,13 +1359,13 @@ export default function SettingsModal() {
             </div>
           </section>
 
-          {/* Section 4: AI Providers */}
+          {/* Section 4: Integrations */}
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-              AI Providers
+              Integrations
             </h3>
             <div className="rounded-lg border border-wc-default bg-wc-surface-input p-3">
-              <ProviderHealthPanel open={settingsModalOpen} />
+              <IntegrationsPanel open={settingsModalOpen} />
             </div>
           </section>
         </div>
