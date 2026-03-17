@@ -92,26 +92,31 @@ func (s *Session) Write(data []byte) (int, error) {
 	return s.pty.Write(data)
 }
 
-// Subscribe returns a channel that receives PTY output and a notification
-// channel that fires when coalesced frames exceed the configured threshold.
+// Subscribe returns a channel that receives PTY output, a notification
+// channel that fires when coalesced frames exceed the configured threshold,
+// and a bool indicating whether buffered history was replayed.
+//
+// When hadHistory is true, the caller should expect a nil sentinel value
+// on the output channel after all history chunks have been delivered. This
+// sentinel tells the WebSocket forwarder to send a "history_end" message
+// so the client can batch-render history in one pass.
+//
 // Caller must call Unsubscribe when done. Recent output history is replayed
 // immediately, prefixed with an SGR reset to clear any dangling
 // color/attribute state that may have been lost when the history buffer
 // was trimmed.
 // [REQ:P0-003b] Reconnect State Restoration
-func (s *Session) Subscribe() (chan []byte, chan int) {
-	ch := make(chan []byte, s.clientChannelBuffer)
+func (s *Session) Subscribe() (chan []byte, chan int, bool) {
 	notifyCh := make(chan int, 1)
 	s.mu.Lock()
-	// Replay recent output history to reconnected clients.
-	// Prepend SGR reset so trimmed color-setting sequences don't
-	// bleed stale attributes into the reconnecting terminal.
+
+	// Build history chunks (if any) before allocating the channel so we
+	// can size it to hold all chunks plus the nil sentinel without blocking.
+	var chunks [][]byte
 	if len(s.outputHistory) > 0 {
 		snapshot := make([]byte, 0, len(sgrReset)+len(s.outputHistory))
 		snapshot = append(snapshot, sgrReset...)
 		snapshot = append(snapshot, s.outputHistory...)
-		// Chunk into historyChunkSize pieces so the WS forwarder sends
-		// them as separate messages and the browser can render incrementally.
 		for off := 0; off < len(snapshot); off += historyChunkSize {
 			end := off + historyChunkSize
 			if end > len(snapshot) {
@@ -119,12 +124,31 @@ func (s *Session) Subscribe() (chan []byte, chan int) {
 			}
 			chunk := make([]byte, end-off)
 			copy(chunk, snapshot[off:end])
-			ch <- chunk
+			chunks = append(chunks, chunk)
 		}
 	}
+
+	hadHistory := len(chunks) > 0
+
+	// Ensure the channel can hold all history chunks + the nil sentinel
+	// without blocking, while still respecting the configured buffer size
+	// for live output delivery.
+	bufSize := s.clientChannelBuffer
+	if needed := len(chunks) + 1; needed > bufSize {
+		bufSize = needed
+	}
+	ch := make(chan []byte, bufSize)
+
+	for _, chunk := range chunks {
+		ch <- chunk
+	}
+	if hadHistory {
+		ch <- nil // sentinel: history replay complete
+	}
+
 	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
 	s.mu.Unlock()
-	return ch, notifyCh
+	return ch, notifyCh, hadHistory
 }
 
 // Unsubscribe removes a client channel. The PTY size is unchanged.

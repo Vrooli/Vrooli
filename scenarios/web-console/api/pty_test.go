@@ -306,7 +306,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _ := sess.Subscribe()
+	ch, _, _ := sess.Subscribe()
 	defer sess.Unsubscribe(ch)
 
 	// Write output from fake PTY
@@ -344,7 +344,7 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Subscribe and expect buffered data (prefixed with SGR reset)
-	ch, _ := sess.Subscribe()
+	ch, _, _ := sess.Subscribe()
 	defer sess.Unsubscribe(ch)
 
 	select {
@@ -373,7 +373,7 @@ func TestFakePTY_Resize(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	ch, _ := sess.Subscribe()
+	ch, _, _ := sess.Subscribe()
 	defer sess.Unsubscribe(ch)
 
 	sess.Resize(200, 60)

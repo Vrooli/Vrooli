@@ -389,6 +389,19 @@ export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
   return (await res.json()) as CapabilitiesResponse;
 }
 
+/** Fast liveness-only capability check (GET health only, no test transcription). */
+export async function fetchCapabilitiesLiveness(): Promise<CapabilitiesResponse> {
+  const url = buildApiUrl("/capabilities/liveness", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to fetch capabilities liveness");
+  }
+  return (await res.json()) as CapabilitiesResponse;
+}
+
 export async function uploadFile(sessionId: string, file: File | Blob, filename?: string): Promise<string> {
   const url = buildApiUrl(`/sessions/${sessionId}/upload`, { baseUrl: API_BASE });
   const formData = new FormData();

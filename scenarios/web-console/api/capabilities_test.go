@@ -89,6 +89,62 @@ func TestCapabilityRegistry_Caching(t *testing.T) {
 	}
 }
 
+func TestCapabilityRegistry_ResolveLiveness(t *testing.T) {
+	fullChecker := &fakeChecker{status: StatusAvailable, message: "full check ok"}
+	livenessChecker := &fakeChecker{status: StatusAvailable, message: "liveness ok"}
+	defs := []CapabilityDef{{ID: "cap-x", Name: "Cap X"}}
+
+	t.Run("returns cached full-check results when fresh", func(t *testing.T) {
+		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, time.Minute)
+		reg.SetLivenessCheckers(map[string]StatusChecker{"cap-x": livenessChecker})
+
+		fullChecker.calls = 0
+		livenessChecker.calls = 0
+
+		// Populate the cache with a full check
+		reg.Resolve(context.Background())
+		if fullChecker.calls != 1 {
+			t.Fatalf("full checker should be called once, got %d", fullChecker.calls)
+		}
+
+		// Liveness should return cached results without calling liveness checker
+		states := reg.ResolveLiveness(context.Background())
+		if livenessChecker.calls != 0 {
+			t.Errorf("liveness checker should not be called when cache is fresh, got %d calls", livenessChecker.calls)
+		}
+		if len(states) != 1 || states[0].Message != "full check ok" {
+			t.Errorf("expected cached full check result, got %+v", states)
+		}
+	})
+
+	t.Run("uses liveness checker when cache is stale", func(t *testing.T) {
+		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, 0) // 0 TTL = always stale
+		reg.SetLivenessCheckers(map[string]StatusChecker{"cap-x": livenessChecker})
+
+		livenessChecker.calls = 0
+
+		states := reg.ResolveLiveness(context.Background())
+		if livenessChecker.calls != 1 {
+			t.Errorf("liveness checker should be called once, got %d", livenessChecker.calls)
+		}
+		if len(states) != 1 || states[0].Message != "liveness ok" {
+			t.Errorf("expected liveness result, got %+v", states)
+		}
+	})
+
+	t.Run("falls back to full resolve when no liveness checkers configured", func(t *testing.T) {
+		reg := NewCapabilityRegistry(defs, map[string]StatusChecker{"cap-x": fullChecker}, 0)
+		// Don't set liveness checkers
+
+		fullChecker.calls = 0
+
+		reg.ResolveLiveness(context.Background())
+		if fullChecker.calls != 1 {
+			t.Errorf("should fall back to full checker, got %d calls", fullChecker.calls)
+		}
+	})
+}
+
 func TestCapabilityRegistry_IsAvailable(t *testing.T) {
 	defs := []CapabilityDef{
 		{ID: "avail", Name: "Available"},

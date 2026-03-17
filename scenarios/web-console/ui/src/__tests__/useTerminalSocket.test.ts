@@ -204,6 +204,7 @@ describe("useTerminalSocket — callback stability", () => {
     const socket = sockets[0];
     expect(socket).toBeDefined();
     socket?.simulateOpen();
+    socket?.simulateMessage({ type: "history_end" });
     socket?.simulateMessage({ type: "stdout", data: "hello world" });
     expect(terminal.write).toHaveBeenCalledWith("hello world");
   });

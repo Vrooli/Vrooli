@@ -18,7 +18,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -47,6 +47,14 @@ const RECONNECT_BASE_DELAY_MS = 400;
 const RECONNECT_MAX_DELAY_MS = 5000;
 const MAX_OUTPUT_PROBE_CHARS = 12000;
 const MAX_PENDING_INPUT_MESSAGES = 64;
+
+/**
+ * Safety timeout for history replay. If the server never sends a
+ * "history_end" message (e.g. protocol mismatch with an older server),
+ * the client flushes whatever it has buffered and switches to live
+ * pass-through mode after this delay.
+ */
+const HISTORY_FLUSH_TIMEOUT_MS = 5000;
 
 function appendOutputProbe(sessionId: string, data: string): void {
   if (typeof window === "undefined" || !data) return;
@@ -164,6 +172,30 @@ export function useTerminalSocket({
       }
     };
 
+    // --- History replay buffering ---
+    // On each (re)connect the client buffers stdout messages until the
+    // server sends "history_end", then writes everything in one batch.
+    // This eliminates the visible fast-forward replay on page load/refresh.
+    let replayingHistory = false;
+    let historyBuffer: string[] = [];
+    let historyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const flushHistoryBuffer = () => {
+      if (!replayingHistory) return;
+      replayingHistory = false;
+      if (historyTimeoutId !== null) {
+        clearTimeout(historyTimeoutId);
+        historyTimeoutId = null;
+      }
+      if (historyBuffer.length > 0) {
+        terminal.write(historyBuffer.join(""));
+        for (const chunk of historyBuffer) {
+          appendOutputProbe(sessionId, chunk);
+        }
+      }
+      historyBuffer = [];
+    };
+
     const connect = () => {
       if (disposed) return;
 
@@ -176,6 +208,15 @@ export function useTerminalSocket({
         reconnectAttempts = 0;
         localEcho.reset();
         flushPendingInput();
+
+        // Reset history replay state for this connection.
+        replayingHistory = true;
+        historyBuffer = [];
+        if (historyTimeoutId !== null) {
+          clearTimeout(historyTimeoutId);
+        }
+        historyTimeoutId = setTimeout(flushHistoryBuffer, HISTORY_FLUSH_TIMEOUT_MS);
+
         // Ensure PTY has client dimensions before history replay arrives.
         // onReady may send a refined resize after fit(), but this provides
         // an immediate baseline.
@@ -199,12 +240,24 @@ export function useTerminalSocket({
         switch (msg.type) {
           case "stdout":
             if (msg.data) {
-              const processed = localEcho.processOutput(msg.data);
-              if (processed) terminal.write(processed);
-              appendOutputProbe(sessionId, msg.data);
+              if (replayingHistory) {
+                // Buffer history chunks until "history_end" arrives, then
+                // write everything in a single terminal.write() call.
+                historyBuffer.push(msg.data);
+              } else {
+                const processed = localEcho.processOutput(msg.data);
+                if (processed) terminal.write(processed);
+                appendOutputProbe(sessionId, msg.data);
+              }
             }
             break;
+          case "history_end":
+            flushHistoryBuffer();
+            break;
           case "exit": {
+            // Flush any pending history so the user sees terminal state
+            // before the exit label.
+            flushHistoryBuffer();
             const code = msg.code ?? 0;
             const exitLabel = code === 0
               ? `${ANSI.gray}[Session ended]`
@@ -330,6 +383,10 @@ export function useTerminalSocket({
 
     return () => {
       disposed = true;
+      if (historyTimeoutId !== null) {
+        clearTimeout(historyTimeoutId);
+        historyTimeoutId = null;
+      }
       if (reconnectTimerRef.current !== null) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;

@@ -12,6 +12,7 @@ describe("VoiceMicButton", () => {
 
   const defaults = {
     supported: true,
+    isPreparing: false,
     isRecording: false,
     isTranscribing: false,
     error: null,
@@ -181,6 +182,38 @@ describe("VoiceMicButton", () => {
     fireEvent.pointerUp(btn);
     // onStop called once from pointerCancel (which calls handlePointerUp)
     expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Preparing state ---
+
+  it("shows yellow styling and pulsing icon when preparing", () => {
+    render(<VoiceMicButton {...defaults} isPreparing />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.className).toContain("border-yellow-500");
+    expect(btn.className).toContain("text-yellow-400");
+    const pulse = btn.querySelector(".animate-pulse");
+    expect(pulse).toBeTruthy();
+  });
+
+  it("shows preparing title when preparing", () => {
+    render(<VoiceMicButton {...defaults} isPreparing />);
+    expect(screen.getByTestId("voice-mic-btn").title).toBe("Preparing...");
+  });
+
+  it("blocks pointer events during preparing", () => {
+    render(<VoiceMicButton {...defaults} isPreparing />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    expect(onStart).not.toHaveBeenCalled();
+    fireEvent.pointerUp(btn);
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("does not show error styling when preparing with error", () => {
+    render(<VoiceMicButton {...defaults} isPreparing error="Test error" />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.className).toContain("border-yellow-500");
+    expect(btn.className).not.toContain("border-amber");
   });
 
   // --- Cancel transcription ---

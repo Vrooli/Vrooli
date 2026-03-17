@@ -569,6 +569,7 @@ export default function Workspace() {
         onOpenLauncher={openLauncher}
         isCreating={isCreating}
         voiceSupported={voiceInput.supported}
+        voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
@@ -681,6 +682,7 @@ export default function Workspace() {
           onFocusTerminal={handleFocusTerminal}
           activeSessionId={store.activePane}
           voiceSupported={voiceInput.supported}
+          voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}

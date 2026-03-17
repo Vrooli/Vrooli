@@ -95,6 +95,21 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 	}
 }
 
+// skipHistoryEnd reads and discards the initial history_end message that
+// the server sends on every fresh connection. Tests that care about
+// subsequent messages should call this first.
+func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg TerminalMessage
+	if err := conn.ReadJSON(&msg); err != nil {
+		t.Fatalf("skipHistoryEnd: read failed: %v", err)
+	}
+	if msg.Type != MsgTypeHistoryEnd {
+		t.Fatalf("skipHistoryEnd: expected history_end, got %s", msg.Type)
+	}
+}
+
 // [REQ:P0-002b] WebSocket I/O Streaming - successful WS upgrade and ping/pong
 func TestHandleTerminalWS_PingPong(t *testing.T) {
 	ts, _ := setupWSServer(t)
@@ -106,6 +121,7 @@ func TestHandleTerminalWS_PingPong(t *testing.T) {
 		t.Fatalf("ws dial: %v", err)
 	}
 	defer conn.Close()
+	skipHistoryEnd(t, conn)
 
 	// Send ping
 	ping := TerminalMessage{Type: MsgTypePing}
@@ -195,6 +211,7 @@ func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
 		t.Fatalf("ws dial: %v", err)
 	}
 	defer conn.Close()
+	skipHistoryEnd(t, conn)
 
 	// Send invalid JSON
 	if err := conn.WriteMessage(websocket.TextMessage, []byte("not json")); err != nil {
@@ -353,4 +370,101 @@ func TestHandleTerminalWS_RepeatedConnectDisconnect(t *testing.T) {
 	if delta > 3 {
 		t.Errorf("goroutine leak: baseline=%d, after=%d, delta=%d (expected ≤3)", baseline, after, delta)
 	}
+}
+
+// --- history_end message tests ---
+
+// setupWSServerWithPTY creates a test server whose single session uses a
+// controllable fake PTY. Returns the server, session ID, and the fake PTY
+// (so the test can inject output to build history).
+func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *fakePTYWithOutput) {
+	t.Helper()
+	fake := newFakePTYWithOutput()
+	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	srv := &Server{
+		router:      mux.NewRouter(),
+		sessions:    sm,
+		events:      NewEventLogger(100),
+		metrics:     NewMetrics(),
+		aiChain:     NewAIProviderChain(),
+		shortcuts:   NewShortcutProfileStore(),
+		aiConfig:    NewAIProviderConfigStore(),
+		idempotency: newIdempotencyCache(),
+	}
+	srv.setupRoutes()
+	ts := httptest.NewServer(srv.router)
+	t.Cleanup(ts.Close)
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	return ts, sess.ID, fake
+}
+
+// readTerminalMessage reads a single JSON message with a deadline.
+func readTerminalMessage(t *testing.T, conn *websocket.Conn) TerminalMessage {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	var msg TerminalMessage
+	if err := conn.ReadJSON(&msg); err != nil {
+		t.Fatalf("readTerminalMessage: %v", err)
+	}
+	return msg
+}
+
+func TestHandleTerminalWS_HistoryEnd_NoHistory(t *testing.T) {
+	ts, sessID, fake := setupWSServerWithPTY(t)
+	defer func() {
+		fake.Close()
+	}()
+
+	// No output written — connect immediately.
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// The very first server message should be history_end (no history to send).
+	msg := readTerminalMessage(t, conn)
+	if msg.Type != MsgTypeHistoryEnd {
+		t.Errorf("expected first message type=%q, got %q (data=%q)", MsgTypeHistoryEnd, msg.Type, msg.Data)
+	}
+}
+
+func TestHandleTerminalWS_HistoryEnd_AfterHistory(t *testing.T) {
+	ts, sessID, fake := setupWSServerWithPTY(t)
+
+	// Write output so history is built up.
+	_, _ = fake.outW.Write([]byte("line 1\r\nline 2\r\n"))
+	time.Sleep(100 * time.Millisecond)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read messages until we see history_end.
+	var stdoutCount int
+	for i := 0; i < 20; i++ {
+		msg := readTerminalMessage(t, conn)
+		switch msg.Type {
+		case MsgTypeStdout:
+			stdoutCount++
+		case MsgTypeHistoryEnd:
+			if stdoutCount == 0 {
+				t.Error("expected at least one stdout chunk before history_end")
+			}
+			// Success — history_end arrived after stdout chunks.
+			fake.Close()
+			return
+		default:
+			// Ignore other message types (e.g., resize_info).
+		}
+	}
+	t.Fatal("never received history_end message")
 }

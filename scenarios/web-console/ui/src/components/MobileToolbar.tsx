@@ -39,6 +39,7 @@ interface MobileToolbarProps {
   visible?: boolean;
   // Voice input props (optional - hidden when undefined)
   voiceSupported?: boolean;
+  voicePreparing?: boolean;
   voiceRecording?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
@@ -58,6 +59,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   activeSessionId,
   visible = true,
   voiceSupported,
+  voicePreparing,
   voiceRecording,
   voiceTranscribing,
   voiceError,
@@ -347,6 +349,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             <div className="flex items-stretch" style={{ gridColumn: 4, gridRow: "1 / -1" }}>
               <VoiceMicButton
                 supported={voiceSupported}
+                isPreparing={voicePreparing ?? false}
                 isRecording={voiceRecording ?? false}
                 isTranscribing={voiceTranscribing ?? false}
                 error={voiceError ?? null}
@@ -421,6 +424,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <VoiceMicButton
               supported={voiceSupported}
+              isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}

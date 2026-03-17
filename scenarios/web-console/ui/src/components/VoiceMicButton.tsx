@@ -9,10 +9,11 @@ const LONG_PRESS_MS = 300;
 
 interface VoiceMicButtonProps {
   supported: boolean;
+  isPreparing: boolean;
   isRecording: boolean;
   isTranscribing: boolean;
   error: string | null;
-  /** 0–1 audio level for live mic visualization */
+  /** 0-1 audio level for live mic visualization */
   audioLevel?: number;
   /** Live partial transcript from streaming transcription. */
   partialTranscript?: string;
@@ -69,6 +70,7 @@ function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
 
 export default function VoiceMicButton({
   supported,
+  isPreparing,
   isRecording,
   isTranscribing,
   error,
@@ -88,6 +90,8 @@ export default function VoiceMicButton({
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
+    // Block interaction while preparing to prevent double-tap issues
+    if (isPreparing) return;
     pressStartRef.current = Date.now();
     if (isTranscribing) {
       pressIntentRef.current = onCancel ? "cancel" : "none";
@@ -97,9 +101,10 @@ export default function VoiceMicButton({
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isRecording, isTranscribing, onStart, onCancel]);
+  }, [isPreparing, isRecording, isTranscribing, onStart, onCancel]);
 
   const handlePointerUp = useCallback(() => {
+    if (isPreparing) return;
     const intent = pressIntentRef.current;
     pressIntentRef.current = "none";
     if (intent === "cancel") {
@@ -107,15 +112,15 @@ export default function VoiceMicButton({
     } else if (intent === "stop") {
       onStop();
     } else if (intent === "start" && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
-      // Long press release — push-to-talk: stop recording
+      // Long press release -- push-to-talk: stop recording
       onStop();
     }
-    // Short press on "start" — tap-to-toggle: keep recording
-  }, [onStop, onCancel]);
+    // Short press on "start" -- tap-to-toggle: keep recording
+  }, [isPreparing, onStop, onCancel]);
 
   if (!supported) return null;
 
-  const hasError = error !== null && !isRecording && !isTranscribing;
+  const hasError = error !== null && !isRecording && !isTranscribing && !isPreparing;
 
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>
@@ -128,32 +133,38 @@ export default function VoiceMicButton({
         className={cn(
           "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
           buttonClassName,
-          isRecording
-            ? "border-red-500 bg-red-500/20 text-red-400"
-            : isTranscribing
-              ? "border-blue-500 bg-blue-500/20 text-blue-400"
-              : hasError
-                ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+          isPreparing
+            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+            : isRecording
+              ? "border-red-500 bg-red-500/20 text-red-400"
+              : isTranscribing
+                ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                : hasError
+                  ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
         title={
-          isRecording
-            ? "Recording... tap to stop"
-            : isTranscribing
-              ? "Transcribing... tap to cancel"
-              : hasError
-                ? `Voice error: ${error}`
-                : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
+          isPreparing
+            ? "Preparing..."
+            : isRecording
+              ? "Recording... tap to stop"
+              : isTranscribing
+                ? "Transcribing... tap to cancel"
+                : hasError
+                  ? `Voice error: ${error}`
+                  : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
         }
       >
-        {/* Audio level fill — rises from bottom */}
+        {/* Audio level fill -- rises from bottom */}
         {isRecording && (
           <span
             className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
             style={{ height: `${Math.round(audioLevel * 100)}%` }}
           />
         )}
-        {isTranscribing ? (
+        {isPreparing ? (
+          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : isTranscribing ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
         ) : hasError ? (
           <AlertCircle className="h-3.5 w-3.5 relative" />

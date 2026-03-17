@@ -128,31 +128,45 @@ Last updated: 2026-03-15
 **Benefits**: Reduced global mocking, lower test setup coupling, and easier behavior-focused tests for loading, refresh, toggle, and error states.
 
 ### Voice Input Provider Seam (UI)
-**File**: `ui/src/hooks/useVoiceInput.ts`
+**Files**: `ui/src/hooks/useVoiceInput.ts` (orchestrator), `ui/src/hooks/voice/` (modules)
 **Purpose**: Decouple transcription backend selection from recording lifecycle, enabling testable voice input with swappable providers.
+
+**Module structure** (each file has one responsibility):
+- `voice/types.ts` — shared types, constants, `TranscriptionProvider` interface, `VoiceState` enum
+- `voice/VoiceStreamProvider.ts` — WebSocket streaming provider (preferred)
+- `voice/WhisperProvider.ts` — HTTP batch transcription provider
+- `voice/WebSpeechProvider.ts` — Browser-native fallback + SpeechRecognition types
+- `voice/vad.ts` — Voice Activity Detection pure functions
+- `voice/audioUtils.ts` — `createAudioFilterChain` pure function
+- `voice/index.ts` — barrel re-exports
+
+**State machine**: `idle` -> `preparing` -> `recording` -> `transcribing` -> `idle`
+(Replaces the old `isRecording`/`isTranscribing` boolean combo which allowed impossible states.)
 
 | Component | Production | Test |
 |-----------|-----------|------|
 | `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
-| `VoiceStreamProvider` | Streams audio over WebSocket to `/api/v1/voice/stream`, receives partial/final transcripts | Mock WebSocket + mic |
+| `VoiceStreamProvider` | Starts MediaRecorder immediately on mic acquisition, buffers chunks until WebSocket connects, then streams to `/api/v1/voice/stream` | Mock WebSocket + mic + MediaRecorder |
 | `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
 | `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
 | `MediaDevicesAdapter` | `navigator.mediaDevices.getUserMedia()` | Mock that resolves/rejects for permission tests |
 | AudioContext singleton | Reused across recording sessions; resumed if suspended | Mock constructor, assert single creation |
-| Language parameter | `voiceLanguage` from store → `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
-| Mic release timing | Deferred to `mediaRecorder.onstop` callback | Mock MediaRecorder, assert track stop order |
+| Language parameter | `voiceLanguage` from store -> `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
+| Audio buffering (VoiceStreamProvider) | Chunks buffer in `pendingChunks` before WS connects; flushed on `ws.onopen` | Mock WS in CONNECTING state, verify chunks buffered then flushed |
 | WS reconnection | 2 attempts with exponential backoff (1s, 3s) + chunk buffering during reconnection | FakeWebSocket close simulation |
-| Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2× recording duration), capped at 60s | Pure function, table-driven unit tests |
+| Stale WS cleanup | `start()` closes previous WS and resets MediaRecorder before creating new ones | Call `start()` twice, verify first WS is closed |
+| Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2x recording duration), capped at 60s | Pure function, table-driven unit tests |
 | Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |
-| Stream chunk interval | `STREAM_CHUNK_INTERVAL_MS = 250` — how often MediaRecorder sends audio chunks to WebSocket | Constant assertion |
-| `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain → `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories; track `.connect()` call order |
-| `inputStream` provider property | When set, providers use injected filtered stream instead of acquiring own mic | Set property before `start()`, verify MediaRecorder uses injected stream |
-| `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ≈ 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5×/s) | Pure function, table-driven unit tests |
-| `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms, configurable via workspace store `vadSilenceTimeoutMs`) | Direct unit testing with synthetic VadRefs and timestamps |
+| Stream chunk interval | `STREAM_CHUNK_INTERVAL_MS = 250` | Constant assertion |
+| `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain -> `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories |
+| `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ~= 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5x/s) | Pure function, table-driven unit tests |
+| `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms) | Direct unit testing with synthetic VadRefs and timestamps |
 | `processedResultCount` | WebSpeechProvider instance field tracking dispatched result indices to prevent cumulative duplication; persists across spontaneous browser restarts | Controllable SpeechRecognition stub fires cumulative `onresult` events |
-| WebSpeechProvider `onend` restart | Auto-restarts recognition on spontaneous end. ~100-500ms audio gap is an inherent browser limitation. `processedResultCount` persists across restarts | Trigger `onend`, verify old results are skipped |
+| `startRecording` error guard | `try/finally` ensures `startingRef` is always cleared, preventing permanent lockout | Throw during capability check, assert subsequent recording succeeds |
+| Capability liveness check | Pre-recording debounced check uses `fetchCapabilitiesLiveness` (GET-only, no test transcription) for fast response; full check only on mount | Mock both endpoints, verify liveness is used pre-recording |
+| `capCheckResolvedRef` | Gates provider creation until mount-time capability check resolves, preventing wrong provider type | Click mic before mount check, verify streaming provider is used |
 
-**Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper → Web Speech → disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Bandpass filter chain is a pure function testable with mock AudioContext. Sliding-window VAD is a pure function testable with synthetic RMS sequences.
+**Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper -> Web Speech -> disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Each provider is independently testable in its own module. State machine prevents impossible state combinations.
 
 ### Audio Transcoding Seam (API)
 **File**: `api/audio_transcode.go`

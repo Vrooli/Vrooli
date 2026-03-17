@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { List, Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Mic, Loader2, AlertCircle } from "lucide-react";
+import { List, Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
 import { Button } from "./ui/button";
+import VoiceMicButton from "./VoiceMicButton";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 
 /** Minimum fling speed (px/s) to trigger a dock */
@@ -48,6 +49,7 @@ interface FloatingToolbarProps {
   isCreating: boolean;
   // Voice input (optional — hidden when not provided)
   voiceSupported?: boolean;
+  voicePreparing?: boolean;
   voiceRecording?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
@@ -60,9 +62,6 @@ interface FloatingToolbarProps {
   onVoiceCancel?: () => void;
 }
 
-/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
-const VOICE_LONG_PRESS_MS = 300;
-
 export default function FloatingToolbar({
   onOpenSessions,
   onOpenSettings,
@@ -71,6 +70,7 @@ export default function FloatingToolbar({
   onOpenLauncher,
   isCreating,
   voiceSupported,
+  voicePreparing,
   voiceRecording,
   voiceTranscribing,
   voiceError,
@@ -177,37 +177,6 @@ export default function FloatingToolbar({
     onLongPress: onOpenLauncher,
   });
 
-  // Voice button intent-based interaction (matches VoiceMicButton pattern)
-  const voicePressStartRef = useRef(0);
-  const voiceIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
-
-  const handleVoicePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation(); // Prevent toolbar drag
-    voicePressStartRef.current = Date.now();
-    if (voiceTranscribing) {
-      voiceIntentRef.current = onVoiceCancel ? "cancel" : "none";
-    } else if (voiceRecording) {
-      voiceIntentRef.current = "stop";
-    } else {
-      voiceIntentRef.current = "start";
-      onVoiceStart?.({ vadEnabled: true });
-    }
-  }, [voiceRecording, voiceTranscribing, onVoiceStart, onVoiceCancel]);
-
-  const handleVoicePointerUp = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    const intent = voiceIntentRef.current;
-    voiceIntentRef.current = "none";
-    if (intent === "cancel") {
-      onVoiceCancel?.();
-    } else if (intent === "stop") {
-      onVoiceStop?.();
-    } else if (intent === "start" && Date.now() - voicePressStartRef.current >= VOICE_LONG_PRESS_MS) {
-      onVoiceStop?.();
-    }
-  }, [onVoiceStop, onVoiceCancel]);
-
   // The dock tab indicator — renders on the visible edge
   const dockTab = docked ? (
     <div
@@ -265,47 +234,19 @@ export default function FloatingToolbar({
         <Sparkles className="h-4 w-4" />
       </Button>
       {voiceSupported && onVoiceStart && onVoiceStop && (
-        <div className="relative">
-          <Button
-            data-testid="toolbar-voice"
-            variant="ghost"
-            size="icon"
-            className={`h-7 w-7 relative overflow-hidden ${voiceRecording ? "text-red-400" : voiceTranscribing ? "text-blue-400" : voiceError ? "text-amber-400" : ""}`}
-            onPointerDown={handleVoicePointerDown}
-            onPointerUp={handleVoicePointerUp}
-            onPointerCancel={handleVoicePointerUp}
-            title={
-              voiceRecording
-                ? "Recording... tap to stop, or hold to talk"
-                : voiceTranscribing
-                  ? "Transcribing... tap to cancel"
-                  : voiceError
-                    ? `Voice error: ${voiceError}`
-                    : `Tap to record, hold to talk${voiceBackend ? ` (${voiceBackend === "whisper" ? "Whisper" : "Browser"})` : ""}`
-            }
-            tabIndex={docked ? -1 : undefined}
-          >
-            {/* Audio level fill — rises from bottom */}
-            {voiceRecording && (
-              <span
-                className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
-                style={{ height: `${Math.round(voiceLevel * 100)}%` }}
-              />
-            )}
-            {voiceTranscribing ? (
-              <Loader2 className="h-4 w-4 animate-spin relative" />
-            ) : voiceError ? (
-              <AlertCircle className="h-4 w-4 relative" />
-            ) : (
-              <Mic className="h-4 w-4 relative" />
-            )}
-          </Button>
-          {voiceRecording && voicePartialTranscript && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis z-10">
-              {voicePartialTranscript}
-            </div>
-          )}
-        </div>
+        <VoiceMicButton
+          supported={voiceSupported}
+          isPreparing={voicePreparing ?? false}
+          isRecording={voiceRecording ?? false}
+          isTranscribing={voiceTranscribing ?? false}
+          error={voiceError ?? null}
+          audioLevel={voiceLevel}
+          partialTranscript={voicePartialTranscript}
+          backend={voiceBackend}
+          onStart={onVoiceStart}
+          onStop={onVoiceStop}
+          onCancel={onVoiceCancel}
+        />
       )}
       <Button
         data-testid="toolbar-new"

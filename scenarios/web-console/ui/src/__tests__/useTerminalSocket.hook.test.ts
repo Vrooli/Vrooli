@@ -100,6 +100,7 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
     act(() => fakeWs.triggerMessage({ type: "stdout", data: "hello world" }));
 
     expect(terminal.write).toHaveBeenCalledWith("hello world");
@@ -397,6 +398,7 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
     act(() =>
       fakeWs.triggerMessage({ type: "sync_warning", coalesced_frames: 7 }),
     );
@@ -641,5 +643,226 @@ describe("useTerminalSocket hook", () => {
       configurable: true,
     });
     removeListenerSpy.mockRestore();
+  });
+});
+
+// --- History replay batching tests ---
+
+describe("useTerminalSocket — history replay batching", () => {
+  let fakeWs: FakeWebSocket;
+  let createSocket: ReturnType<typeof createFakeSocketPair>["createSocket"];
+  let terminal: MockTerminal;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const pair = createFakeSocketPair();
+    fakeWs = pair.fakeWs;
+    createSocket = pair.createSocket;
+    terminal = createMockTerminal();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("buffers stdout during history replay and flushes on history_end", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // Send multiple stdout chunks (simulating history replay).
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "chunk1" }));
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "chunk2" }));
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "chunk3" }));
+
+    // Terminal should NOT have been written to yet (history is buffered).
+    const stdoutWrite = findWriteCall(terminal.write, "chunk");
+    expect(stdoutWrite).toBeUndefined();
+
+    // Send history_end — buffer should flush as a single write.
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
+
+    const flushed = findWriteCall(terminal.write, "chunk1chunk2chunk3");
+    expect(flushed).toBe("chunk1chunk2chunk3");
+  });
+
+  it("passes stdout through after history_end", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // Empty history — send history_end immediately.
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
+
+    // Now send live stdout.
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "live output" }));
+
+    // Should be written directly (not buffered).
+    const liveWrite = findWriteCall(terminal.write, "live output");
+    expect(liveWrite).toBeTruthy();
+  });
+
+  it("safety timeout flushes history buffer if history_end never arrives", () => {
+    vi.useFakeTimers();
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // Send stdout without history_end.
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "stale-server-data" }));
+
+    // Not written yet.
+    expect(findWriteCall(terminal.write, "stale-server-data")).toBeUndefined();
+
+    // Advance past the safety timeout (5000ms).
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // Should be flushed now.
+    expect(findWriteCall(terminal.write, "stale-server-data")).toBeTruthy();
+  });
+
+  it("reconnect resets history replay state", () => {
+    vi.useFakeTimers();
+
+    const sockets: FakeWebSocket[] = [];
+    const multiFactory = vi.fn(() => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      return ws as unknown as WebSocket;
+    });
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: multiFactory,
+      }),
+    );
+
+    const first = sockets[0] as FakeWebSocket;
+
+    // First connection: complete history replay.
+    act(() => first.triggerOpen());
+    act(() => first.triggerMessage({ type: "history_end" }));
+    act(() => first.triggerMessage({ type: "stdout", data: "live1" }));
+    expect(findWriteCall(terminal.write, "live1")).toBeTruthy();
+
+    // Disconnect and reconnect.
+    act(() => first.triggerClose(1006));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    const second = sockets[1] as FakeWebSocket;
+    act(() => second.triggerOpen());
+
+    // New stdout should be buffered (replaying history again).
+    act(() => second.triggerMessage({ type: "stdout", data: "history-on-reconnect" }));
+    expect(findWriteCall(terminal.write, "history-on-reconnect")).toBeUndefined();
+
+    // history_end flushes.
+    act(() => second.triggerMessage({ type: "history_end" }));
+    expect(findWriteCall(terminal.write, "history-on-reconnect")).toBeTruthy();
+  });
+
+  it("exit during history replay flushes buffer first", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // Send history stdout, then exit (no history_end).
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "final-output" }));
+    act(() => fakeWs.triggerMessage({ type: "exit", code: 0 }));
+
+    // History should have been flushed before the exit label.
+    const historyWrite = findWriteCall(terminal.write, "final-output");
+    expect(historyWrite).toBeTruthy();
+    const exitWrite = findWriteCall(terminal.write, "[Session ended]");
+    expect(exitWrite).toBeTruthy();
+
+    // Verify ordering: history flush before exit label.
+    const historyIdx = terminal.write.mock.invocationCallOrder[
+      terminal.write.mock.calls.findIndex(
+        (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("final-output"),
+      )
+    ] as number;
+    const exitIdx = terminal.write.mock.invocationCallOrder[
+      terminal.write.mock.calls.findIndex(
+        (c: unknown[]) => typeof c[0] === "string" && (c[0] as string).includes("[Session ended]"),
+      )
+    ] as number;
+    expect(historyIdx).toBeLessThan(exitIdx);
+  });
+
+  it("cleans up history timeout on unmount", () => {
+    vi.useFakeTimers();
+
+    const { unmount } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "buffered" }));
+
+    // Unmount while history is still buffered.
+    unmount();
+
+    // Advancing past the timeout should not throw.
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    // Terminal should NOT have been written to after unmount.
+    expect(findWriteCall(terminal.write, "buffered")).toBeUndefined();
+  });
+
+  it("history_end with empty history immediately enables pass-through", () => {
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+
+    // history_end arrives immediately (no stdout before it).
+    act(() => fakeWs.triggerMessage({ type: "history_end" }));
+
+    // Subsequent stdout should go straight to terminal.write.
+    act(() => fakeWs.triggerMessage({ type: "stdout", data: "immediate" }));
+    expect(findWriteCall(terminal.write, "immediate")).toBeTruthy();
   });
 });

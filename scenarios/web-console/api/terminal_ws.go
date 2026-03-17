@@ -25,6 +25,11 @@ const (
 	MsgTypePing        = "ping"
 	MsgTypePong        = "pong"
 	MsgTypeSyncWarning = "sync_warning"
+	// MsgTypeHistoryEnd signals that all buffered history chunks have been
+	// sent and subsequent stdout messages are live PTY output. The client
+	// uses this to batch-render history in a single write, avoiding the
+	// visible "fast-forward replay" effect on page load/refresh.
+	MsgTypeHistoryEnd = "history_end"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -82,7 +87,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Subscribe to PTY output (the client's first resize message sets dimensions)
-	outputCh, notifyCh := sess.Subscribe()
+	outputCh, notifyCh, hadHistory := sess.Subscribe()
 	defer sess.Unsubscribe(outputCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
@@ -107,6 +112,15 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// outputCh is closed (PTY exited) or WS write fails.
 	go func() {
 		defer conn.Close() // unblocks the input loop's ReadMessage on forwarder exit
+
+		// If no history was buffered, tell the client immediately so it
+		// can skip waiting for the sentinel and enter live pass-through.
+		if !hadHistory {
+			writeMu.Lock()
+			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+			writeMu.Unlock()
+		}
+
 		for {
 			select {
 			case data, ok := <-outputCh:
@@ -116,6 +130,14 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
 					writeMu.Unlock()
 					return
+				}
+				if data == nil {
+					// Nil sentinel from Subscribe: all history chunks have
+					// been forwarded. Signal the client to flush its buffer.
+					writeMu.Lock()
+					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+					writeMu.Unlock()
+					continue
 				}
 				writeMu.Lock()
 				err := conn.WriteJSON(TerminalMessage{

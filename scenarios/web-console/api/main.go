@@ -109,6 +109,14 @@ func NewServer(db *sql.DB) *Server {
 		},
 	}
 	srv.capabilities = NewCapabilityRegistry(knownCapabilities, checkers, 30*time.Second)
+	// Register lightweight liveness-only checkers for fast pre-recording checks.
+	// These use GET-only health checks (no test transcription).
+	srv.capabilities.SetLivenessCheckers(map[string]StatusChecker{
+		"whisper-stt": &ResourceChecker{
+			URL:    "http://localhost:8090/",
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+	})
 	// Warm capability cache so the first /capabilities request returns instantly.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -171,6 +179,7 @@ func (s *Server) setupRoutes() {
 
 	// Voice input capabilities
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
+	s.router.HandleFunc("/api/v1/capabilities/liveness", s.handleCapabilitiesLiveness).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/transcribe", s.handleVoiceTranscribe).Methods("POST")
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
