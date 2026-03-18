@@ -15,9 +15,9 @@
 //   - patch (for applying diffs in non-git directories)
 //
 // Without this seam, tests would either:
-//   1. Touch the real Vrooli git repository (DANGEROUS - could corrupt project)
-//   2. Create and destroy real git repos in temp dirs (slow, flaky)
-//   3. Skip testing these code paths entirely (inadequate coverage)
+//  1. Touch the real Vrooli git repository (DANGEROUS - could corrupt project)
+//  2. Create and destroy real git repos in temp dirs (slow, flaky)
+//  3. Skip testing these code paths entirely (inadequate coverage)
 //
 // With this seam, tests can inject a mock that returns predetermined outputs,
 // enabling fast, deterministic, and safe testing.

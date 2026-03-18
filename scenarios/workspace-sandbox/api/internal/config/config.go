@@ -149,6 +149,18 @@ type LifecycleConfig struct {
 	// ProcessKillWait is how long to wait after SIGKILL for process to die.
 	// Default: 50ms
 	ProcessKillWait time.Duration
+
+	// AutoHealIdleGrace is the minimum time since LastUsedAt before
+	// a stale sandbox mount is eligible for automatic remount. Default: 30s.
+	AutoHealIdleGrace time.Duration
+
+	// AutoHealMaxRetries is the maximum consecutive remount failures
+	// before marking a sandbox as Error. Default: 5.
+	AutoHealMaxRetries int
+
+	// AutoHealBaseBackoff is the initial backoff after a failed remount.
+	// Doubled on each subsequent failure, capped at 1h. Default: 30s.
+	AutoHealBaseBackoff time.Duration
 }
 
 // PolicyConfig controls approval and attribution rules.
@@ -396,6 +408,9 @@ func Default() Config {
 			TerminalCleanupDelay: 1 * time.Hour,
 			ProcessGracePeriod:   100 * time.Millisecond,
 			ProcessKillWait:      50 * time.Millisecond,
+			AutoHealIdleGrace:    30 * time.Second,
+			AutoHealMaxRetries:   5,
+			AutoHealBaseBackoff:  30 * time.Second,
 		},
 		Policy: PolicyConfig{
 			DefaultNoLock:             true,
@@ -481,6 +496,9 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.TerminalCleanupDelay = envDuration("WORKSPACE_SANDBOX_TERMINAL_CLEANUP_DELAY", cfg.Lifecycle.TerminalCleanupDelay)
 	cfg.Lifecycle.ProcessGracePeriod = envDuration("WORKSPACE_SANDBOX_PROCESS_GRACE_PERIOD", cfg.Lifecycle.ProcessGracePeriod)
 	cfg.Lifecycle.ProcessKillWait = envDuration("WORKSPACE_SANDBOX_PROCESS_KILL_WAIT", cfg.Lifecycle.ProcessKillWait)
+	cfg.Lifecycle.AutoHealIdleGrace = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_IDLE_GRACE", cfg.Lifecycle.AutoHealIdleGrace)
+	cfg.Lifecycle.AutoHealMaxRetries = envInt("WORKSPACE_SANDBOX_AUTOHEAL_MAX_RETRIES", cfg.Lifecycle.AutoHealMaxRetries)
+	cfg.Lifecycle.AutoHealBaseBackoff = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_BASE_BACKOFF", cfg.Lifecycle.AutoHealBaseBackoff)
 
 	// Policy config
 	cfg.Policy.RequireHumanApproval = envBool("WORKSPACE_SANDBOX_REQUIRE_HUMAN_APPROVAL", cfg.Policy.RequireHumanApproval)
@@ -620,6 +638,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Lifecycle.GCInterval < time.Minute {
 		errs = append(errs, "lifecycle.gcInterval must be at least 1 minute")
+	}
+	if c.Lifecycle.AutoHealMaxRetries < 1 {
+		errs = append(errs, "lifecycle.autoHealMaxRetries must be at least 1")
 	}
 
 	// Policy validation

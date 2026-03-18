@@ -465,13 +465,13 @@ func (a *FileOperatorAdapter) WriteFile(ctx context.Context, sandboxID uuid.UUID
 
 	// Create parent directories if requested
 	if createDirs {
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 			return err
 		}
 	}
 
 	// Parse file mode
-	fileMode := os.FileMode(0644)
+	fileMode := os.FileMode(0o644)
 	if mode != "" {
 		var parsed uint32
 		_, _ = fmt.Sscanf(mode, "%o", &parsed)
@@ -547,7 +547,7 @@ func (a *FileOperatorAdapter) CreateDirectory(ctx context.Context, sandboxID uui
 	}
 
 	// Parse mode
-	dirMode := os.FileMode(0755)
+	dirMode := os.FileMode(0o755)
 	if mode != "" {
 		var parsed uint32
 		_, _ = fmt.Sscanf(mode, "%o", &parsed)

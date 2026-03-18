@@ -395,5 +395,7 @@ func (m *MockGitOps) Reset() {
 }
 
 // Verify that implementations satisfy the interface
-var _ GitOperations = (*GitOps)(nil)
-var _ GitOperations = (*MockGitOps)(nil)
+var (
+	_ GitOperations = (*GitOps)(nil)
+	_ GitOperations = (*MockGitOps)(nil)
+)

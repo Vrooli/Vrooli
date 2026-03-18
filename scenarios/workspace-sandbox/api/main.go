@@ -168,7 +168,12 @@ func NewServer() (*Server, error) {
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
 	)
-	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval)
+	healCfg := sandbox.HealConfig{
+		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
+		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
+		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
+	}
+	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{

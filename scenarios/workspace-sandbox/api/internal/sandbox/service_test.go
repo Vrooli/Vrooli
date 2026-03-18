@@ -236,15 +236,16 @@ var _ repository.Repository = (*mockRepository)(nil)
 
 // mockDriver implements driver.Driver for testing.
 type mockDriver struct {
-	available     bool
-	mountPaths    *driver.MountPaths
-	changedFiles  []*types.FileChange
-	mountErr      error
-	unmountErr    error
-	cleanupErr    error
-	changedErr    error
-	mounted       bool
-	removeFromErr error
+	available      bool
+	mountPaths     *driver.MountPaths
+	changedFiles   []*types.FileChange
+	mountErr       error
+	unmountErr     error
+	cleanupErr     error
+	changedErr     error
+	mounted        bool
+	removeFromErr  error
+	verifyMountErr error
 }
 
 func newMockDriver() *mockDriver {
@@ -304,7 +305,7 @@ func (m *mockDriver) IsMounted(ctx context.Context, sandbox *types.Sandbox) (boo
 }
 
 func (m *mockDriver) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
-	return nil
+	return m.verifyMountErr
 }
 
 func (m *mockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
