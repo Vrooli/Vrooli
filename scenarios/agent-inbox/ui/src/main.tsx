@@ -35,11 +35,8 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "agent-inbox" });
 }
 
-// NOTE: StrictMode intentionally double-renders components to detect side effects.
-// During rapid state transitions (like fresh chat message send), this can push
-// borderline render counts over React's 50-render limit. Temporarily disabled
-// while investigating "too many re-renders" issue.
-// TODO: Re-enable StrictMode after fixing the render loop issue
+// StrictMode disabled: double-renders push borderline render counts over
+// React's 50-render limit during rapid state transitions (e.g. fresh chat send).
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found");

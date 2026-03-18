@@ -1,651 +1,170 @@
-import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  X,
-} from "lucide-react";
-import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { useChats } from "./hooks/useChats";
-import { useAsyncStatus, type AsyncStatusUpdate } from "./hooks/useAsyncStatus";
+import { useAsyncStatus } from "./hooks/useAsyncStatus";
 import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
-import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Sidebar } from "./components/layout/Sidebar";
-import { EmptyState } from "./components/chat/EmptyState";
-import { LabelManager } from "./components/labels/LabelManager";
-import { Settings, getViewMode, setViewMode, type ViewMode, type SettingsTab } from "./components/settings/Settings";
-import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
-import { UsageStats } from "./components/settings/UsageStats";
-import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
-import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/ScenarioViewer";
-import { Button } from "./components/ui/button";
-
-import { ToastProvider, useToast } from "./components/ui/toast";
+import { useIsMobile } from "./hooks/useIsMobile";
+import { useSidebarState } from "./hooks/useSidebarState";
+import { useAppModals } from "./hooks/useAppModals";
+import { useAsyncReferences } from "./hooks/useAsyncReferences";
+import { useChatViewCallbacks } from "./hooks/useChatViewCallbacks";
+import { useAgentChatActions } from "./hooks/useAgentChatActions";
+import { useAppKeyboardShortcuts } from "./hooks/useAppKeyboardShortcuts";
+import { AppRouter } from "./components/AppRouter";
+import { SidebarPanel } from "./components/layout/SidebarPanel";
+import { AppDialogs } from "./components/layout/AppDialogs";
+import { MainContent } from "./components/layout/MainContent";
+import { ToastProvider } from "./components/ui/toast";
 import { selectorsManifest } from "./consts/selectors";
-import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
-import {
-  deleteArchivedChats,
-  markAllChatsAsRead,
-  startAgentMode,
-  attachAgentRun,
-  deleteChat as deleteChatAPI,
-  AgentModeError,
-  createChat as createChatAPI,
-} from "./lib/api";
-import type { AgentRunSummary } from "./lib/api";
-import type { AgentStartConfig } from "./components/chat/AgentStartModal";
-import type { MessagePayload } from "./components/chat/MessageInput";
-import { getDefaultModel } from "./components/settings/Settings";
-import type { TemplateWithSource } from "./lib/types/templates";
-
-// Sidebar collapsed state persistence (desktop)
-const LazyChatView = lazy(async () => {
-  const module = await import("./components/chat/ChatView");
-  return { default: module.ChatView };
-});
-
-const SIDEBAR_COLLAPSED_KEY = "agent-inbox:sidebar-collapsed";
-
-function getSidebarCollapsed(): boolean {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
-  }
-  return false;
-}
-
-function setSidebarCollapsed(collapsed: boolean): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
-  }
-}
-
-// Chat list open state persistence (mobile)
-const CHAT_LIST_OPEN_KEY = "agent-inbox:chat-list-open";
-
-function getChatListOpen(): boolean {
-  if (typeof window !== "undefined") {
-    // Default to false (closed) so drawer doesn't cover main content
-    return localStorage.getItem(CHAT_LIST_OPEN_KEY) === "true";
-  }
-  return false;
-}
-
-function setChatListOpenStorage(open: boolean): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(CHAT_LIST_OPEN_KEY, String(open));
-  }
-}
-
-// Hook to detect if screen is mobile (below lg breakpoint)
-function useIsMobile(breakpoint = 1024): boolean {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth < breakpoint;
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < breakpoint);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [breakpoint]);
-
-  return isMobile;
-}
+import { getViewMode, setViewMode, type ViewMode } from "./components/settings/Settings";
+import { deleteArchivedChats, markAllChatsAsRead } from "./lib/api";
 
 function AppContent() {
   const appTestIds = {
     container: selectorsManifest.selectors["app.container"]?.testId ?? "inbox-container",
-    mobileBackButton: selectorsManifest.selectors["app.mobileBackButton"]?.testId ?? "mobile-back-button",
-    mobileMenuButton: selectorsManifest.selectors["app.mobileMenuButton"]?.testId ?? "mobile-menu-button",
     mobileSidebarOverlay: selectorsManifest.selectors["app.mobileSidebarOverlay"]?.testId ?? "mobile-sidebar-overlay",
     closeSidebarButton: selectorsManifest.selectors["app.closeSidebarButton"]?.testId ?? "close-sidebar-button",
   };
-  const [showLabelManager, setShowLabelManager] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("general");
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [showUsageStats, setShowUsageStats] = useState(false);
-  const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
-  const [settingsAllTemplates, setSettingsAllTemplates] = useState<TemplateWithSource[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chatListOpen, setChatListOpenState] = useState(getChatListOpen);
 
-  // Wrapper to persist chat list state to localStorage
-  const setChatListOpen = useCallback((open: boolean) => {
-    setChatListOpenState(open);
-    setChatListOpenStorage(open);
-  }, []);
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
   const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
   const [isClearingArchived, setIsClearingArchived] = useState(false);
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
+  const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const { addToast } = useToast();
   const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Resizable sidebar (desktop only)
   const {
-    width: sidebarWidth,
-    isResizing: isSidebarResizing,
-    containerRef: sidebarContainerRef,
-    handleResizeStart,
+    sidebarOpen, setSidebarOpen, chatListOpen, setChatListOpen,
+    sidebarCollapsed, handleToggleSidebarCollapsed,
+  } = useSidebarState();
+
+  const modals = useAppModals();
+
+  const {
+    width: sidebarWidth, isResizing: isSidebarResizing,
+    containerRef: sidebarContainerRef, handleResizeStart,
   } = useResizableSidebar({
     storageKey: "agent-inbox:sidebar-width",
-    defaultWidth: 320,
-    minWidth: 200,
-    maxWidthRatio: 0.5,
+    defaultWidth: 320, minWidth: 200, maxWidthRatio: 0.5,
   });
-  // Focused chat index for j/k navigation (separate from selected chat)
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
-  // URL-based routing for chats
   const { initialChatId, setChatInUrl } = useChatRoute();
-
-  // Handle URL sync when chat changes
   const handleChatChange = useCallback(
-    (chatId: string | null) => {
-      setChatInUrl(chatId || "");
-    },
+    (chatId: string | null) => { setChatInUrl(chatId || ""); },
     [setChatInUrl]
   );
 
-  // Template deactivation callback (uses ref to break circular dependency with useChats/useActiveTemplate)
   const templateDeactivateRef = useRef<(() => void) | null>(null);
-  const handleTemplateDeactivated = useCallback(() => {
-    templateDeactivateRef.current?.();
-  }, []);
+  const handleTemplateDeactivated = useCallback(() => { templateDeactivateRef.current?.(); }, []);
 
   const {
-    // State
-    selectedChatId,
-    currentView,
-    isGenerating,
-    streamingContent,
-    activeToolCalls,
-    generatedImages,
-    isRegenerating,
+    selectedChatId, currentView, isGenerating, streamingContent,
+    activeToolCalls, generatedImages, isRegenerating,
+    chats, chatData, models, labels, loadingChats, loadingChat,
+    setCurrentView, selectChat, sendMessage, createChatWithMessage,
+    createChat, deleteChat, deleteAllChats, updateChat,
+    toggleRead, toggleArchive, toggleStar,
+    createLabel, deleteLabel, assignLabel, removeLabel,
+    regenerateMessage, selectBranch,
+    editingMessage, setEditingMessage, editMessageAndComplete, cancelEdit,
+    bulkOperate, forkConversation,
+    isCreatingChat, isDeletingAllChats, isBulkOperating, isForking,
+  } = useChats({ initialChatId, onChatChange: handleChatChange, onTemplateDeactivated: handleTemplateDeactivated });
 
-    // Data
-    chats,
-    chatData,
-    models,
-    labels,
-
-    // Loading states
-    loadingChats,
-    loadingChat,
-
-    // Actions
-    setCurrentView,
-    selectChat,
-    sendMessage,
-    createChatWithMessage,
-
-    // Mutations
-    createChat,
-    deleteChat,
-    deleteAllChats,
-    updateChat,
-    toggleRead,
-    toggleArchive,
-    toggleStar,
-    createLabel,
-    deleteLabel,
-    assignLabel,
-    removeLabel,
-
-    // Branching operations
-    regenerateMessage,
-    selectBranch,
-
-    // Edit operations
-    editingMessage,
-    setEditingMessage,
-    editMessageAndComplete,
-    cancelEdit,
-
-    // Bulk operations
-    bulkOperate,
-
-    // Fork conversation
-    forkConversation,
-
-    // Mutation states
-    isCreatingChat,
-    isDeletingAllChats,
-    isBulkOperating,
-    isForking,
-  } = useChats({
-    initialChatId,
-    onChatChange: handleChatChange,
-    onTemplateDeactivated: handleTemplateDeactivated,
-  });
-
-  // Track async operations for the selected chat
   const {
-    operations: asyncOperations,
-    activeOperations: activeAsyncOperations,
+    operations: asyncOperations, activeOperations: activeAsyncOperations,
     completedOperations: completedAsyncOperations,
-    cancelOperation: cancelAsyncOperation,
-    refreshOperation: refreshAsyncOperation,
+    cancelOperation: cancelAsyncOperation, refreshOperation: refreshAsyncOperation,
     fetchHistory: fetchAsyncHistory,
   } = useAsyncStatus(selectedChatId);
 
-  // Async result references for including in follow-up messages
-  const [asyncReferences, setAsyncReferences] = useState<Array<{
-    tool_call_id: string;
-    tool_name: string;
-    status: string;
-    summary: string;
-  }>>([]);
+  const {
+    asyncReferences, handleInsertAsyncReference, handleRemoveAsyncReference,
+    hasMoreAsyncHistory, handleFetchAsyncHistory,
+  } = useAsyncReferences(selectedChatId, fetchAsyncHistory);
 
-  // Track history pagination
-  const [asyncHistoryOffset, setAsyncHistoryOffset] = useState(0);
-  const [hasMoreAsyncHistory, setHasMoreAsyncHistory] = useState(true);
-
-  // Handle inserting an async result reference
-  const handleInsertAsyncReference = useCallback((op: AsyncStatusUpdate) => {
-    const summarizeResult = (result: unknown, maxLength = 100): string => {
-      if (result === null || result === undefined) return "No result data";
-      if (typeof result === "string") {
-        return result.length > maxLength ? result.slice(0, maxLength - 3) + "..." : result;
-      }
-      if (typeof result === "object") {
-        const obj = result as Record<string, unknown>;
-        if (typeof obj.message === "string") {
-          return obj.message.length > maxLength ? obj.message.slice(0, maxLength - 3) + "..." : obj.message;
-        }
-        if (typeof obj.summary === "string") {
-          return obj.summary.length > maxLength ? obj.summary.slice(0, maxLength - 3) + "..." : obj.summary;
-        }
-        if (Array.isArray(obj.files)) {
-          return `Created ${obj.files.length} file${obj.files.length !== 1 ? "s" : ""}`;
-        }
-      }
-      return "Result available";
-    };
-
-    setAsyncReferences((prev) => [
-      ...prev.filter((r) => r.tool_call_id !== op.tool_call_id),
-      {
-        tool_call_id: op.tool_call_id,
-        tool_name: op.tool_name,
-        status: op.status,
-        summary: summarizeResult(op.result, 100),
-      },
-    ]);
-  }, []);
-
-  // Handle removing an async result reference
-  const handleRemoveAsyncReference = useCallback((toolCallId: string) => {
-    setAsyncReferences((prev) => prev.filter((r) => r.tool_call_id !== toolCallId));
-  }, []);
-
-  // Handle fetching more async history
-  const handleFetchAsyncHistory = useCallback(async () => {
-    const result = await fetchAsyncHistory(20, asyncHistoryOffset);
-    setAsyncHistoryOffset((prev) => prev + result.operations.length);
-    setHasMoreAsyncHistory(result.hasMore);
-  }, [fetchAsyncHistory, asyncHistoryOffset]);
-
-  // Reset async references when chat changes
-  useEffect(() => {
-    setAsyncReferences([]);
-    setAsyncHistoryOffset(0);
-    setHasMoreAsyncHistory(true);
-  }, [selectedChatId]);
-
-  // Template-to-tool linking: manage active template state and tool enablement
   const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
 
-  // Update the ref so the deactivation callback can use the activeTemplate
-  // Guard: Only deactivate if chatData matches selectedChatId to prevent
-  // deactivating the wrong chat during transitions
-  //
-  // CRITICAL: Depend on activeTemplate.deactivate specifically, NOT the whole
-  // activeTemplate object. The object has properties like isUpdating that change,
-  // which would cause this effect to run unnecessarily during critical transitions.
   useEffect(() => {
     templateDeactivateRef.current = () => {
-      // Safety check: Only proceed if we have valid, matching chat data
-      if (selectedChatId && chatData?.chat?.id === selectedChatId) {
-        activeTemplate.deactivate();
-      }
+      if (selectedChatId && chatData?.chat?.id === selectedChatId) activeTemplate.deactivate();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Depend on .deactivate specifically, NOT the whole activeTemplate object (see comment above)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTemplate.deactivate, selectedChatId, chatData?.chat?.id]);
 
-  // Handle template activation (when user selects a template with suggested tools)
-  // CRITICAL: Depend on activeTemplate.activate specifically, NOT the whole activeTemplate
-  // object. The object has properties like isUpdating that change frequently, which would
-  // cause this callback to get a new reference and cascade re-renders through ChatView.
   const handleTemplateActivated = useCallback(
     async (templateId: string, toolIds: string[]) => {
       if (!selectedChatId) return;
-      // First enable the suggested tools
       await enableToolsByIds(toolIds);
-      // Then activate the template at the chat level
       await activeTemplate.activate(templateId, toolIds);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Depend on .activate specifically, NOT the whole activeTemplate object (see comment above)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedChatId, enableToolsByIds, activeTemplate.activate]
   );
 
-  // Handle browser back/forward navigation
-  usePopStateListener(
-    useCallback(
-      (chatId: string) => {
-        selectChat(chatId);
-      },
-      [selectChat]
-    )
-  );
+  usePopStateListener(useCallback((chatId: string) => { selectChat(chatId); }, [selectChat]));
 
-  // Close mobile sidebar when a chat is selected
   useEffect(() => {
-    if (selectedChatId && window.innerWidth < 1024) {
-      setSidebarOpen(false);
-      setChatListOpen(false);
-    }
-  }, [selectedChatId, setChatListOpen]);
+    if (selectedChatId && window.innerWidth < 1024) { setSidebarOpen(false); setChatListOpen(false); }
+  }, [selectedChatId, setChatListOpen, setSidebarOpen]);
 
-  // Calculate unread counts for sidebar badges
-  // Memoized to prevent creating new object on every render
   const chatCounts = useMemo(() => ({
     inbox: chats.filter((c) => !c.is_archived).length,
     starred: chats.filter((c) => c.is_starred).length,
     archived: chats.filter((c) => c.is_archived).length,
   }), [chats]);
 
-  // Track which message to scroll to (from search results)
-  const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null);
-
   const handleSelectChat = useCallback(
     (chatId: string, messageId?: string) => {
       selectChat(chatId);
-      // Clear first, then set in next frame to force re-trigger even if same messageId
       setScrollToMessageId(null);
-      requestAnimationFrame(() => {
-        setScrollToMessageId(messageId || null);
-      });
-      // Close chat list on mobile when selecting
-      if (window.innerWidth < 1024) {
-        setChatListOpen(false);
-      }
+      requestAnimationFrame(() => { setScrollToMessageId(messageId || null); });
+      if (window.innerWidth < 1024) setChatListOpen(false);
     },
     [selectChat, setChatListOpen]
   );
 
   const handleNewChat = useCallback(() => {
-    createChat({});
-    // Close sidebar on mobile when creating new chat
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  }, [createChat]);
+    createChat({}); if (window.innerWidth < 768) setSidebarOpen(false);
+  }, [createChat, setSidebarOpen]);
 
   const handleNewAgentChat = useCallback(() => {
-    createChat({ chat_mode: "agent" });
-    // Close sidebar on mobile when creating new chat
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  }, [createChat]);
+    createChat({ chat_mode: "agent" }); if (window.innerWidth < 768) setSidebarOpen(false);
+  }, [createChat, setSidebarOpen]);
 
-  // Handle starting an agent chat with message and config from EmptyState
-  const handleStartAgentChat = useCallback(
-    async (payload: MessagePayload, config: AgentStartConfig) => {
-      const hasContent = payload.content.trim();
-      if (!hasContent) return;
-
-      let chatId: string | undefined;
-      try {
-        // Create chat in agent mode with default model
-        const defaultModel = getDefaultModel();
-        const newChat = await createChatAPI({ model: defaultModel, chat_mode: "agent" });
-        chatId = newChat.id;
-
-        // Select the new chat
-        selectChat(chatId);
-
-        // Start agent mode with the first message
-        await startAgentMode(chatId, {
-          message: payload.content.trim(),
-          runner_type: config.runner_type,
-          project_path: config.project_path,
-          model: config.model || undefined,
-          max_turns: config.max_turns || undefined,
-        });
-
-        // Refresh chat data to get updated agent state
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-      } catch (error) {
-        console.error("Failed to create agent chat:", error);
-        // Clean up the partially-created chat so the user isn't left with a broken empty chat
-        if (chatId) {
-          try { await deleteChatAPI(chatId); } catch { /* best effort */ }
-          selectChat("");
-          queryClient.invalidateQueries({ queryKey: ["chats"] });
-        }
-        // Surface the error to the user
-        const msg = error instanceof AgentModeError
-          ? error.message
-          : error instanceof Error ? error.message : "Failed to start agent chat";
-        addToast(msg, "error", 8000);
-      }
-    },
-    [selectChat, queryClient, addToast]
-  );
-
-  // Handle attaching an existing run from EmptyState (creates a chat first)
-  const handleAttachRunFromEmpty = useCallback(
-    async (run: AgentRunSummary) => {
-      let chatId: string | undefined;
-      try {
-        const defaultModel = getDefaultModel();
-        const newChat = await createChatAPI({ model: defaultModel, chat_mode: "agent" });
-        chatId = newChat.id;
-        selectChat(chatId);
-
-        await attachAgentRun(chatId, run.run_id, run.task_id);
-
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-      } catch (error) {
-        console.error("Failed to attach run:", error);
-        if (chatId) {
-          try { await deleteChatAPI(chatId); } catch { /* best effort */ }
-          selectChat("");
-          queryClient.invalidateQueries({ queryKey: ["chats"] });
-        }
-        const msg = error instanceof AgentModeError
-          ? error.message
-          : error instanceof Error ? error.message : "Failed to attach run";
-        addToast(msg, "error", 8000);
-      }
-    },
-    [selectChat, queryClient, addToast]
-  );
-
-  const handleBackToList = useCallback(() => {
-    setChatListOpen(true);
-  }, [setChatListOpen]);
-
-  const handleOpenSettings = useCallback((tab: SettingsTab = "general") => {
-    setSettingsInitialTab(tab);
-    setShowSettings(true);
-  }, []);
-
-  const handleOpenAgentSettings = useCallback(() => {
-    handleOpenSettings("agent");
-  }, [handleOpenSettings]);
-
-  const handleShowKeyboardShortcuts = useCallback(() => {
-    setShowKeyboardShortcuts(true);
-  }, []);
-
-  const handleShowUsageStats = useCallback(() => {
-    setShowUsageStats(true);
-  }, []);
-
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewModeState(mode);
-    setViewMode(mode);
-  }, []);
-
-  const handleToggleSidebarCollapsed = useCallback(() => {
-    setSidebarCollapsedState((prev) => {
-      const newValue = !prev;
-      setSidebarCollapsed(newValue);
-      return newValue;
-    });
-  }, []);
+  const handleBackToList = useCallback(() => { setChatListOpen(true); }, [setChatListOpen]);
+  const handleViewModeChange = useCallback((mode: ViewMode) => { setViewModeState(mode); setViewMode(mode); }, []);
 
   const handleClearArchived = useCallback(async () => {
     setIsClearingArchived(true);
-    try {
-      await deleteArchivedChats();
-      // Invalidate chat queries to refresh the list
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    } finally {
-      setIsClearingArchived(false);
-    }
+    try { await deleteArchivedChats(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    finally { setIsClearingArchived(false); }
   }, [queryClient]);
 
   const handleMarkAllAsRead = useCallback(async () => {
     setIsMarkingAllAsRead(true);
-    try {
-      await markAllChatsAsRead();
-      // Invalidate chat queries to refresh the read status
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    } finally {
-      setIsMarkingAllAsRead(false);
-    }
+    try { await markAllChatsAsRead(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    finally { setIsMarkingAllAsRead(false); }
   }, [queryClient]);
-
-  const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource, allTemplates: TemplateWithSource[]) => {
-    setSettingsEditingTemplate(template);
-    setSettingsAllTemplates(allTemplates);
-  }, []);
-
-  const handleSaveTemplateFromSettings = useCallback(async (
-    templateData: Omit<TemplateWithSource, "id" | "createdAt" | "updatedAt" | "isBuiltIn" | "source" | "hasDefault">,
-    options?: { applyToDefault?: boolean }
-  ) => {
-    if (!settingsEditingTemplate) return;
-    if (options?.applyToDefault) {
-      await updateDefaultTemplateAPI(settingsEditingTemplate.id, templateData);
-    } else {
-      await updateTemplateAPI(settingsEditingTemplate.id, templateData);
-    }
-    setSettingsEditingTemplate(null);
-  }, [settingsEditingTemplate]);
 
   const handleDeselectChat = useCallback(() => {
     selectChat("");
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-      setChatListOpen(false);
-    }
-  }, [selectChat, setChatListOpen]);
+    if (window.innerWidth < 1024) { setSidebarOpen(false); setChatListOpen(false); }
+  }, [selectChat, setChatListOpen, setSidebarOpen]);
 
-  // CRITICAL: Memoize ALL callback props passed to ChatView to prevent
-  // creating new function references on every render. New references cause
-  // unnecessary child re-renders during critical transitions (like message send)
-  // which can contribute to "too many re-renders" errors.
-  const handleScrollComplete = useCallback(() => {
-    setScrollToMessageId(null);
-  }, []);
+  const { handleStartAgentChat, handleAttachRunFromEmpty } = useAgentChatActions({ selectChat });
 
-  const handleUpdateChatFromView = useCallback(
-    (data: Parameters<typeof updateChat>[0]["data"]) => {
-      if (selectedChatId) {
-        updateChat({ chatId: selectedChatId, data });
-      }
-    },
-    [selectedChatId, updateChat]
-  );
+  const chatViewCallbacks = useChatViewCallbacks({
+    selectedChatId, updateChat, toggleRead, toggleStar, toggleArchive,
+    deleteChat, assignLabel, removeLabel, regenerateMessage,
+    editingMessage, editMessageAndComplete, setScrollToMessageId,
+  });
 
-  const handleToggleReadFromView = useCallback(() => {
-    if (selectedChatId) {
-      toggleRead({ chatId: selectedChatId });
-    }
-  }, [selectedChatId, toggleRead]);
-
-  const handleToggleStarFromView = useCallback(() => {
-    if (selectedChatId) {
-      toggleStar({ chatId: selectedChatId });
-    }
-  }, [selectedChatId, toggleStar]);
-
-  const handleToggleArchiveFromView = useCallback(() => {
-    if (selectedChatId) {
-      toggleArchive({ chatId: selectedChatId });
-    }
-  }, [selectedChatId, toggleArchive]);
-
-  const handleDeleteChatFromView = useCallback(() => {
-    if (selectedChatId) {
-      deleteChat(selectedChatId);
-    }
-  }, [selectedChatId, deleteChat]);
-
-  const handleAssignLabelFromView = useCallback(
-    (labelId: string) => {
-      if (selectedChatId) {
-        assignLabel({ chatId: selectedChatId, labelId });
-      }
-    },
-    [selectedChatId, assignLabel]
-  );
-
-  const handleRemoveLabelFromView = useCallback(
-    (labelId: string) => {
-      if (selectedChatId) {
-        removeLabel({ chatId: selectedChatId, labelId });
-      }
-    },
-    [selectedChatId, removeLabel]
-  );
-
-  const handleRegenerateMessageFromView = useCallback(
-    (messageId: string) => {
-      if (selectedChatId) {
-        regenerateMessage(selectedChatId, messageId);
-      }
-    },
-    [selectedChatId, regenerateMessage]
-  );
-
-  const handleSubmitEditFromView = useCallback(
-    (payload: Parameters<typeof editMessageAndComplete>[1]) => {
-      if (editingMessage) {
-        editMessageAndComplete(editingMessage.id, payload);
-      }
-    },
-    [editingMessage, editMessageAndComplete]
-  );
-
-  // Handle refresh chat (used after agent mode changes)
-  const handleRefreshChat = useCallback(() => {
-    if (selectedChatId) {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-    }
-  }, [selectedChatId, queryClient]);
-
-  // Keyboard shortcuts
-  const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats || !!settingsEditingTemplate;
-
-  // Get visible chats for navigation (filtered by current view)
   const visibleChats = useMemo(() => {
     return chats.filter((c) => {
       if (currentView === "inbox") return !c.is_archived;
@@ -655,475 +174,92 @@ function AppContent() {
     });
   }, [chats, currentView]);
 
-  // Reset focused index when view changes or chat list changes
-  useEffect(() => {
-    setFocusedIndex(-1);
-  }, [currentView]);
-
-  // Navigation handlers for j/k
-  const handleNavigateDown = useCallback(() => {
-    if (visibleChats.length === 0) return;
-    setFocusedIndex((prev) => {
-      if (prev < 0) return 0;
-      return Math.min(prev + 1, visibleChats.length - 1);
-    });
-  }, [visibleChats.length]);
-
-  const handleNavigateUp = useCallback(() => {
-    if (visibleChats.length === 0) return;
-    setFocusedIndex((prev) => {
-      if (prev < 0) return visibleChats.length - 1;
-      return Math.max(prev - 1, 0);
-    });
-  }, [visibleChats.length]);
-
-  // Open focused chat with Enter
-  const handleOpenFocused = useCallback(() => {
-    if (focusedIndex >= 0 && focusedIndex < visibleChats.length) {
-      const chat = visibleChats[focusedIndex];
-      if (chat) {
-        handleSelectChat(chat.id);
-      }
-    }
-  }, [focusedIndex, visibleChats, handleSelectChat]);
-
-  const shortcuts: KeyboardShortcut[] = useMemo(
-    () => [
-      // J/K navigation (KEY-001)
-      {
-        key: "j",
-        description: "Next chat",
-        action: handleNavigateDown,
-        category: "navigation",
-      },
-      {
-        key: "k",
-        description: "Previous chat",
-        action: handleNavigateUp,
-        category: "navigation",
-      },
-      // Enter to open (KEY-002)
-      {
-        key: "Enter",
-        description: "Open focused chat",
-        action: handleOpenFocused,
-        category: "navigation",
-      },
-      {
-        key: "n",
-        ctrlKey: true,
-        description: "New chat",
-        action: () => createChat({}),
-        category: "chat",
-      },
-      {
-        key: "k",
-        ctrlKey: true,
-        description: "Focus search",
-        action: () => {
-          const searchInput = searchInputRef.current;
-          if (!searchInput) return false;
-          if (document.activeElement === searchInput) {
-            return false;
-          }
-          searchInput.focus();
-          return true;
-        },
-        category: "navigation",
-      },
-      // "/" also focuses search (KEY-005)
-      {
-        key: "/",
-        description: "Focus search",
-        action: () => searchInputRef.current?.focus(),
-        category: "navigation",
-      },
-      {
-        key: "1",
-        ctrlKey: true,
-        description: "Go to Inbox",
-        action: () => setCurrentView("inbox"),
-        category: "navigation",
-      },
-      {
-        key: "2",
-        ctrlKey: true,
-        description: "Go to Starred",
-        action: () => setCurrentView("starred"),
-        category: "navigation",
-      },
-      {
-        key: "3",
-        ctrlKey: true,
-        description: "Go to Archived",
-        action: () => setCurrentView("archived"),
-        category: "navigation",
-      },
-      {
-        key: ",",
-        ctrlKey: true,
-        description: "Open settings",
-        action: handleOpenSettings,
-        category: "general",
-      },
-      {
-        key: "?",
-        description: "Show keyboard shortcuts",
-        action: handleShowKeyboardShortcuts,
-        category: "general",
-      },
-      {
-        key: "Escape",
-        description: "Close dialog / deselect chat",
-        action: () => {
-          if (showLabelManager) setShowLabelManager(false);
-          else if (showSettings) setShowSettings(false);
-          else if (showKeyboardShortcuts) setShowKeyboardShortcuts(false);
-          else if (showUsageStats) setShowUsageStats(false);
-          else if (selectedChatId) handleDeselectChat();
-        },
-        category: "navigation",
-      },
-      {
-        key: "s",
-        ctrlKey: true,
-        description: "Toggle star on current chat",
-        action: () => {
-          if (selectedChatId) toggleStar({ chatId: selectedChatId });
-        },
-        category: "chat",
-      },
-      {
-        key: "e",
-        ctrlKey: true,
-        description: "Archive current chat",
-        action: () => {
-          if (selectedChatId) toggleArchive({ chatId: selectedChatId });
-        },
-        category: "chat",
-      },
-    ],
-    [
-      handleNavigateDown,
-      handleNavigateUp,
-      handleOpenFocused,
-      createChat,
-      setCurrentView,
-      handleOpenSettings,
-      handleShowKeyboardShortcuts,
-      showLabelManager,
-      showSettings,
-      showKeyboardShortcuts,
-      showUsageStats,
-      selectedChatId,
-      handleDeselectChat,
-      toggleStar,
-      toggleArchive,
-    ]
-  );
-
-  const handleUnhandledShortcut = useCallback((shortcut: KeyboardShortcut, event: KeyboardEvent) => {
-    if (!shortcut.ctrlKey || shortcut.key.toLowerCase() !== "k") {
-      return;
-    }
-
-    emitShortcutIntent({
-      action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
-      outcome: "noop",
-      chord: "mod+k",
-      source: "keyboard",
-      detail: {
-        key: event.key,
-      },
-    });
-  }, []);
-
-  useKeyboardShortcuts(shortcuts, {
-    disabled: anyModalOpen && shortcuts.every(s => s.key !== "Escape"),
-    onUnhandledShortcut: handleUnhandledShortcut,
+  const { focusedIndex } = useAppKeyboardShortcuts({
+    searchInputRef, visibleChats, currentView, selectedChatId,
+    createChat, setCurrentView,
+    handleOpenSettings: modals.handleOpenSettings,
+    handleShowKeyboardShortcuts: modals.handleShowKeyboardShortcuts,
+    handleDeselectChat, handleSelectChat, toggleStar, toggleArchive,
+    showLabelManager: modals.showLabelManager, showSettings: modals.showSettings,
+    showKeyboardShortcuts: modals.showKeyboardShortcuts, showUsageStats: modals.showUsageStats,
+    setShowLabelManager: modals.setShowLabelManager, setShowSettings: modals.setShowSettings,
+    setShowKeyboardShortcuts: modals.setShowKeyboardShortcuts, setShowUsageStats: modals.setShowUsageStats,
+    anyModalOpen: modals.anyModalOpen,
   });
 
   return (
     <div ref={sidebarContainerRef as RefObject<HTMLDivElement>} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-          data-testid={appTestIds.mobileSidebarOverlay}
-        />
-      )}
-
-      {/* Unified Sidebar - Desktop: always visible, Mobile: slide-in */}
-      <div
-        className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
-          sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } w-[85vw] max-w-[320px] lg:w-auto lg:max-w-none`}
-        style={
-          !isMobile && !(sidebarCollapsed && !isMobile)
-            ? { width: sidebarWidth }
-            : undefined
-        }
-      >
-        <div className="lg:hidden absolute top-3 right-3 z-10">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setSidebarOpen(false);
-              setChatListOpen(false);
-            }}
-            data-testid={appTestIds.closeSidebarButton}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <ErrorBoundary name="Sidebar">
-          <Sidebar
-            ref={searchInputRef}
-            currentView={currentView}
-            onViewChange={(view) => {
-              setCurrentView(view);
-              if (window.innerWidth < 768) {
-                setSidebarOpen(false);
-              }
-            }}
-            onNewChat={handleNewChat}
-            onNewAgentChat={handleNewAgentChat}
-            onManageLabels={() => setShowLabelManager(true)}
-            onOpenSettings={handleOpenSettings}
-            onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
-            isCreatingChat={isCreatingChat}
-            labels={labels}
-            chatCounts={chatCounts}
-            chats={chats}
-            selectedChatId={selectedChatId}
-            focusedIndex={focusedIndex}
-            isLoadingChats={loadingChats}
-            onSelectChat={handleSelectChat}
-            onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
-            onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
-            isBulkOperating={isBulkOperating}
-            isCollapsed={sidebarCollapsed && !isMobile}
-            onToggleCollapsed={handleToggleSidebarCollapsed}
-            onClearArchived={handleClearArchived}
-            isClearingArchived={isClearingArchived}
-            onDeselectChat={handleDeselectChat}
-          />
-        </ErrorBoundary>
-      </div>
-
-      {/* Resize Handle - Desktop only, hidden when sidebar is collapsed */}
-      {!isMobile && !(sidebarCollapsed && !isMobile) && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          className={`hidden lg:flex items-center justify-center w-3 cursor-col-resize group shrink-0 ${
-            isSidebarResizing ? "bg-indigo-500/10" : "hover:bg-white/5"
-          }`}
-          onMouseDown={handleResizeStart}
-        >
-          <div
-            className={`w-px h-8 rounded-full transition-colors ${
-              isSidebarResizing ? "bg-indigo-500" : "bg-white/20 group-hover:bg-white/40"
-            }`}
-          />
-        </div>
-      )}
-
-      {/* Main Content - Chat View or Empty State */}
-      <div
-        className={`flex-1 flex flex-col min-h-0 min-w-0 ${
-          chatListOpen && selectedChatId ? "hidden lg:flex" : "flex"
-        }`}
-      >
-        <ErrorBoundary name="ChatContent">
-          {/* Guard: Only render ChatView when chatData matches selectedChatId to prevent stale data issues */}
-          {selectedChatId ? (
-            <Suspense fallback={(
-              <div className="flex-1 flex items-center justify-center bg-slate-950">
-                <span className="text-sm text-slate-400">Loading chat...</span>
-              </div>
-            )}>
-              <LazyChatView
-              key={selectedChatId}
-              chatData={chatData?.chat?.id === selectedChatId ? chatData : null}
-              models={models}
-              labels={labels}
-              isLoading={loadingChat || (!!selectedChatId && chatData?.chat?.id !== selectedChatId)}
-              isGenerating={isGenerating}
-              streamingContent={streamingContent}
-              activeToolCalls={activeToolCalls}
-              generatedImages={generatedImages}
-              scrollToMessageId={scrollToMessageId}
-              onScrollComplete={handleScrollComplete}
-              onSendMessage={sendMessage}
-              onUpdateChat={handleUpdateChatFromView}
-              onToggleRead={handleToggleReadFromView}
-              onToggleStar={handleToggleStarFromView}
-              onToggleArchive={handleToggleArchiveFromView}
-              onDeleteChat={handleDeleteChatFromView}
-              onAssignLabel={handleAssignLabelFromView}
-              onRemoveLabel={handleRemoveLabelFromView}
-              viewMode={viewMode}
-              onRegenerateMessage={handleRegenerateMessageFromView}
-              onSelectBranch={selectBranch}
-              onForkConversation={forkConversation}
-              isRegenerating={isRegenerating}
-              isForking={isForking}
-              editingMessage={editingMessage}
-              onEditMessage={setEditingMessage}
-              onCancelEdit={cancelEdit}
-              onSubmitEdit={handleSubmitEditFromView}
-              asyncOperations={asyncOperations}
-              activeAsyncOperations={activeAsyncOperations}
-              completedAsyncOperations={completedAsyncOperations}
-              onCancelAsyncOperation={cancelAsyncOperation}
-              onRefreshAsyncOperation={refreshAsyncOperation}
-              onFetchAsyncHistory={handleFetchAsyncHistory}
-              hasMoreAsyncHistory={hasMoreAsyncHistory}
-              asyncReferences={asyncReferences}
-              onInsertAsyncReference={handleInsertAsyncReference}
-              onRemoveAsyncReference={handleRemoveAsyncReference}
-              onTemplateActivated={handleTemplateActivated}
-              activeTemplateId={activeTemplate.activeTemplateId}
-              onTemplateDeactivate={activeTemplate.deactivate}
-              onRefreshChat={handleRefreshChat}
-              onOpenAgentSettings={handleOpenAgentSettings}
-              onBackToList={handleBackToList}
-              isMobile={isMobile}
-              onOpenSidebar={() => setSidebarOpen(true)}
-            />
-            </Suspense>
-          ) : (
-            <EmptyState
-              onStartChat={createChatWithMessage}
-              onStartAgentChat={handleStartAgentChat}
-              onAttachRun={handleAttachRunFromEmpty}
-              onOpenAgentSettings={handleOpenAgentSettings}
-              isCreating={isCreatingChat}
-              models={models}
-              isMobile={isMobile}
-              onOpenSidebar={() => setSidebarOpen(true)}
-            />
-          )}
-        </ErrorBoundary>
-      </div>
-
-      {/* Label Manager Dialog */}
-      <ErrorBoundary name="LabelManager">
-        <LabelManager
-          open={showLabelManager}
-          onClose={() => setShowLabelManager(false)}
-          labels={labels}
-          onCreateLabel={createLabel}
-          onDeleteLabel={deleteLabel}
-        />
-      </ErrorBoundary>
-
-      {/* Settings Dialog */}
-      <ErrorBoundary name="Settings">
-        <Settings
-          open={showSettings}
-          initialTab={settingsInitialTab}
-          onClose={() => setShowSettings(false)}
-          onDeleteAllChats={deleteAllChats}
-          isDeletingAll={isDeletingAllChats}
-          onClearArchived={handleClearArchived}
-          isClearingArchived={isClearingArchived}
-          onMarkAllAsRead={handleMarkAllAsRead}
-          isMarkingAllAsRead={isMarkingAllAsRead}
-          onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
-          onShowUsageStats={handleShowUsageStats}
-          models={models}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          onEditTemplate={handleEditTemplateFromSettings}
-        />
-      </ErrorBoundary>
-
-      {/* Template Editor from Settings - Only render when open to avoid useTools cascade */}
-      {!!settingsEditingTemplate && (
-        <ErrorBoundary name="TemplateEditor">
-          <TemplateEditorModal
-            open={!!settingsEditingTemplate}
-            onClose={() => {
-              setSettingsEditingTemplate(null);
-              setSettingsAllTemplates([]);
-            }}
-            onSave={handleSaveTemplateFromSettings}
-            template={settingsEditingTemplate || undefined}
-            templateSource={settingsEditingTemplate?.source}
-            allTemplates={settingsAllTemplates}
-            onSelectTemplate={(template) => {
-              setSettingsEditingTemplate(template);
-            }}
-            onSaveAll={async (updates) => {
-              const { updateTemplates, getAllTemplates } = await import("./data/templates");
-              await updateTemplates(updates);
-              const updated = await getAllTemplates();
-              setSettingsAllTemplates(updated);
-            }}
-          />
-        </ErrorBoundary>
-      )}
-
-      {/* Keyboard Shortcuts Dialog */}
-      <KeyboardShortcuts
-        open={showKeyboardShortcuts}
-        onClose={() => setShowKeyboardShortcuts(false)}
+      <SidebarPanel
+        ref={searchInputRef}
+        sidebarOpen={sidebarOpen} chatListOpen={chatListOpen}
+        sidebarCollapsed={sidebarCollapsed} sidebarWidth={sidebarWidth}
+        isSidebarResizing={isSidebarResizing} isMobile={isMobile}
+        handleResizeStart={handleResizeStart}
+        setSidebarOpen={setSidebarOpen} setChatListOpen={setChatListOpen}
+        handleToggleSidebarCollapsed={handleToggleSidebarCollapsed}
+        currentView={currentView} setCurrentView={setCurrentView}
+        handleNewChat={handleNewChat} handleNewAgentChat={handleNewAgentChat}
+        onManageLabels={() => modals.setShowLabelManager(true)}
+        onOpenSettings={modals.handleOpenSettings}
+        onShowKeyboardShortcuts={modals.handleShowKeyboardShortcuts}
+        isCreatingChat={isCreatingChat} labels={labels} chatCounts={chatCounts}
+        chats={chats} selectedChatId={selectedChatId} focusedIndex={focusedIndex}
+        isLoadingChats={loadingChats} onSelectChat={handleSelectChat}
+        onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
+        onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
+        isBulkOperating={isBulkOperating}
+        onClearArchived={handleClearArchived} isClearingArchived={isClearingArchived}
+        onDeselectChat={handleDeselectChat}
+        mobileSidebarOverlayTestId={appTestIds.mobileSidebarOverlay}
+        closeSidebarButtonTestId={appTestIds.closeSidebarButton}
       />
 
-      {/* Usage Statistics Dialog */}
-      <UsageStats
-        isOpen={showUsageStats}
-        onClose={() => setShowUsageStats(false)}
+      <MainContent
+        selectedChatId={selectedChatId} chatData={chatData} models={models} labels={labels}
+        loadingChat={loadingChat} isGenerating={isGenerating}
+        streamingContent={streamingContent} activeToolCalls={activeToolCalls}
+        generatedImages={generatedImages} scrollToMessageId={scrollToMessageId}
+        chatViewCallbacks={chatViewCallbacks} sendMessage={sendMessage} viewMode={viewMode}
+        selectBranch={selectBranch} forkConversation={forkConversation}
+        isRegenerating={isRegenerating} isForking={isForking}
+        editingMessage={editingMessage} setEditingMessage={setEditingMessage} cancelEdit={cancelEdit}
+        asyncOperations={asyncOperations} activeAsyncOperations={activeAsyncOperations}
+        completedAsyncOperations={completedAsyncOperations}
+        cancelAsyncOperation={cancelAsyncOperation} refreshAsyncOperation={refreshAsyncOperation}
+        handleFetchAsyncHistory={handleFetchAsyncHistory} hasMoreAsyncHistory={hasMoreAsyncHistory}
+        asyncReferences={asyncReferences}
+        handleInsertAsyncReference={handleInsertAsyncReference}
+        handleRemoveAsyncReference={handleRemoveAsyncReference}
+        handleTemplateActivated={handleTemplateActivated}
+        activeTemplateId={activeTemplate.activeTemplateId}
+        onTemplateDeactivate={activeTemplate.deactivate}
+        handleOpenAgentSettings={modals.handleOpenAgentSettings}
+        handleBackToList={handleBackToList} isMobile={isMobile}
+        setSidebarOpen={setSidebarOpen} chatListOpen={chatListOpen}
+        createChatWithMessage={createChatWithMessage}
+        handleStartAgentChat={handleStartAgentChat}
+        handleAttachRunFromEmpty={handleAttachRunFromEmpty}
+        isCreatingChat={isCreatingChat}
+      />
+
+      <AppDialogs
+        modals={modals} labels={labels} models={models}
+        createLabel={createLabel} deleteLabel={deleteLabel}
+        deleteAllChats={deleteAllChats} isDeletingAllChats={isDeletingAllChats}
+        handleClearArchived={handleClearArchived} isClearingArchived={isClearingArchived}
+        handleMarkAllAsRead={handleMarkAllAsRead} isMarkingAllAsRead={isMarkingAllAsRead}
+        viewMode={viewMode} handleViewModeChange={handleViewModeChange}
       />
     </div>
   );
 }
 
-/** Scenario viewer wrapper component */
-function ScenarioViewerWrapper() {
-  const { scenarioName, path } = useScenarioViewerRoute();
-
-  const handleBack = useCallback(() => {
-    window.history.back();
-  }, []);
-
-  if (!scenarioName) {
-    return null;
-  }
-
-  return (
-    <ScenarioViewer
-      scenarioName={scenarioName}
-      path={path ?? undefined}
-      onBack={handleBack}
-    />
-  );
-}
-
-/** App router - decides which view to render based on URL */
-function AppRouter() {
-  const { isScenarioViewer } = useScenarioViewerRoute();
-
-  if (isScenarioViewer) {
-    return (
-      <ErrorBoundary name="ScenarioViewer">
-        <ScenarioViewerWrapper />
-      </ErrorBoundary>
-    );
-  }
-
-  return <AppContent />;
-}
-
 export default function App() {
   return (
     <ToastProvider>
-      <AppRouter />
+      <AppRouter>
+        <AppContent />
+      </AppRouter>
     </ToastProvider>
   );
 }

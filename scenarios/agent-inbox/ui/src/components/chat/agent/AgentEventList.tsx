@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { AgentEvent, Message } from "../../../lib/api";
 import type { ViewMode } from "../../settings/Settings";
 import AgentMessageBubble from "./AgentMessageBubble";
@@ -7,6 +7,7 @@ import AgentRawEventCard from "./AgentRawEventCard";
 import { getToolComponent } from "./tools";
 import { MarkdownRenderer } from "../../markdown/MarkdownRenderer";
 import { User } from "lucide-react";
+import { useGroupedEvents } from "./useGroupedEvents";
 
 /** Parsed metric from raw_data JSON. */
 export interface AgentMetric {
@@ -17,27 +18,17 @@ export interface AgentMetric {
 }
 
 interface AgentEventListProps {
-  /** List of events to render */
   events: AgentEvent[];
-  /** Whether to auto-scroll to bottom on new events */
   autoScroll?: boolean;
-  /** Runner type for tool-specific rendering (e.g. "claude_code", "codex") */
   runnerType?: string;
-  /** Message rendering style (bubble or compact) */
   viewMode?: ViewMode;
-  /** Initial messages (e.g. user's prompt) to render before agent events */
   initialMessages?: Message[];
-  /** ID of a message to scroll to and highlight (from search navigation) */
   scrollToMessageId?: string | null;
-  /** Called after scroll-to-message completes or gives up */
   onScrollComplete?: () => void;
 }
 
 /**
  * Renders a list of agent events as chat messages and tool calls.
- * Groups tool_call and tool_result events together using tool_call_id
- * for reliable correlation, with a name+proximity fallback for events
- * that lack the ID.
  */
 export function AgentEventList({
   events,
@@ -52,10 +43,7 @@ export function AgentEventList({
   const prevEventCountRef = useRef(events.length);
   const isCompact = viewMode === "compact";
 
-  // Ref map for scroll-to-message support (keyed by message ID or event ID)
   const elementRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  // Track which element is highlighted (from search result navigation)
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   // Auto-scroll to bottom when new events arrive
@@ -69,13 +57,12 @@ export function AgentEventList({
     prevEventCountRef.current = events.length;
   }, [events.length, autoScroll]);
 
-  // Scroll to target message/event when scrollToMessageId is set.
-  // Uses retry polling because the target element may not be in the DOM yet.
+  // Scroll to target message/event
   useEffect(() => {
     if (!scrollToMessageId) return;
 
     let attempts = 0;
-    const maxAttempts = 30; // ~3 seconds
+    const maxAttempts = 30;
     let timerId: number;
     let highlightTimerId: number;
 
@@ -105,84 +92,7 @@ export function AgentEventList({
     };
   }, [scrollToMessageId, onScrollComplete]);
 
-  // Group tool calls with their results
-  const groupedEvents = useMemo(() => {
-    // Build a map of tool_call_id → tool_result event for reliable matching
-    const resultsByCallId = new Map<string, AgentEvent>();
-    // Fallback: match by tool name + proximity for events without tool_call_id
-    const resultsByNameFallback = new Map<string, AgentEvent>();
-
-    // First pass: index tool results
-    events.forEach((event, index) => {
-      if (event.type !== "tool_result") return;
-
-      // Prefer tool_call_id-based matching
-      if (event.tool_call_id) {
-        resultsByCallId.set(event.tool_call_id, event);
-        return;
-      }
-
-      // Fallback: match by tool name + proximity (within 10 events)
-      if (event.tool_name) {
-        for (let i = index - 1; i >= Math.max(0, index - 10); i--) {
-          const prevEvent = events[i];
-          if (prevEvent === undefined) continue;
-          if (
-            prevEvent.type === "tool_call" &&
-            prevEvent.tool_name === event.tool_name &&
-            !resultsByNameFallback.has(prevEvent.id)
-          ) {
-            resultsByNameFallback.set(prevEvent.id, event);
-            break;
-          }
-        }
-      }
-    });
-
-    // Second pass: create grouped items
-    const grouped: Array<{
-      type: "message" | "tool" | "status" | "error" | "compaction" | "raw";
-      event: AgentEvent;
-      result?: AgentEvent;
-    }> = [];
-
-    const renderedResultIds = new Set<string>();
-
-    events.forEach(event => {
-      if (event.type === "message") {
-        grouped.push({ type: "message", event });
-      } else if (event.type === "tool_call") {
-        // Try tool_call_id first, then fallback map
-        const result = (event.tool_call_id && resultsByCallId.get(event.tool_call_id))
-          || resultsByNameFallback.get(event.id);
-        if (result) {
-          renderedResultIds.add(result.id);
-        }
-        grouped.push({ type: "tool", event, result });
-      } else if (event.type === "tool_result") {
-        // Skip if already rendered with a tool_call
-        if (!renderedResultIds.has(event.id)) {
-          // Orphan result - render as standalone
-          grouped.push({ type: "tool", event, result: event });
-        }
-      } else if (event.type === "compaction") {
-        grouped.push({ type: "compaction", event });
-      } else if (event.type === "status") {
-        // Status events are shown in the header, skip inline
-        grouped.push({ type: "status", event });
-      } else if (event.type === "error") {
-        grouped.push({ type: "error", event });
-      } else if (event.type === "log" || event.type === "metric") {
-        // Skip log events (internal debug info) and metric events (shown in header)
-        return;
-      } else {
-        // All other event types: render as generic raw card
-        grouped.push({ type: "raw", event });
-      }
-    });
-
-    return grouped;
-  }, [events]);
+  const groupedEvents = useGroupedEvents(events);
 
   if ((!initialMessages || initialMessages.length === 0) && events.length === 0) {
     return (
@@ -280,7 +190,6 @@ export function AgentEventList({
             );
 
           case "status":
-            // Status events are typically shown in the header, skip inline
             return null;
 
           case "error":

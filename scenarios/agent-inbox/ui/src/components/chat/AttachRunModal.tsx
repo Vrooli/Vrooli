@@ -5,46 +5,13 @@ import { Button } from "../ui/button";
 import type { AgentEvent, AgentRunSummary } from "../../lib/api";
 import { listAgentRuns, getRunEvents } from "../../lib/api";
 import { AgentEventList } from "./agent/AgentEventList";
+import { RunCard, STATUS_OPTIONS } from "./RunCard";
 
 interface AttachRunModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAttach: (run: AgentRunSummary) => void;
   isLoading?: boolean;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-400",
-  starting: "bg-yellow-500/20 text-yellow-400",
-  running: "bg-blue-500/20 text-blue-400",
-  needs_review: "bg-orange-500/20 text-orange-400",
-  complete: "bg-green-500/20 text-green-400",
-  failed: "bg-red-500/20 text-red-400",
-  cancelled: "bg-slate-500/20 text-slate-400",
-};
-
-const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
-  { value: "running", label: "Running" },
-  { value: "pending", label: "Pending" },
-  { value: "complete", label: "Complete" },
-  { value: "failed", label: "Failed" },
-  { value: "needs_review", label: "Needs Review" },
-  { value: "cancelled", label: "Cancelled" },
-];
-
-function formatTime(dateStr: string): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
 }
 
 export function AttachRunModal({
@@ -104,7 +71,6 @@ export function AttachRunModal({
     }
   }, [isOpen, statusFilter, fetchRuns]);
 
-  // Fetch preview events when a run is selected
   useEffect(() => {
     if (selectedRun) {
       fetchPreview(selectedRun.run_id);
@@ -135,9 +101,7 @@ export function AttachRunModal({
 
       <DialogBody className="space-y-3 min-h-0">
         {selectedRun ? (
-          /* ── Selected run detail + preview ── */
           <>
-            {/* Back button + selected run card */}
             <div className="space-y-2">
               <button
                 type="button"
@@ -147,11 +111,9 @@ export function AttachRunModal({
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to list
               </button>
-
               <RunCard run={selectedRun} isSelected />
             </div>
 
-            {/* Event preview */}
             <div className="border-t border-white/10 pt-3">
               <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                 Conversation Preview
@@ -162,51 +124,33 @@ export function AttachRunModal({
                     <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                   </div>
                 )}
-
                 {previewError && (
                   <div className="flex items-center gap-2 p-3 text-red-400 text-sm">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     <span>{previewError}</span>
                   </div>
                 )}
-
                 {!isFetchingPreview && !previewError && previewEvents.length === 0 && (
-                  <div className="text-center py-8 text-slate-500 text-sm">
-                    No events yet
-                  </div>
+                  <div className="text-center py-8 text-slate-500 text-sm">No events yet</div>
                 )}
-
                 {!isFetchingPreview && previewEvents.length > 0 && (
                   <div className="p-2">
-                    <AgentEventList
-                      events={previewEvents}
-                      autoScroll={false}
-                      viewMode="compact"
-                    />
+                    <AgentEventList events={previewEvents} autoScroll={false} viewMode="compact" />
                   </div>
                 )}
               </div>
             </div>
           </>
         ) : (
-          /* ── Run list view ── */
           <>
-            {/* Filter bar */}
             <div className="flex items-center gap-2 shrink-0">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="
-                  px-3 py-1.5 rounded-lg text-sm
-                  bg-slate-800 border border-white/10
-                  text-white
-                  focus:outline-none focus:border-indigo-500
-                "
+                className="px-3 py-1.5 rounded-lg text-sm bg-slate-800 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
               >
                 {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
               <button
@@ -220,33 +164,23 @@ export function AttachRunModal({
               </button>
             </div>
 
-            {/* Run list */}
             <div className="space-y-2 min-h-0 overflow-y-auto max-h-[50vh]">
               {isFetching && runs.length === 0 && (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                 </div>
               )}
-
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-400 text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
-
               {!isFetching && !error && runs.length === 0 && (
-                <div className="text-center py-8 text-slate-500 text-sm">
-                  No runs found
-                </div>
+                <div className="text-center py-8 text-slate-500 text-sm">No runs found</div>
               )}
-
               {runs.map((run) => (
-                <RunCard
-                  key={run.run_id}
-                  run={run}
-                  onClick={() => setSelectedRun(run)}
-                />
+                <RunCard key={run.run_id} run={run} onClick={() => setSelectedRun(run)} />
               ))}
             </div>
           </>
@@ -254,59 +188,12 @@ export function AttachRunModal({
       </DialogBody>
 
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button
-          onClick={() => selectedRun && onAttach(selectedRun)}
-          disabled={isLoading || !selectedRun}
-        >
+        <Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button>
+        <Button onClick={() => selectedRun && onAttach(selectedRun)} disabled={isLoading || !selectedRun}>
           {isLoading ? "Attaching..." : "Attach"}
         </Button>
       </DialogFooter>
     </Dialog>
-  );
-}
-
-function RunCard({
-  run,
-  isSelected = false,
-  onClick,
-}: {
-  run: AgentRunSummary;
-  isSelected?: boolean;
-  onClick?: () => void;
-}) {
-  const Comp = onClick ? "button" : "div";
-  return (
-    <Comp
-      type={onClick ? "button" : undefined}
-      onClick={onClick}
-      className={`
-        w-full text-left p-3 rounded-lg border transition-colors
-        ${isSelected
-          ? "border-blue-500/50 bg-blue-500/10"
-          : "border-white/10 hover:border-white/20 hover:bg-white/5"
-        }
-        ${onClick ? "cursor-pointer" : ""}
-      `}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-white truncate">
-          {run.tag || run.run_id.slice(0, 12)}
-        </span>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${STATUS_COLORS[run.status] || "bg-slate-500/20 text-slate-400"}`}>
-          {run.status}
-        </span>
-      </div>
-      <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-        <span>{formatTime(run.created_at)}</span>
-        {run.status === "running" && run.progress_percent > 0 && (
-          <span>{run.progress_percent}%</span>
-        )}
-        <span className="truncate">{run.run_id.slice(0, 8)}</span>
-      </div>
-    </Comp>
   );
 }
 

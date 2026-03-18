@@ -8,29 +8,19 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Wrench,
   Search,
-  Check,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { EffectiveTool } from "@/lib/api";
+import { ToolOptionButton, type FlatTool } from "./ToolOptionButton";
 
 interface ToolSelectorProps {
   open: boolean;
   onClose: () => void;
-  /** Enabled tools grouped by scenario */
   toolsByScenario: Map<string, EffectiveTool[]>;
-  /** Currently forced tool, if any */
   forcedTool?: { scenario: string; toolName: string } | null;
-  /** Callback when a tool is selected */
   onSelect: (scenario: string, toolName: string) => void;
-  /** Callback to clear forced tool */
   onClear: () => void;
-}
-
-interface FlatTool {
-  scenario: string;
-  tool: EffectiveTool;
-  index: number;
 }
 
 export function ToolSelector({
@@ -42,7 +32,7 @@ export function ToolSelector({
   onClear,
 }: ToolSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [focusedIndex, setFocusedIndex] = useState(-1); // -1 = search focused
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const toolRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
@@ -62,7 +52,6 @@ export function ToolSelector({
   // Filter tools by search query
   const filteredTools = useMemo(() => {
     if (!searchQuery.trim()) return allTools;
-
     const query = searchQuery.toLowerCase();
     return allTools.filter(
       ({ scenario, tool }) =>
@@ -88,17 +77,9 @@ export function ToolSelector({
     return grouped;
   }, [indexedFilteredTools]);
 
-  // Reset focus when search results change
+  useEffect(() => { setFocusedIndex(-1); }, [searchQuery]);
   useEffect(() => {
-    setFocusedIndex(-1);
-  }, [searchQuery]);
-
-  // Reset state when modal opens
-  useEffect(() => {
-    if (open) {
-      setFocusedIndex(-1);
-      setSearchQuery("");
-    }
+    if (open) { setFocusedIndex(-1); setSearchQuery(""); }
   }, [open]);
 
   const handleSelect = useCallback((scenario: string, toolName: string) => {
@@ -122,45 +103,26 @@ export function ToolSelector({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const maxIndex = indexedFilteredTools.length - 1;
-
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setFocusedIndex((prev) => {
-            const next = prev < maxIndex ? prev + 1 : -1;
-            return next;
-          });
+          setFocusedIndex((prev) => prev < maxIndex ? prev + 1 : -1);
           break;
         case "ArrowUp":
           e.preventDefault();
-          setFocusedIndex((prev) => {
-            const next = prev > -1 ? prev - 1 : maxIndex;
-            return next;
-          });
+          setFocusedIndex((prev) => prev > -1 ? prev - 1 : maxIndex);
           break;
         case "Tab":
           if (!e.shiftKey && focusedIndex === -1) {
-            // Going from search to first item
-            if (indexedFilteredTools.length > 0) {
-              e.preventDefault();
-              setFocusedIndex(0);
-            }
+            if (indexedFilteredTools.length > 0) { e.preventDefault(); setFocusedIndex(0); }
           } else if (e.shiftKey && focusedIndex === 0) {
-            // Going from first item back to search
-            e.preventDefault();
-            setFocusedIndex(-1);
+            e.preventDefault(); setFocusedIndex(-1);
           } else if (!e.shiftKey && focusedIndex === maxIndex) {
-            // At last item, focus clear/close button
             e.preventDefault();
-            if (forcedTool) {
-              clearButtonRef.current?.focus();
-            }
+            if (forcedTool) { clearButtonRef.current?.focus(); }
           } else if (focusedIndex >= 0) {
-            // Normal tab through items
             e.preventDefault();
-            setFocusedIndex((prev) =>
-              e.shiftKey ? prev - 1 : prev + 1
-            );
+            setFocusedIndex((prev) => e.shiftKey ? prev - 1 : prev + 1);
           }
           break;
         case "Enter":
@@ -175,18 +137,13 @@ export function ToolSelector({
     [indexedFilteredTools, focusedIndex, handleSelect, forcedTool]
   );
 
-  // Focus the appropriate element when focusedIndex changes
   useEffect(() => {
     if (!open) return;
-
     if (focusedIndex === -1) {
       searchInputRef.current?.focus();
     } else if (toolRefs.current[focusedIndex]) {
       toolRefs.current[focusedIndex]?.focus();
-      toolRefs.current[focusedIndex]?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
+      toolRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [focusedIndex, open]);
 
@@ -211,7 +168,6 @@ export function ToolSelector({
           </div>
         ) : (
           <>
-            {/* Search input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
@@ -225,20 +181,14 @@ export function ToolSelector({
                 autoFocus
               />
             </div>
-
-            {/* Keyboard hint */}
             <p className="text-xs text-slate-500">
-              Use <kbd className="px-1 py-0.5 rounded bg-slate-700">↑</kbd>{" "}
-              <kbd className="px-1 py-0.5 rounded bg-slate-700">↓</kbd> to navigate,{" "}
+              Use <kbd className="px-1 py-0.5 rounded bg-slate-700">&#8593;</kbd>{" "}
+              <kbd className="px-1 py-0.5 rounded bg-slate-700">&#8595;</kbd> to navigate,{" "}
               <kbd className="px-1 py-0.5 rounded bg-slate-700">Enter</kbd> to select
             </p>
-
-            {/* Tools list */}
             <div className="space-y-4" role="listbox">
               {indexedFilteredTools.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">
-                  No tools found
-                </div>
+                <div className="text-center py-8 text-slate-400">No tools found</div>
               ) : (
                 Array.from(filteredByScenario.entries()).map(
                   ([scenario, scenarioTools]) => (
@@ -248,70 +198,19 @@ export function ToolSelector({
                         {scenario}
                       </h3>
                       <div className="space-y-2">
-                        {scenarioTools.map(({ tool, index }) => {
-                          const isSelected =
-                            forcedTool?.scenario === scenario &&
-                            forcedTool?.toolName === tool.tool.name;
-                          const isFocused = focusedIndex === index;
-
-                          return (
-                            <button
-                              key={`${scenario}-${tool.tool.name}`}
-                              ref={(el) => {
-                                toolRefs.current[index] = el;
-                              }}
-                              onClick={() => handleSelect(scenario, tool.tool.name)}
-                              onFocus={() => setFocusedIndex(index)}
-                              role="option"
-                              aria-selected={isSelected}
-                              tabIndex={isFocused ? 0 : -1}
-                              className={`
-                                w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors
-                                ${
-                                  isSelected
-                                    ? "bg-violet-500/20 border-violet-500/50"
-                                    : isFocused
-                                      ? "bg-slate-700/50 border-violet-400/50 ring-2 ring-violet-500/30"
-                                      : "bg-slate-800/50 border-white/10 hover:bg-slate-800 hover:border-white/20"
-                                }
-                              `}
-                              data-testid={`tool-option-${tool.tool.name}`}
-                            >
-                              <div
-                                className={`
-                                flex-shrink-0 p-1.5 rounded-lg
-                                ${isSelected ? "bg-violet-500/30" : "bg-slate-700"}
-                              `}
-                              >
-                                <Wrench
-                                  className={`h-4 w-4 ${isSelected ? "text-violet-400" : "text-slate-300"}`}
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`font-medium text-sm ${isSelected ? "text-violet-300" : "text-white"}`}
-                                  >
-                                    {tool.tool.name}
-                                  </span>
-                                  {tool.tool.category && (
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">
-                                      {tool.tool.category}
-                                    </span>
-                                  )}
-                                </div>
-                                {tool.tool.description && (
-                                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                                    {tool.tool.description}
-                                  </p>
-                                )}
-                              </div>
-                              {isSelected && (
-                                <Check className="h-4 w-4 text-violet-400 shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })}
+                        {scenarioTools.map(({ tool, index }) => (
+                          <ToolOptionButton
+                            key={`${scenario}-${tool.tool.name}`}
+                            scenario={scenario}
+                            tool={tool}
+                            index={index}
+                            isSelected={forcedTool?.scenario === scenario && forcedTool?.toolName === tool.tool.name}
+                            isFocused={focusedIndex === index}
+                            onSelect={handleSelect}
+                            onFocus={setFocusedIndex}
+                            buttonRef={(el) => { toolRefs.current[index] = el; }}
+                          />
+                        ))}
                       </div>
                     </div>
                   )
@@ -323,12 +222,7 @@ export function ToolSelector({
       </DialogBody>
       <DialogFooter>
         {forcedTool && (
-          <Button
-            ref={clearButtonRef}
-            variant="ghost"
-            onClick={handleClear}
-            className="text-red-400 hover:text-red-300"
-          >
+          <Button ref={clearButtonRef} variant="ghost" onClick={handleClear} className="text-red-400 hover:text-red-300">
             Clear forced tool
           </Button>
         )}

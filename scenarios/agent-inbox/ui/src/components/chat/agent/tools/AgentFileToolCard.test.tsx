@@ -89,12 +89,12 @@ describe("AgentFileToolCard", () => {
   it("shows 'pattern in path' format for Grep", () => {
     const event = makeEvent({
       tool_name: "Grep",
-      tool_input: JSON.stringify({ pattern: "TODO", path: "/src" }),
+      tool_input: JSON.stringify({ pattern: "handleError", path: "/src" }),
     });
 
     render(<AgentFileToolCard event={event} />);
     expect(screen.getByText("Grep")).toBeInTheDocument();
-    expect(screen.getByText("TODO in /src")).toBeInTheDocument();
+    expect(screen.getByText("handleError in /src")).toBeInTheDocument();
   });
 
   it("shows 'pattern in .' when Grep has no path", () => {

@@ -1,56 +1,24 @@
-import { memo, useEffect, useRef, useState, forwardRef, useCallback, useMemo, type ComponentType, type SVGProps } from "react";
-import {
-  Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
-  Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
-  ShieldAlert, ExternalLink, BookOpen,
-} from "lucide-react";
-import * as LucideIcons from "lucide-react";
-import { resolveAttachmentUrl, type Attachment, type Message, type ToolCall, type ToolCallRecord } from "../../lib/api";
+import { memo, useMemo } from "react";
+import { Bot } from "lucide-react";
+import type { Message, ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
-import { Tooltip } from "../ui/tooltip";
-import { useToast } from "../ui/toast";
-import { Button } from "../ui/button";
-import { VersionPicker } from "./VersionPicker";
-import { PendingApprovalCard } from "./PendingApprovalCard";
-import { ToolCallDetailModal } from "./ToolCallDetailModal";
-import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
-import { MarkdownRenderer, CodeBlock } from "../markdown";
-import { parseToolInput, type SkillAttachment } from "../../lib/tool-utils";
-
-// Type for Lucide icon components
-type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
-
-function getIconComponent(name: string): IconComponent {
-  const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];
-  return Icon || BookOpen;
-}
-
-// Stable empty arrays for default prop values
-// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
-// which changes references and triggers infinite re-render loops via useMemo dependencies
-const EMPTY_IMAGES: string[] = [];
-const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
-const EMPTY_TOOL_RECORDS: ToolCallRecord[] = [];
-const EMPTY_APPROVALS: PendingApproval[] = [];
-const EMPTY_SIBLINGS: Message[] = [];
-const EMPTY_ASYNC_OPS: AsyncStatusUpdate[] = [];
-
-// Stable default for sibling info to prevent creating new objects in useMemo
-// CRITICAL: Returning { siblings: [] } creates a NEW array each time, which changes
-// references and triggers useCallback dependencies like handlePreviousVersion to recreate
-const DEFAULT_SIBLING_INFO = { current: 1, total: 1, siblings: EMPTY_SIBLINGS };
-
-// Stable empty map for sibling info when there are no messages
-// CRITICAL: Using `new Map()` inside a component creates new reference each render
-const EMPTY_SIBLING_MAP: Map<string, { current: number; total: number; siblings: Message[] }> = new Map();
-
-// Stable empty map for async operations
-const EMPTY_ASYNC_OP_MAP: Map<string, AsyncStatusUpdate> = new Map();
-
-// Stable empty array for filtered messages when messages is empty
-const EMPTY_MESSAGES: Message[] = [];
+import { getSiblingInfo } from "../../lib/messageTree";
+import { MessageBubble } from "./MessageBubble";
+import { ActiveToolCallsDisplay, PendingApprovalsDisplay, StreamingMessageDisplay } from "./StreamingMessage";
+import { useScrollManagement } from "./useScrollManagement";
+import {
+  EMPTY_IMAGES,
+  EMPTY_TOOL_CALLS,
+  EMPTY_TOOL_RECORDS,
+  EMPTY_APPROVALS,
+  EMPTY_ASYNC_OPS,
+  DEFAULT_SIBLING_INFO,
+  EMPTY_SIBLING_MAP,
+  EMPTY_ASYNC_OP_MAP,
+  EMPTY_MESSAGES,
+} from "./messageListTypes";
 
 interface MessageListProps {
   messages: Message[];
@@ -120,40 +88,20 @@ function MessageListInner({
   isRegenerating = false,
   isForking = false,
 }: MessageListProps) {
-  // Use allMessages for sibling computation, fallback to visible messages
   const messagesForSiblings = allMessages ?? messages;
 
-  const endRef = useRef<HTMLDivElement>(null);
-  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  // Track which message is highlighted (from search result navigation)
-  // Using React state instead of classList.add/remove because Tailwind CSS
-  // purges dynamically-added class names that don't appear in source files.
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-
-  // Ref for debouncing auto-scroll to prevent rapid scroll triggers during streaming
-  const scrollTimeoutRef = useRef<number | null>(null);
-
-  // Clear stale message refs when messages change to prevent memory leaks
-  // and stale data issues when switching between chats
-  useEffect(() => {
-    const currentMessageIds = new Set(messages.map((m) => m.id));
-    // Remove refs for messages that are no longer in the list
-    for (const id of messageRefs.current.keys()) {
-      if (!currentMessageIds.has(id)) {
-        messageRefs.current.delete(id);
-      }
-    }
-  }, [messages]);
+  const { endRef, messageRefs, highlightedMessageId } = useScrollManagement({
+    messages,
+    streamingContent,
+    activeToolCalls,
+    scrollToMessageId,
+    onScrollComplete,
+  });
 
   // Create lookup map from tool_call_id to ToolCallRecord for persisted tool calls
-  // IDs from OpenRouter are strings like "call_abc123", stored as-is in both
-  // messages.tool_calls and tool_calls.id. Normalize by removing dashes for
-  // backward compatibility with any legacy UUID-formatted records.
   const toolCallRecordMap = useMemo(() => {
     const map = new Map<string, ToolCallRecord>();
     for (const record of toolCallRecords) {
-      // Store with both original and normalized ID for robust lookup
       map.set(record.id, record);
       const normalizedId = record.id.replace(/-/g, "");
       if (normalizedId !== record.id) {
@@ -163,13 +111,9 @@ function MessageListInner({
     return map;
   }, [toolCallRecords]);
 
-  // Create lookup map from tool_call_id to AsyncStatusUpdate for async operations
-  // This allows ToolCallItem and ToolCallDetailModal to show real-time async status
-  // CRITICAL: Return stable EMPTY_ASYNC_OP_MAP when no operations to prevent new reference
+  // Create lookup map from tool_call_id to AsyncStatusUpdate
   const asyncOperationMap = useMemo(() => {
-    if (asyncOperations.length === 0) {
-      return EMPTY_ASYNC_OP_MAP;
-    }
+    if (asyncOperations.length === 0) return EMPTY_ASYNC_OP_MAP;
     const map = new Map<string, AsyncStatusUpdate>();
     for (const op of asyncOperations) {
       map.set(op.tool_call_id, op);
@@ -177,17 +121,10 @@ function MessageListInner({
     return map;
   }, [asyncOperations]);
 
-  // OPTIMIZATION: Precompute siblingInfo for all assistant messages at the list level.
-  // Previously, each MessageBubble computed getSiblingInfo(allMessages, message.id),
-  // which built a message map and did filtering N times for N messages.
-  // By computing once here and passing down, we reduce O(N²) to O(N) complexity.
-  // CRITICAL: Return stable EMPTY_SIBLING_MAP when no messages to prevent new reference.
+  // Precompute siblingInfo for all assistant messages at the list level
   const siblingInfoMap = useMemo(() => {
-    if (!messagesForSiblings || messagesForSiblings.length === 0) {
-      return EMPTY_SIBLING_MAP;
-    }
+    if (!messagesForSiblings || messagesForSiblings.length === 0) return EMPTY_SIBLING_MAP;
     const map = new Map<string, { current: number; total: number; siblings: Message[] }>();
-    // Only compute for assistant messages (they're the only ones with version pickers)
     for (const message of messages) {
       if (message.role === "assistant") {
         map.set(message.id, getSiblingInfo(messagesForSiblings, message.id));
@@ -196,96 +133,20 @@ function MessageListInner({
     return map;
   }, [messagesForSiblings, messages]);
 
-  // Scroll to specific message when navigating from search.
-  // Uses retry polling because when navigating to a new chat, messages load async
-  // and the target DOM element may not exist yet on first attempt.
-  useEffect(() => {
-    if (!scrollToMessageId) return;
-
-    let attempts = 0;
-    const maxAttempts = 30; // ~3 seconds
-    let timerId: number;
-    let highlightTimerId: number;
-
-    const tryScroll = () => {
-      const messageEl = messageRefs.current.get(scrollToMessageId);
-      if (messageEl) {
-        messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        setHighlightedMessageId(scrollToMessageId);
-        highlightTimerId = window.setTimeout(() => {
-          setHighlightedMessageId(null);
-          onScrollComplete?.();
-        }, 2000);
-        return;
-      }
-      attempts++;
-      if (attempts < maxAttempts) {
-        timerId = window.setTimeout(tryScroll, 100);
-      } else {
-        onScrollComplete?.();
-      }
-    };
-
-    // Try immediately first (element may already be in DOM for same-chat scrolls),
-    // then retry with delay for cross-chat navigation where messages load async.
-    tryScroll();
-    return () => {
-      clearTimeout(timerId);
-      clearTimeout(highlightTimerId);
-    };
-  }, [scrollToMessageId, onScrollComplete]);
-
-  // Auto-scroll to end for new messages/streaming
-  // DEBOUNCED: Use timeout to prevent rapid scroll triggers during streaming which can
-  // interact with browser reflow and cause React reconciliation issues.
-  // Uses stable primitive dependencies instead of array references to prevent
-  // unnecessary effect runs.
-  const hasStreamingContent = Boolean(streamingContent);
-  useEffect(() => {
-    if (!scrollToMessageId) {
-      // Clear any pending scroll
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      // Debounce the scroll with a small delay
-      scrollTimeoutRef.current = window.setTimeout(() => {
-        endRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 50);
-    }
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [messages.length, hasStreamingContent, activeToolCalls.length, scrollToMessageId]);
-
   const isCompact = viewMode === "compact";
 
-  // Filter out tool messages whose results are already displayed inline in the
-  // preceding assistant message's ToolCallItem. Only show tool messages as a
-  // fallback when there's no ToolCallRecord with a result.
-  // CRITICAL: Return stable EMPTY_MESSAGES when messages is empty to prevent new references.
+  // Filter out tool messages whose results are already displayed inline
   const filteredMessages = useMemo(() => {
     if (messages.length === 0) return EMPTY_MESSAGES;
     return messages.filter((message) => {
-      // Only filter tool messages
-      if (message.role !== "tool" || !message.tool_call_id) {
-        return true;
-      }
-      // Check if we have a record with a result for this tool call
+      if (message.role !== "tool" || !message.tool_call_id) return true;
       const record = toolCallRecordMap.get(message.tool_call_id);
-      // Hide if record exists with a result (it's already shown inline)
-      if (record && record.status === "completed" && record.result) {
-        return false;
-      }
-      // Show as fallback when no record or no result
+      if (record && record.status === "completed" && record.result) return false;
       return true;
     });
   }, [messages, toolCallRecordMap]);
 
   // IMPORTANT: Early return MUST be AFTER all hooks to satisfy React's Rules of Hooks.
-  // Previously this was between hooks #8 and #9, causing Error #310 when messages
-  // changed from 0 to 1 (hook count changed from 8 to 9).
   if (messages.length === 0 && !isGenerating) {
     return (
       <div className="flex-1 flex items-center justify-center p-8" data-testid="empty-messages">
@@ -329,153 +190,26 @@ function MessageListInner({
         />
       ))}
 
-      {/* Active tool calls during generation */}
-      {activeToolCalls.length > 0 && (
-        isCompact ? (
-          <div className="border-l-2 border-l-amber-500 pl-3 py-1" data-testid="active-tool-calls">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-amber-400">Tool</span>
-            </div>
-            <div className="space-y-1">
-              {activeToolCalls.map((tc) => (
-                <div key={tc.id} className="flex items-center gap-2 text-sm">
-                  {tc.status === "running" ? (
-                    <>
-                      <Play className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-pulse" />
-                      <span className="text-slate-700 dark:text-slate-300">Running <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded text-xs">{tc.name}</code>...</span>
-                    </>
-                  ) : tc.status === "completed" ? (
-                    <>
-                      <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
-                      <span className="text-green-600 dark:text-green-400">{tc.name} completed</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
-                      <span className="text-red-600 dark:text-red-400">{tc.name} failed</span>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="flex justify-start" data-testid="active-tool-calls">
-            <div className="flex gap-3 max-w-[85%] min-w-0">
-              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                <Wrench className="h-4 w-4 text-amber-400" />
-              </div>
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 space-y-2 min-w-0">
-                {activeToolCalls.map((tc) => (
-                  <div key={tc.id} className="flex items-center gap-2">
-                    {tc.status === "running" ? (
-                      <>
-                        <Play className="h-4 w-4 text-amber-500 dark:text-amber-400 animate-pulse" />
-                        <span className="text-sm">Running <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">{tc.name}</code>...</span>
-                      </>
-                    ) : tc.status === "completed" ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />
-                        <span className="text-sm text-green-600 dark:text-green-400">{tc.name} completed</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
-                        <span className="text-sm text-red-600 dark:text-red-400">{tc.name} failed</span>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      )}
+      <ActiveToolCallsDisplay activeToolCalls={activeToolCalls} isCompact={isCompact} />
 
-      {/* Pending Approvals */}
       {pendingApprovals.length > 0 && onApproveTool && onRejectTool && (
-        <div className="space-y-2" data-testid="pending-approvals">
-          {awaitingApprovals && (
-            <div className="flex items-center gap-2 py-2">
-              <ShieldAlert className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm text-yellow-400">Awaiting approval to continue</span>
-            </div>
-          )}
-          {pendingApprovals.map((approval) => (
-            <PendingApprovalCard
-              key={approval.id}
-              approval={approval}
-              onApprove={onApproveTool}
-              onReject={onRejectTool}
-              isProcessing={isProcessingApproval}
-            />
-          ))}
-        </div>
+        <PendingApprovalsDisplay
+          pendingApprovals={pendingApprovals}
+          awaitingApprovals={awaitingApprovals}
+          isProcessingApproval={isProcessingApproval}
+          onApproveTool={onApproveTool}
+          onRejectTool={onRejectTool}
+        />
       )}
 
       {isGenerating && !activeToolCalls.length && (
-        isCompact ? (
-          <div className="border-l-2 border-l-emerald-500 pl-3 py-1" data-testid="streaming-message">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-emerald-400">Assistant</span>
-              {!streamingContent && generatedImages.length === 0 && (
-                <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
-              )}
-            </div>
-            {/* Show generated images during streaming */}
-            {generatedImages.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {generatedImages.map((imgUrl, idx) => (
-                  <img
-                    key={idx}
-                    src={resolveAttachmentUrl(imgUrl)}
-                    alt={`Generated image ${idx + 1}`}
-                    className="max-w-[150px] max-h-[150px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
-                  />
-                ))}
-              </div>
-            )}
-            {streamingContent ? (
-              <div className="text-sm text-slate-700 dark:text-slate-200">
-                <MarkdownRenderer content={streamingContent} isStreaming />
-              </div>
-            ) : generatedImages.length === 0 ? (
-              <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
-            ) : null}
-          </div>
-        ) : (
-          <div className="flex justify-start" data-testid="streaming-message">
-            <div className="flex gap-3 max-w-[85%] min-w-0">
-              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-                <Bot className="h-4 w-4 text-indigo-400" />
-              </div>
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 min-w-0">
-                {/* Show generated images during streaming */}
-                {generatedImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {generatedImages.map((imgUrl, idx) => (
-                      <img
-                        key={idx}
-                        src={resolveAttachmentUrl(imgUrl)}
-                        alt={`Generated image ${idx + 1}`}
-                        className="max-w-[300px] max-h-[300px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
-                      />
-                    ))}
-                  </div>
-                )}
-                {streamingContent ? (
-                  <MarkdownRenderer content={streamingContent} isStreaming />
-                ) : generatedImages.length === 0 ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-indigo-500 dark:text-indigo-400" />
-                    <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        )
+        <StreamingMessageDisplay
+          streamingContent={streamingContent}
+          generatedImages={generatedImages}
+          isCompact={isCompact}
+        />
       )}
+
       <div ref={endRef} />
     </div>
   );
@@ -484,749 +218,3 @@ function MessageListInner({
 // Export MessageList with simple memo wrapper (no custom comparison)
 // The parent component (ChatView) is responsible for passing stable props
 export const MessageList = memo(MessageListInner);
-
-// Action button component for consistent styling
-interface ActionButtonProps {
-  icon: React.ReactNode;
-  tooltip: string;
-  onClick: () => void;
-  isActive?: boolean;
-  className?: string;
-}
-
-function ActionButton({ icon, tooltip, onClick, isActive, className }: ActionButtonProps) {
-  return (
-    <Tooltip content={tooltip} side="top">
-      <button
-        onClick={onClick}
-        className={`p-1.5 rounded-md transition-colors ${
-          isActive
-            ? "bg-indigo-500/20 text-indigo-400"
-            : "hover:bg-white/10 text-slate-400 hover:text-slate-200"
-        } ${className || ""}`}
-        aria-label={tooltip}
-      >
-        {icon}
-      </button>
-    </Tooltip>
-  );
-}
-
-/** Skill chip for inline display in tool calls */
-function ToolCallSkillChip({
-  skill,
-  compact = false,
-}: {
-  skill: SkillAttachment;
-  compact?: boolean;
-}) {
-  // Try to get a relevant icon based on tags or default to BookOpen
-  const iconName = skill.tags?.[0] || "BookOpen";
-  const IconComponent = getIconComponent(
-    iconName.charAt(0).toUpperCase() + iconName.slice(1).replace(/-/g, "")
-  );
-
-  return (
-    <Tooltip content={`Skill: ${skill.label}`}>
-      <span
-        className={`inline-flex items-center gap-1 rounded-full font-medium
-          bg-indigo-500/20 text-indigo-300 border border-indigo-500/30
-          ${compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs"}`}
-      >
-        <IconComponent className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
-        <span className="max-w-[80px] truncate">{skill.label}</span>
-      </span>
-    </Tooltip>
-  );
-}
-
-/** Get status display info for tool calls */
-function getToolCallStatusDisplay(status: string) {
-  switch (status) {
-    case "completed":
-      return {
-        icon: CheckCircle2,
-        color: "text-green-400",
-        bgColor: "bg-green-500/10",
-        label: "completed",
-      };
-    case "failed":
-    case "error":
-    case "timeout":
-      return {
-        icon: XCircle,
-        color: "text-red-400",
-        bgColor: "bg-red-500/10",
-        label: status,
-      };
-    case "rejected":
-      return {
-        icon: XCircle,
-        color: "text-red-400",
-        bgColor: "bg-red-500/10",
-        label: "rejected",
-      };
-    case "cancelled":
-      return {
-        icon: XCircle,
-        color: "text-slate-400",
-        bgColor: "bg-slate-500/10",
-        label: "cancelled",
-      };
-    case "running":
-      return {
-        icon: Loader2,
-        color: "text-amber-400",
-        bgColor: "bg-amber-500/10",
-        label: "running",
-        animate: true,
-      };
-    case "pending_approval":
-      return {
-        icon: ShieldAlert,
-        color: "text-yellow-400",
-        bgColor: "bg-yellow-500/10",
-        label: "pending approval",
-      };
-    default:
-      return {
-        icon: Play,
-        color: "text-amber-400",
-        bgColor: "bg-amber-500/10",
-        label: "pending",
-      };
-  }
-}
-
-// Component for displaying a single tool call with skill chips and details modal
-interface ToolCallItemProps {
-  toolCall: ToolCall;
-  record?: ToolCallRecord;
-  asyncOperation?: AsyncStatusUpdate;
-  variant: "compact" | "bubble";
-  onOpenAsyncDrawer?: (operation: AsyncStatusUpdate) => void;
-}
-
-function ToolCallItem({ toolCall, record, asyncOperation, variant, onOpenAsyncDrawer }: ToolCallItemProps) {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-
-  const status = record?.status || "pending";
-  const statusDisplay = getToolCallStatusDisplay(status);
-  const StatusIcon = statusDisplay.icon;
-  const isFailed = ["failed", "rejected", "cancelled", "error", "timeout"].includes(status);
-  const errorMessage = record?.error_message;
-
-  const isCompact = variant === "compact";
-
-  // Parse tool arguments to extract skills
-  // IMPORTANT: Use record.arguments (enhanced with skills) when available,
-  // fall back to toolCall.function.arguments (original from AI) if not.
-  // The record contains the arguments that were actually sent to the tool,
-  // including any injected _context_attachments (skills).
-  const argumentsSource = record?.arguments || toolCall.function.arguments;
-  const parsedInput = parseToolInput(argumentsSource);
-  const skills = parsedInput.skills;
-  const hasSkills = skills.length > 0;
-
-  // Limit skills shown inline (show first 2-3, then "+N more")
-  const maxInlineSkills = isCompact ? 2 : 3;
-  const visibleSkills = skills.slice(0, maxInlineSkills);
-  const hiddenSkillCount = skills.length - maxInlineSkills;
-
-  return (
-    <>
-      <div
-        className={`rounded-lg border transition-colors ${
-          isCompact
-            ? "bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 p-2"
-            : "bg-slate-800/30 border-slate-700/30 p-3"
-        }`}
-      >
-        {/* Header row: status icon, tool name, status badge, details button */}
-        <div className="flex items-center gap-2">
-          <StatusIcon
-            className={`h-4 w-4 ${statusDisplay.color} ${
-              (statusDisplay as { animate?: boolean }).animate ? "animate-spin" : ""
-            }`}
-          />
-
-          <code
-            className={`font-mono ${
-              isCompact
-                ? "text-xs bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded"
-                : "text-sm bg-slate-700/50 px-2 py-0.5 rounded"
-            }`}
-          >
-            {toolCall.function.name}
-          </code>
-
-          <span
-            className={`text-xs px-1.5 py-0.5 rounded ${statusDisplay.bgColor} ${statusDisplay.color}`}
-          >
-            {statusDisplay.label}
-          </span>
-
-          <div className="flex-1" />
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDetailsModal(true)}
-            className={`h-6 px-2 text-xs text-slate-400 hover:text-slate-200 ${
-              isCompact ? "h-5 px-1.5 text-[10px]" : ""
-            }`}
-          >
-            <ExternalLink className={isCompact ? "h-3 w-3 mr-0.5" : "h-3.5 w-3.5 mr-1"} />
-            Details
-          </Button>
-        </div>
-
-        {/* Skills row - shown if there are skills */}
-        {hasSkills && (
-          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-            <span className={`text-slate-500 ${isCompact ? "text-[10px]" : "text-xs"}`}>
-              Skills:
-            </span>
-            {visibleSkills.map((skill) => (
-              <ToolCallSkillChip key={skill.key} skill={skill} compact={isCompact} />
-            ))}
-            {hiddenSkillCount > 0 && (
-              <span
-                className={`text-slate-500 ${isCompact ? "text-[10px]" : "text-xs"}`}
-              >
-                +{hiddenSkillCount} more
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Error message - shown inline for failed status */}
-        {isFailed && errorMessage && (
-          <div
-            className={`mt-2 text-red-400 bg-red-500/10 rounded px-2 py-1 break-words ${
-              isCompact ? "text-[10px]" : "text-xs"
-            }`}
-          >
-            {typeof errorMessage === "string"
-              ? errorMessage.length > 100
-                ? errorMessage.slice(0, 100) + "..."
-                : errorMessage
-              : "Error occurred"}
-          </div>
-        )}
-      </div>
-
-      {/* Details modal */}
-      <ToolCallDetailModal
-        open={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        toolCall={toolCall}
-        record={record}
-        asyncOperation={asyncOperation}
-        onOpenAsyncDrawer={asyncOperation && onOpenAsyncDrawer ? () => {
-          setShowDetailsModal(false);
-          onOpenAsyncDrawer(asyncOperation);
-        } : undefined}
-      />
-    </>
-  );
-}
-
-// Component for displaying message attachments (images)
-interface MessageAttachmentsProps {
-  attachments?: Attachment[];
-  isUser?: boolean;
-  compact?: boolean;
-}
-
-function MessageAttachments({ attachments, isUser = false, compact = false }: MessageAttachmentsProps) {
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
-
-  if (!attachments || attachments.length === 0) {
-    return null;
-  }
-
-  // Filter to only show images
-  const images = attachments.filter(att =>
-    att.content_type?.startsWith("image/")
-  );
-
-  if (images.length === 0) {
-    return null;
-  }
-
-  const imageSize = compact ? "max-w-[150px] max-h-[150px]" : "max-w-[300px] max-h-[300px]";
-
-  return (
-    <>
-      <div className={`flex flex-wrap gap-2 ${compact ? "mt-1 mb-1" : "mt-2 mb-2"}`}>
-        {images.map((attachment) => {
-          const resolvedUrl = resolveAttachmentUrl(attachment.url);
-          return (
-            <button
-              key={attachment.id}
-              onClick={() => setExpandedImage(resolvedUrl || null)}
-              className={`relative group/img rounded-lg overflow-hidden border ${
-                isUser
-                  ? "border-indigo-400/30 hover:border-indigo-300/50"
-                  : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
-              } transition-colors cursor-pointer`}
-            >
-              <img
-                src={resolvedUrl}
-                alt={attachment.file_name}
-                className={`${imageSize} object-cover`}
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors" />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Expanded image modal */}
-      {expandedImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setExpandedImage(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 text-white hover:text-gray-300 transition-colors"
-            onClick={() => setExpandedImage(null)}
-            aria-label="Close"
-          >
-            <XCircle className="h-8 w-8" />
-          </button>
-          <img
-            src={expandedImage}
-            alt="Expanded view"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-    </>
-  );
-}
-
-interface MessageBubbleProps {
-  message: Message;
-  viewMode: ViewMode;
-  /** All messages for computing siblings (used for navigation) */
-  allMessages: Message[];
-  /** Precomputed sibling info from parent (avoids recomputation per bubble) */
-  siblingInfo: { current: number; total: number; siblings: Message[] };
-  /** Map of tool_call_id to ToolCallRecord for status lookup */
-  toolCallRecordMap: Map<string, ToolCallRecord>;
-  /** Map of tool_call_id to AsyncStatusUpdate for async operation status */
-  asyncOperationMap: Map<string, AsyncStatusUpdate>;
-  /** Called when user requests regeneration */
-  onRegenerate?: (messageId: string) => void;
-  /** Called when user selects a different branch */
-  onSelectBranch?: (messageId: string) => void;
-  /** Called when user wants to fork the conversation from this message */
-  onFork?: (messageId: string) => void;
-  /** Called when user wants to edit a user message */
-  onEdit?: (message: Message) => void;
-  /** Called when user wants to open the async drawer for an operation */
-  onOpenAsyncDrawer?: (operation: AsyncStatusUpdate) => void;
-  /** Whether regeneration is in progress */
-  isRegenerating?: boolean;
-  /** Whether forking is in progress */
-  isForking?: boolean;
-  /** Whether this message is highlighted (from search navigation) */
-  isHighlighted?: boolean;
-}
-
-// Inner component for MessageBubble - will be wrapped with memo
-const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubbleInner(
-  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, asyncOperationMap, onRegenerate, onSelectBranch, onFork, onEdit, onOpenAsyncDrawer, isRegenerating = false, isForking = false, isHighlighted = false },
-  ref
-) {
-  const { addToast } = useToast();
-  const isUser = message.role === "user";
-  const isAssistant = message.role === "assistant";
-  const isSystem = message.role === "system";
-  const isTool = message.role === "tool";
-  const hasToolCalls = message.role === "assistant" && message.tool_calls && message.tool_calls.length > 0;
-  const isCompact = viewMode === "compact";
-
-  // siblingInfo is now passed from parent (MessageList) to avoid N calls to getSiblingInfo.
-  // This reduces O(N²) complexity to O(N) for sibling computation.
-  const hasSiblings = siblingInfo.total > 1;
-
-  // State for text-to-speech
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Copy message content to clipboard
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(message.content);
-      addToast("Copied to clipboard", "success");
-    } catch {
-      addToast("Failed to copy", "error");
-    }
-  }, [message.content, addToast]);
-
-  // Text-to-speech for assistant messages
-  const handleReadAloud = useCallback(() => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-
-    if (!window.speechSynthesis) {
-      addToast("Text-to-speech not supported in this browser", "error");
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(message.content);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      addToast("Speech synthesis failed", "error");
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
-  }, [message.content, isSpeaking, addToast]);
-
-  // Cancel speech when component unmounts
-  useEffect(() => {
-    return () => {
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, [isSpeaking]);
-
-  // Placeholder actions that show "coming soon" toast
-  const handleComingSoon = useCallback((feature: string) => {
-    addToast(`${feature} coming soon`, "info");
-  }, [addToast]);
-
-  // Regenerate handler - calls the actual regeneration function
-  const handleRegenerate = useCallback(() => {
-    if (onRegenerate && isAssistant) {
-      onRegenerate(message.id);
-    } else {
-      handleComingSoon("Regenerate");
-    }
-  }, [onRegenerate, isAssistant, message.id, handleComingSoon]);
-
-  // Edit handler - only for user messages
-  const handleEdit = useCallback(() => {
-    if (onEdit && isUser) {
-      onEdit(message);
-    } else {
-      handleComingSoon("Edit message");
-    }
-  }, [onEdit, isUser, message, handleComingSoon]);
-
-  const handleDelete = useCallback(() => handleComingSoon("Delete message"), [handleComingSoon]);
-
-  // Fork conversation handler - calls the actual fork function
-  const handleFork = useCallback(() => {
-    if (onFork) {
-      onFork(message.id);
-    } else {
-      handleComingSoon("Fork conversation");
-    }
-  }, [onFork, message.id, handleComingSoon]);
-
-  // Version picker navigation handlers
-  // NOTE: siblingInfo is NOT in dependencies - it was only used for debug logging
-  // and including it caused callback recreation cascades (siblingInfo object changes often)
-  const handlePreviousVersion = useCallback(() => {
-    if (!onSelectBranch) {
-      return;
-    }
-    const prevSibling = getPreviousSibling(allMessages, message.id);
-    if (prevSibling) {
-      onSelectBranch(prevSibling.id);
-    }
-  }, [onSelectBranch, allMessages, message.id]);
-
-  const handleNextVersion = useCallback(() => {
-    if (!onSelectBranch) return;
-    const nextSibling = getNextSibling(allMessages, message.id);
-    if (nextSibling) {
-      onSelectBranch(nextSibling.id);
-    }
-  }, [onSelectBranch, allMessages, message.id]);
-
-  // Render action buttons for a message
-  const renderActions = (position: "user" | "assistant" | "tool") => {
-    const iconSize = "h-3.5 w-3.5";
-
-    if (position === "user") {
-      return (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
-          <ActionButton icon={<Pencil className={iconSize} />} tooltip="Edit" onClick={handleEdit} />
-          <ActionButton icon={<Trash2 className={iconSize} />} tooltip="Delete" onClick={handleDelete} />
-          <ActionButton
-            icon={isForking ? <Loader2 className={`${iconSize} animate-spin`} /> : <GitBranch className={iconSize} />}
-            tooltip={isForking ? "Forking..." : "Fork from here"}
-            onClick={handleFork}
-            className={isForking ? "cursor-not-allowed" : ""}
-          />
-        </div>
-      );
-    }
-
-    if (position === "assistant") {
-      return (
-        <div className="flex items-center gap-0.5">
-          {/* Version picker - always visible when there are siblings */}
-          {hasSiblings && (
-            <VersionPicker
-              current={siblingInfo.current}
-              total={siblingInfo.total}
-              onPrevious={handlePreviousVersion}
-              onNext={handleNextVersion}
-              disabled={isRegenerating}
-              className="mr-1"
-            />
-          )}
-          {/* Action buttons - visible on hover */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
-            <ActionButton
-              icon={isSpeaking ? <VolumeX className={iconSize} /> : <Volume2 className={iconSize} />}
-              tooltip={isSpeaking ? "Stop reading" : "Read aloud"}
-              onClick={handleReadAloud}
-              isActive={isSpeaking}
-            />
-            <ActionButton
-              icon={isRegenerating ? <Loader2 className={`${iconSize} animate-spin`} /> : <RefreshCw className={iconSize} />}
-              tooltip={isRegenerating ? "Regenerating..." : "Regenerate"}
-              onClick={handleRegenerate}
-              className={isRegenerating ? "cursor-not-allowed" : ""}
-            />
-            <ActionButton
-              icon={isForking ? <Loader2 className={`${iconSize} animate-spin`} /> : <GitBranch className={iconSize} />}
-              tooltip={isForking ? "Forking..." : "Fork from here"}
-              onClick={handleFork}
-              className={isForking ? "cursor-not-allowed" : ""}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // Tool messages - CodeBlock handles copy button, so no actions needed
-    return null;
-  };
-
-  const highlightClass = isHighlighted ? "ring-4 ring-yellow-400 rounded-xl bg-yellow-400/20 shadow-[0_0_15px_rgba(250,204,21,0.4)]" : "";
-
-  // System messages - same in both modes
-  if (isSystem) {
-    return (
-      <div ref={ref} className={`flex justify-center transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
-        <div className={`bg-slate-200/50 dark:bg-slate-800/50 rounded-lg px-4 py-2 text-sm text-slate-500 dark:text-slate-400 italic ${isCompact ? "w-full text-left" : "max-w-[80%]"}`}>
-          <MarkdownRenderer content={message.content} />
-        </div>
-      </div>
-    );
-  }
-
-  // Compact mode rendering
-  if (isCompact) {
-    const roleLabel = isUser ? "You" : isTool ? "Tool" : "Assistant";
-    const roleColor = isUser ? "text-indigo-400" : isTool ? "text-amber-400" : "text-emerald-400";
-    const borderColor = isUser ? "border-l-indigo-500" : isTool ? "border-l-amber-500" : "border-l-emerald-500";
-
-    return (
-      <div
-        ref={ref}
-        className={`group transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1 ${highlightClass}`}
-        data-testid={`message-${message.id}`}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-medium ${roleColor}`}>{roleLabel}</span>
-          <span className="text-xs text-slate-500 dark:text-slate-600">{formatTime(message.created_at)}</span>
-          <div className="flex-1" />
-          {renderActions(isUser ? "user" : isTool ? "tool" : "assistant")}
-        </div>
-        {isTool ? (
-          <div className="max-h-80 overflow-y-auto">
-            <CodeBlock code={(() => {
-              // Defensive: ensure content is a string
-              const content = typeof message.content === "string"
-                ? message.content
-                : (message.content ? JSON.stringify(message.content, null, 2) : "");
-              try {
-                const parsed: unknown = JSON.parse(content);
-                return JSON.stringify(parsed, null, 2);
-              } catch {
-                return content;
-              }
-            })()} language="json" />
-          </div>
-        ) : (
-          <div className="text-sm text-slate-700 dark:text-slate-200">
-            <MessageAttachments attachments={message.attachments} isUser={isUser} compact />
-            <MarkdownRenderer content={message.content} />
-          </div>
-        )}
-        {hasToolCalls && (
-          <div className="mt-2 pl-2 border-l border-amber-500/30">
-            <div className="text-xs text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1">
-              <Wrench className="h-3 w-3" />
-              Using tools
-            </div>
-            {(message.tool_calls ?? []).map((tc: ToolCall) => (
-              <ToolCallItem
-                key={tc.id}
-                toolCall={tc}
-                record={toolCallRecordMap.get(tc.id)}
-                asyncOperation={asyncOperationMap.get(tc.id)}
-                variant="compact"
-                onOpenAsyncDrawer={onOpenAsyncDrawer}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Bubble mode: Tool response messages
-  if (isTool) {
-    // Format tool content as JSON if possible
-    // Defensive: content might be undefined, null, or even an object in edge cases
-    const formatToolContent = (content: unknown): string => {
-      if (typeof content === "string") {
-        try {
-          const parsed: unknown = JSON.parse(content);
-          return JSON.stringify(parsed, null, 2);
-        } catch {
-          return content;
-        }
-      } else if (content && typeof content === "object") {
-        return JSON.stringify(content, null, 2);
-      }
-      return String(content ?? "");
-    };
-
-    return (
-      <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
-        <div className="flex gap-3 max-w-[85%] min-w-0">
-          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-            <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-          </div>
-          <div className="text-slate-600 dark:text-slate-300 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-amber-600 dark:text-amber-400">Tool Result</span>
-            </div>
-            <div className="max-h-80 overflow-y-auto">
-              <CodeBlock code={formatToolContent(message.content)} language="json" />
-            </div>
-            <p className="text-xs mt-1.5 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Bubble mode: Assistant message with tool calls
-  if (hasToolCalls) {
-    return (
-      <div ref={ref} className={`group flex justify-start transition-all duration-300 ${highlightClass}`} data-testid={`message-${message.id}`}>
-        <div className="flex gap-3 max-w-[85%] min-w-0">
-          <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-            <Bot className="h-4 w-4 text-indigo-400" />
-          </div>
-          <div className="space-y-2 min-w-0">
-            {(message.content || (message.attachments && message.attachments.length > 0)) && (
-              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 min-w-0">
-                <div className="flex items-center justify-end gap-2 mb-1">
-                  {renderActions("assistant")}
-                </div>
-                <MessageAttachments attachments={message.attachments} />
-                {message.content && <MarkdownRenderer content={message.content} />}
-              </div>
-            )}
-            <div className="bg-amber-50 dark:bg-slate-800/60 border border-amber-200 dark:border-amber-500/20 rounded-xl px-4 py-3">
-              <div className="text-xs text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1.5">
-                <Wrench className="h-3 w-3" />
-                Using tools
-              </div>
-              {(message.tool_calls ?? []).map((tc: ToolCall) => (
-                <ToolCallItem
-                  key={tc.id}
-                  toolCall={tc}
-                  record={toolCallRecordMap.get(tc.id)}
-                  asyncOperation={asyncOperationMap.get(tc.id)}
-                  variant="bubble"
-                  onOpenAsyncDrawer={onOpenAsyncDrawer}
-                />
-              ))}
-              <p className="text-xs mt-2 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Bubble mode: Regular user/assistant messages
-  return (
-    <div
-      ref={ref}
-      className={`group flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300 ${highlightClass}`}
-      data-testid={`message-${message.id}`}
-    >
-      <div className={`flex gap-3 max-w-[85%] min-w-0 ${isUser ? "flex-row-reverse" : ""}`}>
-        {/* Avatar */}
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-            isUser ? "bg-indigo-600" : "bg-indigo-500/20"
-          }`}
-        >
-          {isUser ? (
-            <User className="h-4 w-4 text-white" />
-          ) : (
-            <Bot className="h-4 w-4 text-indigo-400" />
-          )}
-        </div>
-
-        {/* Message Content */}
-        <div
-          className={`rounded-2xl px-4 py-3 ${
-            isUser
-              ? "bg-indigo-600 text-white rounded-tr-md"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-md"
-          } min-w-0`}
-        >
-          {/* Action buttons row */}
-          <div className={`flex items-center ${isUser ? "justify-start" : "justify-end"} gap-2 mb-1`}>
-            {renderActions(isUser ? "user" : "assistant")}
-          </div>
-          <MessageAttachments attachments={message.attachments} isUser={isUser} />
-          <MarkdownRenderer content={message.content} />
-          <p
-            className={`text-xs mt-1.5 ${
-              isUser ? "text-indigo-200/60" : "text-slate-400 dark:text-slate-500"
-            }`}
-          >
-            {formatTime(message.created_at)}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// Wrap MessageBubble with simple memo (no custom comparison)
-const MessageBubble = memo(MessageBubbleInner) as typeof MessageBubbleInner;

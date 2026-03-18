@@ -1,759 +1,99 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Send, Loader2, Check, X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "../ui/button";
-import { Tooltip } from "../ui/tooltip";
-import { AttachmentButton, type ForcedTool } from "./AttachmentButton";
+import { X } from "lucide-react";
 import { AttachmentPreview } from "./AttachmentPreview";
-import { WebSearchIndicator } from "./WebSearchIndicator";
-import { ForcedToolIndicator } from "./ForcedToolIndicator";
-import { TemplateIndicator } from "./TemplateIndicator";
-import { SkillIndicator } from "./SkillIndicator";
-import { SuggestedSkills } from "./SuggestedSkills";
-import { TemplateSelector } from "./TemplateSelector";
-import { SkillSelector } from "./SkillSelector";
-import { ToolSelector } from "./ToolSelector";
 import { TemplateVariableForm } from "./TemplateVariableForm";
-import { SlashCommandPopup } from "./SlashCommandPopup";
-import { Suggestions } from "./Suggestions";
-import { AIMergeOverlay } from "./AIMergeOverlay";
-import { TemplateEditorModal } from "./TemplateEditorModal";
-import { useAttachments } from "../../hooks/useAttachments";
-import { useTools } from "../../hooks/useTools";
-import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
-import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
-import { useAutoSuggestSkills } from "../../hooks/useAutoSuggestSkills";
-import { useModeHistory } from "../../hooks/useModeHistory";
-import { useAIMerge } from "../../hooks/useAIMerge";
-import { useMessageDraft } from "../../hooks/useMessageDraft";
-import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
+import { SuggestionsPanel } from "./SuggestionsPanel";
+import { MessageInputFooter } from "./MessageInputFooter";
+import { MessageInputModals } from "./MessageInputModals";
+import { MessageInputArea } from "./MessageInputArea";
 import { selectorsManifest } from "../../consts/selectors";
-import { getTemplateById } from "@/data/templates";
-import type { Model, Message, UploadResponse } from "../../lib/api";
-import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
 
-const MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY = "agent-inbox:message-input-suggestions-expanded";
+import type { MessageInputProps } from "./MessageInput.types";
+import { useMessageInput } from "./useMessageInput";
 
-function getSuggestionsExpandedDefault(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
+// Re-export public API (consumers import from this path)
+export type { MessagePayload } from "./MessageInput.types";
 
-  return localStorage.getItem(MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY) === "true";
-}
+export function MessageInput(props: MessageInputProps) {
+  const {
+    activeTemplateId,
+    onTemplateDeactivate,
+  } = props;
 
-function setSuggestionsExpandedStorage(expanded: boolean): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(MESSAGE_INPUT_SUGGESTIONS_EXPANDED_KEY, String(expanded));
-  }
-}
-
-export interface MessagePayload {
-  content: string;
-  attachmentIds: string[];
-  webSearchEnabled: boolean;
-  forcedTool?: ForcedTool;
-  skillIds?: string[];
-  skills?: SkillPayload[]; // Full skill payloads for tool context injection
-  suggestedToolIds?: string[]; // Tools suggested by template
-}
-
-interface MessageInputProps {
-  onSend: (payload: MessagePayload) => void;
-  isLoading?: boolean;
-  placeholder?: string;
-  /** Enable attachment support (images, PDFs). Requires currentModel. Default: true */
-  enableAttachments?: boolean;
-  /** Enable web search toggle. Requires chatWebSearchDefault. Default: true */
-  enableWebSearch?: boolean;
-  /** Enable force tool selection. Requires chatId. Default: true */
-  enableForceTools?: boolean;
-  /** Auto-focus the textarea on mount. Default: false */
-  autoFocus?: boolean;
-  currentModel?: Model | null;
-  /** Current chat ID (required for force tool selection) */
-  chatId?: string;
-  chatWebSearchDefault?: boolean;
-  onChatWebSearchDefaultChange?: (enabled: boolean) => void;
-  /** @deprecated Use isLoading instead */
-  isGenerating?: boolean;
-  /** Message being edited (enables edit mode when set) */
-  editingMessage?: Message | null;
-  /** Callback when edit is cancelled */
-  onCancelEdit?: () => void;
-  /** Callback when edit is submitted */
-  onSubmitEdit?: (payload: MessagePayload) => void;
-  /** Callback when a template with suggested tools is activated */
-  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
-  /** Currently active template ID (persisted state, for UI indicator) */
-  activeTemplateId?: string | null;
-  /** Callback to deactivate the active template */
-  onTemplateDeactivate?: () => void;
-  /** Block sending without disabling the textarea (e.g. agent is busy) */
-  disableSend?: boolean;
-  /** Tooltip reason when disableSend is true */
-  disableSendReason?: string;
-  /** Custom upload function for attachments (e.g., agent mode uses a different endpoint) */
-  customUploadFn?: (file: File) => Promise<UploadResponse>;
-}
-
-export function MessageInput({
-  onSend,
-  isLoading,
-  isGenerating,
-  placeholder = "Type a message...",
-  enableAttachments = true,
-  enableWebSearch = true,
-  enableForceTools = true,
-  autoFocus = false,
-  currentModel = null,
-  chatId,
-  chatWebSearchDefault = false,
-  onChatWebSearchDefaultChange: _onChatWebSearchDefaultChange,
-  editingMessage,
-  onCancelEdit,
-  onSubmitEdit,
-  onTemplateActivated,
-  activeTemplateId,
-  onTemplateDeactivate,
-  disableSend,
-  disableSendReason,
-  customUploadFn,
-}: MessageInputProps) {
   const messageInputTestIds = {
-    container: selectorsManifest.selectors["messageInput.container"]?.testId ?? "message-input-container",
-    suggestionsToggle: selectorsManifest.selectors["messageInput.suggestionsToggle"]?.testId ?? "suggestions-toggle",
-    input: selectorsManifest.selectors["messageInput.input"]?.testId ?? "message-input",
-    sendButton: selectorsManifest.selectors["messageInput.sendButton"]?.testId ?? "send-message-button",
+    container:
+      selectorsManifest.selectors["messageInput.container"]?.testId ??
+      "message-input-container",
+    suggestionsToggle:
+      selectorsManifest.selectors["messageInput.suggestionsToggle"]?.testId ??
+      "suggestions-toggle",
+    input:
+      selectorsManifest.selectors["messageInput.input"]?.testId ??
+      "message-input",
+    sendButton:
+      selectorsManifest.selectors["messageInput.sendButton"]?.testId ??
+      "send-message-button",
   };
-  // Support both isLoading and deprecated isGenerating
-  const loading = isLoading ?? isGenerating ?? false;
 
-  // Draft persistence
-  const pageKey = chatId ?? "home";
-  const { draft, setDraft, clearDraft } = useMessageDraft({ pageKey });
-  const [message, setMessageState] = useState(draft);
-  // Keep message in sync when draft changes due to pageKey change
-  const prevPageKeyRef = useRef(pageKey);
-  useEffect(() => {
-    if (prevPageKeyRef.current !== pageKey) {
-      prevPageKeyRef.current = pageKey;
-      setMessageState(draft);
-    }
-  }, [pageKey, draft]);
-
-  // Wrapper to update both state and draft
-  const setMessage = useCallback(
-    (value: string) => {
-      setMessageState(value);
-      setDraft(value);
-    },
-    [setDraft]
-  );
-
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [forcedTool, setForcedTool] = useState<ForcedTool | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Modal state
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-  const [showSkillSelector, setShowSkillSelector] = useState(false);
-  const [showToolSelector, setShowToolSelector] = useState(false);
-  const [showVariableForm, setShowVariableForm] = useState(true);
-  const [shouldFocusTemplateForm, setShouldFocusTemplateForm] = useState(false);
-
-  // Slash command state
-  const [slashPopupOpen, setSlashPopupOpen] = useState(false);
-  const [slashQuery, setSlashQuery] = useState("");
-  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
-  const [slashPopupPosition, setSlashPopupPosition] = useState({ bottom: 60, left: 0 });
-
-  // AI merge overlay state
-  const [showMergeOverlay, setShowMergeOverlay] = useState(false);
-  const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
-  const [savedMessage, setSavedMessage] = useState("");
-
-  // Template editor state
-  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Template | undefined>(undefined);
-  const [defaultEditorModes, setDefaultEditorModes] = useState<string[]>([]);
-
-  // Edit mode detection
-  const isEditMode = !!editingMessage;
-
-  // Suggestions settings
-  const {
-    visible: suggestionsVisible,
-    toggleVisible: toggleSuggestionsVisible,
-    mergeModel,
-    autoSuggest,
-  } = useSuggestionsSettings();
-  const [suggestionsExpanded, setSuggestionsExpandedState] = useState(getSuggestionsExpandedDefault);
-
-  const setSuggestionsExpanded = useCallback((expanded: boolean) => {
-    setSuggestionsExpandedState(expanded);
-    setSuggestionsExpandedStorage(expanded);
-  }, []);
-
-  // Mode history for frecency
-  const { history: modeHistory, recordUsage: recordModeUsage } = useModeHistory();
-
-  // AI merge functionality
-  const { mergeMessages, isMerging } = useAIMerge();
+  const state = useMessageInput(props);
 
   const {
-    attachments,
-    addAttachment,
+    draft,
+    isEditMode,
+    textareaRef,
+    webSearchEnabled,
+    setWebSearchEnabled,
+    enableAttachments,
+    enableWebSearch,
+    modelSupportsWebSearch,
+    effectiveAttachments,
+    hasIncompatibleAttachments,
     removeAttachment,
-    clearAttachments,
     isUploading,
-    hasErrors,
-    allUploaded,
-    getUploadedIds,
-  } = useAttachments(customUploadFn);
-
-  // Get tools for force tool selection (only if enabled and have chatId)
-  const { toolsByScenario, enabledTools: _enabledTools } = useTools({
-    chatId: enableForceTools && chatId ? chatId : undefined,
-    enabled: enableForceTools && !!chatId,
-  });
-
-  // Templates and skills
-  const {
+    forcedTool,
+    handleClearForcedTool,
     templates,
     skills,
     skillsLoading,
     syncSkills,
     activeTemplate,
-    setActiveTemplate,
     updateTemplateVariables,
-    getFilledTemplateContent,
-    clearTemplate,
-    isTemplateValid,
     getTemplateMissingFields,
+    clearTemplate,
     selectedSkillIds,
     addSkill,
     removeSkill,
     toggleSkill,
     getSelectedSkills,
-    buildSkillPayloads,
-    filterCommands,
-    resetAll: resetTemplatesAndSkills,
-    // Navigation
     currentModePath,
     navigateToMode,
     navigateBack,
     resetModePath,
-    // CRUD
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    resetTemplate,
-  } = useTemplatesAndSkills();
-
-  // Auto-suggest skills based on input text
-  const {
-    suggestions: suggestedSkills,
-    isLoading: suggestionsLoading,
-    didSearch: suggestionsDidSearch,
-    dismiss: dismissSuggestion,
-    dismissAll: dismissAllSuggestions,
-  } = useAutoSuggestSkills({
-    chatId,
-    inputText: message,
-    selectedSkillIds,
-    enabled: autoSuggest.enabled,
-    debounceMs: autoSuggest.debounceMs,
-    throttleMs: autoSuggest.throttleMs,
-    minInputLength: autoSuggest.minInputLength,
-    minScorePercent: autoSuggest.minScorePercent,
-    maxSuggestions: autoSuggest.maxSuggestions,
-  });
-
-  // Only use attachments if enabled
-  const effectiveAttachments = useMemo(
-    () => (enableAttachments ? attachments : []),
-    [enableAttachments, attachments]
-  );
-
-  // Model capabilities (only relevant when attachments are enabled)
-  const modelSupportsImages = enableAttachments && supportsImages(currentModel);
-  const modelSupportsPDFs = enableAttachments && supportsPDFs(currentModel);
-  // Web search requires tool support (it uses tools under the hood)
-  const modelSupportsWebSearch = enableWebSearch && supportsTools(currentModel);
-
-  // Reset web search to chat default when it changes, or disable if model doesn't support it
-  useEffect(() => {
-    if (enableWebSearch) {
-      if (!modelSupportsWebSearch) {
-        // Disable web search if model doesn't support it
-        setWebSearchEnabled(false);
-      } else {
-        setWebSearchEnabled(chatWebSearchDefault);
-      }
-    }
-  }, [chatWebSearchDefault, enableWebSearch, modelSupportsWebSearch]);
-
-  // Check if any attachments are incompatible with the model
-  const hasIncompatibleAttachments = effectiveAttachments.some((att) => {
-    if (att.type === "image" && !modelSupportsImages) return true;
-    if (att.type === "pdf" && !modelSupportsPDFs) return true;
-    return false;
-  });
-
-  // Filtered slash commands
-  const filteredSlashCommands = useMemo(
-    () => filterCommands(slashQuery),
-    [filterCommands, slashQuery]
-  );
-
-  // Auto-close slash popup when no results and user has typed something
-  useEffect(() => {
-    if (slashPopupOpen && slashQuery.length > 0 && filteredSlashCommands.length === 0) {
-      setSlashPopupOpen(false);
-    }
-  }, [slashPopupOpen, slashQuery, filteredSlashCommands.length]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
-  }, [message]);
-
-  // Auto-focus on mount if enabled
-  useEffect(() => {
-    if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, [autoFocus]);
-
-  // Populate textarea when entering edit mode (don't overwrite draft)
-  useEffect(() => {
-    if (editingMessage) {
-      setMessageState(editingMessage.content);
-      // Focus and move cursor to end
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(
-          editingMessage.content.length,
-          editingMessage.content.length
-        );
-      }
-    } else {
-      // Restore draft when exiting edit mode
-      setMessageState(draft);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run when editingMessage changes, not on every draft change
-  }, [editingMessage]);
-
-  const handleSubmit = useCallback(() => {
-    const trimmedMessage = message.trim();
-
-    // Get filled template content if active, otherwise use raw message
-    const finalContent = activeTemplate
-      ? getFilledTemplateContent()
-      : trimmedMessage;
-
-    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-
-    // Block send if:
-    // - No content (text or attachments)
-    // - Still uploading (when attachments enabled)
-    // - Has upload errors (when attachments enabled)
-    // - Has incompatible attachments
-    // - AI is loading/generating
-    // - Template has missing required fields
-    if (!hasContent || loading) {
-      return;
-    }
-
-    if (activeTemplate && !isTemplateValid()) {
-      return;
-    }
-
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) {
-        return;
-      }
-      // If attachments exist but not all uploaded, wait
-      if (effectiveAttachments.length > 0 && !allUploaded) {
-        return;
-      }
-    }
-
-    const payload: MessagePayload = {
-      content: finalContent.trim(),
-      attachmentIds: enableAttachments ? getUploadedIds() : [],
-      webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
-      forcedTool: forcedTool ?? undefined,
-      skillIds: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
-      skills: selectedSkillIds.length > 0 ? buildSkillPayloads(selectedSkillIds) : undefined,
-      suggestedToolIds: activeTemplate?.template.suggestedToolIds,
-    };
-
-    // Call appropriate handler based on mode
-    if (isEditMode && onSubmitEdit) {
-      onSubmitEdit(payload);
-    } else {
-      onSend(payload);
-    }
-
-    setMessageState("");
-    clearDraft();
-    if (enableAttachments) {
-      clearAttachments();
-    }
-    // Reset web search to chat default after sending
-    if (enableWebSearch) {
-      setWebSearchEnabled(chatWebSearchDefault);
-    }
-    // Reset forced tool after sending
-    setForcedTool(null);
-    // Reset templates and skills after sending
-    resetTemplatesAndSkills();
-
-    // Reset height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-  }, [
-    message,
-    effectiveAttachments,
-    isUploading,
-    hasErrors,
-    hasIncompatibleAttachments,
+    recordModeUsage,
+    suggestionsVisible,
+    suggestionsExpanded,
+    setSuggestionsExpanded,
+    suggestedSkills,
+    suggestionsLoading,
+    suggestionsDidSearch,
+    dismissSuggestion,
+    dismissAllSuggestions,
+    modeHistory,
+    templateActions,
+    sendLogic,
     loading,
-    allUploaded,
-    getUploadedIds,
-    webSearchEnabled,
-    forcedTool,
-    onSend,
-    clearAttachments,
-    clearDraft,
-    chatWebSearchDefault,
-    enableAttachments,
-    enableWebSearch,
-    isEditMode,
-    onSubmitEdit,
-    activeTemplate,
-    getFilledTemplateContent,
-    isTemplateValid,
-    selectedSkillIds,
-    buildSkillPayloads,
-    resetTemplatesAndSkills,
-  ]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      // Handle slash command popup navigation
-      if (slashPopupOpen) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setSlashSelectedIndex((prev) =>
-            prev < filteredSlashCommands.length - 1 ? prev + 1 : 0
-          );
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setSlashSelectedIndex((prev) =>
-            prev > 0 ? prev - 1 : filteredSlashCommands.length - 1
-          );
-          return;
-        }
-        if (e.key === "Enter") {
-          e.preventDefault();
-          if (filteredSlashCommands[slashSelectedIndex]) {
-            handleSlashCommandSelect(filteredSlashCommands[slashSelectedIndex]);
-          }
-          return;
-        }
-        if (e.key === "Escape") {
-          e.preventDefault();
-          setSlashPopupOpen(false);
-          return;
-        }
-      }
-
-      // Ctrl+Enter (or Cmd+Enter on Mac) submits; bare Enter inserts newline
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        handleSubmit();
-      }
-      // Escape cancels edit mode — restore draft (don't clear it)
-      if (e.key === "Escape" && isEditMode && onCancelEdit) {
-        e.preventDefault();
-        setMessageState(draft);
-        onCancelEdit();
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSlashCommandSelect is defined after this hook; the inline call at line 399 captures it via closure and both are stable across renders
-    [handleSubmit, isEditMode, onCancelEdit, slashPopupOpen, filteredSlashCommands, slashSelectedIndex]
-  );
-
-  const handleWebSearchToggle = useCallback((enabled: boolean) => {
-    setWebSearchEnabled(enabled);
-  }, []);
-
-  // Handle message change with slash command detection
-  const handleMessageChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      const cursorPosition = e.target.selectionStart;
-      setMessage(value);
-
-      // Check for slash command trigger
-      const textBeforeCursor = value.slice(0, cursorPosition);
-      const lastNewlineIndex = textBeforeCursor.lastIndexOf("\n");
-      const lineStart = lastNewlineIndex + 1;
-      const lineBeforeCursor = textBeforeCursor.slice(lineStart);
-
-      // Match "/" at start of line followed by optional word characters
-      const slashMatch = lineBeforeCursor.match(/^\/(\S*)$/);
-
-      if (slashMatch) {
-        const query = slashMatch[1] ?? "";
-        setSlashQuery(query);
-        setSlashPopupOpen(true);
-        setSlashSelectedIndex(0);
-        // Position popup above the cursor
-        setSlashPopupPosition({ bottom: 60, left: 8 });
-      } else {
-        setSlashPopupOpen(false);
-      }
-    },
-    []
-  );
-
-  // Handle template selection (may show merge overlay if message has content)
-  const handleTemplateSelect = useCallback(
-    async (template: Template) => {
-      // If message has content, show merge overlay
-      if (message.trim()) {
-        setSavedMessage(message);
-        setPendingTemplate(template);
-        setShowMergeOverlay(true);
-      } else {
-        // No existing content, just set the template
-        setActiveTemplate(template);
-        setShowVariableForm(true);
-        setShouldFocusTemplateForm(true);
-
-        // Activate template tools if present
-        if (template.suggestedToolIds?.length && onTemplateActivated) {
-          await onTemplateActivated(template.id, template.suggestedToolIds);
-        }
-      }
-    },
-    [message, setActiveTemplate, onTemplateActivated]
-  );
-
-  // Handle merge overlay action
-  const handleMergeAction = useCallback(
-    async (action: MergeAction) => {
-      if (!pendingTemplate) return;
-
-      switch (action) {
-        case "overwrite":
-          // Clear message and use template
-          setMessage("");
-          setActiveTemplate(pendingTemplate);
-          setShowVariableForm(true);
-          setShouldFocusTemplateForm(true);
-
-          // Activate template tools if present
-          if (pendingTemplate.suggestedToolIds?.length && onTemplateActivated) {
-            await onTemplateActivated(pendingTemplate.id, pendingTemplate.suggestedToolIds);
-          }
-          break;
-        case "merge":
-          // Use AI to merge message with template
-          if (chatId) {
-            try {
-              const filledTemplate = pendingTemplate.content; // Use unfilled template for merge
-              const mergedContent = await mergeMessages(
-                savedMessage,
-                filledTemplate,
-                mergeModel,
-                chatId
-              );
-              setMessage(mergedContent);
-              // Don't set template - the merged content is the final message
-            } catch {
-              // On error, just overwrite
-              setMessage("");
-              setActiveTemplate(pendingTemplate);
-              setShowVariableForm(true);
-              setShouldFocusTemplateForm(true);
-
-              // Activate template tools if present
-              if (pendingTemplate.suggestedToolIds?.length && onTemplateActivated) {
-                await onTemplateActivated(pendingTemplate.id, pendingTemplate.suggestedToolIds);
-              }
-            }
-          }
-          break;
-        case "cancel":
-          // Restore original message
-          setMessage(savedMessage);
-          break;
-      }
-
-      // Clean up overlay state
-      setShowMergeOverlay(false);
-      setPendingTemplate(null);
-      setSavedMessage("");
-    },
-    [pendingTemplate, savedMessage, chatId, mergeModel, mergeMessages, setActiveTemplate, onTemplateActivated]
-  );
-
-  // Handle slash command selection
-  const handleSlashCommandSelect = useCallback(
-    (command: SlashCommand) => {
-      setSlashPopupOpen(false);
-
-      // Clear the slash command text from input
-      const slashStart = message.lastIndexOf("/");
-      if (slashStart !== -1) {
-        setMessage(message.slice(0, slashStart));
-      }
-
-      switch (command.type) {
-        case "template":
-          setShowTemplateSelector(true);
-          break;
-        case "skill":
-          setShowSkillSelector(true);
-          break;
-        case "search":
-          setWebSearchEnabled(true);
-          break;
-        case "direct-template":
-          getTemplateById(command.id).then((template) => {
-            if (template) {
-              handleTemplateSelect(template);
-            }
-          });
-          break;
-        case "direct-skill":
-          addSkill(command.id);
-          break;
-        case "tool":
-          // Check for suggestions toggle
-          if (command.id === "suggestions") {
-            toggleSuggestionsVisible();
-          } else {
-            setShowToolSelector(true);
-          }
-          break;
-      }
-    },
-    [message, handleTemplateSelect, addSkill, toggleSuggestionsVisible]
-  );
-
-  const handleImageSelect = useCallback(
-    (file: File) => {
-      addAttachment(file, "image");
-    },
-    [addAttachment]
-  );
-
-  const handlePDFSelect = useCallback(
-    (file: File) => {
-      addAttachment(file, "pdf");
-    },
-    [addAttachment]
-  );
-
-  const handleForceTool = useCallback((scenario: string, toolName: string) => {
-    setForcedTool({ scenario, toolName });
-  }, []);
-
-  const handleClearForcedTool = useCallback(() => {
-    setForcedTool(null);
-  }, []);
-
-  // Template editor handlers
-  const handleOpenTemplateEditor = useCallback((template?: Template) => {
-    setEditingTemplate(template);
-    setDefaultEditorModes(currentModePath);
-    setShowTemplateEditor(true);
-  }, [currentModePath]);
-
-  const handleCloseTemplateEditor = useCallback(() => {
-    setShowTemplateEditor(false);
-    setEditingTemplate(undefined);
-    setDefaultEditorModes([]);
-  }, []);
-
-  const handleSaveTemplate = useCallback(
-    (templateData: Omit<Template, "id" | "createdAt" | "updatedAt" | "isBuiltIn">) => {
-      if (editingTemplate) {
-        updateTemplate(editingTemplate.id, templateData);
-      } else {
-        createTemplate(templateData);
-      }
-      handleCloseTemplateEditor();
-    },
-    [editingTemplate, createTemplate, updateTemplate, handleCloseTemplateEditor]
-  );
-
-  const handleDeleteTemplateFromSuggestions = useCallback(
-    (templateId: string) => {
-      if (window.confirm("Are you sure you want to delete this template?")) {
-        deleteTemplate(templateId);
-      }
-    },
-    [deleteTemplate]
-  );
-
-  const handleResetTemplateFromSuggestions = useCallback(
-    (templateId: string) => {
-      if (window.confirm("Reset this template to its default state?")) {
-        resetTemplate(templateId);
-      }
-    },
-    [resetTemplate]
-  );
-
-  // Model supports tools (required for force tool)
-  const modelSupportsToolUse = supportsTools(currentModel);
-
-  // Determine if send button should be disabled
-  const finalContent = activeTemplate ? getFilledTemplateContent() : message;
-  const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-  const canSend = (() => {
-    if (!hasContent || loading || disableSend) return false;
-    if (activeTemplate && !isTemplateValid()) return false;
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
-      if (effectiveAttachments.length > 0 && !allUploaded) return false;
-    }
-    return true;
-  })();
-
-  // Build send button tooltip
-  const modKey = typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
-  let sendTooltip = isEditMode ? `Save edit (${modKey}+Enter)` : `Send message (${modKey}+Enter)`;
-  if (loading) {
-    sendTooltip = "AI is responding...";
-  } else if (disableSend) {
-    sendTooltip = disableSendReason || "Sending is temporarily disabled";
-  } else if (activeTemplate && !isTemplateValid()) {
-    const missing = getTemplateMissingFields();
-    sendTooltip = `Fill required fields: ${missing.join(", ")}`;
-  } else if (enableAttachments && isUploading) {
-    sendTooltip = "Uploading attachments...";
-  } else if (enableAttachments && hasErrors) {
-    sendTooltip = "Fix attachment errors before sending";
-  } else if (enableAttachments && hasIncompatibleAttachments) {
-    sendTooltip = "Remove attachments not supported by this model";
-  }
+    handleForceTool,
+    handleClearForcedTool: _hcft,
+    toolsByScenario,
+    setMessageState,
+    onCancelEdit,
+    chatId,
+  } = state;
 
   return (
-    <div className="p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]" data-testid={messageInputTestIds.container}>
+    <div
+      className="p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+      data-testid={messageInputTestIds.container}
+    >
       {/* Edit mode banner */}
       {isEditMode && (
         <div className="mb-2 px-3 py-2 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center justify-between">
@@ -770,54 +110,35 @@ export function MessageInput({
           </button>
         </div>
       )}
+
       {/* Suggestions panel */}
       {suggestionsVisible && !isEditMode && (
-        <div className="mb-2 rounded-xl border border-white/10 bg-slate-900/50 overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setSuggestionsExpanded(!suggestionsExpanded)}
-            className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
-            data-testid={messageInputTestIds.suggestionsToggle}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-indigo-400" />
-              <span className="text-sm text-slate-200">Suggestions</span>
-              <span className="text-xs text-slate-500">{templates.length}</span>
-            </div>
-            {suggestionsExpanded ? (
-              <ChevronUp className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            )}
-          </button>
-
-          {suggestionsExpanded && (
-            <div className="px-2 pb-2">
-              <Suggestions
-                embedded
-                templates={templates}
-                currentModePath={currentModePath}
-                modeHistory={modeHistory}
-                onSelectTemplate={handleTemplateSelect}
-                onNavigateToMode={navigateToMode}
-                onNavigateBack={navigateBack}
-                onResetPath={resetModePath}
-                onEditTemplate={handleOpenTemplateEditor}
-                onDeleteTemplate={handleDeleteTemplateFromSuggestions}
-                onResetTemplate={handleResetTemplateFromSuggestions}
-                onCreateTemplate={(modes) => {
-                  setDefaultEditorModes(modes);
-                  setEditingTemplate(undefined);
-                  setShowTemplateEditor(true);
-                }}
-                onRecordModeUsage={recordModeUsage}
-              />
-            </div>
-          )}
-        </div>
+        <SuggestionsPanel
+          suggestionsExpanded={suggestionsExpanded}
+          setSuggestionsExpanded={setSuggestionsExpanded}
+          suggestionsToggleTestId={messageInputTestIds.suggestionsToggle}
+          templates={templates}
+          currentModePath={currentModePath}
+          modeHistory={modeHistory}
+          handleTemplateSelect={templateActions.handleTemplateSelect}
+          navigateToMode={navigateToMode}
+          navigateBack={navigateBack}
+          resetModePath={resetModePath}
+          handleOpenTemplateEditor={templateActions.handleOpenTemplateEditor}
+          handleDeleteTemplateFromSuggestions={
+            templateActions.handleDeleteTemplateFromSuggestions
+          }
+          handleResetTemplateFromSuggestions={
+            templateActions.handleResetTemplateFromSuggestions
+          }
+          setDefaultEditorModes={templateActions.setDefaultEditorModes}
+          setEditingTemplate={templateActions.setEditingTemplate}
+          setShowTemplateEditor={templateActions.setShowTemplateEditor}
+          recordModeUsage={recordModeUsage}
+        />
       )}
 
-      {/* Attachment preview area */}
+      {/* Attachment preview */}
       {enableAttachments && effectiveAttachments.length > 0 && (
         <div className="mb-2">
           <AttachmentPreview
@@ -833,250 +154,95 @@ export function MessageInput({
         </div>
       )}
 
-      {/* Template variable form (collapsible, above input) */}
-      {activeTemplate && showVariableForm && (
+      {/* Template variable form */}
+      {activeTemplate && templateActions.showVariableForm && (
         <div className="mb-2 rounded-xl border border-white/10 overflow-hidden">
           <TemplateVariableForm
             activeTemplate={activeTemplate}
             onUpdateVariables={updateTemplateVariables}
             missingFields={getTemplateMissingFields()}
-            autoFocus={shouldFocusTemplateForm}
+            autoFocus={templateActions.shouldFocusTemplateForm}
             onTabOut={() => {
-              setShouldFocusTemplateForm(false);
+              templateActions.setShouldFocusTemplateForm(false);
               textareaRef.current?.focus();
             }}
           />
         </div>
       )}
 
-      {/* Input container with buttons inside */}
-      <div className="relative flex items-end gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
-        {/* AI Merge Overlay */}
-        <AIMergeOverlay
-          isOpen={showMergeOverlay}
-          existingMessage={savedMessage}
-          templateName={pendingTemplate?.name || ""}
-          isMerging={isMerging}
-          onAction={handleMergeAction}
-        />
+      {/* Input container (extracted) */}
+      <MessageInputArea
+        state={state}
+        inputTestId={messageInputTestIds.input}
+        sendButtonTestId={messageInputTestIds.sendButton}
+      />
 
-        {/* Attachment Button (inside, on left) */}
-        {enableAttachments && (
-          <AttachmentButton
-            onImageSelect={handleImageSelect}
-            onPDFSelect={handlePDFSelect}
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={enableWebSearch ? handleWebSearchToggle : undefined}
-            disabled={loading}
-            modelSupportsImages={modelSupportsImages}
-            modelSupportsPDFs={modelSupportsPDFs}
-            modelSupportsWebSearch={modelSupportsWebSearch}
-            enabledToolsByScenario={enableForceTools && chatId ? toolsByScenario : undefined}
-            forcedTool={forcedTool}
-            onForceTool={enableForceTools && chatId && modelSupportsToolUse ? handleForceTool : undefined}
-            modelSupportsTools={modelSupportsToolUse}
-            onOpenTemplateSelector={() => setShowTemplateSelector(true)}
-            onOpenSkillSelector={() => setShowSkillSelector(true)}
-            activeTemplate={activeTemplate?.template}
-            selectedSkillCount={selectedSkillIds.length}
-          />
-        )}
+      {/* Footer with keyboard hints and indicators */}
+      <MessageInputFooter
+        isEditMode={isEditMode}
+        modKey={sendLogic.modKey}
+        loading={loading}
+        enableWebSearch={enableWebSearch}
+        modelSupportsWebSearch={modelSupportsWebSearch}
+        webSearchEnabled={webSearchEnabled}
+        setWebSearchEnabled={setWebSearchEnabled}
+        forcedTool={forcedTool}
+        handleClearForcedTool={handleClearForcedTool}
+        activeTemplate={activeTemplate}
+        clearTemplate={clearTemplate}
+        setShowVariableForm={templateActions.setShowVariableForm}
+        activeTemplateId={activeTemplateId}
+        onTemplateDeactivate={onTemplateDeactivate}
+        selectedSkillIds={selectedSkillIds}
+        getSelectedSkills={getSelectedSkills}
+        removeSkill={removeSkill}
+        setShowSkillSelector={templateActions.setShowSkillSelector}
+        suggestedSkills={suggestedSkills}
+        suggestionsLoading={suggestionsLoading}
+        suggestionsDidSearch={suggestionsDidSearch}
+        addSkill={addSkill}
+        dismissSuggestion={dismissSuggestion}
+        dismissAllSuggestions={dismissAllSuggestions}
+      />
 
-        {/* Textarea with relative positioning for slash popup */}
-        <div className="relative flex-1">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleMessageChange}
-            onKeyDown={handleKeyDown}
-            placeholder={activeTemplate ? "Template variables above..." : placeholder}
-            disabled={loading}
-            rows={1}
-            className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[36px] sm:min-h-[40px]"
-            data-testid={messageInputTestIds.input}
-            aria-label="Message input"
-          />
-
-          {/* Slash command popup */}
-          {slashPopupOpen && (
-            <SlashCommandPopup
-              commands={filteredSlashCommands}
-              selectedIndex={slashSelectedIndex}
-              onSelect={handleSlashCommandSelect}
-              onClose={() => setSlashPopupOpen(false)}
-              position={slashPopupPosition}
-            />
-          )}
-        </div>
-
-        {/* Character count */}
-        {!loading && message.length > 0 && (
-          <span className="hidden sm:inline text-xs text-slate-600 self-end pb-2">{message.length}</span>
-        )}
-
-        {/* Send/Save Button (inside, on right) */}
-        <Tooltip content={sendTooltip}>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSend}
-            size="icon"
-            className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 ${isEditMode ? "bg-amber-600 hover:bg-amber-500" : ""}`}
-            data-testid={isEditMode ? "save-edit-button" : messageInputTestIds.sendButton}
-            aria-label={isEditMode ? "Save edit" : "Send message"}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isEditMode ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </Tooltip>
-      </div>
-
-      {/* Footer with keyboard hint and web search indicator */}
-      <div className="mt-1.5 sm:mt-2 px-1 space-y-1.5 sm:space-y-2">
-        <div className="hidden sm:flex items-center justify-between gap-2">
-          <p className="text-xs text-slate-400">
-            {isEditMode ? (
-              <>
-                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter</kbd> to
-                save, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Escape</kbd>{" "}
-                to cancel
-              </>
-            ) : (
-              <>
-                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{typeof navigator !== "undefined" && navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter</kbd> to
-                send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd>{" "}
-                for new line
-              </>
-            )}
-          </p>
-          {!isEditMode && (
-            <p className="text-[11px] text-slate-500 shrink-0">
-              Type <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">/</kbd> for tools
-            </p>
-          )}
-        </div>
-        {!isEditMode && (
-          <p className="sm:hidden text-[11px] text-slate-500">
-            <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">/</kbd> tools
-          </p>
-        )}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
-          {enableWebSearch && modelSupportsWebSearch && (
-            <WebSearchIndicator
-              enabled={webSearchEnabled}
-              onDisable={() => setWebSearchEnabled(false)}
-            />
-          )}
-          {forcedTool && (
-            <ForcedToolIndicator
-              scenario={forcedTool.scenario}
-              toolName={forcedTool.toolName}
-              onClear={handleClearForcedTool}
-            />
-          )}
-          {activeTemplate && (
-            <TemplateIndicator
-              template={activeTemplate.template}
-              onClear={clearTemplate}
-              onEdit={() => setShowVariableForm(true)}
-            />
-          )}
-          {/* Show active template tools indicator when template was applied but isn't being edited */}
-          {activeTemplateId && !activeTemplate && onTemplateDeactivate && (
-            <div className="flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-full">
-              <Sparkles className="h-3 w-3" />
-              <span>Template tools active</span>
-              <button
-                onClick={onTemplateDeactivate}
-                className="ml-1 hover:text-indigo-300 transition-colors"
-                aria-label="Deactivate template tools"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-          {selectedSkillIds.length > 0 && (
-            <SkillIndicator
-              skills={getSelectedSkills()}
-              onRemove={removeSkill}
-              onAdd={() => setShowSkillSelector(true)}
-            />
-          )}
-          <div className="hidden sm:block">
-            <SuggestedSkills
-              suggestions={suggestedSkills}
-              isLoading={suggestionsLoading}
-              didSearch={suggestionsDidSearch}
-              onAttach={addSkill}
-              onDismiss={dismissSuggestion}
-              onDismissAll={dismissAllSuggestions}
-            />
-          </div>
-          {loading && (
-            <span className="text-xs text-indigo-400 flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            AI is responding...
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Template Selector Modal */}
-      <TemplateSelector
-        open={showTemplateSelector}
-        onClose={() => {
-          setShowTemplateSelector(false);
+      {/* Modals */}
+      <MessageInputModals
+        showTemplateSelector={templateActions.showTemplateSelector}
+        onCloseTemplateSelector={() => {
+          templateActions.setShowTemplateSelector(false);
           textareaRef.current?.focus();
         }}
         templates={templates}
-        onSelect={(template) => {
-          setShowTemplateSelector(false);
-          handleTemplateSelect(template);
+        onSelectTemplate={(template) => {
+          templateActions.setShowTemplateSelector(false);
+          templateActions.handleTemplateSelect(template);
         }}
         activeTemplateId={activeTemplate?.template.id}
-      />
-
-      {/* Skill Selector Modal */}
-      <SkillSelector
-        open={showSkillSelector}
-        onClose={() => {
-          setShowSkillSelector(false);
+        showSkillSelector={templateActions.showSkillSelector}
+        onCloseSkillSelector={() => {
+          templateActions.setShowSkillSelector(false);
           textareaRef.current?.focus();
         }}
         skills={skills}
         selectedSkillIds={selectedSkillIds}
-        onToggle={toggleSkill}
+        onToggleSkill={toggleSkill}
         onSyncSkills={syncSkills}
         isSyncing={skillsLoading}
-      />
-
-      {/* Tool Selector Modal */}
-      <ToolSelector
-        open={showToolSelector}
-        onClose={() => {
-          setShowToolSelector(false);
+        showToolSelector={templateActions.showToolSelector}
+        onCloseToolSelector={() => {
+          templateActions.setShowToolSelector(false);
           textareaRef.current?.focus();
         }}
         toolsByScenario={toolsByScenario}
         forcedTool={forcedTool}
-        onSelect={handleForceTool}
-        onClear={handleClearForcedTool}
+        onSelectTool={handleForceTool}
+        onClearTool={handleClearForcedTool}
+        showTemplateEditor={templateActions.showTemplateEditor}
+        onCloseTemplateEditor={templateActions.handleCloseTemplateEditor}
+        editingTemplate={templateActions.editingTemplate}
+        defaultEditorModes={templateActions.defaultEditorModes}
+        onSaveTemplate={templateActions.handleSaveTemplate}
       />
-
-      {/* Template Editor Modal - Only render when open to avoid useTools cascade */}
-      {showTemplateEditor && (
-        <TemplateEditorModal
-          open={showTemplateEditor}
-          onClose={handleCloseTemplateEditor}
-          template={editingTemplate}
-          defaultModes={defaultEditorModes}
-          onSave={handleSaveTemplate}
-        />
-      )}
     </div>
   );
 }
