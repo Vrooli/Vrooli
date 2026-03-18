@@ -170,11 +170,15 @@ Global flags (`--dry-run`, `--api-base`, `--auto-start`, `--no-color`, `--color`
 
 ## Troubleshooting
 
+Error messages now include inline recovery hints with suggested commands. The table below provides additional context:
+
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| Queue processor not picking up tasks | Processor starts paused by default | Run `ecosystem-manager queue start` |
+| Queue processor not picking up tasks | Processor starts paused by default | Run `ecosystem-manager queue start` (shown in CLI next-steps) |
 | `Error: api error (404)` on `status` | API health endpoint not at expected path | Check `ecosystem-manager queue status` for connectivity |
 | `Error: ... Manual steering ... only supported for improver tasks` | `--steer-mode` used with generator task or resource improver | Use `--steer-profile` instead, or use `task improve scenario <name>` |
 | `Error: ... Steering queue ... only supported for scenario improver tasks` | `--steer-queue` used with generator task or non-scenario target | Use `--steer-profile` instead, or use `task improve scenario <name>` |
 | `Error: Invalid mode in steering_queue` | One or more modes in the queue are not valid steer modes | Check valid modes with `ecosystem-manager steer templates` and fix the queue list |
-| Task already exists for this scenario | Duplicate task for same target | Run `ecosystem-manager task list --type scenario` to check existing tasks before creating |
+| Task already exists for this scenario (code: `duplicate_task`) | Duplicate task for same target | CLI recovery hint shows `task show <existing-id>` command |
+| Target not found (code: `target_not_found`) | Improver target doesn't exist on disk | Use `task add` for new targets, or verify the target path |
+| Profile not found (code: `profile_not_found`) | Invalid `--steer-profile` value | CLI recovery hint shows `steer profiles` and `steer templates` commands |

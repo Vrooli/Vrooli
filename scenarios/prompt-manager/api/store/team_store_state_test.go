@@ -276,3 +276,123 @@ func TestAppendAndGetDecisions(t *testing.T) {
 		t.Fatalf("expected 1, got %d", len(limited))
 	}
 }
+
+func TestUpdateDecision(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entry := &DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Original", Rationale: "Because"}
+	if err := s.AppendDecision(ctx, "team-1", entry); err != nil {
+		t.Fatalf("AppendDecision: %v", err)
+	}
+
+	err := s.UpdateDecision(ctx, "team-1", "dec-1", func(d *DecisionEntry) {
+		d.Decision = "Updated"
+		d.Rationale = "New reason"
+		d.Status = "accepted"
+	})
+	if err != nil {
+		t.Fatalf("UpdateDecision: %v", err)
+	}
+
+	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	if err != nil {
+		t.Fatalf("GetDecisions: %v", err)
+	}
+	if len(all) != 1 {
+		t.Fatalf("expected 1, got %d", len(all))
+	}
+	if all[0].Decision != "Updated" {
+		t.Errorf("expected 'Updated', got: %s", all[0].Decision)
+	}
+	if all[0].Rationale != "New reason" {
+		t.Errorf("expected 'New reason', got: %s", all[0].Rationale)
+	}
+	if all[0].Status != "accepted" {
+		t.Errorf("expected 'accepted', got: %s", all[0].Status)
+	}
+}
+
+func TestUpdateDecisionNotFound(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entry := &DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "Test"}
+	if err := s.AppendDecision(ctx, "team-1", entry); err != nil {
+		t.Fatalf("AppendDecision: %v", err)
+	}
+
+	err := s.UpdateDecision(ctx, "team-1", "dec-999", func(d *DecisionEntry) {
+		d.Decision = "Updated"
+	})
+	if err == nil {
+		t.Fatal("expected error for non-existent decision")
+	}
+}
+
+func TestDeleteDecision(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entries := []DecisionEntry{
+		{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Keep", Rationale: "Yes"},
+		{ID: "dec-2", At: "2025-01-01T01:00:00Z", By: "agent-1", Decision: "Delete", Rationale: "No"},
+	}
+	for i := range entries {
+		if err := s.AppendDecision(ctx, "team-1", &entries[i]); err != nil {
+			t.Fatalf("AppendDecision: %v", err)
+		}
+	}
+
+	if err := s.DeleteDecision(ctx, "team-1", "dec-2"); err != nil {
+		t.Fatalf("DeleteDecision: %v", err)
+	}
+
+	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	if err != nil {
+		t.Fatalf("GetDecisions: %v", err)
+	}
+	if len(all) != 1 {
+		t.Fatalf("expected 1 after delete, got %d", len(all))
+	}
+	if all[0].ID != "dec-1" {
+		t.Errorf("expected dec-1, got: %s", all[0].ID)
+	}
+}
+
+func TestDeleteDecisionNotFound(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entry := &DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "Test"}
+	if err := s.AppendDecision(ctx, "team-1", entry); err != nil {
+		t.Fatalf("AppendDecision: %v", err)
+	}
+
+	err := s.DeleteDecision(ctx, "team-1", "dec-999")
+	if err == nil {
+		t.Fatal("expected error for non-existent decision")
+	}
+}
+
+func TestDeleteDecisionOnly(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entry := &DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Only", Rationale: "One"}
+	if err := s.AppendDecision(ctx, "team-1", entry); err != nil {
+		t.Fatalf("AppendDecision: %v", err)
+	}
+
+	if err := s.DeleteDecision(ctx, "team-1", "dec-1"); err != nil {
+		t.Fatalf("DeleteDecision: %v", err)
+	}
+
+	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	if err != nil {
+		t.Fatalf("GetDecisions: %v", err)
+	}
+	if len(all) != 0 {
+		t.Errorf("expected 0 after deleting only decision, got %d", len(all))
+	}
+}

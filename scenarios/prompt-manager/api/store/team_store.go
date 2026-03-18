@@ -818,16 +818,38 @@ func (s *FileTeamStore) AppendDecision(_ context.Context, teamID string, entry *
 
 // GetDecisions reads decision entries, optionally filtered by context tag and limited.
 func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag string, last int) ([]DecisionEntry, error) {
+	entries, _, err := s.readAllDecisions(teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	if contextTag != "" {
+		filtered := make([]DecisionEntry, 0, len(entries))
+		for _, e := range entries {
+			if e.Context == contextTag {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+
+	if last > 0 && len(entries) > last {
+		entries = entries[len(entries)-last:]
+	}
+
+	return entries, nil
+}
+
+// readAllDecisions reads all decision entries from the JSONL file.
+func (s *FileTeamStore) readAllDecisions(teamID string) ([]DecisionEntry, string, error) {
 	path := filepath.Join(s.teamsDir(), teamID, "shared", "decisions.jsonl")
 	if !FileExists(path) {
-		return nil, nil
+		return nil, path, nil
 	}
-
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading decision log: %w", err)
+		return nil, path, fmt.Errorf("reading decision log: %w", err)
 	}
-
 	var entries []DecisionEntry
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 		line = strings.TrimSpace(line)
@@ -838,15 +860,62 @@ func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag strin
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			continue
 		}
-		if contextTag != "" && entry.Context != contextTag {
-			continue
-		}
 		entries = append(entries, entry)
 	}
+	return entries, path, nil
+}
 
-	if last > 0 && len(entries) > last {
-		entries = entries[len(entries)-last:]
+// writeAllDecisions rewrites the full decisions JSONL file.
+func (s *FileTeamStore) writeAllDecisions(path string, entries []DecisionEntry) error {
+	var buf strings.Builder
+	for _, e := range entries {
+		data, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("marshaling decision entry: %w", err)
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
 	}
+	return os.WriteFile(path, []byte(buf.String()), 0o644)
+}
 
-	return entries, nil
+// UpdateDecision updates a decision entry by ID using the provided updater function.
+func (s *FileTeamStore) UpdateDecision(_ context.Context, teamID, decisionID string, updater func(*DecisionEntry)) error {
+	entries, path, err := s.readAllDecisions(teamID)
+	if err != nil {
+		return err
+	}
+	found := false
+	for i := range entries {
+		if entries[i].ID == decisionID {
+			updater(&entries[i])
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("decision not found: %s", decisionID)
+	}
+	return s.writeAllDecisions(path, entries)
+}
+
+// DeleteDecision removes a decision entry by ID.
+func (s *FileTeamStore) DeleteDecision(_ context.Context, teamID, decisionID string) error {
+	entries, path, err := s.readAllDecisions(teamID)
+	if err != nil {
+		return err
+	}
+	filtered := make([]DecisionEntry, 0, len(entries))
+	found := false
+	for _, e := range entries {
+		if e.ID == decisionID {
+			found = true
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	if !found {
+		return fmt.Errorf("decision not found: %s", decisionID)
+	}
+	return s.writeAllDecisions(path, filtered)
 }

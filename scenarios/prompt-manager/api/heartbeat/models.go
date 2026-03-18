@@ -169,6 +169,7 @@ type AddTaskRequest struct {
 
 // UpdateTaskRequest is the request body for updating a task.
 type UpdateTaskRequest struct {
+	Title    *string `json:"title,omitempty"`
 	Status   *string `json:"status,omitempty"`
 	Assignee *string `json:"assignee,omitempty"`
 	Priority *string `json:"priority,omitempty"`
@@ -190,6 +191,15 @@ type AddDecisionRequest struct {
 	Rationale  string `json:"rationale"`
 	Context    string `json:"context,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
+}
+
+// UpdateDecisionRequest is the request body for updating a decision.
+type UpdateDecisionRequest struct {
+	Decision   *string `json:"decision,omitempty"`
+	Rationale  *string `json:"rationale,omitempty"`
+	Context    *string `json:"context,omitempty"`
+	Status     *string `json:"status,omitempty"`     // "pending", "accepted", "rejected"
+	Supersedes *string `json:"supersedes,omitempty"`
 }
 
 // DecisionListResponse is the API response for listing decisions.

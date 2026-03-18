@@ -283,8 +283,7 @@ func TestFormatSpawnPrompt(t *testing.T) {
 
 	requiredSections := []string{
 		"Team Spawn Instructions",
-		"Team Creation",
-		"Task Creation",
+		"Team Roster",
 		"Spawn Teammates",
 		"Coordination",
 		"Org Chart",

@@ -214,40 +214,35 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 		b.WriteString(fmt.Sprintf("**Mission:** %s\n\n", config.Description))
 	}
 
-	// Team creation
-	b.WriteString("## 1. Team Creation\n\n")
-	b.WriteString(fmt.Sprintf("Create the team using `TeamCreate` with name `%s`.\n\n", config.TeamName))
-
-	// Task creation
-	b.WriteString("## 2. Task Creation\n\n")
-	b.WriteString("Create tasks using `TaskCreate` for each teammate's responsibilities:\n\n")
+	// Team roster
+	b.WriteString("## 1. Team Roster\n\n")
 	for i, m := range config.Members {
 		b.WriteString(fmt.Sprintf("- **%s** (type: %s)", m.Name, m.AgentType))
 		if i == 0 {
-			b.WriteString(" [team lead]")
+			b.WriteString(" [team lead — you]")
 		}
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
 
 	// Member spawning
-	b.WriteString("## 3. Spawn Teammates\n\n")
-	b.WriteString("Spawn each teammate using the `Task` tool with the appropriate `subagent_type`:\n\n")
+	b.WriteString("## 2. Spawn Teammates\n\n")
+	b.WriteString("Spawn each teammate as a subagent:\n\n")
 	for _, m := range config.Members[1:] { // skip lead (self)
-		b.WriteString(fmt.Sprintf("- Spawn **%s** with `subagent_type: \"%s\"`\n", m.Name, m.AgentType))
+		b.WriteString(fmt.Sprintf("- Spawn **%s** with type `%s`\n", m.Name, m.AgentType))
 	}
 	if len(config.Members) > 1 {
 		b.WriteString("\n")
 	}
 
 	// Coordination
-	b.WriteString("## 4. Coordination\n\n")
-	b.WriteString("- Use `SendMessage` to communicate with teammates\n")
-	b.WriteString("- Use `TaskUpdate` to track progress\n")
+	b.WriteString("## 3. Coordination\n\n")
+	b.WriteString("- Communicate with teammates via your messaging capability\n")
+	b.WriteString("- Track progress via the shared task board (run `prompt-manager team task-list` via Bash)\n")
 	b.WriteString("- Monitor teammate status and reassign work as needed\n\n")
 
 	// Org chart
-	b.WriteString("## 5. Org Chart\n\n")
+	b.WriteString("## 4. Org Chart\n\n")
 	if len(config.Members) > 0 {
 		b.WriteString(fmt.Sprintf("- **Lead:** %s\n", config.Members[0].Name))
 		for _, m := range config.Members[1:] {
@@ -258,7 +253,7 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 
 	// Context
 	if ctx.WorkingDir != "" || ctx.VrooliRoot != "" || ctx.TeamID != "" || ctx.AdditionalCtx != "" {
-		b.WriteString("## 6. Context\n\n")
+		b.WriteString("## 5. Context\n\n")
 		if ctx.WorkingDir != "" {
 			b.WriteString(fmt.Sprintf("- **Working directory:** %s\n", ctx.WorkingDir))
 		}

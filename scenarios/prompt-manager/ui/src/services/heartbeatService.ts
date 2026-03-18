@@ -153,6 +153,7 @@ export interface AddTaskRequest {
 }
 
 export interface UpdateTaskRequest {
+  title?: string
   status?: string
   assignee?: string
   priority?: string
@@ -166,6 +167,15 @@ export interface DecisionEntry {
   decision: string
   rationale: string
   context?: string
+  supersedes?: string
+  status?: 'pending' | 'accepted' | 'rejected'
+}
+
+export interface UpdateDecisionRequest {
+  decision?: string
+  rationale?: string
+  context?: string
+  status?: string
   supersedes?: string
 }
 
@@ -1060,6 +1070,23 @@ export async function addDecision(
   return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions`, {
     method: 'POST',
     body: JSON.stringify(request),
+  })
+}
+
+export async function updateDecision(
+  teamId: string,
+  decisionId: string,
+  request: UpdateDecisionRequest
+): Promise<DecisionEntry> {
+  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
+  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
+    method: 'DELETE',
   })
 }
 

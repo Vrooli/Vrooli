@@ -289,4 +289,5 @@ type DecisionEntry struct {
 	Rationale  string `json:"rationale"`
 	Context    string `json:"context,omitempty"`    // tag/topic grouping
 	Supersedes string `json:"supersedes,omitempty"` // ID of decision this replaces
+	Status     string `json:"status,omitempty"`     // "pending", "accepted", "rejected"
 }

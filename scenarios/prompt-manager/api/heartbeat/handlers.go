@@ -1850,6 +1850,9 @@ func (h *Handlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	err := h.teamStore.UpdateTask(r.Context(), teamID, taskID, func(task *store.TeamTask) {
+		if req.Title != nil && strings.TrimSpace(*req.Title) != "" {
+			task.Title = *req.Title
+		}
 		if req.Status != nil {
 			task.Status = *req.Status
 		}
@@ -1973,6 +1976,78 @@ func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
 		TeamID:  teamID,
 		Entries: entries,
 	})
+}
+
+// UpdateDecisionHandler handles PATCH /teams/{id}/decisions/{decisionId}
+func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	decisionID := vars["decisionId"]
+
+	var req UpdateDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
+		if req.Decision != nil && strings.TrimSpace(*req.Decision) != "" {
+			d.Decision = *req.Decision
+		}
+		if req.Rationale != nil {
+			d.Rationale = *req.Rationale
+		}
+		if req.Context != nil {
+			d.Context = *req.Context
+		}
+		if req.Status != nil {
+			d.Status = *req.Status
+		}
+		if req.Supersedes != nil {
+			d.Supersedes = *req.Supersedes
+		}
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch updated entry to return
+	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, "", 0)
+	if err != nil {
+		http.Error(w, "decision updated but fetch failed", http.StatusInternalServerError)
+		return
+	}
+	for _, e := range entries {
+		if e.ID == decisionID {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(e)
+			return
+		}
+	}
+	http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
+}
+
+// DeleteDecisionHandler handles DELETE /teams/{id}/decisions/{decisionId}
+func (h *Handlers) DeleteDecisionHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	decisionID := vars["decisionId"]
+
+	err := h.teamStore.DeleteDecision(r.Context(), teamID, decisionID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // generateID creates a short unique identifier.
