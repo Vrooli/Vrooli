@@ -144,6 +144,28 @@ type Status struct {
 	// ErrorSessionMismatch indicates the app-reported error's session ID doesn't match the current run.
 	// This definitively shows the error is from a different session.
 	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
+
+	// Screen recording configuration and results
+	RecordingConfig  *ScreenRecordingConfig  `json:"recording_config,omitempty"`
+	ScreenRecording  *ScreenRecordingResult  `json:"screen_recording,omitempty"`
+}
+
+// ScreenRecordingConfig controls whether the smoke test records the display.
+type ScreenRecordingConfig struct {
+	Enabled        bool `json:"enabled"`
+	DisplayWidth   int  `json:"display_width,omitempty"`   // Default: 1920
+	DisplayHeight  int  `json:"display_height,omitempty"`  // Default: 1080
+	FPS            int  `json:"fps,omitempty"`             // Default: 15
+	MaxDurationSec int  `json:"max_duration_sec,omitempty"`
+}
+
+// ScreenRecordingResult holds the outcome of a screen recording during a smoke test.
+type ScreenRecordingResult struct {
+	Recorded      bool   `json:"recorded"`
+	VideoPath     string `json:"video_path,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
+	Error         string `json:"error,omitempty"`
 }
 
 // CancelResponse represents the response from cancelling a smoke test.

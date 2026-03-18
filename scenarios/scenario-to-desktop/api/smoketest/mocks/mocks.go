@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/smoketest"
 )
 
@@ -922,4 +923,96 @@ func (m *MockTelemetryErrorExtractor) WithLatestError(err *smoketest.TelemetryEr
 func (m *MockTelemetryErrorExtractor) WithLatestErrorForSession(err *smoketest.TelemetryError) *MockTelemetryErrorExtractor {
 	m.ExtractLatestErrorForSessionResult.Error = err
 	return m
+}
+
+// MockRecorder implements screenrecording.Recorder for testing.
+type MockRecorder struct {
+	StartResult struct {
+		CaptureID string
+		Err       error
+	}
+	StopResult struct {
+		VideoPath     string
+		DurationMs    int64
+		FileSizeBytes int64
+		Err           error
+	}
+	StartCalls []MockStartCaptureCall
+	StopCalls  []string
+}
+
+// MockStartCaptureCall records a StartCapture invocation.
+type MockStartCaptureCall struct {
+	Display string
+	Width   int
+	Height  int
+	FPS     int
+}
+
+// NewMockRecorder creates a new mock recorder.
+func NewMockRecorder() *MockRecorder {
+	return &MockRecorder{
+		StartCalls: []MockStartCaptureCall{},
+		StopCalls:  []string{},
+	}
+}
+
+// StartCapture records the call and returns the configured result.
+func (m *MockRecorder) StartCapture(_ context.Context, cfg screenrecording.CaptureConfig) (string, error) {
+	m.StartCalls = append(m.StartCalls, MockStartCaptureCall{
+		Display: cfg.Display,
+		Width:   cfg.Width,
+		Height:  cfg.Height,
+		FPS:     cfg.FPS,
+	})
+	return m.StartResult.CaptureID, m.StartResult.Err
+}
+
+// StopCapture records the call and returns the configured result.
+func (m *MockRecorder) StopCapture(_ context.Context, captureID string) (*screenrecording.CaptureResult, error) {
+	m.StopCalls = append(m.StopCalls, captureID)
+	if m.StopResult.Err != nil {
+		return nil, m.StopResult.Err
+	}
+	return &screenrecording.CaptureResult{
+		VideoPath:     m.StopResult.VideoPath,
+		DurationMs:    m.StopResult.DurationMs,
+		FileSizeBytes: m.StopResult.FileSizeBytes,
+	}, nil
+}
+
+// MockDisplayManager implements screenrecording.DisplayManager for testing.
+type MockDisplayManager struct {
+	CreateResult struct {
+		DisplayID string
+		Err       error
+	}
+	CreateCalls []MockCreateDisplayCall
+	CleanupCalled bool
+}
+
+// MockCreateDisplayCall records a CreateDisplay invocation.
+type MockCreateDisplayCall struct {
+	Width  int
+	Height int
+}
+
+// NewMockDisplayManager creates a new mock display manager.
+func NewMockDisplayManager() *MockDisplayManager {
+	return &MockDisplayManager{
+		CreateCalls: []MockCreateDisplayCall{},
+	}
+}
+
+// CreateDisplay records the call and returns the configured result.
+func (m *MockDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
+	m.CreateCalls = append(m.CreateCalls, MockCreateDisplayCall{Width: width, Height: height})
+	if m.CreateResult.Err != nil {
+		return "", nil, m.CreateResult.Err
+	}
+	displayID := m.CreateResult.DisplayID
+	if displayID == "" {
+		displayID = ":99"
+	}
+	return displayID, func() { m.CleanupCalled = true }, nil
 }

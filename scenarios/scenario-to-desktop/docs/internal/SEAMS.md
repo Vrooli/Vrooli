@@ -1628,3 +1628,25 @@ interface WindowState {
 ```
 
 **Status**: ✅ Implemented
+
+## Screen Recording Seams (Mar 2026)
+
+### Recorder Seam
+- **Interface**: `screenrecording.Recorder` (`api/screenrecording/recorder.go`)
+- **Default Implementation**: `FFmpegRecorder` — shells out to `resource-ffmpeg screen-capture start/stop`
+- **Variation Point**: Could be replaced with direct FFmpeg library bindings or platform-specific capture APIs
+- **Test Double**: `mocks.MockRecorder` in `api/smoketest/mocks/mocks.go`
+
+### DisplayManager Seam
+- **Interface**: `screenrecording.DisplayManager` (`api/screenrecording/display.go`)
+- **Default Implementation**: `XvfbDisplayManager` (Linux) / `systemDisplayManager` (non-Linux)
+- **Variation Point**: Could be replaced with Weston (Wayland compositor) for Wayland-native capture
+- **Test Double**: `mocks.MockDisplayManager` in `api/smoketest/mocks/mocks.go`
+
+### CommandExecutor Seam (Screen Recording)
+- **Interface**: `screenrecording.CommandExecutor` (`api/screenrecording/recorder.go`)
+- **Purpose**: Breaks import cycle between screenrecording and smoketest packages
+- **Default Implementation**: `smoketest.DefaultProcessExecutor` satisfies this via adapter
+- **Variation Point**: Any executor that returns stdout/stderr/exit code
+
+**Status**: ✅ Implemented

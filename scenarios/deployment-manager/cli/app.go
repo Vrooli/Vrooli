@@ -12,6 +12,7 @@ import (
 	"deployment-manager/cli/profiles"
 	"deployment-manager/cli/signing"
 	"deployment-manager/cli/swaps"
+	"deployment-manager/cli/validations"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -34,12 +35,13 @@ type App struct {
 	core        *cliapp.ScenarioApp
 	api         *cliutil.APIClient
 	http        *cliutil.HTTPClient
-	overview    *overview.Commands
-	profiles    *profiles.Commands
-	swaps       *swaps.Commands
-	deployments *deployments.Commands
-	bundles     *bundles.Commands
-	signing     *signing.Commands
+	overview     *overview.Commands
+	profiles     *profiles.Commands
+	swaps        *swaps.Commands
+	deployments  *deployments.Commands
+	bundles      *bundles.Commands
+	signing      *signing.Commands
+	validations  *validations.Commands
 }
 
 // NewApp constructs the CLI application.
@@ -78,6 +80,7 @@ func NewApp() (*App, error) {
 		deployments: deployments.New(core.APIClient),
 		bundles:     bundles.New(core.APIClient),
 		signing:     signing.New(core.APIClient),
+		validations: validations.New(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -191,7 +194,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, config}
+	validationsGroup := cliapp.CommandGroup{
+		Title: "Validations",
+		Commands: []cliapp.Command{
+			{Name: "validations", NeedsAPI: true, Description: "Visual validation quality gate (run, status, video, review, list)", Run: a.validations.Run},
+		},
+	}
+
+	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, validationsGroup, config}
 }
 
 // applyGlobalFormat consumes leading global format flags (--json, --format <fmt>)

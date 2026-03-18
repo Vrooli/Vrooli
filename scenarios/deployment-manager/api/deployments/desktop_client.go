@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"deployment-manager/shared"
@@ -320,6 +321,168 @@ func (c *DesktopPackagerClient) CheckSigningReadiness(ctx context.Context, scena
 	}
 
 	return &result, nil
+}
+
+// SmokeTestRequest is the request for running a smoke test with optional recording.
+type SmokeTestRequest struct {
+	ScenarioName string                  `json:"scenario_name"`
+	ArtifactPath string                  `json:"artifact_path"`
+	Platform     string                  `json:"platform"`
+	Recording    *ScreenRecordingConfig  `json:"recording,omitempty"`
+}
+
+// ScreenRecordingConfig controls screen capture during smoke tests.
+type ScreenRecordingConfig struct {
+	Enabled       bool `json:"enabled"`
+	DisplayWidth  int  `json:"display_width,omitempty"`
+	DisplayHeight int  `json:"display_height,omitempty"`
+	FPS           int  `json:"fps,omitempty"`
+}
+
+// SmokeTestStatusResponse is the status of a smoke test run.
+type SmokeTestStatusResponse struct {
+	SmokeTestID     string                  `json:"smoke_test_id"`
+	Status          string                  `json:"status"`
+	ScreenRecording *ScreenRecordingResult  `json:"screen_recording,omitempty"`
+}
+
+// ScreenRecordingResult holds the outcome of a smoke test recording.
+type ScreenRecordingResult struct {
+	Recorded      bool   `json:"recorded"`
+	VideoPath     string `json:"video_path,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+// RunSmokeTest triggers a smoke test with optional recording on scenario-to-desktop.
+func (c *DesktopPackagerClient) RunSmokeTest(ctx context.Context, req *SmokeTestRequest) (*SmokeTestStatusResponse, error) {
+	c.log("info", map[string]interface{}{
+		"msg":      "running smoke test with recording",
+		"scenario": req.ScenarioName,
+		"platform": req.Platform,
+	})
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/pipeline/run", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("smoke test API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result SmokeTestStatusResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetSmokeTestStatus polls the status of a running smoke test.
+func (c *DesktopPackagerClient) GetSmokeTestStatus(ctx context.Context, smokeTestID string) (*SmokeTestStatusResponse, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/smoketest/"+smokeTestID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("smoke test status returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result SmokeTestStatusResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// WaitForSmokeTest polls until a smoke test completes or times out.
+func (c *DesktopPackagerClient) WaitForSmokeTest(ctx context.Context, smokeTestID string, pollInterval time.Duration) (*SmokeTestStatusResponse, error) {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			status, err := c.GetSmokeTestStatus(ctx, smokeTestID)
+			if err != nil {
+				c.log("warn", map[string]interface{}{
+					"msg":           "smoke test poll failed",
+					"smoke_test_id": smokeTestID,
+					"error":         err.Error(),
+				})
+				continue
+			}
+
+			switch status.Status {
+			case "passed", "failed":
+				return status, nil
+			}
+		}
+	}
+}
+
+// DownloadVideo downloads a smoke test video to a local path.
+func (c *DesktopPackagerClient) DownloadVideo(ctx context.Context, smokeTestID, destPath string) error {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/smoketest/"+smokeTestID+"/video", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("video download returned %d", resp.StatusCode)
+	}
+
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return fmt.Errorf("write video: %w", err)
+	}
+
+	return nil
 }
 
 // SetSigningConfig sets the signing configuration for a scenario via scenario-to-desktop.

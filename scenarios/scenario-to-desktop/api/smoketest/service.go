@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/errors"
 )
 
@@ -32,6 +33,10 @@ type DefaultService struct {
 	prereqChecker      PrerequisiteCheckerI
 	envReader          EnvironmentReader
 	telemetryExtractor TelemetryErrorExtractor
+
+	// Optional screen recording (nil = recording disabled)
+	recorder   screenrecording.Recorder
+	displayMgr screenrecording.DisplayManager
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -102,6 +107,12 @@ func NewDefaultSmokeTestService(
 	}
 }
 
+// WithRecording enables screen recording on an existing service.
+func (s *DefaultService) WithRecording(recorder screenrecording.Recorder, displayMgr screenrecording.DisplayManager) {
+	s.recorder = recorder
+	s.displayMgr = displayMgr
+}
+
 // CurrentPlatform returns the current platform identifier.
 func (s *DefaultService) CurrentPlatform() string {
 	return s.platformResolver.CurrentPlatform()
@@ -134,21 +145,110 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		))
 	})
 
+	// Check if screen recording is requested for this smoke test
+	var recordingCfg *ScreenRecordingConfig
+	if status, ok := s.store.Get(smokeTestID); ok {
+		recordingCfg = status.RecordingConfig
+	}
+
+	// Set up virtual display + screen recording if enabled
+	var captureID string
+	if recordingCfg != nil && recordingCfg.Enabled && s.recorder != nil && s.displayMgr != nil {
+		width, height := recordingCfg.DisplayWidth, recordingCfg.DisplayHeight
+		if width == 0 {
+			width = 1920
+		}
+		if height == 0 {
+			height = 1080
+		}
+		fps := recordingCfg.FPS
+		if fps == 0 {
+			fps = 15
+		}
+
+		displayID, displayCleanup, err := s.displayMgr.CreateDisplay(width, height)
+		if err != nil {
+			s.logger.Warn("screen_recording_display_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+			s.store.Update(smokeTestID, func(status *Status) {
+				status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("display creation failed: %v", err)}
+			})
+		} else {
+			defer displayCleanup()
+
+			// Override DISPLAY for the smoke test execution
+			if s.envReader != nil {
+				// The DISPLAY env var will be injected in executeSmokeTest via env slice
+			}
+
+			cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
+				Display:    displayID,
+				Width:      width,
+				Height:     height,
+				FPS:        fps,
+				OutputPath: "", // let FFmpeg resource choose path
+			})
+			if err != nil {
+				s.logger.Warn("screen_recording_start_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+				s.store.Update(smokeTestID, func(status *Status) {
+					status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("capture start failed: %v", err)}
+				})
+			} else {
+				captureID = cID
+				s.store.Update(smokeTestID, func(status *Status) {
+					status.Logs = append(status.Logs, fmt.Sprintf("Screen recording started (ID: %s, display: %s)", captureID, displayID))
+				})
+			}
+		}
+	}
+
 	// Resolve command
 	s.transitionTo(smokeTestID, StateResolvingCommand, platform)
-	cmd, args, displayCommand, err := s.resolveCommand(smokeTestID, platform, artifactPath)
-	if err != nil {
-		s.recordTypedFailure(smokeTestID, NewPlatformError(
-			"artifact not runnable",
-			err,
-			platform,
-		))
-		return
+
+	// When recording is active, skip the xvfb-run wrapper since we manage the display directly
+	var cmd string
+	var args []string
+	var displayCommand string
+	if captureID != "" {
+		// Display is managed by recorder — resolve command without headless wrapper
+		var err error
+		cmd, args, displayCommand, err = s.platformResolver.ResolveCommand(platform, artifactPath)
+		if err != nil {
+			s.recordTypedFailure(smokeTestID, NewPlatformError("artifact not runnable", err, platform))
+			return
+		}
+	} else {
+		var err error
+		cmd, args, displayCommand, err = s.resolveCommand(smokeTestID, platform, artifactPath)
+		if err != nil {
+			s.recordTypedFailure(smokeTestID, NewPlatformError("artifact not runnable", err, platform))
+			return
+		}
 	}
 
 	// Execute smoke test with retry support
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
 	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand)
+
+	// Stop recording if active
+	if captureID != "" {
+		captureResult, err := s.recorder.StopCapture(ctx, captureID)
+		if err != nil {
+			s.logger.Warn("screen_recording_stop_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+			s.store.Update(smokeTestID, func(status *Status) {
+				status.ScreenRecording = &ScreenRecordingResult{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
+			})
+		} else {
+			s.store.Update(smokeTestID, func(status *Status) {
+				status.ScreenRecording = &ScreenRecordingResult{
+					Recorded:      true,
+					VideoPath:     captureResult.VideoPath,
+					DurationMs:    captureResult.DurationMs,
+					FileSizeBytes: captureResult.FileSizeBytes,
+				}
+				status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved: %s", captureResult.VideoPath))
+			})
+		}
+	}
 
 	// Process results
 	outputLen := 0

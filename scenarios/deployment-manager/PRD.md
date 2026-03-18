@@ -166,6 +166,11 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - [ ] OT-P2-015 | Advanced Metrics Dashboards | Support custom metric dashboards with user-defined queries
 - [ ] OT-P2-016 | Deployment Comparison Views | Compare metrics across multiple deployments (A/B testing, staging vs production)
 
+#### Visual Validation
+- [x] OT-P2-VV1 | Screen-Recorded Smoke Tests | Record desktop smoke tests via FFmpeg screen capture for human review before publishing
+- [x] OT-P2-VV2 | Video Review UI | HTML5 video player with approve/reject workflow for visual validation
+- [x] OT-P2-VV3 | Validation CLI | CLI commands for running, reviewing, and managing visual validations
+
 #### Visual Builder & Advanced UX
 - [ ] OT-P2-017 | Visual Dependency Graph Editor | Allow drag-and-drop editing of dependency swaps in graph view
 - [ ] OT-P2-018 | Deployment Simulation Mode | Simulate deployment to preview changes without executing (dry-run mode)

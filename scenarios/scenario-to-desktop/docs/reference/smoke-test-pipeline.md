@@ -348,6 +348,39 @@ See [SEAMS.md](../internal/SEAMS.md) for the full seam architecture.
 
 ---
 
+## Screen Recording
+
+When `ScreenRecordingConfig.Enabled` is set on a smoke test status, the service records the virtual display during execution. This enables visual validation — a human reviewer can watch the recording to confirm the app launched correctly.
+
+### How It Works
+
+1. **Display creation**: `DisplayManager.CreateDisplay()` starts an Xvfb instance (Linux only)
+2. **Capture start**: `Recorder.StartCapture()` calls `resource-ffmpeg screen-capture start` to begin x11grab recording
+3. **Execution**: The smoke test runs on the virtual display (xvfb-run wrapper is skipped since the display is managed directly)
+4. **Capture stop**: After execution completes (pass or fail), `Recorder.StopCapture()` finalizes the video
+5. **Result storage**: The `ScreenRecordingResult` is stored in the smoke test status
+
+### Video Serving
+
+Recorded videos are served via `GET /api/v1/smoketest/{id}/video` with Range header support for browser playback. The deployment-manager downloads videos through this endpoint for its review workflow.
+
+### Configuration
+
+```json
+{
+  "recording_config": {
+    "enabled": true,
+    "display_width": 1920,
+    "display_height": 1080,
+    "fps": 15
+  }
+}
+```
+
+Defaults: 1920x1080 at 15fps. Lower FPS keeps file sizes reasonable for review purposes.
+
+---
+
 ## Related Documentation
 
 - [API Architecture](./api-architecture.md) - Overall pipeline system overview

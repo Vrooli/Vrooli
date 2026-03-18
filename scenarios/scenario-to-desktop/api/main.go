@@ -72,6 +72,9 @@ type Server struct {
 
 	// Task orchestration service
 	taskSvc *tasks.Service
+
+	// Smoke test store for video serving
+	smokeTestStore smoketest.Store
 }
 
 // NewServer creates a new server instance
@@ -346,6 +349,9 @@ func NewServer(port int) *Server {
 
 		// Task orchestration
 		taskSvc: taskSvc,
+
+		// Smoke test store for video serving
+		smokeTestStore: smokeTestStore,
 	}
 	srv.registerDomainHandlers()
 	return srv
@@ -425,6 +431,9 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/content", s.docsContentHandler).Methods("GET")
 	s.router.HandleFunc("/docs/{docPath:.*}", s.docsFileHandler).Methods("GET")
+
+	// Smoke test video serving
+	s.router.HandleFunc("/api/v1/smoketest/{id}/video", s.smokeTestVideoHandler).Methods("GET")
 
 	// Icon preview
 	s.router.HandleFunc("/api/v1/icons/preview", s.iconPreviewHandler).Methods("GET")

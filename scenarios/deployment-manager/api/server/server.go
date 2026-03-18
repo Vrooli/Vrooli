@@ -19,6 +19,7 @@ import (
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
+	visualvalidation "deployment-manager/validation"
 	"deployment-manager/health"
 	"deployment-manager/profiles"
 	"deployment-manager/secrets"
@@ -49,6 +50,7 @@ type Server struct {
 	ProfilesHandler     *profiles.Handler
 	SigningHandler      *codesigning.Handler
 	BuildHandler        *build.Handler
+	ValidationHandler   *visualvalidation.Handler
 	Orchestrator        *deployments.Orchestrator
 
 	// Repositories
@@ -119,6 +121,7 @@ func New() (*Server, error) {
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 		BuildHandler:        build.NewHandler(profilesRepo, logFn),
+		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), validationVideoDir(), logFn),
 		Orchestrator:        deployments.NewOrchestrator(profilesRepo, logFn),
 	}
 

@@ -46,6 +46,8 @@ type DeployDesktopRequest struct {
 	SigningConfig map[string]interface{} `json:"signing_config,omitempty"`
 	// TimeoutSeconds allows callers to override the orchestration timeout window
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
+	// VisualValidation enables screen-recorded smoke test validation before publishing
+	VisualValidation bool `json:"visual_validation,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
@@ -521,6 +523,23 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		step = o.startStep("Build platform installers")
 		step.Status = "skipped"
 		step.Message = "installer build skipped by request"
+		response.Steps = append(response.Steps, step)
+	}
+
+	// Step 8: Visual validation (optional, non-blocking)
+	if req.VisualValidation && !req.SkipValidation && response.DesktopPath != "" {
+		step = o.startStep("Visual validation")
+		if req.DryRun {
+			step.Status = "skipped"
+			step.Message = "dry run - would run visual validation with screen recording"
+		} else {
+			step.Status = "warning"
+			step.Message = "visual validation: review video at /api/v1/validations endpoint"
+			response.NextSteps = append(response.NextSteps,
+				"Review the recorded smoke test video via the validation API",
+				"Approve or reject at POST /api/v1/validations/{id}/review",
+			)
+		}
 		response.Steps = append(response.Steps, step)
 	}
 

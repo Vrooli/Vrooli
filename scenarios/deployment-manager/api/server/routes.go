@@ -67,6 +67,15 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/signing/prerequisites", s.SigningHandler.CheckPrerequisites).Methods("GET")
 	s.Router.HandleFunc("/api/v1/signing/discover/{platform}", s.SigningHandler.DiscoverCertificates).Methods("GET")
 
+	// Visual validation endpoints
+	if s.ValidationHandler != nil {
+		s.Router.HandleFunc("/api/v1/validations", s.ValidationHandler.Create).Methods("POST")
+		s.Router.HandleFunc("/api/v1/validations/{id}", s.ValidationHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/validations/{id}/video", s.ValidationHandler.StreamVideo).Methods("GET")
+		s.Router.HandleFunc("/api/v1/validations/{id}/review", s.ValidationHandler.SubmitReview).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/validations", s.ValidationHandler.ListByProfile).Methods("GET")
+	}
+
 	// Build endpoints (cross-compilation)
 	s.Router.HandleFunc("/api/v1/build", s.BuildHandler.Build).Methods("POST")
 	s.Router.HandleFunc("/api/v1/build/auto", s.BuildHandler.AutoBuild).Methods("POST")
