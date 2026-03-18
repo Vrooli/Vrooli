@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 )
 
 // TaskCreateRequest represents the request body for creating a task.
@@ -63,18 +64,20 @@ type TaskDetailResponse struct {
 
 // TaskCreateResponse wraps the API envelope for task creation.
 type TaskCreateResponse struct {
-	Success bool         `json:"success"`
-	DryRun  bool         `json:"dry_run,omitempty"`
-	Task    TaskResponse `json:"task"`
+	Success   bool         `json:"success"`
+	DryRun    bool         `json:"dry_run,omitempty"`
+	Task      TaskResponse `json:"task"`
+	NextSteps []string     `json:"next_steps,omitempty"`
 }
 
 // TaskActionResponse represents the result of an action on a task.
 type TaskActionResponse struct {
-	Success bool   `json:"success"`
-	DryRun  bool   `json:"dry_run,omitempty"`
-	Message string `json:"message,omitempty"`
-	TaskID  string `json:"task_id,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Success   bool     `json:"success"`
+	DryRun    bool     `json:"dry_run,omitempty"`
+	Message   string   `json:"message,omitempty"`
+	TaskID    string   `json:"task_id,omitempty"`
+	Error     string   `json:"error,omitempty"`
+	NextSteps []string `json:"next_steps,omitempty"`
 }
 
 // StatusUpdateRequest represents the request body for updating task status.
@@ -145,7 +148,13 @@ Subcommands:
   list, ls                          List tasks
   show, get <id>                    Show task details
   status <id>                       Update task status
-  delete, rm <id>                   Delete a task`
+  delete, rm <id>                   Delete a task
+
+Examples:
+  ecosystem-manager task add scenario my-app --steer-profile balanced
+  ecosystem-manager task improve scenario my-app --steer-profile production-ready
+  ecosystem-manager task list --status pending --type scenario
+  ecosystem-manager task show <task-id> --json`
 }
 
 func cmdAdd(ctx appctx.Context, args []string) error {
@@ -191,7 +200,7 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 
 	var resp TaskCreateResponse
 	if err := ctx.Post("/tasks", req, &resp); err != nil {
-		return fmt.Errorf("failed to create task: %w", err)
+		return format.WrapAPIError("Failed to create task", err)
 	}
 	task := resp.Task
 
@@ -202,11 +211,16 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	}
 
 	if resp.DryRun {
-		fmt.Printf("[DRY RUN] Would create task: %s [%s]\n", task.Title, task.ID)
+		format.MutationResult(
+			fmt.Sprintf("[DRY RUN] Would create task: %s [%s]", task.Title, task.ID),
+			"", nil,
+		)
 	} else {
-		fmt.Printf("Created task: %s [%s]\n", task.Title, task.ID)
+		format.MutationResult(
+			fmt.Sprintf("Created task: %s [%s]", task.Title, task.ID),
+			"", resp.NextSteps,
+		)
 	}
-	fmt.Printf("  View: ecosystem-manager task show %s\n", task.ID)
 	return nil
 }
 
@@ -252,7 +266,7 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 
 	var resp TaskCreateResponse
 	if err := ctx.Post("/tasks", req, &resp); err != nil {
-		return fmt.Errorf("failed to create task: %w", err)
+		return format.WrapAPIError("Failed to create improvement task", err)
 	}
 	task := resp.Task
 
@@ -263,11 +277,16 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 	}
 
 	if resp.DryRun {
-		fmt.Printf("[DRY RUN] Would create improvement task: %s [%s]\n", task.Title, task.ID)
+		format.MutationResult(
+			fmt.Sprintf("[DRY RUN] Would create improvement task: %s [%s]", task.Title, task.ID),
+			"", nil,
+		)
 	} else {
-		fmt.Printf("Created improvement task: %s [%s]\n", task.Title, task.ID)
+		format.MutationResult(
+			fmt.Sprintf("Created improvement task: %s [%s]", task.Title, task.ID),
+			"", resp.NextSteps,
+		)
 	}
-	fmt.Printf("  View: ecosystem-manager task show %s\n", task.ID)
 	return nil
 }
 
@@ -294,7 +313,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	var resp TaskListResponse
 	if err := ctx.GetWithQuery("/tasks", query, &resp); err != nil {
-		return fmt.Errorf("failed to list tasks: %w", err)
+		return format.WrapAPIError("Failed to list tasks", err)
 	}
 
 	if *jsonOut {
@@ -305,6 +324,7 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	if len(resp.Tasks) == 0 {
 		fmt.Println("No tasks found")
+		fmt.Println("  Hint: ecosystem-manager task add scenario <name>")
 		return nil
 	}
 
@@ -333,7 +353,7 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 	var task TaskDetailResponse
 	if err := ctx.Get(fmt.Sprintf("/tasks/%s", taskID), &task); err != nil {
-		return fmt.Errorf("failed to get task: %w", err)
+		return format.WrapAPIError("Failed to get task", err)
 	}
 
 	if *jsonOut {
@@ -404,7 +424,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 
 	var resp TaskActionResponse
 	if err := ctx.Put(fmt.Sprintf("/tasks/%s/status", taskID), req, &resp); err != nil {
-		return fmt.Errorf("failed to update task status: %w", err)
+		return format.WrapAPIError("Failed to update task status", err)
 	}
 
 	if *jsonOut {
@@ -424,7 +444,6 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 		}
 		fmt.Printf("  %s\n", strings.Join(parts, ", "))
 	} else if resp.Success {
-		fmt.Printf("Task updated successfully\n")
 		parts := []string{}
 		if *status != "" {
 			parts = append(parts, fmt.Sprintf("Status: %s", *status))
@@ -432,7 +451,11 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 		if *phase != "" {
 			parts = append(parts, fmt.Sprintf("Phase: %s", *phase))
 		}
-		fmt.Printf("  %s\n", strings.Join(parts, ", "))
+		format.MutationResult(
+			"Task updated successfully",
+			strings.Join(parts, ", "),
+			resp.NextSteps,
+		)
 	} else {
 		fmt.Printf("Failed to update task: %s\n", resp.Error)
 	}
@@ -453,7 +476,7 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 
 	var resp TaskActionResponse
 	if err := ctx.DeleteWithResult(fmt.Sprintf("/tasks/%s", taskID), &resp); err != nil {
-		return fmt.Errorf("failed to delete task: %w", err)
+		return format.WrapAPIError("Failed to delete task", err)
 	}
 
 	if *jsonOut {
@@ -465,7 +488,10 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 	if resp.DryRun {
 		fmt.Printf("[DRY RUN] Would delete task: %s\n", taskID)
 	} else {
-		fmt.Printf("Task deleted: %s\n", taskID)
+		format.MutationResult(
+			fmt.Sprintf("Task deleted: %s", taskID),
+			"", resp.NextSteps,
+		)
 	}
 	return nil
 }

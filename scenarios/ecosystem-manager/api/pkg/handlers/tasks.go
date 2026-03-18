@@ -104,7 +104,11 @@ func (h *TaskHandlers) validateAutoSteerProfile(task *tasks.TaskItem, w http.Res
 		return false
 	}
 	if _, err := h.autoSteerProfiles.GetProfile(profileID); err != nil {
-		writeError(w, fmt.Sprintf("Auto Steer profile %q not found", profileID), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "profile_not_found",
+			Message:      fmt.Sprintf("Auto Steer profile %q not found", profileID),
+			RecoveryHint: "List profiles: ecosystem-manager steer profiles\nList templates: ecosystem-manager steer templates",
+		}, http.StatusBadRequest)
 		return false
 	}
 	return true
@@ -441,7 +445,11 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 	taskID := vars["id"]
 	task, status, err := h.storage.GetTaskByID(taskID)
 	if err != nil {
-		writeError(w, "Task not found", http.StatusNotFound)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "task_not_found",
+			Message:      "Task not found",
+			RecoveryHint: "List tasks: ecosystem-manager task list",
+		}, http.StatusNotFound)
 		return nil, "", false
 	}
 	return task, status, true
@@ -451,11 +459,19 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 // Returns true if valid, writes error response and returns false if invalid.
 func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http.ResponseWriter) bool {
 	if !tasks.IsValidTaskType(task.Type) {
-		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_task_type",
+			Message:      fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes),
+			RecoveryHint: fmt.Sprintf("Valid types: %v", tasks.ValidTaskTypes),
+		}, http.StatusBadRequest)
 		return false
 	}
 	if !tasks.IsValidTaskOperation(task.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_operation",
+			Message:      fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations),
+			RecoveryHint: fmt.Sprintf("Valid operations: %v", tasks.ValidTaskOperations),
+		}, http.StatusBadRequest)
 		return false
 	}
 	return true
@@ -779,7 +795,11 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	if task.Operation == "improver" && h.targetValidator != nil {
 		for _, target := range task.Targets {
 			if !h.targetValidator.TargetExists(task.Type, target) {
-				writeError(w, fmt.Sprintf("Target %s %q not found. Verify it exists before creating an improver task", task.Type, target), http.StatusBadRequest)
+				writeStructuredError(w, ErrorOpts{
+					Code:         "target_not_found",
+					Message:      fmt.Sprintf("Target %s %q not found. Verify it exists before creating an improver task", task.Type, target),
+					RecoveryHint: fmt.Sprintf("For new targets use 'task add'. Check: ls scenarios/%s", target),
+				}, http.StatusBadRequest)
 				return
 			}
 		}
@@ -800,7 +820,11 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		if existing != nil {
-			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
+			writeStructuredError(w, ErrorOpts{
+				Code:         "duplicate_task",
+				Message:      fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status),
+				RecoveryHint: fmt.Sprintf("View existing: ecosystem-manager task show %s", existing.ID),
+			}, http.StatusConflict)
 			return
 		}
 	}
@@ -853,6 +877,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    task,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", task.ID),
+			"ecosystem-manager queue start",
+		},
 	}, http.StatusCreated)
 }
 
@@ -1005,7 +1033,11 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Validate status if provided
 	newStatus := updatedTask.Status
 	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
-		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_status",
+			Message:      fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()),
+			RecoveryHint: fmt.Sprintf("Valid statuses: %v", tasks.GetValidStatuses()),
+		}, http.StatusBadRequest)
 		return
 	}
 
@@ -1023,7 +1055,11 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		if existing != nil && existing.ID != taskID {
-			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status), http.StatusConflict)
+			writeStructuredError(w, ErrorOpts{
+				Code:         "duplicate_task",
+				Message:      fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status),
+				RecoveryHint: fmt.Sprintf("View existing: ecosystem-manager task show %s", existing.ID),
+			}, http.StatusConflict)
 			return
 		}
 	}
@@ -1073,6 +1109,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    updated,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", taskID),
+		},
 	}, http.StatusOK)
 }
 
@@ -1113,7 +1152,13 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 		"status": status,
 	})
 
-	w.WriteHeader(http.StatusNoContent) // 204 No Content for successful deletion
+	writeJSON(w, map[string]any{
+		"success": true,
+		"id":      taskID,
+		"next_steps": []string{
+			"ecosystem-manager task list",
+		},
+	}, http.StatusOK)
 }
 
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
@@ -1136,7 +1181,11 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	// Validate status if provided
 	if update.Status != "" && !tasks.IsValidStatus(update.Status) {
-		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_status",
+			Message:      fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()),
+			RecoveryHint: fmt.Sprintf("Valid statuses: %v", tasks.GetValidStatuses()),
+		}, http.StatusBadRequest)
 		return
 	}
 
@@ -1186,7 +1235,14 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	writeJSON(w, *updated, http.StatusOK)
+	writeJSON(w, map[string]any{
+		"success": true,
+		"task":    updated,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", taskID),
+			"ecosystem-manager task list --status " + updated.Status,
+		},
+	}, http.StatusOK)
 }
 
 // SetQueuePositionHandler sets the steering queue position for a task

@@ -184,6 +184,7 @@ func (f *fakeProcessor) Wake()                                     { f.wakeCalle
 
 // Queue status and diagnostics
 func (f *fakeProcessor) GetQueueStatus() map[string]any { return map[string]any{} }
+
 func (f *fakeProcessor) GetResumeDiagnostics() queue.ResumeDiagnostics {
 	return queue.ResumeDiagnostics{}
 }
@@ -1081,19 +1082,29 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
 	}
 
-	var updated tasks.TaskItem
-	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
+	var envelope struct {
+		Success   bool           `json:"success"`
+		Task      tasks.TaskItem `json:"task"`
+		NextSteps []string       `json:"next_steps"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
-	if updated.Status != "pending" {
-		t.Fatalf("expected status pending, got %s", updated.Status)
+	if !envelope.Success {
+		t.Fatalf("expected success=true")
 	}
-	if updated.Results != nil {
-		t.Fatalf("expected results to be cleared on backwards transition, got %v", updated.Results)
+	if envelope.Task.Status != "pending" {
+		t.Fatalf("expected status pending, got %s", envelope.Task.Status)
 	}
-	if updated.CurrentPhase == "archived" {
+	if envelope.Task.Results != nil {
+		t.Fatalf("expected results to be cleared on backwards transition, got %v", envelope.Task.Results)
+	}
+	if envelope.Task.CurrentPhase == "archived" {
 		t.Fatalf("current phase should not be archived on backwards transition")
+	}
+	if len(envelope.NextSteps) == 0 {
+		t.Fatalf("expected next_steps in response")
 	}
 }
 
@@ -1166,8 +1177,19 @@ func TestTaskHandlers_DeleteTask(t *testing.T) {
 
 	taskHandlers.DeleteTaskHandler(w, req)
 
-	if w.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 response, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 response, got %d", w.Code)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if resp["success"] != true {
+		t.Fatalf("expected success=true, got %v", resp["success"])
+	}
+	if resp["next_steps"] == nil {
+		t.Fatalf("expected next_steps in response")
 	}
 
 	if _, _, err := taskHandlers.storage.GetTaskByID(task.ID); err == nil {

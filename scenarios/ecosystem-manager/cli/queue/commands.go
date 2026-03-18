@@ -11,28 +11,31 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 )
 
 // QueueStatusResponse represents the queue status.
 type QueueStatusResponse struct {
-	IsActive           bool   `json:"is_active"`
-	IsPaused           bool   `json:"is_paused"`
-	IsRateLimitPaused  bool   `json:"is_rate_limit_paused"`
-	RateLimitResumeAt  string `json:"rate_limit_resume_at,omitempty"`
-	PendingCount       int    `json:"pending_count"`
-	InProgressCount    int    `json:"in_progress_count"`
-	RunningProcesses   int    `json:"running_processes"`
-	AvailableSlots     int    `json:"available_slots"`
-	MaxSlots           int    `json:"max_slots"`
-	CooldownSeconds    int    `json:"cooldown_seconds"`
-	TaskTimeoutMinutes int    `json:"task_timeout_minutes"`
+	IsActive           bool     `json:"is_active"`
+	IsPaused           bool     `json:"is_paused"`
+	IsRateLimitPaused  bool     `json:"is_rate_limit_paused"`
+	RateLimitResumeAt  string   `json:"rate_limit_resume_at,omitempty"`
+	PendingCount       int      `json:"pending_count"`
+	InProgressCount    int      `json:"in_progress_count"`
+	RunningProcesses   int      `json:"running_processes"`
+	AvailableSlots     int      `json:"available_slots"`
+	MaxSlots           int      `json:"max_slots"`
+	CooldownSeconds    int      `json:"cooldown_seconds"`
+	TaskTimeoutMinutes int      `json:"task_timeout_minutes"`
+	NextSteps          []string `json:"next_steps,omitempty"`
 }
 
 // ActionResponse represents a generic action response.
 type ActionResponse struct {
-	Success bool   `json:"success"`
-	DryRun  bool   `json:"dry_run,omitempty"`
-	Message string `json:"message"`
+	Success   bool     `json:"success"`
+	DryRun    bool     `json:"dry_run,omitempty"`
+	Message   string   `json:"message"`
+	NextSteps []string `json:"next_steps,omitempty"`
 }
 
 // Commands returns the queue command group.
@@ -85,7 +88,12 @@ func usageText() string {
 Subcommands:
   status    Show queue status
   start     Start the queue processor
-  stop      Stop the queue processor`
+  stop      Stop the queue processor
+
+Examples:
+  ecosystem-manager queue status
+  ecosystem-manager queue start
+  ecosystem-manager queue status --json`
 }
 
 func cmdStatus(ctx appctx.Context, args []string) error {
@@ -97,7 +105,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 
 	var status QueueStatusResponse
 	if err := ctx.Get("/queue/status", &status); err != nil {
-		return fmt.Errorf("failed to get queue status: %w", err)
+		return format.WrapAPIError("Failed to get queue status", err)
 	}
 
 	if *jsonOut {
@@ -125,6 +133,12 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	fmt.Printf("Available Slots: %d\n", status.AvailableSlots)
 	fmt.Printf("Cooldown: %ds\n", status.CooldownSeconds)
 	fmt.Printf("Task Timeout: %dm\n", status.TaskTimeoutMinutes)
+	if len(status.NextSteps) > 0 {
+		fmt.Println("\nNext steps:")
+		for _, step := range status.NextSteps {
+			fmt.Printf("  $ %s\n", step)
+		}
+	}
 	return nil
 }
 
@@ -137,7 +151,7 @@ func cmdStart(ctx appctx.Context, args []string) error {
 
 	var resp ActionResponse
 	if err := ctx.Post("/queue/start", struct{}{}, &resp); err != nil {
-		return fmt.Errorf("failed to start queue: %w", err)
+		return format.WrapAPIError("Failed to start queue", err)
 	}
 
 	if *jsonOut {
@@ -149,7 +163,7 @@ func cmdStart(ctx appctx.Context, args []string) error {
 	if resp.DryRun {
 		fmt.Println("[DRY RUN] Queue processor would be started")
 	} else if resp.Success {
-		fmt.Println("Queue started successfully")
+		format.MutationResult("Queue started successfully", "", resp.NextSteps)
 	} else {
 		fmt.Printf("Failed to start queue: %s\n", resp.Message)
 	}
@@ -165,7 +179,7 @@ func cmdStop(ctx appctx.Context, args []string) error {
 
 	var resp ActionResponse
 	if err := ctx.Post("/queue/stop", struct{}{}, &resp); err != nil {
-		return fmt.Errorf("failed to stop queue: %w", err)
+		return format.WrapAPIError("Failed to stop queue", err)
 	}
 
 	if *jsonOut {
@@ -177,7 +191,7 @@ func cmdStop(ctx appctx.Context, args []string) error {
 	if resp.DryRun {
 		fmt.Println("[DRY RUN] Queue processor would be stopped")
 	} else if resp.Success {
-		fmt.Println("Queue stopped successfully")
+		format.MutationResult("Queue stopped successfully", "", resp.NextSteps)
 	} else {
 		fmt.Printf("Failed to stop queue: %s\n", resp.Message)
 	}

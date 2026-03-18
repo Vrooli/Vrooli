@@ -74,6 +74,27 @@ func (h *QueueHandlers) applyTransitionEffects(outcome *tasks.TransitionOutcome,
 func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := h.processor.GetQueueStatus()
 
+	// Derive next_steps based on current state
+	var nextSteps []string
+	processorActive, _ := status["processor_active"].(bool)
+	if !processorActive {
+		nextSteps = append(nextSteps, "ecosystem-manager queue start")
+	} else {
+		pendingCount, _ := status["pending_count"].(int)
+		if pendingCount > 0 {
+			nextSteps = append(nextSteps, "ecosystem-manager task list --status in-progress")
+		}
+	}
+	if rateLimited, _ := status["is_rate_limit_paused"].(bool); rateLimited {
+		if resumeAt, ok := status["rate_limit_resume_at"].(string); ok && resumeAt != "" {
+			nextSteps = append(nextSteps, fmt.Sprintf("Rate-limited until %s; will auto-resume", resumeAt))
+		}
+	}
+
+	if len(nextSteps) > 0 {
+		status["next_steps"] = nextSteps
+	}
+
 	writeJSON(w, status, http.StatusOK)
 }
 
@@ -106,9 +127,10 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	}
 
 	if h.processor == nil {
-		writeJSON(w, map[string]string{
-			"error":   "queue processor not available",
-			"message": "Queue processor is not initialized",
+		writeStructuredError(w, ErrorOpts{
+			Code:         "queue_unavailable",
+			Message:      "Queue processor is not initialized",
+			RecoveryHint: "Start queue: ecosystem-manager queue start",
 		}, http.StatusServiceUnavailable)
 		return
 	}
@@ -118,11 +140,10 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	processorActive, ok := status["processor_active"].(bool)
 
 	if !ok || !processorActive {
-		writeJSON(w, map[string]any{
-			"error":             "processor inactive",
-			"message":           "Queue processor is paused or not active",
-			"maintenance_state": status["maintenance_state"],
-			"processor_active":  processorActive,
+		writeStructuredError(w, ErrorOpts{
+			Code:         "queue_inactive",
+			Message:      "Queue processor is paused or not active",
+			RecoveryHint: "Resume: ecosystem-manager queue start",
 		}, http.StatusServiceUnavailable)
 		return
 	}
@@ -320,6 +341,9 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 		"success": true,
 		"message": "Queue processor stopped",
 		"status":  h.processor.GetQueueStatus(),
+		"next_steps": []string{
+			"ecosystem-manager queue start",
+		},
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -369,6 +393,10 @@ func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *htt
 		"success": true,
 		"message": "Queue processor started",
 		"status":  status,
+		"next_steps": []string{
+			"ecosystem-manager queue status",
+			"ecosystem-manager task list --status pending",
+		},
 	}
 	if resumeSummary.ActionsTaken > 0 {
 		response["resume_reset_summary"] = resumeSummary

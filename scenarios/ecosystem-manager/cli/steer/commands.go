@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 )
 
 // ProfileListResponse represents a list of auto-steer profiles.
@@ -93,7 +94,12 @@ func usageText() string {
 Subcommands:
   profiles, ls    List auto-steer profiles
   templates       List auto-steer templates
-  show, get <id>  Show profile details`
+  show, get <id>  Show profile details
+
+Examples:
+  ecosystem-manager steer profiles
+  ecosystem-manager steer templates --json
+  ecosystem-manager steer show balanced`
 }
 
 func cmdProfiles(ctx appctx.Context, args []string) error {
@@ -105,7 +111,7 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 
 	var resp ProfileListResponse
 	if err := ctx.Get("/auto-steer/profiles", &resp); err != nil {
-		return fmt.Errorf("failed to list profiles: %w", err)
+		return format.WrapAPIError("Failed to list profiles", err)
 	}
 
 	if *jsonOut {
@@ -116,6 +122,7 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 
 	if len(resp.Profiles) == 0 {
 		fmt.Println("No auto-steer profiles found")
+		fmt.Println("  Hint: Check templates: ecosystem-manager steer templates")
 		return nil
 	}
 
@@ -143,7 +150,7 @@ func cmdTemplates(ctx appctx.Context, args []string) error {
 
 	var resp TemplateListResponse
 	if err := ctx.Get("/auto-steer/templates", &resp); err != nil {
-		return fmt.Errorf("failed to list templates: %w", err)
+		return format.WrapAPIError("Failed to list templates", err)
 	}
 
 	if *jsonOut {
@@ -154,6 +161,7 @@ func cmdTemplates(ctx appctx.Context, args []string) error {
 
 	if len(resp.Templates) == 0 {
 		fmt.Println("No auto-steer templates found")
+		fmt.Println("  Hint: Check API status: ecosystem-manager status")
 		return nil
 	}
 
@@ -182,7 +190,7 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 	var profile Profile
 	if err := ctx.Get(fmt.Sprintf("/auto-steer/profiles/%s", profileID), &profile); err != nil {
-		return fmt.Errorf("failed to get profile: %w", err)
+		return format.WrapAPIError("Failed to get profile", err)
 	}
 
 	if *jsonOut {
