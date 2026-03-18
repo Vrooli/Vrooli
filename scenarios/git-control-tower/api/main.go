@@ -332,16 +332,32 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 	limit := 30
 	includeParam := strings.TrimSpace(r.URL.Query().Get("include"))
 	includeFiles := includeParam == "files" || includeParam == "details"
+	grepPattern := strings.TrimSpace(r.URL.Query().Get("grep"))
+	if strings.ContainsAny(grepPattern, "\x00\n\r") {
+		hctx.Resp.BadRequest("grep pattern contains invalid characters")
+		return
+	}
+
+	hasExplicitLimit := false
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		hasExplicitLimit = true
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed <= 0 {
 			hctx.Resp.BadRequest("limit must be a positive integer")
 			return
 		}
-		if parsed > 200 {
-			parsed = 200
-		}
 		limit = parsed
+	}
+
+	// Apply limit caps: 1000 with grep, 200 without
+	if grepPattern != "" {
+		if !hasExplicitLimit {
+			limit = 1000
+		} else if limit > 1000 {
+			limit = 1000
+		}
+	} else if limit > 200 {
+		limit = 200
 	}
 
 	history, err := GetRepoHistory(hctx.Ctx, RepoHistoryDeps{
@@ -349,6 +365,7 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 		RepoDir:      hctx.RepoDir,
 		Limit:        limit,
 		IncludeFiles: includeFiles,
+		GrepPattern:  grepPattern,
 	})
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())

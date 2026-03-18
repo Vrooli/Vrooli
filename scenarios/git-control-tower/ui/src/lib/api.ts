@@ -194,6 +194,7 @@ export interface RepoHistoryResponse {
   lines: string[];
   entries?: RepoHistoryEntry[];
   limit: number;
+  grep_pattern?: string;
   timestamp: string;
 }
 
@@ -734,11 +735,13 @@ export async function fetchRepoStatus(repoId?: string): Promise<RepoStatus> {
 export async function fetchRepoHistory(
   limit = 30,
   includeFiles = false,
-  repoId?: string
+  repoId?: string,
+  grep?: string
 ): Promise<RepoHistoryResponse> {
   const params = new URLSearchParams();
   if (limit > 0) params.set("limit", String(limit));
   if (includeFiles) params.set("include", "files");
+  if (grep) params.set("grep", grep);
 
   const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

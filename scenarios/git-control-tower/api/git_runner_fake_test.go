@@ -535,28 +535,46 @@ func (f *FakeGitRunner) Clone(ctx context.Context, destination string, url strin
 	return nil
 }
 
-func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	f.recordCall("LogGraph", repoDir, fmt.Sprintf("limit=%d", limit))
+func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
+	f.recordCall("LogGraph", repoDir, fmt.Sprintf("limit=%d grep=%q", limit, grep))
 
 	if f.LogError != nil {
 		return nil, f.LogError
 	}
 
 	lines := f.HistoryLines
+	if grep != "" {
+		filtered := make([]string, 0, len(lines))
+		for _, line := range lines {
+			if strings.Contains(line, grep) {
+				filtered = append(filtered, line)
+			}
+		}
+		lines = filtered
+	}
 	if limit > 0 && len(lines) > limit {
 		lines = lines[:limit]
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
 
-func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	f.recordCall("LogDetails", repoDir, fmt.Sprintf("limit=%d", limit))
+func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
+	f.recordCall("LogDetails", repoDir, fmt.Sprintf("limit=%d grep=%q", limit, grep))
 
 	if f.LogError != nil {
 		return nil, f.LogError
 	}
 
 	entries := f.HistoryDetails
+	if grep != "" {
+		filtered := make([]RepoHistoryEntry, 0, len(entries))
+		for _, entry := range entries {
+			if strings.Contains(entry.Subject, grep) {
+				filtered = append(filtered, entry)
+			}
+		}
+		entries = filtered
+	}
 	if limit > 0 && len(entries) > limit {
 		entries = entries[:limit]
 	}

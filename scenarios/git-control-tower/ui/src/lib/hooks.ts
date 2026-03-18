@@ -162,8 +162,8 @@ import {
 export const queryKeys = {
   health: ["health"] as const,
   repoStatus: (repoId?: string | null) => ["repo", "status", repoId ?? "default"] as const,
-  repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null) =>
-    ["repo", "history", repoId ?? "default", limit, includeFiles] as const,
+  repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null, grep?: string) =>
+    ["repo", "history", repoId ?? "default", limit, includeFiles, grep] as const,
   syncStatus: (repoId?: string | null) => ["repo", "sync-status", repoId ?? "default"] as const,
   branches: (repoId?: string | null) => ["repo", "branches", repoId ?? "default"] as const,
   diff: (
@@ -287,11 +287,11 @@ export function useRepoStatus(repoId?: string | null) {
   });
 }
 
-export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null) {
+export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string) {
   return useQuery<RepoHistoryResponse, Error>({
-    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId),
-    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined),
-    refetchInterval: 30000
+    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep),
+    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep),
+    refetchInterval: grep ? false : 30000,
   });
 }
 

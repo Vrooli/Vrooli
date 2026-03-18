@@ -134,6 +134,7 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyScopeFilter, setHistoryScopeFilter] = useState<string | null>(null);
   const [historyWorkingSetOnly, setHistoryWorkingSetOnly] = useState(false);
+  const [historyGrepPrefix, setHistoryGrepPrefix] = useState<string | null>(null);
   const [isHistoryFiltersOpen, setIsHistoryFiltersOpen] = useState(false);
   const stackResize = useRef<
     | { mode: "left" | "right"; start: number; max: number }
@@ -400,7 +401,9 @@ export default function App() {
   const statusQuery = useRepoStatus(repoId);
   // Always fetch entry details for commit viewing and blame mode filtering
   const historyNeedsDetails = true;
-  const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails, repoId);
+  const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
+  const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
+  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern);
   const syncStatusQuery = useSyncStatus(repoId);
   const approvedChangesQuery = useApprovedChanges(repoId);
   const diffQuery = useDiff(
@@ -1241,6 +1244,21 @@ export default function App() {
     []
   );
 
+  // Handle "continue" action: pre-fill commit message with incremented pN
+  const handleContinueCommit = useCallback((message: string) => {
+    setCommitMessage(message);
+    setViewingCommit(null);
+    setSelectedFile(undefined);
+    setSelectedFiles([]);
+  }, []);
+
+  // Computed group filter info for the active grep prefix
+  const activeGroupFilter = useMemo(() => {
+    if (!historyGrepPrefix) return null;
+    const count = historyQuery.data?.entries?.length ?? historyQuery.data?.lines?.length ?? 0;
+    return { prefix: historyGrepPrefix, count };
+  }, [historyGrepPrefix, historyQuery.data]);
+
   // Handle selecting a file when in history mode
   const handleSelectHistoryFile = useCallback(
     (path: string) => {
@@ -1967,6 +1985,7 @@ export default function App() {
             onLoadMore={handleLoadMoreHistory}
             isFetching={historyQuery.isFetching}
             hasMore={
+              !historyGrepPrefix &&
               (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
               historyLimit < historyMaxLimit
             }
@@ -1990,6 +2009,10 @@ export default function App() {
             blameFilePath={viewingFileBlame?.path}
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
+            onContinueCommit={handleContinueCommit}
+            activeGroupFilter={activeGroupFilter}
+            onFilterGroup={setHistoryGrepPrefix}
+            onClearGroupFilter={() => setHistoryGrepPrefix(null)}
           />
         );
       case "commit":
@@ -2286,6 +2309,7 @@ export default function App() {
             onLoadMore={handleLoadMoreHistory}
             isFetching={historyQuery.isFetching}
             hasMore={
+              !historyGrepPrefix &&
               (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
               historyLimit < historyMaxLimit
             }
@@ -2312,6 +2336,10 @@ export default function App() {
             blameFilePath={viewingFileBlame?.path}
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
+            onContinueCommit={handleContinueCommit}
+            activeGroupFilter={activeGroupFilter}
+            onFilterGroup={setHistoryGrepPrefix}
+            onClearGroupFilter={() => setHistoryGrepPrefix(null)}
           />
         );
       case "review":

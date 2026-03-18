@@ -1,11 +1,15 @@
-import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X } from "lucide-react";
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, Play, Filter } from "lucide-react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
+import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoHistoryEntry } from "../lib/api";
 import type { GroupingRule } from "./FileList";
 import { HistoryFiltersModal } from "./HistoryFiltersModal";
+import { parseCommitGroup, buildContinueMessage } from "../lib/commitGroup";
+import { useIsMobile } from "../hooks";
+import { useLongPress } from "../hooks/useLongPress";
 
 interface GitHistoryProps {
   lines?: string[];
@@ -38,6 +42,12 @@ interface GitHistoryProps {
   blameFilePath?: string | null;
   blameFileName?: string | null;
   onExitBlameMode?: () => void;
+  // Continuation actions for pN-patterned commits
+  onContinueCommit?: (message: string) => void;
+  // Group filter for pN-patterned commits
+  activeGroupFilter?: { prefix: string; count: number } | null;
+  onFilterGroup?: (prefix: string) => void;
+  onClearGroupFilter?: () => void;
 }
 
 type HistoryEntry = {
@@ -137,8 +147,14 @@ export function GitHistory({
   onSelectCommit,
   blameFilePath,
   blameFileName,
-  onExitBlameMode
+  onExitBlameMode,
+  onContinueCommit,
+  activeGroupFilter,
+  onFilterGroup,
+  onClearGroupFilter,
 }: GitHistoryProps) {
+  const isMobile = useIsMobile();
+  const [mobileActionEntry, setMobileActionEntry] = useState<HistoryEntry | null>(null);
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const handleSearchChange = onSearchQueryChange ?? (() => {});
   const handleScopeChange = onScopeFilterChange ?? (() => {});
@@ -464,6 +480,22 @@ export function GitHistory({
 
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden flex flex-col">
+            {activeGroupFilter && (
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded bg-violet-900/30 border border-violet-800/50 mx-2 mt-2 mb-1">
+                <Filter className="h-3 w-3 text-violet-400 flex-shrink-0" />
+                <span className="text-xs text-violet-300 truncate">
+                  {activeGroupFilter.prefix} ({activeGroupFilter.count} commits)
+                </span>
+                <button
+                  onClick={onClearGroupFilter}
+                  className="ml-auto h-4 w-4 rounded-full hover:bg-violet-800/50 flex items-center justify-center flex-shrink-0"
+                  aria-label="Clear group filter"
+                  data-testid="clear-group-filter-btn"
+                >
+                  <X className="h-3 w-3 text-violet-400" />
+                </button>
+              </div>
+            )}
             <ScrollArea
               className="min-h-0 flex-1 min-w-0 px-2 pt-2"
               ref={scrollRef}
@@ -587,6 +619,52 @@ export function GitHistory({
                               {entry.message}
                             </div>
                           </div>
+                          {parseCommitGroup(entry.message) && (onContinueCommit || onFilterGroup) && (
+                            isMobile ? (
+                              <button
+                                className="p-1 rounded hover:bg-slate-700 transition-all flex-shrink-0 self-center"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMobileActionEntry(entry);
+                                }}
+                                aria-label="Commit group actions"
+                                data-testid="history-mobile-actions-btn"
+                              >
+                                <Play className="h-4 w-4 text-emerald-400" />
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 self-center">
+                                {onContinueCommit && (
+                                  <button
+                                    className="p-1 rounded hover:bg-slate-700 transition-all"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = buildContinueMessage(entry.message);
+                                      if (next) onContinueCommit(next);
+                                    }}
+                                    title={`Continue as: ${buildContinueMessage(entry.message)}`}
+                                    data-testid="history-continue-btn"
+                                  >
+                                    <Play className="h-3 w-3 text-emerald-400" />
+                                  </button>
+                                )}
+                                {onFilterGroup && (
+                                  <button
+                                    className="p-1 rounded hover:bg-slate-700 transition-all"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const group = parseCommitGroup(entry.message);
+                                      if (group) onFilterGroup(group.prefix);
+                                    }}
+                                    title={`Filter group: ${parseCommitGroup(entry.message)?.prefix}`}
+                                    data-testid="history-filter-group-btn"
+                                  >
+                                    <Filter className="h-3 w-3 text-violet-400" />
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
                     );
@@ -619,6 +697,37 @@ export function GitHistory({
         }}
         onClose={handleCloseFilters}
       />
+      {isMobile && (
+        <BottomSheet
+          isOpen={mobileActionEntry !== null}
+          onClose={() => setMobileActionEntry(null)}
+          title="Commit group actions"
+        >
+          {mobileActionEntry && onContinueCommit && buildContinueMessage(mobileActionEntry.message) && (
+            <BottomSheetAction
+              icon={<Play className="h-5 w-5" />}
+              label={`Continue as: ${buildContinueMessage(mobileActionEntry.message)}`}
+              onClick={() => {
+                const next = buildContinueMessage(mobileActionEntry.message);
+                if (next) onContinueCommit(next);
+                setMobileActionEntry(null);
+              }}
+              variant="success"
+            />
+          )}
+          {mobileActionEntry && onFilterGroup && parseCommitGroup(mobileActionEntry.message) && (
+            <BottomSheetAction
+              icon={<Filter className="h-5 w-5" />}
+              label={`Filter group: ${parseCommitGroup(mobileActionEntry.message)?.prefix}`}
+              onClick={() => {
+                const group = parseCommitGroup(mobileActionEntry.message);
+                if (group) onFilterGroup(group.prefix);
+                setMobileActionEntry(null);
+              }}
+            />
+          )}
+        </BottomSheet>
+      )}
     </>
   );
 }

@@ -18,8 +18,8 @@ describe("CommitPanel", () => {
       />
     );
 
-    expect(screen.getByText(/ready to push 3 commits/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /push \(3 commits\)/i })).toBeInTheDocument();
+    expect(screen.getByTestId("push-button")).toBeInTheDocument();
+    expect(screen.getByText(/push \(3\)/i)).toBeInTheDocument();
   });
 
   it("disables amend when upstream is not available", () => {

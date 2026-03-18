@@ -262,7 +262,7 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 		limit = 30
 	}
 
-	out, err := deps.Git.LogGraph(ctx, repoDir, limit)
+	out, err := deps.Git.LogGraph(ctx, repoDir, limit, deps.GrepPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -277,14 +277,15 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 	}
 
 	history := &RepoHistory{
-		RepoDir:   repoDir,
-		Lines:     lines,
-		Limit:     limit,
-		Timestamp: time.Now().UTC(),
+		RepoDir:     repoDir,
+		Lines:       lines,
+		Limit:       limit,
+		GrepPattern: deps.GrepPattern,
+		Timestamp:   time.Now().UTC(),
 	}
 
 	if deps.IncludeFiles {
-		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit)
+		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit, deps.GrepPattern)
 		if err != nil {
 			return nil, err
 		}

@@ -12,6 +12,7 @@ type RepoHistoryDeps struct {
 	RepoDir      string
 	Limit        int
 	IncludeFiles bool
+	GrepPattern  string // optional --grep filter for git log
 }
 
 type RepoStatus struct {
@@ -28,11 +29,12 @@ type RepoStatus struct {
 }
 
 type RepoHistory struct {
-	RepoDir   string             `json:"repo_dir"`
-	Lines     []string           `json:"lines"`
-	Entries   []RepoHistoryEntry `json:"entries,omitempty"`
-	Limit     int                `json:"limit"`
-	Timestamp time.Time          `json:"timestamp"`
+	RepoDir     string             `json:"repo_dir"`
+	Lines       []string           `json:"lines"`
+	Entries     []RepoHistoryEntry `json:"entries,omitempty"`
+	Limit       int                `json:"limit"`
+	GrepPattern string             `json:"grep_pattern,omitempty"`
+	Timestamp   time.Time          `json:"timestamp"`
 }
 
 type RepoHistoryEntry struct {

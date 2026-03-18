@@ -85,10 +85,12 @@ type GitRunner interface {
 
 	// LogGraph returns a git log graph for recent commits.
 	// Use a limit to cap the number of log entries.
-	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
+	// When grep is non-empty, only commits whose message contains the string are returned.
+	LogGraph(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
 	// LogDetails returns structured log details including file lists.
-	LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error)
+	// When grep is non-empty, only commits whose message contains the string are returned.
+	LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
 	// DiffNumstat returns numstat output for changes.
 	// If staged is true, returns staged stats (--cached).
@@ -629,7 +631,7 @@ func (r *ExecGitRunner) Clone(ctx context.Context, destination string, url strin
 	return nil
 }
 
-func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
 	if limit <= 0 {
 		limit = 30
 	}
@@ -641,6 +643,9 @@ func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 		"--decorate",
 		"--color=never",
 		"-n", fmt.Sprintf("%d", limit),
+	}
+	if grep != "" {
+		args = append(args, "--fixed-strings", "--grep="+grep)
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
@@ -656,7 +661,7 @@ func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 	return nil, fmt.Errorf("git log failed: %w", err)
 }
 
-func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
 	if limit <= 0 {
 		limit = 30
 	}
@@ -667,6 +672,9 @@ func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 		"--pretty=format:%H%x00%an%x00%ad%x00%s",
 		"--date=iso",
 		"-n", fmt.Sprintf("%d", limit),
+	}
+	if grep != "" {
+		args = append(args, "--fixed-strings", "--grep="+grep)
 	}
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
