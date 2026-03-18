@@ -238,7 +238,9 @@ export default function App() {
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
-  const [commitMessage, setCommitMessage] = useState("");
+  const [commitMessage, setCommitMessage] = useState(
+    () => localStorage.getItem("gct.commitMessage") ?? ""
+  );
   // History mode: when viewing a previous commit
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
   // View mode for diff viewer
@@ -1250,7 +1252,8 @@ export default function App() {
     setViewingCommit(null);
     setSelectedFile(undefined);
     setSelectedFiles([]);
-  }, []);
+    if (isMobile) setMobileActivePanel("commit");
+  }, [isMobile]);
 
   // Computed group filter info for the active grep prefix
   const activeGroupFilter = useMemo(() => {
@@ -1453,6 +1456,14 @@ export default function App() {
     if (typeof window === "undefined") return;
     localStorage.setItem("gct.mobileActivePanel", mobileActivePanel);
   }, [mobileActivePanel]);
+
+  useEffect(() => {
+    if (commitMessage) {
+      localStorage.setItem("gct.commitMessage", commitMessage);
+    } else {
+      localStorage.removeItem("gct.commitMessage");
+    }
+  }, [commitMessage]);
 
   useEffect(() => {
     if (!repoDir) return;

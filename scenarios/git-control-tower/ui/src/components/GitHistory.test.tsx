@@ -47,7 +47,7 @@ describe("GitHistory continue action", () => {
     renderHistory({ onContinueCommit: onContinue });
 
     const buttons = screen.getAllByTestId("history-continue-btn");
-    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[0]!);
 
     expect(onContinue).toHaveBeenCalledWith("web-console TTS p11");
   });
@@ -57,7 +57,7 @@ describe("GitHistory continue action", () => {
     renderHistory({ onContinueCommit: onContinue });
 
     const buttons = screen.getAllByTestId("history-continue-btn");
-    fireEvent.click(buttons[1]);
+    fireEvent.click(buttons[1]!);
 
     expect(onContinue).toHaveBeenCalledWith("web-console TTS p10");
   });
@@ -82,7 +82,7 @@ describe("GitHistory filter group action", () => {
     renderHistory({ onFilterGroup: onFilter });
 
     const buttons = screen.getAllByTestId("history-filter-group-btn");
-    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[0]!);
 
     expect(onFilter).toHaveBeenCalledWith("web-console TTS");
   });

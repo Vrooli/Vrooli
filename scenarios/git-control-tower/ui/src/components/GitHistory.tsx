@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, Play, Filter } from "lucide-react";
+import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, StepForward, Filter, MoreVertical } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -630,7 +630,7 @@ export function GitHistory({
                                 aria-label="Commit group actions"
                                 data-testid="history-mobile-actions-btn"
                               >
-                                <Play className="h-4 w-4 text-emerald-400" />
+                                <MoreVertical className="h-4 w-4 text-slate-400" />
                               </button>
                             ) : (
                               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 self-center">
@@ -645,7 +645,7 @@ export function GitHistory({
                                     title={`Continue as: ${buildContinueMessage(entry.message)}`}
                                     data-testid="history-continue-btn"
                                   >
-                                    <Play className="h-3 w-3 text-emerald-400" />
+                                    <StepForward className="h-3 w-3 text-emerald-400" />
                                   </button>
                                 )}
                                 {onFilterGroup && (
@@ -705,7 +705,7 @@ export function GitHistory({
         >
           {mobileActionEntry && onContinueCommit && buildContinueMessage(mobileActionEntry.message) && (
             <BottomSheetAction
-              icon={<Play className="h-5 w-5" />}
+              icon={<StepForward className="h-5 w-5" />}
               label={`Continue as: ${buildContinueMessage(mobileActionEntry.message)}`}
               onClick={() => {
                 const next = buildContinueMessage(mobileActionEntry.message);
