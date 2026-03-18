@@ -102,6 +102,127 @@ ffmpeg::test::unit() {
     return 0
 }
 
+# Screen capture smoke test — verify functions defined and config set
+ffmpeg::test::screen_smoke() {
+    ffmpeg::test::init
+
+    log::header "🧪 FFmpeg Screen Capture Smoke Test"
+
+    # Verify functions are defined
+    local funcs=(
+        "ffmpeg::screen::start"
+        "ffmpeg::screen::stop"
+        "ffmpeg::screen::list_displays"
+        "ffmpeg::screen::status"
+        "ffmpeg::screen::info"
+    )
+    for fn in "${funcs[@]}"; do
+        if ! declare -F "$fn" &>/dev/null; then
+            log::error "Function not defined: $fn"
+            return 1
+        fi
+    done
+
+    # Verify config variables
+    if [[ -z "${FFMPEG_SCREEN_CAPTURES_DIR:-}" ]]; then
+        log::error "FFMPEG_SCREEN_CAPTURES_DIR not set"
+        return 1
+    fi
+    if [[ -z "${FFMPEG_SCREEN_DEFAULT_FRAMERATE:-}" ]]; then
+        log::error "FFMPEG_SCREEN_DEFAULT_FRAMERATE not set"
+        return 1
+    fi
+
+    # On non-Linux, verify stubs return 1
+    local platform
+    platform=$(system::detect_platform)
+    if [[ "$platform" != "linux" ]]; then
+        if ffmpeg::screen::start 2>/dev/null; then
+            log::error "screen::start should return 1 on non-Linux"
+            return 1
+        fi
+        log::info "Non-Linux platform: stubs correctly return 1"
+    fi
+
+    log::success "Screen capture smoke test passed"
+    return 0
+}
+
+# Screen capture integration test — Linux only: record and verify video
+ffmpeg::test::screen_integration() {
+    ffmpeg::test::init
+
+    log::header "🧪 FFmpeg Screen Capture Integration Test"
+
+    local platform
+    platform=$(system::detect_platform)
+    if [[ "$platform" != "linux" ]]; then
+        log::info "Skipping screen capture integration test on ${platform}"
+        return 0
+    fi
+
+    # Check for Xvfb
+    if ! command -v Xvfb &>/dev/null; then
+        log::warn "Xvfb not installed, skipping screen capture integration test"
+        return 0
+    fi
+
+    # Check for x11grab
+    if ! ffmpeg -devices 2>/dev/null | grep -q x11grab; then
+        log::warn "FFmpeg x11grab not available, skipping"
+        return 0
+    fi
+
+    local test_display=":99"
+    local test_output="${FFMPEG_TEMP_DIR}/screen_test_${$}.mp4"
+    mkdir -p "${FFMPEG_TEMP_DIR}"
+
+    # Start recording at low resolution/fps to keep test fast
+    local rec_id
+    rec_id=$(ffmpeg::screen::start \
+        --display "$test_display" \
+        --resolution "640x480" \
+        --framerate 10 \
+        --output "$test_output") || {
+        log::error "Failed to start screen capture"
+        return 1
+    }
+
+    log::info "Recording started: ${rec_id}"
+    sleep 2
+
+    # Stop recording
+    ffmpeg::screen::stop "$rec_id" || {
+        log::error "Failed to stop screen capture"
+        rm -f "$test_output"
+        return 1
+    }
+
+    # Verify output file
+    if [[ ! -f "$test_output" ]] || [[ ! -s "$test_output" ]]; then
+        log::error "Output file missing or empty: ${test_output}"
+        rm -f "$test_output"
+        return 1
+    fi
+
+    # Verify it's a valid video with ffprobe
+    if command -v ffprobe &>/dev/null; then
+        if ! ffprobe -v error -select_streams v:0 \
+            -show_entries stream=codec_type \
+            -of default=noprint_wrappers=1:nokey=1 \
+            "$test_output" 2>/dev/null | grep -q "video"; then
+            log::error "Output file is not a valid video"
+            rm -f "$test_output"
+            return 1
+        fi
+        log::info "ffprobe confirms valid video stream"
+    fi
+
+    rm -f "$test_output"
+    log::success "Screen capture integration test passed"
+    return 0
+}
+
 # Run all tests (required)
 ffmpeg::test::all() {
     ffmpeg::test::init
@@ -124,7 +245,15 @@ ffmpeg::test::all() {
     if ! ffmpeg::test::unit; then
         ((failed++))
     fi
-    
+
+    # Run screen capture tests
+    if ! ffmpeg::test::screen_smoke; then
+        ((failed++))
+    fi
+    if ! ffmpeg::test::screen_integration; then
+        ((failed++))
+    fi
+
     if [[ $failed -eq 0 ]]; then
         log::success "All FFmpeg tests passed"
         return 0

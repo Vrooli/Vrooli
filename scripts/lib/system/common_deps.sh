@@ -25,9 +25,14 @@ common_deps::check_and_install() {
             system::check_and_install "nproc"
             system::check_and_install "free"
             system::check_and_install "systemctl"
+            # Xvfb and xdotool are optional — needed for screen recording but not
+            # required for core functionality. They require sudo to install, so we
+            # warn and continue if installation fails.
+            common_deps::try_optional_install "Xvfb" "screen recording (FFmpeg screen-capture)"
+            common_deps::try_optional_install "xdotool" "screen recording (window automation)"
             ;;
         *)
-            log::info "Skipping Linux-only dependencies (nproc, free, systemctl) on package manager $pm"
+            log::info "Skipping Linux-only dependencies (nproc, free, systemctl, Xvfb, xdotool) on package manager $pm"
             ;;
     esac
 
@@ -50,6 +55,31 @@ common_deps::check_and_install() {
     common_deps::setup_nvidia_runtime
 
     log::success "✅ Common dependencies checked/installed."
+    return 0
+}
+
+# Try to install an optional dependency. Logs a warning if it fails instead of
+# crashing setup. Use this for packages that enhance functionality but aren't
+# required for core operations (e.g. Xvfb for screen recording).
+common_deps::try_optional_install() {
+    local cmd="$1"
+    local purpose="${2:-optional functionality}"
+
+    if system::is_command "$cmd"; then
+        log::success "$cmd is already installed."
+        return 0
+    fi
+
+    log::info "Attempting to install optional dependency: $cmd (for $purpose)..."
+    if system::install_pkg "$cmd" 2>/dev/null; then
+        if system::is_command "$cmd"; then
+            log::success "$cmd installed successfully."
+            return 0
+        fi
+    fi
+
+    log::warning "$cmd could not be installed (requires sudo). $purpose will be unavailable."
+    log::info "To install later: sudo apt-get install $(system::get_package_name "$cmd")"
     return 0
 }
 

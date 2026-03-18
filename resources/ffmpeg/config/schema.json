@@ -194,6 +194,37 @@
         }
       }
     },
+    "screen_capture": {
+      "type": "object",
+      "description": "Screen capture configuration",
+      "properties": {
+        "default_framerate": {
+          "type": "integer",
+          "description": "Default capture framerate",
+          "minimum": 1,
+          "maximum": 120,
+          "default": 30
+        },
+        "default_resolution": {
+          "type": "string",
+          "description": "Default virtual display resolution",
+          "pattern": "^[0-9]+x[0-9]+$",
+          "default": "1920x1080"
+        },
+        "default_color_depth": {
+          "type": "integer",
+          "description": "Default color depth for virtual display",
+          "enum": [8, 16, 24, 32],
+          "default": 24
+        },
+        "default_codec": {
+          "type": "string",
+          "description": "Default video codec for screen capture",
+          "enum": ["libx264", "libx265", "libvpx-vp9"],
+          "default": "libx264"
+        }
+      }
+    },
     "monitoring": {
       "type": "object",
       "description": "Monitoring and logging",
