@@ -55,6 +55,8 @@ interface MobileToolbarProps {
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
   onTtsStop?: () => void;
+  /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
+  viewMode?: "terminal" | "messages";
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -76,6 +78,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onUploadImage,
   isTtsSpeaking,
   onTtsStop,
+  viewMode = "terminal",
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
 
@@ -252,7 +255,43 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          4. select-none: prevents double-tap text selection which can blur the terminal.
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
-      {toolbarLayout === "expanded" ? (
+      {viewMode === "messages" ? (
+        /* ── Messages mode: only image upload + voice mic ── */
+        <div
+          className="flex items-center justify-end gap-0.5 px-1 py-1 touch-manipulation select-none"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {onUploadImage && (
+            <button
+              data-testid="toolbar-upload-image"
+              tabIndex={-1}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onUploadImage}
+              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              title="Upload image"
+            >
+              <Image className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {voiceSupported && onVoiceStart && onVoiceStop && (
+            <VoiceMicButton
+              supported={voiceSupported}
+              isPreparing={voicePreparing ?? false}
+              isRecording={voiceRecording ?? false}
+              isTranscribing={voiceTranscribing ?? false}
+              error={voiceError ?? null}
+              audioLevel={voiceLevel}
+              partialTranscript={voicePartialTranscript}
+              backend={voiceBackend}
+              isTtsSpeaking={isTtsSpeaking}
+              onStart={onVoiceStart}
+              onStop={onVoiceStop}
+              onCancel={onVoiceCancel}
+              onTtsStop={onTtsStop}
+            />
+          )}
+        </div>
+      ) : toolbarLayout === "expanded" ? (
         /* ── Expanded layout: two rows with D-pad arrow cluster ──
            ┌────────────────────────────────────────────────────────────┐
            │ [Ctrl] [Alt] [Shift] │     [↑]      │ [📷] │            │

@@ -23,6 +23,13 @@ import type { TerminalPaneHandle } from "../components/TerminalPane";
 
 export interface PaneState {
   session: SessionInfo;
+  supportsMessagesView: boolean;
+}
+
+function supportsMessagesViewForCommand(command?: string): boolean {
+  if (!command) return false;
+  const trimmed = command.trim().toLowerCase();
+  return trimmed.startsWith("claude ") || trimmed === "claude" || trimmed.startsWith("codex ") || trimmed === "codex";
 }
 
 export function useSessionManager() {
@@ -61,7 +68,7 @@ export function useSessionManager() {
         if (canceled) return;
 
         if (sessions.length > 0) {
-          setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session }))));
+          setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session, supportsMessagesView: false }))));
         }
 
         // Sync workspace store from backend layout
@@ -78,6 +85,7 @@ export function useSessionManager() {
               themeId: p.theme_id,
               fontSize: p.font_size,
               groupId: p.group_id,
+              supportsMessagesView: false,
             }));
 
           // Sessions without pane metadata get defaults
@@ -91,6 +99,7 @@ export function useSessionManager() {
                 themeId: store.defaultThemeId,
                 fontSize: store.defaultFontSize,
                 groupId: null,
+                supportsMessagesView: false,
               };
               paneMetadata.push(newPane);
               // Persist new pane to backend (fire-and-forget)
@@ -125,6 +134,7 @@ export function useSessionManager() {
               themeId: store.defaultThemeId,
               fontSize: store.defaultFontSize,
               groupId: null,
+              supportsMessagesView: false,
             })),
             activePane: sessions[0]?.id || null,
           });
@@ -176,7 +186,7 @@ export function useSessionManager() {
       if (command) {
         pendingCommands.current.set(session.id, command);
       }
-      setPanes((prev) => [...prev, { session }]);
+      setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
       return session;
     } catch (err) {
       console.error("Failed to create session:", err);
@@ -262,6 +272,20 @@ export function useSessionManager() {
     [panes],
   );
 
+  const speakTextOnPane = useCallback(
+    (sessionId: string, text: string) => {
+      terminalRefs.current.get(sessionId)?.speakText(text);
+    },
+    [],
+  );
+
+  const speakSequenceOnPane = useCallback(
+    (sessionId: string, texts: string[], onProgress: (index: number) => void) => {
+      return terminalRefs.current.get(sessionId)?.speakSequence(texts, onProgress) ?? Promise.resolve();
+    },
+    [],
+  );
+
   return {
     panes,
     isHydrated,
@@ -276,5 +300,7 @@ export function useSessionManager() {
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
+    speakTextOnPane,
+    speakSequenceOnPane,
   };
 }

@@ -36,6 +36,7 @@ const makePanes = (...ids: string[]): PaneMetadata[] =>
     themeId: "default",
     fontSize: 14,
     groupId: null,
+    supportsMessagesView: false,
   }));
 
 const renderTabBar = () =>

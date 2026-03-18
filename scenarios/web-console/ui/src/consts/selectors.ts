@@ -444,6 +444,28 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       params: { sessionId: { type: 'string' } },
     }),
   },
+  messages: {
+    pane: defineDynamicSelector({
+      description: 'Messages pane for a session',
+      testIdPattern: 'messages-pane-${sessionId}',
+      params: { sessionId: { type: 'string' } },
+    }),
+    card: defineDynamicSelector({
+      description: 'Message card by event ID',
+      testIdPattern: 'msg-card-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    speakFromHere: defineDynamicSelector({
+      description: 'Read from here button on a message card',
+      testIdPattern: 'msg-speak-from-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    speakOne: defineDynamicSelector({
+      description: 'Read this message button on a message card',
+      testIdPattern: 'msg-speak-one-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+  },
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

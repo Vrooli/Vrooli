@@ -327,6 +327,50 @@
           "type": "string"
         }
       ]
+    },
+    "messages.pane": {
+      "description": "Messages pane for a session",
+      "selectorPattern": "[data-testid=\"messages-pane-${sessionId}\"]",
+      "testIdPattern": "messages-pane-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.card": {
+      "description": "Message card by event ID",
+      "selectorPattern": "[data-testid=\"msg-card-${eventId}\"]",
+      "testIdPattern": "msg-card-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.speakFromHere": {
+      "description": "Read from here button on a message card",
+      "selectorPattern": "[data-testid=\"msg-speak-from-${eventId}\"]",
+      "testIdPattern": "msg-speak-from-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.speakOne": {
+      "description": "Read this message button on a message card",
+      "selectorPattern": "[data-testid=\"msg-speak-one-${eventId}\"]",
+      "testIdPattern": "msg-speak-one-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
     }
   }
 }

@@ -11,6 +11,7 @@ export interface PaneMetadata {
   themeId: string;
   fontSize: number;
   groupId: string | null;
+  supportsMessagesView: boolean;
 }
 
 export type DisplayMode = "grid" | "tabs";
@@ -65,7 +66,7 @@ interface WorkspaceState {
 }
 
 interface WorkspaceActions {
-  addPane: (sessionId: string, name: string, activate?: boolean) => void;
+  addPane: (sessionId: string, name: string, activate?: boolean, supportsMessagesView?: boolean) => void;
   removePane: (sessionId: string) => void;
   renamePaneById: (sessionId: string, name: string) => void;
   setPaneColor: (sessionId: string, color: string) => void;
@@ -150,7 +151,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return { recentCombos: [comboId, ...filtered].slice(0, 5) };
         }),
 
-      addPane: (sessionId, name, activate) =>
+      addPane: (sessionId, name, activate, supportsMessagesView = false) =>
         set((state) => {
           if (state.panes.some((p) => p.sessionId === sessionId)) {
             return activate ? { activePane: sessionId } : state;
@@ -158,7 +159,15 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           return {
             panes: [
               ...state.panes,
-              { sessionId, name, headerColor: state.defaultHeaderColor, themeId: state.defaultThemeId, fontSize: state.defaultFontSize, groupId: null },
+              {
+                sessionId,
+                name,
+                headerColor: state.defaultHeaderColor,
+                themeId: state.defaultThemeId,
+                fontSize: state.defaultFontSize,
+                groupId: null,
+                supportsMessagesView,
+              },
             ],
             ...(activate ? { activePane: sessionId } : {}),
           };

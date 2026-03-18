@@ -365,7 +365,9 @@ export default function TabBar({
           const isDropTarget =
             isDragging && !isBeingDragged && dragState?.dropIndex === idx;
           const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
+          const supportsMessagesView = pane.supportsMessagesView;
           const unreadCount = (() => {
+            if (!supportsMessagesView) return 0;
             const session = conversationSessions[pane.sessionId];
             if (!session) return 0;
             return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;

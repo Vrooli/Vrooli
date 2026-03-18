@@ -8,8 +8,8 @@ Last updated: 2026-03-17
 **Owner**: `ui/src/components/`
 - [CODE: ui/src/components/Workspace.tsx] — **Stable core**: pane grid layout, header, empty-state UI. Delegates all session logic to `useSessionManager` hook.
 - [CODE: ui/src/components/ErrorBanner.tsx] — **Volatile edge**: reusable error display with category/recovery/retry. Single place to change error UX.
-- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation consumption (active-pane auto-TTS, seen/listened cursor advancement)
-- [CODE: ui/src/components/MessagesPane.tsx] — semantic messages rendering from conversation events; never parses PTY output
+- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation consumption (active-pane auto-TTS, seen/listened cursor advancement). Exposes `speakText`/`speakSequence` via TerminalPaneHandle for MessagesPane TTS delegation
+- [CODE: ui/src/components/MessagesPane.tsx] — semantic messages rendering with per-message TTS controls (read-from-here, read-one, stop); delegates TTS execution to TerminalPane via Workspace callbacks; never owns TTS provider directly
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
 - [CODE: ui/src/components/MobileToolbar.tsx] — Floating key toolbar for mobile input injection

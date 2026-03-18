@@ -33,6 +33,20 @@ interface TerminalPaneProps {
   onTtsSpeakingChange?: (speaking: boolean) => void;
 }
 
+/** Split a message into speakable paragraphs (double-newline boundaries, long lines broken). */
+export function splitIntoParagraphs(text: string): string[] {
+  const raw = text.split(/\n\n+/).filter((p) => p.trim());
+  const paragraphs: string[] = [];
+  for (const block of raw) {
+    if (block.length > 500) {
+      paragraphs.push(...block.split(/\n/).filter((l) => l.trim()));
+    } else {
+      paragraphs.push(block);
+    }
+  }
+  return paragraphs.length > 0 ? paragraphs : [text];
+}
+
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
 export interface TerminalPaneHandle {
   /** Send data to the terminal. Returns true if sent immediately, false if queued. */
@@ -41,6 +55,10 @@ export interface TerminalPaneHandle {
   focus: () => void;
   /** Stop TTS playback for this pane. */
   stopTts: () => void;
+  /** Stop current TTS, then speak a single text. */
+  speakText: (text: string) => void;
+  /** Stop current TTS, then speak texts sequentially, calling onProgress(i) before each. */
+  speakSequence: (texts: string[], onProgress: (index: number) => void) => Promise<void>;
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
@@ -147,15 +165,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
       livePlaybackEventRef.current = event.id;
       ttsStop();
-      const raw = event.text.split(/\n\n+/).filter((p) => p.trim());
-      const paragraphs: string[] = [];
-      for (const block of raw) {
-        if (block.length > 500) {
-          paragraphs.push(...block.split(/\n/).filter((l) => l.trim()));
-        } else {
-          paragraphs.push(block);
-        }
-      }
+      const paragraphs = splitIntoParagraphs(event.text);
       sendAck("playback_started", undefined, backend);
       try {
         const usedBackend = await speakParagraphs(paragraphs);
@@ -191,8 +201,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         for (const event of pending) {
           if (cancelled) return;
           ttsStop();
-          const raw = event.text.split(/\n\n+/).filter((p) => p.trim());
-          const paragraphs = raw.length > 0 ? raw : [event.text];
+          const paragraphs = splitIntoParagraphs(event.text);
           try {
             await speakParagraphs(paragraphs);
             await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
@@ -235,7 +244,19 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendInput,
       focus: () => terminal?.focus(),
       stopTts: ttsStop,
-    }), [sendInput, terminal, ttsStop]);
+      speakText: (text: string) => {
+        ttsStop();
+        speak(text);
+      },
+      speakSequence: async (texts: string[], onProgress: (index: number) => void) => {
+        ttsStop();
+        for (let i = 0; i < texts.length; i++) {
+          onProgress(i);
+          const paragraphs = splitIntoParagraphs(texts[i]!);
+          await speakParagraphs(paragraphs);
+        }
+      },
+    }), [sendInput, terminal, ttsStop, speak, speakParagraphs]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 

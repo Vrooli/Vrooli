@@ -73,6 +73,8 @@ export default function Workspace() {
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
+    speakTextOnPane,
+    speakSequenceOnPane,
   } = useSessionManager();
 
   const store = useWorkspaceStore();
@@ -168,7 +170,7 @@ export default function Workspace() {
       if (!storeIds.has(sp.session.id)) {
         const shouldActivate = pendingActivePaneRef.current === sp.session.id;
         if (shouldActivate) pendingActivePaneRef.current = null;
-        store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate);
+        store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
       }
     }
     // Remove deleted sessions from store (only after hydration)
@@ -328,6 +330,37 @@ export default function Workspace() {
   const handleTtsStop = useCallback(() => {
     stopActiveTts(store.activePane ?? undefined);
   }, [store.activePane, stopActiveTts]);
+
+  // --- Messages View TTS controls ---
+  const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
+
+  // Clear the active speaking indicator when TTS stops
+  const prevTtsSpeaking = useRef(isTtsSpeaking);
+  useEffect(() => {
+    if (prevTtsSpeaking.current && !isTtsSpeaking) {
+      setActiveSpeakingEventId(null);
+    }
+    prevTtsSpeaking.current = isTtsSpeaking;
+  }, [isTtsSpeaking]);
+
+  const handleSpeakFromHere = useCallback((sessionId: string, eventId: string) => {
+    const session = useConversationStore.getState().sessions[sessionId];
+    if (!session) return;
+    const startIdx = session.events.findIndex((e) => e.id === eventId);
+    if (startIdx === -1) return;
+    const eventsFromHere = session.events.slice(startIdx);
+    const texts = eventsFromHere.map((e) => e.text);
+    const ids = eventsFromHere.map((e) => e.id);
+    setActiveSpeakingEventId(ids[0] ?? null);
+    void speakSequenceOnPane(sessionId, texts, (i) => {
+      setActiveSpeakingEventId(ids[i] ?? null);
+    });
+  }, [speakSequenceOnPane]);
+
+  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string) => {
+    setActiveSpeakingEventId(eventId);
+    speakTextOnPane(sessionId, text);
+  }, [speakTextOnPane]);
 
   // --- Mobile image upload ---
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
@@ -545,8 +578,9 @@ export default function Workspace() {
       activeArrangeDrag?.dropIndex === idx;
 
     const sessionConversation = conversationSessions[paneMeta.sessionId];
-    const viewMode = conversationViewModes[paneMeta.sessionId] ?? "terminal";
-    const unreadCount = sessionConversation
+    const supportsMessagesView = paneMeta.supportsMessagesView;
+    const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
+    const unreadCount = supportsMessagesView && sessionConversation
       ? sessionConversation.events.filter((event) => event.role === "assistant" && event.sequence > sessionConversation.cursor.lastSeenSequence).length
       : 0;
 
@@ -577,7 +611,7 @@ export default function Workspace() {
           unreadCount={unreadCount}
           onClose={() => handleRequestClose(paneMeta.sessionId)}
           onFocus={() => activatePane(paneMeta.sessionId)}
-          onToggleView={() => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal")}
+          onToggleView={supportsMessagesView ? () => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal") : undefined}
           onDragStart={startArrangeDrag}
         />
         <div className="relative flex-1 min-h-0">
@@ -594,9 +628,16 @@ export default function Workspace() {
               }
             />
           </ErrorBoundary>
-          {viewMode === "messages" && (
+          {supportsMessagesView && viewMode === "messages" && (
             <div className="absolute inset-0">
-              <MessagesPane sessionId={paneMeta.sessionId} />
+              <MessagesPane
+                        sessionId={paneMeta.sessionId}
+                        onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
+                        onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
+                        onTtsStop={handleTtsStop}
+                        activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
+                        isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
+                      />
             </div>
           )}
         </div>
@@ -664,7 +705,7 @@ export default function Workspace() {
       {store.displayMode === "tabs" ? (
         /* Tab mode: stacked panes with display:none for inactive */
         <div className="relative flex-1 min-h-0 overflow-hidden">
-          {store.activePane && (
+          {store.activePane && store.panes.find((pane) => pane.sessionId === store.activePane)?.supportsMessagesView && (
             <div className="absolute right-3 top-3 z-20">
               <Button
                 variant="outline"
@@ -681,7 +722,8 @@ export default function Workspace() {
           )}
           {orderedPanes.map((paneMeta) => {
             const isActive = paneMeta.sessionId === store.activePane;
-            const viewMode = conversationViewModes[paneMeta.sessionId] ?? "terminal";
+            const supportsMessagesView = paneMeta.supportsMessagesView;
+            const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
             return (
               <div
                 key={paneMeta.sessionId}
@@ -703,9 +745,16 @@ export default function Workspace() {
                       }
                     />
                   </ErrorBoundary>
-                  {viewMode === "messages" && (
+                  {supportsMessagesView && viewMode === "messages" && (
                     <div className="absolute inset-0">
-                      <MessagesPane sessionId={paneMeta.sessionId} />
+                      <MessagesPane
+                        sessionId={paneMeta.sessionId}
+                        onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
+                        onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
+                        onTtsStop={handleTtsStop}
+                        activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
+                        isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
+                      />
                     </div>
                   )}
                 </div>
@@ -767,6 +816,7 @@ export default function Workspace() {
           onUploadImage={handleMobileUploadImage}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
+          viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}
         />
         <input
           ref={mobileFileInputRef}

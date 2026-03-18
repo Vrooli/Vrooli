@@ -37,6 +37,7 @@ describe("useWorkspaceStore", () => {
         themeId: "slate-ocean",
         fontSize: 14,
         groupId: null,
+        supportsMessagesView: false,
       });
     });
 
@@ -44,6 +45,11 @@ describe("useWorkspaceStore", () => {
       useWorkspaceStore.getState().addPane("sess-1", "bash");
       useWorkspaceStore.getState().addPane("sess-1", "bash");
       expect(useWorkspaceStore.getState().panes).toHaveLength(1);
+    });
+
+    it("marks Claude and Codex panes as message-capable when requested", () => {
+      useWorkspaceStore.getState().addPane("sess-ai", "bash", false, true);
+      expect(useWorkspaceStore.getState().panes[0]?.supportsMessagesView).toBe(true);
     });
   });
 
