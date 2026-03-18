@@ -82,10 +82,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sessionId,
     });
 
-    // Notify parent when TTS speaking state changes
+    // Notify parent when TTS speaking state changes.
+    // Use a ref for the callback to avoid re-firing the effect when the
+    // inline arrow prop changes identity on every Workspace render.
+    const onTtsSpeakingChangeRef = useRef(onTtsSpeakingChange);
+    onTtsSpeakingChangeRef.current = onTtsSpeakingChange;
     useEffect(() => {
-      onTtsSpeakingChange?.(ttsSpeaking);
-    }, [ttsSpeaking, onTtsSpeakingChange]);
+      onTtsSpeakingChangeRef.current?.(ttsSpeaking);
+    }, [ttsSpeaking]);
 
     // Auto-dismiss TTS error after 5 seconds
     const [showTtsError, setShowTtsError] = useState<string | null>(null);

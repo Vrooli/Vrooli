@@ -1237,7 +1237,10 @@ func TestVoiceStreamWS_SubsequentTicksStillGated(t *testing.T) {
 
 func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 	tracker := &trackingWhisperHandler{response: "full-final"}
-	ts, _ := setupVoiceWSServer(t, tracker)
+	ts, srv := setupVoiceWSServer(t, tracker)
+	cfg := srv.getVoiceConfig()
+	cfg.FlushIntervalMs = 5000
+	srv.setVoiceConfig(cfg)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
@@ -1246,10 +1249,9 @@ func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// Send small data, then done immediately (before any tick fires).
-	// Pipeline tail transcribes the un-processed audio, but with
-	// default threshold the accumulated partial coverage (from tail
-	// alone) reaches 100% and the full re-transcription is skipped.
+	// Send small data, then done immediately. Force a long flush interval so
+	// the test deterministically exercises the no-partials path even under
+	// heavy suite load.
 	dataSize := 1024
 	if err := conn.WriteMessage(websocket.BinaryMessage, make([]byte, dataSize)); err != nil {
 		t.Fatalf("write: %v", err)
@@ -1270,11 +1272,11 @@ func TestVoiceStreamWS_FullFinalWhenNoPartials(t *testing.T) {
 		}
 	}
 
-	// Tail pipeline transcribes the audio and coverage = 100% >= threshold,
-	// so the full re-transcription is skipped. Expect: 1 call (tail only).
+	// No partial tick should have fired, so only the final full retranscribe
+	// should reach Whisper.
 	sizes := tracker.getSizes()
 	if len(sizes) != 1 {
-		t.Errorf("Whisper call count = %d, want 1 (tail only, final skipped)", len(sizes))
+		t.Errorf("Whisper call count = %d, want 1 (final retranscribe only)", len(sizes))
 	}
 }
 

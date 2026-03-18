@@ -111,7 +111,7 @@ export default function TabBar({
   });
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
-  const activeTabRef = useRef<HTMLButtonElement>(null);
+  const activeTabRef = useRef<HTMLDivElement>(null);
 
   // Drag state for tab reordering
   const [dragState, setDragState] = useState<{
@@ -365,16 +365,17 @@ export default function TabBar({
           const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
 
           return (
-            <button
-              key={pane.sessionId}
-              ref={isActive ? activeTabRef : undefined}
-              data-testid={`tab-${pane.sessionId}`}
-              data-tab-index={idx}
-              role="tab"
-              aria-selected={isActive}
-              className={cn(
-                "group relative flex items-center gap-1.5 h-full px-3 text-xs shrink-0 border-r border-wc-default transition-colors",
-                "hover:bg-wc-surface-raised focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent",
+              <div
+                key={pane.sessionId}
+                ref={isActive ? activeTabRef : undefined}
+                data-testid={`tab-${pane.sessionId}`}
+                data-tab-index={idx}
+                role="tab"
+                tabIndex={0}
+                aria-selected={isActive}
+                className={cn(
+                  "group relative flex items-center gap-1.5 h-full px-3 text-xs shrink-0 border-r border-wc-default transition-colors",
+                  "hover:bg-wc-surface-raised focus:outline-none focus-visible:ring-1 focus-visible:ring-wc-accent",
                 isActive
                   ? "bg-wc-surface-base text-wc-text-primary font-medium shadow-[inset_0_-2px_0_0_rgb(var(--wc-accent))]"
                   : "bg-wc-surface-header text-wc-text-secondary",
@@ -390,6 +391,14 @@ export default function TabBar({
                 // Suppress click if a drag just completed
                 if (isDragging) return;
                 activatePane(pane.sessionId);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (!isDragging) {
+                    activatePane(pane.sessionId);
+                  }
+                }
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -507,7 +516,7 @@ export default function TabBar({
               >
                 <X className="h-3 w-3" />
               </button>
-            </button>
+            </div>
           );
         })}
       </div>

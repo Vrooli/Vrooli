@@ -308,6 +308,9 @@ export default function Workspace() {
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
     setTtsSpeakingPanes(prev => {
+      const has = prev.has(sessionId);
+      if (speaking && has) return prev;    // already tracked — no state change
+      if (!speaking && !has) return prev;  // already absent — no state change
       const next = new Set(prev);
       if (speaking) next.add(sessionId);
       else next.delete(sessionId);

@@ -54,6 +54,17 @@ vi.mock("../hooks/useSessionManager", () => ({
   }),
 }));
 
+vi.mock("../hooks/useWorkspaceSync", () => ({
+  useWorkspaceSync: () => ({
+    syncActivePane: vi.fn(),
+    syncPaneOrder: vi.fn(),
+    syncPaneUpdate: vi.fn(),
+    syncCreateGroup: vi.fn(),
+    syncUpdateGroup: vi.fn(),
+    syncDeleteGroup: vi.fn(),
+  }),
+}));
+
 // Mock workspace store
 const mockStoreState = {
   panes: [] as Array<{ sessionId: string; name: string; headerColor: string }>,

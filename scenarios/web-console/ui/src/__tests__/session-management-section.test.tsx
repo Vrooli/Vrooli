@@ -17,6 +17,17 @@ vi.mock("../hooks/useCountdown", () => ({
   useCountdown: vi.fn(() => null),
 }));
 
+vi.mock("../hooks/useWorkspaceSync", () => ({
+  useWorkspaceSync: () => ({
+    syncActivePane: vi.fn(),
+    syncPaneOrder: vi.fn(),
+    syncPaneUpdate: vi.fn(),
+    syncCreateGroup: vi.fn(),
+    syncUpdateGroup: vi.fn(),
+    syncDeleteGroup: vi.fn(),
+  }),
+}));
+
 const mockStoreState = {
   panes: [] as Array<{ sessionId: string; name: string; headerColor: string }>,
   movePaneToIndex: vi.fn(),

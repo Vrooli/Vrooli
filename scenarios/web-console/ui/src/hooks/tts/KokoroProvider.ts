@@ -2,38 +2,57 @@ import type { TTSProvider, TTSSpeakOptions } from "./types";
 import { synthesizeTTS } from "../../lib/api";
 
 export class KokoroProvider implements TTSProvider {
-  private audio: HTMLAudioElement | null = null;
-  private objectUrl: string | null = null;
   private _isSpeaking = false;
   private abortController: AbortController | null = null;
+  private audioContext: AudioContext | null = null;
+  private source: AudioBufferSourceNode | null = null;
+  private playbackReject: ((reason?: unknown) => void) | null = null;
 
   async speak(text: string, opts?: TTSSpeakOptions): Promise<void> {
     this.stop();
     this.abortController = new AbortController();
     this._isSpeaking = true;
+    const signal = this.abortController.signal;
 
     try {
-      const blob = await synthesizeTTS(text, opts?.voice, opts?.rate, this.abortController.signal);
-      // Check if stopped while fetching
-      if (this.abortController?.signal.aborted) return;
+      const blob = await synthesizeTTS(text, opts?.voice, opts?.rate, signal);
+      this.throwIfAborted(signal);
 
-      this.objectUrl = URL.createObjectURL(blob);
-      const audio = new Audio(this.objectUrl);
-      this.audio = audio;
+      const audioBytes = await blob.arrayBuffer();
+      this.throwIfAborted(signal);
 
-      return new Promise<void>((resolve, reject) => {
-        audio.onended = () => {
+      const context = this.getAudioContext();
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+      this.throwIfAborted(signal);
+
+      const audioBuffer = await context.decodeAudioData(audioBytes.slice(0));
+      this.throwIfAborted(signal);
+
+      return await new Promise<void>((resolve, reject) => {
+        const source = context.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(context.destination);
+        this.source = source;
+        this.playbackReject = reject;
+        source.onended = () => {
+          if (this.source !== source) return;
+          this.source = null;
+          this.playbackReject = null;
           this.cleanup();
           resolve();
         };
-        audio.onerror = () => {
-          this.cleanup();
-          reject(new Error("Audio playback failed"));
-        };
-        audio.play().catch((err) => {
+        try {
+          source.start(0);
+        } catch (err) {
+          source.onended = null;
+          this.source = null;
+          this.playbackReject = null;
+          source.disconnect();
           this.cleanup();
           reject(err);
-        });
+        }
       });
     } catch (err) {
       this.cleanup();
@@ -44,11 +63,20 @@ export class KokoroProvider implements TTSProvider {
   stop(): void {
     this.abortController?.abort();
     this.abortController = null;
-    if (this.audio) {
-      this.audio.pause();
-      this.audio.onended = null;
-      this.audio.onerror = null;
-      this.audio = null;
+    if (this.source) {
+      const source = this.source;
+      this.source = null;
+      source.onended = null;
+      try {
+        source.stop(0);
+      } catch {
+        // Ignore stop errors for already-ended sources.
+      }
+      source.disconnect();
+    }
+    if (this.playbackReject) {
+      this.playbackReject(this.createAbortError());
+      this.playbackReject = null;
     }
     this.cleanup();
   }
@@ -59,13 +87,35 @@ export class KokoroProvider implements TTSProvider {
 
   dispose(): void {
     this.stop();
+    if (this.audioContext) {
+      void this.audioContext.close();
+      this.audioContext = null;
+    }
   }
 
   private cleanup(): void {
     this._isSpeaking = false;
-    if (this.objectUrl) {
-      URL.revokeObjectURL(this.objectUrl);
-      this.objectUrl = null;
+  }
+
+  private getAudioContext(): AudioContext {
+    if (!this.audioContext) {
+      const AudioContextCtor = window.AudioContext
+        ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) {
+        throw new Error("Web Audio is not supported in this browser");
+      }
+      this.audioContext = new AudioContextCtor();
     }
+    return this.audioContext;
+  }
+
+  private throwIfAborted(signal: AbortSignal): void {
+    if (signal.aborted) {
+      throw this.createAbortError();
+    }
+  }
+
+  private createAbortError(): DOMException {
+    return new DOMException("The operation was aborted.", "AbortError");
   }
 }

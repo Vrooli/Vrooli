@@ -82,7 +82,9 @@ function fireTouchEvent(
   Object.defineProperty(event, "changedTouches", { value: [touchObj] });
   Object.defineProperty(event, "targetTouches", { value: touchList });
 
-  container.dispatchEvent(event);
+  act(() => {
+    container.dispatchEvent(event);
+  });
   return event;
 }
 
@@ -417,7 +419,7 @@ describe("useTerminalTouch", () => {
     expect(result.current.hasSelection).toBe(true);
   });
 
-  it("selection kept on touchend after long-press", () => {
+  it("clears the temporary selection on touchend after long-press without drag", () => {
     const { result } = renderHook(() =>
       useTerminalTouch(makeHookArgs(terminal, container)),
     );
@@ -429,8 +431,9 @@ describe("useTerminalTouch", () => {
 
     fireTouchEvent(container, "touchend", { clientX: 50, clientY: 40 });
 
-    // Selection should remain
-    expect(result.current.hasSelection).toBe(true);
+    // A long-press without drag opens the context menu path, so the
+    // temporary single-character selection is cleared on release.
+    expect(result.current.hasSelection).toBe(false);
   });
 
   // ---- Double-tap word selection ----
