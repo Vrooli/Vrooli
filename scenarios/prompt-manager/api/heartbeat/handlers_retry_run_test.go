@@ -38,7 +38,7 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 		WithCreateTaskResponse(&Task{ID: "task-1", Title: "Heartbeat: team-1/agent-1"}).
 		WithCreateRunResponse(&Run{ID: "run-retry-1", Status: "RUN_STATUS_RUNNING"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/runs/run-failed/retry", nil)
@@ -73,7 +73,7 @@ func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
 	mockClient := newMockAgentClient().
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Tag: "manual-tag", Status: "RUN_STATUS_FAILED"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/runs/run-1/retry", nil)

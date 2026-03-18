@@ -1,0 +1,1 @@
+{"id":"dec-1773847788871999682","at":"2026-03-18T15:29:48Z","by":"strategist","decision":"Use JWT for auth","rationale":"Stateless, works across services","context":"auth"}

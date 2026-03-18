@@ -12,7 +12,8 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard } from 'lucide-react'
+import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity } from 'lucide-react'
+import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -32,6 +33,7 @@ import type { MemberDetailSection } from './MemberDetailPanel'
 import { TeamCodeView } from './TeamCodeView'
 import { MemberPickerModal } from './teamTabs/MembersTab'
 import { TeamDashboardTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
+import { TeamActivityTab } from './teamTabs/TeamActivityTab'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 
 // ============================================================================
@@ -480,7 +482,7 @@ export function TeamEditorPanel({
       >
         {/* Tab List */}
         {!showDetailOnly && (
-          <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
+          <TabList>
             <TabTrigger value="info" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
             <TabTrigger
               value="members"
@@ -489,7 +491,8 @@ export function TeamEditorPanel({
             />
             <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
             <TabTrigger value="prompts" icon={<Eye className="h-4 w-4" />} label="Prompts" />
-          </Tabs.List>
+            <TabTrigger value="activity" icon={<Activity className="h-4 w-4" />} label="Activity" />
+          </TabList>
         )}
 
         {/* Tab Content */}
@@ -630,6 +633,18 @@ export function TeamEditorPanel({
               onNavigateToMember={handleNavigateToMember}
             />
           </Tabs.Content>
+
+          <Tabs.Content
+            value="activity"
+            className="flex-1 min-h-0 data-[state=inactive]:hidden"
+          >
+            <TeamActivityTab
+              teamId={team.id}
+              members={team.members}
+              allAgents={allAgents}
+              className="h-full min-h-0"
+            />
+          </Tabs.Content>
         </div>
       </Tabs.Root>
 
@@ -645,29 +660,3 @@ export function TeamEditorPanel({
   )
 }
 
-/**
- * Individual tab trigger button.
- */
-interface TabTriggerProps {
-  value: string
-  icon: React.ReactNode
-  label: string
-}
-
-function TabTrigger({ value, icon, label }: TabTriggerProps) {
-  return (
-    <Tabs.Trigger
-      value={value}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-2 text-sm font-medium',
-        'border-b-2 transition-colors',
-        'data-[state=active]:border-primary data-[state=active]:text-primary',
-        'data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-foreground',
-        'hover:text-foreground'
-      )}
-    >
-      {icon}
-      {label}
-    </Tabs.Trigger>
-  )
-}

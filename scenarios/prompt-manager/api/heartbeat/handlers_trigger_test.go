@@ -33,7 +33,7 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 		t.Fatalf("create membership: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
@@ -61,7 +61,7 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
@@ -102,7 +102,7 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
 	// First trigger should succeed (202 Accepted)
@@ -160,7 +160,7 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
 	registry := NewRunRegistry(t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry)
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), registry, nil)
 	executor.OnComplete = func(_, _ string) {}
 
 	teamExecStore := NewTeamExecutionStore(executor, t.TempDir())
@@ -235,7 +235,7 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_RUNNING"}).
 		WithWaitRunResponse(&Run{ID: "run-1", Status: "RUN_STATUS_COMPLETE"})
 
-	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil)
+	executor := NewExecutor(teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
 	executor.OnComplete = func(_, _ string) {}
 
 	// No teamExecStore — should use direct execution fallback
@@ -296,7 +296,7 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 		t.Fatalf("set heartbeat config: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)

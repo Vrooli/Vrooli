@@ -22,7 +22,7 @@ func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {
 		t.Fatalf("create team: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	result, err := executor.Execute(ctx, "team-1", "agent-1", "profile-key")
 
 	if err == nil {

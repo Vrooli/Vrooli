@@ -56,6 +56,73 @@ prompt-manager team trigger <team-id> <agent-id>
 - If a heartbeat for the target agent is already queued, you will receive a **409 Conflict** response. This is expected -- it means the agent will run soon.
 - Do NOT use triggers as a general coordination mechanism. Prefer messages for non-urgent coordination.
 
+## Final Handoff
+
+At the end of every heartbeat, you MUST write a handoff section as the very last part of your response. This creates continuity between your heartbeat executions and helps teammates understand your progress.
+
+Use this exact header and structure:
+
+## HANDOFF
+
+**Status**: [Brief state of your work — e.g., "In progress", "Blocked", "Completed milestone X"]
+
+**Completed this heartbeat**:
+- [What you accomplished, one bullet per item]
+
+**In progress / blocked**:
+- [Anything started but not finished, with enough context to resume]
+- [Any blockers and what would unblock them]
+
+**Next priorities**:
+- [What should happen in the next heartbeat, in priority order]
+
+**Notes for teammates**:
+- [Information other team members should know, or "None"]
+
+### Browsing Teammate Handoffs
+
+To see what a teammate accomplished in recent heartbeats:
+
+```bash
+prompt-manager team handoff-history <team-id> --agent=<agent-id> --last=5
+prompt-manager team handoff-latest <team-id> <agent-id>
+```
+
+Your most recent handoff is automatically included in your next heartbeat prompt, so you always have continuity with your previous work.
+
+## Task Board
+
+Your team has a shared task board for tracking multi-heartbeat work. Use it to coordinate:
+
+```bash
+prompt-manager team task-list <team-id>                                          # See all tasks
+prompt-manager team task-list <team-id> --status=in-progress                     # Filter by status
+prompt-manager team task-list <team-id> --assignee=<your-agent-id>               # Your tasks
+prompt-manager team task-add <team-id> --title="..." --assignee=<id> --priority=P2 --from=<your-id>
+prompt-manager team task-update <team-id> <task-id> --status=done --note="Tests passing"
+```
+
+**When to use the task board:**
+- Starting work that will span multiple heartbeats → create a task
+- Finishing a phase of work → update the task with a note
+- Delegating to a teammate → create a task assigned to them
+- Check the board at the start of each heartbeat to see your assigned tasks
+
+## Decision Log
+
+Record important decisions so future heartbeats (yours and teammates') understand *why* things were done:
+
+```bash
+prompt-manager team decision-add <team-id> --by=<your-id> --decision="..." --rationale="..." [--context=<tag>]
+prompt-manager team decision-list <team-id> [--context=<tag>] [--last=10]
+```
+
+**When to log a decision:**
+- Choosing between multiple valid approaches
+- Making a trade-off (performance vs simplicity, etc.)
+- Deciding NOT to do something (and why)
+- Changing a previous decision (use --supersedes=<decision-id>)
+
 ## Guidelines
 
 1. **Prefer messages over triggers.** Messages are asynchronous and non-blocking. Triggers consume execution slots in the team queue.

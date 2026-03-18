@@ -4,6 +4,8 @@
 // DOC: docs/reference/heartbeat-api.md
 package heartbeat
 
+import "prompt-manager/store"
+
 // HeartbeatConfigResponse is the API response for a heartbeat configuration
 type HeartbeatConfigResponse struct {
 	TeamID         string                  `json:"teamId"`
@@ -138,6 +140,62 @@ type TriggerTeamResponse struct {
 	TeamID    string                     `json:"teamId"`
 	SpawnMode string                     `json:"spawnMode"`
 	Triggers  []TriggerHeartbeatResponse `json:"triggers"`
+}
+
+// --- Handoff API models ---
+
+// HandoffResponse is the API response for a single handoff.
+type HandoffResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	Content string `json:"content"`
+}
+
+// HandoffHistoryResponse is the API response for handoff history.
+type HandoffHistoryResponse struct {
+	TeamID  string               `json:"teamId"`
+	Entries []store.HandoffEntry `json:"entries"`
+}
+
+// --- Task Board API models ---
+
+// AddTaskRequest is the request body for adding a task.
+type AddTaskRequest struct {
+	Title    string `json:"title"`
+	Assignee string `json:"assignee,omitempty"`
+	Priority string `json:"priority,omitempty"`
+	From     string `json:"from"` // createdBy agent ID
+}
+
+// UpdateTaskRequest is the request body for updating a task.
+type UpdateTaskRequest struct {
+	Status   *string `json:"status,omitempty"`
+	Assignee *string `json:"assignee,omitempty"`
+	Priority *string `json:"priority,omitempty"`
+	Note     *string `json:"note,omitempty"` // appends a TaskNote
+}
+
+// TaskBoardResponse is the API response for the task board.
+type TaskBoardResponse struct {
+	TeamID string           `json:"teamId"`
+	Tasks  []store.TeamTask `json:"tasks"`
+}
+
+// --- Decision API models ---
+
+// AddDecisionRequest is the request body for adding a decision.
+type AddDecisionRequest struct {
+	By         string `json:"by"`
+	Decision   string `json:"decision"`
+	Rationale  string `json:"rationale"`
+	Context    string `json:"context,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
+}
+
+// DecisionListResponse is the API response for listing decisions.
+type DecisionListResponse struct {
+	TeamID  string                `json:"teamId"`
+	Entries []store.DecisionEntry `json:"entries"`
 }
 
 // MemberContextResponse is the response for the member context endpoint.

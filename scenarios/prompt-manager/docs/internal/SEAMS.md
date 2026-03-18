@@ -272,6 +272,23 @@ and the queued-dequeue path (line 153) use `context.Background()` for this reaso
 **Testing:** `TestEnqueue_ExecutorUsesDetachedContext` verifies this by cancelling the caller context
 immediately after Enqueue and asserting the executor receives a live context.
 
+### HandoffExtractor
+
+**Interface**: `heartbeat.HandoffExtractor`
+**Purpose**: Extracts structured handoff content from raw run event data.
+**Implementations**:
+- `SentinelExtractor` (primary) — scans the last assistant message for a `## HANDOFF` markdown header
+- `ChainExtractor` — composes multiple extractors in priority order; returns first non-empty result
+
+**Adding a fallback strategy**: To add an LLM-based fallback (e.g., via Ollama), implement `HandoffExtractor.Extract()` and compose it with `ChainExtractor`:
+```go
+chain := NewChainExtractor(
+    NewSentinelExtractor(),     // fast, no API call
+    NewOllamaExtractor(client), // slower, uses LLM
+)
+```
+Pass the chain to `NewExecutor()` as the `handoffExtractor` parameter.
+
 ### Executor Completion Callback
 
 [CODE: api/heartbeat/executor.go]

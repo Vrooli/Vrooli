@@ -237,7 +237,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 			Head:   *headColor,
 			Accent: *accentColor,
 		},
-		Tags:   tagList,
+		Tags: tagList,
 	}
 
 	var agent Agent

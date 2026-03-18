@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "id": "task-1773847778571048804",
+      "title": "Test task from CLI",
+      "status": "todo",
+      "assignee": "",
+      "priority": "P2",
+      "createdBy": "strategist",
+      "createdAt": "2026-03-18T15:29:38Z",
+      "updatedAt": "2026-03-18T15:29:38Z"
+    }
+  ]
+}

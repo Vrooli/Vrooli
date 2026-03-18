@@ -1715,3 +1715,267 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 
 	return resp
 }
+
+// --- Handoff handlers ---
+
+// GetLastHandoff handles GET /teams/{id}/members/{agentId}/handoff
+func (h *Handlers) GetLastHandoff(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentID := vars["agentId"]
+
+	content, err := h.teamStore.GetLastHandoff(r.Context(), teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if content == "" {
+		http.Error(w, "no handoff found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(HandoffResponse{
+		TeamID:  teamID,
+		AgentID: agentID,
+		Content: content,
+	})
+}
+
+// GetHandoffHistory handles GET /teams/{id}/handoff-history
+func (h *Handlers) GetHandoffHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentFilter := r.URL.Query().Get("agent")
+	last := 20
+	if v := r.URL.Query().Get("last"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			last = n
+		}
+	}
+
+	entries, err := h.teamStore.GetHandoffHistory(r.Context(), teamID, agentFilter, last)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		entries = []store.HandoffEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(HandoffHistoryResponse{
+		TeamID:  teamID,
+		Entries: entries,
+	})
+}
+
+// --- Task Board handlers ---
+
+// GetTaskBoard handles GET /teams/{id}/tasks
+func (h *Handlers) GetTaskBoard(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	board, err := h.teamStore.GetTaskBoard(r.Context(), teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(TaskBoardResponse{
+		TeamID: teamID,
+		Tasks:  board.Tasks,
+	})
+}
+
+// AddTask handles POST /teams/{id}/tasks
+func (h *Handlers) AddTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	var req AddTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Title) == "" {
+		http.Error(w, "title is required", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	task := store.TeamTask{
+		ID:        fmt.Sprintf("task-%s", generateID()),
+		Title:     req.Title,
+		Status:    "todo",
+		Assignee:  req.Assignee,
+		Priority:  req.Priority,
+		CreatedBy: req.From,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if task.Priority == "" {
+		task.Priority = "P3"
+	}
+
+	board, err := h.teamStore.GetTaskBoard(r.Context(), teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	board.Tasks = append(board.Tasks, task)
+	if err := h.teamStore.SaveTaskBoard(r.Context(), teamID, board); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(task)
+}
+
+// UpdateTaskHandler handles PATCH /teams/{id}/tasks/{taskId}
+func (h *Handlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	taskID := vars["taskId"]
+
+	var req UpdateTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	err := h.teamStore.UpdateTask(r.Context(), teamID, taskID, func(task *store.TeamTask) {
+		if req.Status != nil {
+			task.Status = *req.Status
+		}
+		if req.Assignee != nil {
+			task.Assignee = *req.Assignee
+		}
+		if req.Priority != nil {
+			task.Priority = *req.Priority
+		}
+		if req.Note != nil && strings.TrimSpace(*req.Note) != "" {
+			task.Notes = append(task.Notes, store.TaskNote{
+				At:   now,
+				By:   "", // could extract from auth context
+				Text: *req.Note,
+			})
+		}
+		task.UpdatedAt = now
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	task, err := h.teamStore.GetTask(r.Context(), teamID, taskID)
+	if err != nil || task == nil {
+		http.Error(w, "task updated but fetch failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(task)
+}
+
+// DeleteTaskHandler handles DELETE /teams/{id}/tasks/{taskId}
+func (h *Handlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	taskID := vars["taskId"]
+
+	err := h.teamStore.DeleteTask(r.Context(), teamID, taskID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Decision Log handlers ---
+
+// AddDecision handles POST /teams/{id}/decisions
+func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	var req AddDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Decision) == "" {
+		http.Error(w, "decision is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Rationale) == "" {
+		http.Error(w, "rationale is required", http.StatusBadRequest)
+		return
+	}
+
+	entry := &store.DecisionEntry{
+		ID:         fmt.Sprintf("dec-%s", generateID()),
+		At:         time.Now().UTC().Format(time.RFC3339),
+		By:         req.By,
+		Decision:   req.Decision,
+		Rationale:  req.Rationale,
+		Context:    req.Context,
+		Supersedes: req.Supersedes,
+	}
+
+	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(entry)
+}
+
+// GetDecisions handles GET /teams/{id}/decisions
+func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	contextFilter := r.URL.Query().Get("context")
+	last := 20
+	if v := r.URL.Query().Get("last"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			last = n
+		}
+	}
+
+	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, last)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		entries = []store.DecisionEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(DecisionListResponse{
+		TeamID:  teamID,
+		Entries: entries,
+	})
+}
+
+// generateID creates a short unique identifier.
+func generateID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
+}

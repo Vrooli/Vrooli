@@ -19,7 +19,7 @@ func setupTeamTriggerTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 	return handlers, teamStore, agentStore, relationStore
 }
@@ -188,7 +188,7 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(exec, t.TempDir())
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
 
 	// First team trigger should succeed

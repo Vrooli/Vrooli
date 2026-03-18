@@ -327,11 +327,6 @@ func DefaultProfileKeyForSpawnMode(spawnMode string) string {
 	return DefaultProfileKeyCodex
 }
 
-// buildDefaultProfile returns the default profile for heartbeat execution
-func (s *Scheduler) buildDefaultProfile() *AgentProfile {
-	return BuildDefaultProfile(s.profileKey)
-}
-
 // BuildDefaultProfile returns the default Codex agent profile for the given key.
 // Exported so the executor can embed defaults in CreateRun requests.
 // For spawn-mode-aware resolution, use BuildDefaultProfileForSpawnMode instead.

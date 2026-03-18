@@ -35,7 +35,7 @@ func TestGetMemberContext_Success(t *testing.T) {
 		t.Fatalf("set responsibilities: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)
@@ -70,7 +70,7 @@ func TestGetMemberContext_TeamNotFound(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/members/agent-1/context", nil)
@@ -100,7 +100,7 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 	}
 	// Note: not adding agent-1 as a member
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)

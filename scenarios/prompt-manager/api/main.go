@@ -262,7 +262,7 @@ func main() {
 	// CORS middleware
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 	)
 
@@ -401,6 +401,7 @@ func main() {
 		agentManagerClient,
 		vrooliRoot,
 		runRegistry,
+		nil, // uses default SentinelExtractor
 	)
 	teamExecStore := heartbeat.NewTeamExecutionStore(heartbeatExecutor, absStoreDir)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
@@ -482,6 +483,16 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
+
+	// Team state routes (handoff, task board, decisions)
+	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
+	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
+	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.GetTaskBoard).Methods("GET")
+	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
+	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
+	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.AddDecision).Methods("POST")
+	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.GetDecisions).Methods("GET")
 
 	// World scale routes
 	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")

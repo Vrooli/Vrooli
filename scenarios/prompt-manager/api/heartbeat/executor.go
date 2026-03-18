@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,13 +25,14 @@ type ExecutionResult struct {
 
 // Executor handles the actual execution of heartbeats
 type Executor struct {
-	teamStore     *store.FileTeamStore
-	agentStore    *store.FileAgentStore
-	agentClient   AgentClient
-	vrooliRoot    string
-	promptBuilder *PromptBuilder
-	runRegistry   *RunRegistry
-	OnComplete    func(teamID, agentID string)
+	teamStore        *store.FileTeamStore
+	agentStore       *store.FileAgentStore
+	agentClient      AgentClient
+	vrooliRoot       string
+	promptBuilder    *PromptBuilder
+	runRegistry      *RunRegistry
+	handoffExtractor HandoffExtractor
+	OnComplete       func(teamID, agentID string)
 }
 
 // NewExecutor creates a new heartbeat executor
@@ -40,15 +42,20 @@ func NewExecutor(
 	agentClient AgentClient,
 	vrooliRoot string,
 	runRegistry *RunRegistry,
+	handoffExtractor HandoffExtractor,
 ) *Executor {
+	if handoffExtractor == nil {
+		handoffExtractor = NewSentinelExtractor()
+	}
 	promptBuilder := NewPromptBuilder(teamStore, agentStore)
 	return &Executor{
-		teamStore:     teamStore,
-		agentStore:    agentStore,
-		agentClient:   agentClient,
-		vrooliRoot:    vrooliRoot,
-		promptBuilder: promptBuilder,
-		runRegistry:   runRegistry,
+		teamStore:        teamStore,
+		agentStore:       agentStore,
+		agentClient:      agentClient,
+		vrooliRoot:       vrooliRoot,
+		promptBuilder:    promptBuilder,
+		runRegistry:      runRegistry,
+		handoffExtractor: handoffExtractor,
 	}
 }
 
@@ -281,6 +288,9 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 		}
 	}
 
+	// Extract and store handoff (best-effort, non-blocking)
+	e.extractAndStoreHandoff(cfgCtx, teamID, agentID, runID, endedAt)
+
 	// Write log file
 	logContent := fmt.Sprintf("Heartbeat execution for %s/%s\n", teamID, agentID)
 	logContent += fmt.Sprintf("Started: %s\n", startedAt.Format(time.RFC3339))
@@ -300,6 +310,45 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 
 	if e.OnComplete != nil {
 		e.OnComplete(teamID, agentID)
+	}
+}
+
+// extractAndStoreHandoff fetches run events and extracts/stores the handoff (best-effort).
+func (e *Executor) extractAndStoreHandoff(ctx context.Context, teamID, agentID, runID string, endedAt time.Time) {
+	if e.handoffExtractor == nil || e.agentClient == nil {
+		return
+	}
+
+	eventsJSON, err := e.agentClient.GetRunEvents(ctx, runID, -1, 0)
+	if err != nil {
+		log.Printf("Warning: failed to fetch run events for handoff extraction (run %s): %v", runID, err)
+		return
+	}
+
+	content, err := e.handoffExtractor.Extract(ctx, eventsJSON)
+	if err != nil {
+		log.Printf("Warning: handoff extraction failed (run %s): %v", runID, err)
+		return
+	}
+
+	if content == "" {
+		return
+	}
+
+	// Store last handoff for prompt injection
+	if err := e.teamStore.SetLastHandoff(ctx, teamID, agentID, content); err != nil {
+		log.Printf("Warning: failed to store last handoff (run %s): %v", runID, err)
+	}
+
+	// Append to team history
+	entry := &store.HandoffEntry{
+		AgentID:   agentID,
+		RunID:     runID,
+		Timestamp: endedAt.Format(time.RFC3339),
+		Content:   content,
+	}
+	if err := e.teamStore.AppendHandoffHistory(ctx, teamID, entry); err != nil {
+		log.Printf("Warning: failed to append handoff history (run %s): %v", runID, err)
 	}
 }
 

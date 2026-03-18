@@ -39,6 +39,9 @@ type mockAgentClient struct {
 	createInvestigationRunErr   error
 	createInvestigationApplyErr error
 
+	getRunEventsData []byte
+	getRunEventsErr  error
+
 	// Call tracking
 	createTaskCalls    []*Task
 	createRunCalls     []*CreateRunRequest
@@ -127,6 +130,16 @@ func (m *mockAgentClient) WithCreateInvestigationRunError(err error) *mockAgentC
 
 func (m *mockAgentClient) WithCreateInvestigationApplyError(err error) *mockAgentClient {
 	m.createInvestigationApplyErr = err
+	return m
+}
+
+func (m *mockAgentClient) WithGetRunEventsData(data []byte) *mockAgentClient {
+	m.getRunEventsData = data
+	return m
+}
+
+func (m *mockAgentClient) WithGetRunEventsError(err error) *mockAgentClient {
+	m.getRunEventsErr = err
 	return m
 }
 
@@ -231,6 +244,12 @@ func (m *mockAgentClient) StopRun(_ context.Context, runID string) error {
 }
 
 func (m *mockAgentClient) GetRunEvents(_ context.Context, _ string, _ int64, _ int) ([]byte, error) {
+	if m.getRunEventsErr != nil {
+		return nil, m.getRunEventsErr
+	}
+	if m.getRunEventsData != nil {
+		return m.getRunEventsData, nil
+	}
 	return []byte("[]"), nil
 }
 

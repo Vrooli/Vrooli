@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Menu, X, Folder, User, Info, ChevronDown, ChevronUp, MoreHorizontal, Copy, Trash2, Eye, Circle } from 'lucide-react'
+import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { Agent } from '@/types/agent'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
@@ -277,11 +278,11 @@ export function AgentEditorPanel({
         className="flex-1 flex flex-col min-h-0"
       >
         {/* Tab List */}
-        <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
+        <TabList>
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="prompt" icon={<Eye className="h-4 w-4" />} label="Prompt" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
-        </Tabs.List>
+        </TabList>
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
@@ -325,32 +326,6 @@ export function AgentEditorPanel({
   )
 }
 
-/**
- * Individual tab trigger button.
- */
-interface TabTriggerProps {
-  value: string
-  icon: React.ReactNode
-  label: string
-}
-
-function TabTrigger({ value, icon, label }: TabTriggerProps) {
-  return (
-    <Tabs.Trigger
-      value={value}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-2 text-sm font-medium',
-        'border-b-2 transition-colors',
-        'data-[state=active]:border-primary data-[state=active]:text-primary',
-        'data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-foreground',
-        'hover:text-foreground'
-      )}
-    >
-      {icon}
-      {label}
-    </Tabs.Trigger>
-  )
-}
 
 /**
  * Agent status toggle component.

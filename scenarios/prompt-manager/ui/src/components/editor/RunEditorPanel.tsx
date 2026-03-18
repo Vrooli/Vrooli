@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Menu, X, Info, List, Search, Loader2, MoreHorizontal, Clock3, Activity } from 'lucide-react'
+import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import { getRunDetails, type RunDetails } from '@/services/heartbeatService'
 import { selectors } from '@/constants/selectors'
@@ -204,11 +205,11 @@ export function RunEditorPanel({
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
-        <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
+        <TabList>
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" testId={selectors.runEditor.tabInfo} />
           <TabTrigger value="events" icon={<List className="h-4 w-4" />} label="Events" testId={selectors.runEditor.tabEvents} live={isRunning} />
           <TabTrigger value="investigation" icon={<Search className="h-4 w-4" />} label="Investigation" testId={selectors.runEditor.tabInvestigation} />
-        </Tabs.List>
+        </TabList>
 
         <div className="flex-1 min-h-0 flex flex-col">
           <Tabs.Content
@@ -237,35 +238,3 @@ export function RunEditorPanel({
   )
 }
 
-interface TabTriggerProps {
-  value: string
-  icon: React.ReactNode
-  label: string
-  testId?: string
-  live?: boolean
-}
-
-function TabTrigger({ value, icon, label, testId, live }: TabTriggerProps) {
-  return (
-    <Tabs.Trigger
-      value={value}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-2 text-sm font-medium',
-        'border-b-2 transition-colors',
-        'data-[state=active]:border-primary data-[state=active]:text-primary',
-        'data-[state=inactive]:border-transparent data-[state=inactive]:text-muted-foreground',
-        'hover:text-foreground'
-      )}
-      data-testid={testId}
-    >
-      {icon}
-      {label}
-      {live && (
-        <span className="relative flex h-2 w-2 ml-1">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-        </span>
-      )}
-    </Tabs.Trigger>
-  )
-}

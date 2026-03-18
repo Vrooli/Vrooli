@@ -15,6 +15,7 @@
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity } from 'lucide-react'
+import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
@@ -1103,65 +1104,12 @@ export function SkillTreeSidebar({
         </div>
 
         {/* Tab triggers — wheel converts vertical scroll to horizontal */}
-        <Tabs.List
-          className="flex-shrink-0 flex flex-nowrap overflow-x-auto border-b border-border [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          ref={tabsListRef}
-        >
-          <Tabs.Trigger
-            value="skills"
-            className={cn(
-              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-            data-testid={selectors.sidebar.tabSkills}
-          >
-            <Search className="h-3.5 w-3.5" />
-            Skills
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="agents"
-            className={cn(
-              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-            data-testid={selectors.sidebar.tabAgents}
-          >
-            <User className="h-3.5 w-3.5" />
-            Agents
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="teams"
-            className={cn(
-              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-          >
-            <Users className="h-3.5 w-3.5" />
-            Teams
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="runs"
-            className={cn(
-              'flex-1 flex-shrink-0 min-w-fit flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
-              'border-b-2 border-transparent',
-              'text-muted-foreground hover:text-foreground',
-              'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
-            )}
-          >
-            <Activity className="h-3.5 w-3.5" />
-            Runs
-          </Tabs.Trigger>
-        </Tabs.List>
+        <TabList ref={tabsListRef}>
+          <TabTrigger compact value="skills" icon={<Search className="h-3.5 w-3.5" />} label="Skills" testId={selectors.sidebar.tabSkills} />
+          <TabTrigger compact value="agents" icon={<User className="h-3.5 w-3.5" />} label="Agents" testId={selectors.sidebar.tabAgents} />
+          <TabTrigger compact value="teams" icon={<Users className="h-3.5 w-3.5" />} label="Teams" />
+          <TabTrigger compact value="runs" icon={<Activity className="h-3.5 w-3.5" />} label="Runs" />
+        </TabList>
 
         {/* Skills Tab */}
         <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">

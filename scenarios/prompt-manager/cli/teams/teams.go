@@ -97,6 +97,95 @@ type SendTeamMessageRequest struct {
 	Content     string `json:"content"`
 }
 
+// HandoffResponse represents a handoff API response.
+type HandoffResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	Content string `json:"content"`
+}
+
+// HandoffHistoryEntry represents a handoff history entry.
+type HandoffHistoryEntry struct {
+	AgentID   string `json:"agentId"`
+	RunID     string `json:"runId"`
+	Timestamp string `json:"timestamp"`
+	Content   string `json:"content"`
+}
+
+// HandoffHistoryResponse represents the handoff history API response.
+type HandoffHistoryResponse struct {
+	TeamID  string                `json:"teamId"`
+	Entries []HandoffHistoryEntry `json:"entries"`
+}
+
+// TaskNote represents a note on a task.
+type TaskNote struct {
+	At   string `json:"at"`
+	By   string `json:"by"`
+	Text string `json:"text"`
+}
+
+// TeamTask represents a task on the task board.
+type TeamTask struct {
+	ID        string     `json:"id"`
+	Title     string     `json:"title"`
+	Status    string     `json:"status"`
+	Assignee  string     `json:"assignee"`
+	Priority  string     `json:"priority"`
+	CreatedBy string     `json:"createdBy"`
+	CreatedAt string     `json:"createdAt"`
+	UpdatedAt string     `json:"updatedAt"`
+	Notes     []TaskNote `json:"notes,omitempty"`
+}
+
+// TaskBoardResponse represents the task board API response.
+type TaskBoardResponse struct {
+	TeamID string     `json:"teamId"`
+	Tasks  []TeamTask `json:"tasks"`
+}
+
+// AddTaskRequest is the request body for adding a task.
+type AddTaskRequest struct {
+	Title    string `json:"title"`
+	Assignee string `json:"assignee,omitempty"`
+	Priority string `json:"priority,omitempty"`
+	From     string `json:"from"`
+}
+
+// UpdateTaskRequest is the request body for updating a task.
+type UpdateTaskRequest struct {
+	Status   *string `json:"status,omitempty"`
+	Assignee *string `json:"assignee,omitempty"`
+	Priority *string `json:"priority,omitempty"`
+	Note     *string `json:"note,omitempty"`
+}
+
+// DecisionEntry represents a decision log entry.
+type DecisionEntry struct {
+	ID         string `json:"id"`
+	At         string `json:"at"`
+	By         string `json:"by"`
+	Decision   string `json:"decision"`
+	Rationale  string `json:"rationale"`
+	Context    string `json:"context,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
+}
+
+// DecisionListResponse represents the decision list API response.
+type DecisionListResponse struct {
+	TeamID  string          `json:"teamId"`
+	Entries []DecisionEntry `json:"entries"`
+}
+
+// AddDecisionRequest is the request body for adding a decision.
+type AddDecisionRequest struct {
+	By         string `json:"by"`
+	Decision   string `json:"decision"`
+	Rationale  string `json:"rationale"`
+	Context    string `json:"context,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
+}
+
 // CreateTeamRequest is the request body for creating a team
 type CreateTeamRequest struct {
 	ID          string `json:"id,omitempty"`
@@ -210,6 +299,22 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdMemberContext(ctx, subArgs)
 	case "search", "find":
 		return cmdSearch(ctx, subArgs)
+	case "handoff-latest":
+		return cmdHandoffLatest(ctx, subArgs)
+	case "handoff-history":
+		return cmdHandoffHistory(ctx, subArgs)
+	case "task-list":
+		return cmdTaskList(ctx, subArgs)
+	case "task-add":
+		return cmdTaskAdd(ctx, subArgs)
+	case "task-update":
+		return cmdTaskUpdate(ctx, subArgs)
+	case "task-delete":
+		return cmdTaskDelete(ctx, subArgs)
+	case "decision-add":
+		return cmdDecisionAdd(ctx, subArgs)
+	case "decision-list":
+		return cmdDecisionList(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -255,6 +360,20 @@ Member Document Commands:
 
 Context Commands:
   member-context <team-id> <agent-id>         Get full member context prompt
+
+Handoff Commands:
+  handoff-latest <team-id> <agent-id>   Show latest handoff for a member
+  handoff-history <team-id>             Show handoff history
+
+Task Board Commands:
+  task-list <team-id>                   List tasks on the task board
+  task-add <team-id>                    Add a task to the board
+  task-update <team-id> <task-id>       Update a task
+  task-delete <team-id> <task-id>       Delete a task
+
+Decision Log Commands:
+  decision-add <team-id>                Log a decision
+  decision-list <team-id>               List decisions
 
 Claude Code Interop Commands:
   import-cc <team-name>                       Import a Claude Code team
@@ -1731,6 +1850,338 @@ func teamContentSearch(ctx appctx.Context, query string, limit int, caseSensitiv
 			line = line[:117] + "..."
 		}
 		fmt.Printf("  %s/%s:%d: %s\n", m.TeamName, m.File, m.LineNumber, line)
+	}
+	return nil
+}
+
+// --- Handoff commands ---
+
+func cmdHandoffLatest(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("handoff-latest", flag.ContinueOnError)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team handoff-latest <team-id> <agent-id>")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	var resp HandoffResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/members/%s/handoff", teamID, agentID), &resp); err != nil {
+		return fmt.Errorf("failed to get handoff: %w", err)
+	}
+
+	fmt.Println(resp.Content)
+	return nil
+}
+
+func cmdHandoffHistory(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("handoff-history", flag.ContinueOnError)
+	agent := fs.String("agent", "", "Filter by agent ID")
+	last := fs.Int("last", 20, "Number of entries to show")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team handoff-history <team-id> [--agent=<id>] [--last=N] [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	query := fmt.Sprintf("/teams/%s/handoff-history?last=%d", teamID, *last)
+	if *agent != "" {
+		query += "&agent=" + url.QueryEscape(*agent)
+	}
+
+	var resp HandoffHistoryResponse
+	if err := ctx.Get(query, &resp); err != nil {
+		return fmt.Errorf("failed to get handoff history: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Entries) == 0 {
+		fmt.Println("No handoff history found")
+		return nil
+	}
+
+	for _, entry := range resp.Entries {
+		fmt.Printf("--- %s [%s] run=%s ---\n", entry.AgentID, entry.Timestamp, entry.RunID)
+		fmt.Println(entry.Content)
+		fmt.Println()
+	}
+	return nil
+}
+
+// --- Task Board commands ---
+
+func cmdTaskList(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("task-list", flag.ContinueOnError)
+	status := fs.String("status", "", "Filter by status (todo|in-progress|blocked|done)")
+	assignee := fs.String("assignee", "", "Filter by assignee agent ID")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team task-list <team-id> [--status=X] [--assignee=X] [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	var resp TaskBoardResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/tasks", teamID), &resp); err != nil {
+		return fmt.Errorf("failed to get task board: %w", err)
+	}
+
+	// Client-side filtering
+	var filtered []TeamTask
+	for _, task := range resp.Tasks {
+		if *status != "" && task.Status != *status {
+			continue
+		}
+		if *assignee != "" && task.Assignee != *assignee {
+			continue
+		}
+		filtered = append(filtered, task)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(filtered)
+	}
+
+	if len(filtered) == 0 {
+		fmt.Println("No tasks found")
+		return nil
+	}
+
+	fmt.Printf("%-8s %-30s %-12s %-20s %-5s %-5s\n", "PRIO", "TITLE", "STATUS", "ASSIGNEE", "NOTES", "UPDATED")
+	for _, task := range filtered {
+		title := task.Title
+		if len(title) > 28 {
+			title = title[:28] + ".."
+		}
+		assigneeStr := task.Assignee
+		if len(assigneeStr) > 18 {
+			assigneeStr = assigneeStr[:18] + ".."
+		}
+		fmt.Printf("%-8s %-30s %-12s %-20s %-5d %s\n",
+			task.Priority, title, task.Status, assigneeStr, len(task.Notes), task.UpdatedAt)
+	}
+	return nil
+}
+
+func cmdTaskAdd(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("task-add", flag.ContinueOnError)
+	title := fs.String("title", "", "Task title (required)")
+	assignee := fs.String("assignee", "", "Assignee agent ID")
+	priority := fs.String("priority", "P3", "Priority (P1-P5)")
+	from := fs.String("from", "", "Creator agent ID (required)")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team task-add <team-id> --title=\"...\" --from=<id> [--assignee=<id>] [--priority=P2]")
+	}
+	teamID := fs.Arg(0)
+
+	if strings.TrimSpace(*title) == "" {
+		return fmt.Errorf("title is required")
+	}
+	if strings.TrimSpace(*from) == "" {
+		return fmt.Errorf("from is required")
+	}
+
+	req := AddTaskRequest{
+		Title:    *title,
+		Assignee: *assignee,
+		Priority: *priority,
+		From:     *from,
+	}
+
+	var resp TeamTask
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/tasks", teamID), req, &resp); err != nil {
+		return fmt.Errorf("failed to add task: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Created task %s: %s\n", resp.ID, resp.Title)
+	return nil
+}
+
+func cmdTaskUpdate(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("task-update", flag.ContinueOnError)
+	status := fs.String("status", "", "New status")
+	assignee := fs.String("assignee", "", "New assignee")
+	priority := fs.String("priority", "", "New priority")
+	note := fs.String("note", "", "Add a note")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team task-update <team-id> <task-id> [--status=X] [--assignee=X] [--priority=X] [--note=\"...\"]")
+	}
+	teamID := fs.Arg(0)
+	taskID := fs.Arg(1)
+
+	req := UpdateTaskRequest{}
+	if *status != "" {
+		req.Status = status
+	}
+	if *assignee != "" {
+		req.Assignee = assignee
+	}
+	if *priority != "" {
+		req.Priority = priority
+	}
+	if *note != "" {
+		req.Note = note
+	}
+
+	var resp TeamTask
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/tasks/%s", teamID, taskID), req, &resp); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Updated task %s: %s [%s]\n", resp.ID, resp.Title, resp.Status)
+	return nil
+}
+
+func cmdTaskDelete(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("task-delete", flag.ContinueOnError)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team task-delete <team-id> <task-id>")
+	}
+	teamID := fs.Arg(0)
+	taskID := fs.Arg(1)
+
+	if err := ctx.Delete(fmt.Sprintf("/teams/%s/tasks/%s", teamID, taskID)); err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	fmt.Printf("Deleted task %s\n", taskID)
+	return nil
+}
+
+// --- Decision Log commands ---
+
+func cmdDecisionAdd(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-add", flag.ContinueOnError)
+	by := fs.String("by", "", "Agent ID who made the decision (required)")
+	decision := fs.String("decision", "", "The decision (required)")
+	rationale := fs.String("rationale", "", "Why this decision was made (required)")
+	contextTag := fs.String("context", "", "Context tag for grouping")
+	supersedes := fs.String("supersedes", "", "ID of decision this replaces")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> --decision=\"...\" --rationale=\"...\" [--context=<tag>]")
+	}
+	teamID := fs.Arg(0)
+
+	if strings.TrimSpace(*by) == "" {
+		return fmt.Errorf("by is required")
+	}
+	if strings.TrimSpace(*decision) == "" {
+		return fmt.Errorf("decision is required")
+	}
+	if strings.TrimSpace(*rationale) == "" {
+		return fmt.Errorf("rationale is required")
+	}
+
+	req := AddDecisionRequest{
+		By:         *by,
+		Decision:   *decision,
+		Rationale:  *rationale,
+		Context:    *contextTag,
+		Supersedes: *supersedes,
+	}
+
+	var resp DecisionEntry
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/decisions", teamID), req, &resp); err != nil {
+		return fmt.Errorf("failed to add decision: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Logged decision %s: %s\n", resp.ID, resp.Decision)
+	return nil
+}
+
+func cmdDecisionList(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-list", flag.ContinueOnError)
+	contextTag := fs.String("context", "", "Filter by context tag")
+	last := fs.Int("last", 20, "Number of entries to show")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team decision-list <team-id> [--context=<tag>] [--last=N] [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	query := fmt.Sprintf("/teams/%s/decisions?last=%d", teamID, *last)
+	if *contextTag != "" {
+		query += "&context=" + url.QueryEscape(*contextTag)
+	}
+
+	var resp DecisionListResponse
+	if err := ctx.Get(query, &resp); err != nil {
+		return fmt.Errorf("failed to get decisions: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Entries) == 0 {
+		fmt.Println("No decisions found")
+		return nil
+	}
+
+	for _, entry := range resp.Entries {
+		contextStr := ""
+		if entry.Context != "" {
+			contextStr = fmt.Sprintf(" [%s]", entry.Context)
+		}
+		supersededStr := ""
+		if entry.Supersedes != "" {
+			supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
+		}
+		fmt.Printf("--- %s by %s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr)
+		fmt.Printf("Decision: %s\n", entry.Decision)
+		fmt.Printf("Rationale: %s\n\n", entry.Rationale)
 	}
 	return nil
 }

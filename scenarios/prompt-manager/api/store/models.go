@@ -240,3 +240,53 @@ const (
 	HeartbeatStatusFailed    = "failed"
 	HeartbeatStatusCancelled = "cancelled"
 )
+
+// --- Handoff ---
+
+// HandoffEntry represents a single handoff record in the team's handoff history.
+type HandoffEntry struct {
+	AgentID   string `json:"agentId"`
+	RunID     string `json:"runId"`
+	Timestamp string `json:"timestamp"`
+	Content   string `json:"content"`
+}
+
+// --- Task Board ---
+
+// TaskNote represents a note appended to a task.
+type TaskNote struct {
+	At   string `json:"at"`
+	By   string `json:"by"`
+	Text string `json:"text"`
+}
+
+// TeamTask represents a task on the team's shared task board.
+type TeamTask struct {
+	ID        string     `json:"id"`
+	Title     string     `json:"title"`
+	Status    string     `json:"status"`    // "todo", "in-progress", "blocked", "done"
+	Assignee  string     `json:"assignee"`  // agent ID
+	Priority  string     `json:"priority"`  // "P1"-"P5"
+	CreatedBy string     `json:"createdBy"` // agent ID
+	CreatedAt string     `json:"createdAt"`
+	UpdatedAt string     `json:"updatedAt"`
+	Notes     []TaskNote `json:"notes,omitempty"`
+}
+
+// TeamTaskBoard holds the full task board for a team.
+type TeamTaskBoard struct {
+	Tasks []TeamTask `json:"tasks"`
+}
+
+// --- Decision Log ---
+
+// DecisionEntry represents a recorded decision in the team's decision log.
+type DecisionEntry struct {
+	ID         string `json:"id"`
+	At         string `json:"at"`
+	By         string `json:"by"` // agent ID
+	Decision   string `json:"decision"`
+	Rationale  string `json:"rationale"`
+	Context    string `json:"context,omitempty"`    // tag/topic grouping
+	Supersedes string `json:"supersedes,omitempty"` // ID of decision this replaces
+}

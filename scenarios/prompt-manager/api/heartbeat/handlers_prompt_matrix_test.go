@@ -48,7 +48,7 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 		t.Fatalf("add member 2: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/prompt-matrix", nil)
@@ -91,7 +91,7 @@ func TestPreviewPromptMatrixNotFound(t *testing.T) {
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	relationStore := fileStore.Relations()
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/prompt-matrix", nil)
@@ -119,7 +119,7 @@ func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 		t.Fatalf("create team: %v", err)
 	}
 
-	executor := NewExecutor(teamStore, agentStore, nil, "", nil)
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
 	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-empty/prompt-matrix", nil)

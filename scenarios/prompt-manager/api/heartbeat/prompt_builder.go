@@ -174,6 +174,16 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			})
 		}
 
+		// 4.5 Previous handoff from last heartbeat
+		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
+			sections = append(sections, PromptSection{
+				Kind:       "last-handoff",
+				Label:      "Previous Handoff",
+				SourcePath: fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID),
+				Content:    "# Previous Heartbeat Handoff\n\nThis is what you noted at the end of your last heartbeat:\n\n" + handoff,
+			})
+		}
+
 		// 5. HEARTBEAT.md (the specific task) - only when includeHeartbeat is true
 		if includeHeartbeat {
 			heartbeatInstructions, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, agentID)

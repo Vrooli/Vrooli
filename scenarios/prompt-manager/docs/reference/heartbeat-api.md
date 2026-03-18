@@ -476,6 +476,165 @@ PUT /agents/{agentId}/soul
 
 ---
 
+## Handoff
+
+### Get Latest Handoff
+`GET /teams/{teamId}/members/{agentId}/handoff`
+
+Returns the most recent handoff for a team member.
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "agentId": "string",
+  "content": "string (markdown)"
+}
+```
+
+**Errors**: `404 Not Found` if no handoff exists.
+
+### Get Handoff History
+`GET /teams/{teamId}/handoff-history`
+
+Returns handoff history entries for the team.
+
+**Query Parameters**:
+- `agent` (optional) — filter by agent ID
+- `last` (optional, default: 20) — number of entries to return
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "entries": [
+    {
+      "agentId": "string",
+      "runId": "string",
+      "timestamp": "string (RFC3339)",
+      "content": "string"
+    }
+  ]
+}
+```
+
+## Task Board
+
+### Get Task Board
+`GET /teams/{teamId}/tasks`
+
+Returns all tasks on the team's task board.
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "tasks": [
+    {
+      "id": "string",
+      "title": "string",
+      "status": "todo|in-progress|blocked|done",
+      "assignee": "string",
+      "priority": "P1-P5",
+      "createdBy": "string",
+      "createdAt": "string (RFC3339)",
+      "updatedAt": "string (RFC3339)",
+      "notes": [{"at": "string", "by": "string", "text": "string"}]
+    }
+  ]
+}
+```
+
+### Add Task
+`POST /teams/{teamId}/tasks`
+
+Creates a new task on the board.
+
+**Request Body**:
+```json
+{
+  "title": "string (required)",
+  "assignee": "string (optional)",
+  "priority": "string (optional, default: P3)",
+  "from": "string (creator agent ID)"
+}
+```
+
+**Response**: `201 Created` — returns the created task.
+
+### Update Task
+`PATCH /teams/{teamId}/tasks/{taskId}`
+
+Updates a task (partial update).
+
+**Request Body**:
+```json
+{
+  "status": "string (optional)",
+  "assignee": "string (optional)",
+  "priority": "string (optional)",
+  "note": "string (optional — appends a note)"
+}
+```
+
+**Response**: `200 OK` — returns the updated task.
+
+### Delete Task
+`DELETE /teams/{teamId}/tasks/{taskId}`
+
+Deletes a task from the board.
+
+**Response**: `204 No Content`
+
+## Decision Log
+
+### Add Decision
+`POST /teams/{teamId}/decisions`
+
+Records a decision in the team's decision log.
+
+**Request Body**:
+```json
+{
+  "by": "string (agent ID, required)",
+  "decision": "string (required)",
+  "rationale": "string (required)",
+  "context": "string (optional — tag for grouping)",
+  "supersedes": "string (optional — ID of decision this replaces)"
+}
+```
+
+**Response**: `201 Created` — returns the created decision entry.
+
+### Get Decisions
+`GET /teams/{teamId}/decisions`
+
+Returns decision log entries.
+
+**Query Parameters**:
+- `context` (optional) — filter by context tag
+- `last` (optional, default: 20) — number of entries to return
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "entries": [
+    {
+      "id": "string",
+      "at": "string (RFC3339)",
+      "by": "string",
+      "decision": "string",
+      "rationale": "string",
+      "context": "string",
+      "supersedes": "string"
+    }
+  ]
+}
+```
+
+---
+
 ## Implementation Reference
 
 - [CODE: api/heartbeat/handlers.go] - HTTP handlers

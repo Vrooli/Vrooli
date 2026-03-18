@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -626,4 +627,226 @@ func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, s
 	}
 
 	return fullPath, filepath.ToSlash(clean), nil
+}
+
+// --- Handoff methods ---
+
+// GetLastHandoff reads the last handoff markdown for a team member.
+func (s *FileTeamStore) GetLastHandoff(_ context.Context, teamID, agentID string) (string, error) {
+	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	if !FileExists(path) {
+		return "", nil
+	}
+	return ReadContent(path)
+}
+
+// SetLastHandoff writes the last handoff markdown for a team member.
+func (s *FileTeamStore) SetLastHandoff(ctx context.Context, teamID, agentID, content string) error {
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	return WriteContent(path, content)
+}
+
+// AppendHandoffHistory appends a handoff entry to the team's handoff history.
+func (s *FileTeamStore) AppendHandoffHistory(_ context.Context, teamID string, entry *HandoffEntry) error {
+	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		return fmt.Errorf("creating shared directory: %w", err)
+	}
+	path := filepath.Join(sharedDir, "handoff-history.jsonl")
+
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshaling handoff entry: %w", err)
+	}
+	data = append(data, '\n')
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("opening handoff history: %w", err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(data)
+	return err
+}
+
+// GetHandoffHistory reads handoff history entries, optionally filtered by agent and limited.
+func (s *FileTeamStore) GetHandoffHistory(_ context.Context, teamID, agentID string, last int) ([]HandoffEntry, error) {
+	path := filepath.Join(s.teamsDir(), teamID, "shared", "handoff-history.jsonl")
+	if !FileExists(path) {
+		return nil, nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading handoff history: %w", err)
+	}
+
+	var entries []HandoffEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry HandoffEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue // skip malformed lines
+		}
+		if agentID != "" && entry.AgentID != agentID {
+			continue
+		}
+		entries = append(entries, entry)
+	}
+
+	// Return the last N entries (most recent last in file order)
+	if last > 0 && len(entries) > last {
+		entries = entries[len(entries)-last:]
+	}
+
+	return entries, nil
+}
+
+// --- Task Board methods ---
+
+// GetTaskBoard reads the full task board for a team.
+func (s *FileTeamStore) GetTaskBoard(_ context.Context, teamID string) (*TeamTaskBoard, error) {
+	path := filepath.Join(s.teamsDir(), teamID, "shared", "tasks.json")
+	if !FileExists(path) {
+		return &TeamTaskBoard{Tasks: []TeamTask{}}, nil
+	}
+	return LoadJSON[TeamTaskBoard](path)
+}
+
+// SaveTaskBoard writes the full task board for a team.
+func (s *FileTeamStore) SaveTaskBoard(_ context.Context, teamID string, board *TeamTaskBoard) error {
+	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		return fmt.Errorf("creating shared directory: %w", err)
+	}
+	path := filepath.Join(sharedDir, "tasks.json")
+	return SaveJSON(path, board)
+}
+
+// GetTask returns a single task by ID from the team's task board.
+func (s *FileTeamStore) GetTask(ctx context.Context, teamID, taskID string) (*TeamTask, error) {
+	board, err := s.GetTaskBoard(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range board.Tasks {
+		if board.Tasks[i].ID == taskID {
+			return &board.Tasks[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// UpdateTask performs an atomic read-modify-write on a single task.
+func (s *FileTeamStore) UpdateTask(ctx context.Context, teamID, taskID string, updater func(*TeamTask)) error {
+	board, err := s.GetTaskBoard(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for i := range board.Tasks {
+		if board.Tasks[i].ID == taskID {
+			updater(&board.Tasks[i])
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	return s.SaveTaskBoard(ctx, teamID, board)
+}
+
+// DeleteTask removes a task by ID from the team's task board.
+func (s *FileTeamStore) DeleteTask(ctx context.Context, teamID, taskID string) error {
+	board, err := s.GetTaskBoard(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	filtered := make([]TeamTask, 0, len(board.Tasks))
+	found := false
+	for _, task := range board.Tasks {
+		if task.ID == taskID {
+			found = true
+			continue
+		}
+		filtered = append(filtered, task)
+	}
+	if !found {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	board.Tasks = filtered
+	return s.SaveTaskBoard(ctx, teamID, board)
+}
+
+// --- Decision Log methods ---
+
+// AppendDecision appends a decision entry to the team's decision log.
+func (s *FileTeamStore) AppendDecision(_ context.Context, teamID string, entry *DecisionEntry) error {
+	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		return fmt.Errorf("creating shared directory: %w", err)
+	}
+	path := filepath.Join(sharedDir, "decisions.jsonl")
+
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshaling decision entry: %w", err)
+	}
+	data = append(data, '\n')
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("opening decision log: %w", err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(data)
+	return err
+}
+
+// GetDecisions reads decision entries, optionally filtered by context tag and limited.
+func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag string, last int) ([]DecisionEntry, error) {
+	path := filepath.Join(s.teamsDir(), teamID, "shared", "decisions.jsonl")
+	if !FileExists(path) {
+		return nil, nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading decision log: %w", err)
+	}
+
+	var entries []DecisionEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry DecisionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if contextTag != "" && entry.Context != contextTag {
+			continue
+		}
+		entries = append(entries, entry)
+	}
+
+	if last > 0 && len(entries) > last {
+		entries = entries[len(entries)-last:]
+	}
+
+	return entries, nil
 }

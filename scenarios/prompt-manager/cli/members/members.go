@@ -19,30 +19,30 @@ import (
 
 // Member represents a member from the API
 type Member struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	BodyColor   string   `json:"bodyColor"`
-	HeadColor   string   `json:"headColor"`
-	AccentColor string   `json:"accentColor"`
-	CreatedAt   string   `json:"createdAt"`
-	UpdatedAt   string   `json:"updatedAt"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	BodyColor   string `json:"bodyColor"`
+	HeadColor   string `json:"headColor"`
+	AccentColor string `json:"accentColor"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
 }
 
 // CreateMemberRequest is the request body for creating a member
 type CreateMemberRequest struct {
-	ID          string   `json:"id,omitempty"`
-	Name        string   `json:"name"`
-	BodyColor   string   `json:"bodyColor"`
-	HeadColor   string   `json:"headColor"`
-	AccentColor string   `json:"accentColor"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	BodyColor   string `json:"bodyColor"`
+	HeadColor   string `json:"headColor"`
+	AccentColor string `json:"accentColor"`
 }
 
 // UpdateMemberRequest is the request body for updating a member
 type UpdateMemberRequest struct {
-	Name        *string  `json:"name,omitempty"`
-	BodyColor   *string  `json:"bodyColor,omitempty"`
-	HeadColor   *string  `json:"headColor,omitempty"`
-	AccentColor *string  `json:"accentColor,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	BodyColor   *string `json:"bodyColor,omitempty"`
+	HeadColor   *string `json:"headColor,omitempty"`
+	AccentColor *string `json:"accentColor,omitempty"`
 }
 
 // Commands returns the member command groups using noun-verb pattern.

@@ -102,6 +102,86 @@ export interface MemberDocRequest {
   content: string
 }
 
+// --- Team State Types ---
+
+export interface HandoffResponse {
+  teamId: string
+  agentId: string
+  content: string
+}
+
+export interface HandoffHistoryEntry {
+  agentId: string
+  runId: string
+  timestamp: string
+  content: string
+}
+
+export interface HandoffHistoryResponse {
+  teamId: string
+  entries: HandoffHistoryEntry[]
+}
+
+export interface TaskNote {
+  at: string
+  by: string
+  text: string
+}
+
+export interface TeamTask {
+  id: string
+  title: string
+  status: 'todo' | 'in-progress' | 'blocked' | 'done'
+  assignee: string
+  priority: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  notes?: TaskNote[]
+}
+
+export interface TaskBoardResponse {
+  teamId: string
+  tasks: TeamTask[]
+}
+
+export interface AddTaskRequest {
+  title: string
+  assignee?: string
+  priority?: string
+  from: string
+}
+
+export interface UpdateTaskRequest {
+  status?: string
+  assignee?: string
+  priority?: string
+  note?: string
+}
+
+export interface DecisionEntry {
+  id: string
+  at: string
+  by: string
+  decision: string
+  rationale: string
+  context?: string
+  supersedes?: string
+}
+
+export interface DecisionListResponse {
+  teamId: string
+  entries: DecisionEntry[]
+}
+
+export interface AddDecisionRequest {
+  by: string
+  decision: string
+  rationale: string
+  context?: string
+  supersedes?: string
+}
+
 const HEARTBEAT_LIST_CACHE_TTL_MS = 1200
 const heartbeatListInFlight = new Map<string, Promise<HeartbeatConfig[]>>()
 const heartbeatListCache = new Map<string, { data: HeartbeatConfig[]; fetchedAt: number }>()
@@ -913,6 +993,74 @@ export async function createRun(opts: {
       canContinue: r.actions.can_continue ?? false,
     } : undefined,
   }
+}
+
+// ============================================================================
+// Team State Operations (Handoff, Task Board, Decisions)
+// ============================================================================
+
+export async function getLastHandoff(teamId: string, agentId: string): Promise<HandoffResponse> {
+  return apiRequest<HandoffResponse>(`/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(agentId)}/handoff`)
+}
+
+export async function getHandoffHistory(
+  teamId: string,
+  opts?: { agent?: string; last?: number }
+): Promise<HandoffHistoryResponse> {
+  const params = new URLSearchParams()
+  if (opts?.agent) params.set('agent', opts.agent)
+  if (opts?.last) params.set('last', String(opts.last))
+  const qs = params.toString()
+  return apiRequest<HandoffHistoryResponse>(`/teams/${encodeURIComponent(teamId)}/handoff-history${qs ? `?${qs}` : ''}`)
+}
+
+export async function getTaskBoard(teamId: string): Promise<TaskBoardResponse> {
+  return apiRequest<TaskBoardResponse>(`/teams/${encodeURIComponent(teamId)}/tasks`)
+}
+
+export async function addTask(teamId: string, request: AddTaskRequest): Promise<TeamTask> {
+  return apiRequest<TeamTask>(`/teams/${encodeURIComponent(teamId)}/tasks`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function updateTask(
+  teamId: string,
+  taskId: string,
+  request: UpdateTaskRequest
+): Promise<TeamTask> {
+  return apiRequest<TeamTask>(`/teams/${encodeURIComponent(teamId)}/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function deleteTask(teamId: string, taskId: string): Promise<void> {
+  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/tasks/${encodeURIComponent(taskId)}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function getDecisions(
+  teamId: string,
+  opts?: { context?: string; last?: number }
+): Promise<DecisionListResponse> {
+  const params = new URLSearchParams()
+  if (opts?.context) params.set('context', opts.context)
+  if (opts?.last) params.set('last', String(opts.last))
+  const qs = params.toString()
+  return apiRequest<DecisionListResponse>(`/teams/${encodeURIComponent(teamId)}/decisions${qs ? `?${qs}` : ''}`)
+}
+
+export async function addDecision(
+  teamId: string,
+  request: AddDecisionRequest
+): Promise<DecisionEntry> {
+  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
 }
 
 // ============================================================================
