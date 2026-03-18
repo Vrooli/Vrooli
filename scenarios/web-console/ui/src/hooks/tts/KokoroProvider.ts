@@ -73,6 +73,63 @@ export class KokoroProvider implements TTSProvider {
     }
   }
 
+  /**
+   * Synthesize all texts, concatenate the resulting MP3 blobs, and play
+   * the combined audio as a single track. This gives accurate total
+   * duration and full seek/scrub across the entire sequence.
+   *
+   * MP3 frames are self-contained, so byte concatenation produces a
+   * valid stream without re-encoding.
+   */
+  async speakSequence(texts: string[], opts?: TTSSpeakOptions): Promise<void> {
+    if (texts.length === 0) return;
+    if (texts.length === 1 && texts[0]) return this.speak(texts[0], opts);
+
+    this.stop();
+    this.abortController = new AbortController();
+    this._isSpeaking = true;
+    this._isPaused = false;
+    const signal = this.abortController.signal;
+
+    try {
+      // Synthesize all segments sequentially (preserves order, respects abort)
+      const blobs: Blob[] = [];
+      for (const text of texts) {
+        const blob = await synthesizeTTS(text, opts?.voice, opts?.rate, signal);
+        this.throwIfAborted(signal);
+        if (blob.size > 0) blobs.push(blob);
+      }
+
+      // All segments were non-speakable (e.g. "---")
+      if (blobs.length === 0) {
+        this.cleanup();
+        return;
+      }
+
+      // Concatenate MP3 blobs into a single blob
+      const combined = new Blob(blobs, { type: blobs[0]?.type ?? "audio/mpeg" });
+
+      this.revokeBlobUrl();
+      this.blobUrl = URL.createObjectURL(combined);
+      this.audio.src = this.blobUrl;
+      this.audio.currentTime = 0;
+
+      return await new Promise<void>((resolve, reject) => {
+        this.playbackResolve = resolve;
+        this.playbackReject = reject;
+        this.audio.play().catch((err) => {
+          this.playbackResolve = null;
+          this.playbackReject = null;
+          this.cleanup();
+          reject(err);
+        });
+      });
+    } catch (err) {
+      this.cleanup();
+      throw err;
+    }
+  }
+
   stop(): void {
     this.abortController?.abort();
     this.abortController = null;

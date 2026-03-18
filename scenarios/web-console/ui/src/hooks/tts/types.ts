@@ -50,6 +50,15 @@ export interface TTSProvider {
   getPlaybackState?(): TTSPlaybackState;
   /** Register a callback that fires during playback (~4 Hz from timeupdate). */
   onProgress?(callback: TTSPlaybackProgressCallback | null): void;
+  /**
+   * Speak multiple texts as a single unified audio stream.
+   * Providers that support this synthesize all segments up front, concatenate
+   * the audio, and play it as one track — giving accurate total duration and
+   * seek across the entire sequence.
+   *
+   * When absent, the caller falls back to sequential `speak()` calls.
+   */
+  speakSequence?(texts: string[], opts?: TTSSpeakOptions): Promise<void>;
 }
 
 export interface TTSSpeakOptions {

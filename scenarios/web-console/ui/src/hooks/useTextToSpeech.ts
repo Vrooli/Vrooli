@@ -175,8 +175,16 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       if (backendRef.current === "browser" && !audioUnlockedRef.current) {
         throw new Error("Browser audio is blocked until you interact with the page");
       }
-      for (const segment of segments) {
-        await provider.speak(segment, backendRef.current === "kokoro" ? kokoroOpts : browserOpts);
+      const opts = backendRef.current === "kokoro" ? kokoroOpts : browserOpts;
+      // Use speakSequence for unified playback when the provider supports it
+      // and there are multiple segments. This produces a single audio track
+      // with accurate total duration and full seek/scrub support.
+      if (segments.length > 1 && provider.speakSequence) {
+        await provider.speakSequence(segments, opts);
+      } else {
+        for (const segment of segments) {
+          await provider.speak(segment, opts);
+        }
       }
       return backendRef.current;
     };

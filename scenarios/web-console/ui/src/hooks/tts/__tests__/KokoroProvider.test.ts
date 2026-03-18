@@ -277,4 +277,90 @@ describe("KokoroProvider", () => {
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
   });
+
+  describe("speakSequence", () => {
+    it("synthesizes all texts and plays concatenated blob as a single track", async () => {
+      const blob1 = new Blob(["part1"], { type: "audio/mpeg" });
+      const blob2 = new Blob(["part2"], { type: "audio/mpeg" });
+      mockSynthesizeTTS
+        .mockResolvedValueOnce(blob1)
+        .mockResolvedValueOnce(blob2);
+
+      const provider = new KokoroProvider();
+      await provider.speakSequence(["hello", "world"], { voice: "af_heart" });
+
+      // Both segments synthesized
+      expect(mockSynthesizeTTS).toHaveBeenCalledTimes(2);
+      expect(mockSynthesizeTTS).toHaveBeenCalledWith("hello", "af_heart", undefined, expect.any(AbortSignal));
+      expect(mockSynthesizeTTS).toHaveBeenCalledWith("world", "af_heart", undefined, expect.any(AbortSignal));
+
+      // Single blob URL created (concatenated), single play() call
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(fakeAudio.play).toHaveBeenCalledTimes(1);
+      expect(provider.isSpeaking).toBe(false); // resolved after 'ended'
+    });
+
+    it("skips 0-byte segments but still plays the rest", async () => {
+      const emptyBlob = new Blob([], { type: "audio/mpeg" });
+      const goodBlob = new Blob(["audio"], { type: "audio/mpeg" });
+      mockSynthesizeTTS
+        .mockResolvedValueOnce(emptyBlob)
+        .mockResolvedValueOnce(goodBlob);
+
+      const provider = new KokoroProvider();
+      await provider.speakSequence(["---", "real text"]);
+
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(fakeAudio.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns early without playing when all segments are empty", async () => {
+      const emptyBlob = new Blob([], { type: "audio/mpeg" });
+      mockSynthesizeTTS.mockResolvedValue(emptyBlob);
+
+      const provider = new KokoroProvider();
+      await provider.speakSequence(["---", "..."]);
+
+      expect(fakeAudio.play).not.toHaveBeenCalled();
+      expect(provider.isSpeaking).toBe(false);
+    });
+
+    it("delegates to speak() for a single-element array", async () => {
+      const blob = new Blob(["audio"], { type: "audio/mpeg" });
+      mockSynthesizeTTS.mockResolvedValue(blob);
+
+      const provider = new KokoroProvider();
+      const speakSpy = vi.spyOn(provider, "speak");
+      await provider.speakSequence(["only one"], { voice: "af_heart" });
+
+      expect(speakSpy).toHaveBeenCalledWith("only one", { voice: "af_heart" });
+    });
+
+    it("returns immediately for an empty array", async () => {
+      const provider = new KokoroProvider();
+      await provider.speakSequence([]);
+
+      expect(mockSynthesizeTTS).not.toHaveBeenCalled();
+      expect(fakeAudio.play).not.toHaveBeenCalled();
+    });
+
+    it("stop() during synthesis aborts and rejects", async () => {
+      let resolveFirst: ((blob: Blob) => void) | undefined;
+      mockSynthesizeTTS.mockImplementationOnce(
+        () => new Promise<Blob>((resolve) => { resolveFirst = resolve; }),
+      );
+
+      const provider = new KokoroProvider();
+      const promise = provider.speakSequence(["hello", "world"]);
+
+      // Stop before the first synthesis completes
+      provider.stop();
+
+      // Resolve the blocked synthesis — should be ignored due to abort
+      resolveFirst?.(new Blob(["audio"], { type: "audio/mpeg" }));
+
+      await expect(promise).rejects.toThrow("The operation was aborted.");
+      expect(provider.isSpeaking).toBe(false);
+    });
+  });
 });
