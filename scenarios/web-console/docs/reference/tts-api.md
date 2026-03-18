@@ -1,6 +1,10 @@
-# TTS API Reference
+# TTS and Conversation API Reference
 
-Text-to-Speech endpoints for automatic voice delivery of AI assistant responses.
+Auto-TTS is now driven by first-class per-session conversation events. This document covers:
+
+1. TTS configuration and synthesis endpoints
+2. Conversation history/cursor endpoints used by messages view, unread counts, and replay
+3. WebSocket conversation-event delivery and acknowledgment
 
 ## Endpoints
 
@@ -73,9 +77,9 @@ Returns runtime diagnostics for auto-TTS, including hook registration state, bac
   "hookReason": "Claude Stop hook is registered",
   "hookSettingsPath": "/home/user/Vrooli/.claude/settings.json",
   "lastHookRouting": {
-    "routed": true,
-    "code": "tts_candidate_routed",
-    "reason": "TTS candidate was routed to the mapped terminal session",
+    "appended": true,
+    "code": "conversation_event_appended",
+    "reason": "Conversation event was appended to the mapped terminal session",
     "source": "claude_hook",
     "sessionId": "sess-123",
     "eventId": "abc123"
@@ -90,9 +94,9 @@ Returns runtime diagnostics for auto-TTS, including hook registration state, bac
   },
   "lastHookAckAt": "2026-03-17T20:55:13Z",
   "lastTailerRouting": {
-    "routed": false,
-    "code": "tts_target_missing",
-    "reason": "No terminal session was available for TTS routing",
+    "appended": false,
+    "code": "conversation_target_missing",
+    "reason": "No terminal session was available for conversation delivery",
     "source": "codex_tailer",
     "sessionId": ""
   },
@@ -102,7 +106,7 @@ Returns runtime diagnostics for auto-TTS, including hook registration state, bac
 }
 ```
 
-This endpoint is intended for settings/diagnostics UI rather than long-term persistence.
+This endpoint is intended for settings/diagnostics UI rather than long-term persistence. It reports the latest conversation-ingestion and playback snapshots, not a durable event log.
 
 `hookCode` is a stable machine-readable hook diagnostic:
 - `hook_registered`
@@ -206,9 +210,9 @@ The canonical Claude project hook file is `.claude/settings.json` in the reposit
   "status": "ok",
   "routed": true,
   "routing": {
-    "routed": true,
-    "code": "tts_candidate_routed",
-    "reason": "TTS candidate was routed to the mapped terminal session",
+    "appended": true,
+    "code": "conversation_event_appended",
+    "reason": "Conversation event was appended to the mapped terminal session",
     "source": "claude_hook",
     "sessionId": "sess-123",
     "eventId": "abc123"
@@ -218,8 +222,8 @@ The canonical Claude project hook file is `.claude/settings.json` in the reposit
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `routed` | boolean | Whether a TTS candidate was routed to a terminal subscriber |
-| `routing` | object | Structured backend routing result, including skip/failure reason |
+| `routed` | boolean | Whether the assistant response was appended as a conversation event |
+| `routing` | object | Structured append result, including skip/failure reason |
 
 **Errors**:
 | Code | Category | When |
@@ -229,25 +233,83 @@ The canonical Claude project hook file is `.claude/settings.json` in the reposit
 
 ---
 
-## WebSocket TTS Side-Channel
+## Conversation Endpoints
 
-TTS candidates are delivered to clients via the existing terminal WebSocket at `/api/v1/sessions/{id}/ws`.
+### GET /api/v1/sessions/{id}/conversation
+
+Returns the semantic conversation history for one terminal session.
+
+**Response** `200 OK`:
+```json
+{
+  "sessionId": "sess-123",
+  "events": [
+    {
+      "id": "evt-1",
+      "sessionId": "sess-123",
+      "source": "claude_hook",
+      "role": "assistant",
+      "text": "The answer is 42.",
+      "createdAt": "2026-03-17T21:14:00Z",
+      "sequence": 1,
+      "deliveryState": "seen",
+      "ttsState": "played",
+      "consumptionState": "listened"
+    }
+  ],
+  "cursor": {
+    "lastSeenSequence": 1,
+    "lastListenedSequence": 1
+  }
+}
+```
+
+### PUT /api/v1/sessions/{id}/conversation/cursor
+
+Updates the optimistic conversation cursors for one session.
+
+**Request body**:
+```json
+{
+  "lastSeenSequence": 3,
+  "lastListenedSequence": 2
+}
+```
+
+**Response** `200 OK`:
+```json
+{
+  "lastSeenSequence": 3,
+  "lastListenedSequence": 2
+}
+```
+
+Cursor semantics:
+- `lastSeenSequence`: highest event the UI has surfaced to the user
+- `lastListenedSequence`: highest assistant event whose TTS playback completed successfully
+
+## WebSocket Conversation Side-Channel
+
+Conversation events are delivered to clients via the existing terminal WebSocket at `/api/v1/sessions/{id}/ws`.
 
 **Message format** (server → client):
 ```json
 {
-  "type": "tts_candidate",
-  "eventId": "abc123",
+  "type": "conversation_event",
+  "id": "abc123",
   "source": "claude_hook",
-  "data": "The answer is 42."
+  "role": "assistant",
+  "data": "The answer is 42.",
+  "createdAt": "2026-03-17T21:14:00Z",
+  "sequence": 4
 }
 ```
 
-Candidates are **not** written to the terminal. The client correlates them against the rendered xterm buffer, speaks them if they match, and reports the outcome via:
+Conversation events are semantic side-channel messages. They are not written to the terminal. The client stores them, can render them in messages mode, and may trigger TTS based on session/view state. The client reports progress via:
 
 ```json
 {
-  "type": "tts_ack",
+  "type": "conversation_event_ack",
   "eventId": "abc123",
   "source": "claude_hook",
   "stage": "playback_succeeded",
@@ -257,7 +319,13 @@ Candidates are **not** written to the terminal. The client correlates them again
 
 ### Delivery Pipeline
 
-1. `web-console` asks the `claude-code` resource to reconcile the project-level `.claude/settings.json` Stop hook
+1. Claude Stop hook or Codex rollout tailer extracts assistant text.
+2. The API appends a `ConversationEvent` into the per-session in-memory conversation store.
+3. The API fans the event out to WebSocket subscribers for that session.
+4. The UI stores the event in its conversation store.
+5. If the pane is active and auto-TTS is enabled, the browser synthesizes and plays the event text.
+6. The browser acknowledges stages such as `received`, `seen`, `playback_started`, `playback_succeeded`, and `playback_failed`.
+7. The API records those state transitions for diagnostics and cursor advancement.
 2. Assistant response arrives via hook (`POST /hooks/stop`) or CodexTailer (rollout file polling)
 3. `routeTTSCandidate()` validates: auto-TTS enabled → explicit terminal mapping exists → ANSI stripped → dedup check
 4. `SendTTS()` fans the candidate out to WebSocket subscribers on that session (non-blocking; drops if channel full)

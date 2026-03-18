@@ -83,10 +83,10 @@ export default function TtsSettingsSection() {
       setHookSettingsPath(status.hookSettingsPath ?? null);
       setKokoroCapabilityLabel(status.kokoroCapabilityLabel ?? null);
       setLastHookRoutingSummary(status.lastHookRouting
-        ? `${status.lastHookRouting.routed ? "Routed" : "Skipped"}: ${status.lastHookRouting.reason}`
+        ? `${status.lastHookRouting.appended ? "Appended" : "Skipped"}: ${status.lastHookRouting.reason}`
         : null);
       setLastTailerRoutingSummary(status.lastTailerRouting
-        ? `${status.lastTailerRouting.routed ? "Routed" : "Skipped"}: ${status.lastTailerRouting.reason}`
+        ? `${status.lastTailerRouting.appended ? "Appended" : "Skipped"}: ${status.lastTailerRouting.reason}`
         : null);
       setLastHookAckSummary(status.lastHookAck
         ? `${status.lastHookAck.stage}${status.lastHookAck.backend ? ` via ${status.lastHookAck.backend}` : ""}${status.lastHookAck.message ? `: ${status.lastHookAck.message}` : ""}`

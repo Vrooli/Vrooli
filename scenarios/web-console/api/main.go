@@ -76,11 +76,11 @@ type Server struct {
 	codexTailer     *CodexTailer
 	ttsSynthesizer  TTSSynthesizer
 	ttsVoiceLister  TTSVoiceLister
-	ttsDedup        *ttsDedup
+	conversations   *ConversationStore
 	ttsStatusMu     sync.RWMutex
-	lastTTSRouting  *TTSRoutingResult
+	lastTTSRouting  *ConversationAppendResult
 	lastTTSAt       time.Time
-	lastTTSBySource map[string]ttsRoutingSnapshot
+	lastTTSBySource map[string]conversationAppendSnapshot
 	lastTTSAck      *TTSClientAck
 	lastTTSAckAt    time.Time
 	lastTTSAckBySrc map[string]ttsAckSnapshot
@@ -88,8 +88,8 @@ type Server struct {
 	lastTTSPlayAt   time.Time
 }
 
-type ttsRoutingSnapshot struct {
-	Result TTSRoutingResult
+type conversationAppendSnapshot struct {
+	Result ConversationAppendResult
 	At     time.Time
 }
 
@@ -156,8 +156,8 @@ func NewServer(db *sql.DB) *Server {
 		ttsConfig:       ttsCfg,
 		ttsConfigPath:   ttsPath,
 		hookAuthToken:   hookToken,
-		ttsDedup:        newTTSDedup(),
-		lastTTSBySource: make(map[string]ttsRoutingSnapshot),
+		conversations:   NewConversationStore(),
+		lastTTSBySource: make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc: make(map[string]ttsAckSnapshot),
 	}
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
@@ -261,6 +261,8 @@ func (s *Server) setupRoutes() {
 	// Workspace layout (cross-device pane ordering and tab groups)
 	s.router.HandleFunc("/api/v1/workspace/layout", s.handleGetLayout).Methods("GET")
 	s.router.HandleFunc("/api/v1/workspace/layout", s.handleSaveLayout).Methods("PUT")
+	s.router.HandleFunc("/api/v1/sessions/{id}/conversation", s.handleGetConversationSession).Methods("GET")
+	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/cursor", s.handleUpdateConversationCursor).Methods("PUT")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleUpdatePane).Methods("PUT")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleDeletePane).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")
@@ -567,24 +569,24 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 	return false, "hook_missing", "Claude Stop hook is not registered in project settings", settingsPath
 }
 
-func (s *Server) recordLastTTSRouting(result TTSRoutingResult) {
+func (s *Server) recordLastTTSRouting(result ConversationAppendResult) {
 	s.ttsStatusMu.Lock()
 	defer s.ttsStatusMu.Unlock()
 	if s.lastTTSBySource == nil {
-		s.lastTTSBySource = make(map[string]ttsRoutingSnapshot)
+		s.lastTTSBySource = make(map[string]conversationAppendSnapshot)
 	}
 	cp := result
 	s.lastTTSRouting = &cp
 	s.lastTTSAt = time.Now()
-	s.lastTTSBySource[result.Source] = ttsRoutingSnapshot{
+	s.lastTTSBySource[result.Source] = conversationAppendSnapshot{
 		Result: cp,
 		At:     s.lastTTSAt,
 	}
-	log.Printf("tts-routing: source=%s code=%s routed=%v session=%s event=%s reason=%s",
-		result.Source, result.Code, result.Routed, sanitizeID(result.SessionID), sanitizeID(result.EventID), result.Reason)
+	log.Printf("conversation-event: source=%s code=%s appended=%v session=%s event=%s reason=%s",
+		result.Source, result.Code, result.Appended, sanitizeID(result.SessionID), sanitizeID(result.EventID), result.Reason)
 }
 
-func (s *Server) getLastTTSRouting() (*TTSRoutingResult, time.Time) {
+func (s *Server) getLastTTSRouting() (*ConversationAppendResult, time.Time) {
 	s.ttsStatusMu.RLock()
 	defer s.ttsStatusMu.RUnlock()
 	if s.lastTTSRouting == nil {
@@ -594,7 +596,7 @@ func (s *Server) getLastTTSRouting() (*TTSRoutingResult, time.Time) {
 	return &cp, s.lastTTSAt
 }
 
-func (s *Server) getLastTTSRoutingBySource(source string) (*TTSRoutingResult, time.Time) {
+func (s *Server) getLastTTSRoutingBySource(source string) (*ConversationAppendResult, time.Time) {
 	s.ttsStatusMu.RLock()
 	defer s.ttsStatusMu.RUnlock()
 	snapshot, ok := s.lastTTSBySource[source]
@@ -617,6 +619,9 @@ func (s *Server) recordTTSAck(event TTSClientAck) {
 	s.lastTTSAckBySrc[event.Source] = ttsAckSnapshot{
 		Result: cp,
 		At:     s.lastTTSAckAt,
+	}
+	if s.conversations != nil {
+		s.conversations.RecordPlaybackStage(event.SessionID, event.EventID, event.Stage)
 	}
 	log.Printf("tts-ack: source=%s stage=%s backend=%s session=%s event=%s message=%s",
 		event.Source, event.Stage, event.Backend, sanitizeID(event.SessionID), sanitizeID(event.EventID), strings.TrimSpace(event.Message))

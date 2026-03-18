@@ -2,6 +2,11 @@
 
 Web Console is a browser-based terminal that connects to PTY processes on the host via WebSocket. It is designed for single-operator use on a personal Vrooli server.
 
+It now has two distinct data planes:
+
+1. Terminal I/O for raw PTY fidelity.
+2. Conversation events for semantic assistant-response features such as auto-TTS, unread counts, and messages view.
+
 ## System Layers
 
 ```
@@ -18,6 +23,10 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
 │  │  useSessionManager (session lifecycle)    │   │
 │  │  [CODE: ui/src/hooks/useSessionManager.ts]│   │
 │  └──────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────┐   │
+│  │  useConversationSession                  │   │
+│  │  [CODE: ui/src/hooks/useConversationSession.ts] │
+│  └──────────────────────────────────────────┘   │
 │       │ HTTP (REST)          │ WebSocket         │
 ├───────┼──────────────────────┼───────────────────┤
 │  Go API                                         │
@@ -28,6 +37,11 @@ Web Console is a browser-based terminal that connects to PTY processes on the ho
 │  │ handlers.go  │  │ (WS I/O bridge)        │   │
 │  │ (REST CRUD)  │  │                        │   │
 │  └──────────────┘  └────────────────────────┘   │
+│  ┌──────────────────────────────────────────┐   │
+│  │ conversation_store.go                    │   │
+│  │ conversation_router.go                   │   │
+│  │ conversation_handlers.go                 │   │
+│  └──────────────────────────────────────────┘   │
 │       │                    │                     │
 │  ┌──────────────────────────────────────────┐   │
 │  │  SessionManager + Session                 │   │
@@ -114,6 +128,31 @@ Page Load → Check sessionStorage
    - **Neither available**: Voice input disabled, mic button hidden
 5. Transcribed text injected into terminal via existing `sendInput()` path
 
+### Conversation Events
+
+Conversation events are the semantic record of assistant responses. They are intentionally separate from PTY output history.
+
+1. Claude Stop hook or Codex rollout tailer extracts assistant text.
+2. The source adapter appends a `ConversationEvent` into [CODE: api/conversation_store.go].
+3. The store assigns a monotonic `sequence` within the owning web-console session.
+4. The server fan-outs the event over the existing terminal WebSocket as a `conversation_event` message.
+5. The browser appends the event into [CODE: ui/src/stores/useConversationStore.ts].
+6. UI features consume that store:
+   - auto-TTS for active panes
+   - unread counts for inactive tabs/panes
+   - messages-mode rendering via [CODE: ui/src/components/MessagesPane.tsx]
+7. The browser acknowledges progress (`received`, `seen`, `playback_started`, `playback_succeeded`, `playback_failed`) back over WebSocket.
+8. The API updates event/cursor state in [CODE: api/conversation_store.go].
+
+### Cursor Semantics
+
+Each session conversation has two independent cursors:
+
+- `lastSeenSequence`: highest conversation event sequence the user has surfaced in the UI
+- `lastListenedSequence`: highest assistant event sequence whose TTS playback completed successfully
+
+These cursors drive unread badges, missed-response replay, and future conversation-centric UI features. They are not inferred from PTY output.
+
 ### Error Handling
 
 All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR-SEMANTICS.md) for the full contract.
@@ -127,7 +166,9 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 | Repository interfaces (`ShortcutStore`, `AIConfigStore`) | Decouples handlers from storage backend; in-memory for tests, SQLite for production |
 | SQLite for shortcuts and AI config | User configuration survives restarts; health metrics stay in-memory (ephemeral, high-frequency) |
 | In-memory sessions (PTY process-bound) | PTY state cannot persist across restarts; session metadata persistence is a future target |
+| In-memory conversation store | Session conversations are runtime state scoped to the scenario process; enough for unread/messages/TTS within a run without overcommitting to persistence too early |
 | PTY interface + factory pattern | Enables testing without real shell processes |
+| Conversation events separate from terminal history | Semantic assistant-response features must not depend on raw PTY bytes or terminal rendering heuristics |
 | Single `exitCh` channel per session | Session signals exit; SessionManager owns cleanup |
 | `@vrooli/api-base` for networking | Proxy-correct HTTP/WS routing under parent iframe |
 | Config via env vars with clamping | Safe defaults, graceful degradation on bad input |
@@ -156,6 +197,9 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | File | Responsibility |
 |------|---------------|
 | `api/main.go` | Server wiring, routes, middleware, health checks |
+| `api/conversation_store.go` | In-memory conversation event store, cursor tracking, playback state |
+| `api/conversation_router.go` | Conversation-event append/orchestration entry point for AI response sources |
+| `api/conversation_handlers.go` | Conversation REST handlers (`GET /conversation`, `PUT /conversation/cursor`) |
 | `api/session.go` | Session + SessionManager domain logic, UTF-8 boundary buffering, frame coalescing |
 | `api/pty.go` | PTY interface and factory (testability seam) |
 | `api/errors.go` | Error catalog, structured error types, HTTP error-writing helpers |
@@ -181,10 +225,12 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/components/settings/NewPaneDefaultsSection.tsx` | New pane appearance defaults tab |
 | `ui/src/components/settings/IntegrationsSection.tsx` | Integrations tab |
 | `ui/src/hooks/useSessionManager.ts` | Session lifecycle orchestration |
+| `ui/src/hooks/useConversationSession.ts` | Conversation hydration + cursor persistence |
 | `ui/src/hooks/useTerminalSocket.ts` | WebSocket protocol handling |
 | `ui/src/hooks/useMediaQuery.ts` | Responsive settings shell behavior |
 | `ui/src/hooks/useCountdown.ts` | Policy countdown timer (shared by SessionDrawer + SessionsPage) |
 | `ui/src/components/TerminalPane.tsx` | xterm.js rendering |
+| `ui/src/components/MessagesPane.tsx` | Semantic messages-mode rendering for a single session |
 | `ui/src/components/TerminalLauncher.tsx` | New-terminal modal with shortcuts |
 | `ui/src/components/MobileToolbar.tsx` | Floating keyboard toolbar |
 | `ui/src/components/AiInput.tsx` | AI command input with generate/execute flow |
@@ -192,6 +238,7 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/components/ErrorBanner.tsx` | Structured error display |
 | `ui/src/components/ErrorBoundary.tsx` | React error boundary with region labels |
 | `ui/src/lib/api.ts` | HTTP/WS client functions |
+| `ui/src/stores/useConversationStore.ts` | Client-side conversation event/cursor/view-mode state |
 | `ui/src/lib/format.ts` | Display formatting utilities |
 | `ui/src/lib/localEcho.ts` | Predictive local echo with ANSI-aware graceful degradation |
 | `ui/src/lib/ansi.ts` | ANSI escape sequence constants |

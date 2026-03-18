@@ -41,11 +41,11 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 }));
 
 let capturedCandidateHandler:
-  | ((candidate: { eventId: string; source: string; text: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
+  | ((candidate: { id: string; source: string; role: "assistant"; text: string; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
   | undefined;
 vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: (opts: { onTTSCandidate?: typeof capturedCandidateHandler }) => {
-    capturedCandidateHandler = opts.onTTSCandidate;
+  useTerminalSocket: (opts: { onConversationEvent?: typeof capturedCandidateHandler }) => {
+    capturedCandidateHandler = opts.onConversationEvent;
     return {
       sendInput: vi.fn().mockReturnValue(true),
       sendResize: vi.fn(),
@@ -179,13 +179,13 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-1", source: "claude_hook", text: "Hello world" }, ack);
+      await capturedCandidateHandler?.({ id: "evt-1", source: "claude_hook", role: "assistant", sequence: 1, text: "Hello world" }, ack);
     });
 
     expect(mockStop).toHaveBeenCalled();
     expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Hello world"]);
     expect(ack).toHaveBeenCalledWith("received");
-    expect(ack).toHaveBeenCalledWith("correlated");
+    expect(ack).toHaveBeenCalledWith("seen");
     expect(ack).toHaveBeenCalledWith("playback_started", undefined, "browser");
     expect(ack).toHaveBeenCalledWith("playback_succeeded", undefined, "browser");
   });
@@ -194,7 +194,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-2", source: "claude_hook", text: "First paragraph\n\nSecond paragraph\n\nThird paragraph" }, vi.fn());
+      await capturedCandidateHandler?.({ id: "evt-2", source: "claude_hook", role: "assistant", sequence: 2, text: "First paragraph\n\nSecond paragraph\n\nThird paragraph" }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
@@ -210,26 +210,23 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-3", source: "claude_hook", text: "Hello world" }, ack);
+      await capturedCandidateHandler?.({ id: "evt-3", source: "claude_hook", role: "assistant", sequence: 3, text: "Hello world" }, ack);
     });
 
     expect(mockSpeakParagraphs).not.toHaveBeenCalled();
-    expect(ack).toHaveBeenCalledWith("rejected", "Auto-TTS is disabled in this tab");
+    expect(ack).toHaveBeenCalledWith("received");
   });
 
-  it("rejects candidates that do not match the rendered terminal buffer", async () => {
-    vi.useFakeTimers();
+  it("does not reject based on terminal text matching anymore", async () => {
     const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      const pending = capturedCandidateHandler?.({ eventId: "evt-4", source: "claude_hook", text: "This text is nowhere in the visible terminal" }, ack);
-      await vi.advanceTimersByTimeAsync(1600);
-      await pending;
+      await capturedCandidateHandler?.({ id: "evt-4", source: "claude_hook", role: "assistant", sequence: 4, text: "This text is nowhere in the visible terminal" }, ack);
     });
 
-    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
-    expect(ack).toHaveBeenCalledWith("rejected", "Assistant text did not match the rendered terminal buffer");
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["This text is nowhere in the visible terminal"]);
+    expect(ack).not.toHaveBeenCalledWith("rejected", expect.anything());
   });
 
   it("matches Codex markdown-formatted candidate text against rendered terminal output", async () => {
@@ -241,8 +238,10 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
 
     await act(async () => {
       await capturedCandidateHandler?.({
-        eventId: "evt-codex-markdown",
+        id: "evt-codex-markdown",
         source: "codex_tailer",
+        role: "assistant",
+        sequence: 5,
         text: "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
       }, ack);
     });
@@ -250,33 +249,26 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
       "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
     ]);
-    expect(ack).toHaveBeenCalledWith("correlated");
+    expect(ack).toHaveBeenCalledWith("seen");
     terminalBufferLines[0] = original;
   });
 
-  it("retries correlation briefly so delayed terminal rendering can still speak", async () => {
-    vi.useFakeTimers();
+  it("speaks delayed Codex events without terminal correlation retries", async () => {
     const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
-    const original = terminalBufferLines[0] ?? "";
-    terminalBufferLines[0] = "Waiting for Codex output";
-
     await act(async () => {
-      const pending = capturedCandidateHandler?.({
-        eventId: "evt-retry",
+      await capturedCandidateHandler?.({
+        id: "evt-retry",
         source: "codex_tailer",
+        role: "assistant",
+        sequence: 6,
         text: "Rendered a moment later",
       }, ack);
-      await vi.advanceTimersByTimeAsync(150);
-      terminalBufferLines[0] = "Rendered a moment later";
-      await vi.advanceTimersByTimeAsync(150);
-      await pending;
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Rendered a moment later"]);
-    expect(ack).toHaveBeenCalledWith("correlated");
-    terminalBufferLines[0] = original;
+    expect(ack).toHaveBeenCalledWith("seen");
   });
 
   it("sub-splits long blocks on single newlines", async () => {
@@ -289,7 +281,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     terminalBufferLines[0] = lineA;
     terminalBufferLines[1] = lineB;
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-5", source: "claude_hook", text: `${lineA}\n${lineB}` }, vi.fn());
+      await capturedCandidateHandler?.({ id: "evt-5", source: "claude_hook", role: "assistant", sequence: 7, text: `${lineA}\n${lineB}` }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB]);
@@ -301,7 +293,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-6", source: "claude_hook", text: "Only real content\n\n\n\n\n\nSecond part" }, vi.fn());
+      await capturedCandidateHandler?.({ id: "evt-6", source: "claude_hook", role: "assistant", sequence: 8, text: "Only real content\n\n\n\n\n\nSecond part" }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([

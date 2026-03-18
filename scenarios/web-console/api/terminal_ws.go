@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -31,11 +32,11 @@ const (
 	// uses this to batch-render history in a single write, avoiding the
 	// visible "fast-forward replay" effect on page load/refresh.
 	MsgTypeHistoryEnd = "history_end"
-	// MsgTypeTTSCandidate carries a candidate response that the client must
-	// correlate against the visible terminal before playback.
-	MsgTypeTTSCandidate = "tts_candidate"
-	// MsgTypeTTSAck records browser-side correlation/playback progress.
-	MsgTypeTTSAck = "tts_ack"
+	// MsgTypeConversationEvent carries a semantic assistant event for the
+	// owning session.
+	MsgTypeConversationEvent = "conversation_event"
+	// MsgTypeConversationAck records browser-side delivery/playback progress.
+	MsgTypeConversationAck = "conversation_event_ack"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -56,6 +57,9 @@ type TerminalMessage struct {
 	Source  string `json:"source,omitempty"`
 	Stage   string `json:"stage,omitempty"`
 	Backend string `json:"backend,omitempty"`
+	Role    string `json:"role,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	Sequence int64 `json:"sequence,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -113,9 +117,9 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	sub := sess.Subscribe(resumeOffset)
 	defer sess.Unsubscribe(sub.OutputCh)
 
-	// Subscribe to TTS side-channel for text-to-speech delivery.
-	ttsCh := sess.SubscribeTTS()
-	defer sess.UnsubscribeTTS(ttsCh)
+	// Subscribe to conversation side-channel for semantic assistant events.
+	conversationCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(conversationCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
@@ -195,16 +199,19 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
-			case candidate, ok := <-ttsCh:
+			case event, ok := <-conversationCh:
 				if !ok {
 					continue
 				}
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
-					Type:    MsgTypeTTSCandidate,
-					Data:    candidate.Text,
-					EventID: candidate.EventID,
-					Source:  candidate.Source,
+					Type:      MsgTypeConversationEvent,
+					Data:      event.Text,
+					EventID:   event.ID,
+					Source:    event.Source,
+					Role:      string(event.Role),
+					CreatedAt: event.CreatedAt.UTC().Format(time.RFC3339),
+					Sequence:  event.Sequence,
 				})
 				writeMu.Unlock()
 			case <-ctx.Done():
@@ -259,7 +266,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			writeMu.Lock()
 			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePong})
 			writeMu.Unlock()
-		case MsgTypeTTSAck:
+		case MsgTypeConversationAck:
 			if msg.EventID == "" || msg.Source == "" || msg.Stage == "" {
 				sendError("Invalid TTS acknowledgment")
 				continue

@@ -18,7 +18,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "tts_candidate" | "tts_ack";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -37,12 +37,18 @@ export interface TerminalMessage {
   source?: string;
   stage?: string;
   backend?: string;
+  role?: string;
+  createdAt?: string;
+  sequence?: number;
 }
 
-export interface TTSCandidateMessage {
-  eventId: string;
+export interface ConversationEventMessage {
+  id: string;
   source: string;
+  role: "assistant";
   text: string;
+  createdAt?: string;
+  sequence: number;
 }
 
 /** Factory function for creating WebSocket connections. Override in tests. */
@@ -103,8 +109,8 @@ interface UseTerminalSocketOptions {
   historyOffset?: number;
   /** Whether the terminal was restored from a serialized cache entry. */
   hasCachedState?: boolean;
-  /** Called when a TTS candidate arrives from the server. */
-  onTTSCandidate?: (candidate: TTSCandidateMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => void;
+  /** Called when a conversation event arrives from the server. */
+  onConversationEvent?: (event: ConversationEventMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => void;
 }
 
 /**
@@ -122,7 +128,7 @@ export function useTerminalSocket({
   createSocket = defaultSocketFactory,
   historyOffset,
   hasCachedState,
-  onTTSCandidate,
+  onConversationEvent,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,10 +141,10 @@ export function useTerminalSocket({
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
   const hasCachedStateRef = useRef(hasCachedState ?? false);
-  const onTTSCandidateRef = useRef(onTTSCandidate);
+  const onConversationEventRef = useRef(onConversationEvent);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
-  onTTSCandidateRef.current = onTTSCandidate;
+  onConversationEventRef.current = onConversationEvent;
   hasCachedStateRef.current = hasCachedState ?? false;
 
   const enqueueInput = useCallback((data: string) => {
@@ -236,13 +242,13 @@ export function useTerminalSocket({
 
       const ws = createSocket(wsUrl);
       wsRef.current = ws;
-      const sendTTSAck = (candidate: TTSCandidateMessage, stage: string, message?: string, backend?: string) => {
-        if (!candidate.eventId || !candidate.source) return;
+      const sendConversationAck = (event: ConversationEventMessage, stage: string, message?: string, backend?: string) => {
+        if (!event.id || !event.source) return;
         if (ws.readyState !== WebSocket.OPEN) return;
         ws.send(JSON.stringify({
-          type: "tts_ack",
-          eventId: candidate.eventId,
-          source: candidate.source,
+          type: "conversation_event_ack",
+          eventId: event.id,
+          source: event.source,
           stage,
           backend,
           data: message,
@@ -350,14 +356,17 @@ export function useTerminalSocket({
             );
             break;
           }
-          case "tts_candidate":
-            if (msg.data && msg.eventId && msg.source) {
-              const candidate = {
-                eventId: msg.eventId,
+          case "conversation_event":
+            if (msg.data && msg.eventId && msg.source && msg.sequence) {
+              const event = {
+                id: msg.eventId,
                 source: msg.source,
+                role: (msg.role === "assistant" ? "assistant" : "assistant"),
                 text: msg.data,
-              } satisfies TTSCandidateMessage;
-              onTTSCandidateRef.current?.(candidate, (stage, message, backend) => sendTTSAck(candidate, stage, message, backend));
+                createdAt: msg.createdAt,
+                sequence: msg.sequence,
+              } satisfies ConversationEventMessage;
+              onConversationEventRef.current?.(event, (stage, message, backend) => sendConversationAck(event, stage, message, backend));
             }
             break;
           case "resize_info":

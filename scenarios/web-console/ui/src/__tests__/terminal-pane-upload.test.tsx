@@ -150,7 +150,10 @@ describe("TerminalPane upload integration", () => {
 
     fireEvent.paste(pane, { clipboardData });
 
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/upload/image"),
+      expect.anything(),
+    );
   });
 
   it("drop event with image file triggers upload", async () => {
@@ -188,6 +191,9 @@ describe("TerminalPane upload integration", () => {
 
     fireEvent.drop(pane, { dataTransfer });
 
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/upload/image"),
+      expect.anything(),
+    );
   });
 });

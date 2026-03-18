@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, Palette, X } from "lucide-react";
+import { GripVertical, MessageSquareText, TerminalSquare, Palette, X } from "lucide-react";
+import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
@@ -10,8 +11,11 @@ interface TerminalHeaderProps {
   name: string;
   headerColor: string;
   isActive: boolean;
+  viewMode?: PaneViewMode;
+  unreadCount?: number;
   onClose: () => void;
   onFocus: () => void;
+  onToggleView?: () => void;
   onDragStart?: (sessionId: string, e: ReactPointerEvent) => void;
 }
 
@@ -20,8 +24,11 @@ export default function TerminalHeader({
   name,
   headerColor,
   isActive,
+  viewMode = "terminal",
+  unreadCount = 0,
   onClose,
   onFocus,
+  onToggleView,
   onDragStart,
 }: TerminalHeaderProps) {
   const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
@@ -114,6 +121,27 @@ export default function TerminalHeader({
         >
           {name}
         </span>
+      )}
+
+      {unreadCount > 0 && (
+        <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+          {unreadCount}
+        </span>
+      )}
+
+      {onToggleView && (
+        <button
+          data-testid={`terminal-header-toggle-view-${sessionId}`}
+          type="button"
+          className="flex h-5 w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleView();
+          }}
+          title={viewMode === "terminal" ? "Show messages" : "Show terminal"}
+        >
+          {viewMode === "terminal" ? <MessageSquareText className="h-3 w-3" /> : <TerminalSquare className="h-3 w-3" />}
+        </button>
       )}
 
       {/* Appearance button */}

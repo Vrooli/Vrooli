@@ -110,10 +110,11 @@ type Session struct {
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
 
-	// TTS side-channel: fan-out of text-to-speech messages to WebSocket clients.
-	ttsMu         sync.Mutex
-	ttsClients    map[chan TTSCandidate]struct{}
-	ttsDropLogged bool // log once per session when a TTS message is dropped
+	// Conversation side-channel: fan-out of semantic assistant events to
+	// WebSocket clients subscribed to this terminal session.
+	conversationMu         sync.Mutex
+	conversationClients    map[chan ConversationEvent]struct{}
+	conversationDropLogged bool // log once per session when an event is dropped
 }
 
 // Write sends data to the PTY stdin.
@@ -719,7 +720,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
-		ttsClients:              make(map[chan TTSCandidate]struct{}),
+		conversationClients:     make(map[chan ConversationEvent]struct{}),
 	}
 
 	sm.mu.Lock()
@@ -795,38 +796,39 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	return s.Cols, s.Rows
 }
 
-// SubscribeTTS returns a buffered channel that receives TTS candidate events.
-// Caller must call UnsubscribeTTS when done.
-func (s *Session) SubscribeTTS() chan TTSCandidate {
-	ch := make(chan TTSCandidate, 8)
-	s.ttsMu.Lock()
-	s.ttsClients[ch] = struct{}{}
-	s.ttsMu.Unlock()
+// SubscribeConversation returns a buffered channel that receives conversation
+// events for this session. Caller must call UnsubscribeConversation when done.
+func (s *Session) SubscribeConversation() chan ConversationEvent {
+	ch := make(chan ConversationEvent, 8)
+	s.conversationMu.Lock()
+	s.conversationClients[ch] = struct{}{}
+	s.conversationMu.Unlock()
 	return ch
 }
 
-// UnsubscribeTTS removes and closes a TTS channel.
-// close(ch) must happen inside the lock so that SendTTS (which iterates
-// ttsClients under the same lock) can never write to a closed channel.
-func (s *Session) UnsubscribeTTS(ch chan TTSCandidate) {
-	s.ttsMu.Lock()
-	delete(s.ttsClients, ch)
+// UnsubscribeConversation removes and closes a conversation channel.
+// close(ch) must happen inside the lock so that SendConversation (which
+// iterates conversationClients under the same lock) can never write to a
+// closed channel.
+func (s *Session) UnsubscribeConversation(ch chan ConversationEvent) {
+	s.conversationMu.Lock()
+	delete(s.conversationClients, ch)
 	close(ch)
-	s.ttsMu.Unlock()
+	s.conversationMu.Unlock()
 }
 
-// SendTTS fans out a TTS candidate to all subscribed clients.
+// SendConversation fans out a conversation event to all subscribed clients.
 // Non-blocking: if a client's channel is full, the message is skipped.
-func (s *Session) SendTTS(candidate TTSCandidate) {
-	s.ttsMu.Lock()
-	defer s.ttsMu.Unlock()
-	for ch := range s.ttsClients {
+func (s *Session) SendConversation(event ConversationEvent) {
+	s.conversationMu.Lock()
+	defer s.conversationMu.Unlock()
+	for ch := range s.conversationClients {
 		select {
-		case ch <- candidate:
+		case ch <- event:
 		default:
-			if !s.ttsDropLogged {
-				log.Printf("session %s: TTS message dropped (client channel full)", s.ID)
-				s.ttsDropLogged = true
+			if !s.conversationDropLogged {
+				log.Printf("session %s: conversation event dropped (client channel full)", s.ID)
+				s.conversationDropLogged = true
 			}
 		}
 	}

@@ -14,41 +14,26 @@ func newTTSTestServer() *Server {
 		events:          NewEventLogger(100),
 		metrics:         NewMetrics(),
 		workspace:       NewMemWorkspaceStore(),
-		ttsDedup:        newTTSDedup(),
-		lastTTSBySource: make(map[string]ttsRoutingSnapshot),
+		conversations:   NewConversationStore(),
+		lastTTSBySource: make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc: make(map[string]ttsAckSnapshot),
 	}
 }
 
-func TestRouteTTSCandidate_Disabled(t *testing.T) {
+func TestAppendConversationEvent_TargetMissing(t *testing.T) {
 	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: false}
 
-	result := srv.routeTTSCandidate("some text", "s1", "test")
-	if result.Routed {
-		t.Fatal("expected routing to be skipped when auto-TTS is disabled")
+	result := srv.appendConversationEvent("some text", "", "test")
+	if result.Appended {
+		t.Fatal("expected append to fail without a mapped target")
 	}
-	if result.Code != "tts_auto_disabled" {
-		t.Fatalf("expected tts_auto_disabled, got %s", result.Code)
+	if result.Code != "conversation_target_missing" {
+		t.Fatalf("expected conversation_target_missing, got %s", result.Code)
 	}
 }
 
-func TestRouteTTSCandidate_TargetMissing(t *testing.T) {
+func TestAppendConversationEvent_RoutesToMappedSession(t *testing.T) {
 	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: true}
-
-	result := srv.routeTTSCandidate("some text", "", "test")
-	if result.Routed {
-		t.Fatal("expected routing to fail without a mapped target")
-	}
-	if result.Code != "tts_target_missing" {
-		t.Fatalf("expected tts_target_missing, got %s", result.Code)
-	}
-}
-
-func TestRouteTTSCandidate_RoutesToMappedSession(t *testing.T) {
-	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: true}
 
 	fake := newFakePTYWithOutput()
 	defer fake.Close()
@@ -61,36 +46,35 @@ func TestRouteTTSCandidate_RoutesToMappedSession(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	ttsCh := sess.SubscribeTTS()
-	defer sess.UnsubscribeTTS(ttsCh)
+	eventCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(eventCh)
 
-	result := srv.routeTTSCandidate("The answer is 42", sess.ID, "test")
-	if !result.Routed {
-		t.Fatalf("expected routing to succeed, got %+v", result)
+	result := srv.appendConversationEvent("The answer is 42", sess.ID, "test")
+	if !result.Appended {
+		t.Fatalf("expected append to succeed, got %+v", result)
 	}
-	if result.Code != "tts_candidate_routed" {
-		t.Fatalf("expected tts_candidate_routed, got %s", result.Code)
+	if result.Code != "conversation_event_appended" {
+		t.Fatalf("expected conversation_event_appended, got %s", result.Code)
 	}
 
 	select {
-	case candidate := <-ttsCh:
-		if candidate.Text != "The answer is 42" {
-			t.Fatalf("expected routed text, got %q", candidate.Text)
+	case event := <-eventCh:
+		if event.Text != "The answer is 42" {
+			t.Fatalf("expected routed text, got %q", event.Text)
 		}
-		if candidate.SessionID != sess.ID {
-			t.Fatalf("expected session %s, got %s", sess.ID, candidate.SessionID)
+		if event.SessionID != sess.ID {
+			t.Fatalf("expected session %s, got %s", sess.ID, event.SessionID)
 		}
-		if candidate.EventID == "" {
+		if event.ID == "" {
 			t.Fatal("expected event id to be populated")
 		}
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for TTS candidate")
+		t.Fatal("timed out waiting for conversation event")
 	}
 }
 
-func TestRouteTTSCandidate_DeduplicatesByEventIdentity(t *testing.T) {
+func TestAppendConversationEvent_DeduplicatesByEventIdentity(t *testing.T) {
 	srv := newTTSTestServer()
-	srv.ttsConfig = TTSConfig{AutoEnabled: true}
 
 	fake := newFakePTYWithOutput()
 	defer fake.Close()
@@ -103,27 +87,27 @@ func TestRouteTTSCandidate_DeduplicatesByEventIdentity(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	ttsCh := sess.SubscribeTTS()
-	defer sess.UnsubscribeTTS(ttsCh)
+	eventCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(eventCh)
 
-	first := srv.routeTTSCandidate("duplicate me", sess.ID, "test")
-	second := srv.routeTTSCandidate("duplicate me", sess.ID, "test")
-	if !first.Routed {
-		t.Fatalf("expected first routing to succeed, got %+v", first)
+	first := srv.appendConversationEvent("duplicate me", sess.ID, "test")
+	second := srv.appendConversationEvent("duplicate me", sess.ID, "test")
+	if !first.Appended {
+		t.Fatalf("expected first append to succeed, got %+v", first)
 	}
-	if !second.Routed || !second.Duplicate || second.Code != "tts_duplicate" {
+	if !second.Appended || !second.Duplicate || second.Code != "conversation_duplicate" {
 		t.Fatalf("expected duplicate result, got %+v", second)
 	}
 
 	select {
-	case <-ttsCh:
+	case <-eventCh:
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for first TTS candidate")
+		t.Fatal("timed out waiting for first conversation event")
 	}
 
 	select {
-	case <-ttsCh:
-		t.Fatal("did not expect duplicate candidate to be re-routed")
+	case <-eventCh:
+		t.Fatal("did not expect duplicate event to be republished")
 	case <-time.After(100 * time.Millisecond):
 	}
 }

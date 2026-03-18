@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
 import TabContextMenu from "./TabContextMenu";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { useConversationStore } from "../stores/useConversationStore";
 
 interface TabBarProps {
   panes: PaneMetadata[];
@@ -36,6 +37,7 @@ export default function TabBar({
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
+  const conversationSessions = useConversationStore((s) => s.sessions);
   const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
 
   // Inline rename state for tabs
@@ -363,6 +365,11 @@ export default function TabBar({
           const isDropTarget =
             isDragging && !isBeingDragged && dragState?.dropIndex === idx;
           const paneGroup = pane.groupId ? groupMap.get(pane.groupId) : undefined;
+          const unreadCount = (() => {
+            const session = conversationSessions[pane.sessionId];
+            if (!session) return 0;
+            return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+          })();
 
           return (
               <div
@@ -497,6 +504,12 @@ export default function TabBar({
                 />
               ) : (
                 <span className="truncate max-w-[120px]">{pane.name}</span>
+              )}
+
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                  {unreadCount}
+                </span>
               )}
 
               {/* Close button - visible on hover or when active */}

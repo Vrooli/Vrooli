@@ -33,6 +33,8 @@ import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ConfirmCloseDialog from "./ConfirmCloseDialog";
 import TabBar from "./TabBar";
+import MessagesPane from "./MessagesPane";
+import { useConversationStore } from "../stores/useConversationStore";
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -75,6 +77,10 @@ export default function Workspace() {
 
   const store = useWorkspaceStore();
   const { syncActivePane } = useWorkspaceSync();
+  const setConversationViewMode = useConversationStore((state) => state.setViewMode);
+  const clearConversationSession = useConversationStore((state) => state.clearSession);
+  const conversationSessions = useConversationStore((state) => state.sessions);
+  const conversationViewModes = useConversationStore((state) => state.viewModes);
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
@@ -211,10 +217,11 @@ export default function Workspace() {
     (sessionId: string) => {
       removeSessionPane(sessionId);
       store.removePane(sessionId);
+      clearConversationSession(sessionId);
       exitedSessionsRef.current.delete(sessionId);
       try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
-    [removeSessionPane, store],
+    [clearConversationSession, removeSessionPane, store],
   );
 
   const handleRequestClose = useCallback(
@@ -537,6 +544,12 @@ export default function Workspace() {
       !isBeingDragged &&
       activeArrangeDrag?.dropIndex === idx;
 
+    const sessionConversation = conversationSessions[paneMeta.sessionId];
+    const viewMode = conversationViewModes[paneMeta.sessionId] ?? "terminal";
+    const unreadCount = sessionConversation
+      ? sessionConversation.events.filter((event) => event.role === "assistant" && event.sequence > sessionConversation.cursor.lastSeenSequence).length
+      : 0;
+
     return (
       <div
         key={paneMeta.sessionId}
@@ -560,11 +573,14 @@ export default function Workspace() {
           name={paneMeta.name}
           headerColor={paneMeta.headerColor}
           isActive={store.activePane === paneMeta.sessionId}
+          viewMode={viewMode}
+          unreadCount={unreadCount}
           onClose={() => handleRequestClose(paneMeta.sessionId)}
           onFocus={() => activatePane(paneMeta.sessionId)}
+          onToggleView={() => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal")}
           onDragStart={startArrangeDrag}
         />
-        <div className="flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0">
           <ErrorBoundary region="terminal">
             <TerminalPane
               sessionId={paneMeta.sessionId}
@@ -578,6 +594,11 @@ export default function Workspace() {
               }
             />
           </ErrorBoundary>
+          {viewMode === "messages" && (
+            <div className="absolute inset-0">
+              <MessagesPane sessionId={paneMeta.sessionId} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -643,8 +664,24 @@ export default function Workspace() {
       {store.displayMode === "tabs" ? (
         /* Tab mode: stacked panes with display:none for inactive */
         <div className="relative flex-1 min-h-0 overflow-hidden">
+          {store.activePane && (
+            <div className="absolute right-3 top-3 z-20">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => {
+                  const current = conversationViewModes[store.activePane ?? ""] ?? "terminal";
+                  setConversationViewMode(store.activePane ?? "", current === "terminal" ? "messages" : "terminal");
+                }}
+              >
+                {(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Messages view" : "Terminal view"}
+              </Button>
+            </div>
+          )}
           {orderedPanes.map((paneMeta) => {
             const isActive = paneMeta.sessionId === store.activePane;
+            const viewMode = conversationViewModes[paneMeta.sessionId] ?? "terminal";
             return (
               <div
                 key={paneMeta.sessionId}
@@ -652,7 +689,7 @@ export default function Workspace() {
                 className="absolute inset-0 flex flex-col"
                 style={{ visibility: isActive ? "visible" : "hidden" }}
               >
-                <div className="flex-1 min-h-0">
+                <div className="relative flex-1 min-h-0">
                   <ErrorBoundary region="terminal">
                     <TerminalPane
                       sessionId={paneMeta.sessionId}
@@ -660,11 +697,17 @@ export default function Workspace() {
                       onReady={() => handleTerminalReady(paneMeta.sessionId)}
                       onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
                       onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+                      onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }
                     />
                   </ErrorBoundary>
+                  {viewMode === "messages" && (
+                    <div className="absolute inset-0">
+                      <MessagesPane sessionId={paneMeta.sessionId} />
+                    </div>
+                  )}
                 </div>
               </div>
             );

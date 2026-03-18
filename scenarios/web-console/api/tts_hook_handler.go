@@ -34,6 +34,6 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "tts_input_required", "Hook payload did not include assistant response text")
 		return
 	}
-	result := s.routeTTSCandidate(assistantText, req.WebConsoleSessionID, "claude_hook")
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "routing": result, "routed": result.Routed})
+	result := s.appendConversationEvent(assistantText, req.WebConsoleSessionID, "claude_hook")
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "routing": result, "routed": result.Appended})
 }

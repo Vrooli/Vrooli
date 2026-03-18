@@ -143,7 +143,7 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 				}
 				text := ExtractAssistantText(line)
 				if text != "" {
-					ct.server.routeTTSCandidate(text, sessionID, "codex_tailer")
+					ct.server.appendConversationEvent(text, sessionID, "codex_tailer")
 				}
 			}
 		}

@@ -83,8 +83,8 @@ func TestHandleHookStop_ValidToken_NoSession(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected routing object, got %T", resp["routing"])
 	}
-	if routing["code"] != "tts_target_missing" {
-		t.Errorf("expected tts_target_missing, got %v", routing["code"])
+	if routing["code"] != "conversation_target_missing" {
+		t.Errorf("expected conversation_target_missing, got %v", routing["code"])
 	}
 	if resp["routed"] != false {
 		t.Errorf("expected routed=false (no session), got %v", resp["routed"])
@@ -113,7 +113,7 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	defer fake.Close()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 	srv.sessions = sm
-	srv.ttsDedup = newTTSDedup()
+	srv.conversations = NewConversationStore()
 
 	sess, err := sm.Create("", 80, 24)
 	if err != nil {
@@ -121,8 +121,8 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	}
 	defer func() { _ = sm.Delete(sess.ID) }()
 
-	ttsCh := sess.SubscribeTTS()
-	defer sess.UnsubscribeTTS(ttsCh)
+	eventCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(eventCh)
 
 	body := strings.NewReader(`{"hook_event_name":"Stop","last_assistant_message":"hello from claude","session_id":"claude-session-123","web_console_session_id":"` + sess.ID + `"}`)
 	req := httptest.NewRequest("POST", "/api/v1/hooks/stop", body)
@@ -137,15 +137,15 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	}
 
 	select {
-	case candidate := <-ttsCh:
-		if candidate.Text != "hello from claude" {
-			t.Fatalf("expected %q, got %q", "hello from claude", candidate.Text)
+	case event := <-eventCh:
+		if event.Text != "hello from claude" {
+			t.Fatalf("expected %q, got %q", "hello from claude", event.Text)
 		}
-		if candidate.SessionID != sess.ID {
-			t.Fatalf("expected session %s, got %s", sess.ID, candidate.SessionID)
+		if event.SessionID != sess.ID {
+			t.Fatalf("expected session %s, got %s", sess.ID, event.SessionID)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for TTS routing")
+		t.Fatal("timed out waiting for conversation event routing")
 	}
 
 	var resp map[string]any
@@ -156,8 +156,8 @@ func TestHandleHookStop_RoutesToMappedTerminalSession(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected routing object, got %T", resp["routing"])
 	}
-	if routing["code"] != "tts_candidate_routed" {
-		t.Fatalf("expected tts_candidate_routed, got %v", routing["code"])
+	if routing["code"] != "conversation_event_appended" {
+		t.Fatalf("expected conversation_event_appended, got %v", routing["code"])
 	}
 }
 

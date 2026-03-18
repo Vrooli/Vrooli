@@ -16,7 +16,12 @@ import { useImageUpload } from "../hooks/useImageUpload";
 import TerminalContextMenu from "./TerminalContextMenu";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
-import { waitForTerminalCandidateMatch } from "../lib/terminalTtsMatch";
+import { useConversationSession } from "../hooks/useConversationSession";
+import { useConversationStore } from "../stores/useConversationStore";
+import type { ConversationEvent } from "../lib/api";
+
+const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
+const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -46,6 +51,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const serializeRef = useRef<SerializeAddon | null>(null);
     const cachedOffsetRef = useRef<number | undefined>(undefined);
     const hadCacheRef = useRef(false);
+    const livePlaybackEventRef = useRef<string | null>(null);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
 
     // Per-pane selectors with fallbacks for old persisted data
@@ -103,32 +109,45 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       return () => clearTimeout(timer);
     }, [ttsError]);
 
-    // Auto-TTS: correlate routed TTS candidates against this terminal's
-    // rendered buffer, then play them if they match.
     const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
+    const activePane = useWorkspaceStore((s) => s.activePane);
+    const { appendConversationEvent, persistCursor } = useConversationSession(sessionId);
+    const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
+    const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
+    const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
 
-    const handleTTSCandidate = useCallback(async (
-      candidate: { eventId: string; source: string; text: string },
+    const handleConversationEvent = useCallback(async (
+      event: { id: string; source: string; role: "assistant"; text: string; createdAt?: string; sequence: number },
       sendAck: (stage: string, message?: string, backend?: string) => void,
     ) => {
+      appendConversationEvent({
+        id: event.id,
+        sessionId,
+        source: event.source,
+        role: event.role,
+        text: event.text,
+        createdAt: event.createdAt ?? new Date().toISOString(),
+        sequence: event.sequence,
+        deliveryState: "received",
+        ttsState: "idle",
+        consumptionState: "unseen",
+      } satisfies ConversationEvent);
       sendAck("received");
-      if (!autoTtsEnabled) {
-        sendAck("rejected", "Auto-TTS is disabled in this tab");
+      const isActivePane = activePane === sessionId;
+      if (isActivePane) {
+        void persistCursor({ lastSeenSequence: event.sequence });
+        sendAck("seen");
+      }
+      if (!autoTtsEnabled || !isActivePane) {
         return;
       }
-      if (!ttsSupported || !terminal) {
+      if (!ttsSupported) {
         sendAck("rejected", "No TTS backend is available in this tab");
         return;
       }
-      if (!await waitForTerminalCandidateMatch(terminal, candidate.text)) {
-        sendAck("rejected", "Assistant text did not match the rendered terminal buffer");
-        return;
-      }
-      sendAck("correlated");
+      livePlaybackEventRef.current = event.id;
       ttsStop();
-      // Split on double-newlines first; if that yields very long blocks,
-      // sub-split on single newlines so utterances stay manageable.
-      const raw = candidate.text.split(/\n\n+/).filter((p) => p.trim());
+      const raw = event.text.split(/\n\n+/).filter((p) => p.trim());
       const paragraphs: string[] = [];
       for (const block of raw) {
         if (block.length > 500) {
@@ -141,11 +160,52 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       try {
         const usedBackend = await speakParagraphs(paragraphs);
         sendAck("playback_succeeded", undefined, usedBackend ?? backend);
+        await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Speech failed";
         sendAck("playback_failed", message, backend);
+      } finally {
+        if (livePlaybackEventRef.current === event.id) {
+          livePlaybackEventRef.current = null;
+        }
       }
-    }, [autoTtsEnabled, backend, speakParagraphs, terminal, ttsStop, ttsSupported]);
+    }, [activePane, appendConversationEvent, autoTtsEnabled, backend, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
+
+    useEffect(() => {
+      if (activePane !== sessionId) return;
+      const latestSequence = conversationEvents[conversationEvents.length - 1]?.sequence;
+      if (latestSequence && latestSequence > conversationCursor.lastSeenSequence) {
+        void persistCursor({ lastSeenSequence: latestSequence });
+      }
+    }, [activePane, conversationCursor.lastSeenSequence, conversationEvents, persistCursor, sessionId]);
+
+    useEffect(() => {
+      if (activePane !== sessionId || !autoTtsEnabled || !ttsSupported) return;
+      const pending = conversationEvents.filter((event) =>
+        event.role === "assistant" && event.sequence > conversationCursor.lastListenedSequence && event.id !== livePlaybackEventRef.current,
+      );
+      if (pending.length === 0 || ttsSpeaking) return;
+
+      let cancelled = false;
+      const playPending = async () => {
+        for (const event of pending) {
+          if (cancelled) return;
+          ttsStop();
+          const raw = event.text.split(/\n\n+/).filter((p) => p.trim());
+          const paragraphs = raw.length > 0 ? raw : [event.text];
+          try {
+            await speakParagraphs(paragraphs);
+            await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
+          } catch {
+            return
+          }
+        }
+      };
+      void playPending();
+      return () => {
+        cancelled = true;
+      };
+    }, [activePane, autoTtsEnabled, backend, conversationCursor.lastListenedSequence, conversationEvents, persistCursor, sessionId, speakParagraphs, ttsSpeaking, ttsStop, ttsSupported]);
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({
@@ -167,7 +227,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       },
       historyOffset: cachedOffsetRef.current,
       hasCachedState: hadCacheRef.current,
-      onTTSCandidate: handleTTSCandidate,
+      onConversationEvent: handleConversationEvent,
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)

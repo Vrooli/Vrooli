@@ -217,6 +217,30 @@ export interface TTSPlaybackEvent {
   message?: string;
 }
 
+export interface ConversationEvent {
+  id: string;
+  sessionId: string;
+  source: string;
+  role: "assistant";
+  text: string;
+  createdAt: string;
+  sequence: number;
+  deliveryState: string;
+  ttsState: string;
+  consumptionState: string;
+}
+
+export interface ConversationCursor {
+  lastSeenSequence: number;
+  lastListenedSequence: number;
+}
+
+export interface ConversationSessionResponse {
+  sessionId: string;
+  events: ConversationEvent[];
+  cursor: ConversationCursor;
+}
+
 export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
   const url = buildApiUrl("/tts/events", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -227,6 +251,34 @@ export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
   if (!res.ok) {
     throw await extractAPIError(res, "Failed to report TTS event");
   }
+}
+
+export async function getConversationSession(sessionId: string): Promise<ConversationSessionResponse> {
+  const url = buildApiUrl(`/sessions/${sessionId}/conversation`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to get conversation session");
+  }
+  return (await res.json()) as ConversationSessionResponse;
+}
+
+export async function updateConversationCursor(
+  sessionId: string,
+  patch: Partial<ConversationCursor>,
+): Promise<ConversationCursor> {
+  const url = buildApiUrl(`/sessions/${sessionId}/conversation/cursor`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to update conversation cursor");
+  }
+  return (await res.json()) as ConversationCursor;
 }
 
 // [REQ:P1-002a] Shortcut Profile API - client
@@ -558,12 +610,13 @@ export interface TTSConfig {
 }
 
 export interface TTSRoutingResult {
-  routed: boolean;
+  appended: boolean;
   code: string;
   reason: string;
   source: string;
   sessionId?: string;
   eventId?: string;
+  sequence?: number;
   duplicate?: boolean;
 }
 

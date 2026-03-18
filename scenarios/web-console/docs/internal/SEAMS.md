@@ -1,6 +1,6 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-03-15
+Last updated: 2026-03-17
 
 ## Responsibility Zones
 
@@ -8,7 +8,8 @@ Last updated: 2026-03-15
 **Owner**: `ui/src/components/`
 - [CODE: ui/src/components/Workspace.tsx] — **Stable core**: pane grid layout, header, empty-state UI. Delegates all session logic to `useSessionManager` hook.
 - [CODE: ui/src/components/ErrorBanner.tsx] — **Volatile edge**: reusable error display with category/recovery/retry. Single place to change error UX.
-- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering only (no protocol logic)
+- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation consumption (active-pane auto-TTS, seen/listened cursor advancement)
+- [CODE: ui/src/components/MessagesPane.tsx] — semantic messages rendering from conversation events; never parses PTY output
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
 - [CODE: ui/src/components/MobileToolbar.tsx] — Floating key toolbar for mobile input injection
@@ -18,10 +19,24 @@ Last updated: 2026-03-15
 **Owner**: [CODE: ui/src/hooks/useSessionManager.ts]
 - `useSessionManager` — **Stable core**: pane state, session CRUD callbacks, terminal ref management, pending command bookkeeping. Separates lifecycle logic from layout.
 
+### 1c. Conversation Orchestration
+**Owner**: [CODE: ui/src/hooks/useConversationSession.ts], [CODE: ui/src/stores/useConversationStore.ts]
+- `useConversationSession` — hydrates one session's conversation history and persists cursor updates to the API.
+- `useConversationStore` — client-side semantic source of truth for conversation events, unread counts, listened state, and per-session terminal/messages view mode.
+- Key invariant: conversation features consume `ConversationEvent`s, never raw PTY output history.
+
 ### 2. Transport / Protocol
 **Owner**: [CODE: ui/src/hooks/useTerminalSocket.ts] (client), [CODE: api/terminal_ws.go] (server)
-- `useTerminalSocket` — Manages WebSocket connection, bidirectional I/O (stdin/stdout), resize messages, keepalive, and lifecycle events (exit, error, disconnect). Signals readiness via `onReady` callback. Accepts optional `createSocket` factory for test injection.
+- `useTerminalSocket` — Manages WebSocket connection, bidirectional I/O (stdin/stdout), conversation event delivery, conversation event acknowledgments, resize messages, keepalive, and lifecycle events (exit, error, disconnect). Signals readiness via `onReady` callback. Accepts optional `createSocket` factory for test injection.
 - `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong
+- Key invariant: terminal transport carries both raw PTY frames and semantic `conversation_event` side-channel messages, but only the conversation side-channel drives unread/messages/TTS logic.
+
+### 2b. Conversation Ingestion
+**Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go]
+- Claude hook adapter parses Stop-hook payloads and appends assistant conversation events.
+- Codex tailer parses rollout output and appends assistant conversation events.
+- `appendConversationEvent(...)` is the only semantic ingestion path.
+- Key invariant: source adapters produce normalized conversation events first; TTS is downstream of those events.
 
 ### 3. Domain / Session Lifecycle
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
@@ -33,17 +48,31 @@ Last updated: 2026-03-15
 - `SessionManager` — Session CRUD, resize (delegates to `PTY.SetSize()`), auto-cleanup on exit (listens on `Session.Done()`)
 - Key invariant: Session signals its own exit; SessionManager owns the cleanup decision
 
+### 3b. Domain / Conversation Lifecycle
+**Owner**: [CODE: api/conversation_store.go]
+- `ConversationStore` — In-memory ordered event log keyed by session ID.
+- Owns:
+  - append ordering via per-session `sequence`
+  - cursor state (`lastSeenSequence`, `lastListenedSequence`)
+  - per-event delivery/TTS/consumption state
+  - list/get operations for conversation history APIs
+- Key invariant: semantic response state is stored here, not reconstructed from PTY output or browser-rendered terminal state.
+
 ### 4. HTTP Transport (REST)
-**Owner**: [CODE: api/session_handlers.go]
+**Owner**: [CODE: api/session_handlers.go], [CODE: api/conversation_handlers.go]
 - Request parsing, response formatting, HTTP status codes
 - [CODE: api/session_handlers.go#sessionToResponse] — domain-to-transport conversion
 - Policy sub-resource handlers (`handleGetPolicy`, `handleUpdatePolicy`) — operate on `/sessions/{id}/policy`, co-located with other session endpoints
 - Delegates all business logic to `SessionManager` and domain modules
+- Conversation handlers expose:
+  - `GET /api/v1/sessions/{id}/conversation`
+  - `PUT /api/v1/sessions/{id}/conversation/cursor`
 
 ### 5. Integration / Infrastructure
 **Owner**: [CODE: api/main.go], [CODE: ui/src/lib/api.ts]
 - `main.go` — Database connection, router setup, health checks, server lifecycle
 - `api.ts` — HTTP/WS client functions, URL construction via `@vrooli/api-base`
+- Key invariant: API contracts expose semantic conversation data directly; clients should not infer conversation state from terminal frames.
 
 ### 6. Cross-Cutting
 - **Logging**: `log.Printf()` in Go API (simple, adequate for single-user)

@@ -273,18 +273,18 @@ func TestHandleGetTTSStatus_SeparatesHookAndTailerRoutingAndAck(t *testing.T) {
 	srv.hookAuthToken = "secret-token"
 	srv.ttsConfig = TTSConfig{AutoEnabled: true, Backend: "auto", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
 	srv.capabilities = NewCapabilityRegistry(knownCapabilities, map[string]StatusChecker{}, 0)
-	srv.recordLastTTSRouting(TTSRoutingResult{
-		Routed: true,
-		Code:   "tts_candidate_routed",
-		Reason: "hook routed",
-		Source: "claude_hook",
+	srv.recordLastTTSRouting(ConversationAppendResult{
+		Appended: true,
+		Code:     "conversation_event_appended",
+		Reason:   "hook appended",
+		Source:   "claude_hook",
 	})
 	time.Sleep(10 * time.Millisecond)
-	srv.recordLastTTSRouting(TTSRoutingResult{
-		Routed: false,
-		Code:   "tts_target_missing",
-		Reason: "tailer skipped",
-		Source: "codex_tailer",
+	srv.recordLastTTSRouting(ConversationAppendResult{
+		Appended: false,
+		Code:     "conversation_target_missing",
+		Reason:   "tailer skipped",
+		Source:   "codex_tailer",
 	})
 	srv.recordTTSAck(TTSClientAck{
 		EventID:   "evt-claude",

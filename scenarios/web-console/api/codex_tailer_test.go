@@ -124,8 +124,8 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 
-	ttsCh := sess.SubscribeTTS()
-	defer sess.UnsubscribeTTS(ttsCh)
+	eventCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(eventCh)
 
 	ct := NewCodexTailer(srv)
 	ct.staleTimeout = 2 * time.Second
@@ -154,15 +154,15 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	}
 
 	select {
-	case candidate := <-ttsCh:
-		if candidate.Text != "Hello from the tailer" {
-			t.Fatalf("expected routed text, got %q", candidate.Text)
+	case event := <-eventCh:
+		if event.Text != "Hello from the tailer" {
+			t.Fatalf("expected routed text, got %q", event.Text)
 		}
-		if candidate.SessionID != sess.ID {
-			t.Fatalf("expected session %s, got %s", sess.ID, candidate.SessionID)
+		if event.SessionID != sess.ID {
+			t.Fatalf("expected session %s, got %s", sess.ID, event.SessionID)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for TTS candidate from CodexTailer")
+		t.Fatal("timed out waiting for conversation event from CodexTailer")
 	}
 
 	ct.Stop()
