@@ -2,18 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
 
-// --- Mocks (must be hoisted before component import) ---
-
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
-// Mock speechSynthesis on window (needed for browser support detection)
 Object.defineProperty(window, "speechSynthesis", {
   value: { speak: vi.fn(), cancel: vi.fn(), getVoices: vi.fn(() => []), speaking: false, paused: false, onvoiceschanged: null },
   writable: true,
   configurable: true,
 });
 
-// Mock SpeechSynthesisUtterance
 class MockUtterance {
   text: string;
   rate = 1;
@@ -27,9 +23,8 @@ class MockUtterance {
 }
 vi.stubGlobal("SpeechSynthesisUtterance", MockUtterance);
 
-// Track calls to useTextToSpeech return values
 const mockSpeak = vi.fn();
-const mockSpeakParagraphs = vi.fn();
+const mockSpeakParagraphs = vi.fn().mockResolvedValue("browser");
 const mockStop = vi.fn();
 
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -45,11 +40,12 @@ vi.mock("../hooks/useTextToSpeech", () => ({
   }),
 }));
 
-// Mock useTerminalSocket to capture the onTTS handler
-let capturedOnTTS: ((text: string) => void) | undefined;
+let capturedCandidateHandler:
+  | ((candidate: { eventId: string; source: string; text: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
+  | undefined;
 vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: (opts: { onTTS?: (text: string) => void }) => {
-    capturedOnTTS = opts.onTTS;
+  useTerminalSocket: (opts: { onTTSCandidate?: typeof capturedCandidateHandler }) => {
+    capturedCandidateHandler = opts.onTTSCandidate;
     return {
       sendInput: vi.fn().mockReturnValue(true),
       sendResize: vi.fn(),
@@ -58,7 +54,6 @@ vi.mock("../hooks/useTerminalSocket", () => ({
   },
 }));
 
-// Mock useTerminalTouch
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({
     hasSelection: false,
@@ -67,12 +62,21 @@ vi.mock("../hooks/useTerminalTouch", () => ({
   }),
 }));
 
-// Mock useMobileBackspaceRepeat
 vi.mock("../hooks/useMobileBackspaceRepeat", () => ({
   useMobileBackspaceRepeat: vi.fn(),
 }));
 
-// Mock xterm Terminal
+const makeLine = (text: string) => ({ translateToString: vi.fn(() => text) });
+const terminalBufferLines = [
+  "Hello world",
+  "First paragraph",
+  "Second paragraph",
+  "Third paragraph",
+  "New message replaces old",
+  "Only real content",
+  "Second part",
+];
+
 vi.mock("@xterm/xterm", () => ({
   Terminal: vi.fn().mockImplementation(() => ({
     open: vi.fn(),
@@ -84,7 +88,14 @@ vi.mock("@xterm/xterm", () => ({
     cols: 80,
     rows: 24,
     options: {},
-    buffer: { active: { viewportY: 0, baseY: 0 } },
+    buffer: {
+      active: {
+        viewportY: 0,
+        baseY: 0,
+        length: terminalBufferLines.length,
+        getLine: (index: number) => makeLine(terminalBufferLines[index] ?? ""),
+      },
+    },
     loadAddon: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
@@ -123,7 +134,6 @@ vi.mock("../lib/terminalCache", () => ({
   saveTerminalCache: vi.fn(),
 }));
 
-// Mock workspace store
 const storeState: Record<string, unknown> = {
   autoTtsEnabled: true,
   ttsVoice: "",
@@ -143,16 +153,14 @@ vi.mock("../stores/useWorkspaceStore", () => ({
     selector ? selector(storeState) : storeState,
 }));
 
-// Dynamic import after mocks are set up
 const { default: TerminalPane } = await import("../components/TerminalPane");
 
 describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    capturedOnTTS = undefined;
+    capturedCandidateHandler = undefined;
     storeState.autoTtsEnabled = true;
 
-    // Polyfill ResizeObserver for jsdom
     if (typeof globalThis.ResizeObserver === "undefined") {
       globalThis.ResizeObserver = class {
         observe() {}
@@ -166,24 +174,27 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     cleanup();
   });
 
-  it("calls speakParagraphs when autoTtsEnabled and TTS message arrives", () => {
+  it("calls speakParagraphs when autoTtsEnabled and a matching candidate arrives", async () => {
+    const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
-    expect(capturedOnTTS).toBeDefined();
-    act(() => {
-      capturedOnTTS?.("Hello world");
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-1", source: "claude_hook", text: "Hello world" }, ack);
     });
 
     expect(mockStop).toHaveBeenCalled();
     expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Hello world"]);
+    expect(ack).toHaveBeenCalledWith("received");
+    expect(ack).toHaveBeenCalledWith("correlated");
+    expect(ack).toHaveBeenCalledWith("playback_started", undefined, "browser");
+    expect(ack).toHaveBeenCalledWith("playback_succeeded", undefined, "browser");
   });
 
-  it("splits text on paragraph boundaries", () => {
+  it("splits text on paragraph boundaries", async () => {
     render(<TerminalPane sessionId="tts-test" />);
 
-    expect(capturedOnTTS).toBeDefined();
-    act(() => {
-      capturedOnTTS?.("First paragraph\n\nSecond paragraph\n\nThird paragraph");
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-2", source: "claude_hook", text: "First paragraph\n\nSecond paragraph\n\nThird paragraph" }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
@@ -193,90 +204,54 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     ]);
   });
 
-  it("stops previous speech when new TTS message arrives", () => {
-    render(<TerminalPane sessionId="tts-test" />);
-
-    expect(capturedOnTTS).toBeDefined();
-
-    act(() => {
-      capturedOnTTS?.("First message");
-    });
-
-    mockStop.mockClear();
-    mockSpeakParagraphs.mockClear();
-
-    act(() => {
-      capturedOnTTS?.("New message replaces old");
-    });
-
-    expect(mockStop).toHaveBeenCalled();
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["New message replaces old"]);
-  });
-
-  it("does not speak when autoTtsEnabled is false", () => {
+  it("does not speak when autoTtsEnabled is false", async () => {
     storeState.autoTtsEnabled = false;
-
+    const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
-    expect(capturedOnTTS).toBeDefined();
-    act(() => {
-      capturedOnTTS?.("Should not be spoken");
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-3", source: "claude_hook", text: "Hello world" }, ack);
     });
 
     expect(mockSpeakParagraphs).not.toHaveBeenCalled();
+    expect(ack).toHaveBeenCalledWith("rejected", "Auto-TTS is disabled in this tab");
   });
 
-  it("sub-splits long blocks on single newlines", () => {
+  it("rejects candidates that do not match the rendered terminal buffer", async () => {
+    const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
-    expect(capturedOnTTS).toBeDefined();
-    // Build a single block >500 chars with single-newline separators
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-4", source: "claude_hook", text: "This text is nowhere in the visible terminal" }, ack);
+    });
+
+    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
+    expect(ack).toHaveBeenCalledWith("rejected", "Assistant text did not match the rendered terminal buffer");
+  });
+
+  it("sub-splits long blocks on single newlines", async () => {
+    render(<TerminalPane sessionId="tts-test" />);
+
     const lineA = "A".repeat(300);
     const lineB = "B".repeat(300);
-    const text = `${lineA}\n${lineB}`;
-    act(() => {
-      capturedOnTTS?.(text);
+    const originalA = terminalBufferLines[0] ?? "";
+    const originalB = terminalBufferLines[1] ?? "";
+    terminalBufferLines[0] = lineA;
+    terminalBufferLines[1] = lineB;
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-5", source: "claude_hook", text: `${lineA}\n${lineB}` }, vi.fn());
     });
 
-    // Because the block exceeds 500 chars, it should be sub-split on \n
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB]);
+    terminalBufferLines[0] = originalA;
+    terminalBufferLines[1] = originalB;
   });
 
-  it("does not sub-split short blocks on single newlines", () => {
+  it("filters out empty paragraphs from split", async () => {
     render(<TerminalPane sessionId="tts-test" />);
 
-    expect(capturedOnTTS).toBeDefined();
-    const text = "Short line A\nShort line B";
-    act(() => {
-      capturedOnTTS?.(text);
-    });
-
-    // Block is <500 chars, so it stays as one paragraph
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Short line A\nShort line B"]);
-  });
-
-  it("stops previous speech before starting new TTS (concurrent messages)", () => {
-    render(<TerminalPane sessionId="tts-test" />);
-    expect(capturedOnTTS).toBeDefined();
-
-    // Fire two messages in quick succession
-    act(() => {
-      capturedOnTTS?.("First message");
-      capturedOnTTS?.("Second message");
-    });
-
-    // stop should be called for each message
-    expect(mockStop).toHaveBeenCalledTimes(2);
-    // speakParagraphs called twice; the last call is the one that matters
-    expect(mockSpeakParagraphs).toHaveBeenLastCalledWith(["Second message"]);
-  });
-
-  it("filters out empty paragraphs from split", () => {
-    render(<TerminalPane sessionId="tts-test" />);
-
-    expect(capturedOnTTS).toBeDefined();
-    act(() => {
-      capturedOnTTS?.("Only real content\n\n\n\n\n\nSecond part");
+    await act(async () => {
+      await capturedCandidateHandler?.({ eventId: "evt-6", source: "claude_hook", text: "Only real content\n\n\n\n\n\nSecond part" }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([

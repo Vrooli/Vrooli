@@ -31,8 +31,11 @@ const (
 	// uses this to batch-render history in a single write, avoiding the
 	// visible "fast-forward replay" effect on page load/refresh.
 	MsgTypeHistoryEnd = "history_end"
-	// MsgTypeTTS carries text-to-speech content to the client.
-	MsgTypeTTS = "tts"
+	// MsgTypeTTSCandidate carries a candidate response that the client must
+	// correlate against the visible terminal before playback.
+	MsgTypeTTSCandidate = "tts_candidate"
+	// MsgTypeTTSAck records browser-side correlation/playback progress.
+	MsgTypeTTSAck = "tts_ack"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -48,7 +51,11 @@ type TerminalMessage struct {
 	TotalBytes int64 `json:"total_bytes,omitempty"`
 	// Resumed indicates that the client's resume offset was valid and only
 	// delta data was sent (not the full history).
-	Resumed bool `json:"resumed,omitempty"`
+	Resumed bool   `json:"resumed,omitempty"`
+	EventID string `json:"eventId,omitempty"`
+	Source  string `json:"source,omitempty"`
+	Stage   string `json:"stage,omitempty"`
+	Backend string `json:"backend,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -188,12 +195,17 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
-			case text, ok := <-ttsCh:
+			case candidate, ok := <-ttsCh:
 				if !ok {
 					continue
 				}
 				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeTTS, Data: text})
+				_ = conn.WriteJSON(TerminalMessage{
+					Type:    MsgTypeTTSCandidate,
+					Data:    candidate.Text,
+					EventID: candidate.EventID,
+					Source:  candidate.Source,
+				})
 				writeMu.Unlock()
 			case <-ctx.Done():
 				// Input loop exited (WS disconnect) — stop forwarding.
@@ -247,6 +259,19 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			writeMu.Lock()
 			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePong})
 			writeMu.Unlock()
+		case MsgTypeTTSAck:
+			if msg.EventID == "" || msg.Source == "" || msg.Stage == "" {
+				sendError("Invalid TTS acknowledgment")
+				continue
+			}
+			s.recordTTSAck(TTSClientAck{
+				EventID:   msg.EventID,
+				Source:    msg.Source,
+				SessionID: sessionID,
+				Stage:     msg.Stage,
+				Backend:   msg.Backend,
+				Message:   msg.Data,
+			})
 		}
 	}
 }

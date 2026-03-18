@@ -1,13 +1,15 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type hookStopRequest struct {
 	AssistantResponse    string `json:"assistantResponse"`
-	SessionID            string `json:"sessionId"`
 	LastAssistantMessage string `json:"last_assistant_message"`
 	HookEventName        string `json:"hook_event_name"`
 	SessionIDSnake       string `json:"session_id"`
+	WebConsoleSessionID  string `json:"web_console_session_id"`
 }
 
 func (r hookStopRequest) assistantText() string {
@@ -15,13 +17,6 @@ func (r hookStopRequest) assistantText() string {
 		return r.LastAssistantMessage
 	}
 	return r.AssistantResponse
-}
-
-func (r hookStopRequest) targetSessionID() string {
-	if r.SessionIDSnake != "" {
-		return r.SessionIDSnake
-	}
-	return r.SessionID
 }
 
 func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +34,6 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "tts_input_required", "Hook payload did not include assistant response text")
 		return
 	}
-	result := s.deliverTTS(assistantText, req.targetSessionID(), "claude_hook")
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "delivery": result, "delivered": result.Delivered})
+	result := s.routeTTSCandidate(assistantText, req.WebConsoleSessionID, "claude_hook")
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "routing": result, "routed": result.Routed})
 }

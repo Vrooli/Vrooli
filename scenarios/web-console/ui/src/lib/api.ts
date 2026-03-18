@@ -209,6 +209,26 @@ export async function generateAICommand(prompt: string, context?: string): Promi
   return (await res.json()) as AIGenerateResponse;
 }
 
+export interface TTSPlaybackEvent {
+  source: string;
+  stage: string;
+  backend?: string;
+  sessionId?: string;
+  message?: string;
+}
+
+export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
+  const url = buildApiUrl("/tts/events", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to report TTS event");
+  }
+}
+
 // [REQ:P1-002a] Shortcut Profile API - client
 // Re-export ShortcutEntry as the canonical shortcut type for both API wire
 // format and local config. Previously duplicated as ShortcutEntry.
@@ -537,14 +557,23 @@ export interface TTSConfig {
   kokoroSpeed: number;
 }
 
-export interface TTSDeliveryResult {
-  delivered: boolean;
+export interface TTSRoutingResult {
+  routed: boolean;
   code: string;
   reason: string;
   source: string;
   sessionId?: string;
-  usedTargetSession?: boolean;
+  eventId?: string;
   duplicate?: boolean;
+}
+
+export interface TTSClientAck {
+  eventId: string;
+  source: string;
+  sessionId: string;
+  stage: string;
+  backend?: string;
+  message?: string;
 }
 
 export interface TTSStatus {
@@ -553,12 +582,20 @@ export interface TTSStatus {
   hookCode?: string;
   hookReason: string;
   hookSettingsPath?: string;
-  lastDelivery?: TTSDeliveryResult;
-  lastDeliveryAt?: string;
-  lastHookDelivery?: TTSDeliveryResult;
-  lastHookDeliveryAt?: string;
-  lastTailerDelivery?: TTSDeliveryResult;
-  lastTailerDeliveryAt?: string;
+  lastRouting?: TTSRoutingResult;
+  lastRoutingAt?: string;
+  lastHookRouting?: TTSRoutingResult;
+  lastHookRoutingAt?: string;
+  lastTailerRouting?: TTSRoutingResult;
+  lastTailerRoutingAt?: string;
+  lastAck?: TTSClientAck;
+  lastAckAt?: string;
+  lastHookAck?: TTSClientAck;
+  lastHookAckAt?: string;
+  lastTailerAck?: TTSClientAck;
+  lastTailerAckAt?: string;
+  lastPlaybackEvent?: TTSPlaybackEvent;
+  lastPlaybackAt?: string;
   kokoroCapability?: string;
   kokoroCapabilityLabel?: string;
 }

@@ -47,6 +47,7 @@ vi.mock("../lib/api", () => ({
   fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
   getTTSVoices: vi.fn(),
   synthesizeTTS: vi.fn(),
+  reportTTSEvent: vi.fn(),
   _resetCapabilitiesCache: vi.fn(),
 }));
 
@@ -72,13 +73,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
   // Re-setup speechSynthesis mock after clearing (vi.clearAllMocks resets fn implementations)
   mockSynthGetVoices.mockReturnValue([]);
 });
 
 describe("useTextToSpeech", () => {
   function unlockBrowserAudio() {
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    });
   }
 
   it("selects kokoro backend when capability is available", async () => {
@@ -158,19 +162,27 @@ describe("useTextToSpeech", () => {
       timestamp: new Date().toISOString(),
     });
 
-    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
-      setTimeout(() => u.onend?.(), 10);
-    });
-
     const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
     await waitFor(() => {
       expect(result.current.backend).toBe("browser");
     });
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
 
     unlockBrowserAudio();
     act(() => result.current.speak("hello world"));
     expect(result.current.isSpeaking).toBe(true);
+
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(result.current.isSpeaking).toBe(false);
@@ -183,19 +195,39 @@ describe("useTextToSpeech", () => {
       timestamp: new Date().toISOString(),
     });
 
-    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
-      setTimeout(() => u.onend?.(), 5);
-    });
-
     const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
     await waitFor(() => {
       expect(result.current.backend).toBe("browser");
     });
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
 
     unlockBrowserAudio();
-    act(() => result.current.speakParagraphs(["para 1", "para 2"]));
-    expect(result.current.isSpeaking).toBe(true);
+    let playback!: Promise<unknown>;
+    await act(async () => {
+      playback = result.current.speakParagraphs(["para 1", "para 2"]);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await playback;
+    });
 
     await waitFor(() => {
       expect(result.current.isSpeaking).toBe(false);
@@ -216,14 +248,14 @@ describe("useTextToSpeech", () => {
     mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
 
     // Browser fallback should complete via onend
-    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
-      setTimeout(() => u.onend?.(), 10);
-    });
-
     const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
     await waitFor(() => {
       expect(result.current.backend).toBe("kokoro");
+    });
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
     });
 
     unlockBrowserAudio();
@@ -232,6 +264,14 @@ describe("useTextToSpeech", () => {
     // The kokoro provider rejects, triggering browser fallback
     await waitFor(() => {
       expect(mockSynthSpeak).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
     });
 
     // isSpeaking resets after the error handler runs (kokoro path sets it false on rejection)
@@ -251,19 +291,31 @@ describe("useTextToSpeech", () => {
     mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
 
     // Browser fallback also fails via onerror
-    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
-      setTimeout(() => u.onerror?.(new Error("Browser speech failed")), 10);
-    });
-
     const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
     await waitFor(() => {
       expect(result.current.backend).toBe("kokoro");
     });
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
 
     unlockBrowserAudio();
     // Should not throw an unhandled rejection
     act(() => result.current.speak("hello"));
+
+    await waitFor(() => {
+      expect(mockSynthSpeak).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+
+    await act(async () => {
+      browserUtterances.shift()?.onerror?.(new Error("Browser speech failed"));
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(result.current.isSpeaking).toBe(false);
@@ -313,18 +365,32 @@ describe("useTextToSpeech", () => {
     });
     mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
     mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
-    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
-      setTimeout(() => u.onend?.(), 10);
-    });
-
     const { result } = renderHook(() => useTextToSpeech(defaultSettings));
 
     await waitFor(() => {
       expect(result.current.backend).toBe("kokoro");
     });
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
 
     unlockBrowserAudio();
-    act(() => result.current.speakParagraphs(["para 1", "para 2"]));
+    let playback!: Promise<unknown>;
+    await act(async () => {
+      playback = result.current.speakParagraphs(["para 1", "para 2"]);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await playback;
+    });
 
     await waitFor(() => {
       expect(mockSynthSpeak).toHaveBeenCalled();

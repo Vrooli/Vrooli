@@ -18,7 +18,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "tts";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "tts_candidate" | "tts_ack";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -33,6 +33,16 @@ export interface TerminalMessage {
   total_bytes?: number;
   /** True when the server honored the client's resume offset (delta-only). */
   resumed?: boolean;
+  eventId?: string;
+  source?: string;
+  stage?: string;
+  backend?: string;
+}
+
+export interface TTSCandidateMessage {
+  eventId: string;
+  source: string;
+  text: string;
 }
 
 /** Factory function for creating WebSocket connections. Override in tests. */
@@ -93,8 +103,8 @@ interface UseTerminalSocketOptions {
   historyOffset?: number;
   /** Whether the terminal was restored from a serialized cache entry. */
   hasCachedState?: boolean;
-  /** Called when a TTS message arrives from the server. */
-  onTTS?: (text: string) => void;
+  /** Called when a TTS candidate arrives from the server. */
+  onTTSCandidate?: (candidate: TTSCandidateMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => void;
 }
 
 /**
@@ -112,7 +122,7 @@ export function useTerminalSocket({
   createSocket = defaultSocketFactory,
   historyOffset,
   hasCachedState,
-  onTTS,
+  onTTSCandidate,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,10 +135,10 @@ export function useTerminalSocket({
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
   const hasCachedStateRef = useRef(hasCachedState ?? false);
-  const onTTSRef = useRef(onTTS);
+  const onTTSCandidateRef = useRef(onTTSCandidate);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
-  onTTSRef.current = onTTS;
+  onTTSCandidateRef.current = onTTSCandidate;
   hasCachedStateRef.current = hasCachedState ?? false;
 
   const enqueueInput = useCallback((data: string) => {
@@ -226,6 +236,18 @@ export function useTerminalSocket({
 
       const ws = createSocket(wsUrl);
       wsRef.current = ws;
+      const sendTTSAck = (candidate: TTSCandidateMessage, stage: string, message?: string, backend?: string) => {
+        if (!candidate.eventId || !candidate.source) return;
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({
+          type: "tts_ack",
+          eventId: candidate.eventId,
+          source: candidate.source,
+          stage,
+          backend,
+          data: message,
+        } satisfies TerminalMessage));
+      };
 
       ws.onopen = () => {
         const wasReconnect = connectedAtLeastOnce;
@@ -328,9 +350,14 @@ export function useTerminalSocket({
             );
             break;
           }
-          case "tts":
-            if (msg.data) {
-              onTTSRef.current?.(msg.data);
+          case "tts_candidate":
+            if (msg.data && msg.eventId && msg.source) {
+              const candidate = {
+                eventId: msg.eventId,
+                source: msg.source,
+                text: msg.data,
+              } satisfies TTSCandidateMessage;
+              onTTSCandidateRef.current?.(candidate, (stage, message, backend) => sendTTSAck(candidate, stage, message, backend));
             }
             break;
           case "resize_info":

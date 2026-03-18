@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/creack/pty/v2"
@@ -29,9 +31,19 @@ type PTY interface {
 	HasChildProcess() bool
 }
 
-// PTYFactory creates a PTY-backed process for the given shell and terminal size.
+// SessionLaunchSpec contains the environment and execution parameters for a
+// newly created terminal session.
+type SessionLaunchSpec struct {
+	SessionID string
+	Shell     string
+	Cols      uint16
+	Rows      uint16
+	Env       map[string]string
+}
+
+// PTYFactory creates a PTY-backed process for the given launch spec.
 // Inject a custom factory into SessionManager for testing without real processes.
-type PTYFactory func(shell string, cols, rows uint16) (PTY, error)
+type PTYFactory func(spec SessionLaunchSpec) (PTY, error)
 
 // realPTY wraps a creack/pty process.
 type realPTY struct {
@@ -77,14 +89,14 @@ func (p *realPTY) HasChildProcess() bool {
 }
 
 // defaultPTYFactory starts a real shell process with a PTY.
-func defaultPTYFactory(shell string, cols, rows uint16) (PTY, error) {
-	cmd := exec.Command(shell)
+func defaultPTYFactory(spec SessionLaunchSpec) (PTY, error) {
+	cmd := exec.Command(spec.Shell)
 	// Filter Claude Code env vars first, then ensure TERM is set.
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
-	cmd.Env = ensureTermEnv(filterClaudeEnv(os.Environ()))
+	cmd.Env = applySessionEnv(ensureTermEnv(filterClaudeEnv(os.Environ())), spec.Env)
 	cmd.Dir = resolveWorkingDir()
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: rows, Cols: cols})
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)
 	}
@@ -133,4 +145,121 @@ func filterClaudeEnv(env []string) []string {
 		result = append(result, v)
 	}
 	return result
+}
+
+func applySessionEnv(base []string, extra map[string]string) []string {
+	if len(extra) == 0 {
+		return base
+	}
+
+	applied := make([]string, 0, len(base)+len(extra))
+	seen := make(map[string]struct{}, len(extra))
+	for _, entry := range base {
+		name, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			applied = append(applied, entry)
+			continue
+		}
+		if value, found := extra[name]; found {
+			applied = append(applied, name+"="+value)
+			seen[name] = struct{}{}
+			continue
+		}
+		applied = append(applied, entry)
+	}
+	for name, value := range extra {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		applied = append(applied, name+"="+value)
+	}
+	return applied
+}
+
+func ensureDir(path string) string {
+	if path == "" {
+		return path
+	}
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return path
+	}
+	return path
+}
+
+func resolveUserConfigDir(name string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	return filepath.Join(home, name)
+}
+
+func sharedCodexHome() string {
+	return ensureDir(resolveUserConfigDir(".codex"))
+}
+
+func ensureSymlink(dst, src string) {
+	info, err := os.Lstat(dst)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, readErr := os.Readlink(dst)
+			if readErr == nil && target == src {
+				return
+			}
+		}
+		return
+	}
+	if !os.IsNotExist(err) {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		log.Printf("session-state: failed creating parent for %s: %v", dst, err)
+		return
+	}
+	if err := os.Symlink(src, dst); err != nil && !os.IsExist(err) {
+		log.Printf("session-state: failed linking %s -> %s: %v", dst, src, err)
+	}
+}
+
+func prepareCodexSessionHome(sessionHome, sharedHome string) string {
+	sessionHome = ensureDir(sessionHome)
+	if sessionHome == "" {
+		return sessionHome
+	}
+
+	for _, dir := range []string{"sessions", "log", "logs", "outputs", "tmp"} {
+		ensureDir(filepath.Join(sessionHome, dir))
+	}
+
+	if sharedHome == "" {
+		return sessionHome
+	}
+
+	for _, entry := range []string{
+		"auth.json",
+		"config.toml",
+		"settings.json",
+		"skills",
+		"rules",
+		"version.json",
+		".personality_migration",
+	} {
+		src := filepath.Join(sharedHome, entry)
+		if _, err := os.Lstat(src); err != nil {
+			continue
+		}
+		ensureSymlink(filepath.Join(sessionHome, entry), src)
+	}
+	return sessionHome
+}
+
+func sessionCodexHome(sessionID string) string {
+	return prepareCodexSessionHome(
+		filepath.Join(resolveSessionStateRoot(), "codex", sessionID),
+		sharedCodexHome(),
+	)
+}
+
+func sessionCodexSessionsDir(sessionID string) string {
+	return ensureDir(filepath.Join(sessionCodexHome(sessionID), "sessions"))
 }

@@ -136,8 +136,8 @@ func TestHandleCreateSession_SessionLimit(t *testing.T) {
 
 // Failure path: PTY spawn failure returns 500 with structured error
 func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
-	failingFactory := func(shell string, cols, rows uint16) (PTY, error) {
-		return nil, fmt.Errorf("shell not found: %s", shell)
+	failingFactory := func(spec SessionLaunchSpec) (PTY, error) {
+		return nil, fmt.Errorf("shell not found: %s", spec.Shell)
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),

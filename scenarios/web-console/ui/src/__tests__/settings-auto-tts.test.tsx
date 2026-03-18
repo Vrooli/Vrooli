@@ -49,17 +49,31 @@ vi.mock("../lib/api", async (importOriginal) => {
       hookRegistered: false,
       hookCode: "hook_missing",
       hookReason: "Claude Stop hook is not registered in project settings",
-      lastHookDelivery: {
-        delivered: false,
-        code: "tts_delivery_target_missing",
-        reason: "No terminal session was available for TTS delivery",
+      lastHookRouting: {
+        routed: false,
+        code: "tts_target_missing",
+        reason: "No terminal session was available for TTS routing",
         source: "claude_hook",
       },
-      lastTailerDelivery: {
-        delivered: false,
-        code: "tts_delivery_target_missing",
-        reason: "No active terminal session is available for TTS delivery",
+      lastTailerRouting: {
+        routed: false,
+        code: "tts_target_missing",
+        reason: "No terminal session was available for TTS routing",
         source: "codex_tailer",
+      },
+      lastHookAck: {
+        eventId: "evt-1",
+        source: "claude_hook",
+        sessionId: "s1",
+        stage: "rejected",
+        message: "Assistant text did not match the rendered terminal buffer",
+      },
+      lastTailerAck: {
+        eventId: "evt-2",
+        source: "codex_tailer",
+        sessionId: "s2",
+        stage: "playback_succeeded",
+        backend: "browser",
       },
       kokoroCapabilityLabel: "resource is not responding",
     }),
@@ -150,8 +164,10 @@ describe("TtsSettingsSection", () => {
     await renderSection();
     await waitFor(() => {
       expect(screen.getByText(/Hook status code: hook_missing/)).toBeTruthy();
-      expect(screen.getByText(/Last Claude hook delivery:/)).toBeTruthy();
-      expect(screen.getByText(/Last Codex tailer delivery:/)).toBeTruthy();
+      expect(screen.getByText(/Last Claude hook routing:/)).toBeTruthy();
+      expect(screen.getByText(/Last Claude terminal ack:/)).toBeTruthy();
+      expect(screen.getByText(/Last Codex tailer routing:/)).toBeTruthy();
+      expect(screen.getByText(/Last Codex terminal ack:/)).toBeTruthy();
     });
   });
 });

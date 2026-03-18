@@ -112,7 +112,7 @@ type Session struct {
 
 	// TTS side-channel: fan-out of text-to-speech messages to WebSocket clients.
 	ttsMu         sync.Mutex
-	ttsClients    map[chan string]struct{}
+	ttsClients    map[chan TTSCandidate]struct{}
 	ttsDropLogged bool // log once per session when a TTS message is dropped
 }
 
@@ -687,13 +687,26 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		return nil, fmt.Errorf("%w (%d)", ErrSessionLimitReached, sm.cfg.MaxSessions)
 	}
 
-	p, err := sm.ptyFactory(shell, cols, rows)
+	sessionID := uuid.New().String()
+	spec := SessionLaunchSpec{
+		SessionID: sessionID,
+		Shell:     shell,
+		Cols:      cols,
+		Rows:      rows,
+		Env: map[string]string{
+			"WC_WEB_CONSOLE_SESSION_ID": sessionID,
+			"CODEX_HOME":                sessionCodexHome(sessionID),
+			"WC_CODEX_SESSIONS_DIR":     sessionCodexSessionsDir(sessionID),
+		},
+	}
+
+	p, err := sm.ptyFactory(spec)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrPTYSpawnFailed, err)
 	}
 
 	sess := &Session{
-		ID:                      uuid.New().String(),
+		ID:                      sessionID,
 		Shell:                   shell,
 		CreatedAt:               time.Now(),
 		Cols:                    cols,
@@ -706,7 +719,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
-		ttsClients:              make(map[chan string]struct{}),
+		ttsClients:              make(map[chan TTSCandidate]struct{}),
 	}
 
 	sm.mu.Lock()
@@ -782,10 +795,10 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	return s.Cols, s.Rows
 }
 
-// SubscribeTTS returns a buffered channel that receives TTS text messages.
+// SubscribeTTS returns a buffered channel that receives TTS candidate events.
 // Caller must call UnsubscribeTTS when done.
-func (s *Session) SubscribeTTS() chan string {
-	ch := make(chan string, 8)
+func (s *Session) SubscribeTTS() chan TTSCandidate {
+	ch := make(chan TTSCandidate, 8)
 	s.ttsMu.Lock()
 	s.ttsClients[ch] = struct{}{}
 	s.ttsMu.Unlock()
@@ -795,21 +808,21 @@ func (s *Session) SubscribeTTS() chan string {
 // UnsubscribeTTS removes and closes a TTS channel.
 // close(ch) must happen inside the lock so that SendTTS (which iterates
 // ttsClients under the same lock) can never write to a closed channel.
-func (s *Session) UnsubscribeTTS(ch chan string) {
+func (s *Session) UnsubscribeTTS(ch chan TTSCandidate) {
 	s.ttsMu.Lock()
 	delete(s.ttsClients, ch)
 	close(ch)
 	s.ttsMu.Unlock()
 }
 
-// SendTTS fans out a TTS text message to all subscribed clients.
+// SendTTS fans out a TTS candidate to all subscribed clients.
 // Non-blocking: if a client's channel is full, the message is skipped.
-func (s *Session) SendTTS(text string) {
+func (s *Session) SendTTS(candidate TTSCandidate) {
 	s.ttsMu.Lock()
 	defer s.ttsMu.Unlock()
 	for ch := range s.ttsClients {
 		select {
-		case ch <- text:
+		case ch <- candidate:
 		default:
 			if !s.ttsDropLogged {
 				log.Printf("session %s: TTS message dropped (client channel full)", s.ID)
@@ -817,26 +830,6 @@ func (s *Session) SendTTS(text string) {
 			}
 		}
 	}
-}
-
-// ContainsRecentText checks whether the session's recent terminal output
-// (with ANSI sequences stripped) contains the beginning of the given text.
-// minMatchLen controls how many characters of text are used as the search
-// needle; if text is shorter than minMatchLen, the full text is used.
-func (s *Session) ContainsRecentText(text string, minMatchLen int) bool {
-	s.mu.Lock()
-	history := make([]byte, len(s.outputHistory))
-	copy(history, s.outputHistory)
-	s.mu.Unlock()
-
-	stripped := stripANSI(history)
-
-	needle := text
-	if len(needle) > minMatchLen && minMatchLen > 0 {
-		needle = needle[:minMatchLen]
-	}
-
-	return bytes.Contains(stripped, []byte(needle))
 }
 
 // HasChildProcess reports whether the shell has any running child processes.

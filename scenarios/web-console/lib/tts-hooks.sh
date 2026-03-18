@@ -160,9 +160,8 @@ wc::register_tts_hook() {
     local hook_json
     hook_json=$(cat <<ENDJSON
 {
-  "type": "http",
-  "url": "http://localhost:${api_port}/api/v1/hooks/stop",
-  "headers": { "X-Hook-Token": "${hook_token}" },
+  "type": "command",
+  "command": "bash ${_WC_SCENARIO_DIR}/lib/claude-stop-hook.sh --url http://localhost:${api_port}/api/v1/hooks/stop --token ${hook_token}",
   "timeout": 30
 }
 ENDJSON

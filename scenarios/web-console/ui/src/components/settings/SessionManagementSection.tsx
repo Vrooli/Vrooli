@@ -12,6 +12,7 @@ import {
 import { HEADER_COLORS } from "../../consts/config";
 import { POLICY_OPTIONS, parsePolicySelection, policyKey } from "../../consts/policy-options";
 import { useCountdown } from "../../hooks/useCountdown";
+import { useWorkspaceSync } from "../../hooks/useWorkspaceSync";
 import type { PolicyMode, SessionInfo } from "../../lib/api";
 import { toErrorInfo, updateSessionPolicy } from "../../lib/api";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
@@ -74,6 +75,7 @@ export default function SessionManagementSection({
   const setPaneColor = useWorkspaceStore((state) => state.setPaneColor);
   const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
   const resetLayout = useWorkspaceStore((state) => state.resetLayout);
+  const { syncActivePane } = useWorkspaceSync();
 
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -254,6 +256,7 @@ export default function SessionManagementSection({
                         className="h-8 w-8"
                         onClick={() => {
                           setActivePane(pane.sessionId);
+                          syncActivePane(useWorkspaceStore.getState().panes.map((entry) => entry.sessionId), pane.sessionId);
                           onRequestClose();
                         }}
                         title="Focus pane"

@@ -1,6 +1,6 @@
 // DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchCapabilitiesLivenessCached, getTTSVoices, _resetCapabilitiesCache } from "../lib/api";
+import { fetchCapabilitiesLivenessCached, getTTSVoices, reportTTSEvent, _resetCapabilitiesCache } from "../lib/api";
 import type { TTSBackend, TTSProvider, TTSVoiceInfo } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
@@ -29,6 +29,11 @@ export interface TTSState {
   lastSuccessfulAt: string | null;
 }
 
+export interface TTSDiagnostics {
+  source: string;
+  sessionId?: string;
+}
+
 /** Default Kokoro voice used when the voice list cannot be fetched. */
 const KOKORO_DEFAULT_VOICE = "af_heart";
 const TEST_TTS_SAMPLE = "This is a TTS test from web console.";
@@ -41,7 +46,7 @@ function isAbortLikeError(err: unknown): boolean {
   return err instanceof Error && (err.name === "AbortError" || err.message === "The operation was aborted.");
 }
 
-export function useTextToSpeech(settings: TTSSettings) {
+export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnostics) {
   const [state, setState] = useState<TTSState>({
     supported: isBrowserSupported(),
     isSpeaking: false,
@@ -60,6 +65,17 @@ export function useTextToSpeech(settings: TTSSettings) {
   const fallbackProviderRef = useRef<BrowserTTSProvider | null>(null);
   const audioUnlockedRef = useRef(false);
   const resolveBackendRef = useRef<(() => Promise<void>) | null>(null);
+
+  const emitEvent = useCallback((stage: string, backend: TTSBackend, message?: string) => {
+    if (!diagnostics?.source) return;
+    void reportTTSEvent({
+      source: diagnostics.source,
+      sessionId: diagnostics.sessionId,
+      stage,
+      backend,
+      message,
+    }).catch(() => {});
+  }, [diagnostics]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -328,15 +344,20 @@ export function useTextToSpeech(settings: TTSSettings) {
       if (!providerRef.current) return;
 
       setState((s) => ({ ...s, isSpeaking: true, error: null }));
+      emitEvent("attempt", backendRef.current);
 
       executeSpeak(text).then(
-        (usedBackend) => updateSuccess(usedBackend),
+        (usedBackend) => {
+          emitEvent("success", usedBackend);
+          updateSuccess(usedBackend);
+        },
         (err: unknown) => {
           if (isAbortLikeError(err)) {
             setState((s) => ({ ...s, isSpeaking: false }));
             return;
           }
           const message = err instanceof Error ? err.message : "Speech failed";
+          emitEvent("error", backendRef.current, message);
           setState((s) => ({
             ...s,
             isSpeaking: false,
@@ -345,11 +366,11 @@ export function useTextToSpeech(settings: TTSSettings) {
         },
       );
     },
-    [executeSpeak, updateSuccess],
+    [emitEvent, executeSpeak, updateSuccess],
   );
 
   const speakParagraphs = useCallback(
-    (paragraphs: string[]) => {
+    async (paragraphs: string[]) => {
       speakChainRef.current?.abort();
       const controller = new AbortController();
       speakChainRef.current = controller;
@@ -357,32 +378,34 @@ export function useTextToSpeech(settings: TTSSettings) {
       if (!providerRef.current || paragraphs.length === 0) return;
 
       setState((s) => ({ ...s, isSpeaking: true, error: null }));
+      emitEvent("attempt", backendRef.current);
 
-      (async () => {
-        try {
-          const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
-          if (!controller.signal.aborted) {
-            updateSuccess(usedBackend);
-          }
-        } catch (err: unknown) {
-          if (controller.signal.aborted || isAbortLikeError(err)) {
-            setState((s) => ({ ...s, isSpeaking: false }));
-            return;
-          }
-          const message =
-            err instanceof Error ? err.message : "Speech failed";
-          setState((s) => ({ ...s, isSpeaking: false, error: message }));
-        } finally {
-          if (!controller.signal.aborted) {
-            speakChainRef.current = null;
-          }
-        }
+      try {
+        const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
         if (controller.signal.aborted) {
           setState((s) => ({ ...s, isSpeaking: false }));
+          return;
         }
-      })();
+        emitEvent("success", usedBackend);
+        updateSuccess(usedBackend);
+        return usedBackend;
+      } catch (err: unknown) {
+        if (controller.signal.aborted || isAbortLikeError(err)) {
+          setState((s) => ({ ...s, isSpeaking: false }));
+          return;
+        }
+        const message =
+          err instanceof Error ? err.message : "Speech failed";
+        emitEvent("error", backendRef.current, message);
+        setState((s) => ({ ...s, isSpeaking: false, error: message }));
+        throw err;
+      } finally {
+        if (!controller.signal.aborted) {
+          speakChainRef.current = null;
+        }
+      }
     },
-    [executeSpeak, updateSuccess],
+    [emitEvent, executeSpeak, updateSuccess],
   );
 
   const stop = useCallback(() => {
@@ -402,8 +425,10 @@ export function useTextToSpeech(settings: TTSSettings) {
       return;
     }
     setState((s) => ({ ...s, isSpeaking: true, error: null }));
+    emitEvent("attempt", backendRef.current);
     try {
       const usedBackend = await executeSpeak(TEST_TTS_SAMPLE);
+      emitEvent("success", usedBackend);
       updateSuccess(usedBackend);
     } catch (err) {
       if (isAbortLikeError(err)) {
@@ -411,10 +436,11 @@ export function useTextToSpeech(settings: TTSSettings) {
         return;
       }
       const message = err instanceof Error ? err.message : "Speech failed";
+      emitEvent("error", backendRef.current, message);
       setState((s) => ({ ...s, isSpeaking: false, error: message }));
       throw err;
     }
-  }, [executeSpeak, updateSuccess]);
+  }, [emitEvent, executeSpeak, updateSuccess]);
 
   return { ...state, speak, speakParagraphs, stop, refresh, testSpeak };
 }

@@ -16,6 +16,7 @@ import { useImageUpload } from "../hooks/useImageUpload";
 import TerminalContextMenu from "./TerminalContextMenu";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
+import { terminalContainsCandidate } from "../lib/terminalTtsMatch";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -72,7 +73,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }),
       [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
     );
-    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError } = useTextToSpeech(ttsSettings);
+    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError, backend } = useTextToSpeech(ttsSettings, {
+      source: "terminal_auto",
+      sessionId,
+    });
 
     // Auto-dismiss TTS error after 5 seconds
     const [showTtsError, setShowTtsError] = useState<string | null>(null);
@@ -86,15 +90,32 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       return () => clearTimeout(timer);
     }, [ttsError]);
 
-    // Auto-TTS: speak AI responses received via WebSocket
+    // Auto-TTS: correlate routed TTS candidates against this terminal's
+    // rendered buffer, then play them if they match.
     const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
 
-    const handleTTS = useCallback((text: string) => {
-      if (!autoTtsEnabled || !ttsSupported) return;
+    const handleTTSCandidate = useCallback(async (
+      candidate: { eventId: string; source: string; text: string },
+      sendAck: (stage: string, message?: string, backend?: string) => void,
+    ) => {
+      sendAck("received");
+      if (!autoTtsEnabled) {
+        sendAck("rejected", "Auto-TTS is disabled in this tab");
+        return;
+      }
+      if (!ttsSupported || !terminal) {
+        sendAck("rejected", "No TTS backend is available in this tab");
+        return;
+      }
+      if (!terminalContainsCandidate(terminal, candidate.text)) {
+        sendAck("rejected", "Assistant text did not match the rendered terminal buffer");
+        return;
+      }
+      sendAck("correlated");
       ttsStop();
       // Split on double-newlines first; if that yields very long blocks,
       // sub-split on single newlines so utterances stay manageable.
-      const raw = text.split(/\n\n+/).filter((p) => p.trim());
+      const raw = candidate.text.split(/\n\n+/).filter((p) => p.trim());
       const paragraphs: string[] = [];
       for (const block of raw) {
         if (block.length > 500) {
@@ -103,8 +124,15 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           paragraphs.push(block);
         }
       }
-      speakParagraphs(paragraphs);
-    }, [autoTtsEnabled, ttsSupported, ttsStop, speakParagraphs]);
+      sendAck("playback_started", undefined, backend);
+      try {
+        const usedBackend = await speakParagraphs(paragraphs);
+        sendAck("playback_succeeded", undefined, usedBackend ?? backend);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Speech failed";
+        sendAck("playback_failed", message, backend);
+      }
+    }, [autoTtsEnabled, backend, speakParagraphs, terminal, ttsStop, ttsSupported]);
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({
@@ -126,7 +154,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       },
       historyOffset: cachedOffsetRef.current,
       hasCachedState: hadCacheRef.current,
-      onTTS: handleTTS,
+      onTTSCandidate: handleTTSCandidate,
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)

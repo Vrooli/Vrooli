@@ -96,4 +96,23 @@ describe("TabBar reorder sync", () => {
     expect(call?.[0]).toHaveProperty("pane_order");
     expect((call?.[0] as Record<string, unknown>)?.pane_order).toBeInstanceOf(Array);
   });
+
+  it("persists active pane when the user switches tabs", () => {
+    render(
+      <TabBar
+        panes={useWorkspaceStore.getState().panes}
+        activePane="a"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("tab-b"));
+
+    expect(mockSaveWorkspaceLayout).toHaveBeenCalledWith({
+      active_pane: "b",
+      pane_order: ["a", "b", "c"],
+    });
+  });
 });

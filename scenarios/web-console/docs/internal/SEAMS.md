@@ -298,30 +298,29 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` → `deliverTTS` → `SendTTS` → WebSocket TTS side-channel → UI `useTerminalSocket` `onTTS` → `useTextToSpeech.speakParagraphs`
+**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` / `CodexTailer` → `routeTTSCandidate` → `SendTTS` → WebSocket `tts_candidate` side-channel → UI `useTerminalSocket` `onTTSCandidate` → terminal-visible correlation → `useTextToSpeech.speakParagraphs` → WebSocket `tts_ack`
 
 **Seam points**:
 1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
 2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
-3. `deliverTTS` ↔ `Session`: explicit `sessionId` targeting first, active-pane fallback second
-4. `deliverTTS` ↔ `Session`: `ContainsRecentText` correlation validates text is genuine
-5. `SendTTS` ↔ WebSocket: buffered channel fan-out (non-blocking, drops on full)
-6. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
+3. `routeTTSCandidate` ↔ source adapters: backend routing only accepts explicit terminal ownership; it does not infer from PTY output
+4. `SendTTS` ↔ WebSocket: buffered candidate fan-out (non-blocking, drops on full)
+5. `useTerminalSocket` ↔ `TerminalPane`: client receives `tts_candidate` and emits `tts_ack`
+6. `TerminalPane` ↔ xterm.js buffer: rendered terminal text is the source of truth for correlation
+7. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
-**Testing**: `tts_hook_handler_test.go` covers token auth. `tts_deliver_test.go` covers the `deliverTTS` pipeline. `codex_tailer_test.go` includes an E2E test from rollout file → TTS subscriber.
+**Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate.
 
 ### Two Independent TTS Trigger Paths
 
-1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Low latency, and hook registration is now healed through the resource-owned reconciliation seam into repo-root `.claude/settings.json`. `sessionId` / `session_id` is honored when present.
-2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches `~/.codex/sessions/` for JSONL rollout files and extracts assistant text. Works even without hook registration (e.g., for Codex CLI).
+1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `claude-stop-hook.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console now uses a command hook instead of a raw HTTP hook so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
+2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay: shared auth/config is symlinked from `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
 
-Both paths converge at `deliverTTS()` which gates on: `autoEnabled`, target session (or active pane), text correlation via `ContainsRecentText`, and **dedup check**. The function now returns a structured `TTSDeliveryResult` used by `/api/v1/tts/status` and the settings diagnostics panel.
+Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, explicit target session ownership, and **dedup check**. Browser-side correlation happens later against the rendered xterm buffer, and the client reports outcomes back via `tts_ack`. `/api/v1/tts/status` exposes both backend routing and client acknowledgment state.
 
-**Dedup cache** (`ttsDedup` in `tts_deliver.go`): Since both trigger paths can fire for the same assistant response, `deliverTTS()` maintains a time-bounded dedup cache keyed on the first `ttsMatchNeedleLen` (200) characters of the cleaned text. Entries expire after `ttsDeliveryDedupTTL` (30s). The cache is lazy-evicted on each call. The `ttl` field is injectable for testing.
+**Dedup cache** (`ttsDedup` in `tts_router.go`): routing uses a time-bounded event-identity cache keyed from `source + session + cleaned text`. Entries expire after `ttsDedupTTL` (30s). The `ttl` field is injectable for testing.
 
-**ANSI stripping**: `deliverTTS()` calls `stripANSI()` on the response text before both matching and sending. This ensures TTS subscribers always receive clean, speakable text regardless of whether the source contained terminal escape codes.
-
-**`ttsMatchNeedleLen=200` rationale**: `ContainsRecentText` uses only the first 200 characters of the cleaned text as the search needle (named constant in `tts_deliver.go`). This avoids false negatives on long responses where the tail may differ between the source (agent JSON) and terminal output (line-wrapped, truncated, or decorated by the shell). 200 chars is long enough to prevent accidental matches on common short phrases.
+**ANSI stripping**: `routeTTSCandidate()` strips ANSI before publishing the candidate so browser correlation and playback always operate on speakable text.
 
 **`staleTimeout` injectable field** (`codex_tailer.go`): The `CodexTailer.staleTimeout` field overrides the default `codexStaleTimeout` (1 hour) for testing. When non-zero, `tailFile()` uses this value for the stale timer. Tests use short values (100ms) to verify watcher cleanup without waiting an hour.
 

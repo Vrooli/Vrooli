@@ -2,6 +2,8 @@ package main
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -253,7 +255,7 @@ func (f *fakePTYWithOutput) Close() error {
 // fakePTYFactory returns a PTYFactory that always returns the same PTY instance.
 // Use when a test needs to inspect or control the exact PTY a session uses.
 func fakePTYFactory(p PTY) PTYFactory {
-	return func(shell string, cols, rows uint16) (PTY, error) {
+	return func(spec SessionLaunchSpec) (PTY, error) {
 		return p, nil
 	}
 }
@@ -261,8 +263,97 @@ func fakePTYFactory(p PTY) PTYFactory {
 // newFakePTYFactory returns a PTYFactory that creates a fresh fakePTYWithOutput
 // for each session. Useful for tests that create multiple sessions.
 func newFakePTYFactory() PTYFactory {
-	return func(shell string, cols, rows uint16) (PTY, error) {
+	return func(spec SessionLaunchSpec) (PTY, error) {
 		return newFakePTYWithOutput(), nil
+	}
+}
+
+func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
+	sharedHome := filepath.Join(t.TempDir(), ".codex-shared")
+	if err := os.MkdirAll(sharedHome, 0o755); err != nil {
+		t.Fatalf("mkdir shared home: %v", err)
+	}
+	for _, entry := range []string{"auth.json", "config.toml", "settings.json"} {
+		if err := os.WriteFile(filepath.Join(sharedHome, entry), []byte(entry), 0o600); err != nil {
+			t.Fatalf("write shared entry %s: %v", entry, err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(sharedHome, "skills"), 0o755); err != nil {
+		t.Fatalf("mkdir shared skills: %v", err)
+	}
+
+	sessionHome := filepath.Join(t.TempDir(), "session-home")
+	got := prepareCodexSessionHome(sessionHome, sharedHome)
+	if got != sessionHome {
+		t.Fatalf("expected session home %q, got %q", sessionHome, got)
+	}
+
+	for _, entry := range []string{"auth.json", "config.toml", "settings.json", "skills"} {
+		linkPath := filepath.Join(sessionHome, entry)
+		info, err := os.Lstat(linkPath)
+		if err != nil {
+			t.Fatalf("expected %s to exist: %v", entry, err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("expected %s to be a symlink", entry)
+		}
+		target, err := os.Readlink(linkPath)
+		if err != nil {
+			t.Fatalf("readlink %s: %v", entry, err)
+		}
+		if target != filepath.Join(sharedHome, entry) {
+			t.Fatalf("expected %s -> %s, got %s", entry, filepath.Join(sharedHome, entry), target)
+		}
+	}
+
+	for _, dir := range []string{"sessions", "log", "logs", "outputs", "tmp"} {
+		info, err := os.Stat(filepath.Join(sessionHome, dir))
+		if err != nil {
+			t.Fatalf("expected private dir %s: %v", dir, err)
+		}
+		if !info.IsDir() {
+			t.Fatalf("expected %s to be a directory", dir)
+		}
+	}
+}
+
+func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o755); err != nil {
+		t.Fatalf("mkdir shared codex dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".codex", "auth.json"), []byte("auth"), 0o600); err != nil {
+		t.Fatalf("write shared codex auth: %v", err)
+	}
+
+	var captured SessionLaunchSpec
+	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
+		captured = spec
+		return newFakePTYWithOutput(), nil
+	})
+
+	sess, err := sm.Create("/fake/shell", 80, 24)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if _, ok := captured.Env["CLAUDE_CONFIG_DIR"]; ok {
+		t.Fatalf("did not expect CLAUDE_CONFIG_DIR override")
+	}
+	if _, ok := captured.Env["CLAUDE_SESSIONS_DIR"]; ok {
+		t.Fatalf("did not expect CLAUDE_SESSIONS_DIR override")
+	}
+	codexHome := captured.Env["CODEX_HOME"]
+	if !strings.Contains(codexHome, sess.ID) {
+		t.Fatalf("expected session CODEX_HOME to contain %q, got %q", sess.ID, codexHome)
+	}
+	info, err := os.Lstat(filepath.Join(codexHome, "auth.json"))
+	if err != nil {
+		t.Fatalf("expected shared codex auth symlink: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("expected session CODEX_HOME auth.json to be a symlink")
 	}
 }
 

@@ -28,8 +28,11 @@ export default function TtsSettingsSection() {
   const [hookCode, setHookCode] = useState<string | null>(null);
   const [hookReason, setHookReason] = useState("Checking Claude hook status…");
   const [hookSettingsPath, setHookSettingsPath] = useState<string | null>(null);
-  const [lastHookDeliverySummary, setLastHookDeliverySummary] = useState<string | null>(null);
-  const [lastTailerDeliverySummary, setLastTailerDeliverySummary] = useState<string | null>(null);
+  const [lastHookRoutingSummary, setLastHookRoutingSummary] = useState<string | null>(null);
+  const [lastTailerRoutingSummary, setLastTailerRoutingSummary] = useState<string | null>(null);
+  const [lastHookAckSummary, setLastHookAckSummary] = useState<string | null>(null);
+  const [lastTailerAckSummary, setLastTailerAckSummary] = useState<string | null>(null);
+  const [lastPlaybackSummary, setLastPlaybackSummary] = useState<string | null>(null);
   const [kokoroCapabilityLabel, setKokoroCapabilityLabel] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
@@ -55,7 +58,7 @@ export default function TtsSettingsSection() {
     error,
     lastSuccessfulAt,
     lastSuccessfulBackend,
-  } = useTextToSpeech(ttsSettings);
+  } = useTextToSpeech(ttsSettings, { source: "settings_test" });
 
   const backendLabel = backend === "kokoro" ? "Kokoro" : backend === "browser" ? "Browser" : "Unavailable";
   const backendColor = backend === "kokoro" ? "text-green-400" : backend === "browser" ? "text-yellow-400" : "text-wc-text-faint";
@@ -79,11 +82,20 @@ export default function TtsSettingsSection() {
       setHookReason(status.hookReason);
       setHookSettingsPath(status.hookSettingsPath ?? null);
       setKokoroCapabilityLabel(status.kokoroCapabilityLabel ?? null);
-      setLastHookDeliverySummary(status.lastHookDelivery
-        ? `${status.lastHookDelivery.delivered ? "Delivered" : "Skipped"}: ${status.lastHookDelivery.reason}`
+      setLastHookRoutingSummary(status.lastHookRouting
+        ? `${status.lastHookRouting.routed ? "Routed" : "Skipped"}: ${status.lastHookRouting.reason}`
         : null);
-      setLastTailerDeliverySummary(status.lastTailerDelivery
-        ? `${status.lastTailerDelivery.delivered ? "Delivered" : "Skipped"}: ${status.lastTailerDelivery.reason}`
+      setLastTailerRoutingSummary(status.lastTailerRouting
+        ? `${status.lastTailerRouting.routed ? "Routed" : "Skipped"}: ${status.lastTailerRouting.reason}`
+        : null);
+      setLastHookAckSummary(status.lastHookAck
+        ? `${status.lastHookAck.stage}${status.lastHookAck.backend ? ` via ${status.lastHookAck.backend}` : ""}${status.lastHookAck.message ? `: ${status.lastHookAck.message}` : ""}`
+        : null);
+      setLastTailerAckSummary(status.lastTailerAck
+        ? `${status.lastTailerAck.stage}${status.lastTailerAck.backend ? ` via ${status.lastTailerAck.backend}` : ""}${status.lastTailerAck.message ? `: ${status.lastTailerAck.message}` : ""}`
+        : null);
+      setLastPlaybackSummary(status.lastPlaybackEvent
+        ? `${status.lastPlaybackEvent.stage}${status.lastPlaybackEvent.backend ? ` via ${status.lastPlaybackEvent.backend}` : ""}${status.lastPlaybackEvent.message ? `: ${status.lastPlaybackEvent.message}` : ""}`
         : null);
     } catch (statusErrorValue) {
       setStatusError(toErrorInfo(statusErrorValue).message);
@@ -251,12 +263,14 @@ export default function TtsSettingsSection() {
         {hookCode && <div>Hook status code: {hookCode}</div>}
         <div>Kokoro: {kokoroCapabilityLabel ?? "Status unavailable"}</div>
         <div>Browser audio: {browserAudioReady ? "Ready" : "Blocked until you interact with the page"}</div>
-        <div>Last Claude hook delivery: {lastHookDeliverySummary ?? "No Claude hook delivery has been recorded yet"}</div>
-        <div>Last Codex tailer delivery: {lastTailerDeliverySummary ?? "No Codex tailer delivery has been recorded yet"}</div>
+        <div>Last Claude hook routing: {lastHookRoutingSummary ?? "No Claude hook routing has been recorded yet"}</div>
+        <div>Last Claude terminal ack: {lastHookAckSummary ?? "No Claude terminal acknowledgment has been recorded yet"}</div>
+        <div>Last Codex tailer routing: {lastTailerRoutingSummary ?? "No Codex tailer routing has been recorded yet"}</div>
+        <div>Last Codex terminal ack: {lastTailerAckSummary ?? "No Codex terminal acknowledgment has been recorded yet"}</div>
         <div>
-          Last successful playback: {lastSuccessfulAt
+          Last playback event: {lastPlaybackSummary ?? (lastSuccessfulAt
             ? `${new Date(lastSuccessfulAt).toLocaleString()} via ${lastSuccessfulBackend === "kokoro" ? "Kokoro" : lastSuccessfulBackend === "browser" ? "Browser" : "Unknown"}`
-            : "None in this tab yet"}
+            : "None recorded yet")}
         </div>
         {hookSettingsPath && <div className="break-all">Hook settings file: {hookSettingsPath}</div>}
       </SettingsCard>

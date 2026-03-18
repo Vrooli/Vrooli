@@ -62,11 +62,16 @@ Verify `autoEnabled: true`. The server-backed settings also include `backend`, `
 - `auto` means "prefer Kokoro, otherwise browser".
 - `kokoro` means strict Kokoro only. If Kokoro is unavailable, active backend becomes `Unavailable` with an explanation instead of silently switching to browser.
 
-### Check 4: Text correlation
+### Check 4: Candidate routing and terminal-side correlation
 
-`deliverTTS` validates that the AI response text appears in the target terminal's recent output buffer. This prevents stale or spoofed text from being spoken.
+The backend now does only one thing: route a trusted TTS candidate to the owning terminal session. It no longer tries to prove visibility from raw PTY bytes.
 
-If the terminal was cleared, the wrong pane/session was targeted, or the text was never displayed, the correlation check fails. The Settings panel now shows the last Claude-hook delivery result and the last Codex-tailer delivery result separately from `/api/v1/tts/status`.
+Correlation happens in the browser against the rendered xterm buffer. If the response is not actually visible in that terminal, the client rejects the candidate and reports the reason via `/api/v1/tts/status`.
+
+Important:
+- Codex routing is explicit because each terminal gets its own prepared `CODEX_HOME`, with shared auth/config symlinked from `~/.codex` and rollout files owned by one web-console session.
+- Claude routing is explicit because the Stop hook command forwards `WC_WEB_CONSOLE_SESSION_ID` from the owning terminal. Claude keeps its native shared `~/.claude` session storage unchanged, so login persistence and onboarding state are not disturbed.
+- The Settings panel now separates backend routing from terminal acknowledgments. A route can succeed while the browser later rejects or fails playback.
 
 ### Check 5: Browser audio policy
 

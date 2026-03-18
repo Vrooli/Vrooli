@@ -7,6 +7,7 @@ import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
+import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
@@ -72,6 +73,7 @@ export default function Workspace() {
   } = useSessionManager();
 
   const store = useWorkspaceStore();
+  const { syncActivePane } = useWorkspaceSync();
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
@@ -82,6 +84,11 @@ export default function Workspace() {
   const pendingActivePaneRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
+
+  const activatePane = useCallback((sessionId: string) => {
+    store.setActivePane(sessionId);
+    syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
+  }, [store, syncActivePane]);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -173,9 +180,9 @@ export default function Workspace() {
     const activePaneExists = store.activePane !== null && store.panes.some((p) => p.sessionId === store.activePane);
     if (!activePaneExists) {
       const lastPane = store.panes[store.panes.length - 1];
-      if (lastPane) store.setActivePane(lastPane.sessionId);
+      if (lastPane) activatePane(lastPane.sessionId);
     }
-  }, [store]);
+  }, [store, activatePane]);
 
   const openLauncher = useCallback(() => setLauncherOpen(true), []);
   const closeLauncher = useCallback(() => setLauncherOpen(false), []);
@@ -525,7 +532,7 @@ export default function Workspace() {
           isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
         )}
         style={{ gridColumn, gridRow }}
-        onClick={() => store.setActivePane(paneMeta.sessionId)}
+        onClick={() => activatePane(paneMeta.sessionId)}
       >
         <TerminalHeader
           sessionId={paneMeta.sessionId}
@@ -533,7 +540,7 @@ export default function Workspace() {
           headerColor={paneMeta.headerColor}
           isActive={store.activePane === paneMeta.sessionId}
           onClose={() => handleRequestClose(paneMeta.sessionId)}
-          onFocus={() => store.setActivePane(paneMeta.sessionId)}
+          onFocus={() => activatePane(paneMeta.sessionId)}
           onDragStart={startArrangeDrag}
         />
         <div className="flex-1 min-h-0">

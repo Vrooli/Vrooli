@@ -54,8 +54,7 @@ human users and automated agents.
 | `group_not_found` | 404 | validation | No | The group may have been deleted. Refresh the workspace. |
 | `pane_not_found` | 404 | validation | No | The pane may have been removed. Refresh the workspace. |
 | `tts_auto_disabled` | 409 | validation | No | Enable Auto-speak AI responses in Settings before retrying. |
-| `tts_delivery_target_missing` | 404 | validation | No | Keep the target terminal open, or switch to the intended pane and retry. |
-| `tts_correlation_failed` | 409 | validation | No | Keep the assistant response visible in the same pane, then retry. |
+| `tts_target_missing` | 404 | validation | No | Keep the owning Claude or Codex terminal open so web-console can route the TTS candidate back to it. |
 | `tts_hook_not_registered` | 503 | dependency | No | Restart web-console through its lifecycle or re-register the TTS hook. |
 | `tts_browser_audio_blocked` | 409 | validation | No | Click or press a key in the page, then retry playback. |
 | `tts_playback_failed` | 502 | dependency | Yes | Retry playback or switch to another backend. |

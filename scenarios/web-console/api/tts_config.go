@@ -129,26 +129,38 @@ func (s *Server) handleGetTTSConfig(w http.ResponseWriter, _ *http.Request) {
 }
 
 type TTSRuntimeStatus struct {
-	Config                TTSConfig          `json:"config"`
-	HookRegistered        bool               `json:"hookRegistered"`
-	HookCode              string             `json:"hookCode,omitempty"`
-	HookReason            string             `json:"hookReason"`
-	HookSettingsPath      string             `json:"hookSettingsPath,omitempty"`
-	LastDelivery          *TTSDeliveryResult `json:"lastDelivery,omitempty"`
-	LastDeliveryAt        string             `json:"lastDeliveryAt,omitempty"`
-	LastHookDelivery      *TTSDeliveryResult `json:"lastHookDelivery,omitempty"`
-	LastHookDeliveryAt    string             `json:"lastHookDeliveryAt,omitempty"`
-	LastTailerDelivery    *TTSDeliveryResult `json:"lastTailerDelivery,omitempty"`
-	LastTailerDeliveryAt  string             `json:"lastTailerDeliveryAt,omitempty"`
-	KokoroCapability      string             `json:"kokoroCapability,omitempty"`
-	KokoroCapabilityLabel string             `json:"kokoroCapabilityLabel,omitempty"`
+	Config                TTSConfig         `json:"config"`
+	HookRegistered        bool              `json:"hookRegistered"`
+	HookCode              string            `json:"hookCode,omitempty"`
+	HookReason            string            `json:"hookReason"`
+	HookSettingsPath      string            `json:"hookSettingsPath,omitempty"`
+	LastRouting           *TTSRoutingResult `json:"lastRouting,omitempty"`
+	LastRoutingAt         string            `json:"lastRoutingAt,omitempty"`
+	LastHookRouting       *TTSRoutingResult `json:"lastHookRouting,omitempty"`
+	LastHookRoutingAt     string            `json:"lastHookRoutingAt,omitempty"`
+	LastTailerRouting     *TTSRoutingResult `json:"lastTailerRouting,omitempty"`
+	LastTailerRoutingAt   string            `json:"lastTailerRoutingAt,omitempty"`
+	LastAck               *TTSClientAck     `json:"lastAck,omitempty"`
+	LastAckAt             string            `json:"lastAckAt,omitempty"`
+	LastHookAck           *TTSClientAck     `json:"lastHookAck,omitempty"`
+	LastHookAckAt         string            `json:"lastHookAckAt,omitempty"`
+	LastTailerAck         *TTSClientAck     `json:"lastTailerAck,omitempty"`
+	LastTailerAckAt       string            `json:"lastTailerAckAt,omitempty"`
+	LastPlaybackEvent     *TTSPlaybackEvent `json:"lastPlaybackEvent,omitempty"`
+	LastPlaybackAt        string            `json:"lastPlaybackAt,omitempty"`
+	KokoroCapability      string            `json:"kokoroCapability,omitempty"`
+	KokoroCapabilityLabel string            `json:"kokoroCapabilityLabel,omitempty"`
 }
 
 func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {
 	hookRegistered, hookCode, hookReason, hookSettingsPath := s.getClaudeHookStatus()
-	lastDelivery, lastDeliveryAt := s.getLastTTSDelivery()
-	lastHookDelivery, lastHookDeliveryAt := s.getLastTTSDeliveryBySource("claude_hook")
-	lastTailerDelivery, lastTailerDeliveryAt := s.getLastTTSDeliveryBySource("codex_tailer")
+	lastRouting, lastRoutingAt := s.getLastTTSRouting()
+	lastHookRouting, lastHookRoutingAt := s.getLastTTSRoutingBySource("claude_hook")
+	lastTailerRouting, lastTailerRoutingAt := s.getLastTTSRoutingBySource("codex_tailer")
+	lastAck, lastAckAt := s.getLastTTSAck()
+	lastHookAck, lastHookAckAt := s.getLastTTSAckBySource("claude_hook")
+	lastTailerAck, lastTailerAckAt := s.getLastTTSAckBySource("codex_tailer")
+	lastPlaybackEvent, lastPlaybackAt := s.getLastTTSPlaybackEvent()
 
 	kokoroCapability := "unknown"
 	kokoroCapabilityLabel := "Kokoro status not checked yet"
@@ -169,20 +181,36 @@ func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {
 		HookCode:              hookCode,
 		HookReason:            hookReason,
 		HookSettingsPath:      hookSettingsPath,
-		LastDelivery:          lastDelivery,
-		LastHookDelivery:      lastHookDelivery,
-		LastTailerDelivery:    lastTailerDelivery,
+		LastRouting:           lastRouting,
+		LastHookRouting:       lastHookRouting,
+		LastTailerRouting:     lastTailerRouting,
+		LastAck:               lastAck,
+		LastHookAck:           lastHookAck,
+		LastTailerAck:         lastTailerAck,
+		LastPlaybackEvent:     lastPlaybackEvent,
 		KokoroCapability:      kokoroCapability,
 		KokoroCapabilityLabel: kokoroCapabilityLabel,
 	}
-	if !lastDeliveryAt.IsZero() {
-		status.LastDeliveryAt = lastDeliveryAt.UTC().Format(time.RFC3339)
+	if !lastRoutingAt.IsZero() {
+		status.LastRoutingAt = lastRoutingAt.UTC().Format(time.RFC3339)
 	}
-	if !lastHookDeliveryAt.IsZero() {
-		status.LastHookDeliveryAt = lastHookDeliveryAt.UTC().Format(time.RFC3339)
+	if !lastHookRoutingAt.IsZero() {
+		status.LastHookRoutingAt = lastHookRoutingAt.UTC().Format(time.RFC3339)
 	}
-	if !lastTailerDeliveryAt.IsZero() {
-		status.LastTailerDeliveryAt = lastTailerDeliveryAt.UTC().Format(time.RFC3339)
+	if !lastTailerRoutingAt.IsZero() {
+		status.LastTailerRoutingAt = lastTailerRoutingAt.UTC().Format(time.RFC3339)
+	}
+	if !lastAckAt.IsZero() {
+		status.LastAckAt = lastAckAt.UTC().Format(time.RFC3339)
+	}
+	if !lastHookAckAt.IsZero() {
+		status.LastHookAckAt = lastHookAckAt.UTC().Format(time.RFC3339)
+	}
+	if !lastTailerAckAt.IsZero() {
+		status.LastTailerAckAt = lastTailerAckAt.UTC().Format(time.RFC3339)
+	}
+	if !lastPlaybackAt.IsZero() {
+		status.LastPlaybackAt = lastPlaybackAt.UTC().Format(time.RFC3339)
 	}
 	writeJSON(w, http.StatusOK, status)
 }

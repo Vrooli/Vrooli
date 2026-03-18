@@ -62,8 +62,8 @@ teardown() {
 
     args=$(cat "$TEST_CLAUDE_CLI_ARGS")
     [[ "$args" == Stop\ web-console-tts*project ]]
-    [[ "$args" == *'"url": "http://localhost:17086/api/v1/hooks/stop"'* ]]
-    [[ "$args" == *'"X-Hook-Token": "secret-token"'* ]]
+    [[ "$args" == *'"type": "command"'* ]]
+    [[ "$args" == *'claude-stop-hook.sh --url http://localhost:17086/api/v1/hooks/stop --token secret-token'* ]]
 }
 
 @test "register_tts_hook returns non-zero when reconcile fails" {

@@ -225,19 +225,12 @@ var errorCatalog = map[string]appError{
 		Message:  "Auto-TTS is disabled",
 		Recovery: "Enable Auto-speak AI responses in Settings before retrying",
 	},
-	"tts_delivery_target_missing": {
+	"tts_target_missing": {
 		Status:   http.StatusNotFound,
-		Code:     "tts_delivery_target_missing",
+		Code:     "tts_target_missing",
 		Category: "validation",
-		Message:  "No terminal session was available for TTS delivery",
-		Recovery: "Keep the target terminal open, or switch to the intended pane and retry",
-	},
-	"tts_correlation_failed": {
-		Status:   http.StatusConflict,
-		Code:     "tts_correlation_failed",
-		Category: "validation",
-		Message:  "Assistant text did not match recent terminal output",
-		Recovery: "Keep the assistant response visible in the same pane, then retry",
+		Message:  "No terminal session was available for TTS routing",
+		Recovery: "Keep the owning Claude or Codex terminal open so web-console can route the TTS candidate back to it",
 	},
 	"tts_hook_not_registered": {
 		Status:   http.StatusServiceUnavailable,

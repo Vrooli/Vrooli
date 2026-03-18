@@ -8,7 +8,7 @@ vi.mock("../lib/api", () => ({
   buildSessionWsUrl: vi.fn((id: string) => `ws://test/sessions/${id}/ws`),
 }));
 
-describe("useTerminalSocket — TTS message handling", () => {
+describe("useTerminalSocket — TTS candidate handling", () => {
   let fakeWs: FakeWebSocket;
   let createSocket: ReturnType<typeof createFakeSocketPair>["createSocket"];
   let terminal: MockTerminal;
@@ -25,62 +25,47 @@ describe("useTerminalSocket — TTS message handling", () => {
     vi.useRealTimers();
   });
 
-  it("invokes onTTS callback when a tts message arrives with data", () => {
-    const mockOnTTS = vi.fn();
+  it("invokes onTTSCandidate callback when a candidate arrives with data", () => {
+    const mockOnTTSCandidate = vi.fn();
 
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
-        onTTS: mockOnTTS,
+        onTTSCandidate: mockOnTTSCandidate,
       }),
     );
 
     act(() => fakeWs.triggerOpen());
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "Hello from AI" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-1", source: "claude_hook", data: "Hello from AI" }));
 
-    expect(mockOnTTS).toHaveBeenCalledOnce();
-    expect(mockOnTTS).toHaveBeenCalledWith("Hello from AI");
+    expect(mockOnTTSCandidate).toHaveBeenCalledOnce();
+    expect(mockOnTTSCandidate).toHaveBeenCalledWith(
+      { eventId: "evt-1", source: "claude_hook", text: "Hello from AI" },
+      expect.any(Function),
+    );
   });
 
-  it("does not invoke onTTS when tts message has no data", () => {
-    const mockOnTTS = vi.fn();
+  it("does not invoke onTTSCandidate when candidate message is incomplete", () => {
+    const mockOnTTSCandidate = vi.fn();
 
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
-        onTTS: mockOnTTS,
+        onTTSCandidate: mockOnTTSCandidate,
       }),
     );
 
     act(() => fakeWs.triggerOpen());
-    act(() => fakeWs.triggerMessage({ type: "tts" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", data: "missing metadata" }));
 
-    expect(mockOnTTS).not.toHaveBeenCalled();
+    expect(mockOnTTSCandidate).not.toHaveBeenCalled();
   });
 
-  it("does not invoke onTTS when tts message has empty string data", () => {
-    const mockOnTTS = vi.fn();
-
-    renderHook(() =>
-      useTerminalSocket({
-        sessionId: "sess-tts",
-        terminal: terminal as never,
-        createSocket,
-        onTTS: mockOnTTS,
-      }),
-    );
-
-    act(() => fakeWs.triggerOpen());
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "" }));
-
-    expect(mockOnTTS).not.toHaveBeenCalled();
-  });
-
-  it("does not crash when no onTTS callback is provided", () => {
+  it("does not crash when no onTTSCandidate callback is provided", () => {
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-tts",
@@ -91,21 +76,20 @@ describe("useTerminalSocket — TTS message handling", () => {
 
     act(() => fakeWs.triggerOpen());
 
-    // Should not throw
     expect(() => {
-      act(() => fakeWs.triggerMessage({ type: "tts", data: "No handler" }));
+      act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-2", source: "codex_tailer", data: "No handler" }));
     }).not.toThrow();
   });
 
-  it("does not write tts data to the terminal", () => {
-    const mockOnTTS = vi.fn();
+  it("does not write TTS candidate data to the terminal", () => {
+    const mockOnTTSCandidate = vi.fn();
 
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
-        onTTS: mockOnTTS,
+        onTTSCandidate: mockOnTTSCandidate,
       }),
     );
 
@@ -115,7 +99,7 @@ describe("useTerminalSocket — TTS message handling", () => {
     // Clear any writes from history_end
     terminal.write.mockClear();
 
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "Speech only text" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-3", source: "claude_hook", data: "Speech only text" }));
 
     // TTS messages should NOT be written to the terminal
     const writeCalls = terminal.write.mock.calls as string[][];
@@ -125,50 +109,79 @@ describe("useTerminalSocket — TTS message handling", () => {
     expect(hasTtsContent).toBe(false);
   });
 
-  it("invokes onTTS for multiple successive tts messages", () => {
-    const mockOnTTS = vi.fn();
+  it("invokes onTTSCandidate for multiple successive candidate messages", () => {
+    const mockOnTTSCandidate = vi.fn();
 
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
-        onTTS: mockOnTTS,
+        onTTSCandidate: mockOnTTSCandidate,
       }),
     );
 
     act(() => fakeWs.triggerOpen());
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "First message" }));
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "Second message" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-4", source: "claude_hook", data: "First message" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-5", source: "claude_hook", data: "Second message" }));
 
-    expect(mockOnTTS).toHaveBeenCalledTimes(2);
-    expect(mockOnTTS).toHaveBeenNthCalledWith(1, "First message");
-    expect(mockOnTTS).toHaveBeenNthCalledWith(2, "Second message");
+    expect(mockOnTTSCandidate).toHaveBeenCalledTimes(2);
+    expect(mockOnTTSCandidate).toHaveBeenNthCalledWith(1, { eventId: "evt-4", source: "claude_hook", text: "First message" }, expect.any(Function));
+    expect(mockOnTTSCandidate).toHaveBeenNthCalledWith(2, { eventId: "evt-5", source: "claude_hook", text: "Second message" }, expect.any(Function));
   });
 
-  it("uses latest onTTS callback via ref (no stale closure)", () => {
+  it("uses latest onTTSCandidate callback via ref (no stale closure)", () => {
     const firstCallback = vi.fn();
     const secondCallback = vi.fn();
 
     const { rerender } = renderHook(
-      ({ onTTS }) =>
+      ({ onTTSCandidate }) =>
         useTerminalSocket({
           sessionId: "sess-tts",
           terminal: terminal as never,
           createSocket,
-          onTTS,
+          onTTSCandidate,
         }),
-      { initialProps: { onTTS: firstCallback } },
+      { initialProps: { onTTSCandidate: firstCallback } },
     );
 
     act(() => fakeWs.triggerOpen());
 
     // Rerender with a new callback
-    rerender({ onTTS: secondCallback });
+    rerender({ onTTSCandidate: secondCallback });
 
-    act(() => fakeWs.triggerMessage({ type: "tts", data: "After rerender" }));
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-6", source: "claude_hook", data: "After rerender" }));
 
     expect(firstCallback).not.toHaveBeenCalled();
-    expect(secondCallback).toHaveBeenCalledWith("After rerender");
+    expect(secondCallback).toHaveBeenCalledWith(
+      { eventId: "evt-6", source: "claude_hook", text: "After rerender" },
+      expect.any(Function),
+    );
+  });
+
+  it("sends TTS acknowledgments over the websocket", () => {
+    let ackFn: ((stage: string, message?: string, backend?: string) => void) | undefined;
+
+    renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-tts",
+        terminal: terminal as never,
+        createSocket,
+        onTTSCandidate: (_candidate, sendAck) => { ackFn = sendAck; },
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "tts_candidate", eventId: "evt-ack", source: "claude_hook", data: "Ack me" }));
+    act(() => ackFn?.("playback_succeeded", "ok", "browser"));
+
+    const sent = fakeWs.sent.map((raw) => JSON.parse(raw) as { type: string; eventId?: string; stage?: string; backend?: string; data?: string; source?: string });
+    expect(sent.some((msg) =>
+      msg.type === "tts_ack" &&
+      msg.eventId === "evt-ack" &&
+      msg.source === "claude_hook" &&
+      msg.stage === "playback_succeeded" &&
+      msg.backend === "browser" &&
+      msg.data === "ok")).toBe(true);
   });
 });

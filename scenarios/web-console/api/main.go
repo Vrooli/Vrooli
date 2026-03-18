@@ -78,14 +78,32 @@ type Server struct {
 	ttsVoiceLister  TTSVoiceLister
 	ttsDedup        *ttsDedup
 	ttsStatusMu     sync.RWMutex
-	lastTTSDelivery *TTSDeliveryResult
+	lastTTSRouting  *TTSRoutingResult
 	lastTTSAt       time.Time
-	lastTTSBySource map[string]ttsDeliverySnapshot
+	lastTTSBySource map[string]ttsRoutingSnapshot
+	lastTTSAck      *TTSClientAck
+	lastTTSAckAt    time.Time
+	lastTTSAckBySrc map[string]ttsAckSnapshot
+	lastTTSPlayback *TTSPlaybackEvent
+	lastTTSPlayAt   time.Time
 }
 
-type ttsDeliverySnapshot struct {
-	Result TTSDeliveryResult
+type ttsRoutingSnapshot struct {
+	Result TTSRoutingResult
 	At     time.Time
+}
+
+type ttsAckSnapshot struct {
+	Result TTSClientAck
+	At     time.Time
+}
+
+type TTSPlaybackEvent struct {
+	Source    string `json:"source"`
+	Stage     string `json:"stage"`
+	Backend   string `json:"backend,omitempty"`
+	SessionID string `json:"sessionId,omitempty"`
+	Message   string `json:"message,omitempty"`
 }
 
 // NewServer initializes database, session manager, and routes.
@@ -139,7 +157,8 @@ func NewServer(db *sql.DB) *Server {
 		ttsConfigPath:   ttsPath,
 		hookAuthToken:   hookToken,
 		ttsDedup:        newTTSDedup(),
-		lastTTSBySource: make(map[string]ttsDeliverySnapshot),
+		lastTTSBySource: make(map[string]ttsRoutingSnapshot),
+		lastTTSAckBySrc: make(map[string]ttsAckSnapshot),
 	}
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
@@ -204,15 +223,9 @@ func NewServer(db *sql.DB) *Server {
 	srv.setupRoutes()
 
 	// Start Codex rollout tailer for auto-TTS.
-	home, _ := os.UserHomeDir()
-	if home != "" {
-		codexDir := filepath.Join(home, ".codex")
-		if _, err := os.Stat(codexDir); err == nil {
-			srv.codexTailer = NewCodexTailer(srv)
-			srv.codexTailer.Start()
-			log.Println("codex-tailer: started watching for rollout files")
-		}
-	}
+	srv.codexTailer = NewCodexTailer(srv)
+	srv.codexTailer.Start()
+	log.Println("codex-tailer: started watching for per-session rollout files")
 
 	return srv
 }
@@ -287,6 +300,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/tts/config", s.handleGetTTSConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/tts/config", s.handleUpdateTTSConfig).Methods("PUT")
 	s.router.HandleFunc("/api/v1/tts/status", s.handleGetTTSStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/tts/events", s.handlePostTTSEvent).Methods("POST")
 
 	// TTS synthesis and voices (Kokoro backend)
 	s.router.HandleFunc("/api/v1/tts/synthesize", s.handleTTSSynthesize).Methods("POST")
@@ -511,6 +525,7 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 				ID      string            `json:"_id"`
 				Type    string            `json:"type"`
 				URL     string            `json:"url"`
+				Command string            `json:"command"`
 				Timeout int               `json:"timeout"`
 				Headers map[string]string `json:"headers"`
 			} `json:"hooks"`
@@ -524,14 +539,26 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 	for _, group := range doc.Hooks["Stop"] {
 		for _, hook := range group.Hooks {
 			if hook.ID == "web-console-tts" {
-				if hook.Type != "http" {
-					return false, "hook_stale", "Claude Stop hook exists but is not configured as an HTTP hook", settingsPath
-				}
-				if expectedURL != "" && hook.URL != expectedURL {
-					return false, "hook_stale", "Claude Stop hook exists but points to a different API URL", settingsPath
-				}
-				if token := strings.TrimSpace(hook.Headers["X-Hook-Token"]); token == "" || token != s.hookAuthToken {
-					return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
+				switch hook.Type {
+				case "http":
+					if expectedURL != "" && hook.URL != expectedURL {
+						return false, "hook_stale", "Claude Stop hook exists but points to a different API URL", settingsPath
+					}
+					if token := strings.TrimSpace(hook.Headers["X-Hook-Token"]); token == "" || token != s.hookAuthToken {
+						return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
+					}
+				case "command":
+					if !strings.Contains(hook.Command, "claude-stop-hook.sh") {
+						return false, "hook_stale", "Claude Stop hook exists but uses an unexpected command", settingsPath
+					}
+					if expectedURL != "" && !strings.Contains(hook.Command, expectedURL) {
+						return false, "hook_stale", "Claude Stop hook exists but points to a different API URL", settingsPath
+					}
+					if !strings.Contains(hook.Command, s.hookAuthToken) {
+						return false, "hook_stale", "Claude Stop hook exists but has an outdated authentication token", settingsPath
+					}
+				default:
+					return false, "hook_stale", "Claude Stop hook exists but uses an unsupported hook type", settingsPath
 				}
 				return true, "hook_registered", "Claude Stop hook is registered", settingsPath
 			}
@@ -540,34 +567,34 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 	return false, "hook_missing", "Claude Stop hook is not registered in project settings", settingsPath
 }
 
-func (s *Server) recordLastTTSDelivery(result TTSDeliveryResult) {
+func (s *Server) recordLastTTSRouting(result TTSRoutingResult) {
 	s.ttsStatusMu.Lock()
 	defer s.ttsStatusMu.Unlock()
 	if s.lastTTSBySource == nil {
-		s.lastTTSBySource = make(map[string]ttsDeliverySnapshot)
+		s.lastTTSBySource = make(map[string]ttsRoutingSnapshot)
 	}
 	cp := result
-	s.lastTTSDelivery = &cp
+	s.lastTTSRouting = &cp
 	s.lastTTSAt = time.Now()
-	s.lastTTSBySource[result.Source] = ttsDeliverySnapshot{
+	s.lastTTSBySource[result.Source] = ttsRoutingSnapshot{
 		Result: cp,
 		At:     s.lastTTSAt,
 	}
-	log.Printf("tts-delivery: source=%s code=%s delivered=%v session=%s target=%v reason=%s",
-		result.Source, result.Code, result.Delivered, sanitizeID(result.SessionID), result.UsedTargetSession, result.Reason)
+	log.Printf("tts-routing: source=%s code=%s routed=%v session=%s event=%s reason=%s",
+		result.Source, result.Code, result.Routed, sanitizeID(result.SessionID), sanitizeID(result.EventID), result.Reason)
 }
 
-func (s *Server) getLastTTSDelivery() (*TTSDeliveryResult, time.Time) {
+func (s *Server) getLastTTSRouting() (*TTSRoutingResult, time.Time) {
 	s.ttsStatusMu.RLock()
 	defer s.ttsStatusMu.RUnlock()
-	if s.lastTTSDelivery == nil {
+	if s.lastTTSRouting == nil {
 		return nil, time.Time{}
 	}
-	cp := *s.lastTTSDelivery
+	cp := *s.lastTTSRouting
 	return &cp, s.lastTTSAt
 }
 
-func (s *Server) getLastTTSDeliveryBySource(source string) (*TTSDeliveryResult, time.Time) {
+func (s *Server) getLastTTSRoutingBySource(source string) (*TTSRoutingResult, time.Time) {
 	s.ttsStatusMu.RLock()
 	defer s.ttsStatusMu.RUnlock()
 	snapshot, ok := s.lastTTSBySource[source]
@@ -576,6 +603,64 @@ func (s *Server) getLastTTSDeliveryBySource(source string) (*TTSDeliveryResult, 
 	}
 	cp := snapshot.Result
 	return &cp, snapshot.At
+}
+
+func (s *Server) recordTTSAck(event TTSClientAck) {
+	s.ttsStatusMu.Lock()
+	defer s.ttsStatusMu.Unlock()
+	if s.lastTTSAckBySrc == nil {
+		s.lastTTSAckBySrc = make(map[string]ttsAckSnapshot)
+	}
+	cp := event
+	s.lastTTSAck = &cp
+	s.lastTTSAckAt = time.Now()
+	s.lastTTSAckBySrc[event.Source] = ttsAckSnapshot{
+		Result: cp,
+		At:     s.lastTTSAckAt,
+	}
+	log.Printf("tts-ack: source=%s stage=%s backend=%s session=%s event=%s message=%s",
+		event.Source, event.Stage, event.Backend, sanitizeID(event.SessionID), sanitizeID(event.EventID), strings.TrimSpace(event.Message))
+}
+
+func (s *Server) getLastTTSAck() (*TTSClientAck, time.Time) {
+	s.ttsStatusMu.RLock()
+	defer s.ttsStatusMu.RUnlock()
+	if s.lastTTSAck == nil {
+		return nil, time.Time{}
+	}
+	cp := *s.lastTTSAck
+	return &cp, s.lastTTSAckAt
+}
+
+func (s *Server) getLastTTSAckBySource(source string) (*TTSClientAck, time.Time) {
+	s.ttsStatusMu.RLock()
+	defer s.ttsStatusMu.RUnlock()
+	snapshot, ok := s.lastTTSAckBySrc[source]
+	if !ok {
+		return nil, time.Time{}
+	}
+	cp := snapshot.Result
+	return &cp, snapshot.At
+}
+
+func (s *Server) recordTTSPlaybackEvent(event TTSPlaybackEvent) {
+	s.ttsStatusMu.Lock()
+	defer s.ttsStatusMu.Unlock()
+	cp := event
+	s.lastTTSPlayback = &cp
+	s.lastTTSPlayAt = time.Now()
+	log.Printf("tts-playback: source=%s stage=%s backend=%s session=%s message=%s",
+		event.Source, event.Stage, event.Backend, sanitizeID(event.SessionID), strings.TrimSpace(event.Message))
+}
+
+func (s *Server) getLastTTSPlaybackEvent() (*TTSPlaybackEvent, time.Time) {
+	s.ttsStatusMu.RLock()
+	defer s.ttsStatusMu.RUnlock()
+	if s.lastTTSPlayback == nil {
+		return nil, time.Time{}
+	}
+	cp := *s.lastTTSPlayback
+	return &cp, s.lastTTSPlayAt
 }
 
 // loadOrCreateHookToken reads a hook auth token from file, or generates a new

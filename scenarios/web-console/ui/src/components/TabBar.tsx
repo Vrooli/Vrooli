@@ -36,7 +36,7 @@ export default function TabBar({
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
-  const { syncPaneOrder, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
+  const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
 
   // Inline rename state for tabs
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
@@ -131,6 +131,11 @@ export default function TabBar({
   /** Movement threshold (px) before a pointer-down becomes a drag. */
   const DRAG_THRESHOLD = 5;
 
+  const activatePane = useCallback((sessionId: string) => {
+    setActivePane(sessionId);
+    syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
+  }, [setActivePane, syncActivePane]);
+
   // Auto-scroll active tab into view
   useEffect(() => {
     if (activeTabRef.current && tabContainerRef.current) {
@@ -158,7 +163,7 @@ export default function TabBar({
         const nextIdx = (activeIdx + direction + panes.length) % panes.length;
         const nextPane = panes[nextIdx];
         if (nextPane) {
-          setActivePane(nextPane.sessionId);
+          activatePane(nextPane.sessionId);
         }
         return;
       }
@@ -170,7 +175,7 @@ export default function TabBar({
           e.preventDefault();
           const targetPane = panes[idx];
           if (targetPane) {
-            setActivePane(targetPane.sessionId);
+            activatePane(targetPane.sessionId);
           }
         }
         return;
@@ -188,7 +193,7 @@ export default function TabBar({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [displayMode, panes, activePane, setActivePane, onClosePane]);
+  }, [displayMode, panes, activePane, activatePane, onClosePane]);
 
   // Initiate actual drag once movement exceeds threshold
   const commitDrag = useCallback(
@@ -384,7 +389,7 @@ export default function TabBar({
               onClick={() => {
                 // Suppress click if a drag just completed
                 if (isDragging) return;
-                setActivePane(pane.sessionId);
+                activatePane(pane.sessionId);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -445,7 +450,7 @@ export default function TabBar({
                 // for onClick, which mobile browsers may delay or suppress
                 // when the element is inside a scrollable container.
                 if (!longPressFired.current && !isDragging) {
-                  setActivePane(pane.sessionId);
+                  activatePane(pane.sessionId);
                 }
               }}
               onPointerCancel={() => {
