@@ -339,7 +339,9 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -533,7 +535,9 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -1159,7 +1163,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {

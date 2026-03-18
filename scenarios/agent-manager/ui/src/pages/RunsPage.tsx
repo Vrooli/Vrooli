@@ -83,7 +83,7 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "oldest", label: "Oldest First" },
 ];
 
-const VALID_TABS = new Set(["task", "events", "diff", "messages", "cost"]);
+const VALID_TABS = new Set(["task", "timeline", "diff", "cost"]);
 
 export function RunsPage({
   runs,
@@ -659,12 +659,12 @@ export function RunsPage({
     </ListPanel>
   );
 
-  // Determine initial tab: query param > status-based default > "messages"
+  // Determine initial tab: query param > status-based default > "timeline"
   const tabParam = searchParams.get("tab");
   const initialTab = useMemo(() => {
-    if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "events" | "diff" | "messages" | "cost";
+    if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "timeline" | "diff" | "cost";
     if (selectedRun?.status === RunStatus.NEEDS_REVIEW) return "diff" as const;
-    return "messages" as const;
+    return "timeline" as const;
   }, [tabParam, selectedRun?.status]);
 
   const detailPanel = (

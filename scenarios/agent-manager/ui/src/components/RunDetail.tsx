@@ -1,5 +1,5 @@
 import type React from "react";
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
@@ -15,14 +15,12 @@ import {
   FolderOpen,
   Info,
   Link2,
-  MessageSquare,
   MoreVertical,
   RotateCcw,
   Search,
   Square,
   StickyNote,
   Tag,
-  Terminal,
   Trash2,
   Wrench,
   ExternalLink,
@@ -38,7 +36,6 @@ import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
-import { formatRelativeTimeShort } from "../lib/dateTime";
 import type {
   ApproveFormData,
   ContextAttachmentData,
@@ -48,17 +45,16 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { ApprovalState, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
 
 import { MarkdownRenderer } from "./markdown";
-import { CodeBlock } from "./markdown/components/CodeBlock";
 import { ModelCostComparison } from "./ModelCostComparison";
-import { ChatInterface } from "./ChatInterface";
+import { RunTimeline } from "./RunTimeline";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
 
-type TabId = "task" | "events" | "diff" | "messages" | "cost";
+type TabId = "task" | "timeline" | "diff" | "cost";
 
 interface RunDetailProps {
   run: Run;
@@ -109,7 +105,7 @@ export function RunDetail({
   onMobileHeaderLeft,
   onMobileHeaderRight,
 }: RunDetailProps) {
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "messages");
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "timeline");
 
   // Reset tab when switching runs or when initialTab changes
   useEffect(() => {
@@ -117,8 +113,6 @@ export function RunDetail({
   }, [initialTab, run.id]);
 
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [eventFilter, setEventFilter] = useState<"all" | "errors" | "messages" | "tools" | "status">("all");
-  const [eventsAutoScroll, setEventsAutoScroll] = useState(true);
   const [idCopied, setIdCopied] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
@@ -217,7 +211,6 @@ export function RunDetail({
     minSize: DETAILS_MIN_HEIGHT,
     minOtherSize: TABS_MIN_HEIGHT,
   });
-  const eventsScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Close actions menu on outside click
   useEffect(() => {
@@ -304,62 +297,6 @@ export function RunDetail({
     return () => onMobileHeaderRight(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktop, run.actions, actionsMenuOpen, onMobileHeaderRight]);
-  const eventCounts = useMemo(() => {
-    const counts = {
-      all: events.length,
-      errors: 0,
-      messages: 0,
-      tools: 0,
-      status: 0,
-    };
-    for (const event of events) {
-      if (event.eventType === RunEventType.ERROR) counts.errors += 1;
-      if (event.eventType === RunEventType.MESSAGE) counts.messages += 1;
-      if (event.eventType === RunEventType.TOOL_CALL || event.eventType === RunEventType.TOOL_RESULT) counts.tools += 1;
-      if (event.eventType === RunEventType.STATUS) counts.status += 1;
-    }
-    return counts;
-  }, [events]);
-
-  const filteredEvents = useMemo(() => {
-    switch (eventFilter) {
-      case "errors":
-        return events.filter((event) => event.eventType === RunEventType.ERROR);
-      case "messages":
-        return events.filter((event) => event.eventType === RunEventType.MESSAGE);
-      case "tools":
-        return events.filter(
-          (event) => event.eventType === RunEventType.TOOL_CALL || event.eventType === RunEventType.TOOL_RESULT
-        );
-      case "status":
-        return events.filter((event) => event.eventType === RunEventType.STATUS);
-      default:
-        return events;
-    }
-  }, [eventFilter, events]);
-
-  const handleEventsScroll = useCallback(() => {
-    const container = eventsScrollRef.current;
-    if (!container) return;
-    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    setEventsAutoScroll(distanceToBottom <= 24);
-  }, []);
-
-  useEffect(() => {
-    if (activeTab !== "events" || !eventsAutoScroll) return;
-    const container = eventsScrollRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
-  }, [activeTab, eventsAutoScroll, filteredEvents]);
-
-  useEffect(() => {
-    if (activeTab !== "events") return;
-    const container = eventsScrollRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
-    setEventsAutoScroll(true);
-  }, [activeTab]);
-
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
@@ -593,26 +530,14 @@ export function RunDetail({
             <button
               className={cn(
                 "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "events"
+                activeTab === "timeline"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
-              onClick={() => setActiveTab("events")}
+              onClick={() => setActiveTab("timeline")}
             >
-              <span className="hidden sm:inline mr-2"><Terminal className="h-4 w-4 inline" /></span>
-              Events ({events.length})
-            </button>
-            <button
-              className={cn(
-                "px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                activeTab === "messages"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setActiveTab("messages")}
-            >
-              <span className="hidden sm:inline mr-2"><MessageSquare className="h-4 w-4 inline" /></span>
-              Messages
+              <span className="hidden sm:inline mr-2"><Activity className="h-4 w-4 inline" /></span>
+              Timeline ({events.length})
             </button>
             <button
               className={cn(
@@ -642,11 +567,9 @@ export function RunDetail({
 
           {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
           <div
-            ref={eventsScrollRef}
-            onScroll={activeTab === "events" ? handleEventsScroll : undefined}
             className={cn(
               "flex-1 min-h-0",
-              activeTab === "messages" ? "flex flex-col" : "overflow-y-auto p-3 sm:p-4"
+              activeTab === "timeline" ? "flex flex-col" : "overflow-y-auto p-3 sm:p-4"
             )}
           >
             {activeTab === "task" ? (
@@ -657,66 +580,14 @@ export function RunDetail({
                 Task details unavailable for {run.taskId}
               </div>
             )
-          ) : activeTab === "events" ? (
-            eventsLoading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Loading events...
-              </div>
-            ) : events.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                No events recorded
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {eventCounts.errors > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setEventFilter("errors")}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
-                        eventFilter === "errors"
-                          ? "bg-destructive text-destructive-foreground"
-                          : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                      )}
-                    >
-                      Errors <span className="font-semibold">{eventCounts.errors}</span>
-                    </button>
-                  )}
-                  {(["all", "messages", "tools", "status"] as const).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setEventFilter(filter)}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
-                        eventFilter === filter
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                      )}
-                    >
-                      {filter === "all" ? "All" : filter}
-                      <span className="opacity-70">{eventCounts[filter]}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="space-y-0.5">
-                  {filteredEvents.map((event) => (
-                    <EventItem key={event.id} event={event} />
-                  ))}
-                </div>
-              </div>
-            )
-          ) : activeTab === "messages" ? (
-            <div className="flex-1 min-h-0 p-3 sm:p-4">
-              <ChatInterface
-                run={run}
-                events={events}
-                eventsLoading={eventsLoading}
-                onContinue={onContinue}
-                onDeleteMessage={onDeleteMessage}
-              />
-            </div>
+          ) : activeTab === "timeline" ? (
+            <RunTimeline
+              run={run}
+              events={events}
+              eventsLoading={eventsLoading}
+              onContinue={onContinue}
+              onDeleteMessage={onDeleteMessage}
+            />
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">
@@ -1209,147 +1080,6 @@ function TaskSummary({ task }: { task: Task }) {
   );
 }
 
-function EventItem({ event }: { event: RunEvent }) {
-  const [expanded, setExpanded] = useState(false);
-  const payload = event.data;
-  const payloadValue = payload.value as Record<string, unknown> | undefined;
-
-  const getIcon = () => {
-    switch (event.eventType) {
-      case RunEventType.LOG:
-        return <Terminal className="h-3.5 w-3.5" />;
-      case RunEventType.MESSAGE:
-        return <MessageSquare className="h-3.5 w-3.5" />;
-      case RunEventType.TOOL_CALL:
-      case RunEventType.TOOL_RESULT:
-        return <Wrench className="h-3.5 w-3.5" />;
-      case RunEventType.STATUS:
-        return <Activity className="h-3.5 w-3.5" />;
-      case RunEventType.ERROR:
-        return <AlertCircle className="h-3.5 w-3.5" />;
-      default:
-        return <ChevronRight className="h-3.5 w-3.5" />;
-    }
-  };
-
-  const getAccentColor = () => {
-    switch (event.eventType) {
-      case RunEventType.ERROR:
-        return "border-l-destructive text-destructive";
-      case RunEventType.STATUS:
-        return "border-l-primary text-primary";
-      case RunEventType.TOOL_CALL:
-      case RunEventType.TOOL_RESULT:
-        return "border-l-warning text-warning";
-      case RunEventType.MESSAGE:
-        return "border-l-success text-success";
-      default:
-        return "border-l-muted-foreground text-muted-foreground";
-    }
-  };
-
-  const getSummary = () => {
-    const v = payloadValue ?? {};
-    switch (payload.case) {
-      case "log": {
-        const msg = String(v.message ?? "Log entry");
-        // Strip "phase: " prefix — the badge already shows type
-        return msg.replace(/^phase:\s*/i, "");
-      }
-      case "message":
-        return String(v.role ?? "unknown") + ": " + String(v.content ?? "").slice(0, 120);
-      case "toolCall":
-        return String(v.toolName ?? "unknown tool");
-      case "toolResult":
-        return (v.success ? "OK" : "Failed") + " — " + String(v.toolName ?? "");
-      case "status":
-        return (
-          runStatusLabel((v.oldStatus as RunStatus) ?? RunStatus.UNSPECIFIED) +
-          " -> " +
-          runStatusLabel((v.newStatus as RunStatus) ?? RunStatus.UNSPECIFIED)
-        );
-      case "metric":
-        return `${String(v.name ?? "metric")}: ${v.value ?? 0}`;
-      case "artifact":
-        return v.path ? String(v.path) : "Artifact";
-      case "progress":
-        return `Progress ${v.percentComplete ?? 0}%`;
-      case "cost":
-        return "Cost update";
-      case "rateLimit":
-        return "Rate limit";
-      case "error":
-        return String(v.message ?? v.code ?? "Error occurred");
-      default:
-        return runEventTypeLabel(event.eventType);
-    }
-  };
-
-  const accentClasses = getAccentColor();
-  const iconColor = accentClasses.split(" ").slice(1).join(" ");
-
-  return (
-    <div
-      className={cn(
-        "border-l-2 rounded-r-md bg-card/50 text-xs transition-colors hover:bg-muted/30",
-        accentClasses.split(" ")[0]
-      )}
-    >
-      <div
-        className="flex items-center gap-2 px-3 py-1.5 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className={cn("shrink-0", iconColor)}>{getIcon()}</span>
-        <span className="text-[10px] font-medium text-muted-foreground shrink-0">
-          {runEventTypeLabel(event.eventType).replace("_", " ")}
-        </span>
-        <span className="flex-1 truncate text-sm text-foreground">
-          {getSummary()}
-        </span>
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          {formatRelativeTimeShort(event.timestamp)}
-        </span>
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        )}
-      </div>
-      {expanded && (
-        <div className="px-3 pb-2 pt-1 space-y-1 border-t border-border/50">
-          <div className="text-[10px] text-muted-foreground">
-            Payload
-          </div>
-          <CodeBlock code={JSON.stringify(payloadValue, null, 2)} language="json" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function runEventTypeLabel(eventType: RunEventType): string {
-  switch (eventType) {
-    case RunEventType.LOG:
-      return "log";
-    case RunEventType.MESSAGE:
-      return "message";
-    case RunEventType.TOOL_CALL:
-      return "tool_call";
-    case RunEventType.TOOL_RESULT:
-      return "tool_result";
-    case RunEventType.STATUS:
-      return "status";
-    case RunEventType.METRIC:
-      return "metric";
-    case RunEventType.ARTIFACT:
-      return "artifact";
-    case RunEventType.ERROR:
-      return "error";
-    default:
-      return "event";
-  }
-}
-
 type CostTotals = {
   inputTokens: number;
   outputTokens: number;
@@ -1764,4 +1494,3 @@ function CostBreakdown({ totals }: { totals: CostTotals }) {
     </div>
   );
 }
-

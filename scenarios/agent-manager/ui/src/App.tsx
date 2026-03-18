@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
@@ -8,16 +8,17 @@ import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
 import { MobileNav, type NavSection } from "./components/layout/MobileNav";
-import { StatusDialog } from "./components/dialogs/StatusDialog";
-import { SettingsDialog } from "./components/dialogs/SettingsDialog";
-import { QuickRunDialog } from "./components/QuickRunDialog";
 import { DashboardPage } from "./pages/DashboardPage";
-import { ProfilesPage } from "./pages/ProfilesPage";
-import { TasksPage } from "./pages/TasksPage";
-import { RunsPage } from "./pages/RunsPage";
-import { StatsPage } from "./features/stats";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
+
+const ProfilesPage = lazy(async () => ({ default: (await import("./pages/ProfilesPage")).ProfilesPage }));
+const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage")).TasksPage }));
+const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
+const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
+const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
+const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
+const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
 
 export default function App() {
   const navigate = useNavigate();
@@ -136,6 +137,12 @@ export default function App() {
     runs.refetch();
   }, [profiles, tasks, runs]);
 
+  const pageFallback = (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      Loading...
+    </div>
+  );
+
   return (
     <QueryProvider>
       <div className="h-screen bg-transparent text-foreground flex flex-col overflow-hidden">
@@ -150,42 +157,54 @@ export default function App() {
           onQuickRunClick={() => setQuickRunOpen(true)}
         />
 
-        <StatusDialog
-          open={statusOpen}
-          onOpenChange={setStatusOpen}
-          health={health.data}
-          healthError={health.error}
-          wsStatus={ws.status}
-        />
+        {statusOpen ? (
+          <Suspense fallback={null}>
+            <StatusDialog
+              open={statusOpen}
+              onOpenChange={setStatusOpen}
+              health={health.data}
+              healthError={health.error}
+              wsStatus={ws.status}
+            />
+          </Suspense>
+        ) : null}
 
-        <SettingsDialog
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          onPurgeComplete={handlePurgeComplete}
-        />
+        {settingsOpen ? (
+          <Suspense fallback={null}>
+            <SettingsDialog
+              open={settingsOpen}
+              onOpenChange={setSettingsOpen}
+              onPurgeComplete={handlePurgeComplete}
+            />
+          </Suspense>
+        ) : null}
 
-        <ErrorBoundary section="Quick Run">
-        <QuickRunDialog
-          open={quickRunOpen}
-          onOpenChange={setQuickRunOpen}
-          profiles={profiles.data || []}
-          runners={runners.data ?? undefined}
-          modelRegistry={modelRegistry.data ?? undefined}
-          defaultProjectRoot={(() => {
-            const raw = health.data?.metrics?.default_project_root;
-            if (!raw) return undefined;
-            const plain = jsonValueToPlain(raw);
-            return typeof plain === "string" ? plain : undefined;
-          })()}
-          onCreateTask={tasks.createTask}
-          onCreateRun={runs.createRun}
-          onRunCreated={(run) => {
-            runs.refetch();
-            tasks.refetch();
-            navigate(`/runs/${run.id}`);
-          }}
-        />
-        </ErrorBoundary>
+        {quickRunOpen ? (
+          <ErrorBoundary section="Quick Run">
+            <Suspense fallback={null}>
+              <QuickRunDialog
+                open={quickRunOpen}
+                onOpenChange={setQuickRunOpen}
+                profiles={profiles.data || []}
+                runners={runners.data ?? undefined}
+                modelRegistry={modelRegistry.data ?? undefined}
+                defaultProjectRoot={(() => {
+                  const raw = health.data?.metrics?.default_project_root;
+                  if (!raw) return undefined;
+                  const plain = jsonValueToPlain(raw);
+                  return typeof plain === "string" ? plain : undefined;
+                })()}
+                onCreateTask={tasks.createTask}
+                onCreateRun={runs.createRun}
+                onRunCreated={(run) => {
+                  runs.refetch();
+                  tasks.refetch();
+                  navigate(`/runs/${run.id}`);
+                }}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : null}
 
         {/* Main Content */}
         <main
@@ -215,77 +234,92 @@ export default function App() {
             <Route
               path="/profiles"
               element={
-                <ErrorBoundary section="Profiles">
-                <ProfilesPage
-                  profiles={profiles.data || []}
-                  loading={profiles.loading}
-                  error={profiles.error}
-                  onCreateProfile={profiles.createProfile}
-                  onUpdateProfile={profiles.updateProfile}
-                  onDeleteProfile={profiles.deleteProfile}
-                  onRefresh={profiles.refetch}
-                  runners={runners.data ?? undefined}
-                  modelRegistry={modelRegistry.data ?? undefined}
-                />
-                </ErrorBoundary>
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Profiles">
+                    <ProfilesPage
+                      profiles={profiles.data || []}
+                      loading={profiles.loading}
+                      error={profiles.error}
+                      onCreateProfile={profiles.createProfile}
+                      onUpdateProfile={profiles.updateProfile}
+                      onDeleteProfile={profiles.deleteProfile}
+                      onRefresh={profiles.refetch}
+                      runners={runners.data ?? undefined}
+                      modelRegistry={modelRegistry.data ?? undefined}
+                    />
+                  </ErrorBoundary>
+                </Suspense>
               }
             />
             <Route
               path="/tasks"
               element={
-                <ErrorBoundary section="Tasks">
-                <TasksPage
-                  tasks={tasks.data || []}
-                  profiles={profiles.data || []}
-                  loading={tasks.loading}
-                  error={tasks.error}
-                  onCreateTask={tasks.createTask}
-                  onUpdateTask={tasks.updateTask}
-                  onCancelTask={tasks.cancelTask}
-                  onDeleteTask={tasks.deleteTask}
-                  onCreateRun={runs.createRun}
-                  onCreateProfile={profiles.createProfile}
-                  onRefresh={tasks.refetch}
-                  runners={runners.data ?? undefined}
-                  modelRegistry={modelRegistry.data ?? undefined}
-                />
-                </ErrorBoundary>
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Tasks">
+                    <TasksPage
+                      tasks={tasks.data || []}
+                      profiles={profiles.data || []}
+                      loading={tasks.loading}
+                      error={tasks.error}
+                      onCreateTask={tasks.createTask}
+                      onUpdateTask={tasks.updateTask}
+                      onCancelTask={tasks.cancelTask}
+                      onDeleteTask={tasks.deleteTask}
+                      onCreateRun={runs.createRun}
+                      onCreateProfile={profiles.createProfile}
+                      onRefresh={tasks.refetch}
+                      runners={runners.data ?? undefined}
+                      modelRegistry={modelRegistry.data ?? undefined}
+                    />
+                  </ErrorBoundary>
+                </Suspense>
               }
             />
             <Route
               path="/runs/:runId?"
               element={
-                <ErrorBoundary section="Runs">
-                <RunsPage
-                  runs={runs.data || []}
-                  tasks={tasks.data || []}
-                  profiles={profiles.data || []}
-                  loading={runs.loading}
-                  error={runs.error}
-                  onStopRun={runs.stopRun}
-                  onDeleteRun={runs.deleteRun}
-                  onRetryRun={runs.retryRun}
-                  onGetRun={runs.getRun}
-                  onGetEvents={runs.getRunEvents}
-                  onGetDiff={runs.getRunDiff}
-                  onGetTask={tasks.getTask}
-                  onApproveRun={runs.approveRun}
-                  onRejectRun={runs.rejectRun}
-                  onPartialApproveRun={runs.partialApproveRun}
-                  onInvestigateRuns={runs.investigateRuns}
-                  onApplyInvestigation={runs.applyInvestigation}
-                  onContinueRun={runs.continueRun}
-                  onDeleteRunMessage={runs.deleteRunMessage}
-                  onRefresh={runs.refetch}
-                  wsSubscribe={ws.subscribe}
-                  wsUnsubscribe={ws.unsubscribe}
-                  wsAddMessageHandler={ws.addMessageHandler}
-                  wsRemoveMessageHandler={ws.removeMessageHandler}
-                />
-                </ErrorBoundary>
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Runs">
+                    <RunsPage
+                      runs={runs.data || []}
+                      tasks={tasks.data || []}
+                      profiles={profiles.data || []}
+                      loading={runs.loading}
+                      error={runs.error}
+                      onStopRun={runs.stopRun}
+                      onDeleteRun={runs.deleteRun}
+                      onRetryRun={runs.retryRun}
+                      onGetRun={runs.getRun}
+                      onGetEvents={runs.getRunEvents}
+                      onGetDiff={runs.getRunDiff}
+                      onGetTask={tasks.getTask}
+                      onApproveRun={runs.approveRun}
+                      onRejectRun={runs.rejectRun}
+                      onPartialApproveRun={runs.partialApproveRun}
+                      onInvestigateRuns={runs.investigateRuns}
+                      onApplyInvestigation={runs.applyInvestigation}
+                      onContinueRun={runs.continueRun}
+                      onDeleteRunMessage={runs.deleteRunMessage}
+                      onRefresh={runs.refetch}
+                      wsSubscribe={ws.subscribe}
+                      wsUnsubscribe={ws.unsubscribe}
+                      wsAddMessageHandler={ws.addMessageHandler}
+                      wsRemoveMessageHandler={ws.removeMessageHandler}
+                    />
+                  </ErrorBoundary>
+                </Suspense>
               }
             />
-            <Route path="/stats" element={<ErrorBoundary section="Stats"><StatsPage /></ErrorBoundary>} />
+            <Route
+              path="/stats"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Stats">
+                    <StatsPage />
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

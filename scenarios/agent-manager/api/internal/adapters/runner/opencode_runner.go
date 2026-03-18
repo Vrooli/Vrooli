@@ -193,7 +193,9 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()
@@ -1247,7 +1249,9 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()

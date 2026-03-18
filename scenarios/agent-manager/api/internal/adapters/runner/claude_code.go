@@ -173,7 +173,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -473,7 +475,9 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			Cause:      err,
 		}
 	}
-	defer mp.Wait()
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
