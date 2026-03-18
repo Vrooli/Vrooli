@@ -70,6 +70,7 @@ export default function Workspace() {
     sendToActiveTerminal,
     focusActiveTerminal,
     registerTerminalRef,
+    stopActiveTts,
   } = useSessionManager();
 
   const store = useWorkspaceStore();
@@ -87,7 +88,7 @@ export default function Workspace() {
 
   const activatePane = useCallback((sessionId: string) => {
     store.setActivePane(sessionId);
-    syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
+    syncActivePane(store.panes.map((p) => p.sessionId), sessionId);
   }, [store, syncActivePane]);
 
   // --- Mobile single-column layout ---
@@ -300,6 +301,23 @@ export default function Workspace() {
   const handleVoiceCancel = useCallback(() => {
     voiceInput.cancelTranscription();
   }, [voiceInput]);
+
+  // --- TTS speaking indicator ---
+  // Track which panes are currently speaking so we can show a visual indicator
+  // on the mic button. We only care about the active pane's speaking state.
+  const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
+  const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
+    setTtsSpeakingPanes(prev => {
+      const next = new Set(prev);
+      if (speaking) next.add(sessionId);
+      else next.delete(sessionId);
+      return next;
+    });
+  }, []);
+  const isTtsSpeaking = store.activePane ? ttsSpeakingPanes.has(store.activePane) : false;
+  const handleTtsStop = useCallback(() => {
+    stopActiveTts(store.activePane ?? undefined);
+  }, [store.activePane, stopActiveTts]);
 
   // --- Mobile image upload ---
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
@@ -551,6 +569,7 @@ export default function Workspace() {
               onReady={() => handleTerminalReady(paneMeta.sessionId)}
               onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
               onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+              onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -584,6 +603,8 @@ export default function Workspace() {
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
         onVoiceCancel={handleVoiceCancel}
+        isTtsSpeaking={isTtsSpeaking}
+        onTtsStop={handleTtsStop}
       />
 
       {/* Voice fallback notice */}
@@ -698,6 +719,8 @@ export default function Workspace() {
           onVoiceStop={handleVoiceStop}
           onVoiceCancel={handleVoiceCancel}
           onUploadImage={handleMobileUploadImage}
+          isTtsSpeaking={isTtsSpeaking}
+          onTtsStop={handleTtsStop}
         />
         <input
           ref={mobileFileInputRef}

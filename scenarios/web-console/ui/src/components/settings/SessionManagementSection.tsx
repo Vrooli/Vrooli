@@ -256,7 +256,7 @@ export default function SessionManagementSection({
                         className="h-8 w-8"
                         onClick={() => {
                           setActivePane(pane.sessionId);
-                          syncActivePane(useWorkspaceStore.getState().panes.map((entry) => entry.sessionId), pane.sessionId);
+                          syncActivePane(panes.map((entry) => entry.sessionId), pane.sessionId);
                           onRequestClose();
                         }}
                         title="Focus pane"

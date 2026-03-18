@@ -1,6 +1,6 @@
 import { useRef, useLayoutEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle } from "lucide-react";
+import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 
@@ -19,9 +19,13 @@ interface VoiceMicButtonProps {
   partialTranscript?: string;
   /** Active voice backend, shown in tooltip for diagnostics. */
   backend?: string;
+  /** Whether TTS is currently playing audio. */
+  isTtsSpeaking?: boolean;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
   onCancel?: () => void;
+  /** Stop TTS playback when tapped during speaking. */
+  onTtsStop?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
   /** Extra classes for the inner button element. */
@@ -77,9 +81,11 @@ export default function VoiceMicButton({
   audioLevel = 0,
   partialTranscript,
   backend,
+  isTtsSpeaking = false,
   onStart,
   onStop,
   onCancel,
+  onTtsStop,
   className: wrapperClassName,
   buttonClassName,
 }: VoiceMicButtonProps) {
@@ -98,10 +104,12 @@ export default function VoiceMicButton({
     } else if (isRecording) {
       pressIntentRef.current = "stop";
     } else {
+      // Stop TTS if it's playing, then start recording
+      if (isTtsSpeaking) onTtsStop?.();
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isPreparing, isRecording, isTranscribing, onStart, onCancel]);
+  }, [isPreparing, isRecording, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
 
   const handlePointerUp = useCallback(() => {
     if (isPreparing) return;
@@ -120,7 +128,9 @@ export default function VoiceMicButton({
 
   if (!supported) return null;
 
-  const hasError = error !== null && !isRecording && !isTranscribing && !isPreparing;
+  const isIdle = !isRecording && !isTranscribing && !isPreparing;
+  const hasError = error !== null && isIdle && !isTtsSpeaking;
+  const showTtsSpeaking = isTtsSpeaking && isIdle;
 
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>
@@ -139,9 +149,11 @@ export default function VoiceMicButton({
               ? "border-red-500 bg-red-500/20 text-red-400"
               : isTranscribing
                 ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                : hasError
-                  ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+                : showTtsSpeaking
+                  ? "border-green-500 bg-green-500/20 text-green-400"
+                  : hasError
+                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
         title={
           isPreparing
@@ -150,9 +162,11 @@ export default function VoiceMicButton({
               ? "Recording... tap to stop"
               : isTranscribing
                 ? "Transcribing... tap to cancel"
-                : hasError
-                  ? `Voice error: ${error}`
-                  : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
+                : showTtsSpeaking
+                  ? "Speaking... tap to stop"
+                  : hasError
+                    ? `Voice error: ${error}`
+                    : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
         }
       >
         {/* Audio level fill -- rises from bottom */}
@@ -166,6 +180,8 @@ export default function VoiceMicButton({
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
         ) : isTranscribing ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
+        ) : showTtsSpeaking ? (
+          <Volume2 className="h-3.5 w-3.5 animate-pulse relative" />
         ) : hasError ? (
           <AlertCircle className="h-3.5 w-3.5 relative" />
         ) : (

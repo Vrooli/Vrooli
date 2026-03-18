@@ -16,7 +16,7 @@ import { useImageUpload } from "../hooks/useImageUpload";
 import TerminalContextMenu from "./TerminalContextMenu";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
-import { terminalContainsCandidate } from "../lib/terminalTtsMatch";
+import { waitForTerminalCandidateMatch } from "../lib/terminalTtsMatch";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -24,6 +24,8 @@ interface TerminalPaneProps {
   onReady?: () => void;
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
+  /** Called when TTS speaking state changes for this pane. */
+  onTtsSpeakingChange?: (speaking: boolean) => void;
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
@@ -32,11 +34,13 @@ export interface TerminalPaneHandle {
   sendInput: (data: string) => boolean;
   /** Focus the xterm.js terminal element. */
   focus: () => void;
+  /** Stop TTS playback for this pane. */
+  stopTts: () => void;
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const serializeRef = useRef<SerializeAddon | null>(null);
@@ -73,10 +77,15 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }),
       [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
     );
-    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError, backend } = useTextToSpeech(ttsSettings, {
+    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError, backend, isSpeaking: ttsSpeaking } = useTextToSpeech(ttsSettings, {
       source: "terminal_auto",
       sessionId,
     });
+
+    // Notify parent when TTS speaking state changes
+    useEffect(() => {
+      onTtsSpeakingChange?.(ttsSpeaking);
+    }, [ttsSpeaking, onTtsSpeakingChange]);
 
     // Auto-dismiss TTS error after 5 seconds
     const [showTtsError, setShowTtsError] = useState<string | null>(null);
@@ -107,7 +116,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         sendAck("rejected", "No TTS backend is available in this tab");
         return;
       }
-      if (!terminalContainsCandidate(terminal, candidate.text)) {
+      if (!await waitForTerminalCandidateMatch(terminal, candidate.text)) {
         sendAck("rejected", "Assistant text did not match the rendered terminal buffer");
         return;
       }
@@ -161,7 +170,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     useImperativeHandle(ref, () => ({
       sendInput,
       focus: () => terminal?.focus(),
-    }), [sendInput, terminal]);
+      stopTts: ttsStop,
+    }), [sendInput, terminal, ttsStop]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 

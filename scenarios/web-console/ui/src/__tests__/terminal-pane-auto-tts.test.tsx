@@ -218,15 +218,65 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
   });
 
   it("rejects candidates that do not match the rendered terminal buffer", async () => {
+    vi.useFakeTimers();
     const ack = vi.fn();
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ eventId: "evt-4", source: "claude_hook", text: "This text is nowhere in the visible terminal" }, ack);
+      const pending = capturedCandidateHandler?.({ eventId: "evt-4", source: "claude_hook", text: "This text is nowhere in the visible terminal" }, ack);
+      await vi.advanceTimersByTimeAsync(1600);
+      await pending;
     });
 
     expect(mockSpeakParagraphs).not.toHaveBeenCalled();
     expect(ack).toHaveBeenCalledWith("rejected", "Assistant text did not match the rendered terminal buffer");
+  });
+
+  it("matches Codex markdown-formatted candidate text against rendered terminal output", async () => {
+    const ack = vi.fn();
+    render(<TerminalPane sessionId="tts-test" />);
+
+    const original = terminalBufferLines[0] ?? "";
+    terminalBufferLines[0] = "Hi. What do you need help with in /home/matthalloran8/Vrooli?";
+
+    await act(async () => {
+      await capturedCandidateHandler?.({
+        eventId: "evt-codex-markdown",
+        source: "codex_tailer",
+        text: "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
+      }, ack);
+    });
+
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith([
+      "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
+    ]);
+    expect(ack).toHaveBeenCalledWith("correlated");
+    terminalBufferLines[0] = original;
+  });
+
+  it("retries correlation briefly so delayed terminal rendering can still speak", async () => {
+    vi.useFakeTimers();
+    const ack = vi.fn();
+    render(<TerminalPane sessionId="tts-test" />);
+
+    const original = terminalBufferLines[0] ?? "";
+    terminalBufferLines[0] = "Waiting for Codex output";
+
+    await act(async () => {
+      const pending = capturedCandidateHandler?.({
+        eventId: "evt-retry",
+        source: "codex_tailer",
+        text: "Rendered a moment later",
+      }, ack);
+      await vi.advanceTimersByTimeAsync(150);
+      terminalBufferLines[0] = "Rendered a moment later";
+      await vi.advanceTimersByTimeAsync(150);
+      await pending;
+    });
+
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Rendered a moment later"]);
+    expect(ack).toHaveBeenCalledWith("correlated");
+    terminalBufferLines[0] = original;
   });
 
   it("sub-splits long blocks on single newlines", async () => {

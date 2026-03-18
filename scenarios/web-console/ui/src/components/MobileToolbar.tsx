@@ -51,6 +51,10 @@ interface MobileToolbarProps {
   onVoiceStop?: () => void;
   onVoiceCancel?: () => void;
   onUploadImage?: () => void;
+  /** Whether TTS is currently playing audio on the active pane. */
+  isTtsSpeaking?: boolean;
+  /** Stop TTS playback. */
+  onTtsStop?: () => void;
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -70,6 +74,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceStop,
   onVoiceCancel,
   onUploadImage,
+  isTtsSpeaking,
+  onTtsStop,
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
 
@@ -356,9 +362,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 audioLevel={voiceLevel}
                 partialTranscript={voicePartialTranscript}
                 backend={voiceBackend}
+                isTtsSpeaking={isTtsSpeaking}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
                 onCancel={onVoiceCancel}
+                onTtsStop={onTtsStop}
                 className="h-full"
                 buttonClassName="h-full px-3"
               />
@@ -431,9 +439,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               audioLevel={voiceLevel}
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
+              isTtsSpeaking={isTtsSpeaking}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
               onCancel={onVoiceCancel}
+              onTtsStop={onTtsStop}
             />
           )}
         </div>

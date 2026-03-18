@@ -59,6 +59,10 @@ interface FloatingToolbarProps {
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
   onVoiceCancel?: () => void;
+  /** Whether TTS is currently playing audio on the active pane. */
+  isTtsSpeaking?: boolean;
+  /** Stop TTS playback. */
+  onTtsStop?: () => void;
 }
 
 export default function FloatingToolbar({
@@ -78,6 +82,8 @@ export default function FloatingToolbar({
   onVoiceStart,
   onVoiceStop,
   onVoiceCancel,
+  isTtsSpeaking,
+  onTtsStop,
 }: FloatingToolbarProps) {
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
@@ -230,9 +236,11 @@ export default function FloatingToolbar({
           audioLevel={voiceLevel}
           partialTranscript={voicePartialTranscript}
           backend={voiceBackend}
+          isTtsSpeaking={isTtsSpeaking}
           onStart={onVoiceStart}
           onStop={onVoiceStop}
           onCancel={onVoiceCancel}
+          onTtsStop={onTtsStop}
         />
       )}
       <Button

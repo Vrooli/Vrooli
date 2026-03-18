@@ -252,6 +252,16 @@ export function useSessionManager() {
     [flushPendingCommand],
   );
 
+  const stopActiveTts = useCallback(
+    (targetId?: string) => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (target) {
+        terminalRefs.current.get(target)?.stopTts();
+      }
+    },
+    [panes],
+  );
+
   return {
     panes,
     isHydrated,
@@ -265,5 +275,6 @@ export function useSessionManager() {
     sendToActiveTerminal,
     focusActiveTerminal,
     registerTerminalRef,
+    stopActiveTts,
   };
 }
