@@ -1,7 +1,24 @@
-import type { TTSProvider, TTSSpeakOptions } from "./types";
+import type { TTSPlaybackCapabilities, TTSPlaybackProgressCallback, TTSPlaybackState, TTSProvider, TTSSpeakOptions } from "./types";
 
+/**
+ * TTS provider backed by the native Web Speech API (SpeechSynthesis).
+ *
+ * Supports pause/resume via speechSynthesis.pause()/resume().
+ * Seeking and speed/volume adjustment are not available through this API.
+ *
+ * Known limitation: Chrome silently cancels paused utterances after ~15 s.
+ * There is no workaround — this is a browser-level constraint.
+ */
 export class BrowserTTSProvider implements TTSProvider {
   private _isSpeaking = false;
+  private _isPaused = false;
+
+  readonly capabilities: TTSPlaybackCapabilities = {
+    canPause: true,
+    canSeek: false,
+    canAdjustSpeed: false,
+    canAdjustVolume: false,
+  };
 
   async speak(text: string, opts?: TTSSpeakOptions): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -16,12 +33,15 @@ export class BrowserTTSProvider implements TTSProvider {
       utterance.pitch = opts?.pitch ?? 1.0;
 
       this._isSpeaking = true;
+      this._isPaused = false;
       utterance.onend = () => {
         this._isSpeaking = false;
+        this._isPaused = false;
         resolve();
       };
       utterance.onerror = (e) => {
         this._isSpeaking = false;
+        this._isPaused = false;
         reject(new Error((e as SpeechSynthesisErrorEvent).error ?? "Speech synthesis failed"));
       };
       window.speechSynthesis.speak(utterance);
@@ -31,6 +51,7 @@ export class BrowserTTSProvider implements TTSProvider {
   stop(): void {
     window.speechSynthesis.cancel();
     this._isSpeaking = false;
+    this._isPaused = false;
   }
 
   get isSpeaking(): boolean {
@@ -39,5 +60,36 @@ export class BrowserTTSProvider implements TTSProvider {
 
   dispose(): void {
     this.stop();
+  }
+
+  pause(): void {
+    if (this._isSpeaking && !this._isPaused) {
+      window.speechSynthesis.pause();
+      this._isPaused = true;
+    }
+  }
+
+  resume(): void {
+    if (this._isSpeaking && this._isPaused) {
+      window.speechSynthesis.resume();
+      this._isPaused = false;
+    }
+  }
+
+  /** SpeechSynthesis provides no timing info, so state reflects minimal data. */
+  getPlaybackState(): TTSPlaybackState {
+    return {
+      currentTime: 0,
+      duration: null,
+      isPaused: this._isPaused,
+      playbackRate: 1,
+      volume: 1,
+      capabilities: this.capabilities,
+    };
+  }
+
+  /** SpeechSynthesis has no progress events — this is a no-op. */
+  onProgress(_callback: TTSPlaybackProgressCallback | null): void {
+    // No-op: Web Speech API does not expose timing/progress data.
   }
 }

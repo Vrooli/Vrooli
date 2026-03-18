@@ -22,7 +22,6 @@ const defaultProps = {
   sessionId: "sess-1",
   onSpeakFromHere: vi.fn(),
   onSpeakOne: vi.fn(),
-  onTtsStop: vi.fn(),
   activeSpeakingEventId: null,
   isTtsSpeaking: false,
 };
@@ -45,7 +44,7 @@ describe("MessagesPane", () => {
     });
   }
 
-  it("renders speaker icons on each message card", () => {
+  it("renders play icons on each message card", () => {
     const events = [
       makeEvent({ id: "e1", sequence: 1 }),
       makeEvent({ id: "e2", sequence: 2 }),
@@ -75,7 +74,7 @@ describe("MessagesPane", () => {
     expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world");
   });
 
-  it("active speaking event shows stop icon and left border highlight", () => {
+  it("active speaking event shows left border highlight", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1 }),
       makeEvent({ id: "e2", sequence: 2 }),
@@ -97,7 +96,7 @@ describe("MessagesPane", () => {
     expect(inactiveCard.className).not.toContain("border-l-");
   });
 
-  it("clicking stop icon during playback calls onTtsStop", () => {
+  it("play button on active card triggers onSpeakFromHere (stop is in global bar)", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(
       <MessagesPane
@@ -107,8 +106,9 @@ describe("MessagesPane", () => {
       />,
     );
 
+    // The play button always shows — stop lives in AudioPlayerBar
     fireEvent.click(screen.getByTestId("msg-speak-from-e1"));
-    expect(defaultProps.onTtsStop).toHaveBeenCalled();
+    expect(defaultProps.onSpeakFromHere).toHaveBeenCalledWith("e1");
   });
 
   it("empty state renders without speaker icons", () => {

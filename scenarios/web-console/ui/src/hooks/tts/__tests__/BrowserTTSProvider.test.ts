@@ -16,6 +16,8 @@ class FakeUtterance {
 const mockSpeak = vi.fn();
 const mockCancel = vi.fn();
 const mockGetVoices = vi.fn().mockReturnValue([]);
+const mockPause = vi.fn();
+const mockResume = vi.fn();
 
 beforeEach(() => {
   Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
@@ -28,6 +30,8 @@ beforeEach(() => {
       speak: mockSpeak,
       cancel: mockCancel,
       getVoices: mockGetVoices,
+      pause: mockPause,
+      resume: mockResume,
     },
     writable: true,
     configurable: true,
@@ -105,5 +109,55 @@ describe("BrowserTTSProvider", () => {
 
     const utterance = mockSpeak.mock.calls[0]?.[0] as FakeUtterance;
     expect(utterance.voice).toBe(fakeVoice);
+  });
+
+  it("pause() delegates to speechSynthesis.pause()", () => {
+    const provider = new BrowserTTSProvider();
+    provider.speak("test");
+    expect(provider.isSpeaking).toBe(true);
+
+    provider.pause();
+    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(provider.getPlaybackState().isPaused).toBe(true);
+    // Still in a speak session
+    expect(provider.isSpeaking).toBe(true);
+  });
+
+  it("resume() delegates to speechSynthesis.resume()", () => {
+    const provider = new BrowserTTSProvider();
+    provider.speak("test");
+    provider.pause();
+
+    provider.resume();
+    expect(mockResume).toHaveBeenCalledTimes(1);
+    expect(provider.getPlaybackState().isPaused).toBe(false);
+  });
+
+  it("capabilities returns correct shape", () => {
+    const provider = new BrowserTTSProvider();
+    expect(provider.capabilities).toEqual({
+      canPause: true,
+      canSeek: false,
+      canAdjustSpeed: false,
+      canAdjustVolume: false,
+    });
+  });
+
+  it("getPlaybackState() returns minimal timing data", () => {
+    const provider = new BrowserTTSProvider();
+    const state = provider.getPlaybackState();
+    expect(state.currentTime).toBe(0);
+    expect(state.duration).toBeNull();
+    expect(state.isPaused).toBe(false);
+    expect(state.playbackRate).toBe(1);
+    expect(state.volume).toBe(1);
+    expect(state.capabilities).toBeDefined();
+  });
+
+  it("onProgress is a no-op", () => {
+    const provider = new BrowserTTSProvider();
+    // Should not throw
+    expect(() => provider.onProgress(vi.fn())).not.toThrow();
+    expect(() => provider.onProgress(null)).not.toThrow();
   });
 });

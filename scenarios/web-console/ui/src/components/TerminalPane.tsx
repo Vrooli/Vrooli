@@ -20,6 +20,7 @@ import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
 import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../lib/api";
+import type { TTSPlaybackState } from "../hooks/tts/types";
 import { splitIntoParagraphs } from "../lib/ttsChunker";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
@@ -47,6 +48,18 @@ export interface TerminalPaneHandle {
   speakText: (text: string) => void;
   /** Stop current TTS, then speak texts sequentially, calling onProgress(i) before each. */
   speakSequence: (texts: string[], onProgress: (index: number) => void) => Promise<void>;
+  /** Pause TTS playback. */
+  pauseTts: () => void;
+  /** Resume paused TTS playback. */
+  resumeTts: () => void;
+  /** Seek to a position in seconds. */
+  seekTts: (seconds: number) => void;
+  /** Set the TTS playback speed. */
+  setTtsPlaybackRate: (rate: number) => void;
+  /** Set the TTS volume (0\u20131). */
+  setTtsVolume: (level: number) => void;
+  /** Return a snapshot of the current TTS playback state, or null. */
+  getTtsState: () => TTSPlaybackState | null;
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
@@ -89,7 +102,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }),
       [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
     );
-    const { speak, speakParagraphs, stop: ttsStop, supported: ttsSupported, error: ttsError, backend, isSpeaking: ttsSpeaking } = useTextToSpeech(ttsSettings, {
+    const {
+      speak, speakParagraphs, stop: ttsStop,
+      pause: ttsPause, resume: ttsResume, seek: ttsSeek,
+      setPlaybackRate: ttsSetPlaybackRate, setVolume: ttsSetVolume,
+      getPlaybackState: ttsGetPlaybackState,
+      supported: ttsSupported, error: ttsError, backend, isSpeaking: ttsSpeaking,
+    } = useTextToSpeech(ttsSettings, {
       source: "terminal_auto",
       sessionId,
     });
@@ -246,7 +265,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           await speakParagraphs(paragraphs);
         }
       },
-    }), [sendInput, terminal, ttsStop, speak, speakParagraphs]);
+      pauseTts: ttsPause,
+      resumeTts: ttsResume,
+      seekTts: ttsSeek,
+      setTtsPlaybackRate: ttsSetPlaybackRate,
+      setTtsVolume: ttsSetVolume,
+      getTtsState: ttsGetPlaybackState,
+    }), [sendInput, terminal, ttsStop, speak, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 

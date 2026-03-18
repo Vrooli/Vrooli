@@ -9,59 +9,67 @@ import { synthesizeTTS } from "../../../lib/api";
 
 const mockSynthesizeTTS = synthesizeTTS as ReturnType<typeof vi.fn>;
 
-class FakeBufferSource {
-  buffer: AudioBuffer | null = null;
-  onended: (() => void) | null = null;
-  connect = vi.fn();
-  disconnect = vi.fn();
-  stop = vi.fn();
-  start = vi.fn((when?: number) => {
-    this.startedAt = when;
-    setTimeout(() => this.onended?.(), 0);
+/**
+ * Minimal mock that simulates an HTMLAudioElement for unit testing.
+ *
+ * Vitest/jsdom does not provide a working Audio constructor, so we
+ * intercept `new Audio()` with this fake that exposes the subset of
+ * properties and events the provider relies on.
+ */
+class FakeHTMLAudioElement extends EventTarget {
+  src = "";
+  currentTime = 0;
+  duration = NaN;
+  paused = true;
+  playbackRate = 1;
+  volume = 1;
+  error: MediaError | null = null;
+
+  play = vi.fn(async () => {
+    this.paused = false;
+    // Simulate loadedmetadata → set a duration
+    Object.defineProperty(this, "duration", { value: 5.0, writable: true, configurable: true });
+    // Fire ended asynchronously (simulates playback finishing)
+    setTimeout(() => this.dispatchEvent(new Event("ended")), 0);
   });
-  startedAt: number | undefined;
+  pause = vi.fn(() => {
+    this.paused = true;
+  });
+  load = vi.fn(() => {
+    this.currentTime = 0;
+  });
+  removeAttribute = vi.fn();
+
+  addEventListener = vi.fn((type: string, handler: EventListenerOrEventListenerObject) => {
+    super.addEventListener(type, handler);
+  });
+  removeEventListener = vi.fn((type: string, handler: EventListenerOrEventListenerObject) => {
+    super.removeEventListener(type, handler);
+  });
 }
 
-class FakeAudioContext {
-  static instances: FakeAudioContext[] = [];
-
-  state: AudioContextState = "suspended";
-  destination = {} as unknown as AudioDestinationNode;
-  resume = vi.fn(async () => {
-    this.state = "running";
-  });
-  close = vi.fn(async () => {
-    this.state = "closed" as AudioContextState;
-  });
-  decodeAudioData = vi.fn(async (_audioData: ArrayBuffer) => ({ sampleRate: 24_000 } as AudioBuffer));
-  createBufferSource = vi.fn(() => {
-    const source = new FakeBufferSource();
-    this.lastSource = source;
-    return source as unknown as AudioBufferSourceNode;
-  });
-  lastSource: FakeBufferSource | null = null;
-
-  constructor() {
-    FakeAudioContext.instances.push(this);
-  }
-}
+let fakeAudio: FakeHTMLAudioElement;
 
 beforeEach(() => {
-  FakeAudioContext.instances = [];
-  Object.defineProperty(window, "AudioContext", {
-    value: FakeAudioContext,
-    writable: true,
-    configurable: true,
+  fakeAudio = new FakeHTMLAudioElement();
+  vi.stubGlobal("Audio", vi.fn(() => fakeAudio));
+
+  // Mock URL.createObjectURL / revokeObjectURL
+  vi.stubGlobal("URL", {
+    ...globalThis.URL,
+    createObjectURL: vi.fn(() => "blob:fake-url"),
+    revokeObjectURL: vi.fn(),
   });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("KokoroProvider", () => {
-  it("synthesizes, resumes, decodes, and starts playback from the beginning", async () => {
-    const blob = { arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(16)) };
+  it("synthesizes, creates blob URL, and plays via HTMLAudioElement", async () => {
+    const blob = new Blob(["audio-data"], { type: "audio/mp3" });
     mockSynthesizeTTS.mockResolvedValue(blob);
 
     const provider = new KokoroProvider();
@@ -74,78 +82,172 @@ describe("KokoroProvider", () => {
       expect.any(AbortSignal),
     );
 
-    const context = FakeAudioContext.instances[0];
-    expect(context).toBeDefined();
-    if (!context) throw new Error("expected audio context");
-    expect(blob.arrayBuffer).toHaveBeenCalledTimes(1);
-    expect(context.resume).toHaveBeenCalledTimes(1);
-    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
-    expect(context.createBufferSource).toHaveBeenCalledTimes(1);
-    expect(context.lastSource?.connect).toHaveBeenCalledWith(context.destination);
-    expect(context.lastSource?.start).toHaveBeenCalledWith(0);
-    expect(provider.isSpeaking).toBe(false);
+    expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    expect(fakeAudio.src).toBe("blob:fake-url");
+    expect(fakeAudio.play).toHaveBeenCalledTimes(1);
+    expect(provider.isSpeaking).toBe(false); // resolved after 'ended'
   });
 
-  it("stop() aborts playback and disconnects the active source", async () => {
-    const blob = { arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(16)) };
+  it("stop() pauses audio, revokes blob URL, and rejects pending speak", async () => {
+    const blob = new Blob(["audio-data"], { type: "audio/mp3" });
+    // Never resolve play → keep speak promise pending
+    fakeAudio.play = vi.fn(async () => {
+      fakeAudio.paused = false;
+      Object.defineProperty(fakeAudio, "duration", { value: 10, writable: true, configurable: true });
+      // Don't fire 'ended' — playback stays in progress
+    });
     mockSynthesizeTTS.mockResolvedValue(blob);
 
     const provider = new KokoroProvider();
-    const heldSource = new FakeBufferSource();
-    heldSource.start = vi.fn();
-    Object.defineProperty(window, "AudioContext", {
-      value: class extends FakeAudioContext {
-        override createBufferSource = vi.fn(() => {
-          this.lastSource = heldSource;
-          return heldSource as unknown as AudioBufferSourceNode;
-        });
-      },
-      writable: true,
-      configurable: true,
-    });
-
     const speakPromise = provider.speak("test");
 
+    // Wait for play() to be called
     await vi.waitFor(() => {
-      expect(FakeAudioContext.instances[0]?.createBufferSource).toHaveBeenCalledTimes(1);
+      expect(fakeAudio.play).toHaveBeenCalledTimes(1);
     });
 
     provider.stop();
 
-    const context = FakeAudioContext.instances[0];
-    expect(context).toBeDefined();
-    if (!context) throw new Error("expected audio context");
-    const source = context.lastSource;
-    expect(source?.stop).toHaveBeenCalledWith(0);
-    expect(source?.disconnect).toHaveBeenCalledTimes(1);
+    expect(fakeAudio.pause).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
     await expect(speakPromise).rejects.toThrow("The operation was aborted.");
     expect(provider.isSpeaking).toBe(false);
   });
 
-  it("reuses the same audio context across multiple playback requests", async () => {
-    const blob = { arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(16)) };
+  it("pause() and resume() delegate to audio element", async () => {
+    const blob = new Blob(["audio-data"], { type: "audio/mp3" });
+    fakeAudio.play = vi.fn(async () => {
+      fakeAudio.paused = false;
+      Object.defineProperty(fakeAudio, "duration", { value: 10, writable: true, configurable: true });
+    });
     mockSynthesizeTTS.mockResolvedValue(blob);
 
     const provider = new KokoroProvider();
-    await provider.speak("first");
-    await provider.speak("second");
+    const speakPromise = provider.speak("test");
+    await vi.waitFor(() => expect(fakeAudio.play).toHaveBeenCalledTimes(1));
 
-    expect(FakeAudioContext.instances).toHaveLength(1);
+    provider.pause();
+    expect(fakeAudio.pause).toHaveBeenCalled();
+    expect(provider.isSpeaking).toBe(true); // still in a speak session
+
+    const state = provider.getPlaybackState();
+    expect(state.isPaused).toBe(true);
+
+    fakeAudio.play.mockImplementation(async () => {
+      fakeAudio.paused = false;
+      // Fire ended to resolve the speak promise
+      setTimeout(() => fakeAudio.dispatchEvent(new Event("ended")), 0);
+    });
+    provider.resume();
+    expect(fakeAudio.play).toHaveBeenCalled();
+
+    await speakPromise;
+    expect(provider.isSpeaking).toBe(false);
   });
 
-  it("dispose() stops playback and closes the audio context", async () => {
-    const blob = { arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(16)) };
+  it("seek() sets audio.currentTime within duration bounds", async () => {
+    const blob = new Blob(["audio-data"], { type: "audio/mp3" });
+    fakeAudio.play = vi.fn(async () => {
+      fakeAudio.paused = false;
+      Object.defineProperty(fakeAudio, "duration", { value: 10, writable: true, configurable: true });
+    });
     mockSynthesizeTTS.mockResolvedValue(blob);
 
     const provider = new KokoroProvider();
-    await provider.speak("test");
+    const speakPromise = provider.speak("test").catch(() => {});
+    await vi.waitFor(() => expect(fakeAudio.play).toHaveBeenCalledTimes(1));
 
+    provider.seek(5);
+    expect(fakeAudio.currentTime).toBe(5);
+
+    // Clamp to duration
+    provider.seek(999);
+    expect(fakeAudio.currentTime).toBe(10);
+
+    // Clamp to 0
+    provider.seek(-5);
+    expect(fakeAudio.currentTime).toBe(0);
+
+    provider.stop();
+    await speakPromise;
+  });
+
+  it("setPlaybackRate() and setVolume() update audio element properties", () => {
+    const provider = new KokoroProvider();
+
+    provider.setPlaybackRate(1.5);
+    expect(fakeAudio.playbackRate).toBe(1.5);
+
+    provider.setVolume(0.3);
+    expect(fakeAudio.volume).toBe(0.3);
+
+    // Volume clamped to [0, 1]
+    provider.setVolume(2);
+    expect(fakeAudio.volume).toBe(1);
+
+    provider.setVolume(-1);
+    expect(fakeAudio.volume).toBe(0);
+  });
+
+  it("progress callback fires on timeupdate events", async () => {
+    const blob = new Blob(["audio-data"], { type: "audio/mp3" });
+    fakeAudio.play = vi.fn(async () => {
+      fakeAudio.paused = false;
+      Object.defineProperty(fakeAudio, "duration", { value: 10, writable: true, configurable: true });
+    });
+    mockSynthesizeTTS.mockResolvedValue(blob);
+
+    const provider = new KokoroProvider();
+    const progressFn = vi.fn();
+    provider.onProgress(progressFn);
+
+    const speakPromise = provider.speak("test").catch(() => {});
+    await vi.waitFor(() => expect(fakeAudio.play).toHaveBeenCalledTimes(1));
+
+    // Simulate timeupdate
+    fakeAudio.currentTime = 3.5;
+    fakeAudio.dispatchEvent(new Event("timeupdate"));
+
+    expect(progressFn).toHaveBeenCalledWith(3.5, 10);
+
+    // Unregister
+    provider.onProgress(null);
+    fakeAudio.currentTime = 5;
+    fakeAudio.dispatchEvent(new Event("timeupdate"));
+    expect(progressFn).toHaveBeenCalledTimes(1); // not called again
+
+    provider.stop();
+    await speakPromise;
+  });
+
+  it("handles 0-byte blob gracefully (non-speakable input)", async () => {
+    const emptyBlob = new Blob([], { type: "audio/mp3" });
+    mockSynthesizeTTS.mockResolvedValue(emptyBlob);
+
+    const provider = new KokoroProvider();
+    await provider.speak("---");
+
+    expect(fakeAudio.play).not.toHaveBeenCalled();
+    expect(provider.isSpeaking).toBe(false);
+  });
+
+  it("capabilities returns all true", () => {
+    const provider = new KokoroProvider();
+    expect(provider.capabilities).toEqual({
+      canPause: true,
+      canSeek: true,
+      canAdjustSpeed: true,
+      canAdjustVolume: true,
+    });
+  });
+
+  it("dispose() removes event listeners", () => {
+    const provider = new KokoroProvider();
     provider.dispose();
 
-    const context = FakeAudioContext.instances[0];
-    expect(context).toBeDefined();
-    if (!context) throw new Error("expected audio context");
-    expect(context.close).toHaveBeenCalledTimes(1);
+    expect(fakeAudio.removeEventListener).toHaveBeenCalledWith("timeupdate", expect.any(Function));
+    expect(fakeAudio.removeEventListener).toHaveBeenCalledWith("ended", expect.any(Function));
+    expect(fakeAudio.removeEventListener).toHaveBeenCalledWith("error", expect.any(Function));
   });
 
   it("reports isSpeaking=false initially", () => {
@@ -160,5 +262,19 @@ describe("KokoroProvider", () => {
     await expect(provider.speak("test")).rejects.toThrow("Network error");
 
     expect(provider.isSpeaking).toBe(false);
+  });
+
+  it("revokes previous blob URL when speak is called again", async () => {
+    const blob1 = new Blob(["audio-1"], { type: "audio/mp3" });
+    const blob2 = new Blob(["audio-2"], { type: "audio/mp3" });
+    mockSynthesizeTTS.mockResolvedValueOnce(blob1).mockResolvedValueOnce(blob2);
+
+    const provider = new KokoroProvider();
+    await provider.speak("first");
+
+    // The first blob URL was created; on second speak, stop() revokes it
+    await provider.speak("second");
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
   });
 });

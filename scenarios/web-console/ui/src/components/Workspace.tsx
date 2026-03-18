@@ -34,7 +34,9 @@ import AppearanceModal from "./AppearanceModal";
 import ConfirmCloseDialog from "./ConfirmCloseDialog";
 import TabBar from "./TabBar";
 import MessagesPane from "./MessagesPane";
+import AudioPlayerBar from "./AudioPlayerBar";
 import { useConversationStore } from "../stores/useConversationStore";
+import type { TTSPlaybackState } from "../hooks/tts/types";
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -75,6 +77,12 @@ export default function Workspace() {
     stopActiveTts,
     speakTextOnPane,
     speakSequenceOnPane,
+    pauseTtsOnPane,
+    resumeTtsOnPane,
+    seekTtsOnPane,
+    setTtsPlaybackRateOnPane,
+    setTtsVolumeOnPane,
+    getTtsStateOnPane,
   } = useSessionManager();
 
   const store = useWorkspaceStore();
@@ -335,6 +343,42 @@ export default function Workspace() {
   const handleTtsStop = useCallback(() => {
     stopActiveTts(store.activePane ?? undefined);
   }, [store.activePane, stopActiveTts]);
+
+  // --- TTS playback state polling for AudioPlayerBar ---
+  const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
+  useEffect(() => {
+    if (!isTtsSpeaking || !store.activePane) {
+      setTtsPlayback(null);
+      return;
+    }
+    const activePane = store.activePane;
+    const id = setInterval(() => {
+      if (!activePane) return;
+      const state = getTtsStateOnPane(activePane);
+      if (state) setTtsPlayback(state);
+    }, 100);
+    return () => clearInterval(id);
+  }, [isTtsSpeaking, store.activePane, getTtsStateOnPane]);
+
+  const handleTtsPause = useCallback(() => {
+    if (store.activePane) pauseTtsOnPane(store.activePane);
+  }, [store.activePane, pauseTtsOnPane]);
+
+  const handleTtsResume = useCallback(() => {
+    if (store.activePane) resumeTtsOnPane(store.activePane);
+  }, [store.activePane, resumeTtsOnPane]);
+
+  const handleTtsSeek = useCallback((seconds: number) => {
+    if (store.activePane) seekTtsOnPane(store.activePane, seconds);
+  }, [store.activePane, seekTtsOnPane]);
+
+  const handleTtsSetPlaybackRate = useCallback((rate: number) => {
+    if (store.activePane) setTtsPlaybackRateOnPane(store.activePane, rate);
+  }, [store.activePane, setTtsPlaybackRateOnPane]);
+
+  const handleTtsSetVolume = useCallback((level: number) => {
+    if (store.activePane) setTtsVolumeOnPane(store.activePane, level);
+  }, [store.activePane, setTtsVolumeOnPane]);
 
   // --- Messages View TTS controls ---
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
@@ -639,7 +683,6 @@ export default function Workspace() {
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
                         onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
-                        onTtsStop={handleTtsStop}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />
@@ -756,7 +799,6 @@ export default function Workspace() {
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
                         onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
-                        onTtsStop={handleTtsStop}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />
@@ -801,6 +843,23 @@ export default function Workspace() {
 
       {/* Bottom bar */}
       <div className="relative z-10 shrink-0">
+        {/* TTS player bar — visible when audio is playing */}
+        {isTtsSpeaking && ttsPlayback && (
+          <AudioPlayerBar
+            isPaused={ttsPlayback.isPaused}
+            currentTime={ttsPlayback.currentTime}
+            duration={ttsPlayback.duration}
+            playbackRate={ttsPlayback.playbackRate}
+            volume={ttsPlayback.volume}
+            capabilities={ttsPlayback.capabilities}
+            onPause={handleTtsPause}
+            onResume={handleTtsResume}
+            onSeek={handleTtsSeek}
+            onSetPlaybackRate={handleTtsSetPlaybackRate}
+            onSetVolume={handleTtsSetVolume}
+            onStop={handleTtsStop}
+          />
+        )}
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}

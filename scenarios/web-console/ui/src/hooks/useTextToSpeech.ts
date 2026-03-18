@@ -1,7 +1,7 @@
 // DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchCapabilitiesLivenessCached, getTTSVoices, reportTTSEvent, _resetCapabilitiesCache } from "../lib/api";
-import type { TTSBackend, TTSProvider, TTSVoiceInfo } from "./tts/types";
+import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
 
@@ -17,9 +17,22 @@ export interface TTSSettings {
   backendPreference: "auto" | "kokoro" | "browser";
 }
 
+const NO_CAPABILITIES: TTSPlaybackCapabilities = {
+  canPause: false,
+  canSeek: false,
+  canAdjustSpeed: false,
+  canAdjustVolume: false,
+};
+
 export interface TTSState {
   supported: boolean;
   isSpeaking: boolean;
+  isPaused: boolean;
+  currentTime: number;
+  duration: number | null;
+  playbackRate: number;
+  volume: number;
+  capabilities: TTSPlaybackCapabilities;
   backend: TTSBackend;
   voices: TTSVoiceInfo[];
   error: string | null;
@@ -50,10 +63,16 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   const [state, setState] = useState<TTSState>({
     supported: isBrowserSupported(),
     isSpeaking: false,
+    isPaused: false,
+    currentTime: 0,
+    duration: null,
+    playbackRate: 1,
+    volume: 1,
+    capabilities: NO_CAPABILITIES,
     backend: "none",
     voices: [],
     error: null,
-    backendReason: "Checking TTS backend availability…",
+    backendReason: "Checking TTS backend availability\u2026",
     browserAudioReady: false,
     lastSuccessfulBackend: "none",
     lastSuccessfulAt: null,
@@ -93,10 +112,24 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     };
   }, []);
 
+  // Wire progress callback so playback position updates flow into React state.
+  // Only the small AudioPlayerBar re-renders from this (~4 Hz from timeupdate).
+  useEffect(() => {
+    const provider = providerRef.current;
+    if (!provider?.onProgress) return;
+    provider.onProgress((time, duration) => {
+      setState((s) => ({ ...s, currentTime: time, duration }));
+    });
+    return () => {
+      provider.onProgress?.(null);
+    };
+  }, [state.backend]); // re-wire when provider changes
+
   const updateSuccess = useCallback((backend: TTSBackend) => {
     setState((s) => ({
       ...s,
       isSpeaking: false,
+      isPaused: false,
       error: null,
       lastSuccessfulBackend: backend,
       lastSuccessfulAt: new Date().toISOString(),
@@ -184,14 +217,16 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
       if (settings.backendPreference === "browser") {
         if (isBrowserSupported()) {
+          const provider = new BrowserTTSProvider();
           backendRef.current = "browser";
-          providerRef.current = new BrowserTTSProvider();
+          providerRef.current = provider;
           if (!cancelled) {
             const voices = window.speechSynthesis.getVoices() ?? [];
             setState((s) => ({
               ...s,
               supported: true,
               backend: "browser",
+              capabilities: provider.capabilities,
               voices: voices.map((v) => ({ id: v.name, name: v.name })),
               backendReason: "Browser backend selected explicitly",
             }));
@@ -203,6 +238,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             ...s,
             supported: false,
             backend: "none",
+            capabilities: NO_CAPABILITIES,
             voices: [],
             backendReason: "Browser backend was selected, but speech synthesis is not supported in this browser",
           }));
@@ -217,8 +253,9 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         );
 
         if (!cancelled && kokoro) {
+          const provider = new KokoroProvider();
           backendRef.current = "kokoro";
-          providerRef.current = new KokoroProvider();
+          providerRef.current = provider;
           try {
             const voices = await getTTSVoices();
             if (!cancelled) {
@@ -226,6 +263,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
                 ...s,
                 supported: true,
                 backend: "kokoro",
+                capabilities: provider.capabilities,
                 voices,
                 backendReason: settings.backendPreference === "kokoro"
                   ? "Kokoro backend selected explicitly"
@@ -238,6 +276,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
                 ...s,
                 supported: true,
                 backend: "kokoro",
+                capabilities: provider.capabilities,
                 voices: [{ id: KOKORO_DEFAULT_VOICE, name: KOKORO_DEFAULT_VOICE }],
                 backendReason: settings.backendPreference === "kokoro"
                   ? "Kokoro backend selected explicitly"
@@ -255,6 +294,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             ...s,
             supported: false,
             backend: "none",
+            capabilities: NO_CAPABILITIES,
             voices: [],
             backendReason: "Kokoro backend was selected explicitly, but availability could not be confirmed",
           }));
@@ -270,17 +310,20 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             ...s,
             supported: false,
             backend: "none",
+            capabilities: NO_CAPABILITIES,
             voices: [],
             backendReason: "Kokoro backend was selected explicitly, but Kokoro is unavailable",
           }));
         } else {
+          const provider = new BrowserTTSProvider();
           backendRef.current = "browser";
-          providerRef.current = new BrowserTTSProvider();
+          providerRef.current = provider;
           const voices = window.speechSynthesis.getVoices();
           setState((s) => ({
             ...s,
             supported: true,
             backend: "browser",
+            capabilities: provider.capabilities,
             voices: voices.map((v) => ({ id: v.name, name: v.name })),
             backendReason: "Kokoro is unavailable, so browser speech synthesis is active",
           }));
@@ -292,6 +335,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
           ...s,
           supported: false,
           backend: "none",
+          capabilities: NO_CAPABILITIES,
           voices: [],
           backendReason: settings.backendPreference === "kokoro"
             ? "Kokoro backend was selected explicitly, but Kokoro is unavailable and browser speech synthesis is not supported"
@@ -343,7 +387,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
       if (!providerRef.current) return;
 
-      setState((s) => ({ ...s, isSpeaking: true, error: null }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
       emitEvent("attempt", backendRef.current);
 
       executeSpeak(text).then(
@@ -353,7 +397,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         },
         (err: unknown) => {
           if (isAbortLikeError(err)) {
-            setState((s) => ({ ...s, isSpeaking: false }));
+            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
             return;
           }
           const message = err instanceof Error ? err.message : "Speech failed";
@@ -361,6 +405,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
           setState((s) => ({
             ...s,
             isSpeaking: false,
+            isPaused: false,
             error: message,
           }));
         },
@@ -377,13 +422,13 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
       if (!providerRef.current || paragraphs.length === 0) return;
 
-      setState((s) => ({ ...s, isSpeaking: true, error: null }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
       emitEvent("attempt", backendRef.current);
 
       try {
         const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
         if (controller.signal.aborted) {
-          setState((s) => ({ ...s, isSpeaking: false }));
+          setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           return;
         }
         emitEvent("success", usedBackend);
@@ -391,13 +436,13 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         return usedBackend;
       } catch (err: unknown) {
         if (controller.signal.aborted || isAbortLikeError(err)) {
-          setState((s) => ({ ...s, isSpeaking: false }));
+          setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           return;
         }
         const message =
           err instanceof Error ? err.message : "Speech failed";
         emitEvent("error", backendRef.current, message);
-        setState((s) => ({ ...s, isSpeaking: false, error: message }));
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
         throw err;
       } finally {
         if (!controller.signal.aborted) {
@@ -412,7 +457,35 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     speakChainRef.current?.abort();
     providerRef.current?.stop();
     fallbackProviderRef.current?.stop();
-    setState((s) => ({ ...s, isSpeaking: false }));
+    setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+  }, []);
+
+  const pause = useCallback(() => {
+    providerRef.current?.pause?.();
+    setState((s) => ({ ...s, isPaused: true }));
+  }, []);
+
+  const resume = useCallback(() => {
+    providerRef.current?.resume?.();
+    setState((s) => ({ ...s, isPaused: false }));
+  }, []);
+
+  const seek = useCallback((seconds: number) => {
+    providerRef.current?.seek?.(seconds);
+  }, []);
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    providerRef.current?.setPlaybackRate?.(rate);
+    setState((s) => ({ ...s, playbackRate: rate }));
+  }, []);
+
+  const setVolume = useCallback((level: number) => {
+    providerRef.current?.setVolume?.(level);
+    setState((s) => ({ ...s, volume: level }));
+  }, []);
+
+  const getPlaybackState = useCallback((): TTSPlaybackState | null => {
+    return providerRef.current?.getPlaybackState?.() ?? null;
   }, []);
 
   const refresh = useCallback(async () => {
@@ -424,7 +497,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       setState((s) => ({ ...s, error: "No TTS backend is available" }));
       return;
     }
-    setState((s) => ({ ...s, isSpeaking: true, error: null }));
+    setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
     emitEvent("attempt", backendRef.current);
     try {
       const usedBackend = await executeSpeak(TEST_TTS_SAMPLE);
@@ -432,15 +505,28 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       updateSuccess(usedBackend);
     } catch (err) {
       if (isAbortLikeError(err)) {
-        setState((s) => ({ ...s, isSpeaking: false }));
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
         return;
       }
       const message = err instanceof Error ? err.message : "Speech failed";
       emitEvent("error", backendRef.current, message);
-      setState((s) => ({ ...s, isSpeaking: false, error: message }));
+      setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
       throw err;
     }
   }, [emitEvent, executeSpeak, updateSuccess]);
 
-  return { ...state, speak, speakParagraphs, stop, refresh, testSpeak };
+  return {
+    ...state,
+    speak,
+    speakParagraphs,
+    stop,
+    pause,
+    resume,
+    seek,
+    setPlaybackRate,
+    setVolume,
+    getPlaybackState,
+    refresh,
+    testSpeak,
+  };
 }

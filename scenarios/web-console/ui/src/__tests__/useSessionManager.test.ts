@@ -206,7 +206,7 @@ describe("useSessionManager", () => {
       result.current.handleTerminalReady("sess-1");
     });
 
-    const handle = { sendInput: vi.fn(), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn() };
+    const handle = { sendInput: vi.fn(), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), getTtsState: vi.fn() };
     act(() => {
       result.current.registerTerminalRef("sess-1", handle);
     });

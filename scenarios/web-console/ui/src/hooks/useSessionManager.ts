@@ -297,6 +297,48 @@ export function useSessionManager() {
     [],
   );
 
+  const pauseTtsOnPane = useCallback(
+    (sessionId: string) => {
+      terminalRefs.current.get(sessionId)?.pauseTts();
+    },
+    [],
+  );
+
+  const resumeTtsOnPane = useCallback(
+    (sessionId: string) => {
+      terminalRefs.current.get(sessionId)?.resumeTts();
+    },
+    [],
+  );
+
+  const seekTtsOnPane = useCallback(
+    (sessionId: string, seconds: number) => {
+      terminalRefs.current.get(sessionId)?.seekTts(seconds);
+    },
+    [],
+  );
+
+  const setTtsPlaybackRateOnPane = useCallback(
+    (sessionId: string, rate: number) => {
+      terminalRefs.current.get(sessionId)?.setTtsPlaybackRate(rate);
+    },
+    [],
+  );
+
+  const setTtsVolumeOnPane = useCallback(
+    (sessionId: string, level: number) => {
+      terminalRefs.current.get(sessionId)?.setTtsVolume(level);
+    },
+    [],
+  );
+
+  const getTtsStateOnPane = useCallback(
+    (sessionId: string) => {
+      return terminalRefs.current.get(sessionId)?.getTtsState() ?? null;
+    },
+    [],
+  );
+
   return {
     panes,
     isHydrated,
@@ -313,5 +355,11 @@ export function useSessionManager() {
     stopActiveTts,
     speakTextOnPane,
     speakSequenceOnPane,
+    pauseTtsOnPane,
+    resumeTtsOnPane,
+    seekTtsOnPane,
+    setTtsPlaybackRateOnPane,
+    setTtsVolumeOnPane,
+    getTtsStateOnPane,
   };
 }

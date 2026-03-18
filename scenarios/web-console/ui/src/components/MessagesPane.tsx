@@ -1,4 +1,4 @@
-import { Play, Square, Volume2 } from "lucide-react";
+import { Play, Volume2 } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
 import { cn } from "../lib/classnames";
 
@@ -8,8 +8,6 @@ interface MessagesPaneProps {
   onSpeakFromHere: (eventId: string) => void;
   /** Speak only this event's text. */
   onSpeakOne: (eventId: string, text: string) => void;
-  /** Stop any active TTS playback. */
-  onTtsStop: () => void;
   /** Event ID currently being spoken, or null. */
   activeSpeakingEventId: string | null;
   /** Whether TTS is active on this pane. */
@@ -20,7 +18,6 @@ export default function MessagesPane({
   sessionId,
   onSpeakFromHere,
   onSpeakOne,
-  onTtsStop,
   activeSpeakingEventId,
   isTtsSpeaking,
 }: MessagesPaneProps) {
@@ -49,26 +46,15 @@ export default function MessagesPane({
                 )}
               >
                 <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-                  {/* TTS controls */}
-                  {isActive ? (
-                    <button
-                      data-testid={`msg-speak-from-${event.id}`}
-                      onClick={() => onTtsStop()}
-                      className="rounded p-0.5 text-wc-accent transition hover:bg-wc-accent/10"
-                      title="Stop playback"
-                    >
-                      <Square className="h-3.5 w-3.5 animate-pulse" />
-                    </button>
-                  ) : (
-                    <button
-                      data-testid={`msg-speak-from-${event.id}`}
-                      onClick={() => onSpeakFromHere(event.id)}
-                      className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-                      title="Read from here"
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  {/* TTS controls — stop lives in the global AudioPlayerBar */}
+                  <button
+                    data-testid={`msg-speak-from-${event.id}`}
+                    onClick={() => onSpeakFromHere(event.id)}
+                    className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
+                    title="Read from here"
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     data-testid={`msg-speak-one-${event.id}`}
                     onClick={() => onSpeakOne(event.id, event.text)}
