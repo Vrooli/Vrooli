@@ -92,12 +92,7 @@ func (s *Server) handleProvenance(w http.ResponseWriter, r *http.Request) {
 	for _, g := range wsResult.RunGroups {
 		files := make([]ProvenanceFile, 0, len(g.Files))
 		for _, f := range g.Files {
-			files = append(files, ProvenanceFile{
-				FilePath:     f.FilePath,
-				RelativePath: f.RelativePath,
-				ChangeType:   f.ChangeType,
-				AppliedAt:    f.AppliedAt,
-			})
+			files = append(files, ProvenanceFile(f))
 		}
 		groups = append(groups, ProvenanceRunGroup{
 			RunID:           g.RunID,

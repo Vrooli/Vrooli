@@ -209,10 +209,10 @@ func (c *AgentManagerClient) EnsureDefaultProfile(ctx context.Context) (*wireEns
 			ProfileKey:           "git-control-tower-reviewer",
 			Description:          "Default profile for git-control-tower scenario reviews",
 			RunnerType:           1, // RUNNER_TYPE_CLAUDE_CODE
-			MaxTurns:             50,
+			MaxTurns:             500,
 			SkipPermissionPrompt: true,
 		},
-		UpdateExisting: false,
+		UpdateExisting: true,
 	}
 	var result wireEnsureProfileResponse
 	if err := c.doJSON(ctx, "/api/v1/profiles/ensure", req, &result); err != nil {

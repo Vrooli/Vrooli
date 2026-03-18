@@ -8,7 +8,7 @@ import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl,
 import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult, AuditorViolation, AuditorJobStatus } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
-import { AgentTab, AttachToAgentButton, type SentMessage } from "./AgentTab";
+import { AgentTab, AttachToAgentButton } from "./AgentTab";
 import { AIProvenanceTab } from "./AIProvenanceTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
@@ -31,7 +31,6 @@ interface ScenarioReviewPanelProps {
 export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [internalTab, setInternalTab] = useState<Tab>("overview");
-  const [agentSentMessages, setAgentSentMessages] = useState<SentMessage[]>([]);
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = onActiveTabChange ?? setInternalTab;
   const capturesQuery = useVisualCaptures(scenarioSlug, true, repoId);
@@ -284,8 +283,6 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           fileStats={scenarioFileStats}
           activeRunId={agentRunId}
           onActiveRunIdChange={onAgentRunIdChange}
-          sentMessages={agentSentMessages}
-          onSentMessagesChange={setAgentSentMessages}
         />
       )}
     </div>

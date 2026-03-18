@@ -78,13 +78,6 @@ type ChatMessage =
   | { type: "diff"; files: AgentRunDiffFile[]; runId: string; actions: AgentRunActions }
   | { type: "action-prompt"; actions: AgentRunActions; runId: string };
 
-export interface SentMessage {
-  text: string;
-  contextCount: number;
-  runId: string;
-  timestamp: string;
-}
-
 // ── Status helpers ──────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<AgentRunStatus, string> = {
@@ -133,14 +126,11 @@ interface AgentTabProps {
   fileStats?: RepoFileStats;
   activeRunId?: string | null;
   onActiveRunIdChange?: (id: string | null) => void;
-  sentMessages: SentMessage[];
-  onSentMessagesChange: (msgs: SentMessage[] | ((prev: SentMessage[]) => SentMessage[])) => void;
 }
 
 // ── Build chat messages from events ─────────────────────────────────
 
 function buildChatMessages(
-  sentMessages: SentMessage[],
   events: AgentRunEvent[],
   activeRun: AgentRun | null,
   diffFiles: AgentRunDiffFile[] | null,
@@ -149,18 +139,6 @@ function buildChatMessages(
 ): ChatMessage[] {
   const messages: ChatMessage[] = [];
 
-  // Add sent user messages
-  for (const sent of sentMessages) {
-    if (sent.runId === runId) {
-      messages.push({
-        type: "user",
-        text: sent.text,
-        contextCount: sent.contextCount,
-        timestamp: sent.timestamp,
-      });
-    }
-  }
-
   // Walk events
   let i = 0;
   while (i < events.length) {
@@ -168,9 +146,14 @@ function buildChatMessages(
     const data = evt.data as Record<string, unknown> | undefined;
 
     if (evt.eventType === "message") {
-      const text = (data?.message ?? data?.content ?? "") as string;
+      const text = (data?.content ?? "") as string;
+      const role = (data?.role ?? "") as string;
       if (text) {
-        messages.push({ type: "agent-message", text, timestamp: evt.timestamp });
+        if (role === "user") {
+          messages.push({ type: "user", text, contextCount: 0, timestamp: evt.timestamp });
+        } else {
+          messages.push({ type: "agent-message", text, timestamp: evt.timestamp });
+        }
       }
     } else if (evt.eventType === "tool_call") {
       // Group consecutive tool_call/tool_result pairs
@@ -212,10 +195,9 @@ function buildChatMessages(
     messages.push({ type: "error", text: activeRun.errorMsg, timestamp: new Date().toISOString() });
   }
 
-  // If no user/agent messages were produced from events or sentMessages,
-  // fall back to showing the run's promptPreview as a synthetic user message
-  // so the chat never appears empty for a run that clearly had interaction.
-  // promptPreview may come from the runs list (Get() doesn't populate it).
+  // If no user/agent messages were produced from events, fall back to
+  // showing the run's promptPreview as a synthetic user message so the
+  // chat never appears empty for a run that clearly had interaction.
   const preview = activeRun?.promptPreview || promptPreview;
   if (
     preview &&
@@ -262,8 +244,6 @@ export function AgentTab({
   fileStats,
   activeRunId: controlledRunId,
   onActiveRunIdChange,
-  sentMessages,
-  onSentMessagesChange,
 }: AgentTabProps) {
   const [message, setMessage] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
@@ -400,7 +380,7 @@ export function AgentTab({
 
     // Prepend the scenario envelope on the first message of a conversation
     // so the agent has orientation (name, path, lifecycle commands, etc.).
-    const isFirstMessage = sentMessages.length === 0;
+    const isFirstMessage = events.length === 0;
     const envelope = isFirstMessage && envelopeQuery.data
       ? buildScenarioEnvelope(envelopeQuery.data)
       : undefined;
@@ -419,15 +399,6 @@ export function AgentTab({
       },
       {
         onSuccess: (resp) => {
-          onSentMessagesChange((prev) => [
-            ...prev,
-            {
-              text: message,
-              contextCount: contextItems.length,
-              runId: resp.runId,
-              timestamp: new Date().toISOString(),
-            },
-          ]);
           setActiveRunId(resp.runId);
           setEvents([]);
           setLastEventSequence(-1);
@@ -436,7 +407,7 @@ export function AgentTab({
         },
       }
     );
-  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, sentMessages.length, envelopeQuery.data, createRun, onClearContext, onSentMessagesChange]);
+  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, events.length, envelopeQuery.data, createRun, onClearContext, setActiveRunId]);
 
   const handleContinue = useCallback(() => {
     if (!activeRunId || !message.trim()) return;
@@ -445,20 +416,11 @@ export function AgentTab({
       { runId: activeRunId, request: { message: followUp } },
       {
         onSuccess: () => {
-          onSentMessagesChange((prev) => [
-            ...prev,
-            {
-              text: followUp,
-              contextCount: 0,
-              runId: activeRunId,
-              timestamp: new Date().toISOString(),
-            },
-          ]);
           setMessage("");
         },
       }
     );
-  }, [activeRunId, message, continueRun, onSentMessagesChange]);
+  }, [activeRunId, message, continueRun]);
 
   const handleSetDefaultProfile = useCallback((id: string) => {
     setSelectedProfileId(id);
@@ -476,14 +438,13 @@ export function AgentTab({
   const chatMessages = useMemo(
     () =>
       buildChatMessages(
-        sentMessages,
         events,
         activeRun.data ?? null,
         runDiff.data?.files ?? null,
         activeRunId,
         promptPreview,
       ),
-    [sentMessages, events, activeRun.data, runDiff.data, activeRunId, promptPreview]
+    [events, activeRun.data, runDiff.data, activeRunId, promptPreview]
   );
 
   if (!agentManagerAvailable) {

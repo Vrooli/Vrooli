@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // ============================================================================
 // Enum normalization
@@ -97,12 +100,13 @@ type wireRun struct {
 // Wire event oneof data structs.
 
 type wireMessageData struct {
+	Role    string `json:"role,omitempty"`
 	Content string `json:"content,omitempty"`
 }
 
 type wireToolCallData struct {
-	ToolName string `json:"tool_name,omitempty"`
-	Input    string `json:"input,omitempty"`
+	ToolName string          `json:"tool_name,omitempty"`
+	Input    json.RawMessage `json:"input,omitempty"`
 }
 
 type wireToolResultData struct {
@@ -490,12 +494,19 @@ func wireRunEventToAPI(w *wireRunEvent) AgentRunEvent {
 
 	if w.Message != nil {
 		data["content"] = w.Message.Content
+		if w.Message.Role != "" {
+			data["role"] = w.Message.Role
+		}
 		populated = true
 	}
 	if w.ToolCall != nil {
 		data["name"] = w.ToolCall.ToolName
-		if w.ToolCall.Input != "" {
-			data["input"] = w.ToolCall.Input
+		if len(w.ToolCall.Input) > 0 {
+			// Pass through as-is: could be a JSON object or string.
+			var parsed interface{}
+			if json.Unmarshal(w.ToolCall.Input, &parsed) == nil {
+				data["input"] = parsed
+			}
 		}
 		populated = true
 	}

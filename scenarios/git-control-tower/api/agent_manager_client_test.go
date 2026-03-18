@@ -215,7 +215,7 @@ func TestAgentManagerClient_GetRunEvents(t *testing.T) {
 					"run_id":     "run-001",
 					"sequence":   "6",
 					"event_type": "RUN_EVENT_TYPE_MESSAGE",
-					"message":    map[string]string{"content": "Hello world"},
+					"message":    map[string]string{"role": "assistant", "content": "Hello world"},
 				},
 				{
 					"id":         "evt-7",
@@ -522,7 +522,7 @@ func TestWireRunEventToAPI(t *testing.T) {
 			Sequence:  1,
 			EventType: "RUN_EVENT_TYPE_MESSAGE",
 			Timestamp: "2024-01-01T00:00:00Z",
-			Message:   &wireMessageData{Content: "hello"},
+			Message:   &wireMessageData{Role: "assistant", Content: "hello"},
 		}
 		got := wireRunEventToAPI(&w)
 		if got.EventType != "message" {
@@ -535,6 +535,28 @@ func TestWireRunEventToAPI(t *testing.T) {
 		if data["content"] != "hello" {
 			t.Errorf("content: got %v", data["content"])
 		}
+		if data["role"] != "assistant" {
+			t.Errorf("role: got %v, want assistant", data["role"])
+		}
+	})
+
+	t.Run("user message event", func(t *testing.T) {
+		w := wireRunEvent{
+			ID:        "evt-u1",
+			RunID:     "run-1",
+			Sequence:  10,
+			EventType: "RUN_EVENT_TYPE_MESSAGE",
+			Timestamp: "2024-01-01T00:00:05Z",
+			Message:   &wireMessageData{Role: "user", Content: "fix the bug"},
+		}
+		got := wireRunEventToAPI(&w)
+		data := got.Data.(map[string]interface{})
+		if data["role"] != "user" {
+			t.Errorf("role: got %v, want user", data["role"])
+		}
+		if data["content"] != "fix the bug" {
+			t.Errorf("content: got %v", data["content"])
+		}
 	})
 
 	t.Run("tool_call event", func(t *testing.T) {
@@ -543,7 +565,7 @@ func TestWireRunEventToAPI(t *testing.T) {
 			RunID:     "run-1",
 			Sequence:  2,
 			EventType: "RUN_EVENT_TYPE_TOOL_CALL",
-			ToolCall:  &wireToolCallData{ToolName: "read_file", Input: "main.go"},
+			ToolCall:  &wireToolCallData{ToolName: "read_file", Input: json.RawMessage(`"main.go"`)},
 		}
 		got := wireRunEventToAPI(&w)
 		if got.EventType != "tool_call" {
@@ -552,6 +574,28 @@ func TestWireRunEventToAPI(t *testing.T) {
 		data := got.Data.(map[string]interface{})
 		if data["name"] != "read_file" {
 			t.Errorf("name: got %v", data["name"])
+		}
+	})
+
+	t.Run("tool_call event with object input", func(t *testing.T) {
+		w := wireRunEvent{
+			ID:        "evt-2b",
+			RunID:     "run-1",
+			Sequence:  2,
+			EventType: "RUN_EVENT_TYPE_TOOL_CALL",
+			ToolCall:  &wireToolCallData{ToolName: "Bash", Input: json.RawMessage(`{"command":"ls","description":"list files"}`)},
+		}
+		got := wireRunEventToAPI(&w)
+		data := got.Data.(map[string]interface{})
+		if data["name"] != "Bash" {
+			t.Errorf("name: got %v", data["name"])
+		}
+		input, ok := data["input"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("input should be map, got %T", data["input"])
+		}
+		if input["command"] != "ls" {
+			t.Errorf("input.command: got %v", input["command"])
 		}
 	})
 

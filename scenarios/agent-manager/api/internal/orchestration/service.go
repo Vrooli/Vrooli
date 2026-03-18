@@ -1719,12 +1719,16 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, runner.ErrContinuationNotSupported
 	}
 
-	// Update run status to running
+	// Update run status to running and reset heartbeat so the reconciler
+	// doesn't immediately consider this run stale based on the previous
+	// run's last heartbeat (which could be hours old).
 	previousStatus := run.Status
+	now := time.Now()
 	run.Status = domain.RunStatusRunning
 	run.Phase = domain.RunPhaseExecuting
 	run.ProgressPercent = domain.PhaseToProgress(domain.RunPhaseExecuting)
-	run.UpdatedAt = time.Now()
+	run.LastHeartbeat = &now
+	run.UpdatedAt = now
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
@@ -1891,8 +1895,35 @@ func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, ev
 	return deleteEvent, nil
 }
 
+// continuationHeartbeat sends periodic heartbeats for a continuation so the
+// reconciler doesn't consider the run stale while it's actively executing.
+func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Run, stop <-chan struct{}) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			now := time.Now()
+			run.LastHeartbeat = &now
+			run.UpdatedAt = now
+			if err := o.runs.Update(ctx, run); err != nil {
+				log.Printf("[heartbeat] ERROR: continuation heartbeat failed for run %s: %v", run.ID, err)
+			}
+		}
+	}
+}
+
 // executeContinuation handles the actual continuation execution (runs in background).
 func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment) {
+	// Start heartbeat loop so the reconciler doesn't kill us during execution
+	heartbeatStop := make(chan struct{})
+	go o.continuationHeartbeat(ctx, run, heartbeatStop)
+	defer close(heartbeatStop)
+
 	// Build continue request
 	continueReq := runner.ContinueRequest{
 		RunID:       run.ID,

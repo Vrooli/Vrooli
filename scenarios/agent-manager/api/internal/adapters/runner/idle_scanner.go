@@ -8,12 +8,19 @@ import (
 	"time"
 )
 
-// DefaultStreamIdleTimeout is a safety-net timeout that fires only when the
-// runner process has produced no output for an extended period. It is NOT the
-// primary completion mechanism — process exit is. This timeout exists solely
-// for catastrophic cases where the process hangs without producing any output
-// at all (dead API, frozen process, etc.).
-const DefaultStreamIdleTimeout = 5 * time.Minute
+// DefaultStreamIdleTimeout controls the safety-net timeout that fires when the
+// runner process produces no stdout output for an extended period. Zero disables
+// the timeout entirely, which is the default.
+//
+// This is disabled by default because common agent operations — spawning
+// subagents, running long test suites, heavy builds — routinely produce no
+// stdout for well over 5 minutes during normal execution. Enabling this
+// timeout risks killing healthy runs.
+//
+// To opt in, pass a positive duration to startManagedProcess (e.g. via a
+// per-profile or per-run configuration). The timeout resets on every line of
+// stdout output, so it only fires during true silence.
+const DefaultStreamIdleTimeout = 0
 
 // managedProcess wraps an exec.Cmd with a manual stdout pipe and a background
 // goroutine that calls cmd.Wait(). When the main process exits, the goroutine
