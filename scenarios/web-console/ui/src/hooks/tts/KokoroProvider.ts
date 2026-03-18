@@ -21,6 +21,13 @@ export class KokoroProvider implements TTSProvider {
       const audioBytes = await blob.arrayBuffer();
       this.throwIfAborted(signal);
 
+      // Kokoro returns 0-byte audio for non-speakable input (e.g. "---",
+      // lone punctuation). Skip silently instead of crashing decodeAudioData.
+      if (audioBytes.byteLength === 0) {
+        this.cleanup();
+        return;
+      }
+
       const context = this.getAudioContext();
       if (context.state === "suspended") {
         await context.resume();

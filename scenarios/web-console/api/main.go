@@ -48,7 +48,27 @@ func initSchema(db *sql.DB) error {
 		}
 	}
 	log.Println("Schema initialized successfully")
+
+	// Migrations: add columns to existing tables. ALTER TABLE ADD COLUMN
+	// errors if the column already exists, so we ignore that specific error.
+	migrations := []string{
+		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
+	}
+	for _, m := range migrations {
+		if _, err := db.Exec(m); err != nil {
+			// "duplicate column name" means the column already exists — safe to ignore.
+			if !isDuplicateColumnError(err) {
+				return fmt.Errorf("migration: %w", err)
+			}
+		}
+	}
+
 	return nil
+}
+
+// isDuplicateColumnError checks if a SQLite error is a "duplicate column name" error.
+func isDuplicateColumnError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate column name")
 }
 
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
@@ -309,10 +329,21 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/tts/voices", s.handleTTSVoices).Methods("GET")
 }
 
-// Handler returns the router wrapped with panic-recovery middleware so that
-// an unexpected panic in a handler returns a 500 instead of crashing the server.
+// Handler returns the router wrapped with CORS and panic-recovery middleware.
+// CORS accepts both localhost and 127.0.0.1 on the UI port so that desktop
+// bundles (where the UI and API run on separate ports) work without a proxy.
 func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	uiPort := getEnvOrDefault("UI_PORT", "36233")
+	allowedOrigins := []string{
+		fmt.Sprintf("http://localhost:%s", uiPort),
+		fmt.Sprintf("http://127.0.0.1:%s", uiPort),
+	}
+	cors := handlers.CORS(
+		handlers.AllowedOrigins(allowedOrigins),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "X-Request-ID"}),
+	)
+	return handlers.RecoveryHandler()(cors(s.router))
 }
 
 type contextKey string

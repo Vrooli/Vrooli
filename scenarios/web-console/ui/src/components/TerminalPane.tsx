@@ -13,12 +13,14 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { TERMINAL_THEMES, DEFAULT_THEME_ID, TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from "../consts/config";
 import { parseShortcut, matchesShortcut } from "../lib/shortcutParser";
 import { useImageUpload } from "../hooks/useImageUpload";
+import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import TerminalContextMenu from "./TerminalContextMenu";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useMobileBackspaceRepeat } from "../hooks/useMobileBackspaceRepeat";
 import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../lib/api";
+import { splitIntoParagraphs } from "../lib/ttsChunker";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -31,20 +33,6 @@ interface TerminalPaneProps {
   onVoiceStop?: () => void;
   /** Called when TTS speaking state changes for this pane. */
   onTtsSpeakingChange?: (speaking: boolean) => void;
-}
-
-/** Split a message into speakable paragraphs (double-newline boundaries, long lines broken). */
-export function splitIntoParagraphs(text: string): string[] {
-  const raw = text.split(/\n\n+/).filter((p) => p.trim());
-  const paragraphs: string[] = [];
-  for (const block of raw) {
-    if (block.length > 500) {
-      paragraphs.push(...block.split(/\n/).filter((l) => l.trim()));
-    } else {
-      paragraphs.push(block);
-    }
-  }
-  return paragraphs.length > 0 ? paragraphs : [text];
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
@@ -252,7 +240,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ttsStop();
         for (let i = 0; i < texts.length; i++) {
           onProgress(i);
-          const paragraphs = splitIntoParagraphs(texts[i]!);
+          const text = texts[i];
+          if (!text) continue;
+          const paragraphs = splitIntoParagraphs(text);
           await speakParagraphs(paragraphs);
         }
       },
@@ -358,6 +348,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [uploadAndInject]);
 
     const renamePaneById = useWorkspaceStore((s) => s.renamePaneById);
+    const { syncPaneUpdate } = useWorkspaceSync();
 
     // Initialize xterm.js terminal (rendering only)
     useEffect(() => {
@@ -432,6 +423,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       // Listen for title changes from OSC escape sequences (e.g., from Claude Code, vim, ssh)
       const titleDisposable = term.onTitleChange((title) => {
         renamePaneById(sessionId, title);
+        syncPaneUpdate(sessionId, { name: title });
       });
 
       fitRef.current = fitAddon;

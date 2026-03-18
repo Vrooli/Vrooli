@@ -739,7 +739,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16) (*Session, err
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
 		// Clean up session upload directory
-		uploadDir := filepath.Join(uploadBaseDir, sess.ID)
+		uploadDir := filepath.Join(resolveUploadDir(), sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sess.ID, err)
 		}
@@ -782,7 +782,7 @@ func (sm *SessionManager) Delete(id string) error {
 	_ = sess.pty.Kill()
 	_ = sess.pty.Close()
 	// Clean up session upload directory
-	uploadDir := filepath.Join(uploadBaseDir, id)
+	uploadDir := filepath.Join(resolveUploadDir(), id)
 	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
 	}

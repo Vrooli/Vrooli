@@ -5,12 +5,23 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 const maxAudioSize = 10 << 20 // 10 MB
 
-var whisperURL = "http://localhost:8090/asr?output=json"
+// whisperURL is the Whisper ASR endpoint. Initialized from WHISPER_URL env var
+// with a sensible default for cross-platform portability.
+var whisperURL = resolveWhisperURL()
+
+func resolveWhisperURL() string {
+	base := "http://localhost:8090"
+	if v := os.Getenv("WHISPER_URL"); v != "" {
+		base = v
+	}
+	return base + "/asr?output=json"
+}
 
 func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	reqStart := time.Now()

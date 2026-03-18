@@ -67,12 +67,13 @@ func (s *Server) handleSaveLayout(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePaneRequest is the JSON body for PUT /api/v1/workspace/panes/{session_id}.
 type UpdatePaneRequest struct {
-	Name        *string `json:"name,omitempty"`
-	HeaderColor *string `json:"header_color,omitempty"`
-	ThemeID     *string `json:"theme_id,omitempty"`
-	FontSize    *int    `json:"font_size,omitempty"`
-	SortOrder   *int    `json:"sort_order,omitempty"`
-	GroupID     *string `json:"group_id,omitempty"`
+	Name                 *string `json:"name,omitempty"`
+	HeaderColor          *string `json:"header_color,omitempty"`
+	ThemeID              *string `json:"theme_id,omitempty"`
+	FontSize             *int    `json:"font_size,omitempty"`
+	SortOrder            *int    `json:"sort_order,omitempty"`
+	GroupID              *string `json:"group_id,omitempty"`
+	SupportsMessagesView *bool   `json:"supports_messages_view,omitempty"`
 }
 
 // handleUpdatePane creates or updates a single pane's metadata.
@@ -105,6 +106,7 @@ func (s *Server) handleUpdatePane(w http.ResponseWriter, r *http.Request) {
 				pane.FontSize = p.FontSize
 				pane.SortOrder = p.SortOrder
 				pane.GroupID = p.GroupID
+				pane.SupportsMessagesView = p.SupportsMessagesView
 				break
 			}
 		}
@@ -128,6 +130,9 @@ func (s *Server) handleUpdatePane(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.GroupID != nil {
 		pane.GroupID = *req.GroupID
+	}
+	if req.SupportsMessagesView != nil {
+		pane.SupportsMessagesView = *req.SupportsMessagesView
 	}
 
 	if err := s.workspace.UpsertPane(pane); err != nil {

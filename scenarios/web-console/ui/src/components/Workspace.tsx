@@ -78,7 +78,7 @@ export default function Workspace() {
   } = useSessionManager();
 
   const store = useWorkspaceStore();
-  const { syncActivePane } = useWorkspaceSync();
+  const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
   const setConversationViewMode = useConversationStore((state) => state.setViewMode);
   const clearConversationSession = useConversationStore((state) => state.clearSession);
   const conversationSessions = useConversationStore((state) => state.sessions);
@@ -171,6 +171,11 @@ export default function Workspace() {
         const shouldActivate = pendingActivePaneRef.current === sp.session.id;
         if (shouldActivate) pendingActivePaneRef.current = null;
         store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
+        // Persist new pane metadata (including supportsMessagesView) to the backend
+        syncPaneUpdate(sp.session.id, {
+          name: sp.session.shell?.split("/").pop() ?? "terminal",
+          supports_messages_view: sp.supportsMessagesView,
+        });
       }
     }
     // Remove deleted sessions from store (only after hydration)
@@ -181,7 +186,7 @@ export default function Workspace() {
         }
       }
     }
-  }, [sessionPanes, store, isHydrated]);
+  }, [sessionPanes, store, isHydrated, syncPaneUpdate]);
 
   // Auto-set active pane if none is set or the persisted value is stale
   useEffect(() => {

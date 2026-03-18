@@ -68,7 +68,17 @@ export function useSessionManager() {
         if (canceled) return;
 
         if (sessions.length > 0) {
-          setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({ session, supportsMessagesView: false }))));
+          // Build a lookup of supports_messages_view from the backend layout
+          const layoutSmv = new Map<string, boolean>();
+          if (layout) {
+            for (const p of layout.panes) {
+              layoutSmv.set(p.session_id, p.supports_messages_view ?? false);
+            }
+          }
+          setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({
+            session,
+            supportsMessagesView: layoutSmv.get(session.id) ?? false,
+          }))));
         }
 
         // Sync workspace store from backend layout
@@ -85,7 +95,7 @@ export function useSessionManager() {
               themeId: p.theme_id,
               fontSize: p.font_size,
               groupId: p.group_id,
-              supportsMessagesView: false,
+              supportsMessagesView: p.supports_messages_view ?? false,
             }));
 
           // Sessions without pane metadata get defaults
@@ -125,7 +135,8 @@ export function useSessionManager() {
             })),
           });
         } else if (sessions.length > 0 && store.panes.length === 0) {
-          // Fallback: no layout from backend, build from sessions
+          // Fallback: no layout from backend, build from sessions.
+          // Without layout data, supportsMessagesView defaults to false.
           useWorkspaceStore.setState({
             panes: sessions.map((s) => ({
               sessionId: s.id,

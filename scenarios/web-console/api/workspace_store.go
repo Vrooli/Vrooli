@@ -34,16 +34,17 @@ type WorkspaceLayout struct {
 
 // WorkspacePane is the persisted metadata for a single terminal pane.
 type WorkspacePane struct {
-	SessionID   string `json:"session_id"`
-	Name        string `json:"name"`
-	HeaderColor string `json:"header_color"`
-	ThemeID     string `json:"theme_id"`
-	FontSize    int    `json:"font_size"`
-	SortOrder   int    `json:"sort_order"`
-	GroupID     string `json:"group_id,omitempty"` // empty string = no group
-	IsActive    bool   `json:"-"`                  // internal; serialized via WorkspaceLayout.ActivePane
-	CreatedAt   string `json:"created_at,omitempty"`
-	UpdatedAt   string `json:"updated_at,omitempty"`
+	SessionID            string `json:"session_id"`
+	Name                 string `json:"name"`
+	HeaderColor          string `json:"header_color"`
+	ThemeID              string `json:"theme_id"`
+	FontSize             int    `json:"font_size"`
+	SortOrder            int    `json:"sort_order"`
+	GroupID              string `json:"group_id,omitempty"` // empty string = no group
+	IsActive             bool   `json:"-"`                  // internal; serialized via WorkspaceLayout.ActivePane
+	SupportsMessagesView bool   `json:"supports_messages_view"`
+	CreatedAt            string `json:"created_at,omitempty"`
+	UpdatedAt            string `json:"updated_at,omitempty"`
 }
 
 // TabGroup is a named group of terminal tabs with a display color.

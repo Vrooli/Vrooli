@@ -87,6 +87,7 @@ func (m *MemWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 		existing.FontSize = pane.FontSize
 		existing.GroupID = pane.GroupID
 		existing.SortOrder = pane.SortOrder
+		existing.SupportsMessagesView = pane.SupportsMessagesView
 		existing.UpdatedAt = now
 	} else {
 		cp := *pane

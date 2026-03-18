@@ -30,7 +30,7 @@ func (s *SQLWorkspaceStore) GetLayout() (*WorkspaceLayout, error) {
 	paneRows, err := s.db.Query(`
 		SELECT session_id, name, header_color, theme_id, font_size,
 		       sort_order, COALESCE(group_id, ''), is_active,
-		       created_at, updated_at
+		       supports_messages_view, created_at, updated_at
 		FROM workspace_panes
 		ORDER BY sort_order, created_at`)
 	if err != nil {
@@ -151,10 +151,14 @@ func (s *SQLWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 	if pane.IsActive {
 		isActive = 1
 	}
+	supportsMessagesView := 0
+	if pane.SupportsMessagesView {
+		supportsMessagesView = 1
+	}
 
 	_, err := s.db.Exec(`
-		INSERT INTO workspace_panes (session_id, name, header_color, theme_id, font_size, sort_order, group_id, is_active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workspace_panes (session_id, name, header_color, theme_id, font_size, sort_order, group_id, is_active, supports_messages_view, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (session_id) DO UPDATE SET
 			name = excluded.name,
 			header_color = excluded.header_color,
@@ -162,9 +166,10 @@ func (s *SQLWorkspaceStore) UpsertPane(pane *WorkspacePane) error {
 			font_size = excluded.font_size,
 			sort_order = excluded.sort_order,
 			group_id = excluded.group_id,
+			supports_messages_view = excluded.supports_messages_view,
 			updated_at = excluded.updated_at`,
 		pane.SessionID, name, headerColor, themeID, fontSize,
-		pane.SortOrder, groupID, isActive, now, now)
+		pane.SortOrder, groupID, isActive, supportsMessagesView, now, now)
 	if err != nil {
 		return fmt.Errorf("upsert pane %s: %w", pane.SessionID, err)
 	}
@@ -270,14 +275,16 @@ func (s *SQLWorkspaceStore) DeleteGroup(id string) (bool, error) {
 // scanWorkspacePane reads a WorkspacePane from a *sql.Rows cursor.
 func scanWorkspacePane(rows *sql.Rows) (*WorkspacePane, error) {
 	var p WorkspacePane
-	var isActive int
+	var isActive, supportsMessagesView int
 	if err := rows.Scan(
 		&p.SessionID, &p.Name, &p.HeaderColor, &p.ThemeID, &p.FontSize,
-		&p.SortOrder, &p.GroupID, &isActive, &p.CreatedAt, &p.UpdatedAt,
+		&p.SortOrder, &p.GroupID, &isActive, &supportsMessagesView,
+		&p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 	p.IsActive = isActive != 0
+	p.SupportsMessagesView = supportsMessagesView != 0
 	return &p, nil
 }
 

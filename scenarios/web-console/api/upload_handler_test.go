@@ -70,7 +70,7 @@ func TestHandleUpload_ValidPNG(t *testing.T) {
 		t.Fatalf("uploaded file does not exist at %s", path)
 	}
 	// Clean up
-	os.RemoveAll(filepath.Join(uploadBaseDir, sess.ID))
+	os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID))
 }
 
 func TestHandleUpload_AcceptsJPEG(t *testing.T) {
@@ -88,7 +88,7 @@ func TestHandleUpload_AcceptsJPEG(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
-	os.RemoveAll(filepath.Join(uploadBaseDir, sess.ID))
+	os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID))
 }
 
 func TestHandleUpload_AcceptsWebP(t *testing.T) {
@@ -106,7 +106,7 @@ func TestHandleUpload_AcceptsWebP(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
-	os.RemoveAll(filepath.Join(uploadBaseDir, sess.ID))
+	os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID))
 }
 
 func TestHandleUpload_AcceptsGIF(t *testing.T) {
@@ -124,7 +124,7 @@ func TestHandleUpload_AcceptsGIF(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
-	os.RemoveAll(filepath.Join(uploadBaseDir, sess.ID))
+	os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID))
 }
 
 func TestHandleUpload_RejectsNonImageMIME(t *testing.T) {
@@ -213,14 +213,14 @@ func TestHandleUpload_PathTraversalFilename(t *testing.T) {
 	}
 
 	// The path should be within the session directory, not contain traversal
-	if !strings.HasPrefix(resp["path"], filepath.Join(uploadBaseDir, sess.ID)) {
+	if !strings.HasPrefix(resp["path"], filepath.Join(resolveUploadDir(), sess.ID)) {
 		t.Fatalf("path escaped session dir: %s", resp["path"])
 	}
 	if strings.Contains(resp["path"], "..") {
 		t.Fatalf("path contains traversal: %s", resp["path"])
 	}
 
-	os.RemoveAll(filepath.Join(uploadBaseDir, sess.ID))
+	os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID))
 }
 
 func TestSanitizeFilename(t *testing.T) {

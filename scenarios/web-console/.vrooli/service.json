@@ -225,6 +225,13 @@
       ]
     }
   },
+  "capabilities": {
+    "offline_capable": false,
+    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); voice features require Whisper/Kokoro servers",
+    "ai_providers": ["ollama", "openrouter"],
+    "ai_fallback": "openrouter",
+    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
+  },
   "dependencies": {
     "resources": {
       "sqlite": {

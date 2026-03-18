@@ -558,8 +558,10 @@ export async function updateVoiceStreamConfig(
   return (await res.json()) as VoiceStreamConfig;
 }
 
-/** Maximum time (ms) to wait for Kokoro to return synthesized audio. */
-const TTS_SYNTHESIS_TIMEOUT_MS = 15_000;
+/** Maximum time (ms) to wait for Kokoro to return synthesized audio.
+ * Bumped from 15 s to 30 s: with chunked input the payload is smaller,
+ * but Kokoro can still be slow on cold-start or under load. */
+const TTS_SYNTHESIS_TIMEOUT_MS = 30_000;
 
 /** Synthesize text to audio via the Kokoro TTS backend. */
 export async function synthesizeTTS(
@@ -710,6 +712,7 @@ export interface WorkspacePaneDTO {
   font_size: number;
   sort_order: number;
   group_id: string | null;
+  supports_messages_view: boolean;
 }
 
 export interface TabGroupDTO {

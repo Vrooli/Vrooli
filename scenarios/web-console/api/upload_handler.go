@@ -3,17 +3,43 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
-const (
-	maxUploadSize = 20 << 20 // 20 MB
-	uploadBaseDir = "/tmp/web-console-uploads"
-)
+const maxUploadSize = 20 << 20 // 20 MB
+
+// resolveUploadDir returns the upload directory using api-core/storage for
+// cross-platform portability. Falls back to a temp directory on failure.
+func resolveUploadDir() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("upload-dir: storage resolver failed, using fallback: %v", err)
+		return filepath.Join(os.TempDir(), "web-console-uploads")
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassCache, 0); err != nil {
+		log.Printf("upload-dir: ensure cache dir failed, using fallback: %v", err)
+		return filepath.Join(os.TempDir(), "web-console-uploads")
+	}
+
+	path, err := resolver.Path(opts, storage.ClassCache, "uploads")
+	if err != nil {
+		log.Printf("upload-dir: resolve path failed, using fallback: %v", err)
+		return filepath.Join(os.TempDir(), "web-console-uploads")
+	}
+	return path
+}
 
 // allowedImageTypes maps accepted MIME types for image uploads.
 var allowedImageTypes = map[string]bool{
@@ -111,7 +137,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create session-scoped upload directory
-	sessionDir := filepath.Join(uploadBaseDir, sess.ID)
+	sessionDir := filepath.Join(resolveUploadDir(), sess.ID)
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		writeCatalogError(w, "internal_error", "Failed to create upload directory")
 		return
