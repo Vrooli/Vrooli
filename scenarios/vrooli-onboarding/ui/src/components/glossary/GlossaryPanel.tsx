@@ -1,36 +1,21 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen } from "lucide-react";
-import type { GlossaryEntry } from "../../types";
 import { fetchGlossary } from "../../lib/api";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { SearchInput, type SearchInputHandle } from "../ui/SearchInput";
 
 export function GlossaryPanel() {
-  const [entries, setEntries] = useState<GlossaryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncing, setDebouncing] = useState(false);
   const searchRef = useRef<SearchInputHandle>(null);
+  const { debounced: debouncedSearch, isPending: debouncing } = useDebouncedValue(searchTerm, 300);
 
-  useEffect(() => {
-    let cancelled = false;
-    setDebouncing(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ["glossary", debouncedSearch],
+    queryFn: () => fetchGlossary(debouncedSearch || undefined),
+  });
 
-    const timeout = setTimeout(() => {
-      if (cancelled) return;
-      setDebouncing(false);
-      setLoading(true);
-
-      fetchGlossary(searchTerm || undefined)
-        .then((data) => { if (!cancelled) setEntries(data.entries ?? []); })
-        .catch(() => { /* empty entries will show */ })
-        .finally(() => { if (!cancelled) setLoading(false); });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [searchTerm]);
+  const entries = data?.entries ?? [];
 
   return (
     <div data-testid="glossary-panel">
@@ -60,7 +45,7 @@ export function GlossaryPanel() {
       </div>
 
       {/* Results count */}
-      {!loading && entries.length > 0 && (
+      {!isLoading && entries.length > 0 && (
         <p className="mt-3 text-xs text-slate-300" aria-live="polite" data-testid="glossary-count">
           {entries.length} term{entries.length !== 1 ? "s" : ""}{searchTerm ? ` matching "${searchTerm}"` : ""}
         </p>
@@ -68,7 +53,7 @@ export function GlossaryPanel() {
 
       {/* Content */}
       <div className={entries.length > 0 ? "mt-2" : "mt-6"}>
-        {loading ? (
+        {isLoading ? (
           <div data-testid="glossary-loading" className="flex items-center justify-center py-12 text-slate-300" role="status">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
             <span className="ml-2 text-sm">Loading glossary...</span>

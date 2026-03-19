@@ -1,6 +1,7 @@
 // [REQ:REQ-P2-004] Glossary Panel Component Tests
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
+import { renderWithQueryClient, mockFetchSuccess, mockFetchPending } from "../../test-utils";
 import { GlossaryPanel } from "./GlossaryPanel";
 
 const mockGlossaryData = {
@@ -18,27 +19,21 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders glossary panel container", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByTestId("glossary-panel")).toBeInTheDocument();
   });
 
   it("shows loading state initially", () => {
-    globalThis.fetch = vi.fn().mockImplementation(() => new Promise(() => {}));
-    render(<GlossaryPanel />);
+    mockFetchPending();
+    renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByTestId("glossary-loading")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
   it("renders glossary entries after loading", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
     });
@@ -48,22 +43,16 @@ describe("GlossaryPanel", () => {
   });
 
   it("displays term descriptions", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByText(/local service like a database/i)).toBeInTheDocument();
     });
   });
 
   it("renders search input with accessible label", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     const searchInput = screen.getByTestId("glossary-search");
     expect(searchInput).toBeInTheDocument();
     expect(searchInput).toHaveAttribute("aria-label", "Search glossary terms");
@@ -71,11 +60,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows empty state when no entries match", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ entries: [], count: 0, query: "xyz" }),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess({ entries: [], count: 0, query: "xyz" });
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-empty")).toBeInTheDocument();
     });
@@ -83,11 +69,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows search hint in empty state when search term present", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ entries: [], count: 0 }),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess({ entries: [], count: 0 });
+    renderWithQueryClient(<GlossaryPanel />);
     // Type something to set search term
     const searchInput = screen.getByTestId("glossary-search");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });
@@ -97,11 +80,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("uses dl element for glossary list (proper semantics)", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
     });
@@ -109,11 +89,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders category badges for entries", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getAllByText("core")).toHaveLength(2);
     });
@@ -121,17 +98,14 @@ describe("GlossaryPanel", () => {
   });
 
   it("renders heading with proper hierarchy", () => {
-    globalThis.fetch = vi.fn().mockImplementation(() => new Promise(() => {}));
-    render(<GlossaryPanel />);
+    mockFetchPending();
+    renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Glossary");
   });
 
   it("shows result count after loading entries", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-count")).toBeInTheDocument();
     });
@@ -139,11 +113,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows clear search button in input when search term is present", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
     });
@@ -159,11 +130,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows clickable clear search link in empty state", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ entries: [], count: 0 }),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess({ entries: [], count: 0 });
+    renderWithQueryClient(<GlossaryPanel />);
     const searchInput = screen.getByTestId("glossary-search");
     fireEvent.change(searchInput, { target: { value: "nonexistent" } });
     await waitFor(() => {
@@ -175,11 +143,8 @@ describe("GlossaryPanel", () => {
   });
 
   it("shows debounce indicator while waiting for search", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockGlossaryData),
-    });
-    render(<GlossaryPanel />);
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
     // Wait for initial load
     await waitFor(() => {
       expect(screen.getByTestId("glossary-list")).toBeInTheDocument();

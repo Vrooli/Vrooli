@@ -1,18 +1,11 @@
 // [REQ:REQ-P1-002] Health Dashboard Component Tests
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
+import { renderWithQueryClient, mockFetchSuccess, mockFetchPending } from "../../test-utils";
 import { HealthDashboard } from "./HealthDashboard";
 
 function renderDashboard(props: React.ComponentProps<typeof HealthDashboard> = {}) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <HealthDashboard {...props} />
-    </QueryClientProvider>
-  );
+  return renderWithQueryClient(<HealthDashboard {...props} />);
 }
 
 const mockHealthData = {
@@ -32,7 +25,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows loading state initially", () => {
-    globalThis.fetch = vi.fn().mockImplementation(() => new Promise(() => {}));
+    mockFetchPending();
     renderDashboard();
     expect(screen.getByTestId("health-loading")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeInTheDocument();
@@ -48,10 +41,7 @@ describe("HealthDashboard", () => {
   });
 
   it("renders resource health cards after loading", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-card-postgres")).toBeInTheDocument();
@@ -61,10 +51,7 @@ describe("HealthDashboard", () => {
   });
 
   it("displays healthy count summary", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-summary")).toBeInTheDocument();
@@ -73,10 +60,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows health grid with list role", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-grid")).toBeInTheDocument();
@@ -85,10 +69,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows status indicators with descriptive accessible labels", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("status-indicator-postgres")).toBeInTheDocument();
@@ -98,10 +79,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows empty state when no resources", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ resources: [], total: 0, healthy_count: 0, checked_at: "" }),
-    });
+    mockFetchSuccess({ resources: [], total: 0, healthy_count: 0, checked_at: "" });
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByText(/no resources detected/i)).toBeInTheDocument();
@@ -109,10 +87,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows auto-refresh indicator", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByText(/auto-refreshes/i)).toBeInTheDocument();
@@ -129,10 +104,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows refresh button when resources loaded", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-refresh")).toBeInTheDocument();
@@ -141,10 +113,7 @@ describe("HealthDashboard", () => {
   });
 
   it("displays resource categories", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-card-postgres")).toBeInTheDocument();
@@ -154,10 +123,7 @@ describe("HealthDashboard", () => {
   });
 
   it("shows last checked timestamp", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockHealthData),
-    });
+    mockFetchSuccess(mockHealthData);
     renderDashboard();
     await waitFor(() => {
       expect(screen.getByTestId("health-last-checked")).toBeInTheDocument();
@@ -167,10 +133,7 @@ describe("HealthDashboard", () => {
 
   it("shows 'Go to Setup Wizard' button in empty state when callback provided", async () => {
     const onNavigate = vi.fn();
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ resources: [], total: 0, healthy_count: 0, checked_at: "2026-01-01T00:00:00Z" }),
-    });
+    mockFetchSuccess({ resources: [], total: 0, healthy_count: 0, checked_at: "2026-01-01T00:00:00Z" });
     renderDashboard({ onNavigateToWizard: onNavigate });
     await waitFor(() => {
       expect(screen.getByTestId("health-go-to-wizard")).toBeInTheDocument();

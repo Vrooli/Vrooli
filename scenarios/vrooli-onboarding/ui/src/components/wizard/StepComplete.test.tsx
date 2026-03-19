@@ -1,18 +1,14 @@
 // [REQ:REQ-P0-004] Config Generation UI
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
+import { renderWithQueryClient, mockFetchSuccess, mockFetchError, mockFetchPending } from "../../test-utils";
 import { StepComplete } from "./StepComplete";
 
+const MOCK_CONFIG = { config: { resources: { postgres: { enabled: true } } } };
+const MOCK_CONFIG_MULTI = { config: { resources: { postgres: { enabled: true }, redis: { enabled: true } } } };
+
 function renderComponent(selected: Set<string>, onStartOver?: () => void) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <StepComplete selected={selected} onStartOver={onStartOver} />
-    </QueryClientProvider>
-  );
+  return renderWithQueryClient(<StepComplete selected={selected} onStartOver={onStartOver} />);
 }
 
 describe("StepComplete", () => {
@@ -21,23 +17,13 @@ describe("StepComplete", () => {
   });
 
   it("shows loading state while generating config", () => {
-    globalThis.fetch = vi.fn().mockImplementation(() =>
-      new Promise(() => {})
-    );
-
+    mockFetchPending();
     renderComponent(new Set(["postgres"]));
     expect(screen.getByTestId("config-loading")).toBeInTheDocument();
   });
 
   it("shows generated config on success", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("config-output")).toBeInTheDocument();
@@ -46,11 +32,7 @@ describe("StepComplete", () => {
   });
 
   it("shows error on API failure", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    });
-
+    mockFetchError();
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("config-error")).toBeInTheDocument();
@@ -58,14 +40,7 @@ describe("StepComplete", () => {
   });
 
   it("shows download button when config is generated", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("download-config")).toBeInTheDocument();
@@ -74,14 +49,7 @@ describe("StepComplete", () => {
   });
 
   it("config output is keyboard accessible", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("config-output")).toBeInTheDocument();
@@ -91,14 +59,7 @@ describe("StepComplete", () => {
   });
 
   it("shows copy button when config is generated", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("copy-config")).toBeInTheDocument();
@@ -111,14 +72,7 @@ describe("StepComplete", () => {
   });
 
   it("displays resource count in success message", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true }, redis: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG_MULTI);
     renderComponent(new Set(["postgres", "redis"]));
     await waitFor(() => {
       expect(screen.getByText(/2 resources/i)).toBeInTheDocument();
@@ -127,14 +81,7 @@ describe("StepComplete", () => {
 
   it("shows Start Over button when onStartOver is provided", async () => {
     const onStartOver = vi.fn();
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]), onStartOver);
     await waitFor(() => {
       expect(screen.getByTestId("start-over")).toBeInTheDocument();
@@ -148,14 +95,7 @@ describe("StepComplete", () => {
   });
 
   it("config output uses line numbers for readability", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("config-output")).toBeInTheDocument();
@@ -169,15 +109,7 @@ describe("StepComplete", () => {
 
   it("cancels start over when Cancel is clicked", async () => {
     const onStartOver = vi.fn();
-
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          config: { resources: { postgres: { enabled: true } } },
-        }),
-    });
-
+    mockFetchSuccess(MOCK_CONFIG);
     renderComponent(new Set(["postgres"]), onStartOver);
     await waitFor(() => {
       expect(screen.getByTestId("start-over")).toBeInTheDocument();

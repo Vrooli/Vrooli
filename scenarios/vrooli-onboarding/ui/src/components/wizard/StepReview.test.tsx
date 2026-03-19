@@ -1,18 +1,11 @@
 // [REQ:REQ-P0-005] Config Validation UI
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
+import { renderWithQueryClient, mockFetchSuccess, mockFetchError, mockFetchPending } from "../../test-utils";
 import { StepReview } from "./StepReview";
 
 function renderComponent(selected: Set<string>, onRemove?: (name: string) => void, onGoBack?: () => void) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <StepReview selected={selected} onRemove={onRemove} onGoBack={onGoBack} />
-    </QueryClientProvider>
-  );
+  return renderWithQueryClient(<StepReview selected={selected} onRemove={onRemove} onGoBack={onGoBack} />);
 }
 
 describe("StepReview", () => {
@@ -44,14 +37,7 @@ describe("StepReview", () => {
 
   it("shows go-back button in empty state when onGoBack is provided", () => {
     const onGoBack = vi.fn();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <StepReview selected={new Set()} onGoBack={onGoBack} />
-      </QueryClientProvider>
-    );
+    renderWithQueryClient(<StepReview selected={new Set()} onGoBack={onGoBack} />);
     const goBackBtn = screen.getByTestId("review-go-back");
     expect(goBackBtn).toBeInTheDocument();
     expect(goBackBtn).toHaveAttribute("aria-label", "Go back to select resources");
@@ -60,10 +46,7 @@ describe("StepReview", () => {
   });
 
   it("shows validation loading state when resources selected", async () => {
-    globalThis.fetch = vi.fn().mockImplementation(() =>
-      new Promise(() => {})
-    );
-
+    mockFetchPending();
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("validation-loading")).toBeInTheDocument();
@@ -71,11 +54,7 @@ describe("StepReview", () => {
   });
 
   it("shows validation success for valid config", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ valid: true, results: [] }),
-    });
-
+    mockFetchSuccess({ valid: true, results: [] });
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("validation-success")).toBeInTheDocument();
@@ -112,11 +91,7 @@ describe("StepReview", () => {
   });
 
   it("shows validation error on API failure", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    });
-
+    mockFetchError();
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("validation-error")).toBeInTheDocument();

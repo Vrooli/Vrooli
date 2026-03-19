@@ -1,17 +1,10 @@
 // [REQ:REQ-P0-003] App Accessibility Tests
-import { render, screen, fireEvent } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithQueryClient } from "./test-utils";
 import App from "./App";
 
 function renderApp() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  );
+  return renderWithQueryClient(<App />);
 }
 
 /** Helper to get all 3 tabs and assert they exist */

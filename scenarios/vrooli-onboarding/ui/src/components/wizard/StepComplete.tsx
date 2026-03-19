@@ -1,6 +1,9 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, AlertCircle, Copy, Check, Download, RotateCcw } from "lucide-react";
 import { generateConfig } from "../../lib/api";
+import { formatQueryError } from "../../lib/formatQueryError";
+import { useConfirmAction } from "../../hooks/useConfirmAction";
 import { Button } from "../ui/button";
 
 interface StepCompleteProps {
@@ -9,32 +12,19 @@ interface StepCompleteProps {
 }
 
 export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
-  const [config, setConfig] = useState<Record<string, unknown> | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [confirmingStartOver, setConfirmingStartOver] = useState(false);
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { confirming: confirmingStartOver, requestConfirm, confirm: confirmStartOver, cancel: cancelStartOver } =
+    useConfirmAction(onStartOver ?? (() => {}));
 
-  // Clear confirm timer on unmount to prevent setState on unmounted component
-  useEffect(() => {
-    return () => {
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-    };
-  }, []);
+  const resourcesList = useMemo(() => Array.from(selected), [selected]);
 
-  useEffect(() => {
-    const resources = Array.from(selected);
-    if (resources.length === 0) return;
+  const { data: config, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["generate-config", resourcesList],
+    queryFn: () => generateConfig(resourcesList),
+    enabled: resourcesList.length > 0,
+  });
 
-    setLoading(true);
-    setError(null);
-    generateConfig(resources)
-      .then((res) => setConfig(res))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to generate config"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const error = formatQueryError(queryError, "Failed to generate config");
 
   const configText = useMemo(() => config ? JSON.stringify(config, null, 2) : "", [config]);
 
@@ -129,11 +119,7 @@ export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-                      setConfirmingStartOver(false);
-                      onStartOver();
-                    }}
+                    onClick={confirmStartOver}
                     data-testid="start-over-confirm"
                     className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
                   >
@@ -142,10 +128,7 @@ export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-                      setConfirmingStartOver(false);
-                    }}
+                    onClick={cancelStartOver}
                     data-testid="start-over-cancel"
                   >
                     Cancel
@@ -155,10 +138,7 @@ export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setConfirmingStartOver(true);
-                    confirmTimerRef.current = setTimeout(() => setConfirmingStartOver(false), 5000);
-                  }}
+                  onClick={requestConfirm}
                   data-testid="start-over"
                 >
                   <RotateCcw className="mr-1.5 h-3 w-3" aria-hidden="true" />

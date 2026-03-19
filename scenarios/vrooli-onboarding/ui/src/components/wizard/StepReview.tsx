@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertTriangle, XCircle, CheckCircle2, HelpCircle, X, ChevronLeft } from "lucide-react";
 import { validateConfig } from "../../lib/api";
+import { formatQueryError } from "../../lib/formatQueryError";
 import { Button } from "../ui/button";
-import type { ValidationResult } from "../../types";
 
 interface StepReviewProps {
   selected: Set<string>;
@@ -11,31 +12,23 @@ interface StepReviewProps {
 }
 
 export function StepReview({ selected, onRemove, onGoBack }: StepReviewProps) {
-  const [result, setResult] = useState<ValidationResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const selectedArray = useMemo(() => Array.from(selected), [selected]);
 
-  useEffect(() => {
-    if (selectedArray.length === 0) {
-      setResult(null);
-      return;
-    }
-
-    const resourcesMap: Record<string, { enabled: boolean; name: string }> = {};
+  const resourcesMap = useMemo(() => {
+    const map: Record<string, { enabled: boolean; name: string }> = {};
     for (const name of selectedArray) {
-      resourcesMap[name] = { enabled: true, name };
+      map[name] = { enabled: true, name };
     }
+    return map;
+  }, [selectedArray]);
 
-    setLoading(true);
-    setError(null);
-    validateConfig(resourcesMap)
-      .then((res) => setResult(res))
-      .catch((err) => setError(err instanceof Error ? err.message : "Validation failed"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected.size]);
+  const { data: result, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["validation", selected.size],
+    queryFn: () => validateConfig(resourcesMap),
+    enabled: selectedArray.length > 0,
+  });
+
+  const error = formatQueryError(queryError, "Validation failed");
 
   return (
     <div data-testid="step-review">

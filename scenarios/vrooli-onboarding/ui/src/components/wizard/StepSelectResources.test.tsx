@@ -1,8 +1,8 @@
 // [REQ:REQ-P0-003] Resource Selection UI
 // [REQ:REQ-P2-003] Setup Order UI Suggestions
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
+import { renderWithQueryClient, mockFetchPending, mockFetchError } from "../../test-utils";
 import { StepSelectResources } from "./StepSelectResources";
 
 const mockResources = [
@@ -37,14 +37,7 @@ function renderComponent(selected: Set<string>, onToggle = vi.fn()) {
     return Promise.resolve({ ok: false, status: 404 });
   });
 
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <StepSelectResources selected={selected} onToggle={onToggle} />
-    </QueryClientProvider>
-  );
+  return renderWithQueryClient(<StepSelectResources selected={selected} onToggle={onToggle} />);
 }
 
 describe("StepSelectResources", () => {
@@ -53,15 +46,8 @@ describe("StepSelectResources", () => {
   });
 
   it("shows loading state initially", () => {
-    globalThis.fetch = vi.fn().mockImplementation(() => new Promise(() => {}));
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <StepSelectResources selected={new Set()} onToggle={vi.fn()} />
-      </QueryClientProvider>
-    );
+    mockFetchPending();
+    renderWithQueryClient(<StepSelectResources selected={new Set()} onToggle={vi.fn()} />);
     expect(screen.getByTestId("step-resources-loading")).toBeInTheDocument();
   });
 
@@ -199,19 +185,8 @@ describe("StepSelectResources", () => {
   });
 
   it("shows error state on API failure", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    });
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <StepSelectResources selected={new Set()} onToggle={vi.fn()} />
-      </QueryClientProvider>
-    );
+    mockFetchError();
+    renderWithQueryClient(<StepSelectResources selected={new Set()} onToggle={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("step-resources-error")).toBeInTheDocument();
