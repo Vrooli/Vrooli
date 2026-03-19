@@ -28,7 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database, Calendar, Loader2, ExternalLink, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
-import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
+import { useAllAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
 import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
@@ -272,7 +272,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: profiles = [] } = useAllAutoSteerProfiles();
   const autoSteerProfilesById = useMemo(
     () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
     [profiles],

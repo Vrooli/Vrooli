@@ -3,6 +3,7 @@
  * Hooks for managing Auto Steer profiles
  */
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -153,4 +154,24 @@ export function useAutoSteerTemplates() {
     },
     staleTime: 300000, // 5 minutes
   });
+}
+
+/**
+ * Fetch all Auto Steer profiles AND templates merged into a single list.
+ * Templates whose ID already appears in profiles are deduplicated.
+ * Use this for display/lookup where both custom profiles and built-in templates must resolve.
+ */
+export function useAllAutoSteerProfiles() {
+  const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
+  const { data: templates = [], isLoading: isLoadingTemplates } = useAutoSteerTemplates();
+
+  const merged = useMemo<AutoSteerProfile[]>(() => {
+    const profileIds = new Set(profiles.map((p) => p.id));
+    const fromTemplates: AutoSteerProfile[] = templates
+      .filter((t) => !profileIds.has(t.id))
+      .map((t) => ({ ...t, phases: t.phases ?? [] }));
+    return [...profiles, ...fromTemplates];
+  }, [profiles, templates]);
+
+  return { data: merged, isLoading: isLoadingProfiles || isLoadingTemplates };
 }

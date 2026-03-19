@@ -16,7 +16,7 @@ import { ExecutionDetailCard } from '../executions/ExecutionDetailCard';
 import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbackPanel';
 import { SystemInsightsTab } from '../insights';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
-import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
+import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -76,7 +76,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
       staleTime: 15000,
     });
 
-  const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: profiles = [] } = useAllAutoSteerProfiles();
   const { data: phaseNames = [] } = useMergedPhaseNames();
 
   const profileNameMap = useMemo(

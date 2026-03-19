@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
 import { cn, formatSkillSetLabel, getQueueStepDisplay } from '@/lib/utils';
-import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
+import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
 import type { SteeringConfig, SteeringStrategy, AutoSteerProfile } from '@/types/api';
@@ -91,10 +91,10 @@ export function SteeringConfigPicker({
   pendingQueuePosition,
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
+  const { data: allProfiles = [], isLoading: isLoadingProfiles } = useAllAutoSteerProfiles();
   const { data: phaseNames = [], isLoading: isLoadingPhases } = useMergedPhaseNames();
 
-  const display = getStrategyDisplay(value, profiles, phaseNames);
+  const display = getStrategyDisplay(value, allProfiles, phaseNames);
   const Icon = display.icon;
 
   return (
@@ -125,7 +125,7 @@ export function SteeringConfigPicker({
         onOpenChange={setDialogOpen}
         value={value}
         onChange={onChange}
-        profiles={profiles}
+        profiles={allProfiles}
         phaseNames={phaseNames}
         isLoadingProfiles={isLoadingProfiles}
         isLoadingPhases={isLoadingPhases}

@@ -533,7 +533,10 @@ class ApiClient {
   }
 
   async getAutoSteerTemplates(): Promise<AutoSteerTemplate[]> {
-    return this.fetchJSON<AutoSteerTemplate[]>(`/api/auto-steer/templates`);
+    const response = await this.fetchJSON<AutoSteerTemplate[] | { templates?: AutoSteerTemplate[]; count?: number }>(`/api/auto-steer/templates`);
+    if (Array.isArray(response)) return response;
+    if (response && Array.isArray(response.templates)) return response.templates;
+    return [];
   }
 
   async getAutoSteerHistory(filters: { profile_id?: string; scenario?: string } = {}): Promise<ProfilePerformance[]> {
