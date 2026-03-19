@@ -14,6 +14,7 @@ type ConversationRole string
 
 const (
 	ConversationRoleAssistant ConversationRole = "assistant"
+	ConversationRoleUser      ConversationRole = "user"
 )
 
 type ConversationDeliveryState string
@@ -44,17 +45,19 @@ const (
 )
 
 type ConversationEvent struct {
-	ID               string                       `json:"id"`
-	SessionID        string                       `json:"sessionId"`
-	Source           string                       `json:"source"`
-	Role             ConversationRole             `json:"role"`
-	Text             string                       `json:"text"`
-	SpeechParagraphs []string                     `json:"speechParagraphs"`
-	CreatedAt        time.Time                    `json:"createdAt"`
-	Sequence         int64                        `json:"sequence"`
-	DeliveryState    ConversationDeliveryState    `json:"deliveryState"`
-	TTSState         ConversationTTSState         `json:"ttsState"`
-	ConsumptionState ConversationConsumptionState `json:"consumptionState"`
+	ID                       string                       `json:"id"`
+	SessionID                string                       `json:"sessionId"`
+	Source                   string                       `json:"source"`
+	Role                     ConversationRole             `json:"role"`
+	Text                     string                       `json:"text"`
+	SpeechParagraphs         []string                     `json:"speechParagraphs"`
+	OriginalSpeechParagraphs []string                     `json:"originalSpeechParagraphs,omitempty"`
+	Summarized               bool                         `json:"summarized"`
+	CreatedAt                time.Time                    `json:"createdAt"`
+	Sequence                 int64                        `json:"sequence"`
+	DeliveryState            ConversationDeliveryState    `json:"deliveryState"`
+	TTSState                 ConversationTTSState         `json:"ttsState"`
+	ConsumptionState         ConversationConsumptionState `json:"consumptionState"`
 }
 
 type ConversationCursor struct {
@@ -214,6 +217,91 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		SessionID: sessionID,
 		EventID:   event.ID,
 		Sequence:  event.Sequence,
+	}
+}
+
+func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
+	cleanText := normalizeConversationText(text)
+	if strings.TrimSpace(sessionID) == "" {
+		return ConversationEvent{}, ConversationAppendResult{
+			Appended: false,
+			Code:     "conversation_target_missing",
+			Reason:   "No terminal session was identified for this conversation event",
+			Source:   source,
+		}
+	}
+	if cleanText == "" {
+		return ConversationEvent{}, ConversationAppendResult{
+			Appended:  false,
+			Code:      "conversation_input_required",
+			Reason:    "Conversation event did not include user prompt text",
+			Source:    source,
+			SessionID: sessionID,
+		}
+	}
+
+	eventID := newConversationEventID(source, sessionID, cleanText)
+	if s.dedup.seenRecently(eventID) {
+		return ConversationEvent{}, ConversationAppendResult{
+			Appended:  true,
+			Code:      "conversation_duplicate",
+			Reason:    "Conversation event was already appended recently",
+			Source:    source,
+			SessionID: sessionID,
+			EventID:   eventID,
+			Duplicate: true,
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session := s.ensureSessionLocked(sessionID)
+	session.nextSequence++
+	event := ConversationEvent{
+		ID:               eventID,
+		SessionID:        sessionID,
+		Source:           source,
+		Role:             ConversationRoleUser,
+		Text:             cleanText,
+		SpeechParagraphs: nil,
+		CreatedAt:        time.Now().UTC(),
+		Sequence:         session.nextSequence,
+		DeliveryState:    ConversationDeliveryPending,
+		TTSState:         ConversationTTSIdle,
+		ConsumptionState: ConversationConsumptionUnseen,
+	}
+	session.events = append(session.events, event)
+
+	return event, ConversationAppendResult{
+		Appended:  true,
+		Code:      "conversation_event_appended",
+		Reason:    "User conversation event was appended to the owning terminal session",
+		Source:    source,
+		SessionID: sessionID,
+		EventID:   event.ID,
+		Sequence:  event.Sequence,
+	}
+}
+
+// UpdateSpeechParagraphs replaces the SpeechParagraphs field for a stored event
+// with a summarized version. The original paragraphs are preserved so the
+// frontend can toggle between summarized and original playback.
+func (s *ConversationStore) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return
+	}
+	for i := range session.events {
+		if session.events[i].ID == eventID {
+			session.events[i].OriginalSpeechParagraphs = session.events[i].SpeechParagraphs
+			session.events[i].SpeechParagraphs = paragraphs
+			session.events[i].Summarized = true
+			return
+		}
 	}
 }
 

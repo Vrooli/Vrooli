@@ -21,6 +21,32 @@ type ContentItem struct {
 	Text string `json:"text"`
 }
 
+// ExtractUserText parses a rollout JSONL line and returns the user's
+// text prompt, or "" if this line isn't a user text message.
+func ExtractUserText(line []byte) string {
+	var rl RolloutLine
+	if err := json.Unmarshal(line, &rl); err != nil {
+		return ""
+	}
+	if rl.Type != "response_item" {
+		return ""
+	}
+	var payload ResponsePayload
+	if err := json.Unmarshal(rl.Payload, &payload); err != nil {
+		return ""
+	}
+	if payload.Role != "user" {
+		return ""
+	}
+	var result string
+	for _, item := range payload.Content {
+		if item.Type == "input_text" || item.Type == "text" {
+			result += item.Text
+		}
+	}
+	return result
+}
+
 // ExtractAssistantText parses a rollout JSONL line and returns the assistant's
 // text response, or "" if this line isn't an assistant text message.
 func ExtractAssistantText(line []byte) string {

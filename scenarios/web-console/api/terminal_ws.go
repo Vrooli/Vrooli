@@ -52,15 +52,17 @@ type TerminalMessage struct {
 	TotalBytes int64 `json:"total_bytes,omitempty"`
 	// Resumed indicates that the client's resume offset was valid and only
 	// delta data was sent (not the full history).
-	Resumed          bool     `json:"resumed,omitempty"`
-	EventID          string   `json:"eventId,omitempty"`
-	Source           string   `json:"source,omitempty"`
-	Stage            string   `json:"stage,omitempty"`
-	Backend          string   `json:"backend,omitempty"`
-	Role             string   `json:"role,omitempty"`
-	CreatedAt        string   `json:"createdAt,omitempty"`
-	Sequence         int64    `json:"sequence,omitempty"`
-	SpeechParagraphs []string `json:"speechParagraphs,omitempty"`
+	Resumed                  bool     `json:"resumed,omitempty"`
+	EventID                  string   `json:"eventId,omitempty"`
+	Source                   string   `json:"source,omitempty"`
+	Stage                    string   `json:"stage,omitempty"`
+	Backend                  string   `json:"backend,omitempty"`
+	Role                     string   `json:"role,omitempty"`
+	CreatedAt                string   `json:"createdAt,omitempty"`
+	Sequence                 int64    `json:"sequence,omitempty"`
+	SpeechParagraphs         []string `json:"speechParagraphs,omitempty"`
+	OriginalSpeechParagraphs []string `json:"originalSpeechParagraphs,omitempty"`
+	Summarized               bool     `json:"summarized,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -206,14 +208,16 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
-					Type:             MsgTypeConversationEvent,
-					Data:             event.Text,
-					EventID:          event.ID,
-					Source:           event.Source,
-					Role:             string(event.Role),
-					CreatedAt:        event.CreatedAt.UTC().Format(time.RFC3339),
-					Sequence:         event.Sequence,
-					SpeechParagraphs: event.SpeechParagraphs,
+					Type:                     MsgTypeConversationEvent,
+					Data:                     event.Text,
+					EventID:                  event.ID,
+					Source:                   event.Source,
+					Role:                     string(event.Role),
+					CreatedAt:                event.CreatedAt.UTC().Format(time.RFC3339),
+					Sequence:                 event.Sequence,
+					SpeechParagraphs:         event.SpeechParagraphs,
+					OriginalSpeechParagraphs: event.OriginalSpeechParagraphs,
+					Summarized:               event.Summarized,
 				})
 				writeMu.Unlock()
 			case <-ctx.Done():

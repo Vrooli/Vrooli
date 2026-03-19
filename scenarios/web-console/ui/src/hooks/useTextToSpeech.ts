@@ -395,17 +395,25 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
       if (!providerRef.current) return;
 
+      // Track this invocation so async handlers can detect supersession.
+      const controller = new AbortController();
+      speakChainRef.current = controller;
+
       setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
       emitEvent("attempt", backendRef.current);
 
       executeSpeak(text).then(
         (usedBackend) => {
+          if (controller.signal.aborted) return;
           emitEvent("success", usedBackend);
           updateSuccess(usedBackend);
         },
         (err: unknown) => {
           if (isAbortLikeError(err)) {
-            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+            // Don't clear isSpeaking if a new chain has superseded us.
+            if (speakChainRef.current === controller) {
+              setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+            }
             return;
           }
           const message = err instanceof Error ? err.message : "Speech failed";
@@ -417,7 +425,11 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             error: message,
           }));
         },
-      );
+      ).finally(() => {
+        if (!controller.signal.aborted) {
+          speakChainRef.current = null;
+        }
+      });
     },
     [emitEvent, executeSpeak, updateSuccess],
   );
@@ -436,7 +448,13 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       try {
         const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
         if (controller.signal.aborted) {
-          setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+          // Only clear isSpeaking if no new chain has superseded us.
+          // A new speakParagraphs() call sets isSpeaking: true for the
+          // replacement chain; overwriting it here would make the UI think
+          // nothing is playing (toolbar disappears, mic button unaware).
+          if (speakChainRef.current === controller) {
+            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+          }
           return;
         }
         emitEvent("success", usedBackend);
@@ -444,7 +462,10 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         return usedBackend;
       } catch (err: unknown) {
         if (controller.signal.aborted || isAbortLikeError(err)) {
-          setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+          // Same guard: don't clear isSpeaking if a new chain is active.
+          if (speakChainRef.current === controller) {
+            setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+          }
           return;
         }
         const message =

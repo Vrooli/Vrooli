@@ -74,38 +74,42 @@ func isDuplicateColumnError(err error) bool {
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
-	db              *sql.DB
-	router          *mux.Router
-	sessions        *SessionManager
-	events          *EventLogger
-	metrics         *Metrics
-	aiChain         *AIProviderChain
-	shortcuts       ShortcutStore
-	aiConfig        AIConfigStore
-	sweeper         *ExpirationSweeper
-	idempotency     *idempotencyCache // replay-safe session creation
-	capabilities    *CapabilityRegistry
-	workspace       WorkspaceStore
-	voiceConfigMu   sync.RWMutex
-	voiceConfig     VoiceStreamConfig
-	voiceConfigPath string
-	ttsConfigMu     sync.RWMutex
-	ttsConfig       TTSConfig
-	ttsConfigPath   string
-	hookAuthToken   string
-	codexTailer     *CodexTailer
-	ttsSynthesizer  TTSSynthesizer
-	ttsVoiceLister  TTSVoiceLister
-	conversations   *ConversationStore
-	ttsStatusMu     sync.RWMutex
-	lastTTSRouting  *ConversationAppendResult
-	lastTTSAt       time.Time
-	lastTTSBySource map[string]conversationAppendSnapshot
-	lastTTSAck      *TTSClientAck
-	lastTTSAckAt    time.Time
-	lastTTSAckBySrc map[string]ttsAckSnapshot
-	lastTTSPlayback *TTSPlaybackEvent
-	lastTTSPlayAt   time.Time
+	db                 *sql.DB
+	router             *mux.Router
+	sessions           *SessionManager
+	events             *EventLogger
+	metrics            *Metrics
+	aiChain            *AIProviderChain
+	shortcuts          ShortcutStore
+	aiConfig           AIConfigStore
+	sweeper            *ExpirationSweeper
+	idempotency        *idempotencyCache // replay-safe session creation
+	capabilities       *CapabilityRegistry
+	workspace          WorkspaceStore
+	voiceConfigMu      sync.RWMutex
+	voiceConfig        VoiceStreamConfig
+	voiceConfigPath    string
+	ttsConfigMu        sync.RWMutex
+	ttsConfig          TTSConfig
+	ttsConfigPath      string
+	ttsSummarizer      *TTSSummarizer
+	ttsSummarizeMu     sync.RWMutex
+	ttsSummarizeConfig TTSSummarizeConfig
+	ttsSummarizePath   string
+	hookAuthToken      string
+	codexTailer        *CodexTailer
+	ttsSynthesizer     TTSSynthesizer
+	ttsVoiceLister     TTSVoiceLister
+	conversations      *ConversationStore
+	ttsStatusMu        sync.RWMutex
+	lastTTSRouting     *ConversationAppendResult
+	lastTTSAt          time.Time
+	lastTTSBySource    map[string]conversationAppendSnapshot
+	lastTTSAck         *TTSClientAck
+	lastTTSAckAt       time.Time
+	lastTTSAckBySrc    map[string]ttsAckSnapshot
+	lastTTSPlayback    *TTSPlaybackEvent
+	lastTTSPlayAt      time.Time
 }
 
 type conversationAppendSnapshot struct {
@@ -153,6 +157,16 @@ func NewServer(db *sql.DB) *Server {
 	}
 	log.Printf("tts-config: loaded: autoEnabled=%v", ttsCfg.AutoEnabled)
 
+	// Resolve TTS summarize config path
+	ttsSummarizePath := resolveTTSSummarizeConfigPath()
+	ttsSummarizeCfg, err := loadTTSSummarizeConfig(ttsSummarizePath)
+	if err != nil {
+		log.Printf("tts-summarize-config: using defaults: %v", err)
+		ttsSummarizeCfg = DefaultTTSSummarizeConfig()
+	}
+	log.Printf("tts-summarize-config: loaded: enabled=%v threshold=%d level=%s model=%s",
+		ttsSummarizeCfg.Enabled, ttsSummarizeCfg.CharThreshold, ttsSummarizeCfg.Level, ttsSummarizeCfg.Model)
+
 	// Generate or load hook auth token for TTS hook validation
 	hookToken := loadOrCreateHookToken(resolveHookTokenPath())
 
@@ -160,30 +174,34 @@ func NewServer(db *sql.DB) *Server {
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
 	srv := &Server{
-		db:              db,
-		router:          mux.NewRouter(),
-		sessions:        sessions,
-		events:          events,
-		metrics:         metrics,
-		aiChain:         NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
-		shortcuts:       NewSQLShortcutStore(db),
-		aiConfig:        NewSQLAIConfigStore(db),
-		sweeper:         NewExpirationSweeper(sessions, events, metrics),
-		idempotency:     newIdempotencyCache(),
-		workspace:       NewSQLWorkspaceStore(db),
-		voiceConfig:     vc,
-		voiceConfigPath: vcPath,
-		ttsConfig:       ttsCfg,
-		ttsConfigPath:   ttsPath,
-		hookAuthToken:   hookToken,
-		conversations:   NewConversationStore(),
-		lastTTSBySource: make(map[string]conversationAppendSnapshot),
-		lastTTSAckBySrc: make(map[string]ttsAckSnapshot),
+		db:                 db,
+		router:             mux.NewRouter(),
+		sessions:           sessions,
+		events:             events,
+		metrics:            metrics,
+		aiChain:            NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
+		shortcuts:          NewSQLShortcutStore(db),
+		aiConfig:           NewSQLAIConfigStore(db),
+		sweeper:            NewExpirationSweeper(sessions, events, metrics),
+		idempotency:        newIdempotencyCache(),
+		workspace:          NewSQLWorkspaceStore(db),
+		voiceConfig:        vc,
+		voiceConfigPath:    vcPath,
+		ttsConfig:          ttsCfg,
+		ttsConfigPath:      ttsPath,
+		ttsSummarizeConfig: ttsSummarizeCfg,
+		ttsSummarizePath:   ttsSummarizePath,
+		hookAuthToken:      hookToken,
+		conversations:      NewConversationStore(),
+		lastTTSBySource:    make(map[string]conversationAppendSnapshot),
+		lastTTSAckBySrc:    make(map[string]ttsAckSnapshot),
 	}
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
+
+	srv.ttsSummarizer = NewTTSSummarizer(ollamaURL)
 
 	checkers := map[string]StatusChecker{
 		"whisper-stt": &WhisperChecker{
@@ -283,6 +301,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/workspace/layout", s.handleSaveLayout).Methods("PUT")
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation", s.handleGetConversationSession).Methods("GET")
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/cursor", s.handleUpdateConversationCursor).Methods("PUT")
+	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/{eventId}/summarize", s.handleSummarizeEvent).Methods("POST")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleUpdatePane).Methods("PUT")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleDeletePane).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")
@@ -317,12 +336,19 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
 
-	// TTS hooks and config
+	// Hooks
 	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")
+	s.router.HandleFunc("/api/v1/hooks/prompt-submit", s.handleHookPromptSubmit).Methods("POST")
+
+	// TTS config
 	s.router.HandleFunc("/api/v1/tts/config", s.handleGetTTSConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/tts/config", s.handleUpdateTTSConfig).Methods("PUT")
 	s.router.HandleFunc("/api/v1/tts/status", s.handleGetTTSStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/tts/events", s.handlePostTTSEvent).Methods("POST")
+
+	// TTS summarization config
+	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleGetTTSSummarizeConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleUpdateTTSSummarizeConfig).Methods("PUT")
 
 	// TTS synthesis and voices (Kokoro backend)
 	s.router.HandleFunc("/api/v1/tts/synthesize", s.handleTTSSynthesize).Methods("POST")

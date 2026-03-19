@@ -115,23 +115,24 @@ describe("AudioPlayerBar", () => {
     expect(screen.queryByTestId("tts-speed")).toBeNull();
   });
 
-  it("hides volume controls when canAdjustVolume is false", () => {
+  it("hides audio button when canAdjustVolume is false", () => {
     render(<AudioPlayerBar {...makeProps({ capabilities: limitedCapabilities })} />);
-    expect(screen.queryByTestId("tts-volume-toggle")).toBeNull();
+    expect(screen.queryByTestId("tts-audio-button")).toBeNull();
   });
 
-  it("volume toggle mutes when volume > 0", () => {
-    const props = makeProps({ volume: 0.8 });
-    render(<AudioPlayerBar {...props} />);
-    fireEvent.click(screen.getByTestId("tts-volume-toggle"));
-    expect(props.onSetVolume).toHaveBeenCalledWith(0);
+  it("clicking audio button opens volume popover", () => {
+    render(<AudioPlayerBar {...makeProps()} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(screen.getByTestId("audio-popover")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-volume-slider")).toBeInTheDocument();
   });
 
-  it("volume toggle unmutes to 1 when volume is 0", () => {
-    const props = makeProps({ volume: 0 });
+  it("volume slider changes call onSetVolume", () => {
+    const props = makeProps();
     render(<AudioPlayerBar {...props} />);
-    fireEvent.click(screen.getByTestId("tts-volume-toggle"));
-    expect(props.onSetVolume).toHaveBeenCalledWith(1);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    fireEvent.change(screen.getByTestId("tts-volume-slider"), { target: { value: "0.5" } });
+    expect(props.onSetVolume).toHaveBeenCalledWith(0.5);
   });
 
   it("disables play/pause when canPause is false", () => {
@@ -139,5 +140,22 @@ describe("AudioPlayerBar", () => {
     render(<AudioPlayerBar {...makeProps({ capabilities: noPause })} />);
     const btn = screen.getByTestId("tts-play-pause");
     expect(btn).toBeDisabled();
+  });
+
+  it("shows summarized badge when isSummarized is true", () => {
+    render(<AudioPlayerBar {...makeProps({ isSummarized: true })} />);
+    expect(screen.getByTestId("tts-summarized-badge")).toBeInTheDocument();
+  });
+
+  it("shows summarization toggle in popover when hasOriginalVersion is true", () => {
+    const props = makeProps({
+      isSummarized: true,
+      hasOriginalVersion: true,
+      onToggleSummarized: vi.fn(),
+    });
+    render(<AudioPlayerBar {...props} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(screen.getByTestId("tts-play-summarized")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-play-original")).toBeInTheDocument();
   });
 });

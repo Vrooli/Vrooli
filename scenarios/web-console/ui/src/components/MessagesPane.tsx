@@ -1,6 +1,13 @@
-import { Play, Volume2 } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, ChevronUp, Copy, Play, Search, Volume2 } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { summarizeEvent } from "../lib/api";
+import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
+import MessagesSearchDrawer from "./MessagesSearchDrawer";
 
 interface MessagesPaneProps {
   sessionId: string;
@@ -14,6 +21,114 @@ interface MessagesPaneProps {
   isTtsSpeaking: boolean;
 }
 
+interface AudioPopoverContentProps {
+  eventId: string;
+  volume: number;
+  summarized: boolean;
+  hasSummary: boolean;
+  isSummarizing: boolean;
+  onVolumeChange: (level: number) => void;
+  onToggleSummarized: (useSummarized: boolean) => void;
+  onRequestSummarize: () => void;
+  onClose: () => void;
+}
+
+function AudioPopoverContent({
+  eventId,
+  volume,
+  summarized,
+  hasSummary,
+  isSummarizing,
+  onVolumeChange,
+  onToggleSummarized,
+  onRequestSummarize,
+  onClose,
+}: AudioPopoverContentProps) {
+  return (
+    <div className="space-y-3">
+      {/* Volume slider */}
+      <div>
+        <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
+          Volume
+        </label>
+        <input
+          data-testid={`msg-volume-slider-${eventId}`}
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          onChange={(e) => onVolumeChange(Number(e.target.value))}
+          className={cn(
+            "h-1.5 w-full cursor-pointer rounded-full",
+            summarized
+              ? "[&::-webkit-slider-thumb]:bg-amber-400 accent-amber-400"
+              : "accent-wc-accent",
+          )}
+        />
+        <div className="mt-0.5 flex justify-between text-[10px] text-wc-text-faint">
+          <span>0</span>
+          <span>{Math.round(volume * 100)}%</span>
+        </div>
+      </div>
+
+      {/* Summarization toggle — shown when event already has both versions */}
+      {hasSummary && (
+        <div className="border-t border-wc-default pt-3">
+          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
+            Playback version
+          </label>
+          <div className="flex gap-1">
+            <button
+              data-testid={`msg-play-summarized-${eventId}`}
+              className={cn(
+                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
+                summarized
+                  ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40"
+                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
+              )}
+              onClick={() => { onToggleSummarized(true); onClose(); }}
+            >
+              Summarized
+            </button>
+            <button
+              data-testid={`msg-play-original-${eventId}`}
+              className={cn(
+                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
+                !summarized
+                  ? "bg-wc-accent/20 text-wc-accent ring-1 ring-wc-accent/40"
+                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
+              )}
+              onClick={() => { onToggleSummarized(false); onClose(); }}
+            >
+              Original
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Request summarization — shown when no summary exists yet */}
+      {!hasSummary && (
+        <div className="border-t border-wc-default pt-3">
+          <button
+            data-testid={`msg-request-summarize-${eventId}`}
+            disabled={isSummarizing}
+            className={cn(
+              "w-full rounded-lg px-3 py-2 text-xs font-medium transition",
+              isSummarizing
+                ? "bg-wc-surface-base text-wc-text-faint cursor-wait"
+                : "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25",
+            )}
+            onClick={onRequestSummarize}
+          >
+            {isSummarizing ? "Summarizing…" : "Summarize for playback"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MessagesPane({
   sessionId,
   onSpeakFromHere,
@@ -22,51 +137,366 @@ export default function MessagesPane({
   isTtsSpeaking,
 }: MessagesPaneProps) {
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  // Sync message text size with the terminal's font size for this pane
+  const fontSize = useWorkspaceStore(
+    useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
+  );
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [volume, setVolume] = useState(1);
+  const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
+  const [summarizingIds, setSummarizingIds] = useState<Set<string>>(new Set());
+  const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // --- Copy-to-clipboard state ---
+  const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
+  const handleCopy = useCallback((eventId: string, text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedEventId(eventId);
+    setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
+  }, []);
+
+  // --- Search state ---
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  // Index for jumping between user messages when search is not active
+  const [currentUserMsgNav, setCurrentUserMsgNav] = useState(-1);
+  const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Event IDs matching the current search query (case-insensitive)
+  const searchMatchIds = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return events.filter((e) => e.text.toLowerCase().includes(q)).map((e) => e.id);
+  }, [events, searchQuery]);
+
+  // All user-message event IDs, for non-search jump navigation
+  const userMessageIds = useMemo(
+    () => events.filter((e) => e.role === "user").map((e) => e.id),
+    [events],
+  );
+
+  const scrollToEvent = useCallback((eventId: string) => {
+    messageRefs.current.get(eventId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  // Navigate to the previous item (user message or search match)
+  const handleNavUp = useCallback(() => {
+    if (searchQuery && searchMatchIds.length > 0) {
+      const prev = (currentMatchIndex - 1 + searchMatchIds.length) % searchMatchIds.length;
+      setCurrentMatchIndex(prev);
+      scrollToEvent(searchMatchIds[prev]);
+    } else if (userMessageIds.length > 0) {
+      const prev = currentUserMsgNav <= 0 ? userMessageIds.length - 1 : currentUserMsgNav - 1;
+      setCurrentUserMsgNav(prev);
+      scrollToEvent(userMessageIds[prev]);
+    }
+  }, [searchQuery, searchMatchIds, currentMatchIndex, userMessageIds, currentUserMsgNav, scrollToEvent]);
+
+  // Navigate to the next item (user message or search match)
+  const handleNavDown = useCallback(() => {
+    if (searchQuery && searchMatchIds.length > 0) {
+      const next = (currentMatchIndex + 1) % searchMatchIds.length;
+      setCurrentMatchIndex(next);
+      scrollToEvent(searchMatchIds[next]);
+    } else if (userMessageIds.length > 0) {
+      const next = (currentUserMsgNav + 1) % userMessageIds.length;
+      setCurrentUserMsgNav(next);
+      scrollToEvent(userMessageIds[next]);
+    }
+  }, [searchQuery, searchMatchIds, currentMatchIndex, userMessageIds, currentUserMsgNav, scrollToEvent]);
+
+  const handleCloseSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const handleToggleSummarized = useCallback((eventId: string, useSummarized: boolean) => {
+    setPlaybackModes((prev) => ({ ...prev, [eventId]: useSummarized }));
+  }, []);
+
+  const handleSpeakOne = useCallback((event: typeof events[number]) => {
+    const useSummarized = playbackModes[event.id] ?? event.summarized;
+    const paragraphs = useSummarized
+      ? event.speechParagraphs
+      : (event.originalSpeechParagraphs ?? event.speechParagraphs);
+    onSpeakOne(event.id, event.text, paragraphs);
+  }, [onSpeakOne, playbackModes]);
+
+  const handleRequestSummarize = useCallback((eventId: string) => {
+    setSummarizingIds((prev) => new Set(prev).add(eventId));
+    void summarizeEvent(sessionId, eventId).then((res) => {
+      if (res.summarized && res.speechParagraphs) {
+        const convState = useConversationStore.getState();
+        const session = convState.sessions[sessionId];
+        if (session) {
+          const updatedEvents = session.events.map((ev) =>
+            ev.id === eventId
+              ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs! }
+              : ev,
+          );
+          useConversationStore.setState({
+            sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
+          });
+        }
+      }
+    }).finally(() => {
+      setSummarizingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(eventId);
+        return next;
+      });
+      setOpenPopoverId(null);
+    });
+  }, [sessionId]);
+
+  const getPopoverStyle = useCallback((eventId: string): React.CSSProperties => {
+    const btn = audioButtonRefs.current[eventId];
+    if (!btn) return { position: "fixed", top: 100, right: 16 };
+    const rect = btn.getBoundingClientRect();
+    // Position below the button, clamped to viewport
+    const top = Math.min(rect.bottom + 4, window.innerHeight - 200);
+    const right = Math.max(8, window.innerWidth - rect.right);
+    return { position: "fixed", top, right };
+  }, []);
+
+  /**
+   * Splits `text` on case-insensitive occurrences of `query`, wrapping each
+   * match in a <mark> element. The currently focused match gets a stronger
+   * highlight so the user can tell which result they navigated to.
+   */
+  const highlightMatches = useCallback(
+    (text: string, query: string, isFocusedMatch: boolean): React.ReactNode => {
+      if (!query) return text;
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+      return parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark
+            key={i}
+            className={cn(
+              "rounded-sm text-wc-text-primary",
+              isFocusedMatch ? "bg-wc-accent/50" : "bg-wc-accent/20",
+            )}
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      );
+    },
+    [],
+  );
 
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
-      className="h-full overflow-auto bg-wc-surface-base p-4"
+      className="h-full overflow-auto bg-wc-surface-base px-4 pb-4 pt-3"
     >
       <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        {/* Control strip: search + jump navigation (sticky at top of scroll).
+         * pr-12 reserves space for the view-toggle button (h-9 w-9 at right-3)
+         * that Workspace.tsx positions absolutely over this pane. */}
+        <div
+          data-testid="messages-control-strip"
+          className="sticky top-0 z-10 flex items-center justify-end gap-1.5 bg-wc-surface-base/80 pb-1 pr-12 backdrop-blur-sm"
+        >
+          <button
+            data-testid="messages-search-btn"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
+            title="Search messages"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <button
+            data-testid="messages-nav-up"
+            onClick={handleNavUp}
+            disabled={searchQuery ? searchMatchIds.length === 0 : userMessageIds.length === 0}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+            title={searchQuery ? "Previous match" : "Previous user message"}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button
+            data-testid="messages-nav-down"
+            onClick={handleNavDown}
+            disabled={searchQuery ? searchMatchIds.length === 0 : userMessageIds.length === 0}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+            title={searchQuery ? "Previous match" : "Previous user message"}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Search drawer (bottom sheet on mobile, portal on desktop) */}
+        <MessagesSearchDrawer
+          open={searchOpen}
+          onClose={handleCloseSearch}
+          query={searchQuery}
+          onQueryChange={(q) => {
+            setSearchQuery(q);
+            setCurrentMatchIndex(0);
+          }}
+          matchCount={searchMatchIds.length}
+          currentMatchIndex={searchMatchIds.length > 0 ? currentMatchIndex : -1}
+          onPrevMatch={handleNavUp}
+          onNextMatch={handleNavDown}
+        />
+
         {events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-wc-default bg-wc-surface px-4 py-6 text-sm text-wc-text-muted">
             No conversation events yet for this session.
           </div>
         ) : (
           events.map((event) => {
-            const isActive = isTtsSpeaking && activeSpeakingEventId === event.id;
+            const isUser = event.role === "user";
+            const isActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
+            const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
+            const useSummarized = playbackModes[event.id] ?? event.summarized;
+            const isPopoverOpen = openPopoverId === event.id;
+
             return (
               <article
                 key={event.id}
+                ref={(el) => { if (el) messageRefs.current.set(event.id, el); else messageRefs.current.delete(event.id); }}
                 data-testid={`msg-card-${event.id}`}
                 className={cn(
-                  "rounded-2xl border border-wc-default bg-wc-surface px-4 py-3 shadow-sm transition-colors",
+                  "rounded-2xl border px-4 py-3 shadow-sm transition-colors",
+                  isUser
+                    ? "ml-auto max-w-[85%] border-wc-accent/30 bg-wc-accent/10"
+                    : "border-wc-default bg-wc-surface",
                   isActive && "border-l-[3px] border-l-wc-accent",
                 )}
               >
                 <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-                  {/* TTS controls — stop lives in the global AudioPlayerBar */}
+                  {/* Copy button — shown for all messages (user + assistant) */}
                   <button
-                    data-testid={`msg-speak-from-${event.id}`}
-                    onClick={() => onSpeakFromHere(event.id)}
+                    data-testid={`msg-copy-${event.id}`}
+                    onClick={() => handleCopy(event.id, event.text)}
                     className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-                    title="Read from here"
+                    title="Copy message"
                   >
-                    <Play className="h-3.5 w-3.5" />
+                    {copiedEventId === event.id
+                      ? <Check className="h-3.5 w-3.5 text-green-400" />
+                      : <Copy className="h-3.5 w-3.5" />}
                   </button>
-                  <button
-                    data-testid={`msg-speak-one-${event.id}`}
-                    onClick={() => onSpeakOne(event.id, event.text, event.speechParagraphs)}
-                    className="rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10"
-                    title="Read this message"
-                  >
-                    <Volume2 className="h-3 w-3" />
-                  </button>
-                  <span className="flex-1">{event.source === "claude_hook" ? "Claude Code" : "Codex"}</span>
+                  {!isUser && (
+                    <>
+                      <button
+                        data-testid={`msg-speak-from-${event.id}`}
+                        onClick={() => onSpeakFromHere(event.id)}
+                        className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
+                        title="Read from here"
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        ref={(el) => { audioButtonRefs.current[event.id] = el; }}
+                        data-testid={`msg-audio-${event.id}`}
+                        onClick={() => {
+                          handleSpeakOne(event);
+                          setOpenPopoverId(isPopoverOpen ? null : event.id);
+                        }}
+                        className={cn(
+                          "rounded p-0.5 transition",
+                          hasSummary && useSummarized
+                            ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                            : "text-wc-text-faint hover:text-wc-text-muted hover:bg-wc-accent/10",
+                        )}
+                        title="Audio options"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                      </button>
+
+                      {/* Popover / bottom sheet — always via portal */}
+                      {isPopoverOpen && createPortal(
+                        isMobile ? (
+                          <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
+                            <div
+                              className="absolute inset-0 bg-wc-backdrop"
+                              onClick={() => setOpenPopoverId(null)}
+                            />
+                            <div
+                              data-testid={`audio-popover-${event.id}`}
+                              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 shadow-2xl"
+                            >
+                              <div className="mb-3 flex justify-center">
+                                <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
+                              </div>
+                              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
+                              <AudioPopoverContent
+                                eventId={event.id}
+                                volume={volume}
+                                summarized={useSummarized}
+                                hasSummary={hasSummary}
+                                isSummarizing={summarizingIds.has(event.id)}
+                                onVolumeChange={setVolume}
+                                onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
+                                onRequestSummarize={() => handleRequestSummarize(event.id)}
+                                onClose={() => setOpenPopoverId(null)}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[60]"
+                              onClick={() => setOpenPopoverId(null)}
+                            />
+                            <div
+                              data-testid={`audio-popover-${event.id}`}
+                              className="z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+                              style={getPopoverStyle(event.id)}
+                            >
+                              <AudioPopoverContent
+                                eventId={event.id}
+                                volume={volume}
+                                summarized={useSummarized}
+                                hasSummary={hasSummary}
+                                isSummarizing={summarizingIds.has(event.id)}
+                                onVolumeChange={setVolume}
+                                onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
+                                onRequestSummarize={() => handleRequestSummarize(event.id)}
+                                onClose={() => setOpenPopoverId(null)}
+                              />
+                            </div>
+                          </>
+                        ),
+                        document.body,
+                      )}
+                    </>
+                  )}
+                  <span className="flex-1">
+                    {isUser
+                      ? "You"
+                      : event.source === "claude_hook"
+                        ? "Claude Code"
+                        : "Codex"}
+                  </span>
+                  {hasSummary && (
+                    <span
+                      data-testid={`msg-summarized-badge-${event.id}`}
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                        useSummarized
+                          ? "bg-amber-500/20 text-amber-400"
+                          : "bg-wc-surface-base text-wc-text-faint",
+                      )}
+                    >
+                      {useSummarized ? "Summarized" : "Original"}
+                    </span>
+                  )}
                   <span>#{event.sequence}</span>
                 </div>
-                <div className="whitespace-pre-wrap text-sm text-wc-text-primary">{event.text}</div>
+                <div className="whitespace-pre-wrap text-wc-text-primary" style={{ fontSize: `${fontSize}px` }}>
+                  {searchQuery
+                    ? highlightMatches(event.text, searchQuery, searchMatchIds[currentMatchIndex] === event.id)
+                    : event.text}
+                </div>
               </article>
             );
           })

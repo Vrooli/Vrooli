@@ -152,11 +152,11 @@ func filterClaudeEnv(env []string) []string {
 // Without this filter, scenario CLIs (e.g. tunnel-manager) inherit
 // web-console's API_PORT and connect to the wrong API.
 var serviceEnvVars = map[string]struct{}{
-	"API_PORT":     {},
-	"API_BASE_URL": {},
-	"API_BASE":     {},
-	"UI_PORT":      {},
-	"WS_PORT":      {},
+	"API_PORT":          {},
+	"API_BASE_URL":      {},
+	"API_BASE":          {},
+	"UI_PORT":           {},
+	"WS_PORT":           {},
 	"VITE_API_BASE_URL": {},
 }
 

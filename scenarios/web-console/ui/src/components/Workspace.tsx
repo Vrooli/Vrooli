@@ -17,7 +17,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import { getSession, uploadFile } from "../lib/api";
+import { getSession, uploadFile, summarizeEvent } from "../lib/api";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -288,6 +288,14 @@ export default function Workspace() {
     focusActiveTerminal(store.activePane ?? undefined);
   }, [focusActiveTerminal, store.activePane]);
 
+  // Switch the active pane from messages view back to terminal view.
+  // Used by MobileToolbar to auto-switch after sending a command.
+  const handleSwitchToTerminal = useCallback(() => {
+    if (store.activePane) {
+      setConversationViewMode(store.activePane, "terminal");
+    }
+  }, [store.activePane, setConversationViewMode]);
+
   // ── Stop TTS on the previous pane when switching tabs ──
   // Each TerminalPane manages its own TTS playback.  When the user switches
   // tabs, the newly-active pane may auto-play pending conversation events
@@ -347,9 +355,15 @@ export default function Workspace() {
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
   const handleVoiceStart = useCallback((opts?: { vadEnabled?: boolean }) => {
+    // Always stop TTS before starting voice recording — the user wants to
+    // speak, so any playing audio should yield.  This is unconditional
+    // because the isTtsSpeaking flag can lag behind actual playback due to
+    // the async propagation chain (useEffect in TerminalPane → Workspace
+    // Set state).  Calling stop when nothing is playing is a no-op.
+    stopActiveTts(store.activePane ?? undefined);
     const vadAutoStop = useWorkspaceStore.getState().vadAutoStop;
     voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
-  }, [voiceInput]);
+  }, [store.activePane, stopActiveTts, voiceInput]);
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -472,6 +486,7 @@ export default function Workspace() {
 
   // --- Messages View TTS controls ---
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   // Clear the active speaking indicator when TTS stops
   const prevTtsSpeaking = useRef(isTtsSpeaking);
@@ -741,7 +756,7 @@ export default function Workspace() {
         data-pane-index={idx}
         {...(isDropTarget ? { "data-drop-target": "" } : {})}
         className={cn(
-          "relative flex flex-col rounded border overflow-hidden min-w-0 min-h-0",
+          "relative flex flex-col rounded border overflow-hidden min-w-0 min-h-0 select-none",
           store.activePane === paneMeta.sessionId
             ? "border-wc-accent"
             : "border-wc-default",
@@ -885,7 +900,7 @@ export default function Workspace() {
               <div
                 key={paneMeta.sessionId}
                 data-testid={`tab-pane-${paneMeta.sessionId}`}
-                className="absolute inset-0 flex flex-col"
+                className="absolute inset-0 flex flex-col select-none"
                 style={{ visibility: isActive ? "visible" : "hidden" }}
               >
                 {/* overflow-hidden prevents a duplicate scrollbar from appearing.
@@ -966,6 +981,12 @@ export default function Workspace() {
          * (see the comment block above the polling effect for details). */}
         {isTtsSpeaking && (() => {
           const pb = ttsPlayback ?? FALLBACK_TTS_PLAYBACK;
+          const activeEvent = activeSpeakingEventId && store.activePane
+            ? useConversationStore.getState().sessions[store.activePane]?.events.find((e) => e.id === activeSpeakingEventId)
+            : undefined;
+          const hasOriginal = (activeEvent?.summarized ?? false) &&
+            (activeEvent?.originalSpeechParagraphs?.length ?? 0) > 0;
+          const canRequestSummarize = !!(activeEvent && !activeEvent.summarized && activeEvent.role === "assistant");
           return (
             <AudioPlayerBar
               isPaused={pb.isPaused}
@@ -974,12 +995,46 @@ export default function Workspace() {
               playbackRate={pb.playbackRate}
               volume={pb.volume}
               capabilities={pb.capabilities}
+              isSummarized={activeEvent?.summarized ?? false}
+              hasOriginalVersion={hasOriginal}
+              canSummarize={canRequestSummarize}
+              isSummarizing={isSummarizing}
               onPause={handleTtsPause}
               onResume={handleTtsResume}
               onSeek={handleTtsSeek}
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
               onStop={handleTtsStop}
+              onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
+                const paragraphs = useSummarized
+                  ? activeEvent.speechParagraphs
+                  : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
+                speakTextOnPane(store.activePane!, activeEvent.text, paragraphs);
+              } : undefined}
+              onRequestSummarize={canRequestSummarize && activeEvent && store.activePane ? () => {
+                const sid = store.activePane!;
+                const eid = activeEvent.id;
+                setIsSummarizing(true);
+                void summarizeEvent(sid, eid).then((res) => {
+                  if (res.summarized && res.speechParagraphs) {
+                    // Update the conversation store with the summary
+                    const convState = useConversationStore.getState();
+                    const session = convState.sessions[sid];
+                    if (session) {
+                      const updatedEvents = session.events.map((ev) =>
+                        ev.id === eid
+                          ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs! }
+                          : ev,
+                      );
+                      useConversationStore.setState({
+                        sessions: { ...convState.sessions, [sid]: { ...session, events: updatedEvents } },
+                      });
+                      // Replay with summarized version
+                      speakTextOnPane(sid, activeEvent.text, res.speechParagraphs);
+                    }
+                  }
+                }).finally(() => setIsSummarizing(false));
+              } : undefined}
             />
           );
         })()}
@@ -1005,6 +1060,7 @@ export default function Workspace() {
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
           viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}
+          onSwitchToTerminal={handleSwitchToTerminal}
         />
         <input
           ref={mobileFileInputRef}

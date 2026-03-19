@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { getTTSStatus, toErrorInfo, updateTTSConfig } from "../../lib/api";
+import { getTTSStatus, getTTSSummarizeConfig, updateTTSSummarizeConfig, toErrorInfo, updateTTSConfig } from "../../lib/api";
+import type { TTSSummarizeConfig } from "../../lib/api";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
 
@@ -37,6 +38,10 @@ export default function TtsSettingsSection() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
+
+  // Summarization config state
+  const [summarizeConfig, setSummarizeConfig] = useState<TTSSummarizeConfig | null>(null);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
   const ttsSettings = useMemo(() => ({
     voice: ttsVoice,
@@ -97,6 +102,13 @@ export default function TtsSettingsSection() {
       setLastPlaybackSummary(status.lastPlaybackEvent
         ? `${status.lastPlaybackEvent.stage}${status.lastPlaybackEvent.backend ? ` via ${status.lastPlaybackEvent.backend}` : ""}${status.lastPlaybackEvent.message ? `: ${status.lastPlaybackEvent.message}` : ""}`
         : null);
+      // Load summarization config alongside TTS status
+      try {
+        const sumCfg = await getTTSSummarizeConfig();
+        setSummarizeConfig(sumCfg);
+      } catch (sumError) {
+        setSummarizeError(toErrorInfo(sumError).message);
+      }
     } catch (statusErrorValue) {
       setStatusError(toErrorInfo(statusErrorValue).message);
     } finally {
@@ -323,6 +335,109 @@ export default function TtsSettingsSection() {
           />
         </SettingsCard>
       )}
+
+      {/* Summarization settings */}
+      <SettingsSectionIntro
+        eyebrow="Summarization"
+        title="Long response summarization"
+        description="Summarize long AI responses via Ollama before TTS playback. Full text is always preserved in the Messages view."
+      />
+
+      <SettingsCard className="space-y-4">
+        {summarizeError && (
+          <div className="text-xs text-wc-error-detail">Failed to load summarize config: {summarizeError}</div>
+        )}
+
+        <SettingsRow
+          label="Summarize long responses"
+          hint="When enabled, responses longer than the word threshold are summarized before being read aloud."
+          control={(
+            <SettingsToggle
+              testId="summarize-toggle"
+              checked={summarizeConfig?.enabled ?? false}
+              onClick={() => {
+                const next = !(summarizeConfig?.enabled ?? false);
+                setSummarizeConfig((prev) => prev ? { ...prev, enabled: next } : null);
+                void updateTTSSummarizeConfig({ enabled: next })
+                  .then((updated) => setSummarizeConfig(updated))
+                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+              }}
+            />
+          )}
+        />
+
+        <SettingsRow
+          label="Word threshold"
+          hint="Responses with fewer characters than this are read in full (not summarized)."
+          control={(
+            <div className="flex items-center gap-2">
+              <input
+                data-testid="summarize-threshold"
+                type="number"
+                min={100}
+                max={10000}
+                step={100}
+                value={summarizeConfig?.charThreshold ?? 500}
+                onChange={(e) => {
+                  const val = Math.max(100, parseInt(e.target.value, 10) || 500);
+                  setSummarizeConfig((prev) => prev ? { ...prev, charThreshold: val } : null);
+                }}
+                onBlur={() => {
+                  void updateTTSSummarizeConfig({ charThreshold: summarizeConfig?.charThreshold ?? 500 })
+                    .then((updated) => setSummarizeConfig(updated))
+                    .catch((err) => setSummarizeError(toErrorInfo(err).message));
+                }}
+                className="w-24 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              />
+              <span className="text-xs text-wc-text-faint">chars</span>
+            </div>
+          )}
+        />
+
+        <SettingsRow
+          label="Summarization level"
+          hint="Light preserves more detail; heavy gives a brief spoken overview."
+          control={(
+            <select
+              data-testid="summarize-level-select"
+              className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              value={summarizeConfig?.level ?? "moderate"}
+              onChange={(e) => {
+                const next = e.target.value as "light" | "moderate" | "heavy";
+                setSummarizeConfig((prev) => prev ? { ...prev, level: next } : null);
+                void updateTTSSummarizeConfig({ level: next })
+                  .then((updated) => setSummarizeConfig(updated))
+                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+              }}
+            >
+              <option value="light">Light (~60% of original)</option>
+              <option value="moderate">Moderate (~40% of original)</option>
+              <option value="heavy">Heavy (2-3 sentences)</option>
+            </select>
+          )}
+        />
+
+        <SettingsRow
+          label="Model"
+          hint="Ollama model used for summarization."
+          control={(
+            <input
+              data-testid="summarize-model"
+              type="text"
+              value={summarizeConfig?.model ?? "qwen3:1.7b"}
+              onChange={(e) => {
+                setSummarizeConfig((prev) => prev ? { ...prev, model: e.target.value } : null);
+              }}
+              onBlur={() => {
+                void updateTTSSummarizeConfig({ model: summarizeConfig?.model ?? "qwen3:1.7b" })
+                  .then((updated) => setSummarizeConfig(updated))
+                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+              }}
+              className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+            />
+          )}
+        />
+      </SettingsCard>
 
       {backend === "browser" && (
         <SettingsCard className="space-y-4">

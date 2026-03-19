@@ -19,7 +19,7 @@ type fakeAIProvider struct {
 }
 
 func (f *fakeAIProvider) Name() string { return f.name }
-func (f *fakeAIProvider) Generate(_ context.Context, _ string) (string, error) {
+func (f *fakeAIProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	f.called = true
 	return f.result, f.err
 }
@@ -56,7 +56,7 @@ func TestAIProviderChainFailover(t *testing.T) {
 	fallback := &fakeAIProvider{name: "openrouter", result: "ls -la"}
 
 	chain := NewAIProviderChain(primary, fallback)
-	cmd, provider, err := chain.Generate(context.Background(), "list files")
+	cmd, provider, err := chain.Generate(context.Background(), "system", "list files")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestAIProviderChainPrimarySuccess(t *testing.T) {
 	fallback := &fakeAIProvider{name: "openrouter", result: "should not be called"}
 
 	chain := NewAIProviderChain(primary, fallback)
-	cmd, provider, err := chain.Generate(context.Background(), "list containers")
+	cmd, provider, err := chain.Generate(context.Background(), "system", "list containers")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestAIProviderChainAllFail(t *testing.T) {
 	fallback := &fakeAIProvider{name: "openrouter", err: fmt.Errorf("api key missing")}
 
 	chain := NewAIProviderChain(primary, fallback)
-	_, _, err := chain.Generate(context.Background(), "list files")
+	_, _, err := chain.Generate(context.Background(), "system", "list files")
 
 	if err == nil {
 		t.Fatal("expected error when all providers fail")
@@ -111,7 +111,7 @@ func TestAIProviderChainAllFail(t *testing.T) {
 // [REQ:P0-005a] - no providers configured
 func TestAIProviderChainEmpty(t *testing.T) {
 	chain := NewAIProviderChain()
-	_, _, err := chain.Generate(context.Background(), "list files")
+	_, _, err := chain.Generate(context.Background(), "system", "list files")
 
 	if err == nil {
 		t.Fatal("expected error with no providers")
@@ -230,12 +230,12 @@ func TestHandleAIGenerateMetrics(t *testing.T) {
 
 // [REQ:P0-005a] - handler includes terminal context in prompt
 func TestHandleAIGenerateWithContext(t *testing.T) {
-	var capturedPrompt string
+	var capturedUserPrompt string
 	provider := &contextCapturingProvider{
 		name:   "ollama",
 		result: "ls /tmp",
-		capture: func(prompt string) {
-			capturedPrompt = prompt
+		capture: func(_, userPrompt string) {
+			capturedUserPrompt = userPrompt
 		},
 	}
 	srv := newTestServerWithAI(provider)
@@ -250,20 +250,82 @@ func TestHandleAIGenerateWithContext(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(capturedPrompt, "cwd: /home/user") {
-		t.Errorf("expected prompt to contain terminal context, got %q", capturedPrompt)
+	if !strings.Contains(capturedUserPrompt, "cwd: /home/user") {
+		t.Errorf("expected prompt to contain terminal context, got %q", capturedUserPrompt)
 	}
 }
 
-// contextCapturingProvider is a test provider that captures the prompt.
+// contextCapturingProvider is a test provider that captures both prompts.
 type contextCapturingProvider struct {
 	name    string
 	result  string
-	capture func(string)
+	capture func(systemPrompt, userPrompt string)
 }
 
 func (c *contextCapturingProvider) Name() string { return c.name }
-func (c *contextCapturingProvider) Generate(_ context.Context, prompt string) (string, error) {
-	c.capture(prompt)
+func (c *contextCapturingProvider) Generate(_ context.Context, systemPrompt, userPrompt string) (string, error) {
+	c.capture(systemPrompt, userPrompt)
 	return c.result, nil
+}
+
+// TestHandleAIGenerate_ExtractsCommand verifies the handler applies extractCommand
+// to raw AI output (strips code fences).
+func TestHandleAIGenerate_ExtractsCommand(t *testing.T) {
+	provider := &fakeAIProvider{name: "ollama", result: "```bash\nls -la\n```"}
+	srv := newTestServerWithAI(provider)
+
+	body := strings.NewReader(`{"prompt":"list files"}`)
+	req := httptest.NewRequest("POST", "/api/v1/ai/generate", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	srv.handleAIGenerate(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp AIGenerateResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Command != "ls -la" {
+		t.Errorf("got command %q, want %q", resp.Command, "ls -la")
+	}
+}
+
+// TestExecuteAI_PassesSystemPrompt verifies system prompt reaches provider unchanged.
+func TestExecuteAI_PassesSystemPrompt(t *testing.T) {
+	var capturedSystem string
+	provider := &contextCapturingProvider{
+		name:   "ollama",
+		result: "ok",
+		capture: func(sp, _ string) {
+			capturedSystem = sp
+		},
+	}
+	srv := newTestServerWithAI(provider)
+
+	_, _, err := srv.executeAI(context.Background(), "custom system prompt", "user input")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedSystem != "custom system prompt" {
+		t.Errorf("system prompt was %q, want %q", capturedSystem, "custom system prompt")
+	}
+}
+
+// TestExecuteAI_ReturnsRawOutput verifies no extractCommand is applied.
+func TestExecuteAI_ReturnsRawOutput(t *testing.T) {
+	raw := "```bash\nls -la\n```"
+	provider := &fakeAIProvider{name: "ollama", result: raw}
+	srv := newTestServerWithAI(provider)
+
+	result, _, err := srv.executeAI(context.Background(), "system", "user")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != raw {
+		t.Errorf("expected raw output %q, got %q", raw, result)
+	}
 }

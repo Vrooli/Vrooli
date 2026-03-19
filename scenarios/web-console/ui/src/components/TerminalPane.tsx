@@ -197,7 +197,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
 
     const handleConversationEvent = useCallback(async (
-      event: { id: string; source: string; role: "assistant"; text: string; speechParagraphs?: string[]; createdAt?: string; sequence: number },
+      event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; createdAt?: string; sequence: number },
       sendAck: (stage: string, message?: string, backend?: string) => void,
     ) => {
       appendConversationEvent({
@@ -207,6 +207,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         role: event.role,
         text: event.text,
         speechParagraphs: event.speechParagraphs ?? [event.text],
+        originalSpeechParagraphs: event.originalSpeechParagraphs,
+        summarized: event.summarized ?? false,
         createdAt: event.createdAt ?? new Date().toISOString(),
         sequence: event.sequence,
         deliveryState: "received",
@@ -219,7 +221,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         void persistCursor({ lastSeenSequence: event.sequence });
         sendAck("seen");
       }
-      if (!autoTtsEnabled || !isActivePane) {
+      if (!autoTtsEnabled || !isActivePane || event.role !== "assistant") {
         return;
       }
       if (!ttsSupported) {

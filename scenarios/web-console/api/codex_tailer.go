@@ -141,9 +141,10 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 				if len(line) == 0 {
 					continue
 				}
-				text := ExtractAssistantText(line)
-				if text != "" {
+				if text := ExtractAssistantText(line); text != "" {
 					ct.server.appendConversationEvent(text, sessionID, "codex_tailer")
+				} else if text := ExtractUserText(line); text != "" {
+					ct.server.appendUserConversationEvent(text, sessionID, "codex_tailer")
 				}
 			}
 		}

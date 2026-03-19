@@ -5,6 +5,7 @@ import {
   TOUCH_LONG_PRESS_MS,
   TOUCH_TAP_MAX_MS,
   TOUCH_DOUBLE_TAP_MS,
+  TOUCH_SCROLL_CANCEL_PX,
   TOUCH_SCROLL_DECEL,
   TOUCH_SCROLL_MIN_VELOCITY,
 } from "../consts/config";
@@ -49,13 +50,13 @@ type GestureState =
       lastY: number;
       lastTime: number;
       velocity: number;
-      /** The long-press timer is intentionally kept alive during scrolling.
-       *  If the finger is still down after 500ms, even if it has moved, we
-       *  transition to "selecting" — the user held long enough to signal
-       *  selection intent.  Natural hand tremor during a hold easily exceeds
-       *  the 8px movement threshold, so cancelling the timer on any movement
-       *  made it nearly impossible to enter selection mode on mobile. */
-      longPressTimer: ReturnType<typeof setTimeout>;
+      /** Cumulative distance scrolled (px). Once this exceeds
+       *  TOUCH_SCROLL_CANCEL_PX the long-press timer is cancelled — the
+       *  gesture is clearly an intentional scroll, not tremor. */
+      cumulativeDist: number;
+      /** The long-press timer is kept alive for small movements (hand tremor)
+       *  but cancelled once cumulativeDist proves real scroll intent. */
+      longPressTimer: ReturnType<typeof setTimeout> | null;
     }
   | {
       type: "selecting";
@@ -194,7 +195,8 @@ export function useTerminalTouch({
 
   const resetGesture = useCallback(() => {
     const g = gestureRef.current;
-    if (g.type === "pending" || g.type === "scrolling") clearTimeout(g.longPressTimer);
+    if (g.type === "pending") clearTimeout(g.longPressTimer);
+    if (g.type === "scrolling" && g.longPressTimer !== null) clearTimeout(g.longPressTimer);
     gestureRef.current = { type: "idle" };
   }, []);
 
@@ -296,16 +298,12 @@ export function useTerminalTouch({
       }
 
       // Start long-press timer.
-      // This timer fires after TOUCH_LONG_PRESS_MS regardless of whether
-      // the finger has moved. It accepts both "pending" and "scrolling"
-      // states because on mobile it's nearly impossible to hold perfectly
-      // still for 500ms — natural hand tremor easily exceeds the 8px
-      // movement threshold and would cancel the timer prematurely, making
-      // it impossible to enter selection mode via hold-and-drag.
-      //
-      // If the user genuinely wanted to scroll, they would have already
-      // flung and lifted their finger within 500ms, so it's safe to
-      // reclaim the gesture for selection at this point.
+      // This timer fires after TOUCH_LONG_PRESS_MS and accepts both
+      // "pending" and "scrolling" states — hand tremor during a hold
+      // easily exceeds the 8px movement threshold.  However, once the
+      // finger travels beyond TOUCH_SCROLL_CANCEL_PX the timer is
+      // cancelled (in onTouchMove) because that much movement is clearly
+      // an intentional scroll, not tremor.
       const longPressTimer = setTimeout(() => {
         const g = gestureRef.current;
         if (g.type !== "pending" && g.type !== "scrolling") return;
@@ -353,11 +351,9 @@ export function useTerminalTouch({
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > TOUCH_MOVE_THRESHOLD_PX) {
-          // Moved beyond threshold — transition to scrolling but keep the
-          // long-press timer alive. If the finger is still down after 500ms
-          // the timer will reclaim the gesture for text selection. This is
-          // critical on mobile where hand tremor during a hold easily
-          // exceeds the 8px threshold.
+          // Moved beyond threshold — transition to scrolling. Keep the
+          // long-press timer alive for now (could be hand tremor); it will
+          // be cancelled once cumulativeDist exceeds TOUCH_SCROLL_CANCEL_PX.
           gestureRef.current = {
             type: "scrolling",
             touchId: g.touchId,
@@ -366,6 +362,7 @@ export function useTerminalTouch({
             lastY: touch.clientY,
             lastTime: performance.now(),
             velocity: 0,
+            cumulativeDist: dist,
             longPressTimer: g.longPressTimer,
           };
           e.preventDefault();
@@ -374,6 +371,14 @@ export function useTerminalTouch({
         const deltaY = g.lastY - touch.clientY; // positive = finger up = scroll down
         const now = performance.now();
         const dt = now - g.lastTime;
+
+        // Track cumulative scroll distance and cancel long-press timer
+        // once the finger has clearly moved beyond tremor range.
+        g.cumulativeDist += Math.abs(deltaY);
+        if (g.longPressTimer !== null && g.cumulativeDist > TOUCH_SCROLL_CANCEL_PX) {
+          clearTimeout(g.longPressTimer);
+          g.longPressTimer = null;
+        }
 
         const ch = cellH();
         if (ch > 0) {
@@ -447,8 +452,8 @@ export function useTerminalTouch({
           term.focus();
         }
       } else if (g.type === "scrolling") {
-        // Clean up the long-press timer that was kept alive during scrolling
-        clearTimeout(g.longPressTimer);
+        // Clean up the long-press timer if it's still alive
+        if (g.longPressTimer !== null) clearTimeout(g.longPressTimer);
         // Start momentum scroll if there's velocity
         if (Math.abs(g.velocity) > TOUCH_SCROLL_MIN_VELOCITY) {
           startMomentum(g.velocity);

@@ -143,6 +143,11 @@ export const TOUCH_TAP_MAX_MS = 300;
 /** Maximum gap (ms) between taps for a double-tap. */
 export const TOUCH_DOUBLE_TAP_MS = 300;
 
+/** Cumulative scroll distance (px) before long-press timer is cancelled.
+ *  Small movements (hand tremor) keep the timer alive; once the finger
+ *  travels this far it's clearly an intentional scroll. */
+export const TOUCH_SCROLL_CANCEL_PX = 30;
+
 /** Per-frame velocity multiplier for momentum scroll (0–1). */
 export const TOUCH_SCROLL_DECEL = 0.95;
 

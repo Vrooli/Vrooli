@@ -21,13 +21,16 @@
  *  browser's AudioContext limit (typically 6–8 per page). */
 let cueCtx: AudioContext | null = null;
 
-function getCueContext(): AudioContext {
+async function getCueContext(): Promise<AudioContext> {
   if (!cueCtx || cueCtx.state === "closed") {
     cueCtx = new AudioContext();
   }
-  // Resume if suspended (browsers suspend until user gesture)
+  // Resume if suspended (browsers suspend until user gesture).
+  // We must await this — scheduling oscillators on a suspended context
+  // means they fire against a frozen currentTime and are already in the
+  // past when playback finally starts, so they never produce sound.
   if (cueCtx.state === "suspended") {
-    cueCtx.resume().catch(() => {});
+    await cueCtx.resume();
   }
   return cueCtx;
 }
@@ -40,9 +43,9 @@ function getCueContext(): AudioContext {
  * @param volume - Peak gain (0–1). Kept low so it doesn't blast through
  *                 headphones or compete with TTS playback.
  */
-function playChime(freq1: number, freq2: number, volume = 0.15): void {
+async function playChime(freq1: number, freq2: number, volume = 0.18): Promise<void> {
   try {
-    const ctx = getCueContext();
+    const ctx = await getCueContext();
     const now = ctx.currentTime;
 
     // ── Note 1 ──
@@ -50,25 +53,27 @@ function playChime(freq1: number, freq2: number, volume = 0.15): void {
     const gain1 = ctx.createGain();
     osc1.type = "sine";
     osc1.frequency.value = freq1;
-    // Soft attack → sustain → quick fade
+    // Gentle envelope — longer attack/decay avoids clicks on mobile audio hardware
     gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(volume, now + 0.03);   // 30ms attack
-    gain1.gain.linearRampToValueAtTime(0, now + 0.12);        // fade out by 120ms
+    gain1.gain.linearRampToValueAtTime(volume, now + 0.06);   // 60ms attack
+    gain1.gain.setValueAtTime(volume, now + 0.10);             // hold to 100ms
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25); // smooth decay
     osc1.connect(gain1).connect(ctx.destination);
     osc1.start(now);
-    osc1.stop(now + 0.15);
+    osc1.stop(now + 0.28);
 
-    // ── Note 2 (offset by 100ms for a two-note "chime" feel) ──
+    // ── Note 2 (offset by 140ms for a two-note "chime" feel) ──
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = "sine";
     osc2.frequency.value = freq2;
-    gain2.gain.setValueAtTime(0, now + 0.10);
-    gain2.gain.linearRampToValueAtTime(volume, now + 0.13);   // 30ms attack
-    gain2.gain.linearRampToValueAtTime(0, now + 0.25);        // fade by 250ms
+    gain2.gain.setValueAtTime(0, now + 0.14);
+    gain2.gain.linearRampToValueAtTime(volume, now + 0.20);    // 60ms attack
+    gain2.gain.setValueAtTime(volume, now + 0.26);              // hold
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45); // smooth decay
     osc2.connect(gain2).connect(ctx.destination);
-    osc2.start(now + 0.10);
-    osc2.stop(now + 0.30);
+    osc2.start(now + 0.14);
+    osc2.stop(now + 0.48);
   } catch {
     // AudioContext not available — silently skip. Cues are a nice-to-have,
     // not a hard requirement. The UI still shows visual state changes.
@@ -80,7 +85,7 @@ function playChime(freq1: number, freq2: number, volume = 0.15): void {
  * Notes: C5 (523 Hz) → E5 (659 Hz) — a pleasant major third rising interval.
  */
 export function playRecordingStartCue(): void {
-  playChime(523, 659);
+  void playChime(523, 659);
 }
 
 /**
@@ -88,5 +93,5 @@ export function playRecordingStartCue(): void {
  * Notes: E5 (659 Hz) → C5 (523 Hz) — the inverse interval, signalling "done."
  */
 export function playRecordingStopCue(): void {
-  playChime(659, 523);
+  void playChime(659, 523);
 }

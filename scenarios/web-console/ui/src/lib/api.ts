@@ -221,9 +221,11 @@ export interface ConversationEvent {
   id: string;
   sessionId: string;
   source: string;
-  role: "assistant";
+  role: "assistant" | "user";
   text: string;
   speechParagraphs: string[];
+  originalSpeechParagraphs?: string[];
+  summarized: boolean;
   createdAt: string;
   sequence: number;
   deliveryState: string;
@@ -677,6 +679,57 @@ export async function updateTTSConfig(
   });
   if (!res.ok) throw await extractAPIError(res, "Failed to update TTS config");
   return (await res.json()) as TTSConfig;
+}
+
+// TTS summarization configuration
+export interface TTSSummarizeConfig {
+  enabled: boolean;
+  charThreshold: number;
+  level: "light" | "moderate" | "heavy";
+  model: string;
+  timeoutSeconds: number;
+}
+
+export async function getTTSSummarizeConfig(): Promise<TTSSummarizeConfig> {
+  const url = buildApiUrl("/tts/summarize/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get TTS summarize config");
+  return (await res.json()) as TTSSummarizeConfig;
+}
+
+export async function updateTTSSummarizeConfig(
+  patch: Partial<TTSSummarizeConfig>,
+): Promise<TTSSummarizeConfig> {
+  const url = buildApiUrl("/tts/summarize/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to update TTS summarize config");
+  return (await res.json()) as TTSSummarizeConfig;
+}
+
+export interface SummarizeEventResponse {
+  summarized: boolean;
+  speechParagraphs?: string[];
+  error?: string;
+}
+
+export async function summarizeEvent(
+  sessionId: string,
+  eventId: string,
+): Promise<SummarizeEventResponse> {
+  const url = buildApiUrl(`/sessions/${sessionId}/conversation/${eventId}/summarize`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to summarize event");
+  return (await res.json()) as SummarizeEventResponse;
 }
 
 export async function getTTSStatus(): Promise<TTSStatus> {

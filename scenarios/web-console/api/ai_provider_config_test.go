@@ -249,7 +249,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 	// Disable ollama
 	srv.aiConfig.UpdateConfig("ollama", false, 1, 30, 0)
 
-	cmd, provider, err := srv.generateWithConfig(context.Background(), "test")
+	cmd, provider, err := srv.executeAI(context.Background(), commandSystemPrompt, "test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

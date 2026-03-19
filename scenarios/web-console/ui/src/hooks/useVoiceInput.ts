@@ -468,6 +468,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     // Especially important when VAD auto-stop fires — without this the
     // user may keep talking without realising the mic cut off after a
     // silence timeout.
+    //
+    // We must play the cue BEFORE releasing the mic stream. playChime is
+    // async (awaits AudioContext.resume()), so we delay provider.stop()
+    // briefly to let the cue begin playing while the audio routing is
+    // still in "communication" mode — otherwise mobile browsers attenuate
+    // or swallow the sound during the routing transition.
     playRecordingStopCue();
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
@@ -479,7 +485,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       audioLevel: 0,
       partialTranscript: "",
     }));
-    provider.stop();
+    // Small delay lets the stop cue's oscillators get scheduled and start
+    // producing sound before the mic release changes audio routing.
+    setTimeout(() => provider.stop(), 120);
   }, [isRecording, state.backend, stopLevelMonitor]);
 
   const cancelTranscription = useCallback(() => {

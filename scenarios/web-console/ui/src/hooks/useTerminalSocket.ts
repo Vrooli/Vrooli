@@ -41,14 +41,18 @@ export interface TerminalMessage {
   createdAt?: string;
   sequence?: number;
   speechParagraphs?: string[];
+  originalSpeechParagraphs?: string[];
+  summarized?: boolean;
 }
 
 export interface ConversationEventMessage {
   id: string;
   source: string;
-  role: "assistant";
+  role: "assistant" | "user";
   text: string;
   speechParagraphs?: string[];
+  originalSpeechParagraphs?: string[];
+  summarized?: boolean;
   createdAt?: string;
   sequence: number;
 }
@@ -363,9 +367,11 @@ export function useTerminalSocket({
               const event = {
                 id: msg.eventId,
                 source: msg.source,
-                role: (msg.role === "assistant" ? "assistant" : "assistant"),
+                role: msg.role === "user" ? "user" : "assistant",
                 text: msg.data,
                 speechParagraphs: msg.speechParagraphs,
+                originalSpeechParagraphs: msg.originalSpeechParagraphs,
+                summarized: msg.summarized,
                 createdAt: msg.createdAt,
                 sequence: msg.sequence,
               } satisfies ConversationEventMessage;

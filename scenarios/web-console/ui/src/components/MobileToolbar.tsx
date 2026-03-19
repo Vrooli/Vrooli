@@ -63,6 +63,8 @@ interface MobileToolbarProps {
   onTtsStop?: () => void;
   /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
   viewMode?: "terminal" | "messages";
+  /** Auto-switch to terminal view after sending a command while in messages mode. */
+  onSwitchToTerminal?: () => void;
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -86,6 +88,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   isTtsSpeaking,
   onTtsStop,
   viewMode = "terminal",
+  onSwitchToTerminal,
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
 
@@ -164,6 +167,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // submitted verbatim (some programs interpret whitespace input).
     if (inputValue.length === 0) {
       onInput(ENTER_KEY.input);
+      // Auto-switch to terminal so the user sees the result of pressing Enter
+      if (viewMode === "messages") onSwitchToTerminal?.();
       onFocusTerminal?.();
       return;
     }
@@ -190,13 +195,15 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     if (sent) {
       clearDraft();
       showStatus("sent");
+      // Auto-switch to terminal so the user can see and confirm their command
+      if (viewMode === "messages") onSwitchToTerminal?.();
     } else {
       showStatus("queued");
     }
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers]);
+  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal]);
 
   if (!visible) return null;
 

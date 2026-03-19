@@ -20,6 +20,8 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${_WC_SCRIPT_DIR}/../../.." && builtin pwd)}
 # Hook identity constants
 _WC_HOOK_EVENT="Stop"
 _WC_HOOK_ID="web-console-tts"
+_WC_PROMPT_HOOK_EVENT="UserPromptSubmit"
+_WC_PROMPT_HOOK_ID="web-console-prompt"
 _WC_HOOK_SCOPE="project"
 
 _wc::source_claude_code_hooks() {
@@ -197,6 +199,47 @@ ENDJSON
             ;;
     esac
 
+    # Register the UserPromptSubmit hook
+    local prompt_hook_json
+    prompt_hook_json=$(cat <<ENDJSON
+{
+  "type": "command",
+  "command": "bash ${_WC_SCENARIO_DIR}/lib/claude-prompt-submit-hook.sh --url http://localhost:${api_port}/api/v1/hooks/prompt-submit --token ${hook_token}",
+  "timeout": 10
+}
+ENDJSON
+)
+
+    local prompt_result=""
+    if ! prompt_result=$(claude_code::hooks_reconcile "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$prompt_hook_json" "$_WC_HOOK_SCOPE"); then
+        echo "tts-hook: prompt-submit reconciliation failed" >&2
+        if [[ -n "$prompt_result" ]]; then
+            echo "$prompt_result" >&2
+        fi
+        return 1
+    fi
+
+    local prompt_status=""
+    local prompt_reason=""
+    if command -v jq &>/dev/null; then
+        prompt_status=$(echo "$prompt_result" | jq -r '.status // empty' 2>/dev/null || true)
+        prompt_reason=$(echo "$prompt_result" | jq -r '.reason // empty' 2>/dev/null || true)
+    fi
+
+    case "$prompt_status" in
+        applied)
+            echo "tts-hook: registered UserPromptSubmit hook -> localhost:${api_port}"
+            ;;
+        unchanged)
+            echo "tts-hook: prompt hook already healthy -> localhost:${api_port}"
+            ;;
+        *)
+            echo "tts-hook: unexpected prompt reconcile result${prompt_reason:+ -- ${prompt_reason}}" >&2
+            echo "$prompt_result" >&2
+            return 1
+            ;;
+    esac
+
     return 0
 }
 
@@ -210,13 +253,16 @@ wc::deregister_tts_hook() {
         return 0
     fi
 
-    # Remove the hook
+    # Remove the hooks
     if claude_code::hooks_remove "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null; then
         echo "tts-hook: deregistered Stop hook"
     else
         echo "tts-hook: deregistration failed" >&2
         return 1
     fi
+
+    claude_code::hooks_remove "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null
+    echo "tts-hook: deregistered UserPromptSubmit hook"
 
     return 0
 }

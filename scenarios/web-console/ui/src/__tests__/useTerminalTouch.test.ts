@@ -587,12 +587,15 @@ describe("useTerminalTouch", () => {
     fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
     vi.advanceTimersByTime(100); // before long-press threshold
 
-    // Move beyond threshold — transitions from pending to scrolling
-    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 150 });
+    // Move beyond TOUCH_MOVE_THRESHOLD_PX (8px) to transition to scrolling,
+    // but keep total cumulative distance at exactly TOUCH_SCROLL_CANCEL_PX (30px)
+    // so the long-press timer is NOT cancelled (cancel check is strict >).
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 190 });
 
-    // Second move to actually generate scroll delta from lastY
+    // Second move: 20px delta gives exactly 1 line (cellH=20px, round(20/20)=1)
+    // Cumulative = 10 + 20 = 30px — not greater than 30, so timer survives.
     vi.advanceTimersByTime(16);
-    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 110 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 170 });
 
     // Scrolling should have occurred while in scrolling state
     expect(terminal.scrollLines).toHaveBeenCalled();
