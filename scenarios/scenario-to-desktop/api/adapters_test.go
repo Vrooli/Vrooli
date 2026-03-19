@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"scenario-to-desktop-api/pipeline"
+	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/toolexecution"
 )
 
@@ -71,5 +75,66 @@ func TestToToolPipelineStatus_MapsStages(t *testing.T) {
 	}
 	if len(mapped.Stages) != 2 {
 		t.Fatalf("expected 2 stage statuses, got %d", len(mapped.Stages))
+	}
+}
+
+// fakeProcessExecutor is a test double for smoketest.ProcessExecutor.
+type fakeProcessExecutor struct {
+	result *smoketest.ExecutionResult
+	err    error
+}
+
+func (f *fakeProcessExecutor) Execute(_ context.Context, _, _ string, _, _ []string, _ time.Duration) (string, error) {
+	return f.result.Combined, f.err
+}
+
+func (f *fakeProcessExecutor) ExecuteWithResult(_ context.Context, _, _ string, _, _ []string, _ time.Duration) (*smoketest.ExecutionResult, error) {
+	return f.result, f.err
+}
+
+func (f *fakeProcessExecutor) LookPath(name string) (string, error) {
+	return name, nil
+}
+
+func TestScreenrecordingExecutorAdapter(t *testing.T) {
+	fake := &fakeProcessExecutor{
+		result: &smoketest.ExecutionResult{
+			Stdout:   "capture started",
+			Stderr:   "warning: something",
+			ExitCode: 0,
+		},
+	}
+
+	adapter := &screenrecordingExecutorAdapter{executor: fake}
+
+	result, err := adapter.ExecuteWithResult(context.Background(), "/tmp", "ffmpeg", nil, nil, 10*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Stdout != "capture started" {
+		t.Errorf("expected stdout 'capture started', got %q", result.Stdout)
+	}
+	if result.Stderr != "warning: something" {
+		t.Errorf("expected stderr 'warning: something', got %q", result.Stderr)
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("expected exit code 0, got %d", result.ExitCode)
+	}
+
+	// Verify it returns the right type
+	var _ *screenrecording.ExecutionResult = result
+}
+
+func TestScreenrecordingExecutorAdapter_Error(t *testing.T) {
+	fake := &fakeProcessExecutor{
+		err: context.DeadlineExceeded,
+	}
+
+	adapter := &screenrecordingExecutorAdapter{executor: fake}
+
+	_, err := adapter.ExecuteWithResult(context.Background(), "/tmp", "ffmpeg", nil, nil, 10*time.Second)
+	if err != context.DeadlineExceeded {
+		t.Errorf("expected DeadlineExceeded, got %v", err)
 	}
 }

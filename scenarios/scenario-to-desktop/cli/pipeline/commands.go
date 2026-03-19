@@ -95,12 +95,9 @@ func (c *Commands) waitForPipeline(pipelineID string, timeoutSeconds int, deploy
 
 		switch status.Status {
 		case "completed":
-			// If a deploy was requested, fetch the verbose status so we can print derived update URLs
-			// and other deploy details as part of the default success contract.
-			if deployRequested {
-				if verboseStatus, err := c.fetchPipelineStatus(status.PipelineID, true); err == nil {
-					status = verboseStatus
-				}
+			// Always fetch verbose status on completion to surface recording info and full details
+			if verboseStatus, err := c.fetchPipelineStatus(status.PipelineID, true); err == nil {
+				status = verboseStatus
 			}
 			printPipelineSuccess(status, notice)
 			return nil
@@ -814,8 +811,8 @@ func (s *stageResult) getSmokeTestDetails() *smokeTestDetails {
 	if err := json.Unmarshal(s.Details, &details); err != nil {
 		return nil
 	}
-	// Check if we actually got meaningful data - now also check error_context
-	if details.LastStdout == "" && details.LastStderr == "" && len(details.ErrorContext) == 0 {
+	// Check if we actually got meaningful data
+	if details.LastStdout == "" && details.LastStderr == "" && len(details.ErrorContext) == 0 && details.ScreenRecording == nil {
 		return nil
 	}
 	return &details
@@ -917,6 +914,17 @@ type smokeTestDetails struct {
 	AppReportedErrorStale bool                 `json:"app_reported_error_stale,omitempty"`
 	ErrorSessionMismatch  bool                 `json:"error_session_mismatch,omitempty"`
 	Logs                  []string             `json:"logs,omitempty"`
+	SmokeTestID           string               `json:"smoke_test_id,omitempty"`
+	ScreenRecording       *screenRecordingDTO  `json:"screen_recording,omitempty"`
+}
+
+// screenRecordingDTO represents screen recording results from the smoke test.
+type screenRecordingDTO struct {
+	Recorded      bool   `json:"recorded"`
+	VideoPath     string `json:"video_path,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
+	Error         string `json:"error,omitempty"`
 }
 
 // getPrereqWarnings extracts prerequisite check warnings from logs.
@@ -1201,6 +1209,30 @@ func printPipelineSuccess(status *pipelineStatus, notice *versionUpdateNotice) {
 					}
 					fmt.Printf("    %s: %s/%s/%s\n", platform, updateURL, channel, manifest)
 				}
+			}
+		}
+	}
+
+	// Screen recording
+	if smokeStage, ok := status.Stages["smoketest"]; ok && smokeStage != nil && len(smokeStage.Details) > 0 {
+		var details smokeTestDetails
+		if err := json.Unmarshal(smokeStage.Details, &details); err == nil {
+			if details.ScreenRecording != nil && details.ScreenRecording.Recorded {
+				fmt.Println()
+				fmt.Println("Screen Recording:")
+				fmt.Printf("  Video: %s\n", details.ScreenRecording.VideoPath)
+				if details.ScreenRecording.DurationMs > 0 {
+					fmt.Printf("  Duration: %.1fs\n", float64(details.ScreenRecording.DurationMs)/1000)
+				}
+				if details.ScreenRecording.FileSizeBytes > 0 {
+					fmt.Printf("  Size: %.1f MB\n", float64(details.ScreenRecording.FileSizeBytes)/1024/1024)
+				}
+				if details.SmokeTestID != "" {
+					fmt.Printf("  Watch:  %s pipeline-status %s --video\n", appName, status.PipelineID)
+					fmt.Printf("  API:    GET /api/v1/smoketest/%s/video\n", details.SmokeTestID)
+				}
+			} else if details.ScreenRecording != nil && details.ScreenRecording.Error != "" {
+				fmt.Printf("\nScreen Recording: failed (%s)\n", details.ScreenRecording.Error)
 			}
 		}
 	}

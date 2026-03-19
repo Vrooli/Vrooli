@@ -11,6 +11,8 @@ import (
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/records"
 	"scenario-to-desktop-api/scenario"
+	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/toolexecution"
 )
@@ -300,6 +302,23 @@ func (a *toolBuildStoreAdapter) Snapshot() map[string]toolexecution.BuildStatus 
 		}
 	}
 	return result
+}
+
+// screenrecordingExecutorAdapter adapts smoketest.ProcessExecutor to screenrecording.CommandExecutor.
+type screenrecordingExecutorAdapter struct {
+	executor smoketest.ProcessExecutor
+}
+
+func (a *screenrecordingExecutorAdapter) ExecuteWithResult(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*screenrecording.ExecutionResult, error) {
+	result, err := a.executor.ExecuteWithResult(ctx, workDir, command, args, env, timeout)
+	if err != nil {
+		return nil, err
+	}
+	return &screenrecording.ExecutionResult{
+		Stdout:   result.Stdout,
+		Stderr:   result.Stderr,
+		ExitCode: result.ExitCode,
+	}, nil
 }
 
 // generationRecordStoreAdapter adapts records.FileStore to generation.RecordStore interface

@@ -71,10 +71,12 @@ export const SECTION_TO_STAGE: Partial<Record<SectionId, PipelineStage>> = {
 };
 
 interface SidebarStoreState {
-  /** Whether the sidebar is collapsed */
+  /** Whether the sidebar is collapsed (desktop only) */
   collapsed: boolean;
   /** Currently active/visible section */
   activeSection: SectionId;
+  /** Whether the mobile drawer is open */
+  mobileDrawerOpen: boolean;
 }
 
 interface SidebarStoreActions {
@@ -84,6 +86,8 @@ interface SidebarStoreActions {
   setCollapsed: (collapsed: boolean) => void;
   /** Set the active section */
   setActiveSection: (section: SectionId) => void;
+  /** Set mobile drawer open/closed */
+  setMobileDrawerOpen: (open: boolean) => void;
 }
 
 type SidebarStore = SidebarStoreState & SidebarStoreActions;
@@ -94,11 +98,13 @@ export const useSidebarStore = create<SidebarStore>()(
       // State
       collapsed: false,
       activeSection: "configuration",
+      mobileDrawerOpen: false,
 
       // Actions
       toggleCollapsed: () => set((state) => ({ collapsed: !state.collapsed })),
       setCollapsed: (collapsed) => set({ collapsed }),
       setActiveSection: (section) => set({ activeSection: section }),
+      setMobileDrawerOpen: (open) => set({ mobileDrawerOpen: open }),
     }),
     {
       name: "scenario-to-desktop-sidebar",

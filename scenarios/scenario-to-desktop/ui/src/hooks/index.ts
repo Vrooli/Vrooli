@@ -42,6 +42,9 @@ export {
   type UseSigningPageReturn,
 } from "./useSigningPage";
 
+// Responsive breakpoint hooks
+export { useMediaQuery, useIsMobile, MOBILE_QUERY } from "./useMediaQuery";
+
 // New micro-hooks for decomposed architecture
 export {
   useFormState,

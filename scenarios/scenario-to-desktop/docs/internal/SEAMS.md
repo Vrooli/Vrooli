@@ -743,6 +743,29 @@ Documented new Zustand-based state management:
 3. **UI layer** has been evolving toward stronger seams with domain extraction and browser API abstraction
 4. **Pure function extraction** (domain layer) enables comprehensive unit testing without UI setup
 
+#### 18. Responsive Breakpoint Seam (`hooks/useMediaQuery.ts`)
+**Location**: `ui/src/hooks/useMediaQuery.ts`
+**Purpose**: Centralizes viewport-width detection behind `useIsMobile()` so mobile/desktop layout branches can be tested by mocking a single hook rather than manipulating `window.matchMedia` in every test.
+**Functions**:
+```typescript
+export function useMediaQuery(query: string): boolean
+export function useIsMobile(): boolean  // true when viewport < 768px
+export const MOBILE_QUERY: string
+```
+**Consumers**:
+- `GeneratorLayout.tsx` — switches between sidebar (desktop) and drawer (mobile)
+- `PipelineSidebar.tsx` — always expanded inside mobile drawer; hides collapse toggle
+- `App.tsx` — collapses tab labels to icon-only on mobile
+**Test strategy**: Mock `useIsMobile` return value; jsdom's `matchMedia` polyfill defaults to `false` (desktop).
+**Status**: ✅ Implemented (Mar 2026)
+
+#### 19. Mobile Drawer State Seam (`store/sidebarStore.ts#mobileDrawerOpen`)
+**Location**: `ui/src/store/sidebarStore.ts`
+**Purpose**: Zustand state for the mobile sidebar drawer open/close lifecycle. Separates drawer visibility from desktop collapse state so both can be tested independently.
+**State**: `mobileDrawerOpen: boolean`, `setMobileDrawerOpen(open: boolean)`
+**Consumers**: `GeneratorLayout.tsx`, sidebar trigger in `MobilePipelineSummary.tsx`
+**Status**: ✅ Implemented (Mar 2026)
+
 ### No Weak Seams Identified
 The scenario has mature seam architecture. All identified seams are:
 - Well-defined with clear interfaces

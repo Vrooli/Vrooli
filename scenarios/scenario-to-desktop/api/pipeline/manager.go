@@ -494,3 +494,67 @@ func (m *Manager) logError(msg string, args ...interface{}) {
 		m.logger.Error(msg, args...)
 	}
 }
+
+// RecoverStalePipelines marks pipelines stuck in "running" or "pending" state as failed.
+// This should be called at startup to recover from unclean shutdowns where
+// the executing goroutines were lost but the persisted state still says "running".
+// Returns the number of pipelines recovered.
+func (m *Manager) RecoverStalePipelines() int {
+	if m.orchestrator == nil {
+		return 0
+	}
+
+	recovered := 0
+	for _, status := range m.orchestrator.ListPipelines() {
+		if status.Status != StatusRunning && status.Status != StatusPending {
+			continue
+		}
+
+		pipelineID := status.PipelineID
+		currentStage := ""
+		if status.Stages != nil {
+			for name, stage := range status.Stages {
+				if stage != nil && stage.Status == StatusRunning {
+					currentStage = name
+					break
+				}
+			}
+		}
+
+		// Mark the pipeline as failed due to server restart
+		m.orchestrator.CancelPipeline(pipelineID)
+
+		// CancelPipeline may not transition to a terminal state if the cancel
+		// context was lost on restart. Force-update the status via the store.
+		updated := false
+		if do, ok := m.orchestrator.(*DefaultOrchestrator); ok && do.store != nil {
+			updated = do.store.Update(pipelineID, func(s *Status) {
+				s.Status = StatusFailed
+				s.Error = "Pipeline interrupted by server restart"
+				// Also fail any running stages
+				for _, stage := range s.Stages {
+					if stage != nil && stage.Status == StatusRunning {
+						stage.Status = StatusFailed
+						stage.Error = "Stage interrupted by server restart"
+					}
+				}
+			})
+		}
+
+		m.logWarn("recovered stale pipeline",
+			"pipeline_id", pipelineID,
+			"previous_status", status.Status,
+			"current_stage", currentStage,
+			"force_updated", updated,
+		)
+		recovered++
+	}
+
+	if recovered > 0 {
+		m.logInfo("startup recovery complete",
+			"recovered_pipelines", recovered,
+		)
+	}
+
+	return recovered
+}

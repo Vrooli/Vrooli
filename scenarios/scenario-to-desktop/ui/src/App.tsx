@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Book, List, Monitor, Zap, Folder, Shield, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsMobile } from "./hooks/useMediaQuery";
 import { GeneratorPage } from "./pages";
 import { ScenarioInventory } from "./components/scenario-inventory";
 import { DocsPanel } from "./components/docs/DocsPanel";
@@ -282,88 +283,58 @@ function AppContent() {
     setViewMode("generator");
   };
 
+  const isMobile = useIsMobile();
+
+  /** Tab definitions — single source of truth for the view-mode selector. */
+  const tabs: { mode: ViewMode; icon: typeof List; label: string }[] = useMemo(
+    () => [
+      { mode: "inventory", icon: List, label: "Inventory" },
+      { mode: "generator", icon: Zap, label: "Generate" },
+      { mode: "records", icon: Folder, label: "Apps" },
+      { mode: "signing", icon: Shield, label: "Signing" },
+      { mode: "docs", icon: Book, label: "Docs" },
+    ],
+    []
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50 scroll-smooth">
-      <div className="mx-auto max-w-7xl p-6">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mb-3 flex items-center justify-center gap-3">
-            <Monitor className="h-10 w-10 text-blue-400" />
-            <h1 className="text-4xl font-bold">Scenario to Desktop</h1>
+      <div className="mx-auto max-w-7xl p-3 md:p-6">
+        {/* Header — compact on mobile */}
+        <div className="mb-4 md:mb-8 text-center">
+          <div className="mb-2 md:mb-3 flex items-center justify-center gap-2 md:gap-3">
+            <Monitor className="h-7 w-7 md:h-10 md:w-10 text-blue-400" />
+            <h1 className="text-2xl md:text-4xl font-bold">Scenario to Desktop</h1>
           </div>
-          <p className="text-lg text-slate-300">
+          <p className="hidden md:block text-lg text-slate-300">
             Transform Vrooli scenarios into professional desktop applications
           </p>
         </div>
 
-        {/* View Mode Selector */}
-        <div className="mb-6 flex justify-center">
-          <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1 shadow-lg shadow-blue-950/40">
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "inventory"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("inventory")}
-            >
-              <List className="h-4 w-4" />
-              Scenario Inventory
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "generator"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("generator")}
-            >
-              <Zap className="h-4 w-4" />
-              Generate Desktop App
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "records"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("records")}
-            >
-              <Folder className="h-4 w-4" />
-              Generated Apps
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "signing"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("signing")}
-            >
-              <Shield className="h-4 w-4" />
-              Signing
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "docs"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("docs")}
-            >
-              <Book className="h-4 w-4" />
-              Docs
-            </button>
+        {/* View Mode Selector — horizontally scrollable on mobile */}
+        <div className="mb-4 md:mb-6 flex justify-center">
+          <div
+            className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1 shadow-lg shadow-blue-950/40 overflow-x-auto scrollbar-hide max-w-full"
+            role="tablist"
+          >
+            {tabs.map(({ mode, icon: Icon, label }) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={viewMode === mode}
+                className={cn(
+                  "flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-2 text-sm font-semibold transition whitespace-nowrap shrink-0",
+                  viewMode === mode
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                    : "text-slate-300 hover:text-white"
+                )}
+                onClick={() => setViewMode(mode)}
+              >
+                <Icon className="h-4 w-4" />
+                {(!isMobile || viewMode === mode) && <span>{label}</span>}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -425,7 +396,7 @@ function AppContent() {
         )}
 
         {/* Footer */}
-        <div className="mt-12 pb-24 text-center text-sm text-slate-400">
+        <div className="mt-8 md:mt-12 pb-24 text-center text-sm text-slate-400">
           <p>
             Built with ❤️ by the{" "}
             <a
@@ -452,7 +423,7 @@ function AppContent() {
       {/* Fixed Bottom Action Bar - shows when there's an active build */}
       {viewMode === "generator" && wrapperBuildId && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md shadow-lg shadow-slate-950/50">
-          <div className="mx-auto max-w-7xl px-6 py-3">
+          <div className="mx-auto max-w-7xl px-3 md:px-6 py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex items-center gap-2">

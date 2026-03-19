@@ -28,6 +28,7 @@ import (
 	preflightdomain "scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/records"
 	"scenario-to-desktop-api/scenario"
+	"scenario-to-desktop-api/screenrecording"
 	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
@@ -143,6 +144,12 @@ func NewServer(port int) *Server {
 		smokeTestLogger,
 	)
 
+	// Wire screen recording into smoke test service
+	smokeTestExecutor := smoketest.NewProcessExecutor(smokeTestLogger)
+	recorder := screenrecording.NewRecorder(&screenrecordingExecutorAdapter{executor: smokeTestExecutor})
+	displayMgr := screenrecording.NewDisplayManager()
+	smokeTestService.WithRecording(recorder, displayMgr)
+
 	// Telemetry domain
 	telemetryService := telemetry.NewService(vrooliRoot)
 	telemetryHandler := telemetry.NewHandler(telemetryService)
@@ -249,6 +256,13 @@ func NewServer(port int) *Server {
 		pipeline.WithManagerIndexStore(indexStore),
 		pipeline.WithManagerLogger(&pipeline.SlogLogger{Logger: logger}),
 	)
+
+	// Recover pipelines stuck in "running" state from previous server sessions.
+	// This handles unclean shutdowns where goroutines were lost but persisted state
+	// still shows "running". Must run before handlers are registered.
+	if n := pipelineManager.RecoverStalePipelines(); n > 0 {
+		logger.Info("recovered stale pipelines at startup", "count", n)
+	}
 
 	pipelineHandler := pipeline.NewHandler(
 		pipeline.WithOrchestrator(pipelineOrchestrator),

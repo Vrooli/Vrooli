@@ -189,6 +189,15 @@ export interface SmokeTestStageDetails {
   error?: string;
   telemetry_uploaded?: boolean;
   telemetry_upload_error?: string;
+
+  /** Screen recording results (populated when recording is enabled) */
+  screen_recording?: {
+    recorded: boolean;
+    video_path?: string;
+    duration_ms?: number;
+    file_size_bytes?: number;
+    error?: string;
+  };
 }
 
 /** Deploy artifact result (from pipeline/types.go DeployArtifactResult) */

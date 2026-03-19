@@ -581,11 +581,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       }
       lastLoadAttemptTime = now;
 
-      // Guard 4: If we already have a pipeline for this scenario and it's not stale, skip
-      // This prevents unnecessary re-fetching when the scenario hasn't changed
+      // Guard 4: If we already have a pipeline WITH full status for this scenario, skip.
+      // When restoring from cache we have pipelineId but not pipelineStatus,
+      // so we must still fetch from the server to get current stage statuses.
       const currentScenario = get().scenarioName;
-      if (currentPipelineId && currentScenario === scenarioName && !autoCreate) {
-        console.debug("[pipelineStore] loadActivePipeline skipped - already have pipeline for scenario");
+      const hasPipelineStatus = get().pipelineStatus !== null;
+      if (currentPipelineId && hasPipelineStatus && currentScenario === scenarioName && !autoCreate) {
+        console.debug("[pipelineStore] loadActivePipeline skipped - already have pipeline status for scenario");
         return;
       }
 

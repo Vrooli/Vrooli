@@ -152,6 +152,12 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 			ArtifactPath: artifactPath,
 			StartedAt:    now,
 			Logs:         []string{},
+			RecordingConfig: &smoketest.ScreenRecordingConfig{
+				Enabled:       true,
+				DisplayWidth:  1920,
+				DisplayHeight: 1080,
+				FPS:           15,
+			},
 		}
 		s.store.Save(initialStatus)
 	}

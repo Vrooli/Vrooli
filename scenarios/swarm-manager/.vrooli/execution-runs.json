@@ -170,7 +170,7 @@
     "previous_status": "backlog",
     "task_id": "08b9512a-9277-4504-bc6e-9ca702fee237",
     "run_id": "b38a0353-98af-4359-9894-23aea7ae9ed7",
-    "status": "starting",
+    "status": "needs_review",
     "mode": "yolo",
     "started_at": "2026-03-18T20:37:05Z",
     "started_by": "swarm-manager-ui",
@@ -197,6 +197,6 @@
       "captured_at": "2026-03-18T20:37:05Z"
     },
     "created_at": "2026-03-18T20:37:05Z",
-    "updated_at": "2026-03-18T20:37:05Z"
+    "updated_at": "2026-03-19T15:23:52Z"
   }
 ]
