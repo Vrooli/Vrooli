@@ -1,0 +1,90 @@
+{
+  "_metadata": {
+    "entity": "vrooli-onboarding",
+    "generated_at": "2026-03-18T16:40:05-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-resource-configuration-wizard/module.json",
+    "02-configuration-state-management/module.json",
+    "03-health-monitoring-dashboard/module.json",
+    "04-progress-persistence-system/module.json",
+    "05-smart-flow-optimization/module.json",
+    "06-user-friendly-documentation/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-resource-configuration-wizard",
+      "prd_ref": "OT-P0-001",
+      "priority": "P0",
+      "requirement_count": 3,
+      "requirement_ids": ["REQ-P0-001", "REQ-P0-002", "REQ-P0-003"],
+      "title": "Resource Configuration Wizard",
+      "operationalTargets": [
+        { "id": "OT-P0-001", "status": "passing" }
+      ]
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-configuration-state-management",
+      "prd_ref": "OT-P0-002",
+      "priority": "P0",
+      "requirement_count": 3,
+      "requirement_ids": ["REQ-P0-004", "REQ-P0-005", "REQ-P0-006"],
+      "title": "Configuration State Management",
+      "operationalTargets": [
+        { "id": "OT-P0-002", "status": "passing" }
+      ]
+    },
+    {
+      "id": "MOD-P1-003",
+      "path": "03-health-monitoring-dashboard",
+      "prd_ref": "OT-P1-001",
+      "priority": "P1",
+      "requirement_count": 2,
+      "requirement_ids": ["REQ-P1-001", "REQ-P1-002"],
+      "title": "Health Monitoring Dashboard",
+      "operationalTargets": [
+        { "id": "OT-P1-001", "status": "passing" }
+      ]
+    },
+    {
+      "id": "MOD-P1-004",
+      "path": "04-progress-persistence-system",
+      "prd_ref": "OT-P1-002",
+      "priority": "P1",
+      "requirement_count": 2,
+      "requirement_ids": ["REQ-P1-003", "REQ-P1-004"],
+      "title": "Progress Persistence System",
+      "operationalTargets": [
+        { "id": "OT-P1-002", "status": "passing" }
+      ]
+    },
+    {
+      "id": "MOD-P2-005",
+      "path": "05-smart-flow-optimization",
+      "prd_ref": "OT-P2-001",
+      "priority": "P2",
+      "requirement_count": 2,
+      "requirement_ids": ["REQ-P2-001", "REQ-P2-003"],
+      "title": "Smart Flow Optimization",
+      "operationalTargets": [
+        { "id": "OT-P2-001", "status": "passing" }
+      ]
+    },
+    {
+      "id": "MOD-P2-006",
+      "path": "06-user-friendly-documentation",
+      "prd_ref": "OT-P2-002",
+      "priority": "P2",
+      "requirement_count": 2,
+      "requirement_ids": ["REQ-P2-002", "REQ-P2-004"],
+      "title": "User-Friendly Documentation",
+      "operationalTargets": [
+        { "id": "OT-P2-002", "status": "passing" }
+      ]
+    }
+  ]
+}

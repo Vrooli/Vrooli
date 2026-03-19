@@ -1,0 +1,67 @@
+{
+  "description": "Complete guided setup flow for coding agents and AI providers with 100% validation coverage",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "title": "Resource Discovery API",
+      "description": "API endpoint that lists all available resources with their current status, category, and configuration metadata so the wizard can present accurate options to the user",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "category": "core",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/resources_test.go",
+          "status": "passing",
+          "notes": "TestHandleListResources, TestLoadResources, TestCategorize, TestLoadResourcesMissingFile verify resource discovery and categorization"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "title": "Resource Detail View",
+      "description": "API endpoint to retrieve detailed information for a single resource including configuration schema, dependencies, default values, and setup instructions",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "category": "core",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/health_resources_test.go",
+          "status": "passing",
+          "notes": "TestHandleGetResource, TestHandleGetResourceNotFound, TestHandleGetResourceCaseInsensitive verify resource detail endpoint"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-003",
+      "title": "Wizard UI Flow",
+      "description": "Step-by-step wizard interface for selecting and configuring resources, including field validation for API keys, endpoint URLs, and authentication methods with comprehensive error feedback",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "category": "ui",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "ui/src/App.test.tsx",
+          "status": "passing",
+          "notes": "9 tests verify wizard rendering, step navigation, resource selection, and view navigation"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "cli/app_test.go",
+          "status": "passing",
+          "notes": "TestNewApp, TestAppAPIPath, TestAppHasCommands, TestAppConstants verify CLI"
+        }
+      ]
+    }
+  ],
+  "title": "Resource Configuration Wizard"
+}
