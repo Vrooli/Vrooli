@@ -119,4 +119,5 @@ Improving a lower layer compounds upward through all higher layers.
 - `skill-principles` — Universal skill quality standards.
 - `conversation-friction-analysis` — Agent interaction analysis.
 - `capability-extraction` — Extract reusable methodologies from agent files.
+- `team-tool-mapping` — Equip teams with scenario-based tool skills using lazy evaluation for demand-driven development.
 - `visited-tracker-tools` — Track investigated entities across optimization cycles.

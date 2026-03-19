@@ -259,10 +259,14 @@ Use `StandardScenarioEnv()` to derive conventional env var names:
 
 ```go
 env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-    ExtraAPIEnvVars:     []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-    ExtraAPIPortEnvVars: []string{"API_PORT"},
+    ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 })
 ```
+
+> **Warning:** Do NOT add generic `API_PORT` to `ExtraAPIPortEnvVars`. The generic
+> variable causes cross-scenario port leakage when CLIs run inside web-console
+> terminal sessions. Rely on the scenario-specific `<SCENARIO>_API_PORT` (generated
+> automatically) and the `DetectPortFromVrooli` fallback instead.
 
 For scenario `test-genie`, this generates:
 

@@ -40,8 +40,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars:     []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		ExtraAPIPortEnvVars: []string{"API_PORT"},
+		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,

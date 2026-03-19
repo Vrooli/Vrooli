@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "social-media-scheduler",
+  "name": "Social Media Scheduler",
+  "description": "Multi-platform content scheduling with calendar management, AI optimization, and analytics across Twitter, Instagram, LinkedIn, Facebook, and TikTok",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "marketing",
+    "social-media",
+    "scheduling"
+  ],
+  "icon": "calendar",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-19T00:00:00Z",
+  "updatedAt": "2026-03-19T00:00:00Z"
+}

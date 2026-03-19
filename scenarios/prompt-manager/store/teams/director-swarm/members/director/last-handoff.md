@@ -1,28 +1,34 @@
 ## Status
-Completed first strategic assessment heartbeat. All teammates reported and shut down.
+Completed second strategic assessment heartbeat. All teammates reported and shut down.
 
 ## Completed this heartbeat
 - Spawned intelligence-officer, operations-chief, and strategist
-- Gathered comprehensive intelligence: 127 changed files across 5 scenarios, 348 agent-inbox files uncommitted
-- Received operational assessment: all 5 active scenarios build clean, 94 scenarios have Makefiles, 93 new test files untracked
-- Received strategic analysis: portfolio categorized into 4 tiers, dependency map established, Now/Near/Far framework drafted
-- Logged 3 strategic decisions to decision log
+- Confirmed agent-inbox crisis resolved: 348 → 39 uncommitted files (92% reduction)
+- Verified all 4 key scenarios build clean (prompt-manager, agent-manager, swarm-manager, tidiness-manager)
+- Confirmed 26/91 scenarios running, core pipeline healthy
+- Identified 70/30 investment ratio violation: TTS/voice got ~16 commits vs core loop ~7 (inverted from decision)
+- Flagged scenario-dependency-analyzer unhealthy for 7h
+- Flagged tidiness-manager test failures (standards violations)
+- Logged 3 new strategic decisions to decision log
 
 ## In progress / blocked
-- Strategic priorities defined but not yet communicated to execution teams
-- Agent-inbox refactor needs committing (CRITICAL risk — 348 uncommitted files)
+- 70/30 ratio enforcement needs active monitoring — pattern continued despite prior decision
+- scenario-dependency-analyzer unhealthy — root cause unknown
+- tidiness-manager standards violations blocking tests
+- 28 modified + 11 untracked files should be committed
 
 ## Next priorities
-1. IMMEDIATE: Commit agent-inbox refactor to protect 348 files of work
-2. IMMEDIATE: Run agent-inbox tests to validate refactor
-3. THIS WEEK: Complete prompt-manager shared team state (p2+)
-4. THIS WEEK: Finish agent-manager run fixes and sandbox reliability
-5. THIS MONTH: Push LPBS toward first external deployment
-6. THIS MONTH: Evaluate scenario-to-MCP as distribution lever
+1. IMMEDIATE: Fix scenario-dependency-analyzer health (7h unhealthy)
+2. IMMEDIATE: Commit swarm-manager and tidiness-manager work in logical chunks
+3. THIS WEEK: Enforce 70/30 — no new TTS/voice work until prompt-manager shared team state p4+ and agent-manager stabilization
+4. THIS WEEK: Fix tidiness-manager standards violations so tests pass
+5. THIS WEEK: Continue prompt-manager shared team state (critical path for team coordination)
+6. THIS MONTH: Push LPBS toward first external deployment
 7. THIS QUARTER: Achieve first autonomous improvement loop
 
 ## Notes for teammates
-- The 93-scenario portfolio is both strength and risk — consolidation of low-activity scenarios should be planned
-- Web-console TTS (17 commits) consumed significant bandwidth for a linear-return feature; future UX work should be bounded
-- Core execution pipeline (prompt-manager → agent-manager → workspace-sandbox) is the critical path for everything
-- Shift investment ratio to 70/30 in favor of core loop improvements over linear-return features
+- The 70/30 decision from last heartbeat was not followed — TTS/voice consumed majority bandwidth. This must be actively enforced, not just stated.
+- New compound-return capabilities are landing correctly: sandbox self-healing (heal.go), screen recording (ffmpeg resource), deployment validation
+- vrooli-onboarding is a new untracked scenario — should be committed once stable
+- Core pipeline is healthy but under-invested. The recursive improvement loop depends on prompt-manager → agent-manager → workspace-sandbox. Every hour spent elsewhere is an hour not compounding.
+- Updated Now/Near/Far: NOW = enforce 70/30 + fix unhealthy scenario + commit work | NEAR = prompt-manager shared team state + agent-manager stability | FAR = autonomous loop + marketplace

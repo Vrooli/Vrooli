@@ -10,10 +10,11 @@ Generate authentic marketing content that communicates Vrooli progress, vision, 
 - **Forward-looking but grounded.** Share vision without overpromising.
 
 ## Content Types
-1. **X/Twitter Dev Logs** — 3-7 tweet threads about recent work. Generated using x-dev-log skill.
+1. **X/Twitter Dev Logs** — 3-7 tweet threads about recent work.
 2. **Blog Posts** — Longer technical narratives about building Vrooli.
 3. **Feature Announcements** — New capabilities, milestone celebrations.
 4. **Behind-the-Scenes** — How agents work, debugging stories, architecture decisions.
+5. **Video Content** — Product demos, feature walkthroughs, promotional clips.
 
 ## Content Workflow
 1. marketing-lead identifies story opportunities.
@@ -34,5 +35,12 @@ Generate authentic marketing content that communicates Vrooli progress, vision, 
 - **Director Swarm** — Strategic messaging and priorities.
 - **Revenue Research** — Market positioning insights.
 
-## Key Skills
-- `prompt-manager skill read x-dev-log`
+## Available Skills
+Team members should read the relevant skill before starting a task. Each skill contains usage instructions, prerequisites, and current capabilities.
+
+- `prompt-manager skill read x-dev-log` — X/Twitter dev log generation
+- `prompt-manager skill read campaign-content-studio` — AI-powered campaign content creation
+- `prompt-manager skill read social-media-scheduler` — Multi-platform content scheduling
+- `prompt-manager skill read seo-optimizer` — SEO analysis and optimization
+- `prompt-manager skill read funnel-builder` — Conversion funnel creation and lead capture
+- `prompt-manager skill read video-studio` — Video production for demos and promotional content

@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "team-tool-mapping",
+  "name": "Team Tool Mapping",
+  "description": "Governance for equipping teams with scenario-based tool skills using lazy evaluation to generate honest demand signals for development prioritization",
+  "modes": [
+    "meta"
+  ],
+  "tags": [
+    "skill",
+    "governance",
+    "teams",
+    "tools",
+    "demand-signals"
+  ],
+  "icon": "link",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-19T00:00:00Z",
+  "updatedAt": "2026-03-19T00:00:00Z"
+}
