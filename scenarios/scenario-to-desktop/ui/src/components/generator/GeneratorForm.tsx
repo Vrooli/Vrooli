@@ -53,7 +53,7 @@ import { PendingChangesAlert } from "../state/PendingChangesAlert";
 import type { FormState } from "../../lib/api";
 
 /** Exposed form state for sharing with other sections */
-interface ExposedFormState {
+export interface ExposedFormState {
   bundleManifestPath: string;
   isBundled: boolean;
   bundleManifest?: unknown;
@@ -76,7 +76,7 @@ export interface ValidationState {
 interface GeneratorFormProps {
   selectedTemplate: string;
   onTemplateChange: (template: string) => void;
-  onBuildStart: (buildId: string) => void;
+  onBuildStart?: (buildId: string) => void;
   scenarioName: string;
   onScenarioNameChange: (name: string) => void;
   selectionSource?: "inventory" | "manual" | null;
@@ -727,7 +727,7 @@ export function GeneratorForm({
       };
 
       const pipelineId = await runStage("generate", pipelineConfig);
-      onBuildStart(pipelineId);
+      onBuildStart?.(pipelineId);
     } catch (err) {
       console.error("[GeneratorForm] Unexpected error during submit:", err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred. Check the browser console for details.";

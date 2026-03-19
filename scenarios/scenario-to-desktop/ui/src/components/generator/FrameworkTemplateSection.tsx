@@ -4,7 +4,7 @@
 
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-import { TEMPLATE_SUMMARIES, FRAMEWORK_SUMMARIES } from "./constants";
+import { TEMPLATE_SUMMARIES, FRAMEWORK_SUMMARIES } from "../../domain/generator";
 
 export interface FrameworkTemplateSectionProps {
   framework: string;

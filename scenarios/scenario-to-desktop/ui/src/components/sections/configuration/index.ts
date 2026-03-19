@@ -1,6 +1,5 @@
 /**
  * Configuration section barrel exports.
+ * ConfigurationSection was removed — GeneratorPage now renders
+ * SectionCard + GeneratorForm directly.
  */
-
-export { ConfigurationSection } from "./ConfigurationSection";
-export type { ExposedFormState, ValidationState } from "./ConfigurationSection";

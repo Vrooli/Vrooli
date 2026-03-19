@@ -3,72 +3,7 @@
  * Works with the ApiError class from ./api.ts
  */
 
-import type { RecoveryAction } from "./api";
 import { ApiError } from "./api";
-
-/**
- * Get a user-friendly message for a recovery action.
- */
-export function getRecoveryActionLabel(action: RecoveryAction): string {
-  switch (action) {
-    case "retry":
-      return "Try again";
-    case "retry_with_backoff":
-      return "Wait and try again";
-    case "fix_input":
-      return "Check your input";
-    case "provide_credentials":
-      return "Provide credentials";
-    case "wait_for_resource":
-      return "Resource being prepared";
-    case "install_dependency":
-      return "Install required dependency";
-    case "contact_support":
-      return "Contact support";
-    case "none":
-    default:
-      return "";
-  }
-}
-
-/**
- * Get styling hints for error display based on recovery action.
- */
-export interface ErrorStyling {
-  /** Severity level for color/icon selection */
-  severity: "error" | "warning" | "info";
-  /** Whether to show a retry button */
-  showRetry: boolean;
-  /** Whether to auto-dismiss after a delay */
-  autoDismiss: boolean;
-}
-
-export function getErrorStyling(error: unknown): ErrorStyling {
-  if (error instanceof ApiError) {
-    // Transient errors that can be retried are less severe
-    if (error.isTransient()) {
-      return {
-        severity: "warning",
-        showRetry: error.canRetry(),
-        autoDismiss: false,
-      };
-    }
-    // Errors requiring user action are informational
-    if (error.requiresInputFix()) {
-      return {
-        severity: "info",
-        showRetry: false,
-        autoDismiss: false,
-      };
-    }
-  }
-  // Default for unrecoverable errors
-  return {
-    severity: "error",
-    showRetry: false,
-    autoDismiss: false,
-  };
-}
 
 /**
  * Extract a displayable message from any error type.
@@ -85,33 +20,6 @@ export function getErrorMessage(error: unknown): string {
     return error;
   }
   return "An unknown error occurred";
-}
-
-/**
- * Extract error code if available.
- */
-export function getErrorCode(error: unknown): string | undefined {
-  if (error instanceof ApiError) {
-    return error.code;
-  }
-  return undefined;
-}
-
-/**
- * Check if an error is an ApiError instance.
- */
-export function isApiError(error: unknown): error is ApiError {
-  return error instanceof ApiError;
-}
-
-/**
- * Format error details as a readable string (for debugging or detailed views).
- */
-export function formatErrorDetails(error: unknown): string {
-  if (error instanceof ApiError && error.details) {
-    return JSON.stringify(error.details, null, 2);
-  }
-  return "";
 }
 
 /**
@@ -139,25 +47,6 @@ export function logError(context: string, error: unknown): void {
   } else {
     console.error(`[${timestamp}] ${context}:`, error);
   }
-}
-
-/**
- * Suggested retry delay based on recovery action (in milliseconds).
- */
-export function getSuggestedRetryDelay(error: unknown): number {
-  if (error instanceof ApiError) {
-    switch (error.recovery) {
-      case "retry":
-        return 1000; // 1 second for immediate retry
-      case "retry_with_backoff":
-        return 5000; // 5 seconds for backoff
-      case "wait_for_resource":
-        return 3000; // 3 seconds for resource wait
-      default:
-        return 0;
-    }
-  }
-  return 0;
 }
 
 /**

@@ -13,4 +13,3 @@
 export * from "./generatorController";
 export * from "./pipelineController";
 export * from "./preflightController";
-export * from "./signingController";

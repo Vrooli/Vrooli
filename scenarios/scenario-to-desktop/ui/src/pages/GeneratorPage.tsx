@@ -5,18 +5,18 @@
 
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { GeneratorLayout } from "../components/layout";
+import { GeneratorForm, type ExposedFormState, type ValidationState } from "../components/generator/GeneratorForm";
 import {
-  ConfigurationSection,
+  SectionCard,
   BundleSection,
   PreflightSection,
   GenerateSection,
   BuildSection,
   SmokeTestSection,
   DeploySection,
-  type ExposedFormState,
-  type ValidationState,
 } from "../components/sections";
 import { useSidebarStore, type SectionId } from "../store/sidebarStore";
+import { usePipelineStore } from "../store";
 // NOTE: Pipeline scenario is set by App.tsx - no need to set it here
 
 interface GeneratorPageProps {
@@ -32,10 +32,6 @@ interface GeneratorPageProps {
   selectionSource: "inventory" | "manual" | null;
   /** Callback to open the signing tab */
   onOpenSigningTab: (scenario?: string) => void;
-  /** Current build ID (if any) */
-  buildId: string | null;
-  /** Callback when a build starts */
-  onBuildStart: (buildId: string) => void;
 }
 
 export function GeneratorPage({
@@ -45,11 +41,12 @@ export function GeneratorPage({
   onTemplateChange,
   selectionSource,
   onOpenSigningTab,
-  buildId,
-  onBuildStart,
 }: GeneratorPageProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
-  const [wrapperReady, setWrapperReady] = useState(false);
+
+  // Derive wrapperReady from store — generate stage completed means wrapper exists
+  const generateResult = usePipelineStore((s) => s.generateResult);
+  const wrapperReady = Boolean(generateResult);
 
   // State shared between ConfigurationSection and PreflightSection/BundleSection
   const [formState, setFormState] = useState<ExposedFormState | null>(null);
@@ -129,30 +126,32 @@ export function GeneratorPage({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [setActiveSection, sectionRefs]);
 
-  const handleGenerateComplete = (newBuildId: string) => {
-    setWrapperReady(true);
-    onBuildStart(newBuildId);
-  };
-
   return (
     <GeneratorLayout sectionRefs={sectionRefs}>
       <div className="space-y-4 md:space-y-8">
         {/* Section 0: Configuration */}
-        <ConfigurationSection
+        <SectionCard
           ref={sectionRefs.configuration}
-          selectedTemplate={selectedTemplate}
-          onTemplateChange={onTemplateChange}
-          onBuildStart={handleGenerateComplete}
-          scenarioName={scenarioName}
-          onScenarioNameChange={onScenarioNameChange}
-          selectionSource={selectionSource}
-          onOpenSigningTab={onOpenSigningTab}
-          formId="generator-form"
-          showSubmit={false}
-          onFormStateChange={handleFormStateChange}
-          onSubmitHandlerReady={handleSubmitHandlerReady}
-          onValidationStateChange={handleValidationStateChange}
-        />
+          sectionId="configuration"
+          title="Configuration"
+          subtitle="Set up your desktop application"
+          variant="pipeline"
+          collapsible={true}
+        >
+          <GeneratorForm
+            selectedTemplate={selectedTemplate}
+            onTemplateChange={onTemplateChange}
+            scenarioName={scenarioName}
+            onScenarioNameChange={onScenarioNameChange}
+            selectionSource={selectionSource}
+            onOpenSigningTab={onOpenSigningTab}
+            formId="generator-form"
+            showSubmit={false}
+            onFormStateChange={handleFormStateChange}
+            onSubmitHandlerReady={handleSubmitHandlerReady}
+            onValidationStateChange={handleValidationStateChange}
+          />
+        </SectionCard>
 
         {/* Section 1: Bundle */}
         <BundleSection
@@ -191,7 +190,7 @@ export function GeneratorPage({
         <BuildSection
           ref={sectionRefs.build}
           scenarioName={scenarioName}
-          wrapperReady={wrapperReady || Boolean(buildId)}
+          wrapperReady={wrapperReady}
         />
 
         {/* Section 5: Smoke Test */}

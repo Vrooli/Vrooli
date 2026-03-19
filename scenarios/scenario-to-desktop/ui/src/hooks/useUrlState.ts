@@ -27,6 +27,8 @@ export function parseSearchParams(): UrlParams {
 
 interface UseUrlStateOptions {
   defaultView?: ViewMode;
+  defaultScenario?: string;
+  defaultDoc?: string | null;
   onViewChange?: (view: ViewMode) => void;
   onScenarioChange?: (scenario: string) => void;
   onDocChange?: (doc: string | null) => void;
@@ -47,7 +49,7 @@ interface UseUrlStateReturn {
  * Provides shareable URLs and handles browser navigation.
  */
 export function useUrlState(options: UseUrlStateOptions = {}): UseUrlStateReturn {
-  const { defaultView = "inventory", onViewChange, onScenarioChange, onDocChange } = options;
+  const { defaultView = "inventory", defaultScenario = "", defaultDoc = null, onViewChange, onScenarioChange, onDocChange } = options;
 
   const initialParams = useMemo(() => parseSearchParams(), []);
 
@@ -55,10 +57,10 @@ export function useUrlState(options: UseUrlStateOptions = {}): UseUrlStateReturn
     initialParams.view ?? defaultView
   );
   const [scenarioName, setScenarioNameState] = useState(
-    initialParams.scenario ?? ""
+    initialParams.scenario ?? defaultScenario
   );
   const [docPath, setDocPathState] = useState<string | null>(
-    initialParams.doc ?? null
+    initialParams.doc ?? defaultDoc
   );
 
   // Wrapped setters that also trigger callbacks

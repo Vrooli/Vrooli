@@ -26,8 +26,5 @@ export { GeneratorFormHeader, type GeneratorFormHeaderProps } from "./GeneratorF
 export { GeneratorFormFooter, type GeneratorFormFooterProps } from "./GeneratorFormFooter";
 export { GeneratorModalsContainer, type GeneratorModalsContainerProps } from "./GeneratorModalsContainer";
 
-// Re-export constants from constants.ts
-export { TEMPLATE_SUMMARIES, FRAMEWORK_SUMMARIES } from "./constants";
-
 // Re-export domain types for convenience
 export { validateFormInputs, type ValidationError, type ValidateFormInputsParams } from "../../domain/generator";

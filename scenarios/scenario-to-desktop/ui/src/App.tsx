@@ -1,6 +1,6 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Shield, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Book, List, Monitor, Zap, Folder, Shield } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { useIsMobile } from "./hooks/useMediaQuery";
 import { GeneratorPage } from "./pages";
 import { ScenarioInventory } from "./components/scenario-inventory";
@@ -9,15 +9,13 @@ import { SigningPage } from "./components/signing";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
 import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
-import { getPipelineStatus } from "./lib/api";
-import type { FormState, SmokeTestStageDetails } from "./lib/api";
 import { usePipelineStore } from "./store";
-import { mapPipelineToUiStatus, type UiBuildStatus } from "./domain/build";
+import { useFormStore } from "./store/formStore";
 import { useUrlState, type ViewMode } from "./hooks/useUrlState";
+import { useServerSync } from "./hooks/useServerSync";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
-import { useScenarioState } from "./hooks";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,122 +29,66 @@ const queryClient = new QueryClient({
 function AppContent() {
   const storedState = useMemo(() => loadGeneratorAppState(), []);
 
-  // URL state hook handles view, scenario, and doc synchronization with URL
+  // URL state is the single source of truth for view, scenario, and doc
   const urlState = useUrlState({
     defaultView: (storedState?.viewMode as ViewMode) ?? "inventory",
+    defaultScenario: storedState?.selectedScenarioName ?? "",
+    defaultDoc: storedState?.docPath ?? null,
   });
 
-  // Use URL state, with stored state as fallback for scenario
-  const [selectedScenarioName, setSelectedScenarioNameState] = useState(
-    urlState.initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
-  );
-  const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(
+  const { viewMode, setViewMode, scenarioName: selectedScenarioName, setScenarioName: setSelectedScenarioName, docPath, setDocPath } = urlState;
+
+  // selectionSource is transient metadata — always changes alongside scenarioName
+  const selectionSourceRef = useRef<"inventory" | "manual" | null>(
     urlState.initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
   );
-  const [docPath, setDocPathState] = useState<string | null>(
-    urlState.initialParams.doc ?? storedState?.docPath ?? null
-  );
-  const [viewMode, setViewModeState] = useState<ViewMode>(
-    urlState.initialParams.view ?? (storedState?.viewMode as ViewMode) ?? "inventory"
-  );
 
-  const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
-  // Wrapper build state - will be initialized from server-side state
-  const [wrapperBuildId, setWrapperBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
-  const [wrapperBuildStatus, setWrapperBuildStatus] = useState<UiBuildStatus | null>(null);
-  const [wrapperBuildInitialized, setWrapperBuildInitialized] = useState(false);
+  // selectedTemplate lives in formStore (it's form state)
+  const selectedTemplate = useFormStore((s) => s.selectedTemplate);
+  const setSelectedTemplate = useFormStore((s) => s.setSelectedTemplate);
 
-  // Fetch build status from server - only poll when we have an active build in "building" state
-  // For completed builds (ready/failed), we rely on persisted server-side state
-  const shouldPollBuildStatus = Boolean(wrapperBuildId) && (
-    !wrapperBuildInitialized || // Still loading from server
-    wrapperBuildStatus?.status === "building" // Actively building
-  );
+  // Initialize template from localStorage on mount
+  useEffect(() => {
+    if (storedState?.selectedTemplate && storedState.selectedTemplate !== "basic") {
+      setSelectedTemplate(storedState.selectedTemplate);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally run once on mount
 
-  const { data: fetchedBuildStatus } = useQuery({
-    queryKey: ["build-status-global", wrapperBuildId],
-    queryFn: async () => {
-      if (!wrapperBuildId) return null;
-      // Use verbose to get generate stage details for output_path
-      const pipeline = await getPipelineStatus(wrapperBuildId, { verbose: true });
-      return mapPipelineToUiStatus(pipeline);
-    },
-    enabled: shouldPollBuildStatus,
-    refetchInterval: (query) => {
-      const data = query.state.data as UiBuildStatus | null;
-      // Stop polling when build is complete or failed
-      return data?.status === "ready" || data?.status === "failed" ? false : 2000;
-    },
-    // Don't throw on error - build ID may be stale
-    retry: 1,
-  });
+  // Pipeline store - single source of truth for build status
+  const storePipelineId = usePipelineStore((s) => s.pipelineId);
+  const storeRunStatus = usePipelineStore((s) => s.runStatus);
+  const storeGenerateResult = usePipelineStore((s) => s.generateResult);
+  const setPipelineScenario = usePipelineStore((s) => s.setScenario);
 
-  // Use server-persisted status as primary, fetched as fallback for active builds
-  const effectiveBuildStatus = wrapperBuildStatus || fetchedBuildStatus;
+  // Map store run status to UI-friendly status for bottom bar
+  const uiBuildStatus = useMemo(() => {
+    if (!storePipelineId) return null;
+    let status: "building" | "ready" | "failed";
+    switch (storeRunStatus) {
+      case "running":
+      case "starting":
+        status = "building";
+        break;
+      case "completed":
+        status = "ready";
+        break;
+      case "failed":
+      case "cancelled":
+        status = "failed";
+        break;
+      default:
+        return null; // idle state — no status to show
+    }
+    return {
+      status,
+      output_path: storeGenerateResult?.desktop_path,
+      pipeline_id: storePipelineId,
+    };
+  }, [storePipelineId, storeRunStatus, storeGenerateResult]);
 
-  const [smokeTestInitialized, setSmokeTestInitialized] = useState(false);
-
-  // Wrapped setters that also update URL via the hook
-  const setViewMode = useCallback((view: ViewMode) => {
-    setViewModeState(view);
-    urlState.setViewMode(view);
-  }, [urlState]);
-
-  const setSelectedScenarioName = useCallback((name: string) => {
-    setSelectedScenarioNameState(name);
-    urlState.setScenarioName(name);
-  }, [urlState]);
-
-  const setDocPath = useCallback((path: string | null) => {
-    setDocPathState(path);
-    urlState.setDocPath(path);
-  }, [urlState]);
-
-  // Pipeline store for smoke test - only what we need for server state syncing
-  const {
-    setScenario: setPipelineScenario,
-    smokeTestResult,
-    clearError: clearSmokeTestError,
-  } = usePipelineStore();
-
-  // Server-side state persistence for smoke test and wrapper build results
-  const {
-    hasInitiallyLoaded: serverStateLoaded,
-    updateFormState: updateServerFormState,
-    saveStageResult,
-  } = useScenarioState({
-    scenarioName: selectedScenarioName,
-    enabled: Boolean(selectedScenarioName),
-    // Only check for staleness on the generator view where form editing is active
-    checkStaleness: viewMode === "generator",
-    onStateLoaded: (state) => {
-      if (!state.form_state) return;
-      const fs = state.form_state;
-
-      // Initialize wrapper build state from server on load
-      if (!wrapperBuildInitialized) {
-        if (fs.wrapper_build_id) {
-          setWrapperBuildId(fs.wrapper_build_id);
-        }
-        // Restore the build status from server - this is the key fix!
-        // Creates a minimal UiBuildStatus object from persisted state
-        if (fs.wrapper_build_status) {
-          setWrapperBuildStatus({
-            status: fs.wrapper_build_status,
-            output_path: fs.wrapper_output_path ?? undefined,
-            pipeline_id: fs.wrapper_build_id || "",
-            scenario_name: selectedScenarioName,
-          });
-        }
-        setWrapperBuildInitialized(true);
-      }
-
-      // Mark smoke test state as initialized from server
-      if (!smokeTestInitialized) {
-        setSmokeTestInitialized(true);
-      }
-    },
-  });
+  // Server sync — persists build + smoke test status to server
+  useServerSync({ scenarioName: selectedScenarioName, viewMode });
 
   // Sync scenario with pipeline store
   useEffect(() => {
@@ -155,116 +97,27 @@ function AppContent() {
     }
   }, [selectedScenarioName, setPipelineScenario]);
 
-  // Compute smoke test status from pipeline store (for server persistence)
-  const smokeTestStatus: SmokeTestStageDetails | null = smokeTestResult;
-
-  // Reset state when scenario changes
-  useEffect(() => {
-    setSmokeTestInitialized(false);
-    clearSmokeTestError();
-    // Also reset wrapper build initialization so it reloads from server for new scenario
-    setWrapperBuildInitialized(false);
-    setWrapperBuildStatus(null);
-    setWrapperBuildId(null);
-  }, [selectedScenarioName, clearSmokeTestError]);
-
-  // Persist wrapper build status changes to server
-  const prevWrapperBuildStatusRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedScenarioName || !serverStateLoaded) return;
-    if (!wrapperBuildId) return;
-    // Use effective status which combines local state and fetched data
-    const currentStatus = effectiveBuildStatus;
-    if (!currentStatus) return;
-
-    // Only persist when status actually changes to avoid redundant saves
-    const statusKey = `${wrapperBuildId}:${currentStatus.status}`;
-    if (statusKey === prevWrapperBuildStatusRef.current) return;
-    prevWrapperBuildStatusRef.current = statusKey;
-
-    // Persist wrapper build state to server
-    updateServerFormState({
-      wrapper_build_id: wrapperBuildId,
-      wrapper_build_status: currentStatus.status as "building" | "ready" | "failed",
-      wrapper_output_path: currentStatus.output_path ?? null,
-    });
-
-    // Update local state to match (in case it came from fetchedBuildStatus)
-    if (!wrapperBuildStatus || wrapperBuildStatus.status !== currentStatus.status) {
-      setWrapperBuildStatus(currentStatus);
-    }
-  }, [
-    selectedScenarioName,
-    serverStateLoaded,
-    wrapperBuildId,
-    effectiveBuildStatus,
-    wrapperBuildStatus,
-    updateServerFormState,
-  ]);
-
-  // Persist smoke test status changes to server
-  const prevSmokeTestStatusRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedScenarioName || !serverStateLoaded) return;
-    if (!smokeTestStatus) return;
-
-    // Use the smoke test's own ID for status key (not pipeline ID)
-    const testId = smokeTestStatus.smoke_test_id;
-    if (!testId) return;
-
-    // Only persist when status actually changes to avoid redundant saves
-    const statusKey = `${testId}:${smokeTestStatus.status}`;
-    if (statusKey === prevSmokeTestStatusRef.current) return;
-    prevSmokeTestStatusRef.current = statusKey;
-
-    // Build form state update for smoke test
-    const smokeTestFormState: Partial<FormState> = {
-      smoke_test_id: testId,
-      smoke_test_platform: smokeTestStatus.platform as "win" | "mac" | "linux" | null,
-      smoke_test_status: smokeTestStatus.status as "running" | "passed" | "failed" | null,
-      smoke_test_started_at: smokeTestStatus.started_at,
-      smoke_test_completed_at: smokeTestStatus.completed_at ?? null,
-      smoke_test_logs: smokeTestStatus.logs ?? null,
-      smoke_test_error: smokeTestStatus.error ?? null,
-      smoke_test_telemetry_uploaded: smokeTestStatus.telemetry_uploaded ?? false,
-    };
-
-    // If test completed (passed or failed), save as stage result
-    if (smokeTestStatus.status === "passed" || smokeTestStatus.status === "failed") {
-      void saveStageResult("smoke_test", smokeTestStatus, smokeTestFormState);
-    } else {
-      // Just update form state for running status
-      updateServerFormState(smokeTestFormState);
-    }
-  }, [
-    selectedScenarioName,
-    serverStateLoaded,
-    smokeTestStatus,
-    saveStageResult,
-    updateServerFormState,
-  ]);
-
+  // Persist UI preferences to localStorage
   useEffect(() => {
     saveGeneratorAppState({
       viewMode,
       selectedScenarioName,
       selectedTemplate,
-      selectionSource,
-      currentBuildId: wrapperBuildId,
+      selectionSource: selectionSourceRef.current,
+      currentBuildId: storePipelineId,
       docPath
     });
   }, [
     viewMode,
     selectedScenarioName,
     selectedTemplate,
-    selectionSource,
-    wrapperBuildId,
+    storePipelineId,
     docPath
   ]);
 
   const handleInventorySelect = (scenario: ScenarioDesktopStatus) => {
+    selectionSourceRef.current = "inventory";
     setSelectedScenarioName(scenario.name);
-    setSelectionSource("inventory");
     setViewMode("generator");
   };
 
@@ -277,8 +130,8 @@ function AppContent() {
 
   const openGeneratorForScenario = (scenario?: string) => {
     if (scenario) {
+      selectionSourceRef.current = "inventory";
       setSelectedScenarioName(scenario);
-      setSelectionSource("inventory");
     }
     setViewMode("generator");
   };
@@ -359,8 +212,8 @@ function AppContent() {
             <SigningPage
               initialScenario={selectedScenarioName}
               onScenarioChange={(name) => {
+                selectionSourceRef.current = "manual";
                 setSelectedScenarioName(name);
-                setSelectionSource("manual");
               }}
             />
           </SectionErrorBoundary>
@@ -380,17 +233,13 @@ function AppContent() {
             <GeneratorPage
               scenarioName={selectedScenarioName}
               onScenarioNameChange={(name) => {
+                selectionSourceRef.current = "manual";
                 setSelectedScenarioName(name);
-                setSelectionSource("manual");
               }}
               selectedTemplate={selectedTemplate}
               onTemplateChange={setSelectedTemplate}
-              selectionSource={selectionSource}
+              selectionSource={selectionSourceRef.current}
               onOpenSigningTab={openSigningTab}
-              buildId={wrapperBuildId}
-              onBuildStart={(buildId) => {
-                setWrapperBuildId(buildId);
-              }}
             />
           </SectionErrorBoundary>
         )}
@@ -421,17 +270,15 @@ function AppContent() {
       </div>
 
       {/* Fixed Bottom Action Bar - shows when there's an active build */}
-      {viewMode === "generator" && wrapperBuildId && (
+      {viewMode === "generator" && storePipelineId && uiBuildStatus && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md shadow-lg shadow-slate-950/50">
           <div className="mx-auto max-w-7xl px-3 md:px-6 py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex items-center gap-2">
-                  {!effectiveBuildStatus ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                  ) : effectiveBuildStatus.status === "failed" ? (
+                  {uiBuildStatus.status === "failed" ? (
                     <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
-                  ) : effectiveBuildStatus.status === "ready" ? (
+                  ) : uiBuildStatus.status === "ready" ? (
                     <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                   ) : (
                     <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
@@ -441,13 +288,11 @@ function AppContent() {
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 hidden sm:inline">
-                  {!effectiveBuildStatus ? (
-                    "Loading build status..."
-                  ) : effectiveBuildStatus.status === "failed" ? (
+                  {uiBuildStatus.status === "failed" ? (
                     "Build failed - spawn an agent to investigate"
-                  ) : effectiveBuildStatus.status === "ready" ? (
+                  ) : uiBuildStatus.status === "ready" ? (
                     "Build ready - spawn an agent to verify or improve"
-                  ) : effectiveBuildStatus.status === "building" ? (
+                  ) : uiBuildStatus.status === "building" ? (
                     "Build in progress..."
                   ) : (
                     "Spawn an agent to analyze this build"
@@ -455,14 +300,8 @@ function AppContent() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {!effectiveBuildStatus && (
-                  <span className="text-xs text-amber-400 hidden md:inline">
-                    Waiting for status
-                  </span>
-                )}
                 <SpawnAgentButton
-                  pipelineId={wrapperBuildId}
-                  disabled={!effectiveBuildStatus}
+                  pipelineId={storePipelineId}
                 />
               </div>
             </div>

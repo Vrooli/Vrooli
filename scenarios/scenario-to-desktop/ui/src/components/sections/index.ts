@@ -5,10 +5,6 @@
 // Shared components
 export { SectionCard, SectionHeader } from "./shared";
 
-// Configuration section
-export { ConfigurationSection } from "./configuration";
-export type { ExposedFormState, ValidationState } from "./configuration";
-
 // Pipeline stage sections
 export { BundleSection } from "./bundle";
 export { PreflightSection } from "./preflight";
