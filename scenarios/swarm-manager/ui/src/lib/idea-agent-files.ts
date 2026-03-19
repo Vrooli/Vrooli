@@ -80,11 +80,13 @@ const normalizeSuggestion = (item: unknown, index: number): IdeaSuggestion | nul
       : "pending";
     const lastSynthesis = normalizeLastSynthesisSuggestion(item.lastSynthesis);
 
+    const notes = toString(item.notes ?? item.note ?? item.response);
     return {
       id: toString(item.id ?? `s${index + 1}`),
       suggestion,
       details: toString(item.details ?? item.rationale ?? item.context),
       status,
+      ...(notes ? { notes } : {}),
       ...(lastSynthesis ? { lastSynthesis } : {}),
     };
   }
@@ -150,9 +152,10 @@ function repairTruncatedJson(
 
   const repaired = content.slice(0, lastGoodEnd + 1) + "\n  ]\n}";
   try {
-    const parsed = JSON.parse(repaired);
+    const parsed = JSON.parse(repaired) as Record<string, unknown>;
     const totalInFile = (content.match(/"id"\s*:/g) || []).length;
-    const recovered = Array.isArray(parsed?.[arrayKey]) ? parsed[arrayKey].length : 0;
+    const arr = parsed[arrayKey];
+    const recovered = Array.isArray(arr) ? arr.length : 0;
     const warning = `File appears truncated. Recovered ${recovered} of ~${totalInFile} item(s).`;
     return { parsed, warning };
   } catch {

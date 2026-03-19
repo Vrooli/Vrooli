@@ -102,7 +102,6 @@ import type {
   ArchiveRequirementRecord,
   ArchiveTarget,
   ArchiveTargetFormValues,
-  ArchiveTargetsResponse,
   BacklogFile,
   BacklogKind,
   BacklogResearchTarget,
@@ -565,7 +564,7 @@ export function BacklogDetailsPage() {
       return backlogService.research(backlogKind, name, {
         mode: "enhance",
         prompt:
-          "Use suggest/suggestions.json decisions to enhance this idea. Apply accepted suggestions, ignore rejected ones, and reference clarify/questions.json answers if available.",
+          "Use suggest/suggestions.json decisions and notes to enhance this idea. Apply accepted suggestions (considering any notes for context), ignore rejected ones, and reference clarify/questions.json answers if available.",
       });
     },
     onSuccess: (result) => {
@@ -736,8 +735,8 @@ export function BacklogDetailsPage() {
     if (idx < 0) return;
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= reqs.length) return;
-    const tmp = reqs[idx]!;
-    reqs[idx] = reqs[swapIdx]!;
+    const tmp = reqs[idx] as typeof reqs[number];
+    reqs[idx] = reqs[swapIdx] as typeof reqs[number];
     reqs[swapIdx] = tmp;
     updateReqsMutation.mutate({ moduleId: groupId, requirements: reqs });
   }, [archiveTargets, updateReqsMutation]);
@@ -1189,6 +1188,24 @@ export function BacklogDetailsPage() {
     fileActionMutation.mutate({ action, target, destinationPath });
   }, [activeFileAction, fileActionInput, fileActionMutation]);
 
+  const handleTargetToggle = useCallback((id: string) => {
+    setSelectedTargetIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRequirementToggle = useCallback((id: string) => {
+    setSelectedRequirementIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
   if (!backlogKind || !name) {
     return (
       <div className="space-y-6" data-testid={selectors.backlogDetails.page}>
@@ -1439,24 +1456,6 @@ export function BacklogDetailsPage() {
       </div>
     </div>
   );
-
-  const handleTargetToggle = useCallback((id: string) => {
-    setSelectedTargetIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const handleRequirementToggle = useCallback((id: string) => {
-    setSelectedRequirementIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
 
   const detailsPanel = item ? (
     <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">

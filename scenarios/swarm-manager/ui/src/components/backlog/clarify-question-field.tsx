@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Textarea } from "../ui/textarea";
 import { RadioGroup } from "../ui/radio-group";
 import type { IdeaClarificationQuestion } from "../../types";
@@ -13,30 +13,53 @@ interface ClarifyQuestionFieldProps {
 
 const OTHER_VALUE = "__other__";
 
-export function ClarifyQuestionField({ question, index, onChange, testIdPrefix, disabled }: ClarifyQuestionFieldProps) {
-  const hasOptions = question.options && question.options.length > 0;
+/** Check whether an answer matches one of the predefined options (trimmed comparison). */
+const answerMatchesOption = (answer: string, options: string[]): boolean =>
+  options.some((opt) => opt.trim() === answer.trim());
 
-  // "Other" is selected when the answer doesn't match any predefined option
+export function ClarifyQuestionField({ question, index, onChange, testIdPrefix, disabled }: ClarifyQuestionFieldProps) {
+  const options = useMemo(() => question.options ?? [], [question.options]);
+  const hasOptions = options.length > 0;
+
+  // Track whether the user explicitly clicked "Other" during this interaction.
+  // This prevents the empty-answer sync from flipping back to "no selection"
+  // when the user clicks Other and hasn't typed yet.
+  const userClickedOther = useRef(false);
+
+  // Determine initial otherSelected state from the data
   const [otherSelected, setOtherSelected] = useState(
-    () => hasOptions && !!question.answer && !question.options!.includes(question.answer),
+    () => hasOptions && !!question.answer && !answerMatchesOption(question.answer, options),
   );
 
-  // Sync otherSelected when the question prop changes (e.g., after save + reload).
-  // Only sync when answer is non-empty so that clicking "Other" (which clears the
-  // answer to "") still keeps the textarea visible.
+  // Sync otherSelected when the question data changes (e.g., after save + reload
+  // or when different question data arrives). Reset the userClickedOther ref since
+  // the data source changed.
   useEffect(() => {
-    if (hasOptions && question.answer) {
-      setOtherSelected(!question.options!.includes(question.answer));
+    if (!hasOptions) return;
+    if (question.answer) {
+      const isOther = !answerMatchesOption(question.answer, options);
+      setOtherSelected(isOther);
+      userClickedOther.current = false;
+    } else if (!userClickedOther.current) {
+      // Answer is empty and user didn't explicitly click Other — reset to no selection
+      setOtherSelected(false);
     }
-  }, [hasOptions, question.answer, question.options]);
+  }, [hasOptions, question.id, question.answer, options]);
 
-  const selectedRadio = otherSelected ? OTHER_VALUE : (question.answer ?? "");
+  // When not "Other", find the exact option value that matches (handles trimmed comparison)
+  const selectedRadio = otherSelected
+    ? OTHER_VALUE
+    : (question.answer
+      ? (options.find((opt) => opt.trim() === question.answer?.trim()) ?? question.answer)
+      : "");
 
   const handleRadioChange = (value: string) => {
     if (value === OTHER_VALUE) {
+      userClickedOther.current = true;
       setOtherSelected(true);
       onChange({ ...question, answer: "" });
     } else {
+      userClickedOther.current = false;
       setOtherSelected(false);
       onChange({ ...question, answer: value });
     }
@@ -58,7 +81,7 @@ export function ClarifyQuestionField({ question, index, onChange, testIdPrefix, 
             onChange={handleRadioChange}
             disabled={disabled}
             options={[
-              ...question.options!.map((opt) => ({ value: opt, label: opt })),
+              ...options.map((opt) => ({ value: opt, label: opt })),
               { value: OTHER_VALUE, label: "Other" },
             ]}
             testIdPrefix={testId ? `${testId}-opt` : undefined}

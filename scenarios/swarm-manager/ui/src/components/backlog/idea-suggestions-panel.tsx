@@ -216,6 +216,21 @@ export function IdeaSuggestionsPanel({
                     {suggestion.details && (
                       <p className="mt-2 text-xs text-slate-400">{suggestion.details}</p>
                     )}
+                    {(suggestion.status === "accepted" || suggestion.status === "rejected") && (
+                      <textarea
+                        value={suggestion.notes ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setLocalSuggestions((current) =>
+                            current.map((item) => (item.id === suggestion.id ? { ...item, notes: value } : item))
+                          );
+                        }}
+                        disabled={disabled}
+                        placeholder="Add a note about this decision..."
+                        className="mt-2 w-full rounded-md border border-white/10 bg-slate-900/40 px-3 py-2 text-sm text-slate-300 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        rows={2}
+                      />
+                    )}
                   </div>
                 );
               })}

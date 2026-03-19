@@ -1,6 +1,6 @@
 import type { MaturityIndicatorData, PhaseState } from "../../lib/maturity";
 
-const PHASE_LABELS = { clarify: "C", suggest: "S", enhance: "E" } as const;
+const _PHASE_LABELS = { clarify: "C", suggest: "S", enhance: "E" } as const;
 const PHASE_TOOLTIPS = { clarify: "Clarify", suggest: "Suggest", enhance: "Enhance" } as const;
 
 const PHASE_COLORS: Record<PhaseState, string> = {

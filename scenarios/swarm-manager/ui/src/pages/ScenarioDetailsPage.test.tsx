@@ -854,7 +854,7 @@ describe("ScenarioDetailsPage", () => {
       fireEvent.click(screen.getByLabelText("Open scenario actions"));
       expect(screen.getByTestId("scenario-mobile-actions-sheet")).toBeInTheDocument();
 
-      fireEvent.click(screen.getByLabelText("Close sheet"));
+      fireEvent.click(screen.getByLabelText("Close dialog"));
       await waitFor(() => {
         expect(screen.queryByTestId("scenario-mobile-actions-sheet")).not.toBeInTheDocument();
       });

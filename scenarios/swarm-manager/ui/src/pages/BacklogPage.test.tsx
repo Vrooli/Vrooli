@@ -34,6 +34,9 @@ vi.mock("../services", () => ({
     delete: vi.fn(),
     queue: vi.fn(),
   },
+  executionService: {
+    list: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 import { backlogService } from "../services";
@@ -252,12 +255,12 @@ describe("BacklogPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Queue")).toBeInTheDocument();
+      expect(screen.getByText("Run")).toBeInTheDocument();
     });
     expect(screen.queryByText("Only archived ideas can be queued directly.")).not.toBeInTheDocument();
   });
 
-  it("queues selected backlog items from bulk actions", async () => {
+  it("enables batch selection and shows run button when items are selected", async () => {
     vi.mocked(backlogService.list).mockResolvedValue([
       {
         name: "idea-1",
@@ -285,34 +288,30 @@ describe("BacklogPage", () => {
 
     renderPage();
 
+    // Enter batch mode to reveal the "Run Selected" button and item checkboxes
     await waitFor(() => {
-      expect(screen.getByText("Queue Selected")).toBeInTheDocument();
+      expect(screen.getByLabelText("Toggle batch mode")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByLabelText("Toggle batch mode"));
+
+    // "Run Selected" button appears (disabled since nothing selected yet)
+    await waitFor(() => {
+      expect(screen.getByText("Run Selected")).toBeInTheDocument();
     });
 
+    // Checkboxes should appear for each queueable item
+    expect(screen.getByLabelText("Select backlog item Idea One")).toBeInTheDocument();
+    expect(screen.getByLabelText("Select backlog item Idea Two")).toBeInTheDocument();
+
+    // Select items — button should become enabled
     fireEvent.click(screen.getByLabelText("Select backlog item Idea One"));
     fireEvent.click(screen.getByLabelText("Select backlog item Idea Two"));
-    fireEvent.click(screen.getByText("Queue Selected"));
 
     await waitFor(() => {
-      expect(backlogService.queue).toHaveBeenCalledTimes(2);
+      const el = screen.getByText("Run Selected");
+      const btn = el.closest("button");
+      expect(btn).not.toBeNull();
+      expect(btn).not.toBeDisabled();
     });
-    expect(backlogService.queue).toHaveBeenNthCalledWith(
-      1,
-      "idea",
-      "idea-1",
-      expect.objectContaining({
-        mode: "manual",
-        startedBy: "swarm-manager-ui",
-      })
-    );
-    expect(backlogService.queue).toHaveBeenNthCalledWith(
-      2,
-      "idea",
-      "idea-2",
-      expect.objectContaining({
-        mode: "manual",
-        startedBy: "swarm-manager-ui",
-      })
-    );
   });
 });

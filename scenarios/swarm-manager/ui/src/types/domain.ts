@@ -146,6 +146,7 @@ export interface IdeaSuggestion {
   suggestion: string;
   details?: string;
   status?: IdeaSuggestionDecision;
+  notes?: string;
   lastSynthesis?: SuggestionLastSynthesis;
 }
 
@@ -489,6 +490,7 @@ export interface SuggestionFormValues {
   suggestion: string;
   details?: string;
   status?: IdeaSuggestionDecision;
+  notes?: string;
 }
 
 export interface PromptSkillVersions {

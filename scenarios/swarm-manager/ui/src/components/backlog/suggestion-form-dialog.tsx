@@ -34,6 +34,7 @@ export function SuggestionFormDialog({
   const [suggestion, setSuggestion] = useState("");
   const [details, setDetails] = useState("");
   const [status, setStatus] = useState<IdeaSuggestionDecision>("pending");
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const isEditMode = mode === "edit";
@@ -43,6 +44,7 @@ export function SuggestionFormDialog({
       setSuggestion(initialValues?.suggestion ?? "");
       setDetails(initialValues?.details ?? "");
       setStatus(initialValues?.status ?? "pending");
+      setNotes(initialValues?.notes ?? "");
       setError(null);
     }
   }, [isOpen, initialValues]);
@@ -56,6 +58,7 @@ export function SuggestionFormDialog({
       suggestion: suggestion.trim(),
       details: details.trim() || undefined,
       status,
+      notes: notes.trim() || undefined,
     });
   };
 
@@ -112,6 +115,21 @@ export function SuggestionFormDialog({
             </Select>
           </div>
         </div>
+
+        {(status === "accepted" || status === "rejected") && (
+          <div>
+            <label htmlFor="suggestion-form-notes" className="text-sm font-medium text-slate-300">Notes (optional)</label>
+            <textarea
+              id="suggestion-form-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add a note about this decision..."
+              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              rows={2}
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
 
         {displayError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">

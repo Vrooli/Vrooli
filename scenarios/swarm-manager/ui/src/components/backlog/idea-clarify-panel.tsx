@@ -209,9 +209,12 @@ export function IdeaClarifyPanel({
                     <ClarifyQuestionList
                       questions={[q]}
                       onChange={(updated) => {
-                        setLocalQuestions((prev) =>
-                          prev.map((pq) => (pq.id === updated[0]?.id ? updated[0]! : pq))
-                        );
+                        const first = updated[0];
+                        if (first) {
+                          setLocalQuestions((prev) =>
+                            prev.map((pq) => (pq.id === first.id ? first : pq))
+                          );
+                        }
                       }}
                       testIdPrefix={`clarify-${idx}`}
                       disabled={disabled}

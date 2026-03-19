@@ -101,7 +101,7 @@ export function RunBacklogModal({
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
 
   const isBulk = Boolean(targets && targets.length > 0);
-  const effectiveTargets = isBulk ? targets! : target ? [target] : [];
+  const effectiveTargets = isBulk && targets ? targets : target ? [target] : [];
   const queueDepth = pendingCount + runningCount;
 
   // Reset state and fetch queue depth when modal opens
@@ -197,7 +197,8 @@ export function RunBacklogModal({
           onClose();
         }
       } else {
-        const item = effectiveTargets[0]!;
+        const item = effectiveTargets[0];
+        if (!item) return;
         const result = await backlogService.queue(item.kind, item.name, options);
 
         if (result.dryRun && result.blockingReasons.length > 0) {

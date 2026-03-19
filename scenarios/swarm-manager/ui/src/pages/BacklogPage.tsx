@@ -672,12 +672,10 @@ export function BacklogPage() {
                     maxTags={displayLimitsConfig.backlogCardMaxTags}
                     className="mt-3"
                   />
-                  {item.kind === "idea" && maturityMap.get(`${item.kind}/${item.name}`) && (
-                    <MaturityPhaseBar
-                      maturity={maturityMap.get(`${item.kind}/${item.name}`)!}
-                      className="mt-3"
-                    />
-                  )}
+                  {(() => {
+                    const mat = item.kind === "idea" ? maturityMap.get(`${item.kind}/${item.name}`) : undefined;
+                    return mat ? <MaturityPhaseBar maturity={mat} className="mt-3" /> : null;
+                  })()}
                   <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
