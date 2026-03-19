@@ -142,4 +142,52 @@ describe("WizardShell", () => {
     const step0 = screen.getByTestId("step-indicator-0");
     expect(step0).toHaveAttribute("aria-label", "Go back to Welcome");
   });
+
+  it("calls onNext when Next button is clicked", () => {
+    const onNext = vi.fn();
+    render(<WizardShell {...defaultProps} onNext={onNext}>Content</WizardShell>);
+    fireEvent.click(screen.getByTestId("wizard-next"));
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onPrev when Back button is clicked", () => {
+    const onPrev = vi.fn();
+    render(<WizardShell {...defaultProps} currentStep={1} onPrev={onPrev} showPrev={true}>Content</WizardShell>);
+    fireEvent.click(screen.getByTestId("wizard-prev"));
+    expect(onPrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("progress bar width reflects step position", () => {
+    render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
+    const progressFill = screen.getByTestId("progress-bar");
+    // Step 1 of 4 steps (0-indexed): 1/3 * 100 ≈ 33.33%
+    expect(progressFill.style.width).toMatch(/33\.3/);
+  });
+
+  it("shows step number for non-completed future steps", () => {
+    render(<WizardShell {...defaultProps} currentStep={0}>Content</WizardShell>);
+    // Step 0 is current (shows "1"), steps 1-3 are future
+    expect(screen.getByTestId("step-indicator-0")).toHaveTextContent("1");
+    expect(screen.getByTestId("step-indicator-3")).toHaveTextContent("4");
+  });
+
+  it("progress bar width is 0% on first step", () => {
+    render(<WizardShell {...defaultProps} currentStep={0}>Content</WizardShell>);
+    const progressFill = screen.getByTestId("progress-bar");
+    expect(progressFill.style.width).toBe("0%");
+  });
+
+  it("progress bar width is 100% on last step", () => {
+    render(<WizardShell {...defaultProps} currentStep={3}>Content</WizardShell>);
+    const progressFill = screen.getByTestId("progress-bar");
+    expect(progressFill.style.width).toBe("100%");
+  });
+
+  it("does not call onGoToStep for current step", () => {
+    const goToStep = vi.fn();
+    render(<WizardShell {...defaultProps} currentStep={1} onGoToStep={goToStep}>Content</WizardShell>);
+    const step1 = screen.getByTestId("step-indicator-1");
+    fireEvent.click(step1);
+    expect(goToStep).not.toHaveBeenCalled();
+  });
 });

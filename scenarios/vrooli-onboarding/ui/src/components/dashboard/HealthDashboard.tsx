@@ -115,11 +115,11 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
             size="sm"
             onClick={() => void refetch()}
             className="mt-4"
-            data-testid="health-retry"
-            aria-label="Retry loading health data"
+            data-testid="health-reattempt"
+            aria-label="Reattempt loading health data"
           >
             <RefreshCw className="mr-1.5 h-3 w-3" aria-hidden="true" />
-            Retry
+            Reattempt
           </Button>
         </div>
       )}

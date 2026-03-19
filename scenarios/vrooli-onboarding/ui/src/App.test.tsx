@@ -95,6 +95,31 @@ describe("App - View Navigation", () => {
     fireEvent.keyDown(document, { key: "2", altKey: true });
     expect(screen.getByTestId("health-dashboard")).toBeInTheDocument();
   });
+
+  it("ignores Alt+number shortcut when input is focused", () => {
+    renderApp();
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+
+    // Create and focus an input element
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    // Alt+2 with input focused should NOT switch views
+    fireEvent.keyDown(input, { key: "2", altKey: true });
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+
+    document.body.removeChild(input);
+  });
+
+  it("ignores shortcut with Ctrl or Meta modifier", () => {
+    renderApp();
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+
+    // Alt+Ctrl+2 should be ignored
+    fireEvent.keyDown(document, { key: "2", altKey: true, ctrlKey: true });
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+  });
 });
 
 describe("App - Step Transitions", () => {
@@ -102,5 +127,27 @@ describe("App - Step Transitions", () => {
     renderApp();
     const stepContent = screen.getByTestId("step-welcome").parentElement;
     expect(stepContent?.classList.contains("animate-step-enter")).toBe(true);
+  });
+});
+
+describe("App - View Switching", () => {
+  it("switches to dashboard and back to wizard", () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId("nav-dashboard"));
+    expect(screen.getByTestId("health-dashboard")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("nav-wizard"));
+    expect(screen.getByTestId("wizard-shell")).toBeInTheDocument();
+  });
+
+  it("switches to glossary view", () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId("nav-glossary"));
+    expect(screen.getByTestId("glossary-panel")).toBeInTheDocument();
+  });
+
+  it("step announcement is empty when not on wizard view", () => {
+    renderApp();
+    fireEvent.click(screen.getByTestId("nav-dashboard"));
+    expect(screen.getByTestId("step-announcement")).toHaveTextContent("");
   });
 });

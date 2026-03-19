@@ -47,8 +47,10 @@ describe("Progress Resume Flow", () => {
     });
 
     renderApp();
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByTestId("resume-prompt")).not.toBeInTheDocument();
+    // Wait for fetch to resolve, then verify no resume prompt shown
+    await waitFor(() => {
+      expect(screen.queryByTestId("resume-prompt")).not.toBeInTheDocument();
+    });
 
     globalThis.fetch = originalFetch;
   });
@@ -77,6 +79,39 @@ describe("Progress Resume Flow", () => {
     await waitFor(() => {
       expect(screen.getByTestId("resume-prompt")).toBeInTheDocument();
     });
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it("resume prompt displays the saved step number", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/progress")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            id: 1,
+            user_id: "default",
+            current_step: 2,
+            completed_steps: [0, 1],
+            config_data: { resources: ["postgres"] },
+            updated_at: "2026-01-01T00:00:00Z",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("resume-prompt")).toBeInTheDocument();
+    });
+
+    // Should display the step number (1-indexed: step 2 → "step 3")
+    expect(screen.getByTestId("resume-prompt")).toHaveTextContent(/step 3/i);
+    // Resume prompt should have alert role for accessibility
+    expect(screen.getByTestId("resume-prompt")).toHaveAttribute("role", "alert");
 
     globalThis.fetch = originalFetch;
   });

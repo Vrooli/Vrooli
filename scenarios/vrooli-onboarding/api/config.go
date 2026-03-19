@@ -33,6 +33,17 @@ func loadAvailableSet() (map[string]bool, error) {
 	return set, nil
 }
 
+// loadAvailableSetOrFail loads the available resource set and writes a 500 error if it fails.
+// Returns the set and true on success, or nil and false on failure (response already written).
+func loadAvailableSetOrFail(w http.ResponseWriter) (map[string]bool, bool) {
+	set, err := loadAvailableSet()
+	if err != nil {
+		writeResourceLoadError(w, err)
+		return nil, false
+	}
+	return set, true
+}
+
 func (s *Server) handleConfigGenerate(w http.ResponseWriter, r *http.Request) {
 	var req configGenerateRequest
 	if !decodeJSONBody(w, r, &req) {
@@ -46,11 +57,8 @@ func (s *Server) handleConfigGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableSet, err := loadAvailableSet()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to load available resources: " + err.Error(),
-		})
+	availableSet, ok := loadAvailableSetOrFail(w)
+	if !ok {
 		return
 	}
 
@@ -108,11 +116,8 @@ func (s *Server) handleConfigValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableSet, err := loadAvailableSet()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to load available resources: " + err.Error(),
-		})
+	availableSet, ok := loadAvailableSetOrFail(w)
+	if !ok {
 		return
 	}
 

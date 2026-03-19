@@ -155,4 +155,47 @@ describe("GlossaryPanel", () => {
     // Debounce indicator should appear briefly
     expect(screen.getByTestId("glossary-debounce-indicator")).toBeInTheDocument();
   });
+
+  it("renders entry descriptions alongside terms", async () => {
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
+    });
+    // Each entry should show both term and description
+    expect(screen.getByText("A local service like a database or AI model.")).toBeInTheDocument();
+    expect(screen.getByText("A full application built from resources.")).toBeInTheDocument();
+    expect(screen.getByText("Local AI model runner.")).toBeInTheDocument();
+  });
+
+  it("renders subheading text", () => {
+    mockFetchPending();
+    renderWithQueryClient(<GlossaryPanel />);
+    expect(screen.getByText(/look up vrooli terms/i)).toBeInTheDocument();
+  });
+
+  it("glossary list uses dl element for proper term/definition semantics", async () => {
+    mockFetchSuccess(mockGlossaryData);
+    renderWithQueryClient(<GlossaryPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId("glossary-list")).toBeInTheDocument();
+    });
+    const dl = screen.getByTestId("glossary-list");
+    expect(dl.tagName).toBe("DL");
+    // Should contain dt (term) and dd (description) elements
+    expect(dl.querySelectorAll("dt").length).toBe(3);
+    expect(dl.querySelectorAll("dd").length).toBe(3);
+  });
+
+  it("clearing search via button resets search input", async () => {
+    mockFetchSuccess({ entries: [], count: 0 });
+    renderWithQueryClient(<GlossaryPanel />);
+    const searchInput = screen.getByTestId("glossary-search");
+    fireEvent.change(searchInput, { target: { value: "nonexistent" } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /clear the search/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /clear the search/i }));
+    expect(searchInput).toHaveValue("");
+  });
 });

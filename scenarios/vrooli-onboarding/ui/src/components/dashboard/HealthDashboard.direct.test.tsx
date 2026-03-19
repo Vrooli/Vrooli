@@ -94,13 +94,13 @@ describe("HealthDashboard", () => {
     });
   });
 
-  it("shows retry button on error state", async () => {
+  it("shows reattempt button on error state", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
     renderDashboard();
     await waitFor(() => {
-      expect(screen.getByTestId("health-retry")).toBeInTheDocument();
+      expect(screen.getByTestId("health-reattempt")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("health-retry")).toHaveAttribute("aria-label", "Retry loading health data");
+    expect(screen.getByTestId("health-reattempt")).toHaveAttribute("aria-label", "Reattempt loading health data");
   });
 
   it("shows refresh button when resources loaded", async () => {

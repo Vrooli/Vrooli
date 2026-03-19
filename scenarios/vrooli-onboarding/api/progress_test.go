@@ -178,3 +178,178 @@ func newRouterForTest(srv *Server) *mux.Router {
 	r.HandleFunc("/api/v1/progress", srv.handleUpdateProgress).Methods("PUT")
 	return r
 }
+
+// closedDB returns a *sql.DB that is already closed, triggering DB errors on use.
+func closedDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("postgres", "postgres://invalid:invalid@localhost:1/invalid?sslmode=disable")
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	db.Close()
+	return db
+}
+
+// TestProgressGetDBError verifies 500 when database returns a generic error.
+// [REQ:REQ-P1-003] - Progress Storage Backend
+func TestProgressGetDBError(t *testing.T) {
+	db := closedDB(t)
+	srv := &Server{db: db, router: nil}
+	srv.router = newRouterForTest(srv)
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/progress?user_id=test-db-error", nil)
+	getW := httptest.NewRecorder()
+	srv.router.ServeHTTP(getW, getReq)
+
+	if getW.Code != http.StatusInternalServerError {
+		t.Fatalf("GET status = %d, want %d; body: %s", getW.Code, http.StatusInternalServerError, getW.Body.String())
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(getW.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !strings.Contains(body["error"], "database error") {
+		t.Errorf("expected 'database error' in response, got %q", body["error"])
+	}
+}
+
+// TestProgressUpdateDBError verifies 500 when database returns a generic error on update.
+// [REQ:REQ-P1-003] - Progress Storage Backend
+func TestProgressUpdateDBError(t *testing.T) {
+	db := closedDB(t)
+	srv := &Server{db: db, router: nil}
+	srv.router = newRouterForTest(srv)
+
+	putBody := `{"user_id": "test-db-error", "current_step": 1}`
+	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/progress", strings.NewReader(putBody))
+	putReq.Header.Set("Content-Type", "application/json")
+	putW := httptest.NewRecorder()
+	srv.router.ServeHTTP(putW, putReq)
+
+	if putW.Code != http.StatusInternalServerError {
+		t.Fatalf("PUT status = %d, want %d; body: %s", putW.Code, http.StatusInternalServerError, putW.Body.String())
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(putW.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !strings.Contains(body["error"], "database error") {
+		t.Errorf("expected 'database error' in response, got %q", body["error"])
+	}
+}
+
+// TestProgressUpdateInvalidJSON verifies 400 for malformed JSON body.
+// [REQ:REQ-P1-003] - Progress Storage Backend
+func TestProgressUpdateInvalidJSON(t *testing.T) {
+	db := closedDB(t)
+	srv := &Server{db: db, router: nil}
+	srv.router = newRouterForTest(srv)
+
+	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/progress", strings.NewReader("{bad json"))
+	putReq.Header.Set("Content-Type", "application/json")
+	putW := httptest.NewRecorder()
+	srv.router.ServeHTTP(putW, putReq)
+
+	if putW.Code != http.StatusBadRequest {
+		t.Fatalf("PUT status = %d, want %d; body: %s", putW.Code, http.StatusBadRequest, putW.Body.String())
+	}
+}
+
+// TestProgressUpdateMinimalBody verifies defaults are applied for missing fields.
+// [REQ:REQ-P1-003] - Progress Storage Backend
+func TestProgressUpdateMinimalBody(t *testing.T) {
+	db := requireDB(t)
+	srv := &Server{db: db, router: nil}
+	srv.router = newRouterForTest(srv)
+
+	testUserID := "test-minimal-body"
+	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	})
+
+	// Only provide user_id — step, completed_steps, config_data should all default
+	putBody := `{"user_id": "test-minimal-body"}`
+	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/progress", strings.NewReader(putBody))
+	putReq.Header.Set("Content-Type", "application/json")
+	putW := httptest.NewRecorder()
+	srv.router.ServeHTTP(putW, putReq)
+
+	if putW.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, want %d; body: %s", putW.Code, http.StatusOK, putW.Body.String())
+	}
+
+	var resp OnboardingProgress
+	if err := json.Unmarshal(putW.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.CurrentStep != 0 {
+		t.Errorf("CurrentStep = %d, want 0 (default)", resp.CurrentStep)
+	}
+	if string(resp.CompletedSteps) != "[]" {
+		t.Errorf("CompletedSteps = %s, want []", resp.CompletedSteps)
+	}
+	if string(resp.ConfigData) != "{}" {
+		t.Errorf("ConfigData = %s, want {}", resp.ConfigData)
+	}
+}
+
+// TestProgressUpsertOverwrite verifies that updating an existing user's progress replaces old values.
+// [REQ:REQ-P1-003] - Progress Storage Backend
+func TestProgressUpsertOverwrite(t *testing.T) {
+	db := requireDB(t)
+	srv := &Server{db: db, router: nil}
+	srv.router = newRouterForTest(srv)
+
+	testUserID := "test-upsert-overwrite"
+	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	})
+
+	// First insert
+	body1 := `{"user_id": "test-upsert-overwrite", "current_step": 1, "completed_steps": [1]}`
+	req1 := httptest.NewRequest(http.MethodPut, "/api/v1/progress", strings.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	srv.router.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("first PUT status = %d; body: %s", w1.Code, w1.Body.String())
+	}
+
+	// Second update — should overwrite
+	body2 := `{"user_id": "test-upsert-overwrite", "current_step": 5, "completed_steps": [1,2,3,4,5], "config_data": {"step": 5}}`
+	req2 := httptest.NewRequest(http.MethodPut, "/api/v1/progress", strings.NewReader(body2))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	srv.router.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("second PUT status = %d; body: %s", w2.Code, w2.Body.String())
+	}
+
+	var resp OnboardingProgress
+	if err := json.Unmarshal(w2.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.CurrentStep != 5 {
+		t.Errorf("CurrentStep = %d, want 5 after upsert", resp.CurrentStep)
+	}
+
+	// Verify GET returns the updated values
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/progress?user_id=test-upsert-overwrite", nil)
+	getW := httptest.NewRecorder()
+	srv.router.ServeHTTP(getW, getReq)
+	if getW.Code != http.StatusOK {
+		t.Fatalf("GET status = %d; body: %s", getW.Code, getW.Body.String())
+	}
+
+	var getResp OnboardingProgress
+	if err := json.Unmarshal(getW.Body.Bytes(), &getResp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if getResp.CurrentStep != 5 {
+		t.Errorf("GET CurrentStep = %d, want 5", getResp.CurrentStep)
+	}
+}

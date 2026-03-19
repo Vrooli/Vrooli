@@ -192,4 +192,64 @@ describe("StepSelectResources", () => {
       expect(screen.getByTestId("step-resources-error")).toBeInTheDocument();
     });
   });
+
+  it("sets aria-pressed on selected resource cards", async () => {
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("resource-card-postgres")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("resource-card-postgres")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("resource-card-redis")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("displays setup order in correct dependency order", async () => {
+    renderComponent(new Set(["redis", "postgres", "ollama"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("setup-order-hint")).toBeInTheDocument();
+    });
+    // postgres (order 1) → redis (order 2) → ollama (order 3)
+    expect(screen.getByTestId("setup-order-hint")).toHaveTextContent("postgres → redis → ollama");
+  });
+
+  it("Deselect All calls onToggle for every selected item in category", async () => {
+    const onToggle = vi.fn();
+    renderComponent(new Set(["postgres", "redis"]), onToggle);
+    await waitFor(() => {
+      expect(screen.getByTestId("category-toggle-database")).toHaveTextContent("Deselect All");
+    });
+    fireEvent.click(screen.getByTestId("category-toggle-database"));
+    expect(onToggle).toHaveBeenCalledWith("postgres");
+    expect(onToggle).toHaveBeenCalledWith("redis");
+    expect(onToggle).toHaveBeenCalledTimes(2);
+  });
+
+  it("Select Rest only toggles unselected items in category", async () => {
+    const onToggle = vi.fn();
+    // postgres selected, redis not
+    renderComponent(new Set(["postgres"]), onToggle);
+    await waitFor(() => {
+      expect(screen.getByTestId("category-toggle-database")).toHaveTextContent("Select Rest");
+    });
+    fireEvent.click(screen.getByTestId("category-toggle-database"));
+    // Should only toggle redis (the unselected one)
+    expect(onToggle).toHaveBeenCalledWith("redis");
+    expect(onToggle).not.toHaveBeenCalledWith("postgres");
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("resource card includes status badge text", async () => {
+    renderComponent(new Set());
+    await waitFor(() => {
+      expect(screen.getByTestId("resource-card-postgres")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("resource-card-postgres")).toHaveTextContent("running");
+    expect(screen.getByTestId("resource-card-redis")).toHaveTextContent("stopped");
+  });
+
+  it("shows singular 'resource' when exactly one selected", async () => {
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByText(/1 resource selected/i)).toBeInTheDocument();
+    });
+  });
 });

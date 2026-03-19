@@ -31,12 +31,16 @@ describe("StepComplete", () => {
     expect(screen.getByText(/configuration ready/i)).toBeInTheDocument();
   });
 
-  it("shows error on API failure", async () => {
+  it("shows error on API failure with alert role and message", async () => {
     mockFetchError();
     renderComponent(new Set(["postgres"]));
     await waitFor(() => {
       expect(screen.getByTestId("config-error")).toBeInTheDocument();
     });
+    // Error should be announced via role="alert" for screen readers
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    // Should contain a meaningful error message
+    expect(screen.getByTestId("config-error")).toHaveTextContent(/failed|error|problem/i);
   });
 
   it("shows download button when config is generated", async () => {
@@ -118,5 +122,87 @@ describe("StepComplete", () => {
     fireEvent.click(screen.getByTestId("start-over-cancel"));
     expect(onStartOver).not.toHaveBeenCalled();
     expect(screen.getByTestId("start-over")).toBeInTheDocument();
+  });
+
+  it("shows singular 'resource' when exactly one selected", async () => {
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByText(/1 resource\./i)).toBeInTheDocument();
+    });
+  });
+
+  it("does not show Start Over button when onStartOver is not provided", async () => {
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("config-output")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("start-over")).not.toBeInTheDocument();
+  });
+
+  it("copy button calls clipboard.writeText with config JSON", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("copy-config")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("copy-config"));
+    expect(writeText).toHaveBeenCalledWith(JSON.stringify(MOCK_CONFIG, null, 2));
+  });
+
+  it("config output renders full JSON structure including nested keys", async () => {
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("config-output")).toBeInTheDocument();
+    });
+    const output = screen.getByTestId("config-output");
+    // Verify the JSON contains key structural elements
+    expect(output).toHaveTextContent("postgres");
+    expect(output).toHaveTextContent("enabled");
+    expect(output).toHaveTextContent("resources");
+  });
+
+  it("download button creates and clicks a temporary link", async () => {
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("download-config")).toBeInTheDocument();
+    });
+
+    const createObjectURL = vi.fn().mockReturnValue("blob:test-url");
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+
+    const fakeLink = document.createElement("a");
+    const clickSpy = vi.spyOn(fakeLink, "click");
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      if (tag === "a") return fakeLink;
+      return document.createElement(tag);
+    });
+
+    fireEvent.click(screen.getByTestId("download-config"));
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(clickSpy).toHaveBeenCalled();
+    expect(fakeLink.download).toBe("vrooli-config.json");
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:test-url");
+  });
+
+  it("copy button shows 'Copied' text after clicking", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    mockFetchSuccess(MOCK_CONFIG);
+    renderComponent(new Set(["postgres"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("copy-config")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("copy-config"));
+    await waitFor(() => {
+      expect(screen.getByText("Copied")).toBeInTheDocument();
+    });
   });
 });
