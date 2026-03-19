@@ -57,9 +57,10 @@ type TerminalMessage struct {
 	Source  string `json:"source,omitempty"`
 	Stage   string `json:"stage,omitempty"`
 	Backend string `json:"backend,omitempty"`
-	Role    string `json:"role,omitempty"`
-	CreatedAt string `json:"createdAt,omitempty"`
-	Sequence int64 `json:"sequence,omitempty"`
+	Role             string   `json:"role,omitempty"`
+	CreatedAt        string   `json:"createdAt,omitempty"`
+	Sequence         int64    `json:"sequence,omitempty"`
+	SpeechParagraphs []string `json:"speechParagraphs,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -205,13 +206,14 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
-					Type:      MsgTypeConversationEvent,
-					Data:      event.Text,
-					EventID:   event.ID,
-					Source:    event.Source,
-					Role:      string(event.Role),
-					CreatedAt: event.CreatedAt.UTC().Format(time.RFC3339),
-					Sequence:  event.Sequence,
+					Type:             MsgTypeConversationEvent,
+					Data:             event.Text,
+					EventID:          event.ID,
+					Source:           event.Source,
+					Role:             string(event.Role),
+					CreatedAt:        event.CreatedAt.UTC().Format(time.RFC3339),
+					Sequence:         event.Sequence,
+					SpeechParagraphs: event.SpeechParagraphs,
 				})
 				writeMu.Unlock()
 			case <-ctx.Done():

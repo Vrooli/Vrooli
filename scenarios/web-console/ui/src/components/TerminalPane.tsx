@@ -21,10 +21,36 @@ import { useConversationSession } from "../hooks/useConversationSession";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { ConversationEvent } from "../lib/api";
 import type { TTSPlaybackState } from "../hooks/tts/types";
-import { splitIntoParagraphs } from "../lib/ttsChunker";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
+
+/** Backend synthesis limit. Paragraphs must stay under this. */
+const TTS_MAX_CHUNK = 4500;
+
+/**
+ * Ensures every paragraph fits within the TTS synthesis character limit.
+ * This is a defensive fallback for events that lack backend-computed
+ * speechParagraphs (e.g. cached from an older server version).
+ */
+function ensureSpeechChunks(paragraphs: string[]): string[] {
+  const result: string[] = [];
+  for (const p of paragraphs) {
+    if (p.length <= TTS_MAX_CHUNK) {
+      result.push(p);
+    } else {
+      let remaining = p;
+      while (remaining.length > TTS_MAX_CHUNK) {
+        const splitAt = remaining.lastIndexOf(" ", TTS_MAX_CHUNK);
+        const cut = splitAt > 0 ? splitAt : TTS_MAX_CHUNK;
+        result.push(remaining.slice(0, cut).trim());
+        remaining = remaining.slice(cut).trim();
+      }
+      if (remaining) result.push(remaining);
+    }
+  }
+  return result.filter(Boolean);
+}
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -142,7 +168,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
 
     const handleConversationEvent = useCallback(async (
-      event: { id: string; source: string; role: "assistant"; text: string; createdAt?: string; sequence: number },
+      event: { id: string; source: string; role: "assistant"; text: string; speechParagraphs?: string[]; createdAt?: string; sequence: number },
       sendAck: (stage: string, message?: string, backend?: string) => void,
     ) => {
       appendConversationEvent({
@@ -151,6 +177,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         source: event.source,
         role: event.role,
         text: event.text,
+        speechParagraphs: event.speechParagraphs ?? [event.text],
         createdAt: event.createdAt ?? new Date().toISOString(),
         sequence: event.sequence,
         deliveryState: "received",
@@ -172,7 +199,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
       livePlaybackEventRef.current = event.id;
       ttsStop();
-      const paragraphs = splitIntoParagraphs(event.text);
+      const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
       sendAck("playback_started", undefined, backend);
       try {
         const usedBackend = await speakParagraphs(paragraphs);
@@ -208,7 +235,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         for (const event of pending) {
           if (cancelled) return;
           ttsStop();
-          const paragraphs = splitIntoParagraphs(event.text);
+          const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
           try {
             await speakParagraphs(paragraphs);
             await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
@@ -261,8 +288,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           onProgress(i);
           const text = texts[i];
           if (!text) continue;
-          const paragraphs = splitIntoParagraphs(text);
-          await speakParagraphs(paragraphs);
+          await speakParagraphs(ensureSpeechChunks([text]));
         }
       },
       pauseTts: ttsPause,

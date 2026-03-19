@@ -40,6 +40,7 @@ export interface TerminalMessage {
   role?: string;
   createdAt?: string;
   sequence?: number;
+  speechParagraphs?: string[];
 }
 
 export interface ConversationEventMessage {
@@ -47,6 +48,7 @@ export interface ConversationEventMessage {
   source: string;
   role: "assistant";
   text: string;
+  speechParagraphs?: string[];
   createdAt?: string;
   sequence: number;
 }
@@ -363,6 +365,7 @@ export function useTerminalSocket({
                 source: msg.source,
                 role: (msg.role === "assistant" ? "assistant" : "assistant"),
                 text: msg.data,
+                speechParagraphs: msg.speechParagraphs,
                 createdAt: msg.createdAt,
                 sequence: msg.sequence,
               } satisfies ConversationEventMessage;

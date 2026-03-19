@@ -124,6 +124,7 @@ func (s *Server) handleTTSSynthesize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Input) > maxSynthesizeInputLength {
+		log.Printf("tts-synthesize: input too long (%d chars, limit %d)", len(req.Input), maxSynthesizeInputLength)
 		writeCatalogError(w, "tts_input_too_long", "input exceeds maximum length of 5000 characters")
 		return
 	}

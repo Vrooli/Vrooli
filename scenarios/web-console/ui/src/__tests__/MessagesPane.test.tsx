@@ -10,6 +10,7 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
     source: "claude_hook",
     role: "assistant",
     text: `Message ${overrides.sequence}`,
+    speechParagraphs: [`Message ${overrides.sequence}`],
     createdAt: new Date().toISOString(),
     deliveryState: "received",
     ttsState: "idle",

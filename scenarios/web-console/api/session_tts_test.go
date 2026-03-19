@@ -20,7 +20,7 @@ func TestSubscribeConversation_SendConversation_Delivered(t *testing.T) {
 
 	select {
 	case msg := <-ch:
-		if msg != event {
+		if msg.ID != event.ID || msg.Text != event.Text || msg.Source != event.Source {
 			t.Fatalf("expected %+v, got %+v", event, msg)
 		}
 	case <-time.After(time.Second):

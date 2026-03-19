@@ -41,7 +41,7 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 }));
 
 let capturedCandidateHandler:
-  | ((candidate: { id: string; source: string; role: "assistant"; text: string; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
+  | ((candidate: { id: string; source: string; role: "assistant"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
   | undefined;
 vi.mock("../hooks/useTerminalSocket", () => ({
   useTerminalSocket: (opts: { onConversationEvent?: typeof capturedCandidateHandler }) => {
@@ -179,7 +179,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-1", source: "claude_hook", role: "assistant", sequence: 1, text: "Hello world" }, ack);
+      await capturedCandidateHandler?.({ id: "evt-1", source: "claude_hook", role: "assistant", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] }, ack);
     });
 
     expect(mockStop).toHaveBeenCalled();
@@ -190,11 +190,15 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     expect(ack).toHaveBeenCalledWith("playback_succeeded", undefined, "browser");
   });
 
-  it("splits text on paragraph boundaries", async () => {
+  it("uses backend-provided speechParagraphs for TTS playback", async () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-2", source: "claude_hook", role: "assistant", sequence: 2, text: "First paragraph\n\nSecond paragraph\n\nThird paragraph" }, vi.fn());
+      await capturedCandidateHandler?.({
+        id: "evt-2", source: "claude_hook", role: "assistant", sequence: 2,
+        text: "First paragraph\n\nSecond paragraph\n\nThird paragraph",
+        speechParagraphs: ["First paragraph", "Second paragraph", "Third paragraph"],
+      }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
@@ -210,7 +214,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-3", source: "claude_hook", role: "assistant", sequence: 3, text: "Hello world" }, ack);
+      await capturedCandidateHandler?.({ id: "evt-3", source: "claude_hook", role: "assistant", sequence: 3, text: "Hello world", speechParagraphs: ["Hello world"] }, ack);
     });
 
     expect(mockSpeakParagraphs).not.toHaveBeenCalled();
@@ -222,7 +226,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-4", source: "claude_hook", role: "assistant", sequence: 4, text: "This text is nowhere in the visible terminal" }, ack);
+      await capturedCandidateHandler?.({ id: "evt-4", source: "claude_hook", role: "assistant", sequence: 4, text: "This text is nowhere in the visible terminal", speechParagraphs: ["This text is nowhere in the visible terminal"] }, ack);
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith(["This text is nowhere in the visible terminal"]);
@@ -243,11 +247,12 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
         role: "assistant",
         sequence: 5,
         text: "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
+        speechParagraphs: ["Hi. What do you need help with in Vrooli?"],
       }, ack);
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
-      "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
+      "Hi. What do you need help with in Vrooli?",
     ]);
     expect(ack).toHaveBeenCalledWith("seen");
     terminalBufferLines[0] = original;
@@ -264,6 +269,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
         role: "assistant",
         sequence: 6,
         text: "Rendered a moment later",
+        speechParagraphs: ["Rendered a moment later"],
       }, ack);
     });
 
@@ -271,34 +277,31 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     expect(ack).toHaveBeenCalledWith("seen");
   });
 
-  it("sub-splits long blocks on single newlines", async () => {
+  it("passes backend-provided speechParagraphs directly to speakParagraphs", async () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     const lineA = "A".repeat(300);
     const lineB = "B".repeat(300);
-    const originalA = terminalBufferLines[0] ?? "";
-    const originalB = terminalBufferLines[1] ?? "";
-    terminalBufferLines[0] = lineA;
-    terminalBufferLines[1] = lineB;
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-5", source: "claude_hook", role: "assistant", sequence: 7, text: `${lineA}\n${lineB}` }, vi.fn());
+      await capturedCandidateHandler?.({
+        id: "evt-5", source: "claude_hook", role: "assistant", sequence: 7,
+        text: `${lineA}\n${lineB}`,
+        speechParagraphs: [lineA, lineB],
+      }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB]);
-    terminalBufferLines[0] = originalA;
-    terminalBufferLines[1] = originalB;
   });
 
-  it("filters out empty paragraphs from split", async () => {
+  it("falls back to [text] when speechParagraphs is missing", async () => {
     render(<TerminalPane sessionId="tts-test" />);
 
     await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-6", source: "claude_hook", role: "assistant", sequence: 8, text: "Only real content\n\n\n\n\n\nSecond part" }, vi.fn());
+      await capturedCandidateHandler?.({ id: "evt-6", source: "claude_hook", role: "assistant", sequence: 8, text: "Only real content" }, vi.fn());
     });
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
       "Only real content",
-      "Second part",
     ]);
   });
 });

@@ -223,6 +223,7 @@ export interface ConversationEvent {
   source: string;
   role: "assistant";
   text: string;
+  speechParagraphs: string[];
   createdAt: string;
   sequence: number;
   deliveryState: string;

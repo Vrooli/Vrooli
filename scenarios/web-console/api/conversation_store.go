@@ -49,6 +49,7 @@ type ConversationEvent struct {
 	Source           string                       `json:"source"`
 	Role             ConversationRole             `json:"role"`
 	Text             string                       `json:"text"`
+	SpeechParagraphs []string                     `json:"speechParagraphs"`
 	CreatedAt        time.Time                    `json:"createdAt"`
 	Sequence         int64                        `json:"sequence"`
 	DeliveryState    ConversationDeliveryState    `json:"deliveryState"`
@@ -196,6 +197,7 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		Source:           source,
 		Role:             ConversationRoleAssistant,
 		Text:             cleanText,
+		SpeechParagraphs: SplitIntoSpeechParagraphs(cleanText),
 		CreatedAt:        time.Now().UTC(),
 		Sequence:         session.nextSequence,
 		DeliveryState:    ConversationDeliveryPending,
