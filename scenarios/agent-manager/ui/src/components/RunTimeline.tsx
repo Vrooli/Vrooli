@@ -203,6 +203,10 @@ export function RunTimeline({
     return run.actions?.canContinue ?? false;
   }, [run.actions?.canContinue]);
 
+  // Show the input area when we can continue OR when the run is still in progress
+  // (so users can type their follow-up while waiting). Send is disabled until the run completes.
+  const showInputArea = canContinue || isGenerating;
+
   useEffect(() => {
     if (!isGenerating || !isNearBottomRef.current) return;
     timelineEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -227,7 +231,7 @@ export function RunTimeline({
   const handleSend = async () => {
     const hasText = inputMessage.trim().length > 0;
     const hasAttachments = attachments.length > 0;
-    if ((!hasText && !hasAttachments) || !canContinue || sending || isUploading) return;
+    if ((!hasText && !hasAttachments) || !canContinue || sending || isUploading || isGenerating) return;
 
     setSending(true);
     setContinueError(null);
@@ -392,7 +396,7 @@ export function RunTimeline({
           )}
         </div>
 
-        {canContinue ? (
+        {showInputArea ? (
           <div className="border-t border-border px-3 py-4 sm:px-4">
             {attachments.length > 0 ? (
               <AttachmentPreview
@@ -430,7 +434,7 @@ export function RunTimeline({
                   if (continueError) setContinueError(null);
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Type your follow-up message..."
+                placeholder={isGenerating ? "Type your follow-up message while the run completes..." : "Type your follow-up message..."}
                 className="min-h-[60px] resize-none"
                 disabled={sending}
               />
@@ -438,8 +442,9 @@ export function RunTimeline({
               <Button
                 type="button"
                 onClick={() => void handleSend()}
-                disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading}
+                disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading || isGenerating}
                 className="self-end"
+                title={isGenerating ? "Send is available after the run completes" : undefined}
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
@@ -447,7 +452,9 @@ export function RunTimeline({
 
             {isDesktop ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Press Enter to send, Shift+Enter for a new line
+                {isGenerating
+                  ? "You can type your message now \u2014 send will be enabled when the run completes"
+                  : "Press Enter to send, Shift+Enter for a new line"}
               </p>
             ) : null}
 

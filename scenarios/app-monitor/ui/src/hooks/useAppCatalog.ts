@@ -43,7 +43,7 @@ export const useAppCatalog = (options: UseAppCatalogOptions = {}) => {
 
   const recentApps = useMemo(() => {
     const derived = buildRecentApps(apps, { excludeIdentifiers: excludeHistoryIdentifiers, limit: historyLimit });
-    if (derived.length > 0 || recentEntries.length === 0) {
+    if (recentEntries.length === 0) {
       return derived;
     }
 
@@ -62,18 +62,20 @@ export const useAppCatalog = (options: UseAppCatalogOptions = {}) => {
       });
     });
 
-    const entries = recentEntries
+    // Collect identifiers already present in server-derived results
+    const derivedKeys = new Set<string>();
+    derived.forEach((app) => {
+      collectAppIdentifiers(app).forEach(identifier => derivedKeys.add(identifier));
+    });
+
+    // Supplement with local store entries not already covered by server data
+    const supplemental = recentEntries
       .filter(entry => {
         const entryKey = resolveRecentEntryKey(entry);
         if (!entryKey) {
           return false;
         }
-        return !excludeSet.has(entryKey);
-      })
-      .sort((a, b) => {
-        const aTime = Date.parse(a.last_viewed_at ?? '') || 0;
-        const bTime = Date.parse(b.last_viewed_at ?? '') || 0;
-        return bTime - aTime;
+        return !excludeSet.has(entryKey) && !derivedKeys.has(entryKey);
       })
       .map((entry) => {
         const entryKey = resolveRecentEntryKey(entry);
@@ -81,10 +83,21 @@ export const useAppCatalog = (options: UseAppCatalogOptions = {}) => {
           return mergeRecentEntry(appLookup.get(entryKey) as App, entry);
         }
         return buildFallbackApp(entry);
+      });
+
+    // Merge and sort by most recently viewed
+    return [...derived, ...supplemental]
+      .sort((a, b) => {
+        const aTime = Date.parse(a.last_viewed_at ?? '') || 0;
+        const bTime = Date.parse(b.last_viewed_at ?? '') || 0;
+        if (aTime !== bTime) {
+          return bTime - aTime;
+        }
+        const aCount = typeof a.view_count === 'number' ? a.view_count : 0;
+        const bCount = typeof b.view_count === 'number' ? b.view_count : 0;
+        return bCount - aCount;
       })
       .slice(0, historyLimit);
-
-    return entries;
   }, [apps, excludeHistoryIdentifiers, historyLimit, recentEntries]);
 
   const alphabetizedApps = useMemo(

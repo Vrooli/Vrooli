@@ -24,6 +24,7 @@ import { usePreviewReportSession } from '@/hooks/usePreviewReportSession';
 import { usePreviewToolbarSession } from '@/hooks/usePreviewToolbarSession';
 import { usePreviewUrlOrchestration } from '@/hooks/usePreviewUrlOrchestration';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
+import { useAppViewRecording } from '@/hooks/useAppViewRecording';
 import { useAppInsights } from '@/hooks/useAppInsights';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
@@ -39,6 +40,8 @@ import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
 // AI_CHECK: APP_MONITOR_RENDER_PERF=1 | LAST: 2026-02-13
+const EMPTY_APPS: App[] = [];
+
 export interface PreviewPaneProps {
   paneId: string;
   appId: string | null;
@@ -63,7 +66,7 @@ const PreviewPane = memo(function PreviewPane({
   onArrangeDragStart,
 }: PreviewPaneProps) {
   const { openOverlay } = useOverlayRouter();
-  const apps = useAppsStore((state) => state.apps) ?? [];
+  const apps = useAppsStore((state) => state.apps ?? EMPTY_APPS);
   const setAppsState = useAppsStore((state) => state.setAppsState);
   const paneViewState = usePreviewWorkspaceStore((state) => state.paneViewState[paneId]);
   const workspaceZoom = usePreviewWorkspaceStore((state) => state.workspaceZoom);
@@ -302,6 +305,15 @@ const PreviewPane = memo(function PreviewPane({
       setBridgeCompliance(null);
     },
   });
+  const handleResetForMissingIdentifier = useCallback(() => {
+    setIsIframeLoading(false);
+    setStatusMessage('Select an app to preview.');
+    setIsLogsVisible(false);
+    setIframeLoadError(null);
+    setReportDialogOpen(false);
+    resetReportDraftState();
+  }, [resetReportDraftState]);
+
   const {
     currentApp,
     setCurrentApp,
@@ -315,14 +327,13 @@ const PreviewPane = memo(function PreviewPane({
     setAppsState,
     getApp: appService.getApp,
     setStatusMessage,
-    onResetForMissingIdentifier: () => {
-      setIsIframeLoading(false);
-      setStatusMessage('Select an app to preview.');
-      setIsLogsVisible(false);
-      setIframeLoadError(null);
-      setReportDialogOpen(false);
-      resetReportDraftState();
-    },
+    onResetForMissingIdentifier: handleResetForMissingIdentifier,
+  });
+  useAppViewRecording({
+    appId: resolvedAppIdentifier,
+    appSnapshot: currentApp,
+    setAppsState,
+    setCurrentApp,
   });
   const previewContext = useMemo(() => resolvePreviewContext({
     activeAppIdentifier,

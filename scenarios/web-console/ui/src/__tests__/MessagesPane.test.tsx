@@ -242,26 +242,58 @@ describe("MessagesPane", () => {
     expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
   });
 
-  it("disables nav chevrons when no user messages exist", () => {
-    // Only assistant messages — no user messages to jump to
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, role: "assistant", text: "Response" }),
-    ]);
+  it("disables nav chevrons when no events exist", () => {
+    seedEvents([]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.getByTestId("messages-nav-up")).toBeDisabled();
     expect(screen.getByTestId("messages-nav-down")).toBeDisabled();
   });
 
-  it("enables nav chevrons when user messages exist", () => {
+  it("enables nav chevrons when events exist", () => {
     seedEvents([
-      makeEvent({ id: "e1", sequence: 1, role: "user", text: "Question" }),
-      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "Answer" }),
+      makeEvent({ id: "e1", sequence: 1, role: "assistant", text: "Answer" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.getByTestId("messages-nav-up")).not.toBeDisabled();
     expect(screen.getByTestId("messages-nav-down")).not.toBeDisabled();
+  });
+
+  it("clicking a message card highlights it with accent border", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "First" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Initially no accent border
+    expect(screen.getByTestId("msg-card-e1").className).toContain("border-wc-default");
+
+    // Click to focus
+    fireEvent.click(screen.getByTestId("msg-card-e1"));
+    expect(screen.getByTestId("msg-card-e1").className).toContain("border-wc-accent");
+    expect(screen.getByTestId("msg-card-e2").className).toContain("border-wc-default");
+  });
+
+  it("chevron navigation starts from clicked message", () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "First" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
+      makeEvent({ id: "e3", sequence: 3, text: "Third" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Click the second message to focus it
+    fireEvent.click(screen.getByTestId("msg-card-e2"));
+
+    // Press down — should move to e3 (next after e2)
+    fireEvent.click(screen.getByTestId("messages-nav-down"));
+    expect(screen.getByTestId("msg-card-e3").className).toContain("border-wc-accent");
+    expect(screen.getByTestId("msg-card-e2").className).toContain("border-wc-default");
   });
 
   it("closing search clears highlights", () => {

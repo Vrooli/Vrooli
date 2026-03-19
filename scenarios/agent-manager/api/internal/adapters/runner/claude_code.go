@@ -1092,8 +1092,8 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			// Extract text content (handles both string and array formats)
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				// Check for /compact command in user messages
 				if streamEvent.Message.Role == "user" {
+					// Check for /compact command in user messages
 					if isCompact, focus := parseCompactCommand(textContent); isCompact {
 						state.pendingCompact = true
 						state.compactCommand = textContent
@@ -1101,39 +1101,58 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 						// Don't emit the /compact as a regular message
 						return nil, nil
 					}
-				}
-
-				// Check for compaction summary in assistant response
-				if state.pendingCompact && streamEvent.Message.Role == "assistant" {
-					if isCompactionSummary(textContent) {
+					// Don't emit user messages from the stream — the orchestrator
+					// already creates message events for both the initial prompt
+					// and follow-up messages. Emitting them here produces duplicates
+					// that show as spurious "You" entries in the timeline. This also
+					// suppresses subagent prompts (Agent tool internal messages) that
+					// Claude Code echoes through the parent stream.
+				} else {
+					// Check for compaction summary in assistant response
+					if state.pendingCompact && streamEvent.Message.Role == "assistant" {
+						if isCompactionSummary(textContent) {
+							state.pendingCompact = false
+							summary := extractSummaryContent(textContent)
+							return []*domain.RunEvent{
+								domain.NewCompactionEvent(
+									runID,
+									summary,
+									"manual",
+									state.compactFocus,
+									0, // messagesCompacted (not available from stream)
+									0, // tokensBefore
+									0, // tokensAfter
+									state.compactCommand,
+								),
+							}, nil
+						}
+						// Not a summary, reset state and fall through to normal handling
 						state.pendingCompact = false
-						summary := extractSummaryContent(textContent)
-						return []*domain.RunEvent{
-							domain.NewCompactionEvent(
-								runID,
-								summary,
-								"manual",
-								state.compactFocus,
-								0, // messagesCompacted (not available from stream)
-								0, // tokensBefore
-								0, // tokensAfter
-								state.compactCommand,
-							),
-						}, nil
 					}
-					// Not a summary, reset state and fall through to normal handling
-					state.pendingCompact = false
-				}
 
-				if streamEvent.Message.Role == "assistant" {
-					state.lastAssistant = textContent
+					if streamEvent.Message.Role == "assistant" {
+						state.lastAssistant = textContent
+					}
+					events = append(events, domain.NewMessageEvent(
+						runID,
+						streamEvent.Message.Role,
+						textContent,
+					))
+					state.textBuffer.Reset()
 				}
-				events = append(events, domain.NewMessageEvent(
-					runID,
-					streamEvent.Message.Role,
-					textContent,
-				))
-				state.textBuffer.Reset()
+			}
+			// Extract tool results from user messages (tool_result blocks)
+			if streamEvent.Message.Role == "user" {
+				toolResults := streamEvent.Message.ExtractToolResults()
+				for _, result := range toolResults {
+					events = append(events, domain.NewToolResultEvent(
+						runID,
+						"",               // tool name not available from result
+						result.ToolUseID, // Tool call ID for correlation
+						result.Content,
+						nil, // No error for successful tool results
+					))
+				}
 			}
 			toolUses := streamEvent.Message.ExtractToolUses()
 			for _, tool := range toolUses {
@@ -1224,9 +1243,10 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 					state.compactCommand = textContent
 					state.compactFocus = focus
 					// Don't emit the /compact as a regular message
-				} else {
-					events = append(events, domain.NewMessageEvent(runID, "user", textContent))
 				}
+				// Don't emit user text as a message — the orchestrator already
+				// creates message events for both the initial prompt and follow-ups.
+				// Emitting here produces duplicate "You" entries in the timeline.
 			}
 			if len(events) > 0 {
 				return events, nil

@@ -1004,6 +1004,77 @@ func TestParseStreamEvents_HighVolumeANSINoEventSpam(t *testing.T) {
 }
 
 // =============================================================================
+// USER MESSAGE SUPPRESSION
+// =============================================================================
+
+// TestParseStreamEvents_UserTextSuppressed verifies that user text messages
+// from the stream are NOT emitted as message events — the orchestrator already
+// creates these when sending prompts and follow-ups. Emitting them from the
+// stream would create duplicate "You" entries in the timeline.
+func TestParseStreamEvents_UserTextSuppressed(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// type:"message" with role:"user" — prompt echo or subagent prompt
+	events1, err := runner.parseStreamEvents(runID,
+		`{"type":"message","message":{"role":"user","content":"Find the code that does X"}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, evt := range events1 {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok && msgData.Role == "user" {
+			t.Errorf("user text message should be suppressed from type:message events, got content=%q", msgData.Content)
+		}
+	}
+
+	// type:"user" with plain text — follow-up echo
+	events2, err := runner.parseStreamEvents(runID,
+		`{"type":"user","message":{"role":"user","content":"Please also check the tests"}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, evt := range events2 {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok && msgData.Role == "user" {
+			t.Errorf("user text message should be suppressed from type:user events, got content=%q", msgData.Content)
+		}
+	}
+}
+
+// TestParseStreamEvents_UserToolResultsStillEmitted verifies that tool_result
+// blocks in user messages are still correctly extracted even though user text
+// is suppressed.
+func TestParseStreamEvents_UserToolResultsStillEmitted(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// type:"message" with role:"user" containing tool_result blocks
+	events, err := runner.parseStreamEvents(runID,
+		`{"type":"message","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_abc","content":"result data"}]}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, evt := range events {
+		if resultData, ok := evt.Data.(*domain.ToolResultEventData); ok {
+			found = true
+			if resultData.Output != "result data" {
+				t.Errorf("unexpected output: %q, want %q", resultData.Output, "result data")
+			}
+		}
+	}
+	if !found {
+		t.Error("expected tool result event from type:message user event with tool_result blocks")
+	}
+}
+
+// =============================================================================
 // POST-RESULT STREAM PARSING
 // =============================================================================
 

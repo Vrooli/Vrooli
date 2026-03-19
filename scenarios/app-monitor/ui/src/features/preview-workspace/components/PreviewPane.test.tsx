@@ -30,10 +30,10 @@ vi.mock('@/hooks/useOverlayRouter', () => ({
 }));
 
 const setAppsStateMock = vi.fn();
+const stableApps: App[] = [];
+const stableAppsStoreState = { apps: stableApps, setAppsState: setAppsStateMock };
 vi.mock('@/state/appsStore', () => ({
-  useAppsStore: (selector: (state: { setAppsState: typeof setAppsStateMock }) => unknown) => selector({
-    setAppsState: setAppsStateMock,
-  }),
+  useAppsStore: (selector: (state: typeof stableAppsStoreState) => unknown) => selector(stableAppsStoreState),
 }));
 
 vi.mock('@/services/logger', () => ({
@@ -49,6 +49,7 @@ vi.mock('@/services/api', () => ({
   appService: {
     getApp: getAppMock,
     controlApp: controlAppMock,
+    recordAppView: vi.fn().mockResolvedValue(null),
   },
 }));
 
@@ -423,13 +424,14 @@ describe('PreviewPane', () => {
       status: 'unknown',
       is_partial: true,
     };
+    const hydratedApp = {
+      ...appFromStore,
+      status: 'running' as const,
+      is_partial: false,
+    };
     getAppMock.mockImplementation(async (identifier: string) => {
-      if (identifier === 'canonical-app-id') {
-        return {
-          ...appFromStore,
-          status: 'running',
-          is_partial: false,
-        };
+      if (identifier === 'canonical-app-id' || identifier === 'scenario-name-id') {
+        return hydratedApp;
       }
       return null;
     });
@@ -875,6 +877,14 @@ describe('PreviewPane', () => {
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1';
     const appOne = createAppWithId('scenario-1');
     const appTwo = createAppWithId('scenario-2');
+    const appsByName = new Map([
+      ['scenario-1', appOne],
+      ['scenario-2', appTwo],
+    ]);
+    getAppMock.mockImplementation((id: string) => {
+      const match = appsByName.get(id);
+      return Promise.resolve(match ?? createApp());
+    });
 
     const { rerender } = render(
       <MemoryRouter>

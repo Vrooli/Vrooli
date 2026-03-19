@@ -156,12 +156,13 @@ export default function MessagesPane({
     setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
   }, []);
 
-  // --- Search state ---
+  // --- Search & navigation state ---
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  // Index for jumping between user messages when search is not active
-  const [currentUserMsgNav, setCurrentUserMsgNav] = useState(-1);
+  // The single focused event ID drives both the accent border highlight and
+  // the starting point for chevron navigation. Set by clicking a card or
+  // pressing the up/down chevrons.
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   // Event IDs matching the current search query (case-insensitive)
@@ -171,46 +172,52 @@ export default function MessagesPane({
     return events.filter((e) => e.text.toLowerCase().includes(q)).map((e) => e.id);
   }, [events, searchQuery]);
 
-  // All user-message event IDs, for non-search jump navigation
-  const userMessageIds = useMemo(
-    () => events.filter((e) => e.role === "user").map((e) => e.id),
-    [events],
+  // The navigable list depends on mode: search matches when searching,
+  // all events when not searching (so tapping any message + using arrows works).
+  const navIds = useMemo(
+    () => (searchQuery ? searchMatchIds : events.map((e) => e.id)),
+    [searchQuery, searchMatchIds, events],
+  );
+
+  // Index of the focused event within the navigable list
+  const focusedNavIndex = useMemo(
+    () => (focusedEventId ? navIds.indexOf(focusedEventId) : -1),
+    [focusedEventId, navIds],
+  );
+
+  // Index of focused event within search matches (for the "N of M" label)
+  const currentMatchIndex = useMemo(
+    () => (focusedEventId ? searchMatchIds.indexOf(focusedEventId) : -1),
+    [focusedEventId, searchMatchIds],
   );
 
   const scrollToEvent = useCallback((eventId: string) => {
     messageRefs.current.get(eventId)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
-  // Navigate to the previous item (user message or search match)
-  const handleNavUp = useCallback(() => {
-    if (searchQuery && searchMatchIds.length > 0) {
-      const prev = (currentMatchIndex - 1 + searchMatchIds.length) % searchMatchIds.length;
-      setCurrentMatchIndex(prev);
-      scrollToEvent(searchMatchIds[prev]);
-    } else if (userMessageIds.length > 0) {
-      const prev = currentUserMsgNav <= 0 ? userMessageIds.length - 1 : currentUserMsgNav - 1;
-      setCurrentUserMsgNav(prev);
-      scrollToEvent(userMessageIds[prev]);
-    }
-  }, [searchQuery, searchMatchIds, currentMatchIndex, userMessageIds, currentUserMsgNav, scrollToEvent]);
+  const focusAndScroll = useCallback((eventId: string) => {
+    setFocusedEventId(eventId);
+    scrollToEvent(eventId);
+  }, [scrollToEvent]);
 
-  // Navigate to the next item (user message or search match)
+  // Navigate to the previous item in the navigable list
+  const handleNavUp = useCallback(() => {
+    if (navIds.length === 0) return;
+    const prev = focusedNavIndex <= 0 ? navIds.length - 1 : focusedNavIndex - 1;
+    focusAndScroll(navIds[prev]);
+  }, [navIds, focusedNavIndex, focusAndScroll]);
+
+  // Navigate to the next item in the navigable list
   const handleNavDown = useCallback(() => {
-    if (searchQuery && searchMatchIds.length > 0) {
-      const next = (currentMatchIndex + 1) % searchMatchIds.length;
-      setCurrentMatchIndex(next);
-      scrollToEvent(searchMatchIds[next]);
-    } else if (userMessageIds.length > 0) {
-      const next = (currentUserMsgNav + 1) % userMessageIds.length;
-      setCurrentUserMsgNav(next);
-      scrollToEvent(userMessageIds[next]);
-    }
-  }, [searchQuery, searchMatchIds, currentMatchIndex, userMessageIds, currentUserMsgNav, scrollToEvent]);
+    if (navIds.length === 0) return;
+    const next = focusedNavIndex < 0 ? 0 : (focusedNavIndex + 1) % navIds.length;
+    focusAndScroll(navIds[next]);
+  }, [navIds, focusedNavIndex, focusAndScroll]);
 
   const handleCloseSearch = useCallback(() => {
     setSearchOpen(false);
     setSearchQuery("");
-    setCurrentMatchIndex(0);
+    setFocusedEventId(null);
   }, []);
 
   const handleToggleSummarized = useCallback((eventId: string, useSummarized: boolean) => {
@@ -315,18 +322,18 @@ export default function MessagesPane({
           <button
             data-testid="messages-nav-up"
             onClick={handleNavUp}
-            disabled={searchQuery ? searchMatchIds.length === 0 : userMessageIds.length === 0}
+            disabled={navIds.length === 0}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-            title={searchQuery ? "Previous match" : "Previous user message"}
+            title={searchQuery ? "Previous match" : "Previous message"}
           >
             <ChevronUp className="h-4 w-4" />
           </button>
           <button
             data-testid="messages-nav-down"
             onClick={handleNavDown}
-            disabled={searchQuery ? searchMatchIds.length === 0 : userMessageIds.length === 0}
+            disabled={navIds.length === 0}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-            title={searchQuery ? "Previous match" : "Previous user message"}
+            title={searchQuery ? "Next match" : "Next message"}
           >
             <ChevronDown className="h-4 w-4" />
           </button>
@@ -339,10 +346,10 @@ export default function MessagesPane({
           query={searchQuery}
           onQueryChange={(q) => {
             setSearchQuery(q);
-            setCurrentMatchIndex(0);
+            setFocusedEventId(null);
           }}
           matchCount={searchMatchIds.length}
-          currentMatchIndex={searchMatchIds.length > 0 ? currentMatchIndex : -1}
+          currentMatchIndex={currentMatchIndex}
           onPrevMatch={handleNavUp}
           onNextMatch={handleNavDown}
         />
@@ -354,7 +361,8 @@ export default function MessagesPane({
         ) : (
           events.map((event) => {
             const isUser = event.role === "user";
-            const isActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
+            const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
+            const isFocused = focusedEventId === event.id;
             const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
             const useSummarized = playbackModes[event.id] ?? event.summarized;
             const isPopoverOpen = openPopoverId === event.id;
@@ -364,12 +372,17 @@ export default function MessagesPane({
                 key={event.id}
                 ref={(el) => { if (el) messageRefs.current.set(event.id, el); else messageRefs.current.delete(event.id); }}
                 data-testid={`msg-card-${event.id}`}
+                onClick={() => setFocusedEventId(event.id)}
                 className={cn(
-                  "rounded-2xl border px-4 py-3 shadow-sm transition-colors",
+                  "cursor-pointer rounded-2xl border px-4 py-3 shadow-sm transition-colors",
                   isUser
-                    ? "ml-auto max-w-[85%] border-wc-accent/30 bg-wc-accent/10"
-                    : "border-wc-default bg-wc-surface",
-                  isActive && "border-l-[3px] border-l-wc-accent",
+                    ? "ml-auto max-w-[85%] bg-wc-accent/10"
+                    : "bg-wc-surface",
+                  // Focused card gets accent border; otherwise default gray
+                  isFocused
+                    ? "border-wc-accent"
+                    : "border-wc-default",
+                  isTtsActive && "border-l-[3px] border-l-wc-accent",
                 )}
               >
                 <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">

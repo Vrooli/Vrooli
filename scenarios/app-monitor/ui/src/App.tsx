@@ -185,12 +185,13 @@ function App() {
   }, [loadApps, loadResources]);
 
   useEffect(() => {
+    const pendingUpdates = pendingAppUpdatesRef.current;
     return () => {
       if (flushFrameRef.current !== null) {
         window.cancelAnimationFrame(flushFrameRef.current);
         flushFrameRef.current = null;
       }
-      pendingAppUpdatesRef.current.clear();
+      pendingUpdates.clear();
     };
   }, []);
 

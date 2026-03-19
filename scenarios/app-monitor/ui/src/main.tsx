@@ -94,7 +94,7 @@ const APP_MONITOR_MAX_DEPTH = 1
 function getIframeDepth(): number {
   if (window.parent === window) return 0
   try {
-    const parentDepth = (window.parent as any)[APP_MONITOR_DEPTH_KEY]
+    const parentDepth = (window.parent as unknown as Record<string, unknown>)[APP_MONITOR_DEPTH_KEY]
     return typeof parentDepth === 'number' ? parentDepth + 1 : 1
   } catch {
     return 1 // Cross-origin = assume depth 1
@@ -102,7 +102,7 @@ function getIframeDepth(): number {
 }
 
 const currentDepth = getIframeDepth()
-;(window as any)[APP_MONITOR_DEPTH_KEY] = currentDepth
+;(window as unknown as Record<string, unknown>)[APP_MONITOR_DEPTH_KEY] = currentDepth
 
 const rootEl = document.getElementById('root')
 if (currentDepth > APP_MONITOR_MAX_DEPTH) {

@@ -53,7 +53,7 @@ export const useAppViewRecording = ({
       scenario_name: snapshot?.scenario_name,
       status: snapshot?.status,
       view_count: snapshot?.view_count,
-      last_viewed_at: snapshot?.last_viewed_at ?? new Date().toISOString(),
+      last_viewed_at: new Date().toISOString(),
       completeness_score: snapshot?.completeness_score,
       completeness_classification: snapshot?.completeness_classification,
     });
