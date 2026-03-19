@@ -86,7 +86,7 @@ export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps)
 
         {/* Main content — full width on mobile */}
         <main ref={mainContentRef} className="overflow-y-auto">
-          <div className="mx-auto max-w-4xl space-y-4 p-3">
+          <div className="mx-auto max-w-4xl space-y-3 p-2">
             {children}
           </div>
         </main>

@@ -1921,12 +1921,14 @@ export async function fetchTidinessIssues(
   scenarioName: string,
   file?: string,
   category?: string,
+  severity?: string,
   limit?: number,
   repoId?: string
 ): Promise<TidinessIssue[]> {
   const params = new URLSearchParams({ scenarioName });
   if (file) params.set("file", file);
   if (category) params.set("category", category);
+  if (severity) params.set("severity", severity);
   if (limit) params.set("limit", String(limit));
   const url = buildApiUrl(`/repo/tidiness-issues?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

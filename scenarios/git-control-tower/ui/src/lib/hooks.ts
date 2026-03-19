@@ -208,8 +208,8 @@ export const queryKeys = {
     ["repo", "test-executions", repoId ?? "default", "detail", id] as const,
   tidinessScore: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-score", repoId ?? "default", scenarioName] as const,
-  tidinessIssues: (scenarioName: string, file?: string, repoId?: string | null) =>
-    ["repo", "tidiness-issues", repoId ?? "default", scenarioName, file] as const,
+  tidinessIssues: (scenarioName: string, file?: string, repoId?: string | null, category?: string, severity?: string, limit?: number) =>
+    ["repo", "tidiness-issues", repoId ?? "default", scenarioName, file, category, severity, limit] as const,
   tidinessStaleness: (scenarioName: string, repoId?: string | null) =>
     ["repo", "tidiness-staleness", repoId ?? "default", scenarioName] as const,
   tidinessScenarioDetail: (scenarioName: string, repoId?: string | null) =>
@@ -925,15 +925,23 @@ export function useTidinessScore(scenarioName: string, enabled = true, repoId?: 
   });
 }
 
+export interface TidinessIssuesOptions {
+  file?: string;
+  category?: string;
+  severity?: string;
+  limit?: number;
+  enabled?: boolean;
+  repoId?: string | null;
+}
+
 export function useTidinessIssues(
   scenarioName: string,
-  file?: string,
-  enabled = true,
-  repoId?: string | null
+  options: TidinessIssuesOptions = {},
 ) {
+  const { file, category, severity, limit, enabled = true, repoId } = options;
   return useQuery<TidinessIssue[], Error>({
-    queryKey: queryKeys.tidinessIssues(scenarioName, file, repoId),
-    queryFn: () => fetchTidinessIssues(scenarioName, file, undefined, undefined, repoId ?? undefined),
+    queryKey: queryKeys.tidinessIssues(scenarioName, file, repoId, category, severity, limit),
+    queryFn: () => fetchTidinessIssues(scenarioName, file, category, severity, limit, repoId ?? undefined),
     enabled: enabled && Boolean(scenarioName),
     staleTime: 30_000,
   });

@@ -9,6 +9,7 @@ import { Card } from "../../ui/card";
 import { SectionHeader } from "./SectionHeader";
 import { useSidebarStore, SECTION_TO_STAGE, SECTION_ICONS, type SectionId } from "../../../store/sidebarStore";
 import { usePipelineStore } from "../../../store";
+import { useIsMobile } from "../../../hooks/useMediaQuery";
 import { cn } from "../../../lib/utils";
 
 /** Status-based border colors for pipeline variant */
@@ -62,6 +63,7 @@ export const SectionCard = forwardRef<HTMLDivElement, SectionCardProps>(
     ref
   ) => {
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
+    const isMobile = useIsMobile();
 
     // Pipeline-specific state (only used when variant='pipeline' and sectionId is provided)
     const activeSection = useSidebarStore((s) => s.activeSection);
@@ -113,7 +115,7 @@ export const SectionCard = forwardRef<HTMLDivElement, SectionCardProps>(
         )}
         {/* Content area with internal padding */}
         {!collapsed && (
-          <div className={cn("p-4", showHeader && "pt-0", contentClassName)}>
+          <div className={cn(isMobile ? "p-2.5" : "p-4", showHeader && "pt-0", contentClassName)}>
             {children}
           </div>
         )}

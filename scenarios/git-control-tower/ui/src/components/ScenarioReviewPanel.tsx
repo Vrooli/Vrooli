@@ -13,6 +13,7 @@ import { AIProvenanceTab } from "./AIProvenanceTab";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
+import { CodeQualityPickerModal } from "./CodeQualityPickerModal";
 
 type Tab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
 
@@ -2059,8 +2060,9 @@ function CodeQualityTab({
   onAttachToAgent?: (item: AgentContextItem) => void;
 }) {
   const [view, setView] = useState<"changed" | "scenario">("changed");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
-  const tidinessIssues = useTidinessIssues(scenarioSlug, undefined, tidinessAvailable, repoId);
+  const tidinessIssues = useTidinessIssues(scenarioSlug, { enabled: tidinessAvailable, repoId });
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
   const triggerScan = useTriggerTidinessScan(repoId);
 
@@ -2203,6 +2205,16 @@ function CodeQualityTab({
         </Button>
       </div>
 
+      {agentManagerAvailable && onAttachToAgent && (
+        <CodeQualityPickerModal
+          isOpen={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          scenarioSlug={scenarioSlug}
+          repoId={repoId}
+          onAttachItems={(items) => { for (const item of items) onAttachToAgent(item); }}
+        />
+      )}
+
       {/* In-progress banner */}
       {isScanning && (
         <div className="flex items-center gap-2 px-3 py-2 bg-blue-950/50 border border-blue-900/50 rounded-lg text-blue-300 text-xs">
@@ -2232,7 +2244,7 @@ function CodeQualityTab({
           scoreData={tidinessScore.data}
           isLoading={tidinessScore.isLoading}
           agentManagerAvailable={agentManagerAvailable}
-          onAttachToAgent={onAttachToAgent}
+          onOpenPicker={() => setPickerOpen(true)}
         />
       )}
     </div>
@@ -2580,7 +2592,7 @@ function ScenarioWideView({
   scoreData,
   isLoading,
   agentManagerAvailable,
-  onAttachToAgent,
+  onOpenPicker,
 }: {
   scoreData?: {
     score: number;
@@ -2604,7 +2616,7 @@ function ScenarioWideView({
   } | null;
   isLoading: boolean;
   agentManagerAvailable?: boolean;
-  onAttachToAgent?: (item: AgentContextItem) => void;
+  onOpenPicker?: () => void;
 }) {
   if (isLoading) {
     return (
@@ -2649,8 +2661,8 @@ function ScenarioWideView({
           <span className="text-slate-400">Violations</span>
           <div className="flex items-center gap-2">
             <span className="text-slate-200">{scoreData.violations}</span>
-            {agentManagerAvailable && onAttachToAgent && scoreData.violations > 0 && (
-              <AttachToAgentButton onClick={() => onAttachToAgent(scenarioQualityContextItem(scoreData))} />
+            {agentManagerAvailable && onOpenPicker && scoreData.violations > 0 && (
+              <AttachToAgentButton onClick={onOpenPicker} />
             )}
           </div>
         </div>

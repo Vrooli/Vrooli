@@ -4,7 +4,7 @@
  */
 
 import { forwardRef, type FormEvent } from "react";
-import { Wand2, FolderOpen } from "lucide-react";
+import { Wand2, FolderOpen, Loader2, AlertCircle, Square } from "lucide-react";
 import {
   SectionCard,
   getStatusDisplay,
@@ -14,9 +14,17 @@ import {
   StagePlaceholder,
   StageError,
 } from "../shared";
-import { usePipelineStore, selectStageStatus, selectErrorInfo } from "../../../store";
+import {
+  usePipelineStore,
+  selectStageStatus,
+  selectErrorInfo,
+  selectIsRunning,
+  selectCurrentStage,
+  selectProgress,
+} from "../../../store";
 import { Button } from "../../ui/button";
 import { ValidationErrors, type ValidationError } from "../../generator";
+import { formatStageName } from "../../../lib/status-display";
 
 interface GenerateSectionProps {
   scenarioName: string;
@@ -60,11 +68,16 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
     const errorInfo = usePipelineStore(selectErrorInfo);
     const clearError = usePipelineStore((s) => s.clearError);
     const resetForRetry = usePipelineStore((s) => s.resetForRetry);
+    const cancelPipeline = usePipelineStore((s) => s.cancelPipeline);
+    const isRunning = usePipelineStore(selectIsRunning);
+    const currentStage = usePipelineStore(selectCurrentStage);
+    const progress = usePipelineStore(selectProgress);
 
     const hasResult = Boolean(generateResult);
     const desktopPath = generateResult?.desktop_path;
     const buildId = generateResult?.build_id;
     const statusDisplay = getStatusDisplay(stageStatus, { completed: "Generated", running: "Generating" });
+    const progressPercent = Math.round(progress * 100);
 
     // Handle form submission - either via form attribute or direct callback
     const handleSubmitClick = (e: FormEvent) => {
@@ -72,6 +85,10 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
       if (onSubmit) {
         onSubmit();
       }
+    };
+
+    const handleCancel = () => {
+      void cancelPipeline();
     };
 
     // Determine if the submit button should be shown
@@ -87,7 +104,7 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
         collapsible={true}
         contentClassName="space-y-4"
       >
-        {/* Submit button at the top of the section */}
+        {/* Submit/Cancel button at the top of the section */}
         {showSubmitButton && (
           <div className="space-y-3">
             {/* Validation errors - shown above submit button */}
@@ -96,23 +113,62 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
               onDismiss={onDismissErrors ?? (() => {})}
             />
 
-            <Button
-              type={formId ? "submit" : "button"}
-              form={formId}
-              onClick={onSubmit ? handleSubmitClick : undefined}
-              className="w-full"
-              disabled={isPending || validationErrors.length > 0}
-            >
-              {isPending
-                ? "Generating..."
-                : isUpdateMode
+            {isRunning ? (
+              <>
+                {/* Progress bar when pipeline is running */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-blue-400 flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {currentStage ? `Running ${formatStageName(currentStage)} stage...` : "Starting pipeline..."}
+                    </span>
+                    <span className="text-slate-400">{progressPercent}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
+                      style={{ width: `${Math.max(progressPercent, 2)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Cancel button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  className="w-full border-red-800/60 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+                >
+                  <Square className="mr-2 h-3.5 w-3.5" />
+                  Cancel Generation
+                </Button>
+              </>
+            ) : (
+              <Button
+                type={formId ? "submit" : "button"}
+                form={formId}
+                onClick={onSubmit ? handleSubmitClick : undefined}
+                className="w-full"
+                disabled={isPending || validationErrors.length > 0}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : isUpdateMode
                   ? "Update Desktop Application"
                   : "Generate Desktop Application"}
-            </Button>
+              </Button>
+            )}
 
-            {isError && errorMessage && (
-              <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
-                <strong>Error:</strong> {errorMessage}
+            {isError && !isRunning && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-800/60 bg-red-950/30 p-3 text-sm text-red-300">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
+                <div>
+                  <strong>Error:</strong>{" "}
+                  {errorMessage || "Generation failed. Check the Configuration section for missing fields, or try again."}
+                </div>
               </div>
             )}
           </div>

@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Popover } from "./ui/popover";
 import { Plus, CheckSquare, Square, AlertTriangle, ShieldCheck, FileText, Shield, Camera } from "lucide-react";
 import { useTestExecutions, useTidinessScore, useTidinessIssues, useAuditorViolations, useVisualCaptures, useVisualCaptureDetail } from "../lib/hooks";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
+import { CodeQualityPickerModal } from "./CodeQualityPickerModal";
 import type { AgentContextItem, RepoFileStats } from "../lib/api";
 
 interface ContextPickerProps {
@@ -32,7 +33,7 @@ export function ContextPickerPopover({
 }: ContextPickerProps) {
   const testExecs = useTestExecutions(scenarioSlug, testGenieAvailable, repoId);
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
-  const tidinessIssues = useTidinessIssues(scenarioSlug, undefined, tidinessAvailable, repoId);
+  const tidinessIssues = useTidinessIssues(scenarioSlug, { enabled: tidinessAvailable, repoId });
 
   const changeSummary = useMemo(() => {
     if (!fileStats) return null;
@@ -96,9 +97,19 @@ export function ContextPickerPopover({
     }
   };
 
+  const [codeQualityPickerOpen, setCodeQualityPickerOpen] = useState(false);
+
   const hasAnyItems = !!(changeSummary || testItems.length || qualityItem || codeItems.length || rulesSummary || ruleViolationItems.length || screenshotItems.length);
 
   return (
+    <>
+    <CodeQualityPickerModal
+      isOpen={codeQualityPickerOpen}
+      onClose={() => setCodeQualityPickerOpen(false)}
+      scenarioSlug={scenarioSlug}
+      repoId={repoId}
+      onAttachItems={(items) => { for (const item of items) onAddContext(item); }}
+    />
     <Popover
       direction="up"
       align="start"
@@ -153,22 +164,19 @@ export function ContextPickerPopover({
               />
             )}
             {codeItems.length > 0 ? (
-              codeItems.slice(0, 10).map((item) => (
-                <CheckItem
-                  key={item.id}
-                  item={item}
-                  checked={isAttached(item.id)}
-                  onToggle={toggle}
-                />
-              ))
+              <button
+                type="button"
+                onClick={() => setCodeQualityPickerOpen(true)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left hover:bg-slate-800/60 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                <span className="text-xs text-blue-400">
+                  Browse & select issues ({codeItems.length} available)
+                </span>
+              </button>
             ) : !qualityItem ? (
               <p className="text-[11px] text-slate-600 px-2 py-1">No data</p>
             ) : null}
-            {codeItems.length > 10 && (
-              <p className="text-[11px] text-slate-500 px-2 py-1">
-                +{codeItems.length - 10} more issues
-              </p>
-            )}
           </Section>
         )}
 
@@ -226,6 +234,7 @@ export function ContextPickerPopover({
         )}
       </div>
     </Popover>
+    </>
   );
 }
 

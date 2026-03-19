@@ -20,6 +20,19 @@ function formatTimestamp(unix: number | undefined): string {
   return new Date(unix * 1000).toLocaleString();
 }
 
+/** Format Unix timestamp to short time-only string (for same-day display) */
+function formatTimestampShort(unix: number | undefined): string {
+  if (!unix) return "-";
+  const date = new Date(unix * 1000);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  if (isToday) {
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+    date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
 export function SidebarHeader() {
   const [debugModalOpen, setDebugModalOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);

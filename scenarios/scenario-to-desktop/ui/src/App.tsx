@@ -299,22 +299,22 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50 scroll-smooth">
-      <div className="mx-auto max-w-7xl p-3 md:p-6">
-        {/* Header — compact on mobile */}
-        <div className="mb-4 md:mb-8 text-center">
-          <div className="mb-2 md:mb-3 flex items-center justify-center gap-2 md:gap-3">
-            <Monitor className="h-7 w-7 md:h-10 md:w-10 text-blue-400" />
-            <h1 className="text-2xl md:text-4xl font-bold">Scenario to Desktop</h1>
+      <div className="mx-auto max-w-7xl p-2 md:p-6">
+        {/* Header + tabs — merged into a compact strip on mobile */}
+        <div className="mb-3 md:mb-8 text-center">
+          <div className="mb-1.5 md:mb-3 flex items-center justify-center gap-2 md:gap-3">
+            <Monitor className="hidden md:block h-10 w-10 text-blue-400" />
+            <h1 className="text-xl md:text-4xl font-bold">Scenario to Desktop</h1>
           </div>
           <p className="hidden md:block text-lg text-slate-300">
             Transform Vrooli scenarios into professional desktop applications
           </p>
         </div>
 
-        {/* View Mode Selector — horizontally scrollable on mobile */}
-        <div className="mb-4 md:mb-6 flex justify-center">
+        {/* View Mode Selector — compact icon-only pills on mobile */}
+        <div className="mb-3 md:mb-6 flex justify-center">
           <div
-            className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1 shadow-lg shadow-blue-950/40 overflow-x-auto scrollbar-hide max-w-full"
+            className="flex items-center gap-0.5 md:gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-0.5 md:p-1 shadow-lg shadow-blue-950/40 overflow-x-auto scrollbar-hide max-w-full"
             role="tablist"
           >
             {tabs.map(({ mode, icon: Icon, label }) => (
@@ -324,7 +324,7 @@ function AppContent() {
                 role="tab"
                 aria-selected={viewMode === mode}
                 className={cn(
-                  "flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-2 text-sm font-semibold transition whitespace-nowrap shrink-0",
+                  "flex items-center gap-1.5 md:gap-2 rounded-full px-2.5 md:px-4 py-1.5 md:py-2 text-sm font-semibold transition whitespace-nowrap shrink-0",
                   viewMode === mode
                     ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
                     : "text-slate-300 hover:text-white"

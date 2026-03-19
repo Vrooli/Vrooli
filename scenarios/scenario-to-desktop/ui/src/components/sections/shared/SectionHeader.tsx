@@ -14,6 +14,7 @@ import {
   type SectionId,
 } from "../../../store/sidebarStore";
 import { usePipelineStore } from "../../../store";
+import { useIsMobile } from "../../../hooks/useMediaQuery";
 import { cn } from "../../../lib/utils";
 import {
   HEADER_STATUS_CONFIG as HEADER_STATUS_DISPLAY,
@@ -49,8 +50,10 @@ export function SectionHeader({
   collapsed,
   onToggleCollapse,
 }: SectionHeaderProps) {
-  // Only show section number for pipeline variant
-  const showSectionNumber = variant === "pipeline" && sectionId;
+  const isMobile = useIsMobile();
+
+  // Only show section number for pipeline variant (hidden on mobile to save space)
+  const showSectionNumber = variant === "pipeline" && sectionId && !isMobile;
   const sectionIndex = sectionId ? SECTION_IDS.indexOf(sectionId) : -1;
 
   // Get stage status for pipeline variant (non-configuration sections)
@@ -68,9 +71,9 @@ export function SectionHeader({
   const statusDisplay = status ? HEADER_STATUS_DISPLAY[status as keyof typeof HEADER_STATUS_DISPLAY] : null;
 
   return (
-    <div className="flex items-start justify-between gap-4 p-4">
-      <div className="flex items-start gap-3">
-        {/* Section number (pipeline variant only) */}
+    <div className={cn("flex items-center justify-between gap-3", isMobile ? "p-2.5" : "p-4")}>
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        {/* Section number (pipeline variant, desktop only) */}
         {showSectionNumber && sectionIndex >= 0 && (
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-slate-300">
             {sectionIndex}
@@ -78,24 +81,24 @@ export function SectionHeader({
         )}
 
         {/* Title and subtitle */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-5 w-5 text-slate-400" />}
-            <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {Icon && <Icon className={cn("shrink-0 text-slate-400", isMobile ? "h-4 w-4" : "h-5 w-5")} />}
+            <h2 className={cn("font-semibold text-slate-100 truncate", isMobile ? "text-base" : "text-lg")}>{title}</h2>
           </div>
           {subtitle && (
-            <p className="text-sm text-slate-400">{subtitle}</p>
+            <p className={cn("text-slate-400 truncate", isMobile ? "text-xs" : "text-sm")}>{subtitle}</p>
           )}
         </div>
       </div>
 
       {/* Right side: status badge and collapse toggle */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
         {/* Status badge (pipeline variant only) */}
         {statusDisplay && (
-          <Badge variant="outline" className={cn("flex items-center gap-1.5", statusDisplay.badgeClass)}>
+          <Badge variant="outline" className={cn("flex items-center gap-1 md:gap-1.5 text-xs", statusDisplay.badgeClass)}>
             <statusDisplay.icon className={cn("h-3 w-3", statusDisplay.iconClass)} />
-            {statusDisplay.label}
+            {!isMobile && statusDisplay.label}
           </Badge>
         )}
 
@@ -105,13 +108,13 @@ export function SectionHeader({
             variant="ghost"
             size="sm"
             onClick={onToggleCollapse}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-slate-200"
+            className={cn("p-0 text-slate-400 hover:text-slate-200", isMobile ? "h-7 w-7" : "h-8 w-8")}
             aria-label={collapsed ? "Expand section" : "Collapse section"}
           >
             {collapsed ? (
-              <ChevronDown className="h-5 w-5" />
+              <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-5 w-5")} />
             ) : (
-              <ChevronUp className="h-5 w-5" />
+              <ChevronUp className={cn(isMobile ? "h-4 w-4" : "h-5 w-5")} />
             )}
           </Button>
         )}

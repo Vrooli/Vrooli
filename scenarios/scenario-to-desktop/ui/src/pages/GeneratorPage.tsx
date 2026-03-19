@@ -136,7 +136,7 @@ export function GeneratorPage({
 
   return (
     <GeneratorLayout sectionRefs={sectionRefs}>
-      <div className="space-y-8">
+      <div className="space-y-4 md:space-y-8">
         {/* Section 0: Configuration */}
         <ConfigurationSection
           ref={sectionRefs.configuration}

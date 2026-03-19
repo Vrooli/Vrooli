@@ -39,36 +39,32 @@ export function MobilePipelineSummary({ onOpenDrawer }: MobilePipelineSummaryPro
     <button
       type="button"
       onClick={onOpenDrawer}
-      className="flex w-full items-center gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-3 text-left"
+      className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-slate-900/60 px-2.5 py-1.5 text-left"
       aria-label="Open pipeline sidebar"
     >
-      <Menu className="h-5 w-5 shrink-0 text-slate-400" />
+      <Menu className="h-4 w-4 shrink-0 text-slate-400" />
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <StatusIcon
-            className={cn("h-4 w-4 shrink-0", statusColor, isRunning && "animate-spin")}
-          />
-          <span className="text-sm font-medium text-slate-200 truncate">
-            {scenarioName || "No scenario selected"}
+      <StatusIcon
+        className={cn("h-3.5 w-3.5 shrink-0", statusColor, isRunning && "animate-spin")}
+      />
+      <span className="text-xs font-medium text-slate-200 truncate flex-1 min-w-0">
+        {scenarioName || "No scenario selected"}
+      </span>
+
+      {/* Inline progress when running */}
+      {isRunning && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="h-1 w-16 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-slate-500">
+            {currentStage ? formatStageName(currentStage) : `${progressPercent}%`}
           </span>
         </div>
-
-        {/* Progress bar when running */}
-        {isRunning && (
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-1.5 flex-1 rounded-full bg-slate-800 overflow-hidden">
-              <div
-                className="h-full bg-blue-500 transition-all duration-300 ease-out"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="text-xs text-slate-500 shrink-0">
-              {currentStage ? formatStageName(currentStage) : `${progressPercent}%`}
-            </span>
-          </div>
-        )}
-      </div>
+      )}
     </button>
   );
 }

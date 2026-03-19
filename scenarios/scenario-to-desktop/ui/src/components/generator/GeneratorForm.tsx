@@ -3,7 +3,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchProxyHints,
   fetchScenarioDesktopStatus,
-  runPipeline,
   fetchBundleManifest,
   probeEndpoints,
   type BundlePreflightResponse,
@@ -46,6 +45,7 @@ import {
 import {
   usePipelineStore,
   selectIsRunning,
+  selectIsSubmitting,
   selectPreflightOk,
   selectMissingSecrets,
 } from "../../store";
@@ -467,15 +467,15 @@ export function GeneratorForm({
     queryFn: fetchScenarioDesktopStatus,
   });
 
-  const generateMutation = useMutation({
-    mutationFn: (config: PipelineConfig) => runPipeline(config),
-    onSuccess: (data) => {
-      onBuildStart(data.pipeline_id);
-    }
-  });
-  const generateErrorMessage = generateMutation.isError
-    ? (generateMutation.error as Error).message
-    : null;
+  // Use pipeline store for generating - this properly sets store state and starts polling
+  const runStage = usePipelineStore((s) => s.runStage);
+  const isGenerating = usePipelineStore(selectIsRunning);
+  const isSubmittingGenerate = usePipelineStore(selectIsSubmitting);
+  const storeErrorInfo = usePipelineStore((s) => s.errorInfo);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const generateErrorMessage = generateError ?? (storeErrorInfo?.message || null);
+  const isGenerateError = Boolean(generateError) || Boolean(storeErrorInfo);
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
@@ -498,8 +498,8 @@ export function GeneratorForm({
     if (!onGenerateStateChange) {
       return;
     }
-    onGenerateStateChange({ pending: generateMutation.isPending, error: generateErrorMessage });
-  }, [generateMutation.isPending, generateErrorMessage, onGenerateStateChange]);
+    onGenerateStateChange({ pending: isSubmittingGenerate || isGenerating, error: generateErrorMessage });
+  }, [isSubmittingGenerate, isGenerating, generateErrorMessage, onGenerateStateChange]);
 
   // Memoize selectedScenario to avoid recalculating on every render
   const selectedScenario = useMemo(
@@ -670,64 +670,69 @@ export function GeneratorForm({
     }
   }, [autoManageTier1, connectionDecision, serverType, setAutoManageTier1, setServerType]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    // Clear previous validation errors
-    clearValidationErrors();
+    try {
+      // Clear previous errors
+      clearValidationErrors();
+      setGenerateError(null);
 
-    const outputPathForRequest = locationMode === "custom" ? outputPath : "";
+      const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
-    // Use effective preflight values - fall back to server state when local state hasn't synced yet.
-    // This handles the race condition where server state has been loaded with valid preflight data
-    // but local state hasn't been updated yet.
-    const effectivePreflightResult = preflightResult ?? serverFormState?.preflight_result ?? null;
-    const effectivePreflightOk = effectivePreflightResult
-      ? Boolean(
-          effectivePreflightResult.validation?.valid &&
-          effectivePreflightResult.ready?.ready &&
-          missingPreflightSecrets.length === 0
-        )
-      : preflightOk;
+      // Use effective preflight values - fall back to server state when local state hasn't synced yet.
+      // This handles the race condition where server state has been loaded with valid preflight data
+      // but local state hasn't been updated yet.
+      const effectivePreflightResult = preflightResult ?? serverFormState?.preflight_result ?? null;
+      const effectivePreflightOk = effectivePreflightResult
+        ? Boolean(
+            effectivePreflightResult.validation?.valid &&
+            effectivePreflightResult.ready?.ready &&
+            missingPreflightSecrets.length === 0
+          )
+        : preflightOk;
 
-    // Validate all inputs using the centralized validation function
-    const errors = validateFormInputs({
-      scenarioName,
-      selectedPlatforms: selectedPlatformsList,
-      isBundled,
-      requiresProxyUrl: requiresRemoteConfig,
-      bundleManifestPath,
-      proxyUrl,
-      appDisplayName,
-      appDescription,
-      locationMode,
-      outputPath: outputPathForRequest,
-      preflightResult: effectivePreflightResult,
-      preflightOk: effectivePreflightOk,
-      preflightOverride,
-      signingEnabledForBuild,
-      signingConfig,
-      signingReadiness,
-    });
+      // Validate all inputs using the centralized validation function
+      const errors = validateFormInputs({
+        scenarioName,
+        selectedPlatforms: selectedPlatformsList,
+        isBundled,
+        requiresProxyUrl: requiresRemoteConfig,
+        bundleManifestPath,
+        proxyUrl,
+        appDisplayName,
+        appDescription,
+        locationMode,
+        outputPath: outputPathForRequest,
+        preflightResult: effectivePreflightResult,
+        preflightOk: effectivePreflightOk,
+        preflightOverride,
+        signingEnabledForBuild,
+        signingConfig,
+        signingReadiness,
+      });
 
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      // Scroll to show validation errors
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+
+      // Use the pipeline store's runStage which properly sets store state,
+      // starts polling, and updates all status-reading components
+      const pipelineConfig: Partial<PipelineConfig> = {
+        template_type: selectedTemplate,
+        deployment_mode: deploymentMode === "bundled" ? "bundled" : "proxy",
+        proxy_url: proxyUrl || undefined,
+        platforms: selectedPlatformsList,
+      };
+
+      const pipelineId = await runStage("generate", pipelineConfig);
+      onBuildStart(pipelineId);
+    } catch (err) {
+      console.error("[GeneratorForm] Unexpected error during submit:", err);
+      const message = err instanceof Error ? err.message : "An unexpected error occurred. Check the browser console for details.";
+      setGenerateError(message);
     }
-
-    // Build pipeline config from form values
-    const pipelineConfig: PipelineConfig = {
-      scenario_name: scenarioName,
-      template_type: selectedTemplate,
-      deployment_mode: deploymentMode === "bundled" ? "bundled" : "proxy",
-      proxy_url: proxyUrl || undefined,
-      platforms: selectedPlatformsList,
-      stop_after_stage: "generate", // Only run up to generate stage
-    };
-
-    generateMutation.mutate(pipelineConfig);
   };
 
   const handleDeploymentChange = (nextMode: DeploymentMode) => {
@@ -791,8 +796,8 @@ export function GeneratorForm({
     onValidationStateChange({
       errors: validationErrors,
       clearErrors: clearValidationErrors,
-      isPending: generateMutation.isPending,
-      isError: generateMutation.isError,
+      isPending: isSubmittingGenerate || isGenerating,
+      isError: isGenerateError,
       errorMessage: generateErrorMessage,
       isUpdateMode,
     });
@@ -800,8 +805,9 @@ export function GeneratorForm({
     onValidationStateChange,
     validationErrors,
     clearValidationErrors,
-    generateMutation.isPending,
-    generateMutation.isError,
+    isSubmittingGenerate,
+    isGenerating,
+    isGenerateError,
     generateErrorMessage,
     isUpdateMode,
   ]);
@@ -827,13 +833,13 @@ export function GeneratorForm({
       )}
       <form id={formId} onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
-            <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
-              <div className="font-semibold text-blue-50">
-                Loaded from Scenario Inventory: <span className="font-semibold">{scenarioName}</span>.
-              </div>
-              <p className="text-blue-100/90">
-                We&apos;ll regenerate the desktop wrapper with the settings below—your scenario code stays the same.
-              </p>
+            <div className="rounded-md border border-blue-800/60 bg-blue-950/30 px-2.5 py-1.5 text-xs md:text-sm text-blue-100">
+              <span className="font-semibold text-blue-50">
+                Loaded: {scenarioName}.
+              </span>{" "}
+              <span className="text-blue-100/90">
+                Settings below regenerate the desktop wrapper&mdash;scenario code stays the same.
+              </span>
             </div>
           )}
           <ScenarioSelector
@@ -939,8 +945,8 @@ export function GeneratorForm({
             <GeneratorFormFooter
               validationErrors={validationErrors}
               onDismissErrors={clearValidationErrors}
-              isPending={generateMutation.isPending}
-              isError={generateMutation.isError}
+              isPending={isSubmittingGenerate || isGenerating}
+              isError={isGenerateError}
               errorMessage={generateErrorMessage}
               isUpdateMode={isUpdateMode}
             />
