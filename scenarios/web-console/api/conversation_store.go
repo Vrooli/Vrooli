@@ -27,11 +27,11 @@ const (
 type ConversationTTSState string
 
 const (
-	ConversationTTSIdle       ConversationTTSState = "idle"
-	ConversationTTSPlaying    ConversationTTSState = "playing"
-	ConversationTTSPlayed     ConversationTTSState = "played"
-	ConversationTTSRejected   ConversationTTSState = "rejected"
-	ConversationTTSFailed     ConversationTTSState = "failed"
+	ConversationTTSIdle     ConversationTTSState = "idle"
+	ConversationTTSPlaying  ConversationTTSState = "playing"
+	ConversationTTSPlayed   ConversationTTSState = "played"
+	ConversationTTSRejected ConversationTTSState = "rejected"
+	ConversationTTSFailed   ConversationTTSState = "failed"
 )
 
 type ConversationConsumptionState string
@@ -69,14 +69,14 @@ type ConversationSessionState struct {
 }
 
 type ConversationAppendResult struct {
-	Appended   bool   `json:"appended"`
-	Code       string `json:"code"`
-	Reason     string `json:"reason"`
-	Source     string `json:"source"`
-	SessionID  string `json:"sessionId,omitempty"`
-	EventID    string `json:"eventId,omitempty"`
-	Sequence   int64  `json:"sequence,omitempty"`
-	Duplicate  bool   `json:"duplicate,omitempty"`
+	Appended  bool   `json:"appended"`
+	Code      string `json:"code"`
+	Reason    string `json:"reason"`
+	Source    string `json:"source"`
+	SessionID string `json:"sessionId,omitempty"`
+	EventID   string `json:"eventId,omitempty"`
+	Sequence  int64  `json:"sequence,omitempty"`
+	Duplicate bool   `json:"duplicate,omitempty"`
 }
 
 type conversationCursorPatch struct {

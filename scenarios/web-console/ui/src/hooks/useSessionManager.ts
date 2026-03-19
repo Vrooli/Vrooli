@@ -284,8 +284,8 @@ export function useSessionManager() {
   );
 
   const speakTextOnPane = useCallback(
-    (sessionId: string, text: string) => {
-      terminalRefs.current.get(sessionId)?.speakText(text);
+    (sessionId: string, text: string, paragraphs?: string[]) => {
+      terminalRefs.current.get(sessionId)?.speakText(text, paragraphs);
     },
     [],
   );

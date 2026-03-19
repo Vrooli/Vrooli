@@ -398,17 +398,27 @@ export default function Workspace() {
     const startIdx = session.events.findIndex((e) => e.id === eventId);
     if (startIdx === -1) return;
     const eventsFromHere = session.events.slice(startIdx);
-    const texts = eventsFromHere.map((e) => e.text);
+    // Use speechParagraphs (normalized, no markdown) with raw text as fallback
+    const texts = eventsFromHere.flatMap((e) => e.speechParagraphs?.length ? e.speechParagraphs : [e.text]);
     const ids = eventsFromHere.map((e) => e.id);
     setActiveSpeakingEventId(ids[0] ?? null);
     void speakSequenceOnPane(sessionId, texts, (i) => {
-      setActiveSpeakingEventId(ids[i] ?? null);
+      // Map flattened paragraph index back to event index for highlighting.
+      // This is approximate — highlight the event whose paragraphs contain index i.
+      let eventIdx = 0;
+      let consumed = 0;
+      for (let e = 0; e < eventsFromHere.length; e++) {
+        const count = eventsFromHere[e]?.speechParagraphs?.length || 1;
+        if (i < consumed + count) { eventIdx = e; break; }
+        consumed += count;
+      }
+      setActiveSpeakingEventId(ids[eventIdx] ?? null);
     });
   }, [speakSequenceOnPane]);
 
-  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string) => {
+  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string, paragraphs?: string[]) => {
     setActiveSpeakingEventId(eventId);
-    speakTextOnPane(sessionId, text);
+    speakTextOnPane(sessionId, text, paragraphs);
   }, [speakTextOnPane]);
 
   // --- Mobile image upload ---
@@ -682,7 +692,7 @@ export default function Workspace() {
               <MessagesPane
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
+                        onSpeakOne={(eventId, text, paragraphs) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />
@@ -798,7 +808,7 @@ export default function Workspace() {
                       <MessagesPane
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text) => handleSpeakOne(paneMeta.sessionId, eventId, text)}
+                        onSpeakOne={(eventId, text, paragraphs) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />

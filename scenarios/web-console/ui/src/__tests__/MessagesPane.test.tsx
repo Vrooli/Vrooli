@@ -68,11 +68,11 @@ describe("MessagesPane", () => {
   });
 
   it("clicking 'read this one' calls onSpeakOne with event ID and text", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("msg-speak-one-e1"));
-    expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world");
+    expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world", ["Hello world"]);
   });
 
   it("active speaking event shows left border highlight", () => {

@@ -25,24 +25,53 @@ import type { TTSPlaybackState } from "../hooks/tts/types";
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
 
-/** Backend synthesis limit. Paragraphs must stay under this. */
-const TTS_MAX_CHUNK = 4500;
+/**
+ * Backend synthesis limit in **bytes** (UTF-8). The Go backend checks
+ * `len(req.Input)` which is byte length, so we must measure the same way.
+ */
+const TTS_MAX_CHUNK_BYTES = 4500;
+
+const textEncoder = new TextEncoder();
+
+/** Return UTF-8 byte length of a string (matches Go's `len(s)`). */
+function utf8ByteLength(s: string): number {
+  return textEncoder.encode(s).length;
+}
 
 /**
- * Ensures every paragraph fits within the TTS synthesis character limit.
+ * Ensures every paragraph fits within the TTS synthesis byte limit.
  * This is a defensive fallback for events that lack backend-computed
  * speechParagraphs (e.g. cached from an older server version).
+ *
+ * Measures UTF-8 byte length (not JS string length) because the backend
+ * validates with Go's len() which counts bytes. Unicode-heavy content
+ * (box-drawing, em dashes) can be 3 bytes per character.
  */
 function ensureSpeechChunks(paragraphs: string[]): string[] {
   const result: string[] = [];
   for (const p of paragraphs) {
-    if (p.length <= TTS_MAX_CHUNK) {
+    if (utf8ByteLength(p) <= TTS_MAX_CHUNK_BYTES) {
       result.push(p);
     } else {
+      // Split at word boundaries, measuring byte length
       let remaining = p;
-      while (remaining.length > TTS_MAX_CHUNK) {
-        const splitAt = remaining.lastIndexOf(" ", TTS_MAX_CHUNK);
-        const cut = splitAt > 0 ? splitAt : TTS_MAX_CHUNK;
+      while (utf8ByteLength(remaining) > TTS_MAX_CHUNK_BYTES) {
+        // Binary-search for the split point: find the largest prefix
+        // that fits within the byte limit, cutting at a word boundary.
+        let lo = 0;
+        let hi = remaining.length;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >>> 1;
+          if (utf8ByteLength(remaining.slice(0, mid)) <= TTS_MAX_CHUNK_BYTES) {
+            lo = mid;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        // lo = max number of chars whose byte length fits.
+        // Prefer splitting at a space.
+        const spaceAt = remaining.lastIndexOf(" ", lo);
+        const cut = spaceAt > 0 ? spaceAt : lo;
         result.push(remaining.slice(0, cut).trim());
         remaining = remaining.slice(cut).trim();
       }
@@ -70,8 +99,8 @@ export interface TerminalPaneHandle {
   focus: () => void;
   /** Stop TTS playback for this pane. */
   stopTts: () => void;
-  /** Stop current TTS, then speak a single text. */
-  speakText: (text: string) => void;
+  /** Stop current TTS, then speak a single text (optionally pre-chunked). */
+  speakText: (text: string, paragraphs?: string[]) => void;
   /** Stop current TTS, then speak texts sequentially, calling onProgress(i) before each. */
   speakSequence: (texts: string[], onProgress: (index: number) => void) => Promise<void>;
   /** Pause TTS playback. */
@@ -129,7 +158,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference],
     );
     const {
-      speak, speakParagraphs, stop: ttsStop,
+      speakParagraphs, stop: ttsStop,
       pause: ttsPause, resume: ttsResume, seek: ttsSeek,
       setPlaybackRate: ttsSetPlaybackRate, setVolume: ttsSetVolume,
       getPlaybackState: ttsGetPlaybackState,
@@ -278,9 +307,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendInput,
       focus: () => terminal?.focus(),
       stopTts: ttsStop,
-      speakText: (text: string) => {
+      speakText: (text: string, paragraphs?: string[]) => {
         ttsStop();
-        speak(text);
+        void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]));
       },
       speakSequence: async (texts: string[], onProgress: (index: number) => void) => {
         ttsStop();
@@ -297,7 +326,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setTtsPlaybackRate: ttsSetPlaybackRate,
       setTtsVolume: ttsSetVolume,
       getTtsState: ttsGetPlaybackState,
-    }), [sendInput, terminal, ttsStop, speak, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState]);
+    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -343,9 +372,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
 
     const handleCtxSpeak = useCallback(() => {
       const selection = terminal?.getSelection();
-      if (selection) speak(selection);
+      if (selection) void speakParagraphs(ensureSpeechChunks([selection]));
       setContextMenu(null);
-    }, [terminal, speak]);
+    }, [terminal, speakParagraphs]);
 
     // Image upload support
     const { uploadAndInject, uploading, error: uploadError } = useImageUpload(sessionId, sendInput);

@@ -84,9 +84,9 @@ func NormalizeTextForSpeech(text string) string {
 	// 12. Blockquote markers: > text → text.
 	s = reBlockquote.ReplaceAllString(s, "$1")
 
-	// 13. Unordered/ordered list markers: - item, * item, 1. item → item.
-	s = reUnorderedList.ReplaceAllString(s, "$1")
-	s = reOrderedList.ReplaceAllString(s, "$1")
+	// 13. List markers: strip bullets (add period), keep numbers (add period).
+	s = reUnorderedList.ReplaceAllStringFunc(s, stripBulletAddPeriod)
+	s = reOrderedList.ReplaceAllStringFunc(s, keepNumberAddPeriod)
 
 	// 14. Bare file paths outside of inline code (e.g. /home/user/project/file.go).
 	s = reBareFilePath.ReplaceAllStringFunc(s, extractBasename)
@@ -111,10 +111,11 @@ var (
 	reMarkdownTable = regexp.MustCompile(`(?m)^(\|[^\n]+\|\n\|[-| :]+\|\n(?:\|[^\n]+\|\n?)*)`)
 
 	// Inline code containing a path with at least one / separator.
-	reInlineCodePath = regexp.MustCompile("`([^`]+/[^`]+)`")
+	// [^`\n] prevents matching across line boundaries.
+	reInlineCodePath = regexp.MustCompile("`([^`\n]+/[^`\n]+)`")
 
-	// Generic inline code.
-	reInlineCode = regexp.MustCompile("`([^`]+)`")
+	// Generic inline code. Must not span lines.
+	reInlineCode = regexp.MustCompile("`([^`\n]+)`")
 
 	// Image: ![alt](url)
 	reImage = regexp.MustCompile(`!\[([^\]]*)\]\([^)]+\)`)
@@ -154,6 +155,9 @@ var (
 
 	// Ordered list marker: 1., 2., etc.
 	reOrderedList = regexp.MustCompile(`(?m)^[\t ]*\d+\.\s+(.*)`)
+
+	// Ordered list number prefix: captures "1." from "  1. item".
+	reOrderedListNumber = regexp.MustCompile(`\d+\.`)
 
 	// Bare file path: starts with / or ./ or ~/ and has at least 2 segments.
 	reBareFilePath = regexp.MustCompile(`(?:^|[\s(])([/~](?:\w[\w.-]*/)+[\w.-]+)`)
@@ -561,6 +565,49 @@ var (
 	// ASCII box junction: lines like +---+, +===+, +---+---+.
 	reASCIIBoxJunction = regexp.MustCompile(`\+[-=]+\+`)
 )
+
+// endsWithSentencePunctuation reports whether s ends with . ! ? or :
+func endsWithSentencePunctuation(s string) bool {
+	if s == "" {
+		return false
+	}
+	switch s[len(s)-1] {
+	case '.', '!', '?', ':':
+		return true
+	}
+	return false
+}
+
+// stripBulletAddPeriod removes a bullet marker (-, *, +) and appends a period
+// if the item doesn't already end with sentence punctuation.
+// "- Install the package" → "Install the package."
+func stripBulletAddPeriod(match string) string {
+	item := strings.TrimSpace(reUnorderedList.FindStringSubmatch(match)[1])
+	if item == "" {
+		return ""
+	}
+	if !endsWithSentencePunctuation(item) {
+		item += "."
+	}
+	return item
+}
+
+// keepNumberAddPeriod preserves the number prefix and appends a period if the
+// item doesn't already end with sentence punctuation.
+// "1. Install the package" → "1. Install the package."
+func keepNumberAddPeriod(match string) string {
+	sub := reOrderedList.FindStringSubmatch(match)
+	item := strings.TrimSpace(sub[1])
+	if item == "" {
+		return ""
+	}
+	// Extract the number from the original match.
+	numStr := strings.TrimSpace(reOrderedListNumber.FindString(match))
+	if !endsWithSentencePunctuation(item) {
+		item += "."
+	}
+	return numStr + " " + item
+}
 
 // extractBasename returns the last path segment of a file path.
 // "/home/user/project/src/main.go" → "main.go"

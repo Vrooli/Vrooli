@@ -129,27 +129,27 @@ func (s *Server) handleGetTTSConfig(w http.ResponseWriter, _ *http.Request) {
 }
 
 type TTSRuntimeStatus struct {
-	Config                TTSConfig                  `json:"config"`
-	HookRegistered        bool                       `json:"hookRegistered"`
-	HookCode              string                     `json:"hookCode,omitempty"`
-	HookReason            string                     `json:"hookReason"`
-	HookSettingsPath      string                     `json:"hookSettingsPath,omitempty"`
-	LastRouting           *ConversationAppendResult  `json:"lastRouting,omitempty"`
-	LastRoutingAt         string                     `json:"lastRoutingAt,omitempty"`
-	LastHookRouting       *ConversationAppendResult  `json:"lastHookRouting,omitempty"`
-	LastHookRoutingAt     string                     `json:"lastHookRoutingAt,omitempty"`
-	LastTailerRouting     *ConversationAppendResult  `json:"lastTailerRouting,omitempty"`
-	LastTailerRoutingAt   string                     `json:"lastTailerRoutingAt,omitempty"`
-	LastAck               *TTSClientAck              `json:"lastAck,omitempty"`
-	LastAckAt             string                     `json:"lastAckAt,omitempty"`
-	LastHookAck           *TTSClientAck              `json:"lastHookAck,omitempty"`
-	LastHookAckAt         string                     `json:"lastHookAckAt,omitempty"`
-	LastTailerAck         *TTSClientAck              `json:"lastTailerAck,omitempty"`
-	LastTailerAckAt       string                     `json:"lastTailerAckAt,omitempty"`
-	LastPlaybackEvent     *TTSPlaybackEvent          `json:"lastPlaybackEvent,omitempty"`
-	LastPlaybackAt        string                     `json:"lastPlaybackAt,omitempty"`
-	KokoroCapability      string                     `json:"kokoroCapability,omitempty"`
-	KokoroCapabilityLabel string                     `json:"kokoroCapabilityLabel,omitempty"`
+	Config                TTSConfig                 `json:"config"`
+	HookRegistered        bool                      `json:"hookRegistered"`
+	HookCode              string                    `json:"hookCode,omitempty"`
+	HookReason            string                    `json:"hookReason"`
+	HookSettingsPath      string                    `json:"hookSettingsPath,omitempty"`
+	LastRouting           *ConversationAppendResult `json:"lastRouting,omitempty"`
+	LastRoutingAt         string                    `json:"lastRoutingAt,omitempty"`
+	LastHookRouting       *ConversationAppendResult `json:"lastHookRouting,omitempty"`
+	LastHookRoutingAt     string                    `json:"lastHookRoutingAt,omitempty"`
+	LastTailerRouting     *ConversationAppendResult `json:"lastTailerRouting,omitempty"`
+	LastTailerRoutingAt   string                    `json:"lastTailerRoutingAt,omitempty"`
+	LastAck               *TTSClientAck             `json:"lastAck,omitempty"`
+	LastAckAt             string                    `json:"lastAckAt,omitempty"`
+	LastHookAck           *TTSClientAck             `json:"lastHookAck,omitempty"`
+	LastHookAckAt         string                    `json:"lastHookAckAt,omitempty"`
+	LastTailerAck         *TTSClientAck             `json:"lastTailerAck,omitempty"`
+	LastTailerAckAt       string                    `json:"lastTailerAckAt,omitempty"`
+	LastPlaybackEvent     *TTSPlaybackEvent         `json:"lastPlaybackEvent,omitempty"`
+	LastPlaybackAt        string                    `json:"lastPlaybackAt,omitempty"`
+	KokoroCapability      string                    `json:"kokoroCapability,omitempty"`
+	KokoroCapabilityLabel string                    `json:"kokoroCapabilityLabel,omitempty"`
 }
 
 func (s *Server) handleGetTTSStatus(w http.ResponseWriter, r *http.Request) {

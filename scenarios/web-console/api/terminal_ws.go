@@ -52,11 +52,11 @@ type TerminalMessage struct {
 	TotalBytes int64 `json:"total_bytes,omitempty"`
 	// Resumed indicates that the client's resume offset was valid and only
 	// delta data was sent (not the full history).
-	Resumed bool   `json:"resumed,omitempty"`
-	EventID string `json:"eventId,omitempty"`
-	Source  string `json:"source,omitempty"`
-	Stage   string `json:"stage,omitempty"`
-	Backend string `json:"backend,omitempty"`
+	Resumed          bool     `json:"resumed,omitempty"`
+	EventID          string   `json:"eventId,omitempty"`
+	Source           string   `json:"source,omitempty"`
+	Stage            string   `json:"stage,omitempty"`
+	Backend          string   `json:"backend,omitempty"`
 	Role             string   `json:"role,omitempty"`
 	CreatedAt        string   `json:"createdAt,omitempty"`
 	Sequence         int64    `json:"sequence,omitempty"`

@@ -118,6 +118,29 @@ func TestNormalize_InlineCodeNotAPath(t *testing.T) {
 	}
 }
 
+func TestNormalize_InlineCodeDoesNotSpanLines(t *testing.T) {
+	// Regression: reInlineCodePath matched from `service.json` across many
+	// lines to `status` because [^`] allows newlines. This swallowed entire
+	// sections of the document.
+	input := "It generates a `service.json` config file.\n\n" +
+		"## Tech Stack\n\n" +
+		"- **API**: Go, gorilla/mux, PostgreSQL\n" +
+		"- **CLI**: Go CLI for `status` and `configure` commands"
+	got := NormalizeTextForSpeech(input)
+	if strings.Contains(got, "jsonmux") || strings.Contains(got, "service.jsonmux") {
+		t.Errorf("inline code regex must not span lines, got:\n%s", got)
+	}
+	if !strings.Contains(got, "service.json") {
+		t.Errorf("service.json should be preserved, got:\n%s", got)
+	}
+	if !strings.Contains(got, "gorilla") {
+		t.Errorf("gorilla/mux text should be preserved, got:\n%s", got)
+	}
+	if !strings.Contains(got, "status") {
+		t.Errorf("status should be preserved, got:\n%s", got)
+	}
+}
+
 func TestNormalize_BareFilePath(t *testing.T) {
 	input := "The config is at /etc/nginx/sites-available/default for reference."
 	got := NormalizeTextForSpeech(input)
@@ -274,19 +297,90 @@ func TestNormalize_UnorderedList(t *testing.T) {
 	if strings.Contains(got, "- First") || strings.Contains(got, "* Third") {
 		t.Errorf("list markers should be removed, got:\n%s", got)
 	}
-	if !strings.Contains(got, "First item") || !strings.Contains(got, "Third item") {
-		t.Error("list item text should be preserved")
+	if !strings.Contains(got, "First item.") || !strings.Contains(got, "Third item.") {
+		t.Errorf("list items should have periods appended, got:\n%s", got)
+	}
+}
+
+func TestNormalize_UnorderedList_ExistingPunctuation(t *testing.T) {
+	input := "- Already has a period.\n- Has exclamation!\n- Has question?\n- Has colon:\n- No punctuation"
+	got := NormalizeTextForSpeech(input)
+	if strings.Contains(got, "period..") {
+		t.Errorf("should not double-up periods, got:\n%s", got)
+	}
+	if strings.Contains(got, "exclamation!.") {
+		t.Errorf("should not add period after !, got:\n%s", got)
+	}
+	if strings.Contains(got, "question?.") {
+		t.Errorf("should not add period after ?, got:\n%s", got)
+	}
+	if strings.Contains(got, "colon:.") {
+		t.Errorf("should not add period after :, got:\n%s", got)
+	}
+	if !strings.Contains(got, "No punctuation.") {
+		t.Errorf("should add period when missing, got:\n%s", got)
+	}
+}
+
+func TestNormalize_UnorderedList_IndentedItems(t *testing.T) {
+	input := "- Top level\n  - Indented item\n    - Deep item"
+	got := NormalizeTextForSpeech(input)
+	if !strings.Contains(got, "Top level.") {
+		t.Errorf("top-level item should get period, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Indented item.") {
+		t.Errorf("indented item should get period, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Deep item.") {
+		t.Errorf("deeply indented item should get period, got:\n%s", got)
+	}
+}
+
+func TestNormalize_UnorderedList_PlusMarker(t *testing.T) {
+	input := "+ Item one\n+ Item two"
+	got := NormalizeTextForSpeech(input)
+	if strings.Contains(got, "+") {
+		t.Errorf("+ markers should be removed, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Item one.") || !strings.Contains(got, "Item two.") {
+		t.Errorf("items should have periods, got:\n%s", got)
 	}
 }
 
 func TestNormalize_OrderedList(t *testing.T) {
 	input := "1. Alpha\n2. Beta\n3. Gamma"
 	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "1.") || strings.Contains(got, "2.") {
-		t.Errorf("ordered list markers should be removed, got:\n%s", got)
+	if !strings.Contains(got, "1. Alpha.") {
+		t.Errorf("expected '1. Alpha.', got:\n%s", got)
 	}
-	if !strings.Contains(got, "Alpha") || !strings.Contains(got, "Gamma") {
-		t.Error("list item text should be preserved")
+	if !strings.Contains(got, "2. Beta.") {
+		t.Errorf("expected '2. Beta.', got:\n%s", got)
+	}
+	if !strings.Contains(got, "3. Gamma.") {
+		t.Errorf("expected '3. Gamma.', got:\n%s", got)
+	}
+}
+
+func TestNormalize_OrderedList_ExistingPunctuation(t *testing.T) {
+	input := "1. Already done.\n2. Also done!\n3. Really?\n4. No punctuation"
+	got := NormalizeTextForSpeech(input)
+	if strings.Contains(got, "done..") {
+		t.Errorf("should not double-up periods, got:\n%s", got)
+	}
+	if strings.Contains(got, "done!.") {
+		t.Errorf("should not add period after !, got:\n%s", got)
+	}
+	if !strings.Contains(got, "4. No punctuation.") {
+		t.Errorf("should add period when missing, got:\n%s", got)
+	}
+}
+
+func TestNormalize_OrderedList_PreservesNumbers(t *testing.T) {
+	input := "1. First step\n2. Second step\n3. Third step"
+	got := NormalizeTextForSpeech(input)
+	// Numbers should be preserved for natural reading
+	if !strings.Contains(got, "1.") || !strings.Contains(got, "2.") || !strings.Contains(got, "3.") {
+		t.Errorf("ordered list numbers should be preserved, got:\n%s", got)
 	}
 }
 

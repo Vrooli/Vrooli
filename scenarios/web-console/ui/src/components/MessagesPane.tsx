@@ -6,8 +6,8 @@ interface MessagesPaneProps {
   sessionId: string;
   /** Speak from this event through all subsequent events. */
   onSpeakFromHere: (eventId: string) => void;
-  /** Speak only this event's text. */
-  onSpeakOne: (eventId: string, text: string) => void;
+  /** Speak only this event's text (with optional pre-computed paragraphs). */
+  onSpeakOne: (eventId: string, text: string, paragraphs?: string[]) => void;
   /** Event ID currently being spoken, or null. */
   activeSpeakingEventId: string | null;
   /** Whether TTS is active on this pane. */
@@ -57,7 +57,7 @@ export default function MessagesPane({
                   </button>
                   <button
                     data-testid={`msg-speak-one-${event.id}`}
-                    onClick={() => onSpeakOne(event.id, event.text)}
+                    onClick={() => onSpeakOne(event.id, event.text, event.speechParagraphs)}
                     className="rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10"
                     title="Read this message"
                   >
