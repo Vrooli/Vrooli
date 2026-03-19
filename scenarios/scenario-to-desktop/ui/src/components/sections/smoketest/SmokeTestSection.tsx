@@ -1,13 +1,14 @@
 /**
  * Smoke Test section - displays smoke test stage status and results from the pipeline store.
+ * Self-manages the smoke test action via the pipeline store's runStage("smoketest").
  *
- * State machine: The smoke test status depends on both its own stage status AND the overall
- * pipeline status. When the pipeline is in a terminal state (failed/cancelled) but the build
- * completed, this section must show actionable messaging rather than "waiting" messages.
+ * Status detection distinguishes between:
+ * - Pipeline completed at a checkpoint (stopped_after_stage set) → show "Run Smoke Test" button
+ * - Pipeline genuinely failed/cancelled before smoketest → show warning + "New Pipeline"
  */
 
 import { forwardRef, useMemo, useCallback, useState } from "react";
-import { TestTube, CheckCircle2, XCircle, Monitor, FileText, Video, Loader2, StopCircle, RotateCcw } from "lucide-react";
+import { TestTube, CheckCircle2, XCircle, Monitor, FileText, Video, Loader2, Square, AlertCircle, RotateCcw } from "lucide-react";
 import {
   SectionCard,
   STATUS_CONFIG,
@@ -18,8 +19,18 @@ import {
   StageError,
 } from "../shared";
 import { buildUrl } from "../../../lib/api";
-import { usePipelineStore, selectStageStatus } from "../../../store";
-import { isTerminalState } from "../../../services/pipeline.service";
+import {
+  usePipelineStore,
+  selectStageStatus,
+  selectErrorInfo,
+  selectIsRunning,
+  selectCurrentStage,
+  selectProgress,
+  selectIsBusy,
+  selectIsSubmitting,
+} from "../../../store";
+import { Button } from "../../ui/button";
+import { formatStageName } from "../../../lib/status-display";
 
 interface SmokeTestSectionProps {
   scenarioName: string;
@@ -31,20 +42,79 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
     const buildResult = usePipelineStore((s) => s.buildResult);
     const stageStatus = usePipelineStore(selectStageStatus("smoketest"));
     const pipelineOverallStatus = usePipelineStore((s) => s.pipelineStatus?.status);
+    const stoppedAfterStage = usePipelineStore((s) => s.pipelineStatus?.stopped_after_stage);
     const stageLogs = usePipelineStore((s) => s.stageLogs["smoketest"]);
+    const errorInfo = usePipelineStore(selectErrorInfo);
+    const clearError = usePipelineStore((s) => s.clearError);
+    const resetForRetry = usePipelineStore((s) => s.resetForRetry);
+    const runStage = usePipelineStore((s) => s.runStage);
     const cancelPipeline = usePipelineStore((s) => s.cancelPipeline);
     const createNewPipeline = usePipelineStore((s) => s.createNewPipelineForScenario);
-    const [isCancelling, setIsCancelling] = useState(false);
+    const isRunning = usePipelineStore(selectIsRunning);
+    const currentStage = usePipelineStore(selectCurrentStage);
+    const progress = usePipelineStore(selectProgress);
+    const isBusy = usePipelineStore(selectIsBusy);
+    const isSubmitting = usePipelineStore(selectIsSubmitting);
+
+    // Local error state for runStage("smoketest") call failures
+    const [mutationError, setMutationError] = useState<string | null>(null);
     const [isCreatingPipeline, setIsCreatingPipeline] = useState(false);
 
-    const handleCancel = useCallback(async () => {
-      setIsCancelling(true);
+    const hasResult = Boolean(smokeTestResult);
+    const hasBuildArtifacts = Object.keys(buildResult?.artifacts ?? {}).length > 0;
+    const { status: testStatus, platform, artifact_path: artifactPath, error, logs = [], telemetry_uploaded: telemetryUploaded } = smokeTestResult ?? {};
+    const testPassed = testStatus === "completed" || testStatus === "passed";
+    const progressPercent = Math.round(progress * 100);
+
+    // Distinguish between normal checkpoint stop and actual failure/cancellation.
+    // A pipeline that completed at a checkpoint (e.g. stopped_after_stage: "build") is
+    // the normal stage-by-stage flow — the user just needs to click "Run Smoke Test".
+    // A pipeline that failed or was cancelled is an actual problem.
+    const pipelineCompletedAtCheckpoint = pipelineOverallStatus === "completed"
+      && Boolean(stoppedAfterStage)
+      && !hasResult
+      && stageStatus === "pending";
+    const pipelineFailedBeforeSmoketest = (pipelineOverallStatus === "failed" || pipelineOverallStatus === "cancelled")
+      && !hasResult
+      && stageStatus === "pending"
+      && hasBuildArtifacts;
+
+    // Can test when build artifacts exist, no result yet, and stage hasn't completed or failed
+    const canTest = hasBuildArtifacts && !hasResult && stageStatus !== "completed";
+    // Show the action area (button, progress, or starting state)
+    const showTestAction = canTest && stageStatus !== "failed" && !pipelineFailedBeforeSmoketest;
+
+    const statusDisplay = useMemo(() => {
+      if (stageStatus === "completed") return { ...STATUS_CONFIG.completed, label: testPassed ? "Passed" : "Completed" };
+      if (isRunning) return { ...STATUS_CONFIG.running, label: "Testing" };
+      if (pipelineFailedBeforeSmoketest) return { ...STATUS_CONFIG.failed, label: "Skipped" };
+      return STATUS_CONFIG[stageStatus as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
+    }, [stageStatus, testPassed, isRunning, pipelineFailedBeforeSmoketest]);
+
+    const getDescription = () => {
+      if (isRunning) return "Verifying built artifacts launch correctly...";
+      if (hasResult) return `Tested on ${platform ?? "unknown platform"}`;
+      if (pipelineFailedBeforeSmoketest) return "Pipeline ended before smoke testing could run";
+      return hasBuildArtifacts ? "Ready to test" : "Waiting for build artifacts";
+    };
+
+    const handleRunSmokeTest = useCallback(async () => {
+      setMutationError(null);
       try {
-        await cancelPipeline();
-      } finally {
-        setIsCancelling(false);
+        await runStage("smoketest");
+      } catch (err) {
+        setMutationError(err instanceof Error ? err.message : "Failed to start smoke test");
       }
+    }, [runStage]);
+
+    const handleCancel = useCallback(() => {
+      void cancelPipeline();
     }, [cancelPipeline]);
+
+    const handleRetry = useCallback(() => {
+      setMutationError(null);
+      resetForRetry();
+    }, [resetForRetry]);
 
     const handleNewPipeline = useCallback(async () => {
       setIsCreatingPipeline(true);
@@ -54,32 +124,6 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
         setIsCreatingPipeline(false);
       }
     }, [createNewPipeline]);
-
-    const hasResult = Boolean(smokeTestResult);
-    const hasBuildArtifacts = Object.keys(buildResult?.artifacts ?? {}).length > 0;
-    const { status: testStatus, platform, artifact_path: artifactPath, error, logs = [], telemetry_uploaded: telemetryUploaded } = smokeTestResult ?? {};
-    const testPassed = testStatus === "completed" || testStatus === "passed";
-    const isRunning = stageStatus === "running";
-
-    // Detect when the pipeline ended before smoketest could run.
-    // This happens when a pipeline is interrupted (e.g., server restart) or fails at a later
-    // stage while build artifacts still exist from a completed build stage.
-    const pipelineTerminal = isTerminalState(pipelineOverallStatus);
-    const pipelineStoppedBeforeSmoketest = pipelineTerminal && !hasResult && stageStatus === "pending" && hasBuildArtifacts;
-
-    const statusDisplay = useMemo(() => {
-      if (stageStatus === "completed") return { ...STATUS_CONFIG.completed, label: testPassed ? "Passed" : "Completed" };
-      if (isRunning) return { ...STATUS_CONFIG.running, label: "Testing" };
-      if (pipelineStoppedBeforeSmoketest) return { ...STATUS_CONFIG.failed, label: "Skipped" };
-      return STATUS_CONFIG[stageStatus as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
-    }, [stageStatus, testPassed, isRunning, pipelineStoppedBeforeSmoketest]);
-
-    const getDescription = () => {
-      if (isRunning) return "Verifying built artifacts launch correctly...";
-      if (hasResult) return `Tested on ${platform ?? "unknown platform"}`;
-      if (pipelineStoppedBeforeSmoketest) return "Pipeline ended before smoke testing could run";
-      return hasBuildArtifacts ? "Ready to test" : "Waiting for build artifacts";
-    };
 
     // Merge stage-level logs with result-level logs for display during running state
     const displayLogs = isRunning && !hasResult ? (stageLogs ?? []) : logs;
@@ -100,8 +144,79 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
 
         <StageStatusOverview icon={TestTube} title="Smoke Test Status" description={getDescription()} statusDisplay={statusDisplay} />
 
-        {/* Pipeline stopped before smoketest - show explanation and retry button */}
-        {pipelineStoppedBeforeSmoketest && (
+        {/* Smoke test action area: button, progress, or starting state */}
+        {showTestAction && (
+          <div className="space-y-3">
+            {isRunning ? (
+              <>
+                {/* Progress bar when pipeline is running */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-blue-400 flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {currentStage ? `Running ${formatStageName(currentStage)} stage...` : "Starting pipeline..."}
+                    </span>
+                    <span className="text-slate-400">{progressPercent}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
+                      style={{ width: `${Math.max(progressPercent, 2)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Live logs during running */}
+                {displayLogs.length > 0 && (
+                  <StageDetailCard icon={FileText} label={`Live Logs (${displayLogs.length} lines)`}>
+                    <div className="max-h-32 overflow-y-auto">
+                      <pre className="text-xs text-slate-400 font-mono whitespace-pre-wrap">{displayLogs.slice(-10).join("\n")}</pre>
+                    </div>
+                  </StageDetailCard>
+                )}
+
+                {/* Cancel button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  className="w-full border-red-800/60 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+                >
+                  <Square className="mr-2 h-3.5 w-3.5" />
+                  Cancel Smoke Test
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={handleRunSmokeTest}
+                className="w-full"
+                disabled={isBusy}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  "Run Smoke Test"
+                )}
+              </Button>
+            )}
+
+            {/* Inline mutation error */}
+            {mutationError && !isRunning && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-800/60 bg-red-950/30 p-3 text-sm text-red-300">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
+                <div>
+                  <strong>Error:</strong> {mutationError}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pipeline failed/cancelled before smoketest — show warning and New Pipeline button */}
+        {pipelineFailedBeforeSmoketest && (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-900/50 bg-amber-950/20 p-4">
               <div>
@@ -111,56 +226,21 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
                   smoke testing could run. Start a new pipeline to test the built artifacts.
                 </p>
               </div>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleNewPipeline}
                 disabled={isCreatingPipeline}
-                className="flex items-center gap-1.5 shrink-0 rounded-md border border-emerald-800/50 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300 disabled:opacity-50 transition-colors"
-                title="Create a new pipeline to run smoke tests"
+                className="shrink-0 border-emerald-800/50 text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                 {isCreatingPipeline ? "Creating..." : "New Pipeline"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
-        {/* Running state - show progress indicator, cancel button, and live logs */}
-        {isRunning && !hasResult && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-900/50 bg-blue-950/20 p-4">
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-400 shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-blue-300">Smoke test in progress</p>
-                  <p className="text-xs text-blue-400/70">
-                    Launching the built installer and verifying it starts correctly.
-                    This may take a few minutes.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={isCancelling}
-                className="flex items-center gap-1.5 shrink-0 rounded-md border border-red-800/50 bg-red-950/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-50 transition-colors"
-                title="Cancel the running pipeline"
-              >
-                <StopCircle className="h-3.5 w-3.5" />
-                {isCancelling ? "Cancelling..." : "Cancel"}
-              </button>
-            </div>
-
-            {displayLogs.length > 0 && (
-              <StageDetailCard icon={FileText} label={`Live Logs (${displayLogs.length} lines)`}>
-                <div className="max-h-32 overflow-y-auto">
-                  <pre className="text-xs text-slate-400 font-mono whitespace-pre-wrap">{displayLogs.slice(-10).join("\n")}</pre>
-                </div>
-              </StageDetailCard>
-            )}
-          </div>
-        )}
-
+        {/* Completed results */}
         {hasResult && (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -230,7 +310,8 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
           </div>
         )}
 
-        {!hasResult && !pipelineStoppedBeforeSmoketest && !hasBuildArtifacts && stageStatus === "pending" && (
+        {/* Placeholder when not ready */}
+        {!hasResult && !pipelineFailedBeforeSmoketest && !pipelineCompletedAtCheckpoint && !hasBuildArtifacts && stageStatus === "pending" && (
           <StagePlaceholder
             scenarioName={scenarioName}
             withScenarioText="Smoke testing will be available after building installers."
@@ -238,7 +319,15 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
           />
         )}
 
-        {stageStatus === "failed" && !hasResult && <StageError stageName="Smoke test" />}
+        {/* Stage-level failure (from pipeline execution) */}
+        {stageStatus === "failed" && (
+          <StageError
+            stageName="Smoke test"
+            errorInfo={errorInfo}
+            onRetry={handleRetry}
+            onDismiss={clearError}
+          />
+        )}
       </SectionCard>
     );
   }

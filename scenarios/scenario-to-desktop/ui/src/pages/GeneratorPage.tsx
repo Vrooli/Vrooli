@@ -16,7 +16,6 @@ import {
   DeploySection,
 } from "../components/sections";
 import { useSidebarStore, type SectionId } from "../store/sidebarStore";
-import { usePipelineStore } from "../store";
 // NOTE: Pipeline scenario is set by App.tsx - no need to set it here
 
 interface GeneratorPageProps {
@@ -43,10 +42,6 @@ export function GeneratorPage({
   onOpenSigningTab,
 }: GeneratorPageProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
-
-  // Derive wrapperReady from store — generate stage completed means wrapper exists
-  const generateResult = usePipelineStore((s) => s.generateResult);
-  const wrapperReady = Boolean(generateResult);
 
   // State shared between ConfigurationSection and PreflightSection/BundleSection
   const [formState, setFormState] = useState<ExposedFormState | null>(null);
@@ -190,7 +185,6 @@ export function GeneratorPage({
         <BuildSection
           ref={sectionRefs.build}
           scenarioName={scenarioName}
-          wrapperReady={wrapperReady}
         />
 
         {/* Section 5: Smoke Test */}
