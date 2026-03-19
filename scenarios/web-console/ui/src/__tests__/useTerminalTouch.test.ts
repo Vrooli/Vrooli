@@ -574,7 +574,12 @@ describe("useTerminalTouch", () => {
     expect(terminal.focus).toHaveBeenCalled();
   });
 
-  it("movement during pending cancels long-press timer and starts scroll", () => {
+  it("movement during pending scrolls, then long-press timer reclaims for selection", () => {
+    // On mobile, natural hand tremor during a hold easily exceeds the 8px
+    // movement threshold. The long-press timer is intentionally kept alive
+    // during scrolling so that after 500ms the gesture transitions to
+    // "selecting" — if the user genuinely wanted to scroll, they would
+    // have already lifted their finger by then.
     renderHook(() =>
       useTerminalTouch(makeHookArgs(terminal, container)),
     );
@@ -589,13 +594,16 @@ describe("useTerminalTouch", () => {
     vi.advanceTimersByTime(16);
     fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 110 });
 
-    // Now wait past long-press — should NOT enter selection mode
+    // Scrolling should have occurred while in scrolling state
+    expect(terminal.scrollLines).toHaveBeenCalled();
+
+    // Now wait past long-press — SHOULD enter selection mode because the
+    // timer was kept alive across the pending→scrolling transition.
     act(() => {
       vi.advanceTimersByTime(TOUCH_LONG_PRESS_MS);
     });
 
-    expect(terminal.select).not.toHaveBeenCalled();
-    expect(terminal.scrollLines).toHaveBeenCalled();
+    expect(terminal.select).toHaveBeenCalled();
   });
 
   // ---- Context menu (long-press / right-click) ----

@@ -56,6 +56,12 @@ export const KEY_COMBOS: KeyCombo[] = [
   { id: "ctrl-backslash", label: "SIGQUIT", keys: "Ctrl+\\", sequence: [{ data: "\x1c" }], category: "Process Control", searchTerms: ["quit", "core dump", "abort"] },
 
   // ── Navigation ──
+  // Home and End send standard CSI escape sequences that most shells and TUI
+  // apps recognise.  They duplicate the Ctrl+A / Ctrl+E readline shortcuts
+  // below, but are far more discoverable for users who think in terms of
+  // physical keyboard keys rather than Emacs-style bindings.
+  { id: "home", label: "Home (Start of Line)", keys: "Home", sequence: [{ data: "\x1b[H" }], category: "Navigation", searchTerms: ["beginning", "start", "bol", "ctrl+a"] },
+  { id: "end", label: "End (End of Line)", keys: "End", sequence: [{ data: "\x1b[F" }], category: "Navigation", searchTerms: ["eol", "ctrl+e"] },
   { id: "ctrl-l", label: "Clear Screen", keys: "Ctrl+L", sequence: [{ data: "\x0c" }], category: "Navigation", searchTerms: ["clear", "cls", "refresh"] },
   { id: "ctrl-a", label: "Start of Line", keys: "Ctrl+A", sequence: [{ data: "\x01" }], category: "Navigation", searchTerms: ["home", "beginning"] },
   { id: "ctrl-e", label: "End of Line", keys: "Ctrl+E", sequence: [{ data: "\x05" }], category: "Navigation", searchTerms: ["end"] },

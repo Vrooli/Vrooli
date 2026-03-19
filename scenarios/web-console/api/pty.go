@@ -94,7 +94,7 @@ func defaultPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	// Filter Claude Code env vars first, then ensure TERM is set.
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
-	cmd.Env = applySessionEnv(ensureTermEnv(filterClaudeEnv(os.Environ())), spec.Env)
+	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(filterClaudeEnv(os.Environ()))), spec.Env)
 	cmd.Dir = resolveWorkingDir()
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
@@ -141,6 +141,37 @@ func filterClaudeEnv(env []string) []string {
 		// Filter exported bash functions for claude_code::
 		if strings.HasPrefix(v, "BASH_FUNC_claude_code::") {
 			continue
+		}
+		result = append(result, v)
+	}
+	return result
+}
+
+// serviceEnvVars lists environment variables that belong to the parent
+// service process (web-console) and must not leak into terminal sessions.
+// Without this filter, scenario CLIs (e.g. tunnel-manager) inherit
+// web-console's API_PORT and connect to the wrong API.
+var serviceEnvVars = map[string]struct{}{
+	"API_PORT":     {},
+	"API_BASE_URL": {},
+	"API_BASE":     {},
+	"UI_PORT":      {},
+	"WS_PORT":      {},
+	"VITE_API_BASE_URL": {},
+}
+
+// filterServiceEnv removes service-specific environment variables that
+// belong to the parent process (web-console). These variables would cause
+// other scenario CLIs running in terminal sessions to misdetect their API
+// endpoint, connecting to web-console instead of their own service.
+func filterServiceEnv(env []string) []string {
+	result := make([]string, 0, len(env))
+	for _, v := range env {
+		name, _, ok := strings.Cut(v, "=")
+		if ok {
+			if _, blocked := serviceEnvVars[name]; blocked {
+				continue
+			}
 		}
 		result = append(result, v)
 	}

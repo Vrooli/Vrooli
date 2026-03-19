@@ -215,11 +215,16 @@ export default function FloatingToolbar({
       >
         <Settings className="h-4 w-4" />
       </Button>
+      {/* AI and mic buttons are hidden on mobile (< md breakpoint) because
+       * the MobileToolbar already provides both. Keeping them in the floating
+       * toolbar on mobile would be redundant and waste precious screen space.
+       * On desktop the MobileToolbar is hidden (md:hidden), so these remain
+       * the only way to access AI and voice features. */}
       <Button
         data-testid="toolbar-ai"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-7 w-7 hidden md:inline-flex"
         onClick={onOpenAi}
         title="AI Command"
         tabIndex={docked ? -1 : undefined}
@@ -241,6 +246,7 @@ export default function FloatingToolbar({
           onStop={onVoiceStop}
           onCancel={onVoiceCancel}
           onTtsStop={onTtsStop}
+          className="hidden md:flex"
         />
       )}
       <Button

@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Image, Maximize2, Minimize2, SendHorizontal } from "lucide-react";
+import { Image, Maximize2, Minimize2, SendHorizontal, Sparkles } from "lucide-react";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -26,6 +26,9 @@ type SendStatus = "sent" | "queued" | "idle";
 export interface MobileToolbarHandle {
   /** Append text to the command input (used by voice transcription on mobile). */
   appendText: (text: string) => void;
+  /** Focus the command textarea. Used after mic permission is granted so the
+   *  user lands in a useful input target instead of nowhere. */
+  focusInput: () => void;
 }
 
 interface MobileToolbarProps {
@@ -51,6 +54,9 @@ interface MobileToolbarProps {
   onVoiceStop?: () => void;
   onVoiceCancel?: () => void;
   onUploadImage?: () => void;
+  /** Open the AI Command modal. Moved here from the floating toolbar on
+   *  mobile because it's more accessible in the persistent bottom bar. */
+  onOpenAi?: () => void;
   /** Whether TTS is currently playing audio on the active pane. */
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
@@ -76,6 +82,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceStop,
   onVoiceCancel,
   onUploadImage,
+  onOpenAi,
   isTtsSpeaking,
   onTtsStop,
   viewMode = "terminal",
@@ -88,6 +95,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         const needsSpace = prev.length > 0 && !prev.endsWith(" ");
         return prev + (needsSpace ? " " : "") + text;
       });
+    },
+    focusInput: () => {
+      textareaRef.current?.focus();
     },
   }), [setInputValue]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -256,11 +266,23 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
       {viewMode === "messages" ? (
-        /* ── Messages mode: only image upload + voice mic ── */
+        /* ── Messages mode: AI + image upload + voice mic ── */
         <div
           className="flex items-center justify-end gap-0.5 px-1 py-1 touch-manipulation select-none"
           onMouseDown={(e) => e.preventDefault()}
         >
+          {onOpenAi && (
+            <button
+              data-testid="toolbar-ai"
+              tabIndex={-1}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onOpenAi}
+              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              title="AI Command"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </button>
+          )}
           {onUploadImage && (
             <button
               data-testid="toolbar-upload-image"
@@ -373,8 +395,20 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             </div>
           </div>
 
-          {/* Column 3: Image upload button (top row only, right-aligned) */}
-          <div className="flex items-start justify-end" style={{ gridColumn: 3, gridRow: 1 }}>
+          {/* Column 3: AI + Image upload buttons (right-aligned) */}
+          <div className="flex flex-col items-end gap-0.5" style={{ gridColumn: 3, gridRow: "1 / -1" }}>
+            {onOpenAi && (
+              <button
+                data-testid="toolbar-ai"
+                tabIndex={-1}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={onOpenAi}
+                className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+                title="AI Command"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+            )}
             {onUploadImage && (
               <button
                 data-testid="toolbar-upload-image"
@@ -456,6 +490,18 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               </button>
             ))}
           </div>
+          {onOpenAi && (
+            <button
+              data-testid="toolbar-ai"
+              tabIndex={-1}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onOpenAi}
+              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              title="AI Command"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </button>
+          )}
           {onUploadImage && (
             <button
               data-testid="toolbar-upload-image"

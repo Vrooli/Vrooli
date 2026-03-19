@@ -19,10 +19,23 @@ export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPic
   const recentCombos = useWorkspaceStore((s) => s.recentCombos);
   const addRecentCombo = useWorkspaceStore((s) => s.addRecentCombo);
 
-  // Focus search input when sheet opens
+  // When the picker opens, dismiss the virtual keyboard first, then focus
+  // the search input.  The trigger button uses onPointerDown preventDefault
+  // (to avoid stealing focus from the terminal on regular key presses), which
+  // means the previously-focused element (xterm's hidden textarea, or the
+  // MobileToolbar textarea) is never blurred.  If we don't blur it explicitly,
+  // the virtual keyboard stays open behind the picker sheet, which on mobile
+  // covers the combo list and is confusing.
+  //
+  // The 50ms delay before focusing search gives the browser enough time to
+  // actually retract the keyboard animation; focusing a new input immediately
+  // after blur can cause the keyboard to snap back open on some mobile browsers.
   useEffect(() => {
     if (open) {
-      // Small delay to allow portal to mount
+      // Blur whatever currently has focus (dismisses virtual keyboard)
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       const id = setTimeout(() => searchRef.current?.focus(), 50);
       return () => clearTimeout(id);
     }

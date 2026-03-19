@@ -165,6 +165,67 @@ func TestFilterClaudeEnv_RemovesBashFuncClaudeCode(t *testing.T) {
 	}
 }
 
+// --- filterServiceEnv tests ---
+
+func TestFilterServiceEnv_RemovesServiceVars(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"API_PORT=36232",
+		"API_BASE_URL=http://localhost:36232",
+		"UI_PORT=36240",
+		"WS_PORT=25000",
+		"VITE_API_BASE_URL=http://localhost:36232",
+		"API_BASE=http://localhost:36232",
+		"PATH=/usr/bin",
+		"SHELL=/bin/bash",
+	}
+	got := filterServiceEnv(env)
+
+	blocked := map[string]bool{
+		"API_PORT": true, "API_BASE_URL": true, "UI_PORT": true,
+		"WS_PORT": true, "VITE_API_BASE_URL": true, "API_BASE": true,
+	}
+	for _, v := range got {
+		name, _, _ := strings.Cut(v, "=")
+		if blocked[name] {
+			t.Errorf("service env var should be filtered out: %s", v)
+		}
+	}
+	if len(got) != 3 {
+		t.Errorf("expected 3 env vars (HOME, PATH, SHELL), got %d: %v", len(got), got)
+	}
+}
+
+func TestFilterServiceEnv_PreservesScenarioSpecificVars(t *testing.T) {
+	env := []string{
+		"TUNNEL_MANAGER_API_PORT=15001",
+		"TUNNEL_MANAGER_API_BASE=http://localhost:15001",
+		"API_PORT=36232",
+		"HOME=/home/user",
+	}
+	got := filterServiceEnv(env)
+
+	foundTM := 0
+	for _, v := range got {
+		if strings.HasPrefix(v, "TUNNEL_MANAGER_") {
+			foundTM++
+		}
+		if strings.HasPrefix(v, "API_PORT=") {
+			t.Error("generic API_PORT should be filtered out")
+		}
+	}
+	if foundTM != 2 {
+		t.Errorf("expected 2 TUNNEL_MANAGER_* vars preserved, got %d", foundTM)
+	}
+}
+
+func TestFilterServiceEnv_HandlesEmptyEnv(t *testing.T) {
+	got := filterServiceEnv([]string{})
+	if len(got) != 0 {
+		t.Errorf("expected empty result, got %v", got)
+	}
+}
+
 // fakePTY is a pipe-based PTY substitute for fast, deterministic tests.
 // It satisfies the PTY interface without spawning real shell processes.
 // Use fakePTYWithOutput when you need to simulate PTY stdout.

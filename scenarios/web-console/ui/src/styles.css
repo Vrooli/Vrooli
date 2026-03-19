@@ -53,6 +53,22 @@ body {
   margin: 0;
 }
 
+/* ── Tab bar: prevent text selection ──
+ * On mobile, long-pressing a tab triggers the context menu (rename,
+ * customize, etc.).  Without this rule the browser's native long-press
+ * behaviour also begins a text selection, causing an unwanted blue
+ * highlight over the tab label or even the whole page.  Disabling
+ * user-select on every element inside the tab bar prevents that while
+ * still allowing selection in other parts of the UI (e.g. the terminal,
+ * rename inputs – the <input> elements reset this via Tailwind's
+ * `select-text` / browser defaults).
+ * -webkit-user-select is required for Safari / older WebKit browsers.
+ */
+[data-testid="tab-bar"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Drag-and-drop pane reorder: dashed border on the drop target */
 [data-drop-target]::after {
   content: '';

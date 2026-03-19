@@ -313,12 +313,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       },
       speakSequence: async (texts: string[], onProgress: (index: number) => void) => {
         ttsStop();
-        for (let i = 0; i < texts.length; i++) {
-          onProgress(i);
-          const text = texts[i];
-          if (!text) continue;
-          await speakParagraphs(ensureSpeechChunks([text]));
-        }
+        onProgress(0);
+        const allChunks = texts.flatMap((t) => t ? ensureSpeechChunks([t]) : []);
+        await speakParagraphs(allChunks);
       },
       pauseTts: ttsPause,
       resumeTts: ttsResume,
@@ -649,7 +646,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         ref={containerRef}
         data-testid="terminal-pane"
         data-session-id={sessionId}
-        className={`h-full w-full min-h-[200px] relative p-1${dragOver ? " ring-2 ring-inset ring-blue-400/60" : ""}`}
+        // overflow-hidden is critical: xterm.js manages its own scrolling via
+        // an internal .xterm-viewport element (overflow-y: scroll). Without
+        // clipping overflow here, the browser creates a SECOND native scrollbar
+        // on this container (or an ancestor) once the terminal buffer grows
+        // large enough for xterm's rendered DOM to exceed the container bounds.
+        // That phantom outer scrollbar captures touch/wheel events on mobile,
+        // making the terminal unscrollable unless the user carefully avoids it.
+        className={`h-full w-full overflow-hidden relative p-1${dragOver ? " ring-2 ring-inset ring-blue-400/60" : ""}`}
         onPasteCapture={handlePaste}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

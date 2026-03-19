@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { fetchCapabilities, fetchCapabilitiesLiveness } from "../lib/api";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
+import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
 import { createVadRefs, vadTick } from "./voice/vad";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
@@ -409,6 +410,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
         console.info("[voice] Recording started (preparing took %dms)", Date.now() - prepareStart);
         setState((s) => ({ ...s, voiceState: "recording" }));
+        // Audible cue: rising chime confirms "mic is live, start speaking."
+        // Critical for hands-free / walking use where the user can't watch
+        // the screen and might start talking before the mic is ready.
+        playRecordingStartCue();
         startLevelMonitor(stream);
 
         // Warn if no audio detected after 2s (catches dead/muted mics)
@@ -459,6 +464,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     if (!provider || !isRecording) return;
 
     console.info("[voice] Recording stopped");
+    // Audible cue: falling chime confirms "recording has ended."
+    // Especially important when VAD auto-stop fires — without this the
+    // user may keep talking without realising the mic cut off after a
+    // silence timeout.
+    playRecordingStopCue();
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";

@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Plus } from "lucide-react";
+import { MessageSquareText, Plus, TerminalSquare } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
@@ -288,16 +288,51 @@ export default function Workspace() {
     focusActiveTerminal(store.activePane ?? undefined);
   }, [focusActiveTerminal, store.activePane]);
 
-  // Auto-focus the terminal when the active tab changes.
-  // Skip on mobile: focusing the terminal opens the on-screen keyboard, which
-  // obscures the terminal output. Users typically want to read output first,
-  // then tap to focus when ready to type. The MobileToolbar provides an
-  // alternative input path that doesn't require terminal focus.
+  // ── Stop TTS on the previous pane when switching tabs ──
+  // Each TerminalPane manages its own TTS playback.  When the user switches
+  // tabs, the newly-active pane may auto-play pending conversation events
+  // (the auto-TTS effect in TerminalPane.tsx).  Without stopping the old
+  // pane's TTS first, both audio streams play simultaneously — a jarring
+  // experience.  We track the previous active pane and stop its TTS before
+  // the new pane's auto-play effect fires.
+  const prevActivePaneRef = useRef<string | null>(store.activePane);
+  useEffect(() => {
+    const prev = prevActivePaneRef.current;
+    prevActivePaneRef.current = store.activePane;
+    // Stop TTS on the pane we just left (if any)
+    if (prev && prev !== store.activePane) {
+      stopActiveTts(prev);
+    }
+  }, [store.activePane, stopActiveTts]);
+
+  // ── Desktop auto-focus: focus terminal when active tab changes ──
+  // On mobile we MUST NOT do this — focusing xterm's hidden <textarea> opens
+  // the virtual keyboard, which shrinks the viewport and forces the user to
+  // dismiss it before they can even read the terminal output.  The
+  // MobileToolbar provides an alternative input path that doesn't require
+  // terminal focus.
+  //
+  // On desktop there is no virtual keyboard, so auto-focusing the terminal
+  // after a tab switch is safe and expected — it lets the user start typing
+  // immediately without an extra click.
+  //
+  // requestAnimationFrame ensures the focus call runs after the browser has
+  // painted the visibility change (tabs use `visibility: hidden/visible`).
+  // Without this, the focus call can silently fail on some browsers because
+  // the target element isn't yet visually rendered.
+  //
+  // IMPORTANT — REGRESSION GUARD: Do NOT remove the `isMobile` check.
+  // It has been intentionally added twice before and each time was lost to
+  // unrelated refactors. On mobile, terminal focus === keyboard popup.
   useEffect(() => {
     if (!store.activePane || isMobile) return;
     // Don't steal focus from open modals
     if (store.settingsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
-    focusActiveTerminal(store.activePane);
+    const paneId = store.activePane;
+    const rafId = requestAnimationFrame(() => {
+      focusActiveTerminal(paneId);
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
@@ -324,6 +359,30 @@ export default function Workspace() {
     voiceInput.cancelTranscription();
   }, [voiceInput]);
 
+  // ── Post-mic-permission focus ──
+  // After the user grants microphone permission (or the browser permission
+  // dialog closes), the browser leaves focus in limbo — nothing is focused.
+  // This watches for the voice state to transition into "recording" and
+  // moves focus to a useful target:
+  //   • Mobile  → MobileToolbar textarea (so the transcript will appear there)
+  //   • Desktop → terminal (so the user can keep typing)
+  const prevVoiceState = useRef(voiceInput.voiceState);
+  useEffect(() => {
+    const wasNotRecording = prevVoiceState.current !== "recording";
+    prevVoiceState.current = voiceInput.voiceState;
+    if (voiceInput.voiceState !== "recording" || !wasNotRecording) return;
+
+    // Small delay: the permission dialog may still be visually dismissing,
+    // and focus calls during that animation are sometimes swallowed.
+    requestAnimationFrame(() => {
+      if (isMobile) {
+        mobileToolbarRef.current?.focusInput();
+      } else if (store.activePane) {
+        focusActiveTerminal(store.activePane);
+      }
+    });
+  }, [voiceInput.voiceState, isMobile, store.activePane, focusActiveTerminal]);
+
   // --- TTS speaking indicator ---
   // Track which panes are currently speaking so we can show a visual indicator
   // on the mic button. We only care about the active pane's speaking state.
@@ -344,7 +403,35 @@ export default function Workspace() {
     stopActiveTts(store.activePane ?? undefined);
   }, [store.activePane, stopActiveTts]);
 
-  // --- TTS playback state polling for AudioPlayerBar ---
+  // ── TTS playback state polling for AudioPlayerBar ──
+  //
+  // IMPORTANT — why visibility is driven by `isTtsSpeaking` alone, NOT
+  // `isTtsSpeaking && ttsPlayback`:
+  //
+  // `isTtsSpeaking` flips to true synchronously via the React
+  // onTtsSpeakingChange callback the moment audio starts.  `ttsPlayback`
+  // is populated by *polling* the provider at 100 ms intervals.  The
+  // polling useEffect only starts running after React re-renders and
+  // paints (because `isTtsSpeaking` is in its dependency array), then
+  // the first setInterval tick fires 100 ms later — so there is always
+  // a 100–200 ms window where audio is audible but the bar is invisible.
+  // For very short TTS messages the audio can finish before the first
+  // poll ever fires, meaning the bar never appears at all.
+  //
+  // Fix: the AudioPlayerBar now renders whenever `isTtsSpeaking` is
+  // true, using `FALLBACK_TTS_PLAYBACK` when the poll hasn't returned
+  // yet.  The fallback has sensible defaults (not paused, no duration,
+  // playbackRate 1, volume 1) and exposes all capabilities so every
+  // control is visible — the real provider values replace it within the
+  // first poll tick.
+  const FALLBACK_TTS_PLAYBACK: TTSPlaybackState = {
+    currentTime: 0,
+    duration: null,
+    isPaused: false,
+    playbackRate: 1,
+    volume: 1,
+    capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
+  };
   const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
   useEffect(() => {
     if (!isTtsSpeaking || !store.activePane) {
@@ -352,11 +439,14 @@ export default function Workspace() {
       return;
     }
     const activePane = store.activePane;
-    const id = setInterval(() => {
-      if (!activePane) return;
+    // Poll immediately on start — don't wait for the first interval tick.
+    // This closes the gap where audio is playing but the bar is invisible.
+    const poll = () => {
       const state = getTtsStateOnPane(activePane);
       if (state) setTtsPlayback(state);
-    }, 100);
+    };
+    poll();
+    const id = setInterval(poll, 100);
     return () => clearInterval(id);
   }, [isTtsSpeaking, store.activePane, getTtsStateOnPane]);
 
@@ -673,7 +763,9 @@ export default function Workspace() {
           onToggleView={supportsMessagesView ? () => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal") : undefined}
           onDragStart={startArrangeDrag}
         />
-        <div className="relative flex-1 min-h-0">
+        {/* overflow-hidden: same duplicate-scrollbar prevention as in tabs mode.
+         * See the tabs-mode comment for the full explanation. */}
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           <ErrorBoundary region="terminal">
             <TerminalPane
               sessionId={paneMeta.sessionId}
@@ -763,19 +855,26 @@ export default function Workspace() {
       {store.displayMode === "tabs" ? (
         /* Tab mode: stacked panes with display:none for inactive */
         <div className="relative flex-1 min-h-0 overflow-hidden">
+          {/* Toggle between terminal and messages view.
+           * Shows the icon for the view you'll switch TO (not the current view):
+           *   • In terminal mode → show chat icon (click to switch to messages)
+           *   • In messages mode → show terminal icon (click to switch back)
+           * Circular icon button with a translucent background so it doesn't
+           * obscure too much terminal content but is still easy to tap. */}
           {store.activePane && store.panes.find((pane) => pane.sessionId === store.activePane)?.supportsMessagesView && (
             <div className="absolute right-3 top-3 z-20">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs"
+              <button
+                className="flex items-center justify-center h-9 w-9 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
                 onClick={() => {
                   const current = conversationViewModes[store.activePane ?? ""] ?? "terminal";
                   setConversationViewMode(store.activePane ?? "", current === "terminal" ? "messages" : "terminal");
                 }}
+                title={(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
               >
-                {(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Messages view" : "Terminal view"}
-              </Button>
+                {(conversationViewModes[store.activePane] ?? "terminal") === "terminal"
+                  ? <MessageSquareText className="h-4 w-4" />
+                  : <TerminalSquare className="h-4 w-4" />}
+              </button>
             </div>
           )}
           {orderedPanes.map((paneMeta) => {
@@ -789,7 +888,13 @@ export default function Workspace() {
                 className="absolute inset-0 flex flex-col"
                 style={{ visibility: isActive ? "visible" : "hidden" }}
               >
-                <div className="relative flex-1 min-h-0">
+                {/* overflow-hidden prevents a duplicate scrollbar from appearing.
+                 * xterm.js has its own internal scrollable viewport (.xterm-viewport).
+                 * Without clipping here, the browser adds a native scrollbar to this
+                 * wrapper once the terminal buffer grows large enough, which on mobile
+                 * captures all touch-scroll events and makes the real terminal
+                 * un-scrollable unless the user carefully avoids the outer scrollbar. */}
+                <div className="relative flex-1 min-h-0 overflow-hidden">
                   <ErrorBoundary region="terminal">
                     <TerminalPane
                       sessionId={paneMeta.sessionId}
@@ -853,23 +958,31 @@ export default function Workspace() {
 
       {/* Bottom bar */}
       <div className="relative z-10 shrink-0">
-        {/* TTS player bar — visible when audio is playing */}
-        {isTtsSpeaking && ttsPlayback && (
-          <AudioPlayerBar
-            isPaused={ttsPlayback.isPaused}
-            currentTime={ttsPlayback.currentTime}
-            duration={ttsPlayback.duration}
-            playbackRate={ttsPlayback.playbackRate}
-            volume={ttsPlayback.volume}
-            capabilities={ttsPlayback.capabilities}
-            onPause={handleTtsPause}
-            onResume={handleTtsResume}
-            onSeek={handleTtsSeek}
-            onSetPlaybackRate={handleTtsSetPlaybackRate}
-            onSetVolume={handleTtsSetVolume}
-            onStop={handleTtsStop}
-          />
-        )}
+        {/* TTS player bar — visible whenever audio is playing.
+         * Uses isTtsSpeaking as the sole visibility gate so the bar
+         * always appears the instant audio starts.  ttsPlayback is
+         * populated by polling; if the first poll hasn't fired yet we
+         * fall back to FALLBACK_TTS_PLAYBACK which has sensible defaults
+         * (see the comment block above the polling effect for details). */}
+        {isTtsSpeaking && (() => {
+          const pb = ttsPlayback ?? FALLBACK_TTS_PLAYBACK;
+          return (
+            <AudioPlayerBar
+              isPaused={pb.isPaused}
+              currentTime={pb.currentTime}
+              duration={pb.duration}
+              playbackRate={pb.playbackRate}
+              volume={pb.volume}
+              capabilities={pb.capabilities}
+              onPause={handleTtsPause}
+              onResume={handleTtsResume}
+              onSeek={handleTtsSeek}
+              onSetPlaybackRate={handleTtsSetPlaybackRate}
+              onSetVolume={handleTtsSetVolume}
+              onStop={handleTtsStop}
+            />
+          );
+        })()}
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
@@ -888,6 +1001,7 @@ export default function Workspace() {
           onVoiceStop={handleVoiceStop}
           onVoiceCancel={handleVoiceCancel}
           onUploadImage={handleMobileUploadImage}
+          onOpenAi={() => store.setAiModalOpen(true)}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
           viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}

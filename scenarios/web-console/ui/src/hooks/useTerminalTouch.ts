@@ -44,9 +44,18 @@ type GestureState =
   | {
       type: "scrolling";
       touchId: number;
+      startX: number;
+      startY: number;
       lastY: number;
       lastTime: number;
       velocity: number;
+      /** The long-press timer is intentionally kept alive during scrolling.
+       *  If the finger is still down after 500ms, even if it has moved, we
+       *  transition to "selecting" — the user held long enough to signal
+       *  selection intent.  Natural hand tremor during a hold easily exceeds
+       *  the 8px movement threshold, so cancelling the timer on any movement
+       *  made it nearly impossible to enter selection mode on mobile. */
+      longPressTimer: ReturnType<typeof setTimeout>;
     }
   | {
       type: "selecting";
@@ -185,7 +194,7 @@ export function useTerminalTouch({
 
   const resetGesture = useCallback(() => {
     const g = gestureRef.current;
-    if (g.type === "pending") clearTimeout(g.longPressTimer);
+    if (g.type === "pending" || g.type === "scrolling") clearTimeout(g.longPressTimer);
     gestureRef.current = { type: "idle" };
   }, []);
 
@@ -286,12 +295,23 @@ export function useTerminalTouch({
         return;
       }
 
-      // Start long-press timer
+      // Start long-press timer.
+      // This timer fires after TOUCH_LONG_PRESS_MS regardless of whether
+      // the finger has moved. It accepts both "pending" and "scrolling"
+      // states because on mobile it's nearly impossible to hold perfectly
+      // still for 500ms — natural hand tremor easily exceeds the 8px
+      // movement threshold and would cancel the timer prematurely, making
+      // it impossible to enter selection mode via hold-and-drag.
+      //
+      // If the user genuinely wanted to scroll, they would have already
+      // flung and lifted their finger within 500ms, so it's safe to
+      // reclaim the gesture for selection at this point.
       const longPressTimer = setTimeout(() => {
         const g = gestureRef.current;
-        if (g.type !== "pending") return;
+        if (g.type !== "pending" && g.type !== "scrolling") return;
 
-        // Enter selection mode
+        // Enter selection mode at the *original* touch-down position,
+        // not the current finger position (which may have drifted).
         const { col, row } = touchToCell(term, container, g.startX, g.startY);
 
         // Haptic feedback if available
@@ -305,7 +325,10 @@ export function useTerminalTouch({
           touchId: g.touchId,
           anchorCol: col,
           anchorRow: row,
-          hasDragged: false,
+          // If the finger already moved (was scrolling), mark as dragged
+          // so onTouchEnd keeps the selection instead of showing only the
+          // context menu.
+          hasDragged: g.type === "scrolling",
         };
       }, TOUCH_LONG_PRESS_MS);
 
@@ -330,14 +353,20 @@ export function useTerminalTouch({
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > TOUCH_MOVE_THRESHOLD_PX) {
-          // Moved beyond threshold — transition to scrolling
-          clearTimeout(g.longPressTimer);
+          // Moved beyond threshold — transition to scrolling but keep the
+          // long-press timer alive. If the finger is still down after 500ms
+          // the timer will reclaim the gesture for text selection. This is
+          // critical on mobile where hand tremor during a hold easily
+          // exceeds the 8px threshold.
           gestureRef.current = {
             type: "scrolling",
             touchId: g.touchId,
+            startX: g.startX,
+            startY: g.startY,
             lastY: touch.clientY,
             lastTime: performance.now(),
             velocity: 0,
+            longPressTimer: g.longPressTimer,
           };
           e.preventDefault();
         }
@@ -418,6 +447,8 @@ export function useTerminalTouch({
           term.focus();
         }
       } else if (g.type === "scrolling") {
+        // Clean up the long-press timer that was kept alive during scrolling
+        clearTimeout(g.longPressTimer);
         // Start momentum scroll if there's velocity
         if (Math.abs(g.velocity) > TOUCH_SCROLL_MIN_VELOCITY) {
           startMomentum(g.velocity);
