@@ -29,7 +29,8 @@ import { AttachmentPreview } from "./AttachmentPreview";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
-import { useAttachments } from "../hooks/useAttachments";
+import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
+import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
@@ -61,6 +62,9 @@ interface QuickRunDialogProps {
   onRunCreated?: (run: Run) => void;
 }
 
+const DEFAULT_MAX_TURNS = 500;
+const DEFAULT_TIMEOUT_MINUTES = 120;
+
 interface AgentConfigData {
   mode: "profile" | "custom";
   profileId: string;
@@ -68,8 +72,8 @@ interface AgentConfigData {
   model: string;
   modelPreset: ModelPreset;
   modelMode: ModelSelectionMode;
-  maxTurns: number;
-  timeoutMinutes: number;
+  maxTurns: number | string;
+  timeoutMinutes: number | string;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
   networkAccess: "none" | "localhost" | "full";
@@ -103,23 +107,44 @@ export function QuickRunDialog({
   onCreateRun,
   onRunCreated,
 }: QuickRunDialogProps) {
-  const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [currentStep, setCurrentStep, clearStepStorage] = usePersistedFormState<Step>("quick-run-step", 1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments();
+  const { attachments, addAttachment, removeAttachment, clearAttachments, restoreAttachments, getPersistedAttachments, isUploading, getUploadedIds } = useAttachments();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1: Task data
-  const [taskData, setTaskData] = useState<{
+  const [taskData, setTaskData, clearTaskStorage] = usePersistedFormState<{
     title: string;
     description: string;
     projectRoot: string;
-  }>({
+  }>("quick-run-task", {
     title: "",
     description: "",
     projectRoot: defaultProjectRoot ?? "",
   });
-  const [scopePaths, setScopePaths] = useState<string[]>(["."]);
+  const [scopePaths, setScopePaths, clearScopeStorage] = usePersistedFormState<string[]>("quick-run-scope", ["."]);
+
+  // Persisted attachment metadata
+  const [persistedAttachments, setPersistedAttachments, clearAttachmentStorage] = usePersistedFormState<PersistedAttachment[]>("quick-run-attachments", []);
+
+  // Restore attachments from localStorage on mount
+  const attachmentsRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!attachmentsRestoredRef.current && persistedAttachments.length > 0 && attachments.length === 0) {
+      attachmentsRestoredRef.current = true;
+      restoreAttachments(persistedAttachments);
+    }
+  }, [persistedAttachments, attachments.length, restoreAttachments]);
+
+  // Persist attachment metadata whenever attachments change
+  useEffect(() => {
+    const uploaded = getPersistedAttachments();
+    // Only update if there's a meaningful change to avoid infinite loops
+    if (JSON.stringify(uploaded) !== JSON.stringify(persistedAttachments)) {
+      setPersistedAttachments(uploaded);
+    }
+  }, [attachments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync defaultProjectRoot when it arrives async (e.g. from health fetch)
   useEffect(() => {
@@ -129,15 +154,15 @@ export function QuickRunDialog({
   }, [defaultProjectRoot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 2: Agent config
-  const [agentConfig, setAgentConfig] = useState<AgentConfigData>({
-    mode: profiles.length > 0 ? "profile" : "custom",
+  const [agentConfig, setAgentConfig, clearConfigStorage] = usePersistedFormState<AgentConfigData>("quick-run-config", {
+    mode: "custom",
     profileId: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "",
     modelPreset: ModelPreset.UNSPECIFIED,
     modelMode: "default",
-    maxTurns: 100,
-    timeoutMinutes: 30,
+    maxTurns: DEFAULT_MAX_TURNS,
+    timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
     runMode: RunMode.IN_PLACE,
     skipPermissionPrompt: true,
     networkAccess: "localhost",
@@ -145,7 +170,7 @@ export function QuickRunDialog({
     features: { enableBrowser: false },
     extraFlags: {},
   });
-  const [existingSandboxId, setExistingSandboxId] = useState("");
+  const [existingSandboxId, setExistingSandboxId, clearSandboxStorage] = usePersistedFormState("quick-run-sandbox", "");
 
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
@@ -168,6 +193,16 @@ export function QuickRunDialog({
     return profiles.find((p) => p.id === agentConfig.profileId);
   };
 
+  const clearAllPersistedState = useCallback(() => {
+    clearStepStorage();
+    clearTaskStorage();
+    clearScopeStorage();
+    clearConfigStorage();
+    clearSandboxStorage();
+    clearAttachmentStorage();
+    attachmentsRestoredRef.current = false;
+  }, [clearStepStorage, clearTaskStorage, clearScopeStorage, clearConfigStorage, clearSandboxStorage, clearAttachmentStorage]);
+
   const resetForm = () => {
     setCurrentStep(1);
     setError(null);
@@ -180,14 +215,14 @@ export function QuickRunDialog({
     });
     setScopePaths(["."]);
     setAgentConfig({
-      mode: profiles.length > 0 ? "profile" : "custom",
+      mode: "custom",
       profileId: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "",
       modelPreset: ModelPreset.UNSPECIFIED,
       modelMode: "default",
-      maxTurns: 100,
-      timeoutMinutes: 30,
+      maxTurns: DEFAULT_MAX_TURNS,
+      timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
       runMode: RunMode.IN_PLACE,
       skipPermissionPrompt: true,
       networkAccess: "localhost",
@@ -195,12 +230,16 @@ export function QuickRunDialog({
       features: { enableBrowser: false },
       extraFlags: {},
     });
+    setPersistedAttachments([]);
+    clearAllPersistedState();
   };
 
   const handleClose = useCallback(() => {
-    resetForm();
+    // Only reset transient state — persisted draft is preserved for next open
+    setError(null);
+    setSubmitting(false);
     onOpenChange(false);
-  }, [onOpenChange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onOpenChange]);
 
   const canProceedStep1 = (): boolean => {
     // Project root is required; title auto-generated if empty
@@ -322,8 +361,8 @@ export function QuickRunDialog({
         if (agentConfig.modelMode === "preset") {
           runRequest.modelPreset = agentConfig.modelPreset;
         }
-        runRequest.maxTurns = agentConfig.maxTurns;
-        runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
+        runRequest.maxTurns = typeof agentConfig.maxTurns === "number" ? agentConfig.maxTurns : DEFAULT_MAX_TURNS;
+        runRequest.timeoutMinutes = typeof agentConfig.timeoutMinutes === "number" ? agentConfig.timeoutMinutes : DEFAULT_TIMEOUT_MINUTES;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
         runRequest.networkAccess = agentConfig.networkAccess;
@@ -343,15 +382,17 @@ export function QuickRunDialog({
 
       const run = await onCreateRun(runRequest);
 
-      // Success - close dialog and notify
-      handleClose();
+      // Success - reset form (clears localStorage draft), close dialog, and notify
+      resetForm();
+      onOpenChange(false);
       onRunCreated?.(run);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
-  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, handleClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, onOpenChange]);
 
   // Ctrl+Enter shortcut to start run
   useEffect(() => {
@@ -694,11 +735,20 @@ export function QuickRunDialog({
                         onChange={(e) =>
                           setAgentConfig({
                             ...agentConfig,
-                            maxTurns: parseInt(e.target.value) || 100,
+                            maxTurns: e.target.value === "" ? "" : parseInt(e.target.value),
                           })
                         }
+                        onBlur={() =>
+                          setAgentConfig((prev) => ({
+                            ...prev,
+                            maxTurns:
+                              typeof prev.maxTurns === "number" && prev.maxTurns >= 1
+                                ? Math.min(prev.maxTurns, 10000)
+                                : DEFAULT_MAX_TURNS,
+                          }))
+                        }
                         min={1}
-                        max={1000}
+                        max={10000}
                       />
                     </div>
                     <div className="space-y-2">
@@ -710,8 +760,17 @@ export function QuickRunDialog({
                         onChange={(e) =>
                           setAgentConfig({
                             ...agentConfig,
-                            timeoutMinutes: parseInt(e.target.value) || 30,
+                            timeoutMinutes: e.target.value === "" ? "" : parseInt(e.target.value),
                           })
+                        }
+                        onBlur={() =>
+                          setAgentConfig((prev) => ({
+                            ...prev,
+                            timeoutMinutes:
+                              typeof prev.timeoutMinutes === "number" && prev.timeoutMinutes >= 1
+                                ? Math.min(prev.timeoutMinutes, 1440)
+                                : DEFAULT_TIMEOUT_MINUTES,
+                          }))
                         }
                         min={1}
                         max={1440}
@@ -947,10 +1006,10 @@ export function QuickRunDialog({
                             : "In-place"}
                         </Badge>
                         <Badge variant="outline">
-                          Max {agentConfig.maxTurns} turns
+                          Max {agentConfig.maxTurns || DEFAULT_MAX_TURNS} turns
                         </Badge>
                         <Badge variant="outline">
-                          {agentConfig.timeoutMinutes}min timeout
+                          {agentConfig.timeoutMinutes || DEFAULT_TIMEOUT_MINUTES}min timeout
                         </Badge>
                         {agentConfig.features?.enableBrowser && (
                           <Badge variant="outline">Browser</Badge>

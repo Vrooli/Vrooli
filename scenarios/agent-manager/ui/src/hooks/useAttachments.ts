@@ -37,11 +37,22 @@ export interface AttachmentState {
   error?: string;
 }
 
+/** Serializable attachment metadata for localStorage persistence. */
+export interface PersistedAttachment {
+  serverId: string;
+  fileName: string;
+  contentType: string;
+  serverPath: string;
+  url: string;
+}
+
 export interface UseAttachmentsReturn {
   attachments: AttachmentState[];
   addAttachment: (file: File, type?: AttachmentType) => void;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
+  restoreAttachments: (persisted: PersistedAttachment[]) => void;
+  getPersistedAttachments: () => PersistedAttachment[];
   isUploading: boolean;
   hasErrors: boolean;
   allUploaded: boolean;
@@ -192,11 +203,42 @@ export function useAttachments(uploadFn?: (file: File) => Promise<UploadResponse
       .map((att) => att.serverId);
   }, [attachments]);
 
+  /** Restore previously-uploaded attachments from persisted metadata (e.g. localStorage). */
+  const restoreAttachments = useCallback((persisted: PersistedAttachment[]) => {
+    const restored: AttachmentState[] = persisted.map((p) => ({
+      id: generateLocalId(),
+      // Create a minimal placeholder File — the real data lives on the server
+      file: new File([], p.fileName, { type: p.contentType }),
+      type: (p.contentType.startsWith("image/") ? "image" : "pdf") as AttachmentType,
+      previewUrl: p.url,
+      uploadStatus: "uploaded" as UploadStatus,
+      serverId: p.serverId,
+      serverPath: p.serverPath,
+    }));
+    setAttachments(restored);
+  }, []);
+
+  /** Get serializable metadata for all successfully-uploaded attachments. */
+  const getPersistedAttachments = useCallback((): PersistedAttachment[] => {
+    return attachments
+      .filter((att): att is typeof att & { serverId: string; serverPath: string } =>
+        att.uploadStatus === "uploaded" && !!att.serverId && !!att.serverPath)
+      .map((att) => ({
+        serverId: att.serverId,
+        fileName: att.file.name,
+        contentType: att.file.type,
+        serverPath: att.serverPath,
+        url: att.previewUrl ?? "",
+      }));
+  }, [attachments]);
+
   return {
     attachments,
     addAttachment,
     removeAttachment,
     clearAttachments,
+    restoreAttachments,
+    getPersistedAttachments,
     isUploading,
     hasErrors,
     allUploaded,
