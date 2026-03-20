@@ -22,6 +22,7 @@ import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowRight,
   ArrowRightLeft,
+  ArrowUpRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -1777,6 +1778,14 @@ export function BacklogDetailsPage() {
                     {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+                >
+                  <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
+                  View
+                </Button>
               </div>
             </div>
           )}
@@ -2039,6 +2048,14 @@ export function BacklogDetailsPage() {
                       {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+                  >
+                    <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
+                    View
+                  </Button>
                 </div>
               </div>
             )}

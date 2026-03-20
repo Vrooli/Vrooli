@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { ExecutionPage } from "./ExecutionPage";
 import { useExecutionStore } from "../stores";
 
@@ -42,7 +43,7 @@ describe("ExecutionPage", () => {
   it("renders the execution page with tabs and controls", async () => {
     vi.mocked(executionService.list).mockResolvedValue([]);
 
-    render(<ExecutionPage />);
+    render(<MemoryRouter><ExecutionPage /></MemoryRouter>);
 
     expect(screen.getByTestId("execution-page")).toBeInTheDocument();
     expect(screen.getByTestId("execution-tabs")).toBeInTheDocument();
@@ -71,7 +72,7 @@ describe("ExecutionPage", () => {
       },
     ]);
 
-    render(<ExecutionPage />);
+    render(<MemoryRouter><ExecutionPage /></MemoryRouter>);
 
     await waitFor(() => {
       expect(screen.getByTestId("execution-grid")).toBeInTheDocument();

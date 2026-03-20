@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Activity, Filter, RefreshCw, X } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -49,6 +50,23 @@ export function ExecutionPage() {
   const [fromFilter, setFromFilter] = useState("");
   const [toFilter, setToFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const appliedBacklogParam = useRef(false);
+
+  useEffect(() => {
+    if (appliedBacklogParam.current) return;
+    const backlogParam = searchParams.get("backlog");
+    if (backlogParam) {
+      setBacklogFilter(backlogParam);
+      setShowFilters(true);
+      setActiveTab("all");
+      appliedBacklogParam.current = true;
+      // Clear the query param from the URL
+      searchParams.delete("backlog");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

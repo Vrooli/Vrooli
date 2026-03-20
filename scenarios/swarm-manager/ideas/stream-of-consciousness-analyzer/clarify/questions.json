@@ -1,0 +1,110 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "For the offline-first architecture, should the local database (IndexedDB) be the sole source of truth with the server acting as a sync target, or should the server be authoritative with local acting as a cache that syncs up when online?",
+      "options": [
+        "Local-first (IndexedDB authoritative, server syncs)",
+        "Server-first (server authoritative, local caches)",
+        "CRDT-based (no single authority, conflict-free merge)"
+      ],
+      "answer": "Server-first (server authoritative, local caches)",
+      "lastSynthesis": {
+        "answer": "Server-first (server authoritative, local caches)",
+        "round": 1
+      }
+    },
+    {
+      "id": "q2",
+      "question": "Is this app single-user only (one person per Vrooli server), or should multiple users be able to have their own schemes with optional sharing/collaboration?",
+      "options": [
+        "Single-user only",
+        "Multi-user with isolated schemes",
+        "Multi-user with optional scheme sharing/collaboration"
+      ],
+      "answer": "Single-user only",
+      "lastSynthesis": {
+        "answer": "Single-user only",
+        "round": 1
+      }
+    },
+    {
+      "id": "q3",
+      "question": "For Whisper voice transcription, should it run locally via a Vrooli resource (e.g., whisper.cpp or faster-whisper), or use an external API (e.g., OpenAI Whisper API), or both with fallback?",
+      "options": [
+        "Local Whisper resource only",
+        "OpenAI Whisper API only",
+        "Local primary with API fallback",
+        "User-configurable choice"
+      ],
+      "answer": "Use the same approach adopted by the web-console scenario",
+      "lastSynthesis": {
+        "answer": "Use the same approach adopted by the web-console scenario",
+        "round": 1
+      }
+    },
+    {
+      "id": "q4",
+      "question": "What is the MVP scope? Should v1 include all five toolbar features (mic, plus, graph, agent chat, export), or should some be deferred? For example, agent chat and export require agent-manager integration which adds significant complexity.",
+      "options": [
+        "All five toolbar features in v1",
+        "Core only (mic, plus, graph toggle) — defer agent chat and export",
+        "Core plus agent chat — defer export",
+        "Other"
+      ],
+      "answer": "All five toolbar features in v1",
+      "lastSynthesis": {
+        "answer": "All five toolbar features in v1",
+        "round": 1
+      }
+    },
+    {
+      "id": "q5",
+      "question": "How should the canvas handle large schemes with 100+ information items? Should there be viewport-based rendering (virtualization), pagination/lazy-loading, or is a simpler approach acceptable for the expected scale?",
+      "options": [
+        "Virtualized canvas (only render visible items)",
+        "Simple DOM rendering (acceptable if schemes stay under ~200 items)",
+        "Hierarchical grouping to manage visual complexity",
+        "Other"
+      ],
+      "answer": "Virtualized canvas (only render visible items)",
+      "lastSynthesis": {
+        "answer": "Virtualized canvas (only render visible items)",
+        "round": 1
+      }
+    },
+    {
+      "id": "q6",
+      "question": "For the passive thought suggestions (ghost nodes), what should trigger LLM suggestion generation: on every canvas change, on a timer/idle interval, only on explicit user request, or when the agent chat is open?",
+      "options": [
+        "On idle (debounced after user stops interacting)",
+        "Periodic background generation (e.g., every 30s)",
+        "On explicit user request only",
+        "Triggered by significant changes (new information added, thought linked)"
+      ],
+      "answer": "Periodic if there are changes and the previous generation is not still going",
+      "lastSynthesis": {
+        "answer": "Periodic if there are changes and the previous generation is not still going",
+        "round": 1
+      }
+    },
+    {
+      "id": "q7",
+      "question": "Should the app be delivered as a PWA (installable from browser), a native mobile app (React Native or similar), or a scenario-to-desktop Electron app with mobile browser support?",
+      "options": [
+        "PWA (browser-based, installable)",
+        "Electron desktop + PWA mobile",
+        "React Native mobile + web UI desktop",
+        "Web-only (responsive, no native install)"
+      ],
+      "answer": "Same approach as other apps like web-console. To ensure that it’ll be portable to mobile , make sure to avoid postgres and other non-portable databases as explained in scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md",
+      "lastSynthesis": {
+        "answer": "Same approach as other apps like web-console. To ensure that it’ll be portable to mobile , make sure to avoid postgres and other non-portable databases as explained in scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md",
+        "round": 1
+      }
+    }
+  ],
+  "generatedAt": "2026-03-20T11:39:35.219Z",
+  "updatedAt": "2026-03-20T11:46:15Z",
+  "enhanceCount": 1
+}
