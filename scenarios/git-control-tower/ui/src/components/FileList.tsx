@@ -385,7 +385,7 @@ const FileRow = memo(function FileRow({
   return (
     <li
       className={`group w-full flex items-center gap-2 rounded cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
-        isMobile ? "px-3 py-3" : "px-2 py-1"
+        isMobile ? "px-2 py-1.5" : "px-2 py-1"
       } ${
         mobileSelectionMode && isSelected
           ? "bg-blue-900/30 ring-1 ring-blue-500/30 text-slate-100"
@@ -415,18 +415,33 @@ const FileRow = memo(function FileRow({
           )}
         </span>
       )}
-      <span
-        className={`flex items-center justify-center rounded border font-bold ${badge.style} ${
-          isMobile ? "h-7 w-7 text-xs" : "h-5 w-5 text-[10px]"
-        }`}
-        aria-label={`Status ${badge.label}`}
-        title={`Status ${badge.label}`}
-      >
-        {badge.label}
-      </span>
-      <File
-        className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`}
-      />
+      {isMobile ? (
+        <span
+          className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
+            badge.label === "D" ? "bg-red-400" :
+            badge.label === "M" ? "bg-amber-300" :
+            badge.label === "A" ? "bg-emerald-300" :
+            badge.label === "R" ? "bg-cyan-300" :
+            badge.label === "U" ? "bg-red-300" :
+            "bg-slate-400"
+          }`}
+          aria-label={`Status ${badge.label}`}
+          title={`Status ${badge.label}`}
+        />
+      ) : (
+        <span
+          className={`flex items-center justify-center rounded border font-bold ${badge.style} h-5 w-5 text-[10px]`}
+          aria-label={`Status ${badge.label}`}
+          title={`Status ${badge.label}`}
+        >
+          {badge.label}
+        </span>
+      )}
+      {!isMobile && (
+        <File
+          className="text-slate-500 flex-shrink-0 h-3.5 w-3.5"
+        />
+      )}
       <div className="flex-1 min-w-0 overflow-hidden">
         <span className="font-mono text-xs truncate block w-full" title={file}>
           {displayPath}
@@ -435,7 +450,7 @@ const FileRow = memo(function FileRow({
 
       {isBinary && (
         <span
-          className="flex items-center gap-1 rounded border border-slate-700/60 bg-slate-900/60 px-1.5 py-0.5 text-[10px] text-slate-400"
+          className={`flex items-center gap-1 rounded border border-slate-700/60 bg-slate-900/60 px-1.5 py-0.5 text-slate-400 ${isMobile ? "text-xs" : "text-[10px]"}`}
           title="Binary file"
         >
           <Binary className="h-3 w-3" />
@@ -445,7 +460,7 @@ const FileRow = memo(function FileRow({
 
       {isApproved && (
         <span
-          className="flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300"
+          className={`flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300 ${isMobile ? "text-xs" : "text-[10px]"}`}
           title="Sandbox-approved change"
         >
           <ShieldCheck className="h-3 w-3" />
@@ -683,6 +698,7 @@ function FileSection({
   onStatsClick,
   onViewMetrics,
 }: FileSectionProps) {
+  const isMobile = useContext(MobileContext);
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const isStaged = category === "staged";
@@ -725,17 +741,17 @@ function FileSection({
         data-testid={`file-section-toggle-${category}`}
       >
         {expanded ? (
-          <ChevronDown className="h-3 w-3 text-slate-500" />
+          <ChevronDown className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
         ) : (
-          <ChevronRight className="h-3 w-3 text-slate-500" />
+          <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
         )}
         {icon}
-        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+        <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
           {title}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <LineStats stats={changeStats} compact onClick={onStatsClick} />
-          <span className="text-xs text-slate-600">{files.length}</span>
+          <span className={`text-slate-600 ${isMobile ? "text-sm" : "text-xs"}`}>{files.length}</span>
         </div>
       </button>
 
@@ -1531,22 +1547,22 @@ export function FileList({
                             data-testid={`file-group-toggle-${group.id}`}
                           >
                             {isGroupCollapsed ? (
-                              <ChevronRight className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
                             )}
                             <div className="min-w-0 text-left">
-                              <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                              <div className={`font-semibold uppercase tracking-wider text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`}>
                                 {group.label}
                               </div>
                               {group.displayPrefix && (
-                                <div className="text-[11px] text-slate-500">
+                                <div className={`text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`}>
                                   {group.displayPrefix}
                                 </div>
                               )}
                             </div>
                           </button>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <div className={`flex items-center gap-2 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
                             {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) ? (
                               <button
                                 type="button"
