@@ -23,6 +23,7 @@ import { highlightCode, getLanguageFromPath, type HighlightToken, type Highlight
 import { getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
+import { formatPath } from "../lib/utils";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -600,6 +601,8 @@ export function DiffViewer({
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const minimapRailRef = useRef<HTMLDivElement>(null);
+  const titleRowRef = useRef<HTMLDivElement>(null);
+  const [maxPathChars, setMaxPathChars] = useState(60);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -944,18 +947,41 @@ export function DiffViewer({
     }
   }, []);
 
+  // Dynamically compute max path chars based on available header width
+  useEffect(() => {
+    if (!titleRowRef.current || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const width = titleRowRef.current?.clientWidth ?? 0;
+      // Account for: dot/badge (~30px), stats (~80px), overflow menu (~44px), gaps (~24px)
+      const usable = Math.max(0, width - 180);
+      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7)));
+      setMaxPathChars(nextMax);
+    };
+    const rafId = requestAnimationFrame(update);
+    const observer = new ResizeObserver(update);
+    observer.observe(titleRowRef.current);
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, []);
+
+  const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
+
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
-        <div className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+        <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
           <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
             <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
-              <FileDiff className={`flex-shrink-0 text-slate-500 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
+              {!isMobile && (
+                <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
+              )}
               {selectedFile ? (
-                <span className={`font-mono truncate ${isMobile ? "text-sm" : "text-xs"}`}>{selectedFile}</span>
+                <span className="font-mono text-xs truncate" title={selectedFile}>{displayPath}</span>
               ) : (
-                <span className={isMobile ? "text-sm" : "text-xs"}>Diff Viewer</span>
+                <span className="text-xs">Diff Viewer</span>
               )}
             </CardTitle>
             {/* Desktop-only: inline copy/related buttons */}
@@ -1002,17 +1028,21 @@ export function DiffViewer({
 
           {/* Right side of row 1 */}
           <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
-            {/* Mobile: badge + stats + overflow */}
-            {selectedFile && isMobile && (
-              isHistoryMode ? (
-                <Badge variant="warning">
-                  {commitHash ? commitHash.substring(0, 7) : "hist"}
-                </Badge>
-              ) : (
-                <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-                  {isUntracked ? "new" : isStaged ? "staged" : "mod"}
-                </Badge>
-              )
+            {/* Mobile: colored dot status indicator */}
+            {selectedFile && isMobile && !isHistoryMode && (
+              <span
+                className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
+                  isUntracked ? "bg-slate-400" :
+                  isStaged ? "bg-emerald-400" :
+                  "bg-amber-300"
+                }`}
+                title={isUntracked ? "Untracked" : isStaged ? "Staged" : "Modified"}
+              />
+            )}
+            {selectedFile && isMobile && isHistoryMode && (
+              <Badge variant="warning">
+                {commitHash ? commitHash.substring(0, 7) : "hist"}
+              </Badge>
             )}
             {diff?.stats && diff.has_diff && viewMode !== "source" && (
               <button
@@ -1022,12 +1052,12 @@ export function DiffViewer({
                 onClick={() => setMetricsOpen(true)}
                 aria-label="View change metrics"
               >
-                <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                  <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                <span className="flex items-center gap-1 text-emerald-500 text-xs">
+                  <Plus className="h-3 w-3" />
                   {diff.stats.additions}
                 </span>
-                <span className={`flex items-center gap-1 text-red-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                  <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                <span className="flex items-center gap-1 text-red-500 text-xs">
+                  <Minus className="h-3 w-3" />
                   {diff.stats.deletions}
                 </span>
               </button>

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import {
+  AlertCircle,
+  CheckCircle,
+  Circle,
   ClipboardCheck,
   Menu,
   RefreshCw,
@@ -11,7 +14,6 @@ import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api"
 import type { ViewingCommit } from "./HistoryModeHeader";
 import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
-import { HealthIndicator } from "./HealthIndicator";
 import { FileStatsBadges } from "./FileStatsBadges";
 import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
@@ -117,10 +119,6 @@ export function MobileHeader({
             />
           )}
 
-          <div className="p-2">
-            <HealthIndicator health={health} isHealthy={isHealthy} />
-          </div>
-
           {onOpenReview && (
             <button
               onClick={onOpenReview}
@@ -142,18 +140,6 @@ export function MobileHeader({
               <Search className="h-5 w-5 text-slate-400" />
             </button>
           )}
-
-          <button
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors disabled:opacity-50 touch-target"
-            aria-label="Refresh"
-            data-testid="mobile-refresh-button"
-          >
-            <RefreshCw
-              className={`h-5 w-5 text-slate-400 ${isLoading ? "animate-spin" : ""}`}
-            />
-          </button>
 
           <button
             onClick={() => setMenuOpen(true)}
@@ -221,7 +207,37 @@ export function MobileHeader({
             </div>
           )}
 
+          {/* Health status */}
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-4 mb-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">
+              System Health
+            </div>
+            <div className="flex items-center gap-2">
+              {isHealthy ? (
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              ) : health ? (
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Circle className="h-4 w-4 text-slate-600" />
+              )}
+              <span className="text-sm text-slate-300">
+                {isHealthy ? "All systems healthy" : health ? "Issues detected" : "Unknown"}
+              </span>
+            </div>
+          </div>
+
           {/* Action buttons */}
+          <BottomSheetAction
+            icon={<RefreshCw className={`h-5 w-5 text-slate-300 ${isLoading ? "animate-spin" : ""}`} />}
+            label="Refresh status"
+            description="Re-scan git status"
+            disabled={isLoading}
+            onClick={() => {
+              setMenuOpen(false);
+              onRefresh();
+            }}
+          />
+
           <BottomSheetAction
             icon={<Settings className="h-5 w-5 text-slate-300" />}
             label="Settings"
