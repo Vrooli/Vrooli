@@ -3,6 +3,7 @@ import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-reac
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
@@ -46,6 +47,8 @@ interface FloatingToolbarProps {
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
   isCreating: boolean;
+  /** When true the toolbar is not rendered at all (e.g. mobile tab mode). */
+  hidden?: boolean;
   // Voice input (optional — hidden when not provided)
   voiceSupported?: boolean;
   voicePreparing?: boolean;
@@ -71,6 +74,7 @@ export default function FloatingToolbar({
   onNewTerminal,
   onOpenLauncher,
   isCreating,
+  hidden,
   voiceSupported,
   voicePreparing,
   voiceRecording,
@@ -85,6 +89,7 @@ export default function FloatingToolbar({
   isTtsSpeaking,
   onTtsStop,
 }: FloatingToolbarProps) {
+  const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
   /** Measured full width of toolbar, for computing dock offset */
@@ -177,8 +182,8 @@ export default function FloatingToolbar({
   }, [docked, floatingStyle, position.y, toolbarWidth, vpWidth]);
 
   const plusHandlers = useLongPress({
-    onPress: onNewTerminal,
-    onLongPress: onOpenLauncher,
+    onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
+    onLongPress: plusButtonBehavior === "launcher" ? onNewTerminal : onOpenLauncher,
   });
 
   // The dock tab indicator — renders on the visible edge
@@ -255,7 +260,7 @@ export default function FloatingToolbar({
         size="icon"
         className="h-7 w-7"
         disabled={isCreating}
-        title="New terminal (long-press for launcher)"
+        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
         tabIndex={docked ? -1 : undefined}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}
@@ -266,6 +271,8 @@ export default function FloatingToolbar({
       </Button>
     </div>
   );
+
+  if (hidden) return null;
 
   return (
     <div

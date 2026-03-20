@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { MessageSquareText, Plus, TerminalSquare } from "lucide-react";
+import { MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
@@ -818,8 +818,10 @@ export default function Workspace() {
     <div
       className="flex flex-col bg-wc-surface-base text-wc-text-primary h-wc-app"
     >
-      {/* Floating toolbar */}
+      {/* Floating toolbar — hidden on mobile tab mode where TabBar
+       * already provides the plus button and we move settings there. */}
       <FloatingToolbar
+        hidden={isMobile && store.displayMode === "tabs"}
         onOpenSettings={() => store.setSettingsModalOpen(true)}
         onOpenAi={() => store.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
@@ -866,6 +868,18 @@ export default function Workspace() {
           onOpenLauncher={openLauncher}
           onClosePane={handleRequestClose}
           isCreating={isCreating}
+          trailingActions={isMobile ? (
+            <Button
+              data-testid="tabbar-settings"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 mx-1 self-center"
+              onClick={() => store.setSettingsModalOpen(true)}
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          ) : undefined}
         />
       )}
 

@@ -16,6 +16,7 @@ export interface PaneMetadata {
 
 export type DisplayMode = "grid" | "tabs";
 export type ToolbarLayout = "compact" | "expanded";
+export type PlusButtonBehavior = "launcher" | "new-terminal";
 
 export interface TabGroupMeta {
   id: string;
@@ -57,6 +58,8 @@ interface WorkspaceState {
   defaultHeaderColor: string;
   defaultThemeId: string;
   defaultFontSize: number;
+  /** What a quick tap on the + button does: open the launcher or create an empty terminal. */
+  plusButtonBehavior: PlusButtonBehavior;
   /** Recently used key combo IDs for the combo picker. Max 5, most recent first. */
   recentCombos: string[];
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
@@ -97,6 +100,7 @@ interface WorkspaceActions {
   setDefaultHeaderColor: (color: string) => void;
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
+  setPlusButtonBehavior: (behavior: PlusButtonBehavior) => void;
   resetLayout: () => void;
   addRecentCombo: (comboId: string) => void;
   toggleModifier: (key: keyof ModifierState) => void;
@@ -140,6 +144,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultHeaderColor: "transparent",
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
+      plusButtonBehavior: "launcher",
       recentCombos: [],
       modifiers: { ctrl: false, alt: false, shift: false },
       groups: [],
@@ -245,6 +250,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setDefaultHeaderColor: (color) => set({ defaultHeaderColor: color }),
       setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
       setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
+      setPlusButtonBehavior: (behavior) => set({ plusButtonBehavior: behavior }),
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),
@@ -273,7 +279,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 8,
+      version: 9,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -310,6 +316,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           state.kokoroVoice ??= "af_heart";
           state.kokoroSpeed ??= 1.0;
         }
+        if (version < 9) {
+          state.plusButtonBehavior ??= "launcher";
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -333,6 +342,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         defaultHeaderColor: state.defaultHeaderColor,
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,
+        plusButtonBehavior: state.plusButtonBehavior,
         recentCombos: state.recentCombos,
       }),
     },

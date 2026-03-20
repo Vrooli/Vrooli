@@ -15,6 +15,8 @@ interface TabBarProps {
   onOpenLauncher: () => void;
   onClosePane: (sessionId: string) => void;
   isCreating?: boolean;
+  /** Extra action buttons rendered before the plus button (e.g. settings on mobile). */
+  trailingActions?: React.ReactNode;
 }
 
 export default function TabBar({
@@ -24,6 +26,7 @@ export default function TabBar({
   onOpenLauncher,
   onClosePane,
   isCreating,
+  trailingActions,
 }: TabBarProps) {
   const setActivePane = useWorkspaceStore((s) => s.setActivePane);
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
@@ -107,9 +110,10 @@ export default function TabBar({
   const longPressReady = useRef(false);
   const longPressPaneId = useRef<string | null>(null);
 
+  const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const plusHandlers = useLongPress({
-    onPress: onNewTerminal,
-    onLongPress: onOpenLauncher,
+    onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
+    onLongPress: plusButtonBehavior === "launcher" ? onNewTerminal : onOpenLauncher,
   });
 
   const tabContainerRef = useRef<HTMLDivElement>(null);
@@ -536,6 +540,9 @@ export default function TabBar({
         })}
       </div>
 
+      {/* Extra trailing actions (e.g. settings icon on mobile tab mode) */}
+      {trailingActions}
+
       {/* New tab button */}
       <Button
         data-testid="tab-bar-new"
@@ -543,7 +550,7 @@ export default function TabBar({
         size="icon"
         className="h-7 w-7 shrink-0 mx-1 self-center"
         disabled={isCreating}
-        title="New terminal (long-press for launcher)"
+        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}
         onPointerCancel={plusHandlers.onPointerCancel}

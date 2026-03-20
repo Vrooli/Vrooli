@@ -69,16 +69,16 @@ describe("FloatingToolbar", () => {
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
-  it("calls onNewTerminal on short press of the plus button", () => {
+  it("calls onOpenLauncher on short press of the plus button (default launcher behavior)", () => {
     renderToolbar();
     fireEvent.pointerUp(screen.getByTestId("toolbar-new"));
-    expect(onNewTerminal).toHaveBeenCalledOnce();
+    expect(onOpenLauncher).toHaveBeenCalledOnce();
   });
 
-  it("calls onOpenLauncher on right-click of the plus button", () => {
+  it("calls onNewTerminal on right-click of the plus button (default launcher behavior)", () => {
     renderToolbar();
     fireEvent.contextMenu(screen.getByTestId("toolbar-new"));
-    expect(onOpenLauncher).toHaveBeenCalledOnce();
+    expect(onNewTerminal).toHaveBeenCalledOnce();
   });
 
   it("disables the plus button when creating", () => {
