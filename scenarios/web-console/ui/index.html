@@ -2,7 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+    <!-- Viewport directives — tightly coupled with useAppViewport.ts:
+         • interactive-widget=resizes-content: browser shrinks the layout viewport
+           when the virtual keyboard opens, so visualViewport.height reflects
+           the real visible area.
+         • viewport-fit=cover: extends the layout into safe areas (notch, rounded
+           corners, home indicator) so env(safe-area-inset-*) has non-zero values.
+         • maximum-scale/user-scalable: prevent pinch-zoom which fights our
+           fixed-position layout.
+         Do NOT remove these without also updating useAppViewport.ts and styles.css. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover" />
     <meta name="description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
     <title>Web Console UI</title>
   </head>

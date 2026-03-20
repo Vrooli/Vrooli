@@ -6,7 +6,7 @@ import { MessageSquareText, Plus, TerminalSquare } from "lucide-react";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
-import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
+import { useAppViewport } from "../hooks/useAppViewport";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
@@ -94,7 +94,7 @@ export default function Workspace() {
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
-  useVirtualKeyboard();
+  useAppViewport();
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
@@ -652,7 +652,7 @@ export default function Workspace() {
   // whether any sessions exist.
   if (!isHydrated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-muted">
+      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
         Loading...
       </div>
     );
@@ -661,7 +661,7 @@ export default function Workspace() {
   // Empty state
   if (sessionPanes.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-primary">
+      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-primary">
         <div className="text-center">
           <h1 className="text-2xl font-semibold mb-4">Web Console</h1>
           <p className="text-wc-text-muted mb-6">
@@ -810,10 +810,13 @@ export default function Workspace() {
     );
   });
 
+  // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
+  // viewport height set by useAppViewport(). This is the root layout
+  // container; all descendants use flex to fill this height.
+  // See src/hooks/useAppViewport.ts for the full design rationale.
   return (
     <div
-      className="flex flex-col bg-wc-surface-base text-wc-text-primary"
-      style={{ height: 'calc(100vh - var(--wc-kb-height, 0px))' }}
+      className="flex flex-col bg-wc-surface-base text-wc-text-primary h-wc-app"
     >
       {/* Floating toolbar */}
       <FloatingToolbar

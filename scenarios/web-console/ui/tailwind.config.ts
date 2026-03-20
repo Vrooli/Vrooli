@@ -32,6 +32,16 @@ export default {
         "wc-accent": "rgb(var(--wc-accent-border))",
         "wc-error": "rgb(var(--wc-error-border))",
       },
+      height: {
+        /* h-wc-app: the viewport-aware app height.
+           --wc-app-height is set by the useAppViewport hook to
+           visualViewport.height (the real visible area, excluding
+           browser chrome and virtual keyboard). Use this instead of
+           h-screen (100vh) which overshoots on mobile.
+           Fallback 100dvh handles pre-hook-initialization (loading/error
+           states that render before the Workspace mounts the hook). */
+        "wc-app": "var(--wc-app-height, 100dvh)",
+      },
       backgroundColor: {
         "wc-backdrop": "rgb(var(--wc-backdrop))",
         "wc-backdrop-heavy": "rgb(var(--wc-backdrop-heavy))",

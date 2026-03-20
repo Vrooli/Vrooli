@@ -210,7 +210,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   return (
     <div
       data-testid="mobile-toolbar"
-      className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation"
+      // pb-[var(--wc-safe-bottom)] adds bottom padding equal to the device's
+      // safe-area inset (for rounded corners / home indicators in PWA mode).
+      // The useAppViewport hook sets --wc-safe-bottom to 0px when the virtual
+      // keyboard is open since the keyboard covers the bottom edge.
+      className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation pb-[var(--wc-safe-bottom)]"
     >
       {/* Command input row */}
       <div className="flex items-end gap-0.5 px-1 py-1">
@@ -232,7 +236,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             )}
             style={{
               lineHeight: `${LINE_HEIGHT_PX}px`,
-              maxHeight: expanded ? "60vh" : `${MAX_TEXTAREA_HEIGHT}px`,
+              maxHeight: expanded ? "60dvh" : `${MAX_TEXTAREA_HEIGHT}px`,
             }}
           />
           {sendStatus === "queued" && (

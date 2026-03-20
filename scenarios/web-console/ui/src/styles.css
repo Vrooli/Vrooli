@@ -48,9 +48,37 @@
   --wc-backdrop-heavy: 0 0 0 / 0.6;
 }
 
+/* ── Viewport locking ──
+ * The app manages its own layout and scrolling via the useAppViewport hook
+ * (see src/hooks/useAppViewport.ts for the full design rationale).
+ *
+ * These rules work together with window.scrollTo(0, 0) in the hook to
+ * prevent two mobile PWA issues:
+ *
+ * 1. Pull-to-refresh / rubber-banding: Without overscroll-behavior: none
+ *    and position: fixed, swiping down at the top of the page triggers
+ *    the browser's native pull-to-refresh gesture, leaving a black gap
+ *    that persists until the user manually scrolls back.
+ *
+ * 2. Focus-induced scroll: When a user taps an input, the browser
+ *    normally scrolls the page to keep the input visible. Since our
+ *    layout already shrinks the container (via --wc-app-height) to fit
+ *    above the keyboard, the browser's scroll pushes content offscreen.
+ *    position: fixed + scrollTo(0,0) in the hook prevents this.
+ *
+ * DO NOT remove these without also updating useAppViewport.ts. */
+html {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  inset: 0;
 }
 
 /* ── Tab bar: prevent text selection ──

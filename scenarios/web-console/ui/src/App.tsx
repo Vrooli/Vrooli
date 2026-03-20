@@ -9,7 +9,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 const Workspace = lazy(() => import("./components/Workspace"));
 
 const PageFallback = () => (
-  <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-muted">
+  <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
     Loading...
   </div>
 );
@@ -25,7 +25,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-text-muted">
+      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
         Connecting to API...
       </div>
     );
@@ -33,7 +33,7 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-wc-surface-base text-wc-error-detail">
+      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-error-detail">
         <div className="text-center">
           <p className="text-lg font-medium">Unable to reach the API</p>
           <p className="mt-2 text-sm text-wc-text-faint">
