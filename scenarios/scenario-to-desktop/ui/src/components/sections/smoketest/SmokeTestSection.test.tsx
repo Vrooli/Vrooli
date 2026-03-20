@@ -557,7 +557,10 @@ describe("SmokeTestSection", () => {
 
     render(<SmokeTestSection scenarioName="test-scenario" />);
 
-    expect(screen.getByText(/Recording failed: ffmpeg not found/)).toBeInTheDocument();
+    expect(screen.getByText("Screen Recording Failed")).toBeInTheDocument();
+    expect(screen.getByText("ffmpeg not found")).toBeInTheDocument();
+    expect(screen.getByText("FFmpeg is not installed")).toBeInTheDocument();
+    expect(screen.getByText(/the smoke test result is not affected/i)).toBeInTheDocument();
     expect(document.querySelector("video")).not.toBeInTheDocument();
   });
 

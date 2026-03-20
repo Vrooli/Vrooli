@@ -1,6 +1,7 @@
 package protoconv
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -795,8 +796,16 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 	if r == nil {
 		return nil
 	}
+
+	// Extract per-file patches from the unified diff.
+	patchByPath := splitUnifiedDiff(r.UnifiedDiff)
+
 	files := make([]*pb.FileDiff, len(r.Files))
 	for i, f := range r.Files {
+		patch := f.Patch
+		if patch == "" {
+			patch = lookupPatch(patchByPath, f.FilePath)
+		}
 		files[i] = &pb.FileDiff{
 			Id:         UUIDToString(f.ID),
 			Path:       f.FilePath,
@@ -804,6 +813,7 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 			Additions:  int32(f.LinesAdded),
 			Deletions:  int32(f.LinesRemoved),
 			IsBinary:   false,
+			Patch:      patch,
 		}
 	}
 	return &pb.RunDiff{
@@ -812,6 +822,70 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 		Files:       files,
 		GeneratedAt: TimestampToProto(r.Generated),
 	}
+}
+
+// lookupPatch finds a patch for filePath in the map. It first tries an exact
+// match, then falls back to a suffix match. This handles the common case where
+// the unified diff uses project-root-relative paths (e.g.
+// "scenarios/foo/api/main.go") but file metadata uses sandbox-scope-relative
+// paths (e.g. "api/main.go").
+func lookupPatch(patchByPath map[string]string, filePath string) string {
+	if p, ok := patchByPath[filePath]; ok {
+		return p
+	}
+	suffix := "/" + filePath
+	for k, v := range patchByPath {
+		if strings.HasSuffix(k, suffix) {
+			return v
+		}
+	}
+	return ""
+}
+
+// splitUnifiedDiff splits a unified diff string into per-file patches.
+// It looks for "diff --git a/... b/..." markers and maps each section
+// to the file path (the "b/" side).
+func splitUnifiedDiff(unified string) map[string]string {
+	if unified == "" {
+		return nil
+	}
+
+	result := make(map[string]string)
+	lines := strings.Split(unified, "\n")
+
+	var currentPath string
+	var currentStart int
+	inSection := false
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, "diff --git ") {
+			// Flush previous section.
+			if inSection && currentPath != "" {
+				result[currentPath] = strings.Join(lines[currentStart:i], "\n")
+			}
+			// Extract the "b/" path from "diff --git a/foo b/foo".
+			currentPath = extractDiffPath(line)
+			currentStart = i
+			inSection = true
+		}
+	}
+	// Flush last section.
+	if inSection && currentPath != "" {
+		result[currentPath] = strings.Join(lines[currentStart:], "\n")
+	}
+
+	return result
+}
+
+// extractDiffPath extracts the file path from a "diff --git a/X b/Y" line.
+// Returns Y without the "b/" prefix.
+func extractDiffPath(line string) string {
+	// Format: "diff --git a/path/to/file b/path/to/file"
+	idx := strings.LastIndex(line, " b/")
+	if idx < 0 {
+		return ""
+	}
+	return line[idx+3:]
 }
 
 // DiffResult mirrors sandbox.DiffResult for import avoidance.
@@ -830,6 +904,7 @@ type FileChange struct {
 	FileSize     int64
 	LinesAdded   int
 	LinesRemoved int
+	Patch        string
 }
 
 // =============================================================================

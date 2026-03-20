@@ -864,3 +864,117 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		t.Errorf("RunnerType: expected %v, got %v", profile.RunnerType, result.RunnerType)
 	}
 }
+
+// =============================================================================
+// DIFF CONVERSION TESTS
+// =============================================================================
+
+func TestDiffResultToProto_PatchSuffixMatch(t *testing.T) {
+	// Regression test: workspace-sandbox returns scope-relative file paths
+	// (e.g. "api/main.go") but the unified diff uses project-root-relative
+	// paths (e.g. "scenarios/foo/api/main.go"). DiffResultToProto must match
+	// them via suffix so that per-file patches are populated.
+	runID := uuid.New()
+	fileID := uuid.New()
+
+	unified := `diff --git a/scenarios/my-app/api/main.go b/scenarios/my-app/api/main.go
+--- a/scenarios/my-app/api/main.go
++++ b/scenarios/my-app/api/main.go
+@@ -1,3 +1,3 @@
+ package main
+-// old
++// new
+ func main() {}
+`
+	dr := &DiffResult{
+		SandboxID:   uuid.New(),
+		UnifiedDiff: unified,
+		Files: []FileChange{
+			{
+				ID:         fileID,
+				FilePath:   "api/main.go", // scope-relative
+				ChangeType: "modified",
+				LinesAdded: 1,
+			},
+		},
+	}
+
+	proto := DiffResultToProto(runID, dr)
+	if proto == nil {
+		t.Fatal("expected non-nil RunDiff")
+	}
+	if len(proto.Files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(proto.Files))
+	}
+	if proto.Files[0].Patch == "" {
+		t.Error("expected non-empty patch for suffix-matched file, got empty string")
+	}
+}
+
+func TestDiffResultToProto_ExactPathMatch(t *testing.T) {
+	runID := uuid.New()
+	unified := `diff --git a/api/main.go b/api/main.go
+--- a/api/main.go
++++ b/api/main.go
+@@ -1 +1 @@
+-old
++new
+`
+	dr := &DiffResult{
+		UnifiedDiff: unified,
+		Files: []FileChange{
+			{FilePath: "api/main.go", ChangeType: "modified"},
+		},
+	}
+
+	proto := DiffResultToProto(runID, dr)
+	if proto.Files[0].Patch == "" {
+		t.Error("expected non-empty patch for exact-matched file")
+	}
+}
+
+func TestDiffResultToProto_NilResult(t *testing.T) {
+	if DiffResultToProto(uuid.New(), nil) != nil {
+		t.Error("expected nil for nil DiffResult")
+	}
+}
+
+func TestDiffResultToProto_EmptyDiff(t *testing.T) {
+	dr := &DiffResult{
+		UnifiedDiff: "",
+		Files: []FileChange{
+			{FilePath: "api/main.go", ChangeType: "modified"},
+		},
+	}
+	proto := DiffResultToProto(uuid.New(), dr)
+	if proto.Files[0].Patch != "" {
+		t.Error("expected empty patch when unified diff is empty")
+	}
+}
+
+func TestLookupPatch(t *testing.T) {
+	m := map[string]string{
+		"scenarios/foo/api/main.go":     "patch-a",
+		"scenarios/foo/api/handlers.go": "patch-b",
+	}
+
+	tests := []struct {
+		name     string
+		filePath string
+		want     string
+	}{
+		{"suffix match", "api/main.go", "patch-a"},
+		{"exact match", "scenarios/foo/api/main.go", "patch-a"},
+		{"no match", "api/other.go", ""},
+		{"root-level file suffix match", "main.go", "patch-a"}, // /main.go suffix matches
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := lookupPatch(m, tt.filePath)
+			if got != tt.want {
+				t.Errorf("lookupPatch(%q) = %q, want %q", tt.filePath, got, tt.want)
+			}
+		})
+	}
+}

@@ -311,14 +311,17 @@ type screenrecordingExecutorAdapter struct {
 
 func (a *screenrecordingExecutorAdapter) ExecuteWithResult(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*screenrecording.ExecutionResult, error) {
 	result, err := a.executor.ExecuteWithResult(ctx, workDir, command, args, env, timeout)
-	if err != nil {
+	if result == nil {
 		return nil, err
 	}
+	// Always pass through the result (even on error) so callers can access stderr
+	// for diagnostic messages. ProcessExecutor returns both result and error when
+	// the process exits non-zero.
 	return &screenrecording.ExecutionResult{
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
 		ExitCode: result.ExitCode,
-	}, nil
+	}, err
 }
 
 // generationRecordStoreAdapter adapts records.FileStore to generation.RecordStore interface

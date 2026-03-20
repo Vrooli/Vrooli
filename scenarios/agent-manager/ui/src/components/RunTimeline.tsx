@@ -312,10 +312,6 @@ export function RunTimeline({
     setFilters(createShowAllTimelineFilterState());
   };
 
-  const activeCategoryLabels = TIMELINE_CATEGORY_ORDER
-    .filter((category) => filters.categories[category])
-    .map((category) => getTimelineCategoryLabel(category));
-
   return (
     <>
       <div className="relative flex h-full flex-col">

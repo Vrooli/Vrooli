@@ -99,11 +99,14 @@ _screen_most_recent_id() {
 # Prints recording_id to stdout on success.
 # ---------------------------------------------------------------------------
 ffmpeg::screen::start() {
+    # All log messages go to stderr so only the recording ID is on stdout.
+    ffmpeg::export_config
+
     local platform
     platform=$(system::detect_platform)
     if [[ "$platform" != "linux" ]]; then
         log::error "Screen capture requires Linux with X11. Current platform: ${platform}."
-        log::info "On macOS and Windows, screen capture is not yet supported."
+        log::info "On macOS and Windows, screen capture is not yet supported." >&2
         return 1
     fi
 
@@ -115,13 +118,13 @@ ffmpeg::screen::start() {
 
     if ! ffmpeg -devices 2>/dev/null | grep -q x11grab; then
         log::error "FFmpeg x11grab device not available. Your FFmpeg build may lack X11 support."
-        log::info "On Ubuntu/Debian: apt-get install ffmpeg (the default build includes x11grab)"
+        log::info "On Ubuntu/Debian: apt-get install ffmpeg (the default build includes x11grab)" >&2
         return 1
     fi
 
     if ! command -v Xvfb &>/dev/null; then
         log::error "Xvfb is not installed. Run 'vrooli setup' to install it automatically."
-        log::info "Or install manually: apt-get install xvfb (Ubuntu/Debian)"
+        log::info "Or install manually: apt-get install xvfb (Ubuntu/Debian)" >&2
         return 1
     fi
 
@@ -162,7 +165,7 @@ ffmpeg::screen::start() {
     # Start Xvfb if the target display is not already active
     local xvfb_pid=0
     if ! _screen_display_in_use "$display"; then
-        log::info "Starting Xvfb on display ${display} at ${resolution}x${color_depth}..."
+        log::info "Starting Xvfb on display ${display} at ${resolution}x${color_depth}..." >&2
         Xvfb "$display" -screen 0 "${resolution}x${color_depth}" +extension GLX +render -noreset &>/dev/null &
         xvfb_pid=$!
 
@@ -173,7 +176,7 @@ ffmpeg::screen::start() {
                 break
             fi
             sleep 0.1
-            (( retries-- ))
+            (( --retries )) || true
         done
 
         if ! _screen_display_in_use "$display"; then
@@ -181,9 +184,26 @@ ffmpeg::screen::start() {
             kill "$xvfb_pid" 2>/dev/null || true
             return 1
         fi
-        log::info "Xvfb ready on display ${display} (PID ${xvfb_pid})"
+        log::info "Xvfb ready on display ${display} (PID ${xvfb_pid})" >&2
     else
-        log::info "Display ${display} already active, reusing"
+        log::info "Display ${display} already active, reusing" >&2
+
+        # Verify the existing display is large enough for the requested capture
+        local width height
+        width="${resolution%%x*}"
+        height="${resolution##*x}"
+        if command -v xdpyinfo &>/dev/null; then
+            local screen_dims
+            screen_dims=$(xdpyinfo -display "$display" 2>/dev/null | grep -oP 'dimensions:\s+\K\d+x\d+' | head -1)
+            if [[ -n "$screen_dims" ]]; then
+                local screen_w="${screen_dims%%x*}" screen_h="${screen_dims##*x}"
+                if (( width > screen_w || height > screen_h )); then
+                    log::error "Requested capture ${width}x${height} exceeds display ${display} size ${screen_w}x${screen_h}"
+                    log::info "Either use --resolution ${screen_w}x${screen_h} or start a new display with the desired size" >&2
+                    return 1
+                fi
+            fi
+        fi
     fi
 
     # Build FFmpeg capture command
@@ -197,11 +217,11 @@ ffmpeg::screen::start() {
         ffmpeg::hardware::detect &>/dev/null || true
         if [[ -n "${FFMPEG_HW_ENCODER:-}" ]]; then
             encoder="$FFMPEG_HW_ENCODER"
-            log::info "Using hardware encoder: ${encoder}"
+            log::info "Using hardware encoder: ${encoder}" >&2
         fi
     fi
 
-    log::info "Starting screen capture: ${width}x${height}@${framerate}fps → ${output}"
+    log::info "Starting screen capture: ${width}x${height}@${framerate}fps → ${output}" >&2
 
     DISPLAY="$display" ffmpeg \
         -f x11grab \
@@ -225,7 +245,7 @@ ffmpeg::screen::start() {
 
     _screen_write_meta "$id" "$ffmpeg_pid" "$xvfb_pid" "$display" "$output"
 
-    log::success "Recording started (ID: ${id}, FFmpeg PID: ${ffmpeg_pid})"
+    log::success "Recording started (ID: ${id}, FFmpeg PID: ${ffmpeg_pid})" >&2
     echo "$id"
     return 0
 }
@@ -237,6 +257,9 @@ ffmpeg::screen::start() {
 # Prints output path and duration.
 # ---------------------------------------------------------------------------
 ffmpeg::screen::stop() {
+    # All log messages go to stderr so only the output path is on stdout.
+    ffmpeg::export_config
+
     local id="${1:-}"
 
     if [[ -z "$id" ]]; then
@@ -260,19 +283,19 @@ ffmpeg::screen::stop() {
 
     # Stop FFmpeg gracefully with SIGINT (allows proper file finalization)
     if [[ -n "$ffmpeg_pid" ]] && kill -0 "$ffmpeg_pid" 2>/dev/null; then
-        log::info "Sending SIGINT to FFmpeg (PID ${ffmpeg_pid})..."
+        log::info "Sending SIGINT to FFmpeg (PID ${ffmpeg_pid})..." >&2
         kill -INT "$ffmpeg_pid" 2>/dev/null || true
 
         # Wait up to 10 seconds for graceful exit
         local wait_count=0
         while kill -0 "$ffmpeg_pid" 2>/dev/null && (( wait_count < 100 )); do
             sleep 0.1
-            (( wait_count++ ))
+            (( ++wait_count ))
         done
 
         # Force kill if still running
         if kill -0 "$ffmpeg_pid" 2>/dev/null; then
-            log::warn "FFmpeg did not stop gracefully, sending SIGTERM"
+            log::warning "FFmpeg did not stop gracefully, sending SIGTERM" >&2
             kill -TERM "$ffmpeg_pid" 2>/dev/null || true
             sleep 1
             kill -9 "$ffmpeg_pid" 2>/dev/null || true
@@ -282,7 +305,7 @@ ffmpeg::screen::stop() {
     # Stop Xvfb if we started it
     if [[ -n "$xvfb_pid" && "$xvfb_pid" != "0" ]]; then
         if kill -0 "$xvfb_pid" 2>/dev/null; then
-            log::info "Stopping Xvfb (PID ${xvfb_pid})..."
+            log::info "Stopping Xvfb (PID ${xvfb_pid})..." >&2
             kill "$xvfb_pid" 2>/dev/null || true
         fi
     fi
@@ -299,11 +322,11 @@ ffmpeg::screen::stop() {
                 -of default=noprint_wrappers=1:nokey=1 "$output_path" 2>/dev/null || echo "unknown")
         fi
 
-        log::success "Recording stopped: ${output_path}"
-        log::info "  Duration: ${duration_str}s  Size: ${size} bytes"
+        log::success "Recording stopped: ${output_path}" >&2
+        log::info "  Duration: ${duration_str}s  Size: ${size} bytes" >&2
         echo "$output_path"
     else
-        log::warn "Output file not found: ${output_path}"
+        log::warning "Output file not found: ${output_path}" >&2
         return 1
     fi
 
@@ -355,7 +378,9 @@ ffmpeg::screen::list_displays() {
 # Show active recordings — scans metadata, verifies PIDs, marks crashed ones.
 # ---------------------------------------------------------------------------
 ffmpeg::screen::status() {
-    local meta_dir="${FFMPEG_SCREEN_CAPTURES_DIR:-/tmp/ffmpeg-screen-captures}/metadata"
+    ffmpeg::export_config
+
+    local meta_dir="${FFMPEG_SCREEN_CAPTURES_DIR}/metadata"
 
     if [[ ! -d "$meta_dir" ]] || [[ -z "$(ls -A "$meta_dir" 2>/dev/null)" ]]; then
         log::info "No recordings found"

@@ -32,15 +32,34 @@ func NewDisplayManager() DisplayManager {
 	return &systemDisplayManager{}
 }
 
+// findAvailableDisplay probes display numbers starting at 99 to find one
+// that is not already in use. It uses xdpyinfo to check each display,
+// which works regardless of whether the X server listens on TCP, Unix
+// sockets, or abstract sockets.
+func findAvailableDisplay() (string, error) {
+	for n := 99; n < 200; n++ {
+		display := fmt.Sprintf(":%d", n)
+		cmd := exec.Command("xdpyinfo", "-display", display)
+		if err := cmd.Run(); err != nil {
+			// xdpyinfo failed — display is not in use.
+			return display, nil
+		}
+	}
+	return "", fmt.Errorf("no available X display number found in range :99–:199")
+}
+
 // CreateDisplay starts Xvfb on an available display number and waits for it to be ready.
 func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
-	display := ":99"
+	display, err := findAvailableDisplay()
+	if err != nil {
+		return "", nil, err
+	}
 	resolution := fmt.Sprintf("%dx%dx%d", width, height, m.colorDepth)
 
 	cmd := exec.Command("Xvfb", display, "-screen", "0", resolution,
 		"+extension", "GLX", "+render", "-noreset")
 	if err := cmd.Start(); err != nil {
-		return "", nil, fmt.Errorf("failed to start Xvfb: %w", err)
+		return "", nil, fmt.Errorf("failed to start Xvfb on %s: %w", display, err)
 	}
 
 	cleanup := func() {

@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Ban,
   Check,
+  CheckSquare,
   Clock,
   Eye,
   RefreshCw,
@@ -546,19 +547,17 @@ export function RunsPage({
               variant={selectionMode ? "default" : "outline"}
               size="sm"
               onClick={toggleSelectionMode}
-              className="gap-1"
+              aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
+              className="w-9 px-0"
             >
               {selectionMode ? (
-                <>
-                  <X className="h-3 w-3" />
-                  <span className="hidden sm:inline">Done</span>
-                </>
+                <X className="h-4 w-4" />
               ) : (
-                "Select"
+                <CheckSquare className="h-4 w-4" />
               )}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="outline" size="sm" onClick={onRefresh} aria-label="Refresh" className="w-9 px-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -623,28 +622,28 @@ export function RunsPage({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-8 w-8"
                   aria-label={`Stop run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleStop(run.id);
                   }}
                 >
-                  <Square className="h-3 w-3" />
+                  <Square className="h-3.5 w-3.5" />
                 </Button>
               )}
               {run.actions?.canDelete && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                   aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDelete(run);
                   }}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
             </div>

@@ -153,6 +153,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 
 	// Set up virtual display + screen recording if enabled
 	var captureID string
+	var recordingDisplayID string // display the Electron app must render on
 	if recordingCfg != nil && recordingCfg.Enabled && s.recorder != nil && s.displayMgr != nil {
 		width, height := recordingCfg.DisplayWidth, recordingCfg.DisplayHeight
 		if width == 0 {
@@ -174,11 +175,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 			})
 		} else {
 			defer displayCleanup()
-
-			// Override DISPLAY for the smoke test execution
-			if s.envReader != nil {
-				// The DISPLAY env var will be injected in executeSmokeTest via env slice
-			}
+			recordingDisplayID = displayID
 
 			cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
 				Display:    displayID,
@@ -227,7 +224,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 
 	// Execute smoke test with retry support
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
-	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand)
+	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, recordingDisplayID)
 
 	// Stop recording if active
 	if captureID != "" {
@@ -368,13 +365,18 @@ func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath stri
 	return cmd, args, display, nil
 }
 
-func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand string) (*ExecutionResult, error) {
+func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string) (*ExecutionResult, error) {
 	// Build environment
 	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
 	env := []string{
 		"SMOKE_TEST=1",
 		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
+	}
+
+	// When screen recording manages the display, tell Electron to render on it
+	if displayID != "" {
+		env = append(env, fmt.Sprintf("DISPLAY=%s", displayID))
 	}
 
 	// Execute
@@ -405,11 +407,11 @@ func truncateOutput(s string, maxLen int) string {
 }
 
 // executeWithRetry wraps executeSmokeTest with retry logic for recoverable errors.
-func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand string) (*ExecutionResult, error) {
+func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string) (*ExecutionResult, error) {
 	var lastResult *ExecutionResult
 
 	for attempt := 0; ; attempt++ {
-		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand)
+		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, displayID)
 		lastResult = result
 
 		if err == nil {

@@ -32,6 +32,121 @@ import {
 import { Button } from "../../ui/button";
 import { formatStageName } from "../../../lib/status-display";
 
+/**
+ * Diagnose screen recording errors and provide actionable troubleshooting.
+ * Parses the raw error string from the backend to identify the likely cause
+ * and suggest specific fixes.
+ */
+function ScreenRecordingError({ error }: { error: string }) {
+  const lowerErr = error.toLowerCase();
+
+  // Identify the likely cause from error patterns
+  const diagnostics: { cause: string; suggestions: string[] } = (() => {
+    if (lowerErr.includes("xvfb") && lowerErr.includes("not become ready")) {
+      return {
+        cause: "Virtual display (Xvfb) failed to start",
+        suggestions: [
+          "Install Xvfb: sudo apt-get install xvfb",
+          "Check if display :99 is already in use: ls /tmp/.X99-lock",
+          "Install xdpyinfo: sudo apt-get install x11-utils",
+        ],
+      };
+    }
+    if (lowerErr.includes("xvfb") || lowerErr.includes("failed to start xvfb")) {
+      return {
+        cause: "Xvfb (X Virtual Framebuffer) is not installed or cannot start",
+        suggestions: [
+          "Install Xvfb: sudo apt-get install xvfb",
+          "Check system resources (memory, /tmp space)",
+        ],
+      };
+    }
+    if (lowerErr.includes("resource-ffmpeg") && (lowerErr.includes("not found") || lowerErr.includes("no such file"))) {
+      return {
+        cause: "The resource-ffmpeg CLI is not installed or not in PATH",
+        suggestions: [
+          "Install the FFmpeg resource: vrooli resource install ffmpeg",
+          "Verify it's in PATH: which resource-ffmpeg",
+        ],
+      };
+    }
+    if (lowerErr.includes("ffmpeg") && lowerErr.includes("not found")) {
+      return {
+        cause: "FFmpeg is not installed",
+        suggestions: [
+          "Install FFmpeg: sudo apt-get install ffmpeg",
+          "Install the FFmpeg resource: vrooli resource install ffmpeg",
+        ],
+      };
+    }
+    if (lowerErr.includes("display") && (lowerErr.includes("cannot open") || lowerErr.includes("could not"))) {
+      return {
+        cause: "No X display available for screen capture",
+        suggestions: [
+          "Ensure Xvfb is installed: sudo apt-get install xvfb",
+          "Check DISPLAY environment variable",
+        ],
+      };
+    }
+    if (lowerErr.includes("permission denied")) {
+      return {
+        cause: "Insufficient permissions for screen capture",
+        suggestions: [
+          "Check file permissions on the output directory",
+          "Ensure the process has access to the X display",
+        ],
+      };
+    }
+    if (lowerErr.includes("timeout") || lowerErr.includes("timed out")) {
+      return {
+        cause: "Screen capture timed out",
+        suggestions: [
+          "The capture process took too long to start",
+          "Check system resources (CPU, memory)",
+        ],
+      };
+    }
+    // Generic fallback — show the raw error with general guidance
+    return {
+      cause: "Screen capture failed to start",
+      suggestions: [
+        "Ensure Xvfb is installed: sudo apt-get install xvfb",
+        "Ensure the FFmpeg resource is available: which resource-ffmpeg",
+        "Check the API logs for more details",
+      ],
+    };
+  })();
+
+  return (
+    <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-3 space-y-2">
+      <div className="flex items-start gap-2">
+        <Video className="h-4 w-4 mt-0.5 shrink-0 text-amber-400" />
+        <div className="space-y-1.5 min-w-0">
+          <p className="text-sm font-medium text-amber-300">Screen Recording Failed</p>
+          <p className="text-xs text-amber-400/80">{diagnostics.cause}</p>
+          <div className="rounded bg-slate-950/60 p-2">
+            <pre className="text-xs text-slate-400 font-mono whitespace-pre-wrap break-all">{error}</pre>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400 mb-1">Troubleshooting:</p>
+            <ul className="text-xs text-slate-400 space-y-0.5">
+              {diagnostics.suggestions.map((s, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="text-slate-500 shrink-0">-</span>
+                  <span className="font-mono">{s}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-xs text-slate-500 italic">
+            Note: Screen recording is optional — the smoke test result is not affected.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface SmokeTestSectionProps {
   scenarioName: string;
 }
@@ -79,8 +194,8 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
       && stageStatus === "pending"
       && hasBuildArtifacts;
 
-    // Can test when build artifacts exist, no result yet, and stage hasn't completed or failed
-    const canTest = hasBuildArtifacts && !hasResult && stageStatus !== "completed";
+    // Can test when build artifacts exist (allow re-running after completion)
+    const canTest = hasBuildArtifacts;
     // Show the action area (button, progress, or starting state)
     const showTestAction = canTest && stageStatus !== "failed" && !pipelineFailedBeforeSmoketest;
 
@@ -197,6 +312,8 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Starting...
                   </>
+                ) : hasResult ? (
+                  "Re-run Smoke Test"
                 ) : (
                   "Run Smoke Test"
                 )}
@@ -301,9 +418,7 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
             )}
 
             {smokeTestResult?.screen_recording?.error && (
-              <StageDetailCard icon={Video} label="Screen Recording">
-                <p className="text-xs text-amber-400">Recording failed: {smokeTestResult.screen_recording.error}</p>
-              </StageDetailCard>
+              <ScreenRecordingError error={smokeTestResult.screen_recording.error} />
             )}
 
             {error && <StageError stageName="Smoke test"><strong>Error:</strong> {error}</StageError>}

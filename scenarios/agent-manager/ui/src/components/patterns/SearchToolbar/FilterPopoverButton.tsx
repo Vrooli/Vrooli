@@ -98,9 +98,10 @@ export function FilterPopoverButton({
         aria-label="Filter and sort options"
         aria-expanded={open}
         className={cn(
-          "relative inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background text-sm",
-          "hover:bg-accent hover:text-accent-foreground transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          "relative inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background text-sm font-medium",
+          "hover:bg-accent/50 transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          open && "bg-accent/50 text-accent-foreground"
         )}
       >
         <SlidersHorizontal className="h-4 w-4" />
@@ -115,7 +116,7 @@ export function FilterPopoverButton({
             ref={panelRef}
             style={panelStyle}
             className={cn(
-              "w-56 rounded-md border border-border bg-muted p-3 shadow-lg",
+              "w-60 rounded-md border border-border bg-popover p-3 shadow-lg shadow-black/40",
               "animate-in fade-in-0 zoom-in-95"
             )}
           >
@@ -164,7 +165,7 @@ export function FilterPopoverButton({
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-left py-0.5"
                   >
                     Reset filters
                   </button>

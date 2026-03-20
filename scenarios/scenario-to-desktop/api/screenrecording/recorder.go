@@ -74,10 +74,15 @@ func (r *FFmpegRecorder) StartCapture(ctx context.Context, cfg CaptureConfig) (s
 
 	result, err := r.executor.ExecuteWithResult(ctx, "", "resource-ffmpeg", args, nil, 30*time.Second)
 	if err != nil {
+		// Include stderr in the error when available (the adapter passes through
+		// the result even on error so we can report diagnostic details).
+		if result != nil && result.Stderr != "" {
+			return "", fmt.Errorf("screen capture start failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
+		}
 		return "", fmt.Errorf("screen capture start failed: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return "", fmt.Errorf("screen capture start returned exit code %d: %s", result.ExitCode, result.Stderr)
+		return "", fmt.Errorf("screen capture start failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 
 	// The CLI prints the recording ID to stdout.
@@ -94,10 +99,13 @@ func (r *FFmpegRecorder) StopCapture(ctx context.Context, captureID string) (*Ca
 
 	result, err := r.executor.ExecuteWithResult(ctx, "", "resource-ffmpeg", args, nil, 30*time.Second)
 	if err != nil {
+		if result != nil && result.Stderr != "" {
+			return nil, fmt.Errorf("screen capture stop failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
+		}
 		return nil, fmt.Errorf("screen capture stop failed: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return nil, fmt.Errorf("screen capture stop returned exit code %d: %s", result.ExitCode, result.Stderr)
+		return nil, fmt.Errorf("screen capture stop failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 
 	// The CLI prints the output path to stdout.
