@@ -1,34 +1,37 @@
 ## Status
-Completed second strategic assessment heartbeat. All teammates reported and shut down.
+Completed third strategic assessment heartbeat. All teammates reported. 4 new decisions logged.
 
 ## Completed this heartbeat
 - Spawned intelligence-officer, operations-chief, and strategist
-- Confirmed agent-inbox crisis resolved: 348 → 39 uncommitted files (92% reduction)
-- Verified all 4 key scenarios build clean (prompt-manager, agent-manager, swarm-manager, tidiness-manager)
-- Confirmed 26/91 scenarios running, core pipeline healthy
-- Identified 70/30 investment ratio violation: TTS/voice got ~16 commits vs core loop ~7 (inverted from decision)
-- Flagged scenario-dependency-analyzer unhealthy for 7h
-- Flagged tidiness-manager test failures (standards violations)
-- Logged 3 new strategic decisions to decision log
+- Confirmed core-loop investment at 33% (slight improvement from 27%, still far from 70% target)
+- Identified tunnel-manager as highest-risk uncommitted work (74 files, ~90% complete refactor)
+- Confirmed scenario-to-desktop staged changes ready to commit
+- Identified 2 new unhealthy Docker containers (questdb 28h, whisper 28h)
+- Confirmed scenario-dependency-analyzer still unhealthy (503 on /api/v1/health/analysis)
+- Confirmed all 3 core scenarios build clean (prompt-manager, agent-manager, tidiness-manager)
+- Logged 4 new strategic decisions: WIP limit, commit priority, focus areas, health investigation
+- Identified decision-execution gap as #1 strategic risk — decisions made but not enforced
 
 ## In progress / blocked
-- 70/30 ratio enforcement needs active monitoring — pattern continued despite prior decision
-- scenario-dependency-analyzer unhealthy — root cause unknown
-- tidiness-manager standards violations blocking tests
-- 28 modified + 11 untracked files should be committed
+- 70/30 ratio enforcement: now has structural mechanism (WIP limit + finish-first) but needs actual enforcement
+- 104 uncommitted files: tunnel-manager (74), tidiness-manager (11), app-monitor (5), others
+- TTS moratorium was violated again (4 more commits after explicit prohibition) — pattern of non-compliance
+- scenario-dependency-analyzer: analysis endpoint returning 503, basic health OK
+- questdb and whisper Docker containers unhealthy for 28h
 
 ## Next priorities
-1. IMMEDIATE: Fix scenario-dependency-analyzer health (7h unhealthy)
-2. IMMEDIATE: Commit swarm-manager and tidiness-manager work in logical chunks
-3. THIS WEEK: Enforce 70/30 — no new TTS/voice work until prompt-manager shared team state p4+ and agent-manager stabilization
-4. THIS WEEK: Fix tidiness-manager standards violations so tests pass
-5. THIS WEEK: Continue prompt-manager shared team state (critical path for team coordination)
-6. THIS MONTH: Push LPBS toward first external deployment
-7. THIS QUARTER: Achieve first autonomous improvement loop
+1. IMMEDIATE: Commit tunnel-manager refactor in logical chunks (74 files at risk, run tests first)
+2. IMMEDIATE: Commit scenario-to-desktop staged changes (ready now)
+3. IMMEDIATE: Commit tidiness-manager work (11 files including 3 new test files)
+4. THIS WEEK: Enforce WIP limit — only prompt-manager, agent-manager, tunnel-manager active
+5. THIS WEEK: Continue prompt-manager needs-based development (highest compound leverage)
+6. THIS WEEK: Investigate questdb/whisper Docker health + scenario-dependency-analyzer 503
+7. THIS MONTH: Agent-manager stabilization + prompt-manager shared team state completion
+8. THIS QUARTER: Autonomous core loop + 3 revenue-generating scenarios
 
 ## Notes for teammates
-- The 70/30 decision from last heartbeat was not followed — TTS/voice consumed majority bandwidth. This must be actively enforced, not just stated.
-- New compound-return capabilities are landing correctly: sandbox self-healing (heal.go), screen recording (ffmpeg resource), deployment validation
-- vrooli-onboarding is a new untracked scenario — should be committed once stable
-- Core pipeline is healthy but under-invested. The recursive improvement loop depends on prompt-manager → agent-manager → workspace-sandbox. Every hour spent elsewhere is an hour not compounding.
-- Updated Now/Near/Far: NOW = enforce 70/30 + fix unhealthy scenario + commit work | NEAR = prompt-manager shared team state + agent-manager stability | FAR = autonomous loop + marketplace
+- DECISION-EXECUTION GAP is the #1 risk. The 70/30 ratio has been decided 3 times and violated 3 times. New enforcement: WIP limit of 3 active scenarios + finish-first rule. Any agent working on non-approved scenarios should be redirected.
+- Approved active scenarios: prompt-manager, agent-manager, tunnel-manager (to land refactor). Everything else is PAUSED.
+- scenario-to-desktop video recording, web-console TTS, web-console mobile QoL, vrooli-onboarding are all PAUSED until core milestones ship.
+- 30 scenarios running (up from 26), system resources healthy (20/61 GB RAM, 60% disk).
+- Updated Now/Near/Far: NOW = commit all uncommitted work + enforce WIP limit | NEAR = prompt-manager + agent-manager milestones | FAR = autonomous loop + marketplace

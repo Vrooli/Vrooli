@@ -67,6 +67,8 @@ func TestAllCommandGroupsRegistered(t *testing.T) {
 		"Routes":        false,
 		"Probes":        false,
 		"Audit":         false,
+		"Metrics":       false,
+		"Recovery":      false,
 		"Configuration": false,
 	}
 
