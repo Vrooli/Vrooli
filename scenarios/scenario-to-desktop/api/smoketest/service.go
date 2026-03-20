@@ -37,16 +37,6 @@ type DefaultService struct {
 	// Optional screen recording (nil = recording disabled)
 	recorder   screenrecording.Recorder
 	displayMgr screenrecording.DisplayManager
-
-	// recordingDisplayDims is set per-PerformSmokeTest call when recording
-	// is active, so executeSmokeTest can pass display dimensions to the
-	// Electron app for visual smoke testing.
-	recordingDisplayDims *displayDimensions
-}
-
-// displayDimensions holds the virtual display size for visual smoke tests.
-type displayDimensions struct {
-	Width, Height int
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -128,11 +118,12 @@ func (s *DefaultService) CurrentPlatform() string {
 	return s.platformResolver.CurrentPlatform()
 }
 
+// DefaultDemoHoldMs is the default duration (in milliseconds) to hold the
+// demo app visible for screen recording.
+const DefaultDemoHoldMs = 8000
+
 // PerformSmokeTest runs a smoke test on a built application.
 func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
-	// Clear per-run state on exit.
-	defer func() { s.recordingDisplayDims = nil }()
-
 	// Check if smoke test exists before doing anything
 	if _, ok := s.store.Get(smokeTestID); !ok {
 		return
@@ -180,7 +171,6 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 			fps = 15
 		}
 
-		s.recordingDisplayDims = &displayDimensions{Width: width, Height: height}
 		s.logger.Info("screen_recording_setup",
 			"smoke_test_id", smokeTestID,
 			"width", width, "height", height, "fps", fps,
@@ -244,6 +234,14 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	// Execute smoke test with retry support
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
 	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, recordingDisplayID)
+
+	// If headless test passed and recording is active, run the demo launch
+	// so the screen capture shows the real app startup experience.
+	if captureID != "" && recordingDisplayID != "" && execErr == nil && execResult != nil {
+		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
+			s.executeDemoLaunch(ctx, smokeTestID, artifactPath, platform, recordingDisplayID)
+		}
+	}
 
 	// Stop recording if active
 	if captureID != "" {
@@ -393,23 +391,9 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
 	}
 
-	// When screen recording manages the display, tell Electron to render on it
-	// and enable visual mode so the app creates a visible window for recording.
+	// When screen recording manages the display, tell Electron to render on it.
 	if displayID != "" {
 		env = append(env, fmt.Sprintf("DISPLAY=%s", displayID))
-		env = append(env, "SMOKE_TEST_VISUAL=1")
-		if s.recordingDisplayDims != nil {
-			env = append(env,
-				fmt.Sprintf("SMOKE_TEST_DISPLAY_WIDTH=%d", s.recordingDisplayDims.Width),
-				fmt.Sprintf("SMOKE_TEST_DISPLAY_HEIGHT=%d", s.recordingDisplayDims.Height),
-			)
-		}
-		s.logger.Info("smoke_test_visual_mode_enabled",
-			"smoke_test_id", smokeTestID,
-			"display", displayID,
-			"width", s.recordingDisplayDims.Width,
-			"height", s.recordingDisplayDims.Height,
-		)
 	}
 
 	// Execute
@@ -429,6 +413,62 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	s.logExecutionResultWithDetails(smokeTestID, displayCommand, result, err)
 
 	return result, err
+}
+
+// executeDemoLaunch runs the app in normal mode for screen recording.
+// This is purely for capturing a realistic startup experience on video.
+// Errors are logged but do not affect the smoke test pass/fail result.
+func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, artifactPath, platform, displayID string) {
+	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", displayID)
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.Logs = append(status.Logs, "Starting demo launch for screen recording...")
+	})
+
+	cmd, args, _, err := s.platformResolver.ResolveCommand(platform, artifactPath)
+	if err != nil {
+		s.logger.Warn("demo_launch_resolve_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		return
+	}
+
+	// Strip --smoke-test from args so the app launches in normal mode
+	args = StripSmokeTestFlag(args)
+
+	env := []string{
+		fmt.Sprintf("DISPLAY=%s", displayID),
+		"SMOKE_TEST_DEMO=1",
+		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", DefaultDemoHoldMs),
+	}
+
+	demoTimeout := 90 * time.Second
+	result, err := s.executor.ExecuteWithResult(ctx, filepath.Dir(artifactPath), cmd, args, env, demoTimeout)
+
+	if err != nil {
+		s.logger.Warn("demo_launch_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch error (non-fatal): %v", err))
+		})
+	} else {
+		exitCode := 0
+		if result != nil {
+			exitCode = result.ExitCode
+		}
+		s.logger.Info("demo_launch_completed", "smoke_test_id", smokeTestID, "exit_code", exitCode)
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completed (exit code: %d)", exitCode))
+		})
+	}
+}
+
+// stripSmokeTestFlag removes "--smoke-test" from args so the app launches
+// in normal mode for demo recording.
+func StripSmokeTestFlag(args []string) []string {
+	result := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg != "--smoke-test" {
+			result = append(result, arg)
+		}
+	}
+	return result
 }
 
 // truncateOutput limits output to the specified maximum length.

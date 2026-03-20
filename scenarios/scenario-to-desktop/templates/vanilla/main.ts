@@ -214,11 +214,11 @@ const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || ""
 const smokeTestTimeoutMs = Number.isFinite(smokeTestTimeoutCandidate) && smokeTestTimeoutCandidate > 0
     ? smokeTestTimeoutCandidate
     : APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
-// Visual mode: when screen recording is active, the Go smoke test service
-// sets SMOKE_TEST_VISUAL=1 so the app creates a visible window for capture.
-const isSmokeTestVisual = process.env.SMOKE_TEST_VISUAL === "1";
-const smokeTestDisplayWidth = Number(process.env.SMOKE_TEST_DISPLAY_WIDTH) || 1920;
-const smokeTestDisplayHeight = Number(process.env.SMOKE_TEST_DISPLAY_HEIGHT) || 1080;
+// Demo mode: after the headless smoke test passes, the Go service launches
+// the app a second time WITHOUT --smoke-test to capture the real startup
+// experience (splash screen, window frame, natural positioning) on video.
+const isSmokeTestDemo = process.env.SMOKE_TEST_DEMO === "1";
+const smokeTestDemoHoldMs = Number(process.env.SMOKE_TEST_DEMO_HOLD_MS) || 8000;
 
 // Stability check configuration
 const POST_SUCCESS_STABILITY_DELAY_MS = 2000;
@@ -1070,71 +1070,6 @@ async function runSmokeTest(): Promise<void> {
         if (isBundledMode && exitTracker?.hasExitedUnexpectedly()) { const exitInfo = exitTracker.info; const errorMsg = exitInfo.stderr.trim() ? `Runtime crashed before completion (exit ${exitInfo.code}): ${exitInfo.stderr.slice(0, 200)}` : `Runtime crashed before completion with exit code ${exitInfo.code}`; SmokeTestProtocol.error("runtime", errorMsg); throw new Error(errorMsg); }
         SmokeTestProtocol.ready();
         success = true;
-
-        // Visual mode: create a visible window so screen recording captures the UI.
-        // This is non-fatal — the headless checks above already determined success.
-        if (isSmokeTestVisual) {
-            try {
-                console.log(`[Smoke Test] Visual mode: creating ${smokeTestDisplayWidth}x${smokeTestDisplayHeight} window (DISPLAY=${process.env.DISPLAY || "unset"})`);
-                const visualWindow = new BrowserWindow({
-                    width: smokeTestDisplayWidth,
-                    height: smokeTestDisplayHeight,
-                    x: 0,
-                    y: 0,
-                    show: true,
-                    frame: false,
-                    backgroundColor: APP_CONFIG.WINDOW_BACKGROUND,
-                    webPreferences: {
-                        preload: path.join(__dirname, "preload.js"),
-                        nodeIntegration: false,
-                        contextIsolation: true,
-                    },
-                });
-
-                // Register load event listener BEFORE triggering load to avoid
-                // a race where loadURL resolves after did-finish-load fires.
-                const loadPromise = new Promise<void>((resolve, reject) => {
-                    const loadTimeout = setTimeout(() => {
-                        console.warn("[Smoke Test] Visual mode: load timed out after 15s, proceeding with hold");
-                        resolve();
-                    }, 15_000);
-                    visualWindow.webContents.once("did-finish-load", () => {
-                        clearTimeout(loadTimeout);
-                        console.log("[Smoke Test] Visual mode: did-finish-load fired");
-                        resolve();
-                    });
-                    visualWindow.webContents.once("did-fail-load", (_e: Electron.Event, code: number, desc: string) => {
-                        clearTimeout(loadTimeout);
-                        reject(new Error(`Page load failed: ${desc} (${code})`));
-                    });
-                });
-
-                const visualTargetUrl = runtimeUrl || SERVER_URL;
-                console.log(`[Smoke Test] Visual mode: loading ${APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode ? "static file" : visualTargetUrl}`);
-                if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) {
-                    await visualWindow.loadFile(path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH));
-                } else {
-                    await visualWindow.loadURL(visualTargetUrl);
-                }
-
-                // Wait for content to finish rendering.
-                await loadPromise;
-
-                // Give the renderer an extra moment to paint after load completes.
-                await delay(1000);
-
-                console.log("[Smoke Test] Visual mode: UI loaded, holding for recording...");
-                const holdMs = Number(process.env.SMOKE_TEST_VISUAL_HOLD_MS) || 5000;
-                await delay(holdMs);
-
-                console.log("[Smoke Test] Visual mode: complete, closing window");
-                visualWindow.close();
-            } catch (visualError) {
-                console.warn("[Smoke Test] Visual mode error (non-fatal):", visualError);
-            }
-        } else if (process.env.SMOKE_TEST_VISUAL !== undefined) {
-            console.log(`[Smoke Test] Visual mode not activated (SMOKE_TEST_VISUAL=${process.env.SMOKE_TEST_VISUAL})`);
-        }
     } catch (error) {
         failureMessage = String(error);
         if (failureMessage.includes("not ready") || failureMessage.includes("timeout") || failureMessage.includes("ECONNREFUSED")) SmokeTestProtocol.error("network", failureMessage);
@@ -1264,6 +1199,18 @@ app.whenReady().then(async () => {
         mainWindow!.show();
         if (shouldMaximize && process.platform === "linux") { await delay(50); mainWindow!.maximize(); }
         mainWindow!.focus();
+
+        // Demo mode: the app has fully started and is visible. Hold for the
+        // recording, then quit gracefully. This gives the screen capture a
+        // realistic view of the complete startup experience.
+        if (isSmokeTestDemo) {
+            console.log(`[Desktop App] Demo recording: app ready, holding for ${smokeTestDemoHoldMs}ms`);
+            await delay(smokeTestDemoHoldMs);
+            console.log("[Desktop App] Demo recording: hold complete, quitting");
+            app.quit();
+            return;
+        }
+
         console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
         appSessionReadyAt = new Date().toISOString();
         void recordTelemetry("app_ready", { serverUrl: targetUrl, bundled: isBundledMode });

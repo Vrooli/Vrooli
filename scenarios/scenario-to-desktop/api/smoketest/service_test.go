@@ -3,7 +3,6 @@ package smoketest_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -2101,10 +2100,37 @@ SMOKE_TEST_STAGE=waiting_for_token`,
 	}
 }
 
-func TestService_PerformSmokeTest_VisualEnvVars_WhenRecordingActive(t *testing.T) {
+func TestStripSmokeTestFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"removes flag from middle", []string{"a", "--smoke-test", "b"}, []string{"a", "b"}},
+		{"removes only flag", []string{"--smoke-test"}, []string{}},
+		{"no flag present", []string{"a", "b"}, []string{"a", "b"}},
+		{"empty args", []string{}, []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := smoketest.StripSmokeTestFlag(tt.args)
+			if len(got) != len(tt.want) {
+				t.Fatalf("StripSmokeTestFlag(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("StripSmokeTestFlag(%v)[%d] = %q, want %q", tt.args, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-visual",
+		SmokeTestID:  "test-demo",
 		ScenarioName: "test-scenario",
 		Status:       "running",
 		RecordingConfig: &smoketest.ScreenRecordingConfig{
@@ -2157,47 +2183,60 @@ func TestService_PerformSmokeTest_VisualEnvVars_WhenRecordingActive(t *testing.T
 	service.WithRecording(recorder, displayMgr)
 
 	ctx := context.Background()
-	service.PerformSmokeTest(ctx, "test-visual", "test-scenario", "/path/to/artifact.AppImage", "linux")
+	service.PerformSmokeTest(ctx, "test-demo", "test-scenario", "/path/to/artifact.AppImage", "linux")
 
-	// Verify the executor was called with visual env vars
-	if len(executor.ExecuteCalls) == 0 {
-		t.Fatal("Expected at least one execute call")
+	// Verify 2 execute calls: headless + demo
+	if len(executor.ExecuteCalls) != 2 {
+		t.Fatalf("Expected 2 execute calls (headless + demo), got %d", len(executor.ExecuteCalls))
 	}
 
-	envVars := executor.ExecuteCalls[0].Env
-	envMap := make(map[string]string)
-	for _, e := range envVars {
+	// Second call should be the demo launch
+	demoCall := executor.ExecuteCalls[1]
+
+	// Demo call env should contain SMOKE_TEST_DEMO=1 but NOT SMOKE_TEST=1
+	demoEnvMap := make(map[string]string)
+	for _, e := range demoCall.Env {
 		parts := strings.SplitN(e, "=", 2)
 		if len(parts) == 2 {
-			envMap[parts[0]] = parts[1]
+			demoEnvMap[parts[0]] = parts[1]
 		}
 	}
 
-	if envMap["DISPLAY"] != ":100" {
-		t.Errorf("Expected DISPLAY=:100, got %q", envMap["DISPLAY"])
+	if demoEnvMap["SMOKE_TEST_DEMO"] != "1" {
+		t.Errorf("Expected SMOKE_TEST_DEMO=1 in demo call, got %q", demoEnvMap["SMOKE_TEST_DEMO"])
 	}
-	if envMap["SMOKE_TEST_VISUAL"] != "1" {
-		t.Errorf("Expected SMOKE_TEST_VISUAL=1, got %q", envMap["SMOKE_TEST_VISUAL"])
+	if _, hasSmokeTest := demoEnvMap["SMOKE_TEST"]; hasSmokeTest {
+		t.Errorf("SMOKE_TEST should NOT be set in demo call env")
 	}
-	if envMap["SMOKE_TEST_DISPLAY_WIDTH"] != "1920" {
-		t.Errorf("Expected SMOKE_TEST_DISPLAY_WIDTH=1920, got %q", envMap["SMOKE_TEST_DISPLAY_WIDTH"])
+	if demoEnvMap["DISPLAY"] != ":100" {
+		t.Errorf("Expected DISPLAY=:100 in demo call, got %q", demoEnvMap["DISPLAY"])
 	}
-	if envMap["SMOKE_TEST_DISPLAY_HEIGHT"] != "1080" {
-		t.Errorf("Expected SMOKE_TEST_DISPLAY_HEIGHT=1080, got %q", envMap["SMOKE_TEST_DISPLAY_HEIGHT"])
+
+	// Demo call args should NOT contain --smoke-test
+	for _, arg := range demoCall.Args {
+		if arg == "--smoke-test" {
+			t.Error("Demo call args should NOT contain --smoke-test")
+		}
+	}
+
+	// Smoke test status should still be "passed"
+	status, _ := store.Get("test-demo")
+	if status.Status != "passed" {
+		t.Errorf("Expected status 'passed', got %q", status.Status)
 	}
 }
 
-func TestService_PerformSmokeTest_VisualModeLogging(t *testing.T) {
+func TestService_DemoLaunch_SkippedOnFailure(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-visual-logs",
+		SmokeTestID:  "test-demo-fail",
 		ScenarioName: "test-scenario",
 		Status:       "running",
 		RecordingConfig: &smoketest.ScreenRecordingConfig{
 			Enabled:       true,
-			DisplayWidth:  1280,
-			DisplayHeight: 720,
-			FPS:           30,
+			DisplayWidth:  1920,
+			DisplayHeight: 1080,
+			FPS:           15,
 		},
 	})
 
@@ -2218,22 +2257,20 @@ func TestService_PerformSmokeTest_VisualModeLogging(t *testing.T) {
 
 	executor := mocks.NewMockProcessExecutor()
 	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
-		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		ExitCode: 0,
+		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed",
+		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed",
+		ExitCode: 1,
 	}
 
 	outputParser := mocks.NewMockOutputParser()
-	outputParser.Result = smoketest.OutputResult{Passed: true}
-
-	logger := mocks.NewMockLogger()
+	outputParser.Result = smoketest.OutputResult{Passed: false}
 
 	recorder := mocks.NewMockRecorder()
 	recorder.StartResult.CaptureID = "rec-test"
 	recorder.StopResult.VideoPath = "/tmp/test.mp4"
 
 	displayMgr := mocks.NewMockDisplayManager()
-	displayMgr.CreateResult.DisplayID = ":101"
+	displayMgr.CreateResult.DisplayID = ":100"
 
 	service := createTestService(func(s *testServiceDeps) {
 		s.store = store
@@ -2241,72 +2278,22 @@ func TestService_PerformSmokeTest_VisualModeLogging(t *testing.T) {
 		s.platformResolver = platformResolver
 		s.executor = executor
 		s.outputParser = outputParser
-		s.logger = logger
 	})
 	service.WithRecording(recorder, displayMgr)
 
 	ctx := context.Background()
-	service.PerformSmokeTest(ctx, "test-visual-logs", "test-scenario", "/path/to/artifact.AppImage", "linux")
+	service.PerformSmokeTest(ctx, "test-demo-fail", "test-scenario", "/path/to/artifact.AppImage", "linux")
 
-	// Verify screen_recording_setup log
-	foundSetup := false
-	foundVisualMode := false
-	for _, call := range logger.InfoCalls {
-		if call.Msg == "screen_recording_setup" {
-			foundSetup = true
-		}
-		if call.Msg == "smoke_test_visual_mode_enabled" {
-			foundVisualMode = true
-			// Verify args contain display and dimensions
-			argsStr := fmt.Sprintf("%v", call.Args)
-			if !strings.Contains(argsStr, ":101") {
-				t.Errorf("visual mode log should contain display :101, got args: %v", call.Args)
-			}
-		}
-	}
-	if !foundSetup {
-		t.Error("Expected screen_recording_setup log message")
-	}
-	if !foundVisualMode {
-		t.Error("Expected smoke_test_visual_mode_enabled log message")
-	}
-
-	// Verify env vars include correct custom dimensions
-	envMap := make(map[string]string)
-	for _, e := range executor.ExecuteCalls[0].Env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) == 2 {
-			envMap[parts[0]] = parts[1]
-		}
-	}
-	if envMap["SMOKE_TEST_DISPLAY_WIDTH"] != "1280" {
-		t.Errorf("Expected SMOKE_TEST_DISPLAY_WIDTH=1280, got %q", envMap["SMOKE_TEST_DISPLAY_WIDTH"])
-	}
-	if envMap["SMOKE_TEST_DISPLAY_HEIGHT"] != "720" {
-		t.Errorf("Expected SMOKE_TEST_DISPLAY_HEIGHT=720, got %q", envMap["SMOKE_TEST_DISPLAY_HEIGHT"])
-	}
-
-	// Verify recorder received correct display
-	if len(recorder.StartCalls) != 1 {
-		t.Fatalf("Expected 1 start call, got %d", len(recorder.StartCalls))
-	}
-	if recorder.StartCalls[0].Display != ":101" {
-		t.Errorf("Expected display :101, got %q", recorder.StartCalls[0].Display)
-	}
-	if recorder.StartCalls[0].Width != 1280 || recorder.StartCalls[0].Height != 720 {
-		t.Errorf("Expected 1280x720, got %dx%d", recorder.StartCalls[0].Width, recorder.StartCalls[0].Height)
-	}
-
-	// Verify display cleanup was called
-	if !displayMgr.CleanupCalled {
-		t.Error("Expected display cleanup to be called")
+	// Only 1 execute call — no demo launch for failed test
+	if len(executor.ExecuteCalls) != 1 {
+		t.Fatalf("Expected 1 execute call (no demo launch), got %d", len(executor.ExecuteCalls))
 	}
 }
 
-func TestService_PerformSmokeTest_NoVisualEnvVars_WhenNoRecording(t *testing.T) {
+func TestService_DemoLaunch_SkippedWithoutRecording(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-novisual",
+		SmokeTestID:  "test-no-rec",
 		ScenarioName: "test-scenario",
 		Status:       "running",
 	})
@@ -2352,19 +2339,95 @@ func TestService_PerformSmokeTest_NoVisualEnvVars_WhenNoRecording(t *testing.T) 
 	// No WithRecording — recording disabled
 
 	ctx := context.Background()
-	service.PerformSmokeTest(ctx, "test-novisual", "test-scenario", "/path/to/artifact.AppImage", "linux")
+	service.PerformSmokeTest(ctx, "test-no-rec", "test-scenario", "/path/to/artifact.AppImage", "linux")
 
-	if len(executor.ExecuteCalls) == 0 {
-		t.Fatal("Expected at least one execute call")
+	// Only 1 execute call — no demo launch without recording
+	if len(executor.ExecuteCalls) != 1 {
+		t.Fatalf("Expected 1 execute call (no demo without recording), got %d", len(executor.ExecuteCalls))
+	}
+}
+
+func TestService_DemoLaunch_FailureIsNonFatal(t *testing.T) {
+	store := mocks.NewMockStore()
+	store.AddStatus(&smoketest.Status{
+		SmokeTestID:  "test-demo-err",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+		RecordingConfig: &smoketest.ScreenRecordingConfig{
+			Enabled:       true,
+			DisplayWidth:  1920,
+			DisplayHeight: 1080,
+			FPS:           15,
+		},
+	})
+
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+
+	platformResolver := mocks.NewMockPlatformResolver()
+	platformResolver.ResolveResult = struct {
+		Cmd     string
+		Args    []string
+		Display string
+		Err     error
+	}{
+		Cmd:     "/path/to/artifact.AppImage",
+		Args:    []string{"--smoke-test"},
+		Display: "/path/to/artifact.AppImage --smoke-test",
 	}
 
-	envVars := executor.ExecuteCalls[0].Env
-	for _, e := range envVars {
-		if strings.HasPrefix(e, "SMOKE_TEST_VISUAL=") {
-			t.Errorf("SMOKE_TEST_VISUAL should NOT be set when recording is disabled, but found: %s", e)
+	callCount := 0
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultFunc = func(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*smoketest.ExecutionResult, error) {
+		callCount++
+		if callCount == 1 {
+			// Headless test passes
+			return &smoketest.ExecutionResult{
+				Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+				Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+				ExitCode: 0,
+			}, nil
 		}
-		if strings.HasPrefix(e, "SMOKE_TEST_DISPLAY_WIDTH=") {
-			t.Errorf("SMOKE_TEST_DISPLAY_WIDTH should NOT be set when recording is disabled, but found: %s", e)
-		}
+		// Demo launch fails
+		return nil, errors.New("demo launch crashed")
+	}
+
+	outputParser := mocks.NewMockOutputParser()
+	outputParser.Result = smoketest.OutputResult{Passed: true}
+
+	recorder := mocks.NewMockRecorder()
+	recorder.StartResult.CaptureID = "rec-test"
+	recorder.StopResult.VideoPath = "/tmp/test.mp4"
+
+	displayMgr := mocks.NewMockDisplayManager()
+	displayMgr.CreateResult.DisplayID = ":100"
+
+	service := createTestService(func(s *testServiceDeps) {
+		s.store = store
+		s.fs = fs
+		s.platformResolver = platformResolver
+		s.executor = executor
+		s.outputParser = outputParser
+	})
+	service.WithRecording(recorder, displayMgr)
+
+	ctx := context.Background()
+	service.PerformSmokeTest(ctx, "test-demo-err", "test-scenario", "/path/to/artifact.AppImage", "linux")
+
+	// Smoke test should still pass despite demo failure
+	status, _ := store.Get("test-demo-err")
+	if status.Status != "passed" {
+		t.Errorf("Expected status 'passed' despite demo failure, got %q", status.Status)
+	}
+
+	// Should have 2 execute calls (headless + demo attempt)
+	if len(executor.ExecuteCalls) != 2 {
+		t.Fatalf("Expected 2 execute calls, got %d", len(executor.ExecuteCalls))
+	}
+
+	// Logs should mention the demo error
+	if !logsContain(status.Logs, "Demo launch error") {
+		t.Error("Expected logs to mention demo launch error")
+		t.Logf("Logs: %v", status.Logs)
 	}
 }

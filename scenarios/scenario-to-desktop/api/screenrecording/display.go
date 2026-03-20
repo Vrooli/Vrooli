@@ -93,6 +93,11 @@ displayReady:
 	// is available, Electron may still render (with possible artifacts).
 	wmProcess := startWindowManager(display)
 
+	// Set a solid desktop background so recordings don't show a bare
+	// black X11 root window. Best-effort — if it fails, recording
+	// simply has a black background.
+	setDesktopBackground(display)
+
 	cleanup := func() {
 		if wmProcess != nil {
 			_ = wmProcess.Kill()
@@ -155,6 +160,25 @@ func startWindowManager(display string) *os.Process {
 			return names
 		}())
 	return nil
+}
+
+// setDesktopBackground replaces the default black X11 root window with a
+// solid color so screen recordings have a pleasant background. Best-effort:
+// if xsetroot is missing or fails, the display simply stays black.
+func setDesktopBackground(display string) {
+	xsetPath, err := exec.LookPath("xsetroot")
+	if err != nil {
+		return
+	}
+
+	cmd := exec.Command(xsetPath, "-solid", "#1e293b", "-display", display)
+	if err := cmd.Run(); err != nil {
+		slog.Warn("failed to set desktop background",
+			"display", display, "error", err.Error())
+	} else {
+		slog.Info("desktop background set",
+			"display", display, "color", "#1e293b")
+	}
 }
 
 // systemDisplayManager returns the current DISPLAY on non-Linux platforms.

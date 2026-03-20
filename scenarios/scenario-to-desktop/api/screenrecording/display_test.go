@@ -81,6 +81,23 @@ func TestStartWindowManager_WithAvailableWM(t *testing.T) {
 	_, _ = proc.Wait()
 }
 
+func TestSetDesktopBackground_NoXsetroot(t *testing.T) {
+	// Override PATH so xsetroot isn't found.
+	t.Setenv("PATH", "/nonexistent")
+
+	// Should return without error or panic (best-effort).
+	setDesktopBackground(":99")
+}
+
+func TestSetDesktopBackground_WithXsetroot(t *testing.T) {
+	if _, err := exec.LookPath("xsetroot"); err != nil {
+		t.Skip("xsetroot not available")
+	}
+
+	// Will fail because :99 doesn't exist, but should not panic.
+	setDesktopBackground(":99")
+}
+
 func TestWmCandidates_DefaultsConfigured(t *testing.T) {
 	// Verify the default WM candidates list is non-empty and has expected entries.
 	if len(wmCandidates) < 2 {
