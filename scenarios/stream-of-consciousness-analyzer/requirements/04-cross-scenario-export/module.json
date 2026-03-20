@@ -1,0 +1,130 @@
+{
+  "description": "One-tap export of structured thought graphs to other Vrooli scenarios",
+  "module_id": "MOD-P1-004",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": ["REQ-P1-002a", "REQ-P1-002b"],
+      "description": "Enable one-click export of thought graphs to other Vrooli scenarios with format conversion",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Thought Graph Export"
+    },
+    {
+      "category": "api",
+      "description": "Export handler processes scheme export requests and produces structured output",
+      "id": "REQ-P1-002a",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Handler Pipeline",
+      "validation": [
+        {
+          "notes": "Test export handler factory initialization",
+          "phase": "unit",
+          "ref": "api/export_handlers_test.go:TestHandleExportScheme_Init",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Export handler success path returns full export data",
+          "phase": "unit",
+          "ref": "api/export_handlers_test.go:TestHandleExportScheme_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Export handler returns 404 for unknown scheme",
+          "phase": "unit",
+          "ref": "api/export_handlers_test.go:TestHandleExportScheme_NotFound",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "Export format and version follow scenario configuration constants",
+      "id": "REQ-P1-002b",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Format Versioning",
+      "validation": [
+        {
+          "notes": "Test ExportData JSON serialization with thoughts preserved",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestExportDataJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Export format constant matches config",
+          "phase": "unit",
+          "ref": "api/config_test.go:TestExportFormatVersionConvention",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Export service uses config constant",
+          "phase": "unit",
+          "ref": "api/config_test.go:TestExportServiceUsesConfigConstant",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "children": ["REQ-P1-004a", "REQ-P1-004b"],
+      "description": "Export data must contain all graph components: scheme metadata, information items, thoughts, and edges",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Format Completeness"
+    },
+    {
+      "category": "data",
+      "description": "Export data preserves all graph components (scheme, information, thoughts, edges) in serialized format",
+      "id": "REQ-P1-004a",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Graph Component Preservation",
+      "validation": [
+        {
+          "notes": "Test export data contains all graph components (scheme, info, thoughts, edges)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestExportDataGraphComponents",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "Export format string is consistent and machine-readable for downstream consumers",
+      "id": "REQ-P1-004b",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Format Consistency",
+      "validation": [
+        {
+          "notes": "Test export format string is present and consistent in JSON output",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestExportFormatString",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test export format constant",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestExportFormat",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Cross-Scenario Export"
+}

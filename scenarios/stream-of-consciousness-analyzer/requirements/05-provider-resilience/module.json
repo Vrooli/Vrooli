@@ -1,0 +1,132 @@
+{
+  "description": "Automatic fallback to OpenRouter when local Ollama is unavailable",
+  "module_id": "MOD-P2-005",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": ["REQ-P2-001a", "REQ-P2-001b"],
+      "dependencies": ["REQ-P1-001"],
+      "description": "Implement automatic fallback to OpenRouter when local Ollama service is unavailable",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "LLM Provider Fallback"
+    },
+    {
+      "category": "api",
+      "description": "Provider selection logic prefers primary providers and falls back correctly",
+      "id": "REQ-P2-001a",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider Selection Logic",
+      "validation": [
+        {
+          "notes": "Test provider fallback returns primary when available",
+          "phase": "unit",
+          "ref": "api/suggestion_service_test.go:TestSuggestionServiceFallback",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "First primary provider wins selection",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestGetActiveProvider_FirstPrimaryWins",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback only selected when no primary available",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestGetActiveProvider_FallbackOnlyWhenNoPrimary",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Provider model correctly serializes active/fallback state for API consumers",
+      "id": "REQ-P2-001b",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider Model Serialization",
+      "validation": [
+        {
+          "notes": "Test LLMProvider JSON serialization",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestLLMProviderJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Primary preferred over fallback provider",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestGetActiveProvider_PrimaryPreferredOverFallback",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": ["REQ-P2-003a", "REQ-P2-003b"],
+      "dependencies": ["REQ-P2-001"],
+      "description": "Report provider health status including primary/fallback designation and active state via API",
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider Health Reporting"
+    },
+    {
+      "category": "api",
+      "description": "Provider list endpoint returns structured data with primary/fallback designations",
+      "id": "REQ-P2-003a",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider List Structure",
+      "validation": [
+        {
+          "notes": "Test provider list includes both primary and fallback providers",
+          "phase": "unit",
+          "ref": "api/suggestion_service_test.go:TestProviderListStructure",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test provider Active and Fallback JSON fields serialize correctly",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestProviderActiveAndFallbackFields",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Active provider resolution correctly returns the primary provider when available",
+      "id": "REQ-P2-003b",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Active Provider Resolution",
+      "validation": [
+        {
+          "notes": "Test GetActiveProvider returns primary when available",
+          "phase": "unit",
+          "ref": "api/suggestion_service_test.go:TestGetActiveProviderPrimary",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Empty provider list returns nil",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestGetActiveProvider_EmptyList",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Provider Resilience"
+}

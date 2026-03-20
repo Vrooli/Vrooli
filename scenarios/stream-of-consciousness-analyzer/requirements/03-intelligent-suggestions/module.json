@@ -1,0 +1,123 @@
+{
+  "description": "LLM generates contextual thought connections as dismissible ghost nodes",
+  "module_id": "MOD-P1-003",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": ["REQ-P1-001a", "REQ-P1-001b"],
+      "description": "Generate suggested thought connections using LLM analysis with visual distinction as ghost nodes",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "LLM Connection Generation"
+    },
+    {
+      "category": "api",
+      "description": "Suggestion service configures and prioritizes LLM providers for connection generation",
+      "id": "REQ-P1-001a",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Provider Configuration",
+      "validation": [
+        {
+          "notes": "Test SuggestionService provider configuration",
+          "phase": "unit",
+          "ref": "api/suggestion_service_test.go:TestSuggestionServiceProviders",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test GET /providers endpoint returns provider list",
+          "phase": "unit",
+          "ref": "api/suggestion_handlers_test.go:TestHandleGetProviders",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Suggestion generation handler produces suggestions with provider attribution and confidence scores",
+      "id": "REQ-P1-001b",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Suggestion Generation Pipeline",
+      "validation": [
+        {
+          "notes": "Test Suggestion model JSON serialization",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestSuggestionJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Suggestion generation success path includes provider name",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestSuggestionResponse_IncludesProviderName",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "children": ["REQ-P1-003a", "REQ-P1-003b"],
+      "description": "Users can dismiss suggested ghost node connections, with dismissed state persisted across sessions",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Suggestion Dismissal"
+    },
+    {
+      "category": "api",
+      "description": "Suggestion model tracks dismissed state and confidence bounds for UI rendering",
+      "id": "REQ-P1-003a",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Suggestion State Model",
+      "validation": [
+        {
+          "notes": "Test Suggestion dismissed field serialization roundtrip",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestSuggestionDismissedField",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test suggestion confidence bounds (0-1 range)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestSuggestionConfidenceBounds",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Suggestion handler gracefully reports unavailability when no LLM provider is reachable",
+      "id": "REQ-P1-003b",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Suggestion Unavailability Handling",
+      "validation": [
+        {
+          "notes": "Test generate suggestions handler initialization",
+          "phase": "unit",
+          "ref": "api/suggestion_handlers_test.go:TestHandleGenerateSuggestions_Init",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Structured error shape when suggestion service unavailable",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestSuggestionUnavailable_FullErrorShape",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Intelligent Suggestions"
+}

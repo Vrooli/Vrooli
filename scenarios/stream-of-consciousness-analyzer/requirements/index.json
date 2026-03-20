@@ -1,0 +1,54 @@
+{
+  "_metadata": {
+    "entity": "stream-of-consciousness-analyzer",
+    "generated_at": "2026-03-20T08:06:20-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-zero-friction-capture/module.json",
+    "02-dual-view-system/module.json",
+    "03-intelligent-suggestions/module.json",
+    "04-cross-scenario-export/module.json",
+    "05-provider-resilience/module.json",
+    "06-cross-scheme-navigation/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-zero-friction-capture",
+      "priority": "P0",
+      "title": "Zero-Friction Capture"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-dual-view-system",
+      "priority": "P0",
+      "title": "Dual-View System"
+    },
+    {
+      "id": "MOD-P1-003",
+      "path": "03-intelligent-suggestions",
+      "priority": "P1",
+      "title": "Intelligent Suggestions"
+    },
+    {
+      "id": "MOD-P1-004",
+      "path": "04-cross-scenario-export",
+      "priority": "P1",
+      "title": "Cross-Scenario Export"
+    },
+    {
+      "id": "MOD-P2-005",
+      "path": "05-provider-resilience",
+      "priority": "P2",
+      "title": "Provider Resilience"
+    },
+    {
+      "id": "MOD-P2-006",
+      "path": "06-cross-scheme-navigation",
+      "priority": "P2",
+      "title": "Cross-Scheme Navigation"
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "description": "Support both freeform spatial canvas and structured thought graph views with seamless switching",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "children": ["REQ-P0-003a", "REQ-P0-003b"],
+      "description": "Implement spatial canvas view supporting free positioning of thought nodes with pan/zoom capabilities",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Canvas View Implementation"
+    },
+    {
+      "category": "api",
+      "description": "Information items support canvas coordinate storage and partial updates for spatial positioning",
+      "id": "REQ-P0-003a",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Canvas Coordinate Persistence",
+      "validation": [
+        {
+          "notes": "Test Information JSON serialization with canvas coords",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestInformationJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test CreateInformationInput with canvas coordinates",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestCreateInformationInputJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test partial update fields for information input (omit unchanged fields)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestUpdateInformationInputPartialFields",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Information CRUD handlers validate input and handle error paths for canvas operations",
+      "id": "REQ-P0-003b",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Information Handler Validation",
+      "validation": [
+        {
+          "notes": "Test canvas information update handler rejects bad JSON",
+          "phase": "unit",
+          "ref": "api/handlers_test.go:TestHandleUpdateInformation_BadJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Default type assignment for information creation",
+          "phase": "unit",
+          "ref": "api/information_handlers_test.go:TestHandleCreateInformation_DefaultType",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Canvas coordinate update via PUT handler",
+          "phase": "unit",
+          "ref": "api/information_handlers_test.go:TestHandleUpdateInformation_CanvasCoords",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "children": ["REQ-P0-004a", "REQ-P0-004b"],
+      "description": "Implement structured graph view showing thought relationships with automatic layout",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Graph View Implementation"
+    },
+    {
+      "category": "api",
+      "description": "Thought CRUD handlers manage graph nodes with proper creation, retrieval, update, and deletion",
+      "id": "REQ-P0-004a",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Thought Node Operations",
+      "validation": [
+        {
+          "notes": "Test thought creation handler success",
+          "phase": "unit",
+          "ref": "api/thought_handlers_test.go:TestHandleCreateThought_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test thought creation handler rejects bad JSON",
+          "phase": "unit",
+          "ref": "api/thought_handlers_test.go:TestHandleCreateThought_BadJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test ThoughtEdge JSON serialization",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestThoughtEdgeJSON",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Edge operations handle directed relationships between thoughts with validation",
+      "id": "REQ-P0-004b",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Edge Relationship Operations",
+      "validation": [
+        {
+          "notes": "Edge creation with label",
+          "phase": "unit",
+          "ref": "api/edge_handlers_test.go:TestHandleCreateEdge_WithLabel",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Self-reference loop rejection",
+          "phase": "unit",
+          "ref": "api/edge_handlers_test.go:TestHandleCreateEdge_SelfReferenceLoop",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "All 17 route handler factories initialize without panic",
+          "phase": "unit",
+          "ref": "api/handlers_test.go:TestRouteRegistration",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dual-View System"
+}

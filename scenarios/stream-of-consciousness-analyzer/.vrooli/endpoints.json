@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "stream-of-consciousness-analyzer status"
+      }
+    },
+    {
+      "id": "list-schemes",
+      "path": "/api/v1/schemes",
+      "method": "GET",
+      "summary": "List all schemes",
+      "description": "Returns all capture workspaces ordered by last updated",
+      "category": "schemes"
+    },
+    {
+      "id": "create-scheme",
+      "path": "/api/v1/schemes",
+      "method": "POST",
+      "summary": "Create a new scheme",
+      "description": "Creates a new capture workspace",
+      "category": "schemes"
+    },
+    {
+      "id": "get-scheme",
+      "path": "/api/v1/schemes/{id}",
+      "method": "GET",
+      "summary": "Get scheme by ID",
+      "description": "Returns a single scheme",
+      "category": "schemes"
+    },
+    {
+      "id": "update-scheme",
+      "path": "/api/v1/schemes/{id}",
+      "method": "PUT",
+      "summary": "Update a scheme",
+      "description": "Updates scheme name",
+      "category": "schemes"
+    },
+    {
+      "id": "delete-scheme",
+      "path": "/api/v1/schemes/{id}",
+      "method": "DELETE",
+      "summary": "Delete a scheme",
+      "description": "Deletes a scheme and all its data",
+      "category": "schemes"
+    },
+    {
+      "id": "list-information",
+      "path": "/api/v1/schemes/{schemeId}/information",
+      "method": "GET",
+      "summary": "List information items",
+      "description": "Returns all canvas items for a scheme",
+      "category": "information"
+    },
+    {
+      "id": "create-information",
+      "path": "/api/v1/schemes/{schemeId}/information",
+      "method": "POST",
+      "summary": "Create information item",
+      "description": "Adds a new item to the canvas",
+      "category": "information"
+    },
+    {
+      "id": "list-thoughts",
+      "path": "/api/v1/thoughts",
+      "method": "GET",
+      "summary": "List thoughts",
+      "description": "Returns thoughts optionally filtered by scheme",
+      "category": "thoughts"
+    },
+    {
+      "id": "create-thought",
+      "path": "/api/v1/thoughts",
+      "method": "POST",
+      "summary": "Create a thought",
+      "description": "Creates a new thought node in the graph",
+      "category": "thoughts"
+    },
+    {
+      "id": "create-edge",
+      "path": "/api/v1/thoughts/{id}/edges",
+      "method": "POST",
+      "summary": "Create thought edge",
+      "description": "Creates a directional edge between thoughts",
+      "category": "thoughts"
+    },
+    {
+      "id": "export-scheme",
+      "path": "/api/v1/schemes/{id}/export",
+      "method": "GET",
+      "summary": "Export scheme graph",
+      "description": "Exports full scheme data including thoughts and edges",
+      "category": "export"
+    },
+    {
+      "id": "list-providers",
+      "path": "/api/v1/providers",
+      "method": "GET",
+      "summary": "List LLM providers",
+      "description": "Returns configured LLM provider status",
+      "category": "suggestions"
+    },
+    {
+      "id": "generate-suggestions",
+      "path": "/api/v1/schemes/{id}/suggestions",
+      "method": "POST",
+      "summary": "Generate suggestions",
+      "description": "LLM-generated thought connection suggestions",
+      "category": "suggestions"
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}
