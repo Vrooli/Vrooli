@@ -3,6 +3,8 @@ package smoketest_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -2096,5 +2098,273 @@ SMOKE_TEST_STAGE=waiting_for_token`,
 	// Lifecycle state should still be in context
 	if status.ErrorContext["last_lifecycle_state"] != "waiting_for_token" {
 		t.Errorf("Lifecycle state should be in context even for non-timeout errors")
+	}
+}
+
+func TestService_PerformSmokeTest_VisualEnvVars_WhenRecordingActive(t *testing.T) {
+	store := mocks.NewMockStore()
+	store.AddStatus(&smoketest.Status{
+		SmokeTestID:  "test-visual",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+		RecordingConfig: &smoketest.ScreenRecordingConfig{
+			Enabled:       true,
+			DisplayWidth:  1920,
+			DisplayHeight: 1080,
+			FPS:           15,
+		},
+	})
+
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+
+	platformResolver := mocks.NewMockPlatformResolver()
+	platformResolver.ResolveResult = struct {
+		Cmd     string
+		Args    []string
+		Display string
+		Err     error
+	}{
+		Cmd:     "/path/to/artifact.AppImage",
+		Args:    []string{"--smoke-test"},
+		Display: "/path/to/artifact.AppImage --smoke-test",
+	}
+
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
+		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		ExitCode: 0,
+	}
+
+	outputParser := mocks.NewMockOutputParser()
+	outputParser.Result = smoketest.OutputResult{Passed: true}
+
+	recorder := mocks.NewMockRecorder()
+	recorder.StartResult.CaptureID = "rec-test"
+	recorder.StopResult.VideoPath = "/tmp/test.mp4"
+
+	displayMgr := mocks.NewMockDisplayManager()
+	displayMgr.CreateResult.DisplayID = ":100"
+
+	service := createTestService(func(s *testServiceDeps) {
+		s.store = store
+		s.fs = fs
+		s.platformResolver = platformResolver
+		s.executor = executor
+		s.outputParser = outputParser
+	})
+	service.WithRecording(recorder, displayMgr)
+
+	ctx := context.Background()
+	service.PerformSmokeTest(ctx, "test-visual", "test-scenario", "/path/to/artifact.AppImage", "linux")
+
+	// Verify the executor was called with visual env vars
+	if len(executor.ExecuteCalls) == 0 {
+		t.Fatal("Expected at least one execute call")
+	}
+
+	envVars := executor.ExecuteCalls[0].Env
+	envMap := make(map[string]string)
+	for _, e := range envVars {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+
+	if envMap["DISPLAY"] != ":100" {
+		t.Errorf("Expected DISPLAY=:100, got %q", envMap["DISPLAY"])
+	}
+	if envMap["SMOKE_TEST_VISUAL"] != "1" {
+		t.Errorf("Expected SMOKE_TEST_VISUAL=1, got %q", envMap["SMOKE_TEST_VISUAL"])
+	}
+	if envMap["SMOKE_TEST_DISPLAY_WIDTH"] != "1920" {
+		t.Errorf("Expected SMOKE_TEST_DISPLAY_WIDTH=1920, got %q", envMap["SMOKE_TEST_DISPLAY_WIDTH"])
+	}
+	if envMap["SMOKE_TEST_DISPLAY_HEIGHT"] != "1080" {
+		t.Errorf("Expected SMOKE_TEST_DISPLAY_HEIGHT=1080, got %q", envMap["SMOKE_TEST_DISPLAY_HEIGHT"])
+	}
+}
+
+func TestService_PerformSmokeTest_VisualModeLogging(t *testing.T) {
+	store := mocks.NewMockStore()
+	store.AddStatus(&smoketest.Status{
+		SmokeTestID:  "test-visual-logs",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+		RecordingConfig: &smoketest.ScreenRecordingConfig{
+			Enabled:       true,
+			DisplayWidth:  1280,
+			DisplayHeight: 720,
+			FPS:           30,
+		},
+	})
+
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+
+	platformResolver := mocks.NewMockPlatformResolver()
+	platformResolver.ResolveResult = struct {
+		Cmd     string
+		Args    []string
+		Display string
+		Err     error
+	}{
+		Cmd:     "/path/to/artifact.AppImage",
+		Args:    []string{"--smoke-test"},
+		Display: "/path/to/artifact.AppImage --smoke-test",
+	}
+
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
+		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		ExitCode: 0,
+	}
+
+	outputParser := mocks.NewMockOutputParser()
+	outputParser.Result = smoketest.OutputResult{Passed: true}
+
+	logger := mocks.NewMockLogger()
+
+	recorder := mocks.NewMockRecorder()
+	recorder.StartResult.CaptureID = "rec-test"
+	recorder.StopResult.VideoPath = "/tmp/test.mp4"
+
+	displayMgr := mocks.NewMockDisplayManager()
+	displayMgr.CreateResult.DisplayID = ":101"
+
+	service := createTestService(func(s *testServiceDeps) {
+		s.store = store
+		s.fs = fs
+		s.platformResolver = platformResolver
+		s.executor = executor
+		s.outputParser = outputParser
+		s.logger = logger
+	})
+	service.WithRecording(recorder, displayMgr)
+
+	ctx := context.Background()
+	service.PerformSmokeTest(ctx, "test-visual-logs", "test-scenario", "/path/to/artifact.AppImage", "linux")
+
+	// Verify screen_recording_setup log
+	foundSetup := false
+	foundVisualMode := false
+	for _, call := range logger.InfoCalls {
+		if call.Msg == "screen_recording_setup" {
+			foundSetup = true
+		}
+		if call.Msg == "smoke_test_visual_mode_enabled" {
+			foundVisualMode = true
+			// Verify args contain display and dimensions
+			argsStr := fmt.Sprintf("%v", call.Args)
+			if !strings.Contains(argsStr, ":101") {
+				t.Errorf("visual mode log should contain display :101, got args: %v", call.Args)
+			}
+		}
+	}
+	if !foundSetup {
+		t.Error("Expected screen_recording_setup log message")
+	}
+	if !foundVisualMode {
+		t.Error("Expected smoke_test_visual_mode_enabled log message")
+	}
+
+	// Verify env vars include correct custom dimensions
+	envMap := make(map[string]string)
+	for _, e := range executor.ExecuteCalls[0].Env {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+	if envMap["SMOKE_TEST_DISPLAY_WIDTH"] != "1280" {
+		t.Errorf("Expected SMOKE_TEST_DISPLAY_WIDTH=1280, got %q", envMap["SMOKE_TEST_DISPLAY_WIDTH"])
+	}
+	if envMap["SMOKE_TEST_DISPLAY_HEIGHT"] != "720" {
+		t.Errorf("Expected SMOKE_TEST_DISPLAY_HEIGHT=720, got %q", envMap["SMOKE_TEST_DISPLAY_HEIGHT"])
+	}
+
+	// Verify recorder received correct display
+	if len(recorder.StartCalls) != 1 {
+		t.Fatalf("Expected 1 start call, got %d", len(recorder.StartCalls))
+	}
+	if recorder.StartCalls[0].Display != ":101" {
+		t.Errorf("Expected display :101, got %q", recorder.StartCalls[0].Display)
+	}
+	if recorder.StartCalls[0].Width != 1280 || recorder.StartCalls[0].Height != 720 {
+		t.Errorf("Expected 1280x720, got %dx%d", recorder.StartCalls[0].Width, recorder.StartCalls[0].Height)
+	}
+
+	// Verify display cleanup was called
+	if !displayMgr.CleanupCalled {
+		t.Error("Expected display cleanup to be called")
+	}
+}
+
+func TestService_PerformSmokeTest_NoVisualEnvVars_WhenNoRecording(t *testing.T) {
+	store := mocks.NewMockStore()
+	store.AddStatus(&smoketest.Status{
+		SmokeTestID:  "test-novisual",
+		ScenarioName: "test-scenario",
+		Status:       "running",
+	})
+
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+
+	platformResolver := mocks.NewMockPlatformResolver()
+	platformResolver.ResolveResult = struct {
+		Cmd     string
+		Args    []string
+		Display string
+		Err     error
+	}{
+		Cmd:     "/path/to/artifact.AppImage",
+		Args:    []string{"--smoke-test"},
+		Display: "/path/to/artifact.AppImage --smoke-test",
+	}
+	platformResolver.HeadlessResult = struct {
+		Needed      bool
+		WrapperCmd  string
+		WrapperArgs []string
+		Err         error
+	}{Needed: false}
+
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
+		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		ExitCode: 0,
+	}
+
+	outputParser := mocks.NewMockOutputParser()
+	outputParser.Result = smoketest.OutputResult{Passed: true}
+
+	service := createTestService(func(s *testServiceDeps) {
+		s.store = store
+		s.fs = fs
+		s.platformResolver = platformResolver
+		s.executor = executor
+		s.outputParser = outputParser
+	})
+	// No WithRecording — recording disabled
+
+	ctx := context.Background()
+	service.PerformSmokeTest(ctx, "test-novisual", "test-scenario", "/path/to/artifact.AppImage", "linux")
+
+	if len(executor.ExecuteCalls) == 0 {
+		t.Fatal("Expected at least one execute call")
+	}
+
+	envVars := executor.ExecuteCalls[0].Env
+	for _, e := range envVars {
+		if strings.HasPrefix(e, "SMOKE_TEST_VISUAL=") {
+			t.Errorf("SMOKE_TEST_VISUAL should NOT be set when recording is disabled, but found: %s", e)
+		}
+		if strings.HasPrefix(e, "SMOKE_TEST_DISPLAY_WIDTH=") {
+			t.Errorf("SMOKE_TEST_DISPLAY_WIDTH should NOT be set when recording is disabled, but found: %s", e)
+		}
 	}
 }

@@ -37,6 +37,16 @@ type DefaultService struct {
 	// Optional screen recording (nil = recording disabled)
 	recorder   screenrecording.Recorder
 	displayMgr screenrecording.DisplayManager
+
+	// recordingDisplayDims is set per-PerformSmokeTest call when recording
+	// is active, so executeSmokeTest can pass display dimensions to the
+	// Electron app for visual smoke testing.
+	recordingDisplayDims *displayDimensions
+}
+
+// displayDimensions holds the virtual display size for visual smoke tests.
+type displayDimensions struct {
+	Width, Height int
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -120,6 +130,9 @@ func (s *DefaultService) CurrentPlatform() string {
 
 // PerformSmokeTest runs a smoke test on a built application.
 func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	// Clear per-run state on exit.
+	defer func() { s.recordingDisplayDims = nil }()
+
 	// Check if smoke test exists before doing anything
 	if _, ok := s.store.Get(smokeTestID); !ok {
 		return
@@ -166,6 +179,12 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		if fps == 0 {
 			fps = 15
 		}
+
+		s.recordingDisplayDims = &displayDimensions{Width: width, Height: height}
+		s.logger.Info("screen_recording_setup",
+			"smoke_test_id", smokeTestID,
+			"width", width, "height", height, "fps", fps,
+		)
 
 		displayID, displayCleanup, err := s.displayMgr.CreateDisplay(width, height)
 		if err != nil {
@@ -375,8 +394,22 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	}
 
 	// When screen recording manages the display, tell Electron to render on it
+	// and enable visual mode so the app creates a visible window for recording.
 	if displayID != "" {
 		env = append(env, fmt.Sprintf("DISPLAY=%s", displayID))
+		env = append(env, "SMOKE_TEST_VISUAL=1")
+		if s.recordingDisplayDims != nil {
+			env = append(env,
+				fmt.Sprintf("SMOKE_TEST_DISPLAY_WIDTH=%d", s.recordingDisplayDims.Width),
+				fmt.Sprintf("SMOKE_TEST_DISPLAY_HEIGHT=%d", s.recordingDisplayDims.Height),
+			)
+		}
+		s.logger.Info("smoke_test_visual_mode_enabled",
+			"smoke_test_id", smokeTestID,
+			"display", displayID,
+			"width", s.recordingDisplayDims.Width,
+			"height", s.recordingDisplayDims.Height,
+		)
 	}
 
 	// Execute

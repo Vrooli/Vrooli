@@ -3,6 +3,8 @@ package screenrecording
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -48,7 +50,9 @@ func findAvailableDisplay() (string, error) {
 	return "", fmt.Errorf("no available X display number found in range :99–:199")
 }
 
-// CreateDisplay starts Xvfb on an available display number and waits for it to be ready.
+// CreateDisplay starts Xvfb on an available display number, launches a
+// lightweight window manager (best-effort), and waits for the display to
+// be ready. The returned cleanup function stops the WM, then Xvfb.
 func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
 	display, err := findAvailableDisplay()
 	if err != nil {
@@ -62,13 +66,6 @@ func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), e
 		return "", nil, fmt.Errorf("failed to start Xvfb on %s: %w", display, err)
 	}
 
-	cleanup := func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-		}
-	}
-
 	// Wait for display to become available (up to 5s).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -76,16 +73,88 @@ func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), e
 	for {
 		select {
 		case <-ctx.Done():
-			cleanup()
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
+			}
 			return "", nil, fmt.Errorf("Xvfb did not become ready on %s within 5s", display)
 		default:
 			check := exec.Command("xdpyinfo", "-display", display)
 			if err := check.Run(); err == nil {
-				return display, cleanup, nil
+				goto displayReady
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
+
+displayReady:
+	// Launch a lightweight window manager so Electron windows render
+	// correctly on the virtual display. This is best-effort — if no WM
+	// is available, Electron may still render (with possible artifacts).
+	wmProcess := startWindowManager(display)
+
+	cleanup := func() {
+		if wmProcess != nil {
+			_ = wmProcess.Kill()
+			_, _ = wmProcess.Wait()
+		}
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	}
+
+	return display, cleanup, nil
+}
+
+// wmCandidates lists window managers to try, in preference order.
+// Each entry is a command with arguments suitable for headless use.
+var wmCandidates = []struct {
+	name string
+	args []string
+}{
+	{"openbox", []string{"--sm-disable"}},
+	{"matchbox-window-manager", []string{"-use_titlebar", "no"}},
+}
+
+// startWindowManager attempts to launch a lightweight window manager on
+// the given display. Returns the process handle (for cleanup) or nil if
+// no suitable WM was found.
+func startWindowManager(display string) *os.Process {
+	displayEnv := fmt.Sprintf("DISPLAY=%s", display)
+
+	for _, wm := range wmCandidates {
+		wmPath, err := exec.LookPath(wm.name)
+		if err != nil {
+			continue
+		}
+
+		wmCmd := exec.Command(wmPath, wm.args...)
+		wmCmd.Env = append(os.Environ(), displayEnv)
+		if err := wmCmd.Start(); err != nil {
+			slog.Warn("window manager failed to start",
+				"wm", wm.name, "display", display, "error", err.Error())
+			continue
+		}
+
+		// Give the WM a moment to initialize.
+		time.Sleep(200 * time.Millisecond)
+
+		slog.Info("window manager started",
+			"wm", wm.name, "display", display, "pid", wmCmd.Process.Pid)
+		return wmCmd.Process
+	}
+
+	slog.Warn("no window manager found; Electron may render with artifacts",
+		"display", display,
+		"tried", func() []string {
+			names := make([]string, len(wmCandidates))
+			for i, c := range wmCandidates {
+				names[i] = c.name
+			}
+			return names
+		}())
+	return nil
 }
 
 // systemDisplayManager returns the current DISPLAY on non-Linux platforms.
