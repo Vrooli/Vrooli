@@ -93,6 +93,9 @@ export {
   defaultConnection,
 } from "./formTypes";
 
+// Live desktop store
+export { useLiveDesktopStore, type LiveDesktopStore } from "./liveDesktopStore";
+
 // Sidebar store
 export {
   useSidebarStore,

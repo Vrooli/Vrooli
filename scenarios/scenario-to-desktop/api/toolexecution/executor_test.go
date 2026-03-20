@@ -180,19 +180,19 @@ func TestExecutor_RunPipeline(t *testing.T) {
 	t.Run("parses all config options", func(t *testing.T) {
 		executor := newTestExecutor()
 		args := map[string]interface{}{
-			"scenario_name":        "test-scenario",
-			"platforms":            []interface{}{"linux"},
-			"deployment_mode":      "proxy",
-			"template_type":        "advanced",
-			"stop_after_stage":     "generate",
-			"skip_preflight":       true,
-			"skip_smoke_test":      true,
-			"deploy_target": "vrooli-production",
-			"app_key":       "test-app",
-			"sign":                 true,
-			"clean":                true,
-			"version":              "1.0.0",
-			"proxy_url":            "https://example.com",
+			"scenario_name":    "test-scenario",
+			"platforms":        []interface{}{"linux"},
+			"deployment_mode":  "proxy",
+			"template_type":    "advanced",
+			"stop_after_stage": "generate",
+			"skip_preflight":   true,
+			"skip_smoke_test":  true,
+			"deploy_target":    "vrooli-production",
+			"app_key":          "test-app",
+			"sign":             true,
+			"clean":            true,
+			"version":          "1.0.0",
+			"proxy_url":        "https://example.com",
 		}
 
 		result, err := executor.Execute(context.Background(), "run_pipeline", args)

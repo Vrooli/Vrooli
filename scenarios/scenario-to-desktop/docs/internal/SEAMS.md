@@ -1673,3 +1673,30 @@ interface WindowState {
 - **Variation Point**: Any executor that returns stdout/stderr/exit code
 
 **Status**: ✅ Implemented
+
+### Live Desktop Seams
+
+#### ManagedDisplay Seam
+- **Interface**: `screenrecording.DisplayManager.CreateManagedDisplay` (`api/screenrecording/display.go`)
+- **Purpose**: Returns a queryable display handle shared between smoketest and livedesktop
+- **Default Implementation**: `XvfbDisplayManager` / `systemDisplayManager`
+- **Test Double**: Mock `DisplayManager` returning a pre-built `ManagedDisplay`
+
+#### Live Desktop CommandExecutor Seam
+- **Interface**: `livedesktop.CommandExecutor` (`api/livedesktop/vnc.go`)
+- **Purpose**: Abstracts VNC process management (x11vnc + websockify) via resource-vnc CLI
+- **Default Implementation**: `screenrecordingExecutorAdapter` (shared with FFmpeg recorder)
+- **Test Double**: `mockExecutor` in `api/livedesktop/service_test.go`
+
+#### Live Desktop Store Seam
+- **Interface**: `livedesktop.Store` (`api/livedesktop/store.go`)
+- **Purpose**: Session persistence (currently in-memory, could be file-backed)
+- **Default Implementation**: `InMemoryStore`
+- **Test Double**: Same `InMemoryStore` used directly in tests
+
+#### WebSocket Proxy Seam
+- **Location**: `api/livedesktop/proxy.go`
+- **Purpose**: Bridges browser WebSocket to websockify, enabling single-origin VNC access
+- **Variation Point**: Could add authentication, rate limiting, or session recording
+
+**Status**: ✅ Implemented

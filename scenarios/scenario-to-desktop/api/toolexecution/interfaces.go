@@ -84,22 +84,22 @@ type PipelineOrchestrator interface {
 
 // PipelineConfig holds configuration for a pipeline run.
 type PipelineConfig struct {
-	ScenarioName        string
-	Platforms           []string
-	DeploymentMode      string
-	TemplateType        string
-	LocationMode        string
-	StopAfterStage      string
-	SkipPreflight       bool
-	SkipSmokeTest       bool
-	DeployTarget        string
-	DeployTo            string
-	RemoteProfile       string
-	AppKey              string
-	Sign                bool
-	Clean               bool
-	Version             string
-	ProxyURL            string
+	ScenarioName   string
+	Platforms      []string
+	DeploymentMode string
+	TemplateType   string
+	LocationMode   string
+	StopAfterStage string
+	SkipPreflight  bool
+	SkipSmokeTest  bool
+	DeployTarget   string
+	DeployTo       string
+	RemoteProfile  string
+	AppKey         string
+	Sign           bool
+	Clean          bool
+	Version        string
+	ProxyURL       string
 }
 
 // PipelineStatus represents a pipeline's state.

@@ -48,6 +48,7 @@
       "icon": "desktop",
       "documents": [
         { "path": "desktop-integration-guide.md", "title": "Desktop Feature Cookbook", "description": "File system, menus, tray, notifications" },
+        { "path": "guides/interactive-desktop.md", "title": "Interactive Desktop", "description": "Use the browser-based VNC viewer to interact with generated apps" },
         { "path": "../templates/README.md", "title": "Template System", "description": "Template types and generator details" },
         { "path": "../templates/DESKTOP_WRAPPER_GUIDE.md", "title": "Wrapper Patterns", "description": "Server_type patterns and embeddings" }
       ]
@@ -72,6 +73,7 @@
       "documents": [
         { "path": "reference/api-architecture.md", "title": "API Architecture", "description": "Visual overview of API structure, pipeline system, and tool execution" },
         { "path": "reference/smoke-test-pipeline.md", "title": "Smoke Test Pipeline", "description": "Deep dive into smoke test stage execution, configuration, and troubleshooting" },
+        { "path": "reference/live-desktop-api.md", "title": "Live Desktop API", "description": "Interactive VNC desktop session API endpoints" },
         { "path": "../README.md", "title": "Scenario README", "description": "Overview, limitations, installer matrix" },
         { "path": "../PRD.md", "title": "PRD", "description": "Product requirements and success metrics" },
         { "path": "../TEST_IMPLEMENTATION_SUMMARY.md", "title": "Tests", "description": "Test suite summary (coverage refresh needed)" },

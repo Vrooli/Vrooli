@@ -8,6 +8,7 @@ import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
 import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
+import { LiveDesktopDrawer } from "./components/livedesktop";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
 import { usePipelineStore } from "./store";
 import { useFormStore } from "./store/formStore";
@@ -296,6 +297,7 @@ export default function App() {
     <ErrorBoundary sectionName="Application" showHomeButton>
       <QueryClientProvider client={queryClient}>
         <AppContent />
+        <LiveDesktopDrawer />
       </QueryClientProvider>
     </ErrorBoundary>
   );

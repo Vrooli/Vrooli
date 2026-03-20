@@ -1,4 +1,4 @@
-import { ExternalLink, Loader2 } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatRelativeTime } from "../../lib";
 import {
@@ -21,6 +21,7 @@ interface ExecutionCardProps {
   onCancel: (executionId: string) => void;
   onRetry: (executionId: string) => void;
   onViewTrace: (executionId: string) => void;
+  onViewBacklog: (backlogKind: string, backlogName: string) => void;
   trace?: PromptTrace;
   traceLoading?: boolean;
   agentManagerUiUrl?: string | null;
@@ -37,6 +38,7 @@ export function ExecutionCard({
   onCancel,
   onRetry,
   onViewTrace,
+  onViewBacklog,
   trace,
   traceLoading = false,
   agentManagerUiUrl,
@@ -137,6 +139,18 @@ export function ExecutionCard({
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onViewBacklog(item.backlogKind, item.backlogName);
+          }}
+        >
+          <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
+          View {backlogKindLabel}
+        </Button>
         {item.runId && agentManagerUiUrl ? (
           <a
             href={`${agentManagerUiUrl}/runs/${item.runId}`}

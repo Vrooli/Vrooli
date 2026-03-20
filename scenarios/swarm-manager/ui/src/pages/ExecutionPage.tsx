@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Activity, Filter, RefreshCw, X } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -39,6 +39,7 @@ const AUTO_REFRESH_MS = 6000;
 
 export function ExecutionPage() {
   const { items, status, error, isRefreshing, fetchExecutions, upsertExecution } = useExecutionStore();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<ExecutionTabId>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -451,6 +452,7 @@ export function ExecutionPage() {
                     onCancel={(executionId) => void runAction(executionId, "cancel")}
                     onRetry={(executionId) => void runAction(executionId, "retry")}
                     onViewTrace={(executionId) => void handleViewTrace(executionId)}
+                    onViewBacklog={(kind, name) => navigate(`/backlog/${kind}/${name}`)}
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
                     agentManagerUiUrl={agentManagerUiUrl}
@@ -479,6 +481,7 @@ export function ExecutionPage() {
                     onCancel={(executionId) => void runAction(executionId, "cancel")}
                     onRetry={(executionId) => void runAction(executionId, "retry")}
                     onViewTrace={(executionId) => void handleViewTrace(executionId)}
+                    onViewBacklog={(kind, name) => navigate(`/backlog/${kind}/${name}`)}
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
                     agentManagerUiUrl={agentManagerUiUrl}

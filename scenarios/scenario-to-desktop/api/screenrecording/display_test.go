@@ -98,6 +98,52 @@ func TestSetDesktopBackground_WithXsetroot(t *testing.T) {
 	setDesktopBackground(":99")
 }
 
+func TestManagedDisplay_StopIdempotent(t *testing.T) {
+	md := &ManagedDisplay{
+		DisplayID: ":99",
+		Width:     1280,
+		Height:    720,
+	}
+	// Double Stop must not panic.
+	md.Stop()
+	md.Stop()
+	if md.IsRunning() {
+		t.Fatal("expected IsRunning() == false after Stop()")
+	}
+}
+
+func TestManagedDisplay_IsRunning(t *testing.T) {
+	md := &ManagedDisplay{
+		DisplayID: ":99",
+		Width:     1280,
+		Height:    720,
+	}
+	if !md.IsRunning() {
+		t.Fatal("expected IsRunning() == true before Stop()")
+	}
+	md.Stop()
+	if md.IsRunning() {
+		t.Fatal("expected IsRunning() == false after Stop()")
+	}
+}
+
+func TestSystemDisplayManager_CreateManagedDisplay(t *testing.T) {
+	dm := &systemDisplayManager{}
+	md, err := dm.CreateManagedDisplay(1280, 720)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if md.DisplayID != ":0" {
+		t.Fatalf("expected display :0, got %s", md.DisplayID)
+	}
+	if md.Width != 1280 || md.Height != 720 {
+		t.Fatalf("unexpected dimensions: %dx%d", md.Width, md.Height)
+	}
+	if !md.IsRunning() {
+		t.Fatal("expected IsRunning() == true for system display")
+	}
+}
+
 func TestWmCandidates_DefaultsConfigured(t *testing.T) {
 	// Verify the default WM candidates list is non-empty and has expected entries.
 	if len(wmCandidates) < 2 {

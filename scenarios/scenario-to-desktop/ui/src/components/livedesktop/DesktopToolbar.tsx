@@ -1,0 +1,78 @@
+import { Square, Maximize2, Minimize2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Button } from "../ui/button";
+import { useLiveDesktopStore } from "../../store/liveDesktopStore";
+import type { ConnectionStatus } from "../../lib/api/livedesktop";
+
+const STATUS_COLORS: Record<ConnectionStatus, string> = {
+  disconnected: "bg-slate-500",
+  connecting: "bg-amber-500 animate-pulse",
+  connected: "bg-emerald-500",
+  error: "bg-red-500",
+};
+
+const STATUS_LABELS: Record<ConnectionStatus, string> = {
+  disconnected: "Disconnected",
+  connecting: "Connecting...",
+  connected: "Connected",
+  error: "Error",
+};
+
+export function DesktopToolbar() {
+  const connectionStatus = useLiveDesktopStore((s) => s.connectionStatus);
+  const activeSession = useLiveDesktopStore((s) => s.activeSession);
+  const stopSession = useLiveDesktopStore((s) => s.stopSession);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900/80">
+      <div className="flex items-center gap-3">
+        {/* Connection status */}
+        <div className="flex items-center gap-2">
+          <div className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[connectionStatus]}`} />
+          <span className="text-xs text-slate-400">{STATUS_LABELS[connectionStatus]}</span>
+        </div>
+
+        {/* Resolution */}
+        {activeSession && (
+          <span className="text-xs text-slate-500">
+            {activeSession.width}x{activeSession.height}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/* Fullscreen toggle */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={toggleFullscreen}
+          className="text-slate-400 hover:text-slate-200"
+        >
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
+
+        {/* Stop session */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void stopSession()}
+          className="border-red-800/60 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+        >
+          <Square className="mr-1.5 h-3.5 w-3.5" />
+          Stop Session
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -37,22 +37,22 @@ func (e *PipelineExecutor) RunPipeline(ctx context.Context, toolArgs map[string]
 	}
 
 	config := &PipelineConfig{
-		ScenarioName:        scenarioName,
-		Platforms:           args.GetStringArray(toolArgs, "platforms"),
-		DeploymentMode:      args.GetString(toolArgs, "deployment_mode", "bundled"),
-		TemplateType:        args.GetString(toolArgs, "template_type", "basic"),
-		LocationMode:        args.GetString(toolArgs, "location_mode", ""),
-		StopAfterStage:      args.GetString(toolArgs, "stop_after_stage", ""),
-		SkipPreflight:       args.GetBool(toolArgs, "skip_preflight", false),
-		SkipSmokeTest:       args.GetBool(toolArgs, "skip_smoke_test", false),
-		DeployTarget:  args.GetString(toolArgs, "deploy_target", ""),
-		DeployTo:      args.GetString(toolArgs, "deploy_to", ""),
-		RemoteProfile: args.GetString(toolArgs, "remote_profile", ""),
-		AppKey:        args.GetString(toolArgs, "app_key", ""),
-		Sign:                args.GetBool(toolArgs, "sign", false),
-		Clean:               args.GetBool(toolArgs, "clean", false),
-		Version:             args.GetString(toolArgs, "version", ""),
-		ProxyURL:            args.GetString(toolArgs, "proxy_url", ""),
+		ScenarioName:   scenarioName,
+		Platforms:      args.GetStringArray(toolArgs, "platforms"),
+		DeploymentMode: args.GetString(toolArgs, "deployment_mode", "bundled"),
+		TemplateType:   args.GetString(toolArgs, "template_type", "basic"),
+		LocationMode:   args.GetString(toolArgs, "location_mode", ""),
+		StopAfterStage: args.GetString(toolArgs, "stop_after_stage", ""),
+		SkipPreflight:  args.GetBool(toolArgs, "skip_preflight", false),
+		SkipSmokeTest:  args.GetBool(toolArgs, "skip_smoke_test", false),
+		DeployTarget:   args.GetString(toolArgs, "deploy_target", ""),
+		DeployTo:       args.GetString(toolArgs, "deploy_to", ""),
+		RemoteProfile:  args.GetString(toolArgs, "remote_profile", ""),
+		AppKey:         args.GetString(toolArgs, "app_key", ""),
+		Sign:           args.GetBool(toolArgs, "sign", false),
+		Clean:          args.GetBool(toolArgs, "clean", false),
+		Version:        args.GetString(toolArgs, "version", ""),
+		ProxyURL:       args.GetString(toolArgs, "proxy_url", ""),
 	}
 
 	status, err := e.orchestrator.RunPipeline(ctx, config)

@@ -45,6 +45,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6 // indirect
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
 )

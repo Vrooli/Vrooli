@@ -32,7 +32,6 @@ func TestStartCapture_Success(t *testing.T) {
 		Height:  1080,
 		FPS:     30,
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -90,7 +89,6 @@ func TestStopCapture_Success(t *testing.T) {
 
 	r := NewRecorder(executor)
 	result, err := r.StopCapture(context.Background(), "rec-123")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -131,7 +129,6 @@ func TestStartCapture_WithOutputPath(t *testing.T) {
 		FPS:        10,
 		OutputPath: "/tmp/test.mp4",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

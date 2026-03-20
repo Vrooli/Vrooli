@@ -146,16 +146,16 @@ type Status struct {
 	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
 
 	// Screen recording configuration and results
-	RecordingConfig  *ScreenRecordingConfig  `json:"recording_config,omitempty"`
-	ScreenRecording  *ScreenRecordingResult  `json:"screen_recording,omitempty"`
+	RecordingConfig *ScreenRecordingConfig `json:"recording_config,omitempty"`
+	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
 }
 
 // ScreenRecordingConfig controls whether the smoke test records the display.
 type ScreenRecordingConfig struct {
 	Enabled        bool `json:"enabled"`
-	DisplayWidth   int  `json:"display_width,omitempty"`   // Default: 1920
-	DisplayHeight  int  `json:"display_height,omitempty"`  // Default: 1080
-	FPS            int  `json:"fps,omitempty"`             // Default: 15
+	DisplayWidth   int  `json:"display_width,omitempty"`  // Default: 1920
+	DisplayHeight  int  `json:"display_height,omitempty"` // Default: 1080
+	FPS            int  `json:"fps,omitempty"`            // Default: 15
 	MaxDurationSec int  `json:"max_duration_sec,omitempty"`
 }
 

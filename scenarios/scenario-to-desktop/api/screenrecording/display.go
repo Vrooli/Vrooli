@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,45 @@ type DisplayManager interface {
 	// CreateDisplay starts a virtual display and returns the display ID (e.g. ":99"),
 	// a cleanup function that stops the display, and any error.
 	CreateDisplay(width, height int) (displayID string, cleanup func(), err error)
+
+	// CreateManagedDisplay starts a virtual display and returns a ManagedDisplay
+	// handle that can be queried and shared across subsystems.
+	CreateManagedDisplay(width, height int) (*ManagedDisplay, error)
+}
+
+// ManagedDisplay represents a virtual display with queryable lifecycle state.
+type ManagedDisplay struct {
+	DisplayID     string
+	Width, Height int
+	xvfbCmd       *exec.Cmd
+	wmProcess     *os.Process
+	mu            sync.Mutex
+	stopped       bool
+}
+
+// Stop idempotently shuts down the display and its window manager.
+func (d *ManagedDisplay) Stop() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.stopped {
+		return
+	}
+	d.stopped = true
+	if d.wmProcess != nil {
+		_ = d.wmProcess.Kill()
+		_, _ = d.wmProcess.Wait()
+	}
+	if d.xvfbCmd != nil && d.xvfbCmd.Process != nil {
+		_ = d.xvfbCmd.Process.Kill()
+		_ = d.xvfbCmd.Wait()
+	}
+}
+
+// IsRunning reports whether the display has not been stopped.
+func (d *ManagedDisplay) IsRunning() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return !d.stopped
 }
 
 // XvfbDisplayManager implements DisplayManager using Xvfb on Linux.
@@ -50,20 +90,20 @@ func findAvailableDisplay() (string, error) {
 	return "", fmt.Errorf("no available X display number found in range :99–:199")
 }
 
-// CreateDisplay starts Xvfb on an available display number, launches a
+// CreateManagedDisplay starts Xvfb on an available display number, launches a
 // lightweight window manager (best-effort), and waits for the display to
-// be ready. The returned cleanup function stops the WM, then Xvfb.
-func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
+// be ready. Returns a ManagedDisplay handle for lifecycle management.
+func (m *XvfbDisplayManager) CreateManagedDisplay(width, height int) (*ManagedDisplay, error) {
 	display, err := findAvailableDisplay()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	resolution := fmt.Sprintf("%dx%dx%d", width, height, m.colorDepth)
 
 	cmd := exec.Command("Xvfb", display, "-screen", "0", resolution,
 		"+extension", "GLX", "+render", "-noreset")
 	if err := cmd.Start(); err != nil {
-		return "", nil, fmt.Errorf("failed to start Xvfb on %s: %w", display, err)
+		return nil, fmt.Errorf("failed to start Xvfb on %s: %w", display, err)
 	}
 
 	// Wait for display to become available (up to 5s).
@@ -77,7 +117,7 @@ func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), e
 				_ = cmd.Process.Kill()
 				_ = cmd.Wait()
 			}
-			return "", nil, fmt.Errorf("Xvfb did not become ready on %s within 5s", display)
+			return nil, fmt.Errorf("Xvfb did not become ready on %s within 5s", display)
 		default:
 			check := exec.Command("xdpyinfo", "-display", display)
 			if err := check.Run(); err == nil {
@@ -88,28 +128,27 @@ func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), e
 	}
 
 displayReady:
-	// Launch a lightweight window manager so Electron windows render
-	// correctly on the virtual display. This is best-effort — if no WM
-	// is available, Electron may still render (with possible artifacts).
 	wmProcess := startWindowManager(display)
-
-	// Set a solid desktop background so recordings don't show a bare
-	// black X11 root window. Best-effort — if it fails, recording
-	// simply has a black background.
 	setDesktopBackground(display)
 
-	cleanup := func() {
-		if wmProcess != nil {
-			_ = wmProcess.Kill()
-			_, _ = wmProcess.Wait()
-		}
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-		}
-	}
+	return &ManagedDisplay{
+		DisplayID: display,
+		Width:     width,
+		Height:    height,
+		xvfbCmd:   cmd,
+		wmProcess: wmProcess,
+	}, nil
+}
 
-	return display, cleanup, nil
+// CreateDisplay starts Xvfb on an available display number, launches a
+// lightweight window manager (best-effort), and waits for the display to
+// be ready. The returned cleanup function stops the WM, then Xvfb.
+func (m *XvfbDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
+	md, err := m.CreateManagedDisplay(width, height)
+	if err != nil {
+		return "", nil, err
+	}
+	return md.DisplayID, md.Stop, nil
 }
 
 // wmCandidates lists window managers to try, in preference order.
@@ -187,6 +226,14 @@ type systemDisplayManager struct{}
 func (m *systemDisplayManager) CreateDisplay(width, height int) (string, func(), error) {
 	// On macOS / Windows, there's no Xvfb — return a stub display.
 	return ":0", func() {}, nil
+}
+
+func (m *systemDisplayManager) CreateManagedDisplay(width, height int) (*ManagedDisplay, error) {
+	return &ManagedDisplay{
+		DisplayID: ":0",
+		Width:     width,
+		Height:    height,
+	}, nil
 }
 
 // ParseDisplayNumber extracts the numeric display ID from a string like ":99".

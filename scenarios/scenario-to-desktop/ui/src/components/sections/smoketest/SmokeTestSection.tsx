@@ -8,7 +8,7 @@
  */
 
 import { forwardRef, useMemo, useCallback, useState } from "react";
-import { TestTube, CheckCircle2, XCircle, Monitor, FileText, Video, Loader2, Square, AlertCircle, RotateCcw } from "lucide-react";
+import { TestTube, CheckCircle2, XCircle, Monitor, FileText, Video, Loader2, Square, AlertCircle, RotateCcw, ScreenShare } from "lucide-react";
 import {
   SectionCard,
   STATUS_CONFIG,
@@ -31,6 +31,7 @@ import {
 } from "../../../store";
 import { Button } from "../../ui/button";
 import { formatStageName } from "../../../lib/status-display";
+import { useLiveDesktopStore } from "../../../store/liveDesktopStore";
 
 /**
  * Diagnose screen recording errors and provide actionable troubleshooting.
@@ -423,6 +424,19 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
 
             {error && <StageError stageName="Smoke test"><strong>Error:</strong> {error}</StageError>}
           </div>
+        )}
+
+        {/* Launch Interactive Desktop — available when build artifacts exist */}
+        {hasBuildArtifacts && !isRunning && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-blue-800/60 text-blue-300 hover:bg-blue-950/30 hover:text-blue-200"
+            onClick={() => useLiveDesktopStore.getState().open(scenarioName, artifactPath)}
+          >
+            <ScreenShare className="mr-2 h-4 w-4" />
+            Launch Interactive Desktop
+          </Button>
         )}
 
         {/* Placeholder when not ready */}

@@ -11,6 +11,7 @@ import {
   Settings,
   Hammer,
   Info,
+  ScreenShare,
 } from "lucide-react";
 import type { DesktopRecordResponse } from "../../lib/api";
 import { buildUrl } from "../../lib/api";
@@ -21,6 +22,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { SigningBadge } from "./SigningBadge";
 import { pathLabel } from "./utils";
+import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 
 type RecordItem = DesktopRecordResponse["records"][number];
 
@@ -137,6 +139,25 @@ export function AppDetailDrawer({
             <p className="text-xs text-red-300">Recording error: {item.screen_recording.error}</p>
           </section>
         )}
+
+        {/* Interactive Desktop */}
+        <section className="space-y-2">
+          <SectionTitle icon={ScreenShare}>Interactive Desktop</SectionTitle>
+          <ActionRow
+            icon={ScreenShare}
+            title="Open Desktop"
+            subtitle="Launch an interactive virtual desktop for this app."
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => useLiveDesktopStore.getState().open(rec.scenario_name)}
+            >
+              Open
+            </Button>
+          </ActionRow>
+        </section>
 
         {/* Status Overview */}
         <section className="space-y-2">

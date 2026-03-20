@@ -23,6 +23,7 @@ import (
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
 	preflightdomain "scenario-to-desktop-api/preflight"
@@ -73,6 +74,9 @@ type Server struct {
 
 	// Task orchestration service
 	taskSvc *tasks.Service
+
+	// Live desktop handler
+	liveDesktopHandler *livedesktop.Handler
 
 	// Smoke test store for video serving
 	smokeTestStore smoketest.Store
@@ -152,6 +156,13 @@ func NewServer(port int) *Server {
 
 	// Wire smoke test store into records handler for video data enrichment
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
+
+	// Live desktop domain (interactive VNC sessions)
+	liveDesktopStore := livedesktop.NewInMemoryStore()
+	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger)
+	liveDesktopHandler := livedesktop.NewHandler(liveDesktopService)
+	// Start idle session janitor (30s check interval, 30m idle timeout)
+	livedesktop.StartJanitor(context.Background(), liveDesktopService, 30*time.Second, 30*time.Minute)
 
 	// Telemetry domain
 	telemetryService := telemetry.NewService(vrooliRoot)
@@ -360,6 +371,8 @@ func NewServer(port int) *Server {
 		pipelineHandler:  pipelineHandler,
 		stateHandler:     stateHandler,
 		deployHandler:    deployHandler,
+		// Live desktop handler
+		liveDesktopHandler: liveDesktopHandler,
 		// Tool Protocol handlers
 		toolsHandler:         toolsHandler,
 		toolExecutionHandler: toolExecutionHandler,
@@ -423,6 +436,11 @@ func (s *Server) registerDomainHandlers() {
 
 	// Deploy target management: /api/v1/deploy-targets/*
 	s.deployHandler.RegisterRoutes(s.router)
+
+	// Live desktop: /api/v1/livedesktop/*
+	if s.liveDesktopHandler != nil {
+		s.liveDesktopHandler.RegisterRoutes(s.router)
+	}
 
 	// Task orchestration - agent spawning for pipeline investigations
 	s.registerTaskRoutes()

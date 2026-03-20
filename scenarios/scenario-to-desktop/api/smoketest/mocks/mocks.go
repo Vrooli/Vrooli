@@ -987,7 +987,7 @@ type MockDisplayManager struct {
 		DisplayID string
 		Err       error
 	}
-	CreateCalls []MockCreateDisplayCall
+	CreateCalls   []MockCreateDisplayCall
 	CleanupCalled bool
 }
 
@@ -1015,4 +1015,21 @@ func (m *MockDisplayManager) CreateDisplay(width, height int) (string, func(), e
 		displayID = ":99"
 	}
 	return displayID, func() { m.CleanupCalled = true }, nil
+}
+
+// CreateManagedDisplay records the call and returns a ManagedDisplay with the configured result.
+func (m *MockDisplayManager) CreateManagedDisplay(width, height int) (*screenrecording.ManagedDisplay, error) {
+	m.CreateCalls = append(m.CreateCalls, MockCreateDisplayCall{Width: width, Height: height})
+	if m.CreateResult.Err != nil {
+		return nil, m.CreateResult.Err
+	}
+	displayID := m.CreateResult.DisplayID
+	if displayID == "" {
+		displayID = ":99"
+	}
+	return &screenrecording.ManagedDisplay{
+		DisplayID: displayID,
+		Width:     width,
+		Height:    height,
+	}, nil
 }

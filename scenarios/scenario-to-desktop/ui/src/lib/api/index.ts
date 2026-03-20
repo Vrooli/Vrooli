@@ -182,6 +182,22 @@ export {
   fetchScenarioPort,
 } from "./misc";
 
+// Live desktop functions
+export {
+  startDesktopSession,
+  stopDesktopSession,
+  heartbeatSession,
+  getDesktopSession,
+  listDesktopSessions,
+  launchAppOnDesktop,
+  buildVncWsUrl,
+} from "./livedesktop";
+export type {
+  DesktopSession,
+  DesktopSessionConfig,
+  ConnectionStatus,
+} from "./livedesktop";
+
 // Safe parsing utilities for runtime validation
 export {
   safeParse,
