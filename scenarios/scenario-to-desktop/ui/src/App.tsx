@@ -244,29 +244,8 @@ function AppContent() {
           </SectionErrorBoundary>
         )}
 
-        {/* Footer */}
-        <div className="mt-8 md:mt-12 pb-24 text-center text-sm text-slate-400">
-          <p>
-            Built with ❤️ by the{" "}
-            <a
-              href="https://vrooli.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              Vrooli Platform
-            </a>
-            {" | "}
-            <a
-              href="https://github.com/vrooli/vrooli"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              View on GitHub
-            </a>
-          </p>
-        </div>
+        {/* Bottom spacer for fixed action bar clearance */}
+        <div className="pb-24" />
       </div>
 
       {/* Fixed Bottom Action Bar - shows when there's an active build */}

@@ -4,8 +4,6 @@ import type {
   DocsManifest,
   DocsContentResponse,
   DesktopRecordResponse,
-  TestArtifactSummary,
-  TestArtifactCleanupResult,
   ProbeResponse,
   ProxyHintsResponse,
   BundleManifestResponse,
@@ -74,22 +72,6 @@ export async function deleteDesktopBuild(scenarioName: string): Promise<{ status
   });
   await throwIfNotOk(response);
   return await response.json() as { status: string };
-}
-
-// ==================== Test Artifact Functions ====================
-
-export async function fetchTestArtifacts(): Promise<TestArtifactSummary> {
-  const response = await fetch(buildUrl("/desktop/test-artifacts"));
-  await throwIfNotOk(response);
-  return await response.json() as TestArtifactSummary;
-}
-
-export async function cleanupTestArtifacts(): Promise<TestArtifactCleanupResult> {
-  const response = await fetch(buildUrl("/desktop/test-artifacts/cleanup"), {
-    method: "POST"
-  });
-  await throwIfNotOk(response);
-  return await response.json() as TestArtifactCleanupResult;
 }
 
 // ==================== Probe Functions ====================

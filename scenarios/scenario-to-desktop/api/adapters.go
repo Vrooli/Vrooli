@@ -191,6 +191,41 @@ func (a *smokeTestRecordAdapter) GetByScenario(scenarioName string) (string, *re
 	return st.SmokeTestID, sr, true
 }
 
+// recordsBuildStoreAdapter adapts build.InMemoryStore to records.BuildStoreAdapter interface
+type recordsBuildStoreAdapter struct {
+	store *build.InMemoryStore
+}
+
+func (a *recordsBuildStoreAdapter) Get(id string) (*records.BuildStatusView, bool) {
+	status, ok := a.store.Get(id)
+	if !ok {
+		return nil, false
+	}
+	return &records.BuildStatusView{
+		Status:     status.Status,
+		OutputPath: status.OutputPath,
+		Metadata:   status.Metadata,
+	}, true
+}
+
+func (a *recordsBuildStoreAdapter) Update(id string, fn func(status *records.BuildStatusView)) error {
+	ok := a.store.Update(id, func(status *build.Status) {
+		view := &records.BuildStatusView{
+			Status:     status.Status,
+			OutputPath: status.OutputPath,
+			Metadata:   status.Metadata,
+		}
+		fn(view)
+		status.Status = view.Status
+		status.OutputPath = view.OutputPath
+		status.Metadata = view.Metadata
+	})
+	if !ok {
+		return fmt.Errorf("build %q not found", id)
+	}
+	return nil
+}
+
 // generationBuildStoreAdapter adapts build.InMemoryStore to generation.BuildStore interface
 type generationBuildStoreAdapter struct {
 	store *build.InMemoryStore

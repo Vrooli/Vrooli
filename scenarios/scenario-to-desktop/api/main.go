@@ -113,7 +113,7 @@ func NewServer(port int) *Server {
 		logger.Warn("domain records store unavailable, using nil", "error", err)
 		recordsStore = nil
 	}
-	recordsHandler := records.NewHandler(recordsStore, nil, logger,
+	recordsHandler := records.NewHandler(recordsStore, &recordsBuildStoreAdapter{store: buildStore}, logger,
 		records.WithScenarioRoot(scenarioRoot),
 	)
 

@@ -374,19 +374,6 @@ export interface DesktopRecordResponse {
   }>;
 }
 
-// ==================== Test Artifact Types ====================
-
-export interface TestArtifactSummary {
-  count: number;
-  total_bytes: number;
-  paths?: string[];
-}
-
-export interface TestArtifactCleanupResult {
-  removed_count: number;
-  freed_bytes: number;
-}
-
 // ==================== Wine Types ====================
 
 export interface WineInstallMethod {
