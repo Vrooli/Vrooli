@@ -8,6 +8,7 @@ Generate authentic marketing content that communicates Vrooli progress, vision, 
 - **Honest about struggles.** Failures and debugging stories are as valuable as wins.
 - **Specific, not vague.** Concrete examples, real data, actual commits.
 - **Forward-looking but grounded.** Share vision without overpromising.
+- **Visually consistent.** Brand Manager is the authoritative source for visual identity across all scenarios. Consult it for logos, colors, typography, and voice guidelines before creating content.
 
 ## Content Types
 1. **X/Twitter Dev Logs** — 3-7 tweet threads about recent work.
@@ -44,3 +45,4 @@ Team members should read the relevant skill before starting a task. Each skill c
 - `prompt-manager skill read seo-optimizer` — SEO analysis and optimization
 - `prompt-manager skill read funnel-builder` — Conversion funnel creation and lead capture
 - `prompt-manager skill read video-studio` — Video production for demos and promotional content
+- `prompt-manager skill read brand-manager` — Brand identity management (logos, colors, typography, voice) (draft)

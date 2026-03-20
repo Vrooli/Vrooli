@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-readiness-review",
+  "name": "Scenario Readiness Review",
+  "description": "Assess scenario readiness for commit by synthesizing code quality, standards compliance, test results, and change provenance through git-control-tower integrations",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "review",
+    "quality",
+    "git",
+    "assessment",
+    "readiness"
+  ],
+  "icon": "clipboard-check",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-20T00:00:00Z",
+  "updatedAt": "2026-03-20T00:00:00Z"
+}

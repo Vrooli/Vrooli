@@ -9,6 +9,9 @@ Do **not** break functionality, regress tests, or introduce new features. All ch
 Required reading:
 - `prompt-manager skills read visited-tracker-tools`
 
+Optional reading:
+- `prompt-manager skill read brand-manager` (draft — branding validation for deployment readiness)
+
 ---
 
 ### 0. Why This Skill Exists
@@ -599,6 +602,13 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 
 **Secrets:**
 - [ ] Infrastructure secrets required at runtime (DB passwords, etc.)
+
+**Branding (deployment readiness):**
+- [ ] Has a proper display name (not just the scenario slug)
+- [ ] Has a logo (SVG + rasterized)
+- [ ] Has a favicon (multi-size)
+- [ ] Has a color system (primary, secondary, accent with WCAG validation)
+- [ ] Has typography defined (heading, body, mono fonts)
 
 #### 8.3 Document Findings
 

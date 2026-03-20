@@ -55,6 +55,11 @@ The director-swarm oversees all other teams:
 - Strategic research requests go through research-lead.
 - Weekly intelligence briefings inform priority adjustments.
 
+## Available Skills
+Team members should read the relevant skill before starting a task. Each skill contains usage instructions, prerequisites, and current capabilities.
+
+- `prompt-manager skill read scenario-readiness-review` — Scenario readiness assessment and commit recommendation
+
 ## The Recursive Loop
 Remember: every team deployment should ultimately increase Vrooli capability.
 - Debug fixes make scenarios more reliable.
