@@ -23,10 +23,10 @@ func requireDB(t *testing.T) *sql.DB {
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
+		t.Skipf("database unavailable (open): %v", err)
 	}
 	if err := db.Ping(); err != nil {
-		t.Fatalf("failed to ping database: %v", err)
+		t.Skipf("database unavailable (ping): %v", err)
 	}
 
 	// Ensure the table exists
@@ -59,9 +59,13 @@ func TestProgressUpdate(t *testing.T) {
 
 	// Clean up test user before and after
 	testUserID := "test-progress-update"
-	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+		t.Fatalf("setup cleanup: %v", err)
+	}
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+		if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
 	})
 
 	// PUT progress
@@ -112,9 +116,13 @@ func TestProgressDefaultUser(t *testing.T) {
 	srv.router = newRouterForTest(srv)
 
 	// Clean up default user before and after
-	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", "default")
+	if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", "default"); err != nil {
+		t.Fatalf("setup cleanup: %v", err)
+	}
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", "default")
+		if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", "default"); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
 	})
 
 	// PUT without user_id - should default to "default"
@@ -265,9 +273,13 @@ func TestProgressUpdateMinimalBody(t *testing.T) {
 	srv.router = newRouterForTest(srv)
 
 	testUserID := "test-minimal-body"
-	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+		t.Fatalf("setup cleanup: %v", err)
+	}
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+		if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
 	})
 
 	// Only provide user_id — step, completed_steps, config_data should all default
@@ -304,9 +316,13 @@ func TestProgressUpsertOverwrite(t *testing.T) {
 	srv.router = newRouterForTest(srv)
 
 	testUserID := "test-upsert-overwrite"
-	db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+	if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+		t.Fatalf("setup cleanup: %v", err)
+	}
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID)
+		if _, err := db.Exec("DELETE FROM onboarding_progress WHERE user_id = $1", testUserID); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
 	})
 
 	// First insert

@@ -205,7 +205,11 @@ func TestConfigExportWriteToReadOnlyDir(t *testing.T) {
 	if err := os.Chmod(outputDir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(outputDir, 0o755) })
+	t.Cleanup(func() {
+		if err := os.Chmod(outputDir, 0o755); err != nil {
+			t.Logf("cleanup chmod: %v", err)
+		}
+	})
 
 	body := `{"resources": {"postgres": {"enabled": true, "name": "postgres"}}, "output_dir": "` + outputDir + `"}`
 	w := doPost(t, srv, "/api/v1/config/export", body)
@@ -238,7 +242,11 @@ func TestBackupFileReadOnlyBackupDir(t *testing.T) {
 	if err := os.Chmod(dir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(dir, 0o755) })
+	t.Cleanup(func() {
+		if err := os.Chmod(dir, 0o755); err != nil {
+			t.Logf("cleanup chmod: %v", err)
+		}
+	})
 
 	_, err := backupFile(existing, dir)
 	if err == nil {
@@ -288,7 +296,11 @@ func TestBackupFileUnreadableFile(t *testing.T) {
 	if err := os.Chmod(existing, 0o000); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(existing, 0o644) })
+	t.Cleanup(func() {
+		if err := os.Chmod(existing, 0o644); err != nil {
+			t.Logf("cleanup chmod: %v", err)
+		}
+	})
 
 	_, err := backupFile(existing, dir)
 	if err == nil {
@@ -311,7 +323,11 @@ func TestConfigExportMkdirAllFailure(t *testing.T) {
 	if err := os.Chmod(readOnlyDir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(readOnlyDir, 0o755) })
+	t.Cleanup(func() {
+		if err := os.Chmod(readOnlyDir, 0o755); err != nil {
+			t.Logf("cleanup chmod: %v", err)
+		}
+	})
 
 	body := `{"resources": {"postgres": {"enabled": true, "name": "postgres"}}, "output_dir": "` + nestedOutput + `"}`
 	w := doPost(t, srv, "/api/v1/config/export", body)

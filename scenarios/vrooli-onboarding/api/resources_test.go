@@ -293,7 +293,11 @@ func TestResolveResourcesPathWalkUp(t *testing.T) {
 	if err := os.Chdir(nested); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Logf("cleanup chdir: %v", err)
+		}
+	})
 
 	got := resolveResourcesPath()
 	want := filepath.Join(dir, ".vrooli", "running-resources.json")
@@ -313,7 +317,11 @@ func TestResolveResourcesPathNotFound(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Logf("cleanup chdir: %v", err)
+		}
+	})
 
 	got := resolveResourcesPath()
 	if got != "" {
