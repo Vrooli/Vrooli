@@ -32,6 +32,23 @@
   cursor: grabbing;
 }
 
+.preview-toolbar--dock-transition {
+  transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.preview-toolbar--docked {
+  cursor: pointer;
+}
+
+.preview-toolbar__dock-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  color: var(--app-text-muted);
+}
+
 .preview-toolbar--floating .preview-toolbar__group--left,
 .preview-toolbar--floating .preview-toolbar__group--right {
   gap: 0.4rem;

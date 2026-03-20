@@ -11,6 +11,12 @@ import { logger } from '@/services/logger';
 const DEFAULT_DRAG_THRESHOLD = 6;
 const DEFAULT_FLOATING_MARGIN = 12;
 
+interface VelocitySample {
+  x: number;
+  y: number;
+  t: number;
+}
+
 type DragState = {
   pointerId: number;
   startX: number;
@@ -21,12 +27,20 @@ type DragState = {
   height: number;
   pointerCaptured: boolean;
   dragging: boolean;
+  lastPosition: { x: number; y: number } | null;
+  velocitySamples: VelocitySample[];
 };
 
 interface StoredPosition {
   x: number;
   y: number;
   savedAt: number;
+}
+
+export interface DragEndInfo {
+  position: { x: number; y: number };
+  velocity: { vx: number; vy: number };
+  elementSize: { width: number; height: number };
 }
 
 export interface UseDraggablePositionOptions {
@@ -42,8 +56,8 @@ export interface UseDraggablePositionOptions {
   dragThreshold?: number;
   /** Called when drag starts (e.g., to close menus) */
   onDragStart?: () => void;
-  /** Called when drag ends */
-  onDragEnd?: () => void;
+  /** Called when drag ends with position, velocity, and element size */
+  onDragEnd?: (info: DragEndInfo) => void;
 }
 
 export interface UseDraggablePositionReturn {
@@ -59,6 +73,7 @@ export interface UseDraggablePositionReturn {
   };
   handleClickCapture: (e: ReactMouseEvent) => void;
   resetPosition: () => void;
+  moveTo: (pos: { x: number; y: number }) => void;
 }
 
 const getPointerDelta = (state: DragState, event: PointerEvent | ReactPointerEvent) => ({
@@ -110,7 +125,8 @@ const saveStoredPosition = (storageKey: string, position: { x: number; y: number
 
 /**
  * Hook for managing draggable floating element positioning with optional localStorage persistence.
- * Extracted from AppPreviewToolbar's useFloatingToolbar for reuse.
+ * Tracks velocity during drag for fling detection and writes transforms directly to the DOM
+ * during drag for smooth, jitter-free movement.
  */
 export const useDraggablePosition = (options: UseDraggablePositionOptions): UseDraggablePositionReturn => {
   const {
@@ -166,6 +182,15 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
     }
   }, []);
 
+  // Track whether we've already initialized position for the current active session.
+  // Use refs for getInitialPosition and clampPosition to avoid re-triggering the effect
+  // when inline callbacks create new references every render.
+  const prevActiveRef = useRef(false);
+  const getInitialPositionRef = useRef(getInitialPosition);
+  getInitialPositionRef.current = getInitialPosition;
+  const clampPositionRef = useRef(clampPosition);
+  clampPositionRef.current = clampPosition;
+
   // Reset position and state when becoming inactive
   useEffect(() => {
     if (!isActive) {
@@ -176,20 +201,26 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
       setIsDragging(false);
       setIsTrackingPointer(false);
       dragStateRef.current = null;
+      prevActiveRef.current = false;
       return;
     }
 
+    if (prevActiveRef.current) {
+      return; // already initialized
+    }
+    prevActiveRef.current = true;
+
     // When becoming active, recalculate position from storage or compute default
-    const initialPos = getInitialPosition();
+    const initialPos = getInitialPositionRef.current();
     const element = elementRef.current;
     if (element) {
       const rect = element.getBoundingClientRect();
-      const clamped = clampPosition(initialPos.x, initialPos.y, { width: rect.width, height: rect.height });
+      const clamped = clampPositionRef.current(initialPos.x, initialPos.y, { width: rect.width, height: rect.height });
       setPosition(clamped);
     } else {
       setPosition(initialPos);
     }
-  }, [clampPosition, getInitialPosition, isActive, releasePointerCapture]);
+  }, [isActive, releasePointerCapture]);
 
   // Handle window resize - clamp position to new bounds
   useEffect(() => {
@@ -255,6 +286,8 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
       height: rect.height,
       pointerCaptured: false,
       dragging: false,
+      lastPosition: null,
+      velocitySamples: [],
     };
     setIsDragging(false);
     setIsTrackingPointer(true);
@@ -299,7 +332,18 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
       event.clientY - state.offsetY,
       { width: state.width, height: state.height },
     );
-    setPosition(prev => (prev.x === next.x && prev.y === next.y ? prev : next));
+
+    // Write transform directly to the DOM for immediate visual feedback,
+    // bypassing React's async render cycle that causes 1+ frame lag (jitter).
+    element.style.transform = `translate3d(${Math.round(next.x)}px, ${Math.round(next.y)}px, 0)`;
+    state.lastPosition = next;
+
+    // Track velocity samples (keep last 5 for smoothing)
+    const now = performance.now();
+    state.velocitySamples.push({ x: next.x, y: next.y, t: now });
+    if (state.velocitySamples.length > 5) {
+      state.velocitySamples.shift();
+    }
   }, [clampPosition, dragThreshold, onDragStart]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent) => {
@@ -319,7 +363,34 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
     if (state.dragging) {
       event.preventDefault?.();
       suppressClickRef.current = true;
-      onDragEnd?.();
+
+      // Compute velocity from recent samples
+      let vx = 0;
+      let vy = 0;
+      const samples = state.velocitySamples;
+      if (samples.length >= 2) {
+        const first = samples[0];
+        const last = samples[samples.length - 1];
+        if (first && last) {
+          const dt = (last.t - first.t) / 1000; // seconds
+          if (dt > 0.001) {
+            vx = (last.x - first.x) / dt;
+            vy = (last.y - first.y) / dt;
+          }
+        }
+      }
+
+      const finalPos = state.lastPosition ?? { x: 0, y: 0 };
+      // Sync final drag position to React state (for floatingStyle + localStorage persistence)
+      if (state.lastPosition) {
+        setPosition(state.lastPosition);
+      }
+      onDragEnd?.({
+        position: finalPos,
+        velocity: { vx, vy },
+        elementSize: { width: state.width, height: state.height },
+      });
+
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
           suppressClickRef.current = false;
@@ -388,6 +459,10 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
     }
   }, [getInitialPosition, storageKey]);
 
+  const moveTo = useCallback((pos: { x: number; y: number }) => {
+    setPosition(pos);
+  }, []);
+
   return useMemo(() => ({
     elementRef,
     position,
@@ -401,6 +476,7 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
     },
     handleClickCapture,
     resetPosition,
+    moveTo,
   }), [
     position,
     isDragging,
@@ -410,5 +486,6 @@ export const useDraggablePosition = (options: UseDraggablePositionOptions): UseD
     handlePointerEnd,
     handleClickCapture,
     resetPosition,
+    moveTo,
   ]);
 };

@@ -75,7 +75,7 @@ const PreviewPane = memo(function PreviewPane({
   const [isIframeLoading, setIsIframeLoading] = useState(false);
   const [isLogsVisible, setIsLogsVisible] = useState(() => paneViewState?.isLogsVisible ?? false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isFullView, setIsFullView] = useState(false);
+  const [isFullView, setIsFullView] = useState(() => paneViewState?.isFullView ?? false);
   const [isSmallScreen, setIsSmallScreen] = useState(() => (
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(max-width: 640px)').matches
@@ -347,11 +347,18 @@ const PreviewPane = memo(function PreviewPane({
   }, [isLogsVisible, paneId, setPaneViewState]);
 
   useEffect(() => {
+    setPaneViewState(paneId, { isFullView });
+  }, [isFullView, paneId, setPaneViewState]);
+
+  useEffect(() => {
     if (!paneViewState) {
       return;
     }
     setIsLogsVisible((current) => (
       current === paneViewState.isLogsVisible ? current : paneViewState.isLogsVisible
+    ));
+    setIsFullView((current) => (
+      current === paneViewState.isFullView ? current : paneViewState.isFullView
     ));
   }, [paneViewState]);
 

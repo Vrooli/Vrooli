@@ -11,6 +11,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Bug,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Layers,
   Info,
@@ -28,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useDraggablePosition } from '@/hooks/useDraggablePosition';
+import { useDockToEdge, computeDockStyle } from '@/hooks/useDockToEdge';
 import { useToolbarMenu, useMenuCoordinator, useMenuAutoFocus, useMenuOutsideClick } from '@/hooks/useToolbarMenu';
 import { PREVIEW_UI } from './views/previewConstants';
 import { AnchoredPopover } from './popover/AnchoredPopover';
@@ -267,14 +270,35 @@ const AppPreviewToolbar = memo(({
     placement: 'bottom-end',
   });
 
+  // Dock-to-edge: slide toolbar off-screen when dragged/flung to left/right edge.
+  // Defined before useDraggablePosition so its stable callbacks can be wired as drag handlers.
+  const sharedElementRef = useRef<HTMLElement | null>(null);
+  const dock = useDockToEdge({
+    elementRef: sharedElementRef,
+    isActive: isFullView,
+  });
+
   // Draggable toolbar positioning for fullscreen mode
   const floatingToolbar = useDraggablePosition({
     isActive: isFullView,
-    storageKey: null, // No persistence for toolbar - resets each session
+    storageKey: null,
     defaultPosition: PREVIEW_UI.DEFAULT_FLOATING_POSITION,
     floatingMargin: PREVIEW_UI.FLOATING_MARGIN,
-    onDragStart: closeMenus,
+    onDragStart: () => {
+      closeMenus();
+      dock.handleDragStart();
+    },
+    onDragEnd: dock.handleDragEnd,
   });
+
+  // Share the element ref between both hooks
+  sharedElementRef.current = floatingToolbar.elementRef.current;
+
+  // Compute final style: docked overrides floating position
+  const toolbarStyle = useMemo(
+    () => computeDockStyle(dock.docked, floatingToolbar.floatingStyle, floatingToolbar.position.y, dock.toolbarWidth, dock.vpWidth),
+    [dock.docked, floatingToolbar.floatingStyle, floatingToolbar.position.y, dock.toolbarWidth, dock.vpWidth],
+  );
 
   // Auto-focus first menu item when menus open (accessibility)
   useMenuAutoFocus(lifecycleMenu.isOpen, lifecycleMenu.firstItemRef);
@@ -309,6 +333,14 @@ const AppPreviewToolbar = memo(({
       setIsUrlSuggestionsOpen(false);
     }
   }, [closeMenus, isFullView]);
+
+  // Close menus when toolbar docks to an edge
+  useEffect(() => {
+    if (dock.docked) {
+      closeMenus();
+      setIsUrlSuggestionsOpen(false);
+    }
+  }, [dock.docked, closeMenus]);
 
   // Note: Old closeMenus callback removed - now provided by useMenuCoordinator
 
@@ -522,15 +554,23 @@ const AppPreviewToolbar = memo(({
         'preview-toolbar',
         isFullView && 'preview-toolbar--floating',
         isFullView && floatingToolbar.isDragging && 'preview-toolbar--dragging',
+        dock.docked && 'preview-toolbar--docked',
+        dock.animating && 'preview-toolbar--dock-transition',
       )}
-      style={floatingToolbar.floatingStyle}
-      onPointerDown={floatingToolbar.pointerHandlers.onPointerDown}
-      onPointerMove={floatingToolbar.pointerHandlers.onPointerMove}
-      onPointerUp={floatingToolbar.pointerHandlers.onPointerUp}
-      onPointerCancel={floatingToolbar.pointerHandlers.onPointerCancel}
-      onClickCapture={floatingToolbar.handleClickCapture}
+      style={toolbarStyle}
+      onPointerDown={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerDown}
+      onPointerMove={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerMove}
+      onPointerUp={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerUp}
+      onPointerCancel={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerCancel}
+      onClickCapture={dock.docked ? undefined : floatingToolbar.handleClickCapture}
+      onClick={dock.docked ? dock.undock : undefined}
     >
-      <div className="preview-toolbar__group preview-toolbar__group--left">
+      {dock.docked === 'right' && (
+        <div className="preview-toolbar__dock-tab" title="Click to restore toolbar">
+          <ChevronLeft aria-hidden size={16} />
+        </div>
+      )}
+      <div className="preview-toolbar__group preview-toolbar__group--left" aria-hidden={!!dock.docked || undefined}>
         {shouldUseCompactNavigation ? (
           <>
             <div
@@ -822,7 +862,7 @@ const AppPreviewToolbar = memo(({
           )}
         </AnchoredPopover>
       </div>
-      <div className="preview-toolbar__group preview-toolbar__group--right">
+      <div className="preview-toolbar__group preview-toolbar__group--right" aria-hidden={!!dock.docked || undefined}>
         {shouldShowLifecycleMenu && (
           <div
             className={clsx('preview-toolbar__menu', lifecycleMenu.isOpen && 'preview-toolbar__menu--open')}
@@ -1002,6 +1042,11 @@ const AppPreviewToolbar = memo(({
         )}
         {rightInlineActions}
       </div>
+      {dock.docked === 'left' && (
+        <div className="preview-toolbar__dock-tab" title="Click to restore toolbar">
+          <ChevronRight aria-hidden size={16} />
+        </div>
+      )}
     </div>
   );
 });

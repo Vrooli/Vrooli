@@ -25,6 +25,7 @@ export interface PreviewWorkspacePaneViewState {
   historyIndex: number;
   initialPreviewUrl: string | null;
   isLogsVisible: boolean;
+  isFullView: boolean;
 }
 
 export interface PreviewWorkspaceState {
@@ -179,6 +180,7 @@ const createDefaultPaneViewState = (): PreviewWorkspacePaneViewState => ({
   historyIndex: -1,
   initialPreviewUrl: null,
   isLogsVisible: false,
+  isFullView: false,
 });
 
 const areStringArraysEqual = (a: string[], b: string[]): boolean => {
@@ -206,6 +208,7 @@ const isPaneViewStateEqual = (
   && previous.historyIndex === next.historyIndex
   && previous.initialPreviewUrl === next.initialPreviewUrl
   && previous.isLogsVisible === next.isLogsVisible
+  && previous.isFullView === next.isFullView
   && areStringArraysEqual(previous.history, next.history)
 );
 
@@ -234,6 +237,7 @@ const normalizePersistedPaneViewState = (value: unknown): PreviewWorkspacePaneVi
       ? record.initialPreviewUrl.trim()
       : null,
     isLogsVisible: Boolean(record.isLogsVisible),
+    isFullView: Boolean(record.isFullView),
   };
 };
 const isInteractionMode = (value: unknown): value is PreviewWorkspaceInteractionMode => (
