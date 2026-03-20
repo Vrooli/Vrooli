@@ -10,6 +10,33 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// handleAttachmentUpload proxies POST /api/v1/agent/attachments/upload to agent-manager.
+func (s *Server) handleAttachmentUpload(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoOperation(w, r, s.git, s.repos, nil, 60*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
+		hctx.Resp.ServiceUnavailable("agent-manager is not available")
+		return
+	}
+
+	wireResp, err := s.agentManagerClient.UploadAttachment(hctx.Ctx, r.Body, r.Header.Get("Content-Type"))
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+
+	hctx.Resp.OK(AttachmentUploadResponse{
+		ID:          wireResp.ID,
+		FileName:    wireResp.FileName,
+		ContentType: wireResp.ContentType,
+		FileSize:    wireResp.FileSize,
+	})
+}
+
 // handleAgentProfiles proxies GET /api/v1/agent/profiles to agent-manager.
 func (s *Server) handleAgentProfiles(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoOperation(w, r, s.git, s.repos, nil, 10*time.Second)
@@ -69,12 +96,22 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 1: Create a Task
+	taskData := agentTaskData{
+		Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
+		Description: req.Prompt,
+		ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
+	}
+	if len(req.AttachmentIDs) > 0 {
+		for _, aid := range req.AttachmentIDs {
+			taskData.ContextAttachments = append(taskData.ContextAttachments, agentContextAttachment{
+				Type:         "image",
+				AttachmentID: aid,
+				Label:        "Uploaded image",
+			})
+		}
+	}
 	taskResp, err := s.agentManagerClient.CreateTask(hctx.Ctx, agentTaskCreateRequest{
-		Task: agentTaskData{
-			Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
-			Description: req.Prompt,
-			ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
-		},
+		Task: taskData,
 	})
 	if err != nil {
 		hctx.Resp.InternalError(fmt.Sprintf("create task: %s", err.Error()))

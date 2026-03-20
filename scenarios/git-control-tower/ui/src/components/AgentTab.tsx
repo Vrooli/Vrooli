@@ -14,6 +14,7 @@ import {
   Wrench,
   Clock,
   ExternalLink,
+  Image,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -32,9 +33,12 @@ import {
 import { buildScenarioEnvelope, composePrompt, resolveScreenshotPaths } from "../lib/agentContext";
 import { ContextPickerPopover } from "./ContextPickerPopover";
 import { ContextPreviewPopover } from "./ContextPreviewPopover";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { useAttachments } from "../hooks/useAttachments";
 import {
   RUN_STATUS,
   ACTIVE_STATUSES,
+  uploadAgentAttachment,
   type AgentContextItem,
   type AgentRun,
   type AgentRunEvent,
@@ -115,6 +119,7 @@ interface AgentTabProps {
   scenarioSlug: string;
   repoId?: string | null;
   agentManagerAvailable: boolean;
+  workspaceSandboxAvailable: boolean;
   contextItems: AgentContextItem[];
   onAddContext: (item: AgentContextItem) => void;
   onRemoveContext: (id: string) => void;
@@ -233,6 +238,7 @@ export function AgentTab({
   scenarioSlug,
   repoId,
   agentManagerAvailable,
+  workspaceSandboxAvailable,
   contextItems,
   onAddContext,
   onRemoveContext,
@@ -284,6 +290,35 @@ export function AgentTab({
       .catch(() => { /* keep fallback */ });
     return () => { cancelled = true; };
   }, [agentManagerAvailable]);
+
+  // Resolve workspace-sandbox base URL for "Review in Sandbox" deep-links
+  const [workspaceSandboxBaseUrl, setWorkspaceSandboxBaseUrl] = useState(`/embedded/workspace-sandbox/`);
+  useEffect(() => {
+    if (!workspaceSandboxAvailable) return;
+    let cancelled = false;
+    fetch(`/embedded/workspace-sandbox/external-url`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data?.url) {
+          setWorkspaceSandboxBaseUrl(data.url as string);
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, [workspaceSandboxAvailable]);
+
+  // Attachment upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAttachment = useCallback(
+    async (file: File) => uploadAgentAttachment(file, repoId ?? undefined),
+    [repoId]
+  );
+  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading, getUploadedIds } = useAttachments(uploadAttachment);
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) addAttachment(file);
+    e.target.value = "";
+  }, [addAttachment]);
 
   const profiles = useAgentProfiles(agentManagerAvailable);
   const envelopeQuery = useScenarioEnvelope(scenarioSlug, agentManagerAvailable);
@@ -389,6 +424,7 @@ export function AgentTab({
     if (!prompt.trim()) return;
 
     const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
+    const uploadedIds = getUploadedIds();
 
     createRun.mutate(
       {
@@ -396,6 +432,7 @@ export function AgentTab({
         prompt,
         profileId: selectedProfileId || undefined,
         profileKey,
+        ...(uploadedIds.length > 0 ? { attachmentIds: uploadedIds } : {}),
       },
       {
         onSuccess: (resp) => {
@@ -404,23 +441,26 @@ export function AgentTab({
           setLastEventSequence(-1);
           setMessage("");
           onClearContext();
+          clearAttachments();
         },
       }
     );
-  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, events.length, envelopeQuery.data, createRun, onClearContext, setActiveRunId]);
+  }, [message, contextItems, scenarioSlug, repoId, selectedProfileId, events.length, envelopeQuery.data, createRun, onClearContext, setActiveRunId, getUploadedIds, clearAttachments]);
 
   const handleContinue = useCallback(() => {
     if (!activeRunId || !message.trim()) return;
     const followUp = message.trim();
+    const uploadedIds = getUploadedIds();
     continueRun.mutate(
-      { runId: activeRunId, request: { message: followUp } },
+      { runId: activeRunId, request: { message: followUp, ...(uploadedIds.length > 0 ? { attachment_ids: uploadedIds } : {}) } },
       {
         onSuccess: () => {
           setMessage("");
+          clearAttachments();
         },
       }
     );
-  }, [activeRunId, message, continueRun]);
+  }, [activeRunId, message, continueRun, getUploadedIds, clearAttachments]);
 
   const handleSetDefaultProfile = useCallback((id: string) => {
     setSelectedProfileId(id);
@@ -621,7 +661,18 @@ export function AgentTab({
             case "error":
               return <ErrorBubble key={idx} text={msg.text} />;
             case "summary":
-              return <SummaryCard key={idx} summary={msg.summary} run={msg.run} />;
+              return (
+                <SummaryCard
+                  key={idx}
+                  summary={msg.summary}
+                  run={msg.run}
+                  sandboxReviewUrl={
+                    msg.run?.sandboxId && workspaceSandboxAvailable && msg.run.approvalState === "pending"
+                      ? `${workspaceSandboxBaseUrl.replace(/\/$/, "")}?sandbox=${msg.run.sandboxId}&review=true`
+                      : undefined
+                  }
+                />
+              );
             case "diff":
               return <DiffSection key={idx} files={msg.files} isLoading={runDiff.isLoading} />;
             case "action-prompt":
@@ -680,6 +731,13 @@ export function AgentTab({
         </div>
       )}
 
+      {/* Attachment previews above input */}
+      {attachments.length > 0 && showInputBar && (
+        <div className="border-t border-slate-800/50">
+          <AttachmentPreview attachments={attachments} onRemove={removeAttachment} />
+        </div>
+      )}
+
       {/* Input bar */}
       {showInputBar ? (
         <div className="shrink-0 border-t border-slate-800">
@@ -699,8 +757,24 @@ export function AgentTab({
               </select>
             </div>
           )}
+          {/* Hidden file input for image uploads */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
           {/* Message input row */}
           <div className="px-4 py-3 flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 w-8 flex items-center justify-center rounded border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors"
+              title="Attach image"
+            >
+              <Image className="h-4 w-4" />
+            </button>
             <ContextPickerPopover
               scenarioSlug={scenarioSlug}
               repoId={repoId}
@@ -732,7 +806,7 @@ export function AgentTab({
               variant="default"
               size="sm"
               onClick={handleInputSend}
-              disabled={inputDisabled || (!message.trim() && contextItems.length === 0)}
+              disabled={inputDisabled || isUploading || (!message.trim() && contextItems.length === 0 && attachments.length === 0)}
               className="h-9 w-9 p-0 shrink-0"
             >
               {isCreating || isContinuing ? (
@@ -845,7 +919,7 @@ function ErrorBubble({ text }: { text: string }) {
   );
 }
 
-function SummaryCard({ summary, run }: { summary: AgentRunSummary; run?: AgentRun }) {
+function SummaryCard({ summary, run, sandboxReviewUrl }: { summary: AgentRunSummary; run?: AgentRun; sandboxReviewUrl?: string }) {
   const duration = run ? formatDuration(run.startedAt, run.endedAt) : null;
   const totalFiles = (summary.filesModified?.length ?? 0) + (summary.filesCreated?.length ?? 0) + (summary.filesDeleted?.length ?? 0);
 
@@ -876,6 +950,17 @@ function SummaryCard({ summary, run }: { summary: AgentRunSummary; run?: AgentRu
       )}
       {totalFiles === 0 && (
         <div className="text-[11px] text-slate-500">No file changes</div>
+      )}
+      {sandboxReviewUrl && (
+        <a
+          href={sandboxReviewUrl}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border transition-colors text-amber-400 border-amber-800 hover:bg-amber-950/50"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Review in Sandbox
+        </a>
       )}
     </div>
   );

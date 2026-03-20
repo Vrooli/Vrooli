@@ -273,6 +273,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           scenarioSlug={scenarioSlug}
           repoId={repoId}
           agentManagerAvailable={agentManagerAvailable}
+          workspaceSandboxAvailable={workspaceSandboxAvailable}
           contextItems={agentContext}
           onAddContext={addAgentContext}
           onRemoveContext={removeAgentContext}

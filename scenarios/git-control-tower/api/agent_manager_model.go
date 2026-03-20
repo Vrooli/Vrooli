@@ -91,6 +91,7 @@ type wireRun struct {
 	SessionID       string          `json:"session_id,omitempty"`
 	ApprovalState   string          `json:"approval_state,omitempty"`
 	PromptPreview   string          `json:"prompt_preview,omitempty"`
+	SandboxID       string          `json:"sandbox_id,omitempty"`
 	StartedAt       string          `json:"started_at,omitempty"`
 	EndedAt         string          `json:"ended_at,omitempty"`
 	CreatedAt       string          `json:"created_at,omitempty"`
@@ -233,10 +234,17 @@ type wireEnsureProfileResponse struct {
 
 // Wire request types (outbound, snake_case).
 
+type agentContextAttachment struct {
+	Type         string `json:"type"`
+	AttachmentID string `json:"attachment_id"`
+	Label        string `json:"label,omitempty"`
+}
+
 type agentTaskData struct {
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	ScopePath   string `json:"scope_path,omitempty"`
+	Title              string                    `json:"title"`
+	Description        string                    `json:"description,omitempty"`
+	ScopePath          string                    `json:"scope_path,omitempty"`
+	ContextAttachments []agentContextAttachment   `json:"context_attachments,omitempty"`
 }
 
 type agentTaskCreateRequest struct {
@@ -289,10 +297,11 @@ type AgentProfileListResponse struct {
 
 // AgentRunRequest is the composite request sent from the UI to create a Task + Run.
 type AgentRunRequest struct {
-	ScenarioSlug string `json:"scenarioSlug"`
-	Prompt       string `json:"prompt"`
-	ProfileID    string `json:"profileId,omitempty"`
-	ProfileKey   string `json:"profileKey,omitempty"`
+	ScenarioSlug  string   `json:"scenarioSlug"`
+	Prompt        string   `json:"prompt"`
+	ProfileID     string   `json:"profileId,omitempty"`
+	ProfileKey    string   `json:"profileKey,omitempty"`
+	AttachmentIDs []string `json:"attachmentIds,omitempty"`
 }
 
 // AgentRunCreateResponse is returned after creating a Task + Run.
@@ -337,6 +346,7 @@ type AgentRun struct {
 	ErrorMsg        string           `json:"errorMsg,omitempty"`
 	ApprovalState   string           `json:"approvalState,omitempty"`
 	PromptPreview   string           `json:"promptPreview,omitempty"`
+	SandboxID       string           `json:"sandboxId,omitempty"`
 	Summary         *AgentRunSummary `json:"summary,omitempty"`
 	Actions         *AgentRunActions `json:"actions,omitempty"`
 	CreatedAt       string           `json:"createdAt"`
@@ -384,7 +394,26 @@ type AgentRunDiffResponse struct {
 
 // AgentContinueRequest sends a follow-up message to an agent run.
 type AgentContinueRequest struct {
-	Message string `json:"message"`
+	Message       string   `json:"message"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty"`
+}
+
+// wireUploadAttachmentResponse is the response from agent-manager's upload endpoint.
+type wireUploadAttachmentResponse struct {
+	ID          string `json:"id"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	FileSize    int64  `json:"file_size"`
+	StoragePath string `json:"storage_path"`
+	URL         string `json:"url"`
+}
+
+// AttachmentUploadResponse is the UI-facing response for attachment uploads.
+type AttachmentUploadResponse struct {
+	ID          string `json:"id"`
+	FileName    string `json:"fileName"`
+	ContentType string `json:"contentType"`
+	FileSize    int64  `json:"fileSize"`
 }
 
 // AgentContinueResponse is the response from continuing a run.
@@ -471,6 +500,7 @@ func wireRunToAPI(w *wireRun) AgentRun {
 		ErrorMsg:        w.ErrorMsg,
 		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
 		PromptPreview:   w.PromptPreview,
+		SandboxID:       w.SandboxID,
 		Summary:         wireRunSummaryToAPI(w.Summary),
 		Actions:         wireRunActionsToAPI(w.Actions),
 		CreatedAt:       w.CreatedAt,

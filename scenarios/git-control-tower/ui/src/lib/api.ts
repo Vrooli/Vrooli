@@ -2176,6 +2176,7 @@ export interface AgentRunRequest {
   prompt: string;
   profileId?: string;
   profileKey?: string;
+  attachmentIds?: string[];
 }
 
 export interface AgentRunCreateResponse {
@@ -2216,6 +2217,7 @@ export interface AgentRun {
   errorMsg?: string;
   approvalState?: string;
   promptPreview?: string;
+  sandboxId?: string;
   summary?: AgentRunSummary;
   actions?: AgentRunActions;
   createdAt: string;
@@ -2260,6 +2262,14 @@ export interface AgentRunDiffResponse {
 
 export interface AgentContinueRequest {
   message: string;
+  attachment_ids?: string[];
+}
+
+export interface AttachmentUploadResponse {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
 }
 
 export interface AgentContinueResponse {
@@ -2304,6 +2314,23 @@ export interface AgentContextItem {
 }
 
 // ── Agent Manager fetch functions ────────────────────────────────────
+
+export async function uploadAgentAttachment(
+  file: File,
+  repoId?: string
+): Promise<AttachmentUploadResponse> {
+  const url = buildApiUrl("/agent/attachments/upload", { baseUrl: API_BASE });
+  const formData = new FormData();
+  formData.append("file", file);
+  const headers: Record<string, string> = {};
+  if (repoId) headers[REPO_HEADER] = repoId;
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  return handleResponse<AttachmentUploadResponse>(res);
+}
 
 export async function fetchAgentProfiles(repoId?: string): Promise<AgentProfileListResponse> {
   const url = buildApiUrl("/agent/profiles", { baseUrl: API_BASE });

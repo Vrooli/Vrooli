@@ -268,6 +268,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/tidiness-scenario", s.handleTidinessScenarioDetail).Methods("GET")
 
 	// Agent-manager endpoints
+	s.router.HandleFunc("/api/v1/agent/attachments/upload", s.handleAttachmentUpload).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/profiles", s.handleAgentProfiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/agent/run", s.handleAgentRunCreate).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/runs", s.handleAgentRunList).Methods("GET")

@@ -231,6 +231,38 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, tagPrefix string, lim
 	return &result, nil
 }
 
+// UploadAttachment streams a multipart upload to agent-manager's /api/v1/attachments/upload.
+func (c *AgentManagerClient) UploadAttachment(ctx context.Context, body io.Reader, contentType string) (*wireUploadAttachmentResponse, error) {
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent-manager url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/attachments/upload", body)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.clearCachedURL()
+		return nil, fmt.Errorf("agent-manager request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, parseAgentManagerError(resp)
+	}
+
+	var result wireUploadAttachmentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	return &result, nil
+}
+
 func (c *AgentManagerClient) doJSON(ctx context.Context, path string, body, result interface{}) error {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
