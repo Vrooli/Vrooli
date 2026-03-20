@@ -356,12 +356,21 @@ export interface DesktopRecord {
   updated_at?: string;
 }
 
+export interface ScreenRecordingView {
+  recorded: boolean;
+  duration_ms?: number;
+  file_size_bytes?: number;
+  error?: string;
+}
+
 export interface DesktopRecordResponse {
   records: Array<{
     record: DesktopRecord;
     build_status?: BuildStatus;
     has_build: boolean;
     build_state?: string;
+    smoke_test_id?: string;
+    screen_recording?: ScreenRecordingView;
   }>;
 }
 

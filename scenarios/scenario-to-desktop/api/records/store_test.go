@@ -379,6 +379,154 @@ func TestRecordWithBuild_Fields(t *testing.T) {
 	}
 }
 
+func TestFileStore_Upsert_DeduplicatesByScenarioAndOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "records.json")
+
+	store, _ := NewFileStore(storePath)
+
+	// Simulate two pipeline runs for the same scenario writing to the same output path.
+	// This is exactly what QueueBuild does — each call generates a new UUID.
+	first := &DesktopAppRecord{
+		ID:           "build-aaa",
+		BuildID:      "build-aaa",
+		ScenarioName: "git-control-tower",
+		OutputPath:   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron",
+		TemplateType: "basic",
+	}
+	second := &DesktopAppRecord{
+		ID:           "build-bbb",
+		BuildID:      "build-bbb",
+		ScenarioName: "git-control-tower",
+		OutputPath:   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron",
+		TemplateType: "basic",
+	}
+
+	if err := store.Upsert(first); err != nil {
+		t.Fatalf("upsert first: %v", err)
+	}
+	if err := store.Upsert(second); err != nil {
+		t.Fatalf("upsert second: %v", err)
+	}
+
+	// BUG REPRODUCTION: There should be exactly 1 record — the latest build
+	// for this scenario+output combination, not 2 separate entries.
+	records := store.List()
+	if len(records) != 1 {
+		t.Errorf("expected 1 record (deduplicated), got %d", len(records))
+	}
+
+	// The surviving record should be the second (newer) one
+	if len(records) == 1 {
+		if records[0].ID != "build-bbb" {
+			t.Errorf("expected surviving record to be 'build-bbb', got %q", records[0].ID)
+		}
+	}
+}
+
+func TestFileStore_Upsert_DifferentOutputPathsNotDeduplicated(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "records.json")
+
+	store, _ := NewFileStore(storePath)
+
+	// Same scenario but different output locations should remain separate
+	r1 := &DesktopAppRecord{
+		ID:           "build-1",
+		ScenarioName: "my-app",
+		OutputPath:   "/path/a/platforms/electron",
+	}
+	r2 := &DesktopAppRecord{
+		ID:           "build-2",
+		ScenarioName: "my-app",
+		OutputPath:   "/path/b/platforms/electron",
+	}
+
+	_ = store.Upsert(r1)
+	_ = store.Upsert(r2)
+
+	records := store.List()
+	if len(records) != 2 {
+		t.Errorf("expected 2 records for different output paths, got %d", len(records))
+	}
+}
+
+func TestFileStore_Upsert_DifferentScenariosNotDeduplicated(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "records.json")
+
+	store, _ := NewFileStore(storePath)
+
+	// Different scenarios with same output path structure should remain separate
+	r1 := &DesktopAppRecord{
+		ID:           "build-1",
+		ScenarioName: "app-a",
+		OutputPath:   "/scenarios/app-a/platforms/electron",
+	}
+	r2 := &DesktopAppRecord{
+		ID:           "build-2",
+		ScenarioName: "app-b",
+		OutputPath:   "/scenarios/app-b/platforms/electron",
+	}
+
+	_ = store.Upsert(r1)
+	_ = store.Upsert(r2)
+
+	records := store.List()
+	if len(records) != 2 {
+		t.Errorf("expected 2 records for different scenarios, got %d", len(records))
+	}
+}
+
+func TestFileStore_Load_DeduplicatesExistingRecords(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "records.json")
+
+	// Write a JSON file with multiple records for the same scenario+output,
+	// simulating the accumulated duplicates from repeated pipeline runs.
+	data := `[
+		{"id": "old-1", "scenario_name": "git-control-tower", "output_path": "/scenarios/gct/platforms/electron", "updated_at": "2026-01-01T00:00:00Z"},
+		{"id": "old-2", "scenario_name": "git-control-tower", "output_path": "/scenarios/gct/platforms/electron", "updated_at": "2026-01-02T00:00:00Z"},
+		{"id": "latest", "scenario_name": "git-control-tower", "output_path": "/scenarios/gct/platforms/electron", "updated_at": "2026-01-03T00:00:00Z"},
+		{"id": "other", "scenario_name": "other-scenario", "output_path": "/scenarios/other/platforms/electron", "updated_at": "2026-01-01T00:00:00Z"}
+	]`
+	if err := os.WriteFile(storePath, []byte(data), 0o644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	store, err := NewFileStore(storePath)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	records := store.List()
+	if len(records) != 2 {
+		t.Errorf("expected 2 records (1 per scenario), got %d", len(records))
+	}
+
+	// The git-control-tower record should be the latest one
+	gct, ok := store.Get("latest")
+	if !ok {
+		t.Errorf("expected latest git-control-tower record to survive dedup")
+	}
+	if gct != nil && gct.ScenarioName != "git-control-tower" {
+		t.Errorf("unexpected scenario name: %s", gct.ScenarioName)
+	}
+
+	// Old duplicates should be gone
+	if _, ok := store.Get("old-1"); ok {
+		t.Errorf("expected old-1 to be removed by dedup")
+	}
+	if _, ok := store.Get("old-2"); ok {
+		t.Errorf("expected old-2 to be removed by dedup")
+	}
+
+	// Other scenario should be unaffected
+	if _, ok := store.Get("other"); !ok {
+		t.Errorf("expected other-scenario record to survive")
+	}
+}
+
 func TestIsTestRecord(t *testing.T) {
 	tests := []struct {
 		name     string

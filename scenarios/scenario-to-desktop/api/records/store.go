@@ -54,6 +54,9 @@ func (s *FileStore) load() error {
 		return fmt.Errorf("parse record store: %w", err)
 	}
 	cleaned := false
+	// Track latest record per scenario+output to deduplicate on load.
+	// Key: "scenarioName\x00outputPath" → newest record ID.
+	latest := map[string]string{}
 	for _, r := range records {
 		if r == nil || r.ID == "" {
 			continue
@@ -63,6 +66,25 @@ func (s *FileStore) load() error {
 			continue
 		}
 		s.records[r.ID] = r
+
+		if r.ScenarioName != "" && r.OutputPath != "" {
+			key := r.ScenarioName + "\x00" + r.OutputPath
+			if prevID, exists := latest[key]; exists {
+				// Keep the one with the later UpdatedAt (or the newer insertion).
+				prev := s.records[prevID]
+				if prev != nil && !r.UpdatedAt.After(prev.UpdatedAt) {
+					// Current record is older — remove it
+					delete(s.records, r.ID)
+				} else {
+					// Current record is newer — remove previous
+					delete(s.records, prevID)
+					latest[key] = r.ID
+				}
+				cleaned = true
+			} else {
+				latest[key] = r.ID
+			}
+		}
 	}
 	if cleaned {
 		_ = s.persist()
@@ -97,6 +119,23 @@ func (s *FileStore) Upsert(record *DesktopAppRecord) error {
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
 	record.UpdatedAt = now
+
+	// Deduplicate: if another record already exists for the same scenario and
+	// output path, remove it so we don't accumulate stale entries across
+	// repeated pipeline runs that write to the same location.
+	if record.ScenarioName != "" && record.OutputPath != "" {
+		for id, existing := range s.records {
+			if id == record.ID {
+				continue
+			}
+			if existing != nil &&
+				existing.ScenarioName == record.ScenarioName &&
+				existing.OutputPath == record.OutputPath {
+				delete(s.records, id)
+			}
+		}
+	}
+
 	if existing, ok := s.records[record.ID]; ok && !existing.CreatedAt.IsZero() {
 		record.CreatedAt = existing.CreatedAt
 	} else {

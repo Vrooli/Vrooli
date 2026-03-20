@@ -150,6 +150,9 @@ func NewServer(port int) *Server {
 	displayMgr := screenrecording.NewDisplayManager()
 	smokeTestService.WithRecording(recorder, displayMgr)
 
+	// Wire smoke test store into records handler for video data enrichment
+	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
+
 	// Telemetry domain
 	telemetryService := telemetry.NewService(vrooliRoot)
 	telemetryHandler := telemetry.NewHandler(telemetryService)

@@ -24,10 +24,20 @@ type DesktopAppRecord struct {
 
 // RecordWithBuild combines a record with its associated build status.
 type RecordWithBuild struct {
-	Record     *DesktopAppRecord `json:"record"`
-	Build      *BuildStatusView  `json:"build_status,omitempty"`
-	HasBuild   bool              `json:"has_build"`
-	BuildState string            `json:"build_state,omitempty"`
+	Record          *DesktopAppRecord    `json:"record"`
+	Build           *BuildStatusView     `json:"build_status,omitempty"`
+	HasBuild        bool                 `json:"has_build"`
+	BuildState      string               `json:"build_state,omitempty"`
+	SmokeTestID     string               `json:"smoke_test_id,omitempty"`
+	ScreenRecording *ScreenRecordingView `json:"screen_recording,omitempty"`
+}
+
+// ScreenRecordingView is a simplified view of screen recording data for record responses.
+type ScreenRecordingView struct {
+	Recorded      bool   `json:"recorded"`
+	DurationMS    int64  `json:"duration_ms,omitempty"`
+	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
+	Error         string `json:"error,omitempty"`
 }
 
 // BuildStatusView is a simplified view of build status for record responses.

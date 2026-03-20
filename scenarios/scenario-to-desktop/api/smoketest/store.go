@@ -133,6 +133,26 @@ func (s *FileStore) Get(id string) (*Status, bool) {
 	return status, ok
 }
 
+// GetByScenario returns the most recent smoke test for a given scenario name.
+// It returns the status and true if found, nil and false otherwise.
+func (s *FileStore) GetByScenario(scenarioName string) (*Status, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var best *Status
+	for _, st := range s.statusMap {
+		if st.ScenarioName != scenarioName {
+			continue
+		}
+		if best == nil || st.StartedAt.After(best.StartedAt) {
+			best = st
+		}
+	}
+	if best == nil {
+		return nil, false
+	}
+	return best, true
+}
+
 // Update executes fn while holding a write lock on the requested smoke test.
 // It returns false when the smoke test ID is unknown.
 func (s *FileStore) Update(id string, fn func(status *Status)) bool {

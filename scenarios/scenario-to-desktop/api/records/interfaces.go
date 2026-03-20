@@ -34,6 +34,13 @@ type BuildStatus struct {
 	Metadata map[string]interface{}
 }
 
+// SmokeTestStoreAdapter provides smoke test lookup for record enrichment.
+type SmokeTestStoreAdapter interface {
+	// GetByScenario returns the most recent smoke test ID and screen recording
+	// data for the given scenario name.
+	GetByScenario(scenarioName string) (smokeTestID string, screenRecording *ScreenRecordingView, ok bool)
+}
+
 // Service provides record management operations.
 type Service interface {
 	// ListWithBuilds returns all records with their build statuses.

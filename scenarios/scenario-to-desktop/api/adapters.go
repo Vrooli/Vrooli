@@ -169,6 +169,28 @@ func toToolPipelineStatus(status *pipeline.Status) *toolexecution.PipelineStatus
 	return result
 }
 
+// smokeTestRecordAdapter adapts smoketest.FileStore to records.SmokeTestStoreAdapter interface.
+type smokeTestRecordAdapter struct {
+	store *smoketest.FileStore
+}
+
+func (a *smokeTestRecordAdapter) GetByScenario(scenarioName string) (string, *records.ScreenRecordingView, bool) {
+	st, ok := a.store.GetByScenario(scenarioName)
+	if !ok {
+		return "", nil, false
+	}
+	var sr *records.ScreenRecordingView
+	if st.ScreenRecording != nil {
+		sr = &records.ScreenRecordingView{
+			Recorded:      st.ScreenRecording.Recorded,
+			DurationMS:    st.ScreenRecording.DurationMs,
+			FileSizeBytes: st.ScreenRecording.FileSizeBytes,
+			Error:         st.ScreenRecording.Error,
+		}
+	}
+	return st.SmokeTestID, sr, true
+}
+
 // generationBuildStoreAdapter adapts build.InMemoryStore to generation.BuildStore interface
 type generationBuildStoreAdapter struct {
 	store *build.InMemoryStore

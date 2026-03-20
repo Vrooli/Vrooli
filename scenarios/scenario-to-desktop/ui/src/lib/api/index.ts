@@ -38,6 +38,7 @@ export type {
   ProbeResponse,
   ProxyHintsResponse,
   DesktopRecord,
+  ScreenRecordingView,
   DesktopRecordResponse,
   TestArtifactSummary,
   TestArtifactCleanupResult,

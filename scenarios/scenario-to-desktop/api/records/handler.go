@@ -20,6 +20,7 @@ import (
 type Handler struct {
 	records        Store
 	builds         BuildStoreAdapter
+	smokeTests     SmokeTestStoreAdapter
 	logger         *slog.Logger
 	scenarioRoot   string
 	outputPathFunc func(scenarioName string) string
@@ -46,6 +47,19 @@ func WithOutputPathFunc(fn func(scenarioName string) string) HandlerOption {
 	return func(h *Handler) {
 		h.outputPathFunc = fn
 	}
+}
+
+// WithSmokeTestStore sets the smoke test store for enriching records with video data.
+func WithSmokeTestStore(store SmokeTestStoreAdapter) HandlerOption {
+	return func(h *Handler) {
+		h.smokeTests = store
+	}
+}
+
+// SetSmokeTestStore sets the smoke test store after construction.
+// This is used when the smoke test store is created after the handler.
+func (h *Handler) SetSmokeTestStore(store SmokeTestStoreAdapter) {
+	h.smokeTests = store
 }
 
 // NewHandler creates a new records handler.
@@ -90,6 +104,12 @@ func (h *Handler) ListHandler(w http.ResponseWriter, r *http.Request) {
 				item.Build = bs
 				item.HasBuild = true
 				item.BuildState = bs.Status
+			}
+		}
+		if rec != nil && h.smokeTests != nil {
+			if stID, sr, ok := h.smokeTests.GetByScenario(rec.ScenarioName); ok {
+				item.SmokeTestID = stID
+				item.ScreenRecording = sr
 			}
 		}
 		results = append(results, item)
