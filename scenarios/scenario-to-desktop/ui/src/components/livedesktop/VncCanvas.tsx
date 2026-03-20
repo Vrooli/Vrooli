@@ -49,18 +49,29 @@ export function VncCanvas({ sessionId }: VncCanvasProps) {
       rfb.addEventListener("securityfailure", (e: CustomEvent) => {
         setError(`VNC security error: ${e.detail?.reason ?? "unknown"}`);
       });
+
+      // Re-scale when container resizes (e.g. fullscreen toggle)
+      const observer = new ResizeObserver(() => {
+        if (rfbRef.current) {
+          rfbRef.current.scaleViewport = true;
+        }
+      });
+      observer.observe(container);
+
+      return () => {
+        observer.disconnect();
+        cleanup();
+      };
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initialize VNC");
+      return cleanup;
     }
-
-    return cleanup;
   }, [sessionId, setConnectionStatus, setError, cleanup]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full bg-black rounded-lg overflow-hidden"
-      style={{ aspectRatio: "16 / 9" }}
+      className="absolute inset-0 bg-black overflow-hidden"
     />
   );
 }

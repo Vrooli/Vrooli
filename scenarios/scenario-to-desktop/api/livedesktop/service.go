@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/google/uuid"
 
 	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/shared/packaging"
 )
 
 // VNCStartFunc is the signature for starting a VNC session.
@@ -24,16 +27,18 @@ type Service struct {
 	store      Store
 	displayMgr screenrecording.DisplayManager
 	logger     *slog.Logger
+	vrooliRoot string
 	startVNC   VNCStartFunc
 	stopVNC    VNCStopFunc
 }
 
 // NewService creates a new live desktop service.
-func NewService(store Store, displayMgr screenrecording.DisplayManager, logger *slog.Logger) *Service {
+func NewService(store Store, displayMgr screenrecording.DisplayManager, logger *slog.Logger, vrooliRoot string) *Service {
 	return &Service{
 		store:      store,
 		displayMgr: displayMgr,
 		logger:     logger,
+		vrooliRoot: vrooliRoot,
 		startVNC:   startVNCSession,
 		stopVNC:    stopVNCProcesses,
 	}
@@ -133,6 +138,7 @@ func (s *Service) Heartbeat(sessionID string) error {
 }
 
 // LaunchApp starts an application on the session's display.
+// If appPath is empty, it auto-discovers the latest build artifact for the session's scenario.
 func (s *Service) LaunchApp(sessionID, appPath string) error {
 	session, err := s.store.Get(sessionID)
 	if err != nil {
@@ -140,6 +146,15 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	}
 	if session.Display == nil || !session.Display.IsRunning() {
 		return fmt.Errorf("session display is not running")
+	}
+
+	// Auto-discover artifact if no explicit path provided
+	if appPath == "" {
+		discovered, err := s.findArtifact(session.ScenarioName)
+		if err != nil {
+			return fmt.Errorf("auto-discover artifact: %w", err)
+		}
+		appPath = discovered
 	}
 
 	cmd := exec.CommandContext(context.Background(), appPath)
@@ -150,6 +165,36 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 
 	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath)
 	return nil
+}
+
+// FindArtifact finds the latest build artifact for a scenario.
+func (s *Service) FindArtifact(scenarioName string) (string, error) {
+	return s.findArtifact(scenarioName)
+}
+
+func (s *Service) findArtifact(scenarioName string) (string, error) {
+	if s.vrooliRoot == "" {
+		return "", fmt.Errorf("vrooliRoot not configured")
+	}
+
+	platform := currentPlatform()
+	distPath := filepath.Join(s.vrooliRoot, "scenarios", scenarioName, "platforms", "electron", "dist-electron")
+	artifact, err := packaging.FindBuiltPackage(distPath, platform)
+	if err != nil {
+		return "", fmt.Errorf("no %s artifact found for scenario %q: %w", platform, scenarioName, err)
+	}
+	return artifact, nil
+}
+
+func currentPlatform() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "mac"
+	case "windows":
+		return "win"
+	default:
+		return "linux"
+	}
 }
 
 // GetSession returns a session by ID.

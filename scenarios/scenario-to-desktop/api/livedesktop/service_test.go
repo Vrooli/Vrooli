@@ -57,7 +57,7 @@ func mockVNCStartError(msg string) VNCStartFunc {
 func mockVNCStop(session *Session) {}
 
 func newTestService(store Store, dm screenrecording.DisplayManager, startFn VNCStartFunc) *Service {
-	svc := NewService(store, dm, newTestLogger())
+	svc := NewService(store, dm, newTestLogger(), "")
 	svc.startVNC = startFn
 	svc.stopVNC = mockVNCStop
 	return svc

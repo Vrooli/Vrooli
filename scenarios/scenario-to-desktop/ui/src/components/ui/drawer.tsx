@@ -9,10 +9,12 @@ interface DrawerProps {
   title?: string;
   description?: string;
   side?: "right" | "left";
+  /** Extra classes for the sliding panel (e.g. to override max-width). */
+  panelClassName?: string;
   children: ReactNode;
 }
 
-export function Drawer({ open, onClose, title, description, side = "right", children }: DrawerProps) {
+export function Drawer({ open, onClose, title, description, side = "right", panelClassName, children }: DrawerProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export function Drawer({ open, onClose, title, description, side = "right", chil
         className={cn(
           "absolute inset-y-0 flex flex-col bg-slate-950 border-slate-800 shadow-2xl transition-transform duration-300 ease-in-out",
           // Mobile: full screen. Desktop: side panel.
-          "w-full md:max-w-lg",
+          panelClassName ?? "w-full md:max-w-lg",
           side === "right" ? "right-0 border-l" : "left-0 border-r",
           translateClass,
         )}

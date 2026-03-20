@@ -25,7 +25,7 @@ func newTestHandler() (*Handler, *Service) {
 		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	svc := NewService(store, dm, logger)
+	svc := NewService(store, dm, logger, "")
 	svc.startVNC = mockVNCStart(5900, 6080)
 	svc.stopVNC = mockVNCStop
 	handler := NewHandler(svc)
@@ -148,10 +148,11 @@ func TestLaunchApp_MissingPath(t *testing.T) {
 
 	router.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Empty app_path triggers auto-discovery, which fails when vrooliRoot is not configured
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 
 	var resp map[string]string
 	err = json.NewDecoder(rr.Body).Decode(&resp)
 	require.NoError(t, err)
-	assert.Contains(t, resp["error"], "app_path is required")
+	assert.Contains(t, resp["error"], "auto-discover artifact")
 }

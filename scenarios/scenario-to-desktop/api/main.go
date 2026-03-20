@@ -159,7 +159,7 @@ func NewServer(port int) *Server {
 
 	// Live desktop domain (interactive VNC sessions)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
-	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger)
+	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger, vrooliRoot)
 	liveDesktopHandler := livedesktop.NewHandler(liveDesktopService)
 	// Start idle session janitor (30s check interval, 30m idle timeout)
 	livedesktop.StartJanitor(context.Background(), liveDesktopService, 30*time.Second, 30*time.Minute)

@@ -1,10 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Monitor, Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import { Drawer, DrawerHeader, DrawerBody } from "../ui/drawer";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
-import { launchAppOnDesktop } from "../../lib/api/livedesktop";
 import { VncCanvas } from "./VncCanvas";
 import { DesktopToolbar } from "./DesktopToolbar";
 
@@ -19,6 +18,7 @@ export function LiveDesktopDrawer() {
   const startSession = useLiveDesktopStore((s) => s.startSession);
   const setError = useLiveDesktopStore((s) => s.setError);
 
+  const desktopAreaRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1280);
   const [height, setHeight] = useState(720);
 
@@ -32,22 +32,13 @@ export function LiveDesktopDrawer() {
     });
   }, [scenarioName, appPath, width, height, startSession]);
 
-  const handleLaunchApp = useCallback(async () => {
-    if (!activeSession || !appPath) return;
-    try {
-      await launchAppOnDesktop(activeSession.id, appPath);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to launch app");
-    }
-  }, [activeSession, appPath, setError]);
-
   const handleRetry = useCallback(() => {
     setError(null);
     void handleStart();
   }, [setError, handleStart]);
 
   return (
-    <Drawer open={isOpen} onClose={close} side="right">
+    <Drawer open={isOpen} onClose={close} side="right" panelClassName="w-full md:w-[90vw] md:max-w-6xl">
       <DrawerHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -118,23 +109,11 @@ export function LiveDesktopDrawer() {
 
         {/* Connected — VNC canvas */}
         {activeSession && (connectionStatus === "connected" || connectionStatus === "connecting") && (
-          <div className="flex flex-col flex-1 min-h-0">
-            <DesktopToolbar />
-            <div className="flex-1 min-h-0 p-2">
+          <div ref={desktopAreaRef} className="flex flex-col flex-1 min-h-0">
+            <DesktopToolbar fullscreenTargetRef={desktopAreaRef} />
+            <div className="flex-1 min-h-0 relative">
               <VncCanvas sessionId={activeSession.id} />
             </div>
-            {appPath && connectionStatus === "connected" && (
-              <div className="border-t border-slate-800 px-4 py-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleLaunchApp()}
-                  className="w-full"
-                >
-                  Launch App
-                </Button>
-              </div>
-            )}
           </div>
         )}
 

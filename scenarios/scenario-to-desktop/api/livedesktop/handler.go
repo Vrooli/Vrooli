@@ -25,6 +25,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.getSession).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/heartbeat", h.heartbeat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch", h.launchApp).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/artifact", h.findArtifact).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.stopSession).Methods("DELETE")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/ws", h.handleVNCProxy)
 }
@@ -85,16 +86,28 @@ func (h *Handler) launchApp(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		AppPath string `json:"app_path"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.AppPath == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "app_path is required"})
-		return
-	}
+	// Allow empty body (auto-discover artifact)
+	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	if err := h.service.LaunchApp(extractSessionID(r), body.AppPath); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "launched"})
+}
+
+func (h *Handler) findArtifact(w http.ResponseWriter, r *http.Request) {
+	session, err := h.service.GetSession(extractSessionID(r))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	artifact, err := h.service.FindArtifact(session.ScenarioName)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"artifact_path": artifact})
 }
 
 func (h *Handler) stopSession(w http.ResponseWriter, r *http.Request) {

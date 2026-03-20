@@ -68,13 +68,20 @@ export async function listDesktopSessions(): Promise<DesktopSession[]> {
   return res.json();
 }
 
-export async function launchAppOnDesktop(id: string, appPath: string): Promise<void> {
+export async function launchAppOnDesktop(id: string, appPath?: string): Promise<void> {
   const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/launch`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ app_path: appPath }),
+    body: JSON.stringify(appPath ? { app_path: appPath } : {}),
   });
   await throwIfNotOk(res);
+}
+
+export async function findArtifact(id: string): Promise<string> {
+  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/artifact`));
+  await throwIfNotOk(res);
+  const data: { artifact_path: string } = await res.json();
+  return data.artifact_path;
 }
 
 /**

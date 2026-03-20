@@ -1,7 +1,8 @@
-import { Square, Maximize2, Minimize2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { Square, Maximize2, Minimize2, Play } from "lucide-react";
+import { useState, useCallback, useEffect, type RefObject } from "react";
 import { Button } from "../ui/button";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
+import { launchAppOnDesktop } from "../../lib/api/livedesktop";
 import type { ConnectionStatus } from "../../lib/api/livedesktop";
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
@@ -18,19 +19,48 @@ const STATUS_LABELS: Record<ConnectionStatus, string> = {
   error: "Error",
 };
 
-export function DesktopToolbar() {
+interface DesktopToolbarProps {
+  fullscreenTargetRef: RefObject<HTMLDivElement | null>;
+}
+
+export function DesktopToolbar({ fullscreenTargetRef }: DesktopToolbarProps) {
   const connectionStatus = useLiveDesktopStore((s) => s.connectionStatus);
   const activeSession = useLiveDesktopStore((s) => s.activeSession);
+  const appPath = useLiveDesktopStore((s) => s.appPath);
   const stopSession = useLiveDesktopStore((s) => s.stopSession);
+  const setError = useLiveDesktopStore((s) => s.setError);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [launching, setLaunching] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
 
   const toggleFullscreen = useCallback(() => {
+    const target = fullscreenTargetRef.current;
+    if (!target) return;
+
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+      target.requestFullscreen().catch(() => {});
     } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+      document.exitFullscreen().catch(() => {});
     }
-  }, []);
+  }, [fullscreenTargetRef]);
+
+  const handleLaunchApp = useCallback(async () => {
+    if (!activeSession) return;
+    setLaunching(true);
+    try {
+      // Pass appPath if available, otherwise the backend auto-discovers the artifact
+      await launchAppOnDesktop(activeSession.id, appPath ?? undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to launch app");
+    } finally {
+      setLaunching(false);
+    }
+  }, [activeSession, appPath, setError]);
 
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-slate-800 bg-slate-900/80">
@@ -50,6 +80,21 @@ export function DesktopToolbar() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Launch App */}
+        {connectionStatus === "connected" && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleLaunchApp()}
+            disabled={launching}
+            className="border-emerald-800/60 text-emerald-300 hover:bg-emerald-950/30 hover:text-emerald-200"
+          >
+            <Play className="mr-1.5 h-3.5 w-3.5" />
+            {launching ? "Launching..." : "Launch App"}
+          </Button>
+        )}
+
         {/* Fullscreen toggle */}
         <Button
           type="button"
