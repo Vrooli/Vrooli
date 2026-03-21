@@ -3,9 +3,12 @@ import {
   startDesktopSession,
   stopDesktopSession,
   heartbeatSession,
+  getDesktopSession,
+  executeDesktopControl,
   type DesktopSession,
   type DesktopSessionConfig,
   type ConnectionStatus,
+  type ControlResult,
 } from "../lib/api/livedesktop";
 
 interface LiveDesktopState {
@@ -24,6 +27,8 @@ interface LiveDesktopActions {
   stopSession: () => Promise<void>;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setError: (error: string | null) => void;
+  executeControl: (action: string, params?: Record<string, unknown>) => Promise<ControlResult>;
+  refreshSession: () => Promise<void>;
 }
 
 export type LiveDesktopStore = LiveDesktopState & LiveDesktopActions;
@@ -126,4 +131,29 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 
   setError: (error) => set({ error, connectionStatus: error ? "error" : get().connectionStatus }),
+
+  executeControl: async (action, params) => {
+    const { activeSession } = get();
+    if (!activeSession) throw new Error("No active session");
+    const result = await executeDesktopControl(activeSession.id, { action, params });
+    // Refresh session state after control action
+    try {
+      const updated = await getDesktopSession(activeSession.id);
+      set({ activeSession: updated });
+    } catch {
+      // Best effort refresh
+    }
+    return result;
+  },
+
+  refreshSession: async () => {
+    const { activeSession } = get();
+    if (!activeSession) return;
+    try {
+      const updated = await getDesktopSession(activeSession.id);
+      set({ activeSession: updated });
+    } catch {
+      // Best effort
+    }
+  },
 }));

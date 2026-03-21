@@ -1699,4 +1699,18 @@ interface WindowState {
 - **Purpose**: Bridges browser WebSocket to websockify, enabling single-origin VNC access
 - **Variation Point**: Could add authentication, rate limiting, or session recording
 
+#### Action Executor Seam
+- **Interface**: `livedesktop.ActionExecutor` (`api/livedesktop/action.go`)
+- **Purpose**: Each desktop control action (screenshot, recording, network mode, etc.) implements this interface for dispatch via the `/control` endpoint
+- **Default Implementation**: `LaunchAppAction`, `QuitAppAction`, `ScreenshotAction`, `OfflineModeAction`, `DarkModeAction`, `LocaleAction`, etc.
+- **Registry**: `actionRegistry` map in `action.go` — new actions are added by implementing the interface and registering in `init()`
+- **Test Double**: Actions are tested directly with mock `ShellFunc` and mock `Recorder`
+
+#### ShellFunc Seam
+- **Type**: `livedesktop.ShellFunc` (`api/livedesktop/action.go`)
+- **Purpose**: Abstracts all shell command execution (xwd, ffmpeg, xrandr, xclip, unshare, tc) for testability
+- **Default Implementation**: `defaultShell` — wraps `exec.CommandContext`
+- **Test Double**: `mockShell` in `api/livedesktop/action_test.go` — records invocations and returns configurable output
+- **Injected via**: `Service.shell` field (set during construction, overridable in tests)
+
 **Status**: ✅ Implemented

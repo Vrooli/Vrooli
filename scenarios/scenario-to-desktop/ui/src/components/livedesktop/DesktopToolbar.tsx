@@ -1,8 +1,8 @@
-import { Square, Maximize2, Minimize2, Play, AlertCircle, X, Monitor } from "lucide-react";
-import { useState, useCallback, useEffect, useRef, type RefObject } from "react";
+import { Square, Maximize2, Minimize2, X, Monitor } from "lucide-react";
+import { useState, useCallback, useEffect, type RefObject } from "react";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
-import { launchAppOnDesktop } from "../../lib/api/livedesktop";
 import type { ConnectionStatus } from "../../lib/api/livedesktop";
+import { DesktopControlsMenu } from "./DesktopControlsMenu";
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
   disconnected: "bg-slate-500",
@@ -20,12 +20,8 @@ export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarP
   const connectionStatus = useLiveDesktopStore((s) => s.connectionStatus);
   const activeSession = useLiveDesktopStore((s) => s.activeSession);
   const scenarioName = useLiveDesktopStore((s) => s.scenarioName);
-  const appPath = useLiveDesktopStore((s) => s.appPath);
   const stopSession = useLiveDesktopStore((s) => s.stopSession);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [launching, setLaunching] = useState(false);
-  const [launchError, setLaunchError] = useState<string | null>(null);
-  const launchInFlight = useRef(false);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -43,22 +39,6 @@ export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarP
       document.exitFullscreen().catch(() => {});
     }
   }, [fullscreenTargetRef]);
-
-  const handleLaunchApp = useCallback(async () => {
-    if (!activeSession || launchInFlight.current) return;
-    launchInFlight.current = true;
-    setLaunching(true);
-    setLaunchError(null);
-    try {
-      await launchAppOnDesktop(activeSession.id, appPath ?? undefined);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to launch app";
-      setLaunchError(msg);
-    } finally {
-      setLaunching(false);
-      launchInFlight.current = false;
-    }
-  }, [activeSession, appPath]);
 
   return (
     <div className="border-b border-slate-800 bg-slate-900/80 shrink-0">
@@ -82,18 +62,8 @@ export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarP
 
         {/* Right: action buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Launch App */}
-          {connectionStatus === "connected" && (
-            <button
-              type="button"
-              onClick={() => void handleLaunchApp()}
-              disabled={launching}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-emerald-300 border border-emerald-800/50 hover:bg-emerald-950/30 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              <Play className="h-3 w-3" />
-              {launching ? "Launching..." : "Launch App"}
-            </button>
-          )}
+          {/* Controls menu */}
+          {connectionStatus === "connected" && <DesktopControlsMenu />}
 
           {/* Fullscreen toggle */}
           <button
@@ -129,21 +99,6 @@ export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarP
           </button>
         </div>
       </div>
-
-      {/* Inline launch error banner */}
-      {launchError && (
-        <div className="flex items-center gap-2 px-3 py-1 bg-red-950/40 border-t border-red-800/40">
-          <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
-          <span className="text-[11px] text-red-300 truncate flex-1">{launchError}</span>
-          <button
-            type="button"
-            onClick={() => setLaunchError(null)}
-            className="text-red-400 hover:text-red-200 p-0.5"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

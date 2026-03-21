@@ -36,6 +36,16 @@ type Session struct {
 	Width         int                             `json:"width"`
 	Height        int                             `json:"height"`
 
+	// Control state
+	IsRecording   bool              `json:"-"`
+	CaptureID     string            `json:"-"`
+	NetworkMode   string            `json:"network_mode"`
+	BandwidthKbps int               `json:"bandwidth_kbps,omitempty"`
+	EnvVars       map[string]string `json:"-"`
+	DarkMode      bool              `json:"dark_mode"`
+	Locale        string            `json:"locale,omitempty"`
+	AppRunning    bool              `json:"app_running"`
+
 	mu sync.Mutex
 }
 
@@ -81,6 +91,12 @@ type SessionView struct {
 	CreatedAt     time.Time    `json:"created_at"`
 	LastHeartbeat time.Time    `json:"last_heartbeat"`
 	Error         string       `json:"error,omitempty"`
+	IsRecording   bool         `json:"is_recording"`
+	NetworkMode   string       `json:"network_mode"`
+	BandwidthKbps int          `json:"bandwidth_kbps,omitempty"`
+	DarkMode      bool         `json:"dark_mode"`
+	Locale        string       `json:"locale,omitempty"`
+	AppRunning    bool         `json:"app_running"`
 }
 
 // View returns a JSON-safe snapshot of the session.
@@ -98,5 +114,69 @@ func (s *Session) View() SessionView {
 		CreatedAt:     s.CreatedAt,
 		LastHeartbeat: s.LastHeartbeat,
 		Error:         s.Error,
+		IsRecording:   s.IsRecording,
+		NetworkMode:   s.NetworkMode,
+		BandwidthKbps: s.BandwidthKbps,
+		DarkMode:      s.DarkMode,
+		Locale:        s.Locale,
+		AppRunning:    s.AppRunning,
 	}
+}
+
+// SetNetworkMode updates the network mode under lock.
+func (s *Session) SetNetworkMode(mode string, bandwidthKbps int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.NetworkMode = mode
+	s.BandwidthKbps = bandwidthKbps
+}
+
+// SetRecording updates the recording state under lock.
+func (s *Session) SetRecording(recording bool, captureID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.IsRecording = recording
+	s.CaptureID = captureID
+}
+
+// SetDarkMode updates the dark mode state under lock.
+func (s *Session) SetDarkMode(enabled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.DarkMode = enabled
+}
+
+// SetLocale updates the locale under lock.
+func (s *Session) SetLocale(locale string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Locale = locale
+}
+
+// SetAppRunning updates the app running state under lock.
+func (s *Session) SetAppRunning(running bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.AppRunning = running
+}
+
+// SetEnvVars sets the environment variables under lock.
+func (s *Session) SetEnvVars(vars map[string]string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.EnvVars = vars
+}
+
+// GetEnvVars returns a copy of the environment variables under lock.
+func (s *Session) GetEnvVars() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.EnvVars == nil {
+		return nil
+	}
+	cp := make(map[string]string, len(s.EnvVars))
+	for k, v := range s.EnvVars {
+		cp[k] = v
+	}
+	return cp
 }

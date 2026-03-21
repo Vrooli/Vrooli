@@ -17,6 +17,12 @@ export interface DesktopSession {
   created_at: string;
   last_heartbeat: string;
   error?: string;
+  is_recording: boolean;
+  network_mode: "normal" | "offline" | "slow";
+  bandwidth_kbps?: number;
+  dark_mode: boolean;
+  locale?: string;
+  app_running: boolean;
 }
 
 export interface DesktopSessionConfig {
@@ -82,6 +88,31 @@ export async function findArtifact(id: string): Promise<string> {
   await throwIfNotOk(res);
   const data: { artifact_path: string } = await res.json();
   return data.artifact_path;
+}
+
+// ============================================================================
+// Control Actions
+// ============================================================================
+
+export interface ControlRequest {
+  action: string;
+  params?: Record<string, unknown>;
+}
+
+export interface ControlResult {
+  status: string;
+  data?: Record<string, unknown>;
+  message?: string;
+}
+
+export async function executeDesktopControl(id: string, req: ControlRequest): Promise<ControlResult> {
+  const res = await fetch(buildUrl(`/livedesktop/sessions/${encodeURIComponent(id)}/control`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  await throwIfNotOk(res);
+  return res.json();
 }
 
 /**

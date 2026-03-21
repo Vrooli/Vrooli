@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -26,6 +28,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/heartbeat", h.heartbeat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch", h.launchApp).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/artifact", h.findArtifact).Methods("GET")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/control", h.controlAction).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/files/{filename}", h.serveFile).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.stopSession).Methods("DELETE")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/ws", h.handleVNCProxy)
 }
@@ -116,6 +120,51 @@ func (h *Handler) stopSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
+}
+
+func (h *Handler) controlAction(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Action string          `json:"action"`
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if body.Action == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "action is required"})
+		return
+	}
+
+	result, err := h.service.ExecuteAction(r.Context(), extractSessionID(r), body.Action, body.Params)
+	if err != nil {
+		errMsg := err.Error()
+		switch {
+		case strings.Contains(errMsg, "not found"):
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": errMsg})
+		case strings.Contains(errMsg, "unknown action"):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": errMsg})
+		default:
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": errMsg})
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sessionID := vars["id"]
+	filename := vars["filename"]
+
+	// Validate filename to prevent path traversal
+	if strings.Contains(filename, "/") || strings.Contains(filename, "\\") || strings.Contains(filename, "..") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid filename"})
+		return
+	}
+
+	filePath := filepath.Join(h.service.dataDir, "sessions", sessionID, filename)
+	http.ServeFile(w, r, filePath)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

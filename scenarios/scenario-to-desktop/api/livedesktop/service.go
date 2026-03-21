@@ -2,6 +2,7 @@ package livedesktop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -30,6 +31,9 @@ type Service struct {
 	vrooliRoot string
 	startVNC   VNCStartFunc
 	stopVNC    VNCStopFunc
+	recorder   screenrecording.Recorder
+	shell      ShellFunc
+	dataDir    string
 }
 
 // NewService creates a new live desktop service.
@@ -41,7 +45,19 @@ func NewService(store Store, displayMgr screenrecording.DisplayManager, logger *
 		vrooliRoot: vrooliRoot,
 		startVNC:   startVNCSession,
 		stopVNC:    stopVNCProcesses,
+		shell:      defaultShell,
+		dataDir:    filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"),
 	}
+}
+
+// WithRecorder sets the screen recorder on the service.
+func (s *Service) WithRecorder(r screenrecording.Recorder) {
+	s.recorder = r
+}
+
+// WithDataDir overrides the data directory for screenshots and recordings.
+func (s *Service) WithDataDir(dir string) {
+	s.dataDir = dir
 }
 
 // StartSession creates a new live desktop session with VNC access.
@@ -164,23 +180,108 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	// Kill any previously launched app process to prevent pileup
 	s.killAppProcess(session)
 
-	cmd := exec.CommandContext(context.Background(), appPath)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("DISPLAY=%s", session.Display.DisplayID))
+	// Build command and environment based on session control state
+	session.mu.Lock()
+	networkMode := session.NetworkMode
+	bandwidthKbps := session.BandwidthKbps
+	darkMode := session.DarkMode
+	locale := session.Locale
+	envVars := make(map[string]string)
+	for k, v := range session.EnvVars {
+		envVars[k] = v
+	}
+	session.mu.Unlock()
+
+	// Build environment
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("DISPLAY=%s", session.Display.DisplayID))
+
+	// Apply custom env vars
+	for k, v := range envVars {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Apply dark mode
+	if darkMode {
+		env = append(env, "GTK_THEME=Adwaita:dark")
+	}
+
+	// Apply locale
+	if locale != "" {
+		env = append(env, fmt.Sprintf("LANG=%s", locale))
+		env = append(env, fmt.Sprintf("LC_ALL=%s", locale))
+	}
+
+	// Build command args based on network mode
+	var cmdName string
+	var cmdArgs []string
+
+	switch networkMode {
+	case "offline":
+		cmdName = "unshare"
+		cmdArgs = []string{"--net", appPath}
+	case "slow":
+		// Use unshare + tc for bandwidth limiting
+		tcCmd := fmt.Sprintf("tc qdisc add dev lo root tbf rate %dkbit burst 32kbit latency 400ms && exec %s",
+			bandwidthKbps, appPath)
+		cmdName = "unshare"
+		cmdArgs = []string{"--net", "sh", "-c", tcCmd}
+	default:
+		cmdName = appPath
+		cmdArgs = nil
+	}
+
+	// Append dark mode flag for Electron apps
+	if darkMode {
+		if cmdName == appPath {
+			cmdArgs = append(cmdArgs, "--force-dark-mode")
+		} else {
+			// For unshare-wrapped commands, the app path is in args
+			cmdArgs = append(cmdArgs, "--force-dark-mode")
+		}
+	}
+
+	cmd := exec.CommandContext(context.Background(), cmdName, cmdArgs...)
+	cmd.Env = env
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("launching app: %w", err)
 	}
 
 	session.mu.Lock()
 	session.AppCmd = cmd
+	session.AppRunning = true
 	session.mu.Unlock()
 
 	// Reap the process in the background so it doesn't become a zombie
 	go func() {
 		_ = cmd.Wait()
+		session.SetAppRunning(false)
 	}()
 
-	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath)
+	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath,
+		"network_mode", networkMode, "dark_mode", darkMode, "locale", locale)
 	return nil
+}
+
+// ExecuteAction dispatches a control action against a session.
+func (s *Service) ExecuteAction(ctx context.Context, sessionID, action string, params json.RawMessage) (*ActionResult, error) {
+	session, err := s.store.Get(sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	executor, err := lookupAction(action)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := executor.Execute(ctx, session, s, params)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.store.Update(session)
+	return result, nil
 }
 
 // killAppProcess kills and cleans up the app process for a session.
@@ -188,6 +289,7 @@ func (s *Service) killAppProcess(session *Session) {
 	session.mu.Lock()
 	cmd := session.AppCmd
 	session.AppCmd = nil
+	session.AppRunning = false
 	session.mu.Unlock()
 
 	if cmd != nil && cmd.Process != nil {

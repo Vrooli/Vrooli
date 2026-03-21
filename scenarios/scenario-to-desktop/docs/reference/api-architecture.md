@@ -393,6 +393,50 @@ type Status struct {
 
 ---
 
+## Live Desktop Control Endpoint
+
+The live desktop system exposes a unified control endpoint for executing desktop actions against active VNC sessions.
+
+### Control Endpoint
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/livedesktop/sessions/{id}/control` | Execute a control action |
+| `GET` | `/api/v1/livedesktop/sessions/{id}/files/{filename}` | Serve captured files (screenshots, recordings) |
+
+### Control Request Format
+
+```json
+{
+  "action": "screenshot",
+  "params": {}
+}
+```
+
+### Available Actions
+
+| Action | Category | Description |
+|--------|----------|-------------|
+| `launch_app` | App | Launch the scenario's app on the display |
+| `quit_app` | App | Kill the running app |
+| `screenshot` | App | Capture PNG screenshot |
+| `start_recording` | App | Begin screen recording |
+| `stop_recording` | App | Stop recording, return video URL |
+| `offline_mode` | Environment | Toggle network isolation via `unshare --net` |
+| `slow_connection` | Environment | Bandwidth throttling via `tc` |
+| `inject_env` | Environment | Set environment variables for next app launch |
+| `resize_display` | Environment | Change display resolution via `xrandr` |
+| `clipboard_read` | Advanced | Read clipboard (requires xclip) |
+| `clipboard_write` | Advanced | Write to clipboard (requires xclip) |
+| `dark_mode` | Advanced | Toggle GTK dark theme and Electron `--force-dark-mode` |
+| `locale` | Advanced | Set locale (LANG, LC_ALL) |
+
+### Architecture
+
+Actions implement the `ActionExecutor` interface and are registered in an action registry. Shell commands go through an injectable `ShellFunc` seam for testability. See [SEAMS.md](../internal/SEAMS.md) for details.
+
+---
+
 ## Key Design Patterns
 
 1. **Screaming Architecture**: File names express domain purpose (`build_compiler.go`, `platform.go`)
