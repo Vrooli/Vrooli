@@ -23,6 +23,7 @@ import { highlightCode, getLanguageFromPath, type HighlightToken, type Highlight
 import { getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
+import { Popover } from "./ui/popover";
 import { formatPath } from "../lib/utils";
 
 interface DiffViewerProps {
@@ -979,7 +980,29 @@ export function DiffViewer({
                 <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
               )}
               {selectedFile ? (
-                <span className="font-mono text-xs truncate" title={selectedFile}>{displayPath}</span>
+                <Popover
+                  align="start"
+                  trigger={
+                    <span className="font-mono text-xs truncate cursor-pointer hover:text-blue-300 transition-colors">{displayPath}</span>
+                  }
+                >
+                  <div className="p-3 flex items-center gap-2 max-w-[90vw]">
+                    <span className="font-mono text-xs text-slate-200 break-all select-all flex-1">{absolutePath || selectedFile}</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                      onClick={handleCopyPath}
+                      title={copied ? "Copied" : "Copy path"}
+                      aria-label="Copy path"
+                    >
+                      {copied ? (
+                        <Check className="text-emerald-300 h-3.5 w-3.5" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </Popover>
               ) : (
                 <span className="text-xs">Diff Viewer</span>
               )}

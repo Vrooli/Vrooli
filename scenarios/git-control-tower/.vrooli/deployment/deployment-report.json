@@ -6,281 +6,87 @@
     {
       "name": "sqlite",
       "type": "resource",
-      "required": true,
-      "enabled": true,
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
       "tier_support": {
         "desktop": {
           "supported": true,
-          "fitness_score": 0.9
+          "fitness_score": 0.9,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "enterprise": {
           "supported": true,
-          "fitness_score": 0.98
+          "fitness_score": 0.98,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "local": {
           "supported": true,
-          "fitness_score": 1
+          "fitness_score": 1,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "mobile": {
           "supported": true,
-          "fitness_score": 0.4
+          "fitness_score": 0.4,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "saas": {
           "supported": true,
-          "fitness_score": 0.85
+          "fitness_score": 0.85,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         },
         "server": {
           "supported": true,
-          "fitness_score": 0.95
+          "fitness_score": 0.95,
+          "notes": "",
+          "reason": "",
+          "alternatives": null
         }
       },
+      "alternatives": null,
       "source": "declared"
     },
     {
       "name": "agent-manager",
       "type": "scenario",
-      "path": "../../agent-manager",
-      "required": false,
-      "enabled": false,
-      "source": "declared",
-      "children": [
-        {
-          "name": "claude-code",
-          "type": "resource",
-          "required": false,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": true,
-              "fitness_score": 0.4
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "codex",
-          "type": "resource",
-          "required": false,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": true,
-              "fitness_score": 0.4
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "ollama",
-          "type": "resource",
-          "required": false,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.6
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0,
-              "reason": "Resource-intensive AI not supported on mobile"
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.3,
-              "notes": "Consider using managed AI API for SaaS deployment",
-              "alternatives": [
-                "openai",
-                "anthropic",
-                "openrouter"
-              ]
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "opencode",
-          "type": "resource",
-          "required": false,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": true,
-              "fitness_score": 0.4
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "sqlite",
-          "type": "resource",
-          "required": false,
-          "enabled": false,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": true,
-              "fitness_score": 0.4
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "workspace-sandbox",
-          "type": "scenario",
-          "path": "../../workspace-sandbox",
-          "required": true,
-          "enabled": true,
-          "source": "declared",
-          "children": [
-            {
-              "name": "postgres",
-              "type": "resource",
-              "required": true,
-              "enabled": true,
-              "tier_support": {
-                "desktop": {
-                  "supported": true,
-                  "fitness_score": 0.6
-                },
-                "enterprise": {
-                  "supported": true,
-                  "fitness_score": 0.98
-                },
-                "local": {
-                  "supported": true,
-                  "fitness_score": 1
-                },
-                "mobile": {
-                  "supported": false,
-                  "fitness_score": 0.2,
-                  "reason": "Database should be remote for mobile deployments",
-                  "alternatives": [
-                    "saas-variant",
-                    "cloud-variant"
-                  ]
-                },
-                "saas": {
-                  "supported": true,
-                  "fitness_score": 0.95
-                },
-                "server": {
-                  "supported": true,
-                  "fitness_score": 0.95
-                }
-              },
-              "source": "declared"
-            }
-          ]
-        }
-      ]
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
+      "source": "declared"
     },
     {
       "name": "browser-automation-studio",
       "type": "scenario",
-      "path": "../../browser-automation-studio",
-      "required": false,
-      "enabled": false,
+      "resource_type": "",
       "requirements": {
         "ram_mb": 8192,
         "disk_mb": 12288,
         "cpu_cores": 4,
-        "gpu": false,
         "network": "required",
-        "storage_mb_per_user": 200,
-        "startup_time_ms": 45000,
-        "bucket": "large",
         "source": "estimated",
         "confidence": "medium"
       },
@@ -289,53 +95,36 @@
           "supported": true,
           "fitness_score": 0.85,
           "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
-          "requirements": {
-            "ram_mb": 8192,
-            "disk_mb": 12288,
-            "cpu_cores": 4,
-            "network": "required",
-            "bucket": "large",
-            "source": "estimated",
-            "confidence": "medium"
-          }
+          "reason": "",
+          "alternatives": null
         },
         "tier-2-desktop": {
           "supported": false,
           "fitness_score": 0.35,
           "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
-          "requirements": {
-            "ram_mb": 6144,
-            "disk_mb": 8192,
-            "cpu_cores": 4,
-            "network": "optional",
-            "bucket": "large",
-            "source": "estimated",
-            "confidence": "low"
-          }
+          "reason": "",
+          "alternatives": null
         },
         "tier-3-mobile": {
           "supported": false,
           "fitness_score": 0.1,
-          "notes": "Needs entirely different orchestration model"
+          "notes": "Needs entirely different orchestration model",
+          "reason": "",
+          "alternatives": null
         },
         "tier-4-saas": {
           "supported": false,
           "fitness_score": 0.6,
           "notes": "Viable once deployment-manager can provision Browserless pools and managed storage",
-          "requirements": {
-            "ram_mb": 10240,
-            "disk_mb": 16384,
-            "cpu_cores": 6,
-            "network": "required",
-            "bucket": "large",
-            "source": "estimated",
-            "confidence": "low"
-          }
+          "reason": "",
+          "alternatives": null
         },
         "tier-5-enterprise": {
           "supported": false,
           "fitness_score": 0.55,
-          "notes": "Follows SaaS path but with hardened secrets + monitoring"
+          "notes": "Follows SaaS path but with hardened secrets + monitoring",
+          "reason": "",
+          "alternatives": null
         }
       },
       "alternatives": [
@@ -343,410 +132,62 @@
         "playwright-packaged",
         "sqlite"
       ],
-      "source": "declared",
-      "children": [
-        {
-          "name": "minio",
-          "type": "resource",
-          "resource_type": "object-storage",
-          "required": true,
-          "enabled": true,
-          "requirements": {
-            "ram_mb": 512,
-            "disk_mb": 2048,
-            "cpu_cores": 1,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "tier_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.8,
-              "notes": "Shared MinIO resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.3,
-              "reason": "Requires bundled object storage process",
-              "alternatives": [
-                "filesystem-store"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.7,
-              "notes": "Map to S3/Spaces bucket"
-            }
-          },
-          "alternatives": [
-            "filesystem-store"
-          ],
-          "source": "declared"
-        },
-        {
-          "name": "ollama",
-          "type": "resource",
-          "resource_type": "llm-server",
-          "required": false,
-          "enabled": true,
-          "requirements": {
-            "ram_mb": 4096,
-            "disk_mb": 8192,
-            "cpu_cores": 4,
-            "gpu": false,
-            "network": "optional",
-            "source": "estimated",
-            "confidence": "low"
-          },
-          "tier_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.6,
-              "notes": "Optional but heavy"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Model download sizes exceed desktop bundle budget",
-              "alternatives": [
-                "openrouter"
-              ]
-            }
-          },
-          "alternatives": [
-            "openrouter"
-          ],
-          "source": "declared"
-        },
-        {
-          "name": "openrouter",
-          "type": "resource",
-          "resource_type": "llm-api",
-          "required": true,
-          "enabled": true,
-          "requirements": {
-            "network": "required",
-            "source": "manual",
-            "confidence": "medium"
-          },
-          "tier_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.7,
-              "notes": "Used when Ollama disabled"
-            },
-            "tier-2-desktop": {
-              "supported": true,
-              "fitness_score": 0.5,
-              "reason": "Requires user-provided API key and network"
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "playwright",
-          "type": "resource",
-          "required": true,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.6
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0.1,
-              "reason": "Heavy operations not suitable for mobile"
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "postgres",
-          "type": "resource",
-          "resource_type": "database",
-          "required": true,
-          "enabled": true,
-          "requirements": {
-            "ram_mb": 768,
-            "disk_mb": 4096,
-            "cpu_cores": 1,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "tier_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.9,
-              "notes": "Uses shared postgres resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Desktop install would need embedded database service",
-              "alternatives": [
-                "sqlite"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.7,
-              "notes": "Needs managed PaaS provisioning"
-            }
-          },
-          "alternatives": [
-            "sqlite"
-          ],
-          "source": "declared"
-        }
-      ]
+      "source": "declared"
     },
     {
       "name": "test-genie",
       "type": "scenario",
-      "path": "../../test-genie",
-      "required": false,
-      "enabled": false,
-      "source": "declared",
-      "children": [
-        {
-          "name": "postgres",
-          "type": "resource",
-          "required": true,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.6
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Database should be remote for mobile deployments",
-              "alternatives": [
-                "saas-variant",
-                "cloud-variant"
-              ]
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.95
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        }
-      ]
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
+      "source": "declared"
     },
     {
       "name": "tidiness-manager",
       "type": "scenario",
-      "path": "../../tidiness-manager",
-      "required": false,
-      "enabled": false,
-      "source": "declared",
-      "children": [
-        {
-          "name": "claude-code",
-          "type": "resource",
-          "required": false,
-          "enabled": false,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": true,
-              "fitness_score": 0.4
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.85
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "postgres",
-          "type": "resource",
-          "required": true,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.6
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Database should be remote for mobile deployments",
-              "alternatives": [
-                "saas-variant",
-                "cloud-variant"
-              ]
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.95
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "redis",
-          "type": "resource",
-          "required": false,
-          "enabled": false,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.9
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Database should be remote for mobile deployments",
-              "alternatives": [
-                "saas-variant",
-                "cloud-variant"
-              ]
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.95
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        },
-        {
-          "name": "visited-tracker",
-          "type": "scenario",
-          "path": "../../visited-tracker",
-          "required": false,
-          "enabled": false,
-          "source": "declared"
-        }
-      ]
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
+      "source": "declared"
     },
     {
       "name": "workspace-sandbox",
       "type": "scenario",
-      "path": "../../workspace-sandbox",
-      "required": false,
-      "enabled": false,
-      "source": "declared",
-      "children": [
-        {
-          "name": "postgres",
-          "type": "resource",
-          "required": true,
-          "enabled": true,
-          "tier_support": {
-            "desktop": {
-              "supported": true,
-              "fitness_score": 0.6
-            },
-            "enterprise": {
-              "supported": true,
-              "fitness_score": 0.98
-            },
-            "local": {
-              "supported": true,
-              "fitness_score": 1
-            },
-            "mobile": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Database should be remote for mobile deployments",
-              "alternatives": [
-                "saas-variant",
-                "cloud-variant"
-              ]
-            },
-            "saas": {
-              "supported": true,
-              "fitness_score": 0.95
-            },
-            "server": {
-              "supported": true,
-              "fitness_score": 0.95
-            }
-          },
-          "source": "declared"
-        }
-      ]
+      "resource_type": "",
+      "requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0,
+        "network": "",
+        "source": "",
+        "confidence": ""
+      },
+      "tier_support": null,
+      "alternatives": null,
+      "source": "declared"
     }
   ],
   "aggregates": {
     "desktop": {
       "fitness_score": 0.9,
       "dependency_count": 1,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -756,6 +197,7 @@
     "enterprise": {
       "fitness_score": 0.98,
       "dependency_count": 1,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -765,6 +207,7 @@
     "local": {
       "fitness_score": 1,
       "dependency_count": 1,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -786,6 +229,7 @@
     "saas": {
       "fitness_score": 0.85,
       "dependency_count": 1,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
@@ -795,830 +239,12 @@
     "server": {
       "fitness_score": 0.95,
       "dependency_count": 1,
+      "blocking_dependencies": null,
       "estimated_requirements": {
         "ram_mb": 0,
         "disk_mb": 0,
         "cpu_cores": 0
       }
     }
-  },
-  "bundle_manifest": {
-    "scenario": "git-control-tower",
-    "generated_at": "2026-03-19T16:40:13.370166173Z",
-    "files": [
-      {
-        "path": ".vrooli/service.json",
-        "type": "service-config",
-        "exists": true
-      },
-      {
-        "path": "api",
-        "type": "api-source",
-        "exists": true
-      },
-      {
-        "path": "api/git-control-tower-api",
-        "type": "api-binary",
-        "exists": true,
-        "notes": "Detected api component (go)"
-      },
-      {
-        "path": "cli",
-        "type": "cli-source",
-        "exists": true
-      },
-      {
-        "path": "cli/git-control-tower",
-        "type": "cli-binary",
-        "exists": true,
-        "notes": "Detected cli component (go)"
-      },
-      {
-        "path": "ui/dist",
-        "type": "ui-bundle",
-        "exists": true
-      },
-      {
-        "path": "ui/dist/index.html",
-        "type": "ui-entry",
-        "exists": true,
-        "notes": "Detected UI component (typescript)"
-      }
-    ],
-    "dependencies": [
-      {
-        "name": "claude-code",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "codex",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "minio",
-        "type": "resource",
-        "resource_type": "object-storage",
-        "tier_support": {
-          "tier-1-local": {
-            "supported": true,
-            "fitness_score": 0.8,
-            "notes": "Shared MinIO resource"
-          },
-          "tier-2-desktop": {
-            "supported": false,
-            "fitness_score": 0.3,
-            "reason": "Requires bundled object storage process",
-            "alternatives": [
-              "filesystem-store"
-            ]
-          },
-          "tier-4-saas": {
-            "supported": true,
-            "fitness_score": 0.7,
-            "notes": "Map to S3/Spaces bucket"
-          }
-        },
-        "alternatives": [
-          "filesystem-store"
-        ]
-      },
-      {
-        "name": "ollama",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0,
-            "reason": "Resource-intensive AI not supported on mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.3,
-            "notes": "Consider using managed AI API for SaaS deployment",
-            "alternatives": [
-              "openai",
-              "anthropic",
-              "openrouter"
-            ]
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "opencode",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "openrouter",
-        "type": "resource",
-        "resource_type": "llm-api",
-        "tier_support": {
-          "tier-1-local": {
-            "supported": true,
-            "fitness_score": 0.7,
-            "notes": "Used when Ollama disabled"
-          },
-          "tier-2-desktop": {
-            "supported": true,
-            "fitness_score": 0.5,
-            "reason": "Requires user-provided API key and network"
-          }
-        }
-      },
-      {
-        "name": "playwright",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "reason": "Heavy operations not suitable for mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "postgres",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-variant",
-              "cloud-variant"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "redis",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.2,
-            "reason": "Database should be remote for mobile deployments",
-            "alternatives": [
-              "saas-variant",
-              "cloud-variant"
-            ]
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.95
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "sqlite",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.9
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": true,
-            "fitness_score": 0.4
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "agent-manager",
-        "type": "scenario"
-      },
-      {
-        "name": "browser-automation-studio",
-        "type": "scenario",
-        "tier_support": {
-          "tier-1-local": {
-            "supported": true,
-            "fitness_score": 0.85,
-            "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
-            "requirements": {
-              "ram_mb": 8192,
-              "disk_mb": 12288,
-              "cpu_cores": 4,
-              "network": "required",
-              "bucket": "large",
-              "source": "estimated",
-              "confidence": "medium"
-            }
-          },
-          "tier-2-desktop": {
-            "supported": false,
-            "fitness_score": 0.35,
-            "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
-            "requirements": {
-              "ram_mb": 6144,
-              "disk_mb": 8192,
-              "cpu_cores": 4,
-              "network": "optional",
-              "bucket": "large",
-              "source": "estimated",
-              "confidence": "low"
-            }
-          },
-          "tier-3-mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "notes": "Needs entirely different orchestration model"
-          },
-          "tier-4-saas": {
-            "supported": false,
-            "fitness_score": 0.6,
-            "notes": "Viable once deployment-manager can provision Browserless pools and managed storage",
-            "requirements": {
-              "ram_mb": 10240,
-              "disk_mb": 16384,
-              "cpu_cores": 6,
-              "network": "required",
-              "bucket": "large",
-              "source": "estimated",
-              "confidence": "low"
-            }
-          },
-          "tier-5-enterprise": {
-            "supported": false,
-            "fitness_score": 0.55,
-            "notes": "Follows SaaS path but with hardened secrets + monitoring"
-          }
-        },
-        "alternatives": [
-          "filesystem-store",
-          "playwright-packaged",
-          "sqlite"
-        ]
-      },
-      {
-        "name": "test-genie",
-        "type": "scenario"
-      },
-      {
-        "name": "tidiness-manager",
-        "type": "scenario"
-      },
-      {
-        "name": "visited-tracker",
-        "type": "scenario"
-      },
-      {
-        "name": "workspace-sandbox",
-        "type": "scenario"
-      }
-    ],
-    "skeleton": {
-      "schema_version": "v0.1",
-      "target": "desktop",
-      "app": {
-        "name": "git-control-tower",
-        "version": "1.3.0",
-        "description": "Agent-friendly git repository control plane (REST API + CLI + UI)"
-      },
-      "ipc": {
-        "mode": "loopback-http",
-        "host": "127.0.0.1",
-        "port": 39200,
-        "auth_token_path": "runtime/auth_token"
-      },
-      "telemetry": {
-        "file": "telemetry/deployment-telemetry.jsonl"
-      },
-      "ports": {
-        "default_range": {
-          "min": 20000,
-          "max": 24000
-        }
-      },
-      "swaps": [
-        {
-          "original": "minio",
-          "replacement": "filesystem-store",
-          "reason": "Recommended bundle-safe alternative from dependency metadata"
-        },
-        {
-          "original": "ollama",
-          "replacement": "openrouter",
-          "reason": "Recommended bundle-safe alternative from dependency metadata"
-        },
-        {
-          "original": "postgres",
-          "replacement": "sqlite",
-          "reason": "Recommended bundle-safe alternative from dependency metadata"
-        }
-      ],
-      "services": [
-        {
-          "id": "git-control-tower-api",
-          "type": "api-binary",
-          "description": "Bundled api process for git-control-tower",
-          "binaries": {
-            "darwin-x64": {
-              "path": "bin/api/darwin-x64/git-control-tower-api"
-            },
-            "linux-x64": {
-              "path": "bin/api/linux-x64/git-control-tower-api"
-            },
-            "win-x64": {
-              "path": "bin/api/win-x64/git-control-tower-api.exe"
-            }
-          },
-          "build": {
-            "type": "go",
-            "source_dir": "api",
-            "entry_point": ".",
-            "output_pattern": "bin/api/{{platform}}/git-control-tower-api{{ext}}",
-            "env": {
-              "CGO_ENABLED": "0"
-            }
-          },
-          "env": {
-            "API_PORT": "${git-control-tower-api.api}",
-            "VROOLI_LIFECYCLE_MANAGED": "true"
-          },
-          "data_dirs": [
-            "data/api"
-          ],
-          "log_dir": "logs/api",
-          "ports": {
-            "requested": [
-              {
-                "name": "api",
-                "range": {
-                  "min": 23100,
-                  "max": 23200
-                }
-              }
-            ]
-          },
-          "health": {
-            "type": "http",
-            "path": "/health",
-            "port_name": "api",
-            "interval_ms": 2000,
-            "timeout_ms": 15000,
-            "retries": 5
-          },
-          "readiness": {
-            "type": "health_success",
-            "port_name": "api",
-            "timeout_ms": 30000
-          }
-        },
-        {
-          "id": "git-control-tower-cli",
-          "type": "resource",
-          "description": "cli component for git-control-tower",
-          "binaries": {
-            "darwin-x64": {
-              "path": "bin/cli/darwin-x64/git-control-tower"
-            },
-            "linux-x64": {
-              "path": "bin/cli/linux-x64/git-control-tower"
-            },
-            "win-x64": {
-              "path": "bin/cli/win-x64/git-control-tower.exe"
-            }
-          },
-          "build": {
-            "type": "go",
-            "source_dir": "cli",
-            "entry_point": ".",
-            "output_pattern": "bin/cli/{{platform}}/git-control-tower{{ext}}",
-            "env": {
-              "CGO_ENABLED": "0"
-            }
-          },
-          "env": {
-            "VROOLI_LIFECYCLE_MANAGED": "true"
-          },
-          "health": {
-            "type": "command",
-            "command": [
-              "echo",
-              "healthy"
-            ],
-            "interval_ms": 10000,
-            "timeout_ms": 5000,
-            "retries": 1
-          },
-          "readiness": {
-            "type": "health_success",
-            "port_name": "http",
-            "timeout_ms": 5000
-          }
-        },
-        {
-          "id": "ui",
-          "type": "ui-bundle",
-          "description": "Production UI bundle for git-control-tower",
-          "binaries": {
-            "darwin-x64": {
-              "path": "ui/dist/index.html"
-            },
-            "linux-x64": {
-              "path": "ui/dist/index.html"
-            },
-            "win-x64": {
-              "path": "ui/dist/index.html"
-            }
-          },
-          "env": {
-            "UI_PORT": "${ui.ui}",
-            "VROOLI_LIFECYCLE_MANAGED": "true"
-          },
-          "log_dir": "logs/ui",
-          "ports": {
-            "requested": [
-              {
-                "name": "ui",
-                "range": {
-                  "min": 24100,
-                  "max": 24200
-                }
-              }
-            ]
-          },
-          "health": {
-            "type": "http",
-            "path": "/health",
-            "port_name": "ui",
-            "interval_ms": 2000,
-            "timeout_ms": 10000,
-            "retries": 3
-          },
-          "readiness": {
-            "type": "health_success",
-            "port_name": "ui",
-            "timeout_ms": 20000
-          },
-          "assets": [
-            {
-              "path": "ui/dist/index.html",
-              "sha256": "pending"
-            }
-          ],
-          "critical": true
-        }
-      ]
-    }
-  },
-  "metadata_gaps": {
-    "total_gaps": 67,
-    "scenarios_missing_all": 6,
-    "gaps_by_scenario": {
-      "agent-manager": {
-        "scenario_name": "agent-manager",
-        "scenario_path": "../../agent-manager",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      },
-      "browser-automation-studio": {
-        "scenario_name": "browser-automation-studio",
-        "scenario_path": "../../browser-automation-studio",
-        "has_deployment_block": true,
-        "missing_dependency_catalog": false,
-        "missing_tier_definitions": [
-          "desktop",
-          "enterprise",
-          "local",
-          "mobile",
-          "saas",
-          "server"
-        ],
-        "missing_resource_metadata": [
-          "playwright"
-        ]
-      },
-      "git-control-tower": {
-        "scenario_name": "git-control-tower",
-        "scenario_path": "../../git-control-tower",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      },
-      "test-genie": {
-        "scenario_name": "test-genie",
-        "scenario_path": "../../test-genie",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      },
-      "tidiness-manager": {
-        "scenario_name": "tidiness-manager",
-        "scenario_path": "../../tidiness-manager",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      },
-      "visited-tracker": {
-        "scenario_name": "visited-tracker",
-        "scenario_path": "../../visited-tracker",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      },
-      "workspace-sandbox": {
-        "scenario_name": "workspace-sandbox",
-        "scenario_path": "../../workspace-sandbox",
-        "has_deployment_block": false,
-        "missing_dependency_catalog": false,
-        "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
-        ]
-      }
-    },
-    "missing_tiers": [
-      "desktop",
-      "enterprise",
-      "local",
-      "mobile",
-      "saas",
-      "server"
-    ],
-    "secret_requirements": [
-      {
-        "dependency_name": "claude-code",
-        "dependency_type": "resource",
-        "secret_type": "ai_api_key",
-        "required_secrets": [
-          "claude-code_api_key"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/ai-api-keys.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "postgres",
-        "dependency_type": "resource",
-        "secret_type": "database_credentials",
-        "required_secrets": [
-          "postgres_password",
-          "postgres_user"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "minio",
-        "dependency_type": "resource",
-        "secret_type": "object_storage_credentials",
-        "required_secrets": [
-          "minio_access_key",
-          "minio_secret_key"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/object-storage.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "redis",
-        "dependency_type": "resource",
-        "secret_type": "cache_credentials",
-        "required_secrets": [
-          "redis_password"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
-        "priority": "required"
-      }
-    ],
-    "resource_swap_suggestions": [
-      {
-        "original_resource": "ollama",
-        "alternative_resource": "openrouter",
-        "reason": "Lighter alternative for SaaS/mobile deployments",
-        "applicable_tiers": [
-          "mobile",
-          "saas"
-        ],
-        "relationship": "api_alternative",
-        "impact_description": "Reduces deployment size and resource requirements"
-      },
-      {
-        "original_resource": "ollama",
-        "alternative_resource": "anthropic",
-        "reason": "Managed AI API for production deployments",
-        "applicable_tiers": [
-          "saas",
-          "enterprise"
-        ],
-        "relationship": "api_alternative",
-        "impact_description": "Better scalability and reliability"
-      },
-      {
-        "original_resource": "postgres",
-        "alternative_resource": "supabase",
-        "reason": "Managed PostgreSQL with built-in APIs",
-        "applicable_tiers": [
-          "mobile",
-          "saas"
-        ],
-        "relationship": "managed_service",
-        "impact_description": "Eliminates database management overhead"
-      },
-      {
-        "original_resource": "minio",
-        "alternative_resource": "s3",
-        "reason": "Cloud object storage for production deployments",
-        "applicable_tiers": [
-          "saas",
-          "enterprise"
-        ],
-        "relationship": "cloud_alternative",
-        "impact_description": "Better reliability and global availability"
-      },
-      {
-        "original_resource": "redis",
-        "alternative_resource": "in-memory-cache",
-        "reason": "Embedded caching for desktop deployments",
-        "applicable_tiers": [
-          "desktop"
-        ],
-        "relationship": "embedded_alternative",
-        "impact_description": "Simplifies deployment, no separate service needed"
-      }
-    ],
-    "recommendations": [
-      "6 scenario(s) missing deployment blocks entirely - run scan --apply to initialize",
-      "Add tier definitions for: [desktop enterprise local mobile saas server]",
-      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 5 resource swap(s) for deployment optimization",
-      "Review gaps_by_scenario for detailed per-scenario action items"
-    ]
   }
 }
