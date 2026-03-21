@@ -6,6 +6,17 @@ import { buildUrl, throwIfNotOk } from "./client";
 
 export type SessionState = "creating" | "running" | "stopping" | "stopped" | "error";
 
+export interface MetricsView {
+  splash_duration_ms?: number;
+  splash_detected: boolean;
+  ready_duration_ms?: number;
+  ready_detected: boolean;
+  current_cpu_percent?: number;
+  current_rss_mb?: number;
+  peak_rss_mb?: number;
+  sample_count: number;
+}
+
 export interface DesktopSession {
   id: string;
   scenario_name: string;
@@ -23,6 +34,7 @@ export interface DesktopSession {
   dark_mode: boolean;
   locale?: string;
   app_running: boolean;
+  metrics?: MetricsView;
 }
 
 export interface DesktopSessionConfig {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/errors"
 )
@@ -37,6 +38,9 @@ type DefaultService struct {
 	// Optional screen recording (nil = recording disabled)
 	recorder   screenrecording.Recorder
 	displayMgr screenrecording.DisplayManager
+
+	// Optional process monitoring (nil = monitoring disabled)
+	monitorFactory procmetrics.MonitorFactory
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -113,6 +117,11 @@ func (s *DefaultService) WithRecording(recorder screenrecording.Recorder, displa
 	s.displayMgr = displayMgr
 }
 
+// WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
+func (s *DefaultService) WithMonitor(factory procmetrics.MonitorFactory) {
+	s.monitorFactory = factory
+}
+
 // CurrentPlatform returns the current platform identifier.
 func (s *DefaultService) CurrentPlatform() string {
 	return s.platformResolver.CurrentPlatform()
@@ -158,6 +167,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	// Set up virtual display + screen recording if enabled
 	var captureID string
 	var recordingDisplayID string // display the Electron app must render on
+	var displayWidth, displayHeight int
 	if recordingCfg != nil && recordingCfg.Enabled && s.recorder != nil && s.displayMgr != nil {
 		width, height := recordingCfg.DisplayWidth, recordingCfg.DisplayHeight
 		if width == 0 {
@@ -185,6 +195,8 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		} else {
 			defer displayCleanup()
 			recordingDisplayID = displayID
+			displayWidth = width
+			displayHeight = height
 
 			cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
 				Display:    displayID,
@@ -233,7 +245,7 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 
 	// Execute smoke test with retry support
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
-	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, recordingDisplayID)
+	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, recordingDisplayID, displayWidth, displayHeight)
 
 	// If headless test passed and recording is active, run the demo launch
 	// so the screen capture shows the real app startup experience.
@@ -382,7 +394,7 @@ func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath stri
 	return cmd, args, display, nil
 }
 
-func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string) (*ExecutionResult, error) {
+func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string, displayWidth, displayHeight int) (*ExecutionResult, error) {
 	// Build environment
 	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
 	env := []string{
@@ -396,9 +408,17 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		env = append(env, fmt.Sprintf("DISPLAY=%s", displayID))
 	}
 
+	// Set up process monitor if factory is available.
+	var monitor procmetrics.Monitor
+	s.installMonitorHook(displayID, displayWidth, displayHeight, func(m procmetrics.Monitor) { monitor = m })
+
 	// Execute
 	workDir := filepath.Dir(artifactPath)
 	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, s.config.Timeout())
+
+	// Harvest process metrics.
+	s.harvestMonitor(monitor, smokeTestID)
+	s.clearMonitorHook()
 
 	// Store execution details for debugging
 	if result != nil {
@@ -480,11 +500,11 @@ func truncateOutput(s string, maxLen int) string {
 }
 
 // executeWithRetry wraps executeSmokeTest with retry logic for recoverable errors.
-func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string) (*ExecutionResult, error) {
+func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand, displayID string, displayWidth, displayHeight int) (*ExecutionResult, error) {
 	var lastResult *ExecutionResult
 
 	for attempt := 0; ; attempt++ {
-		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, displayID)
+		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, displayID, displayWidth, displayHeight)
 		lastResult = result
 
 		if err == nil {
@@ -1094,4 +1114,50 @@ func (a *SlogAdapter) Warn(msg string, args ...interface{}) {
 // Error logs an error message.
 func (a *SlogAdapter) Error(msg string, args ...interface{}) {
 	a.logger.Error(msg, args...)
+}
+
+// installMonitorHook sets up the PID callback on the executor to start a monitor.
+// The onCreated callback receives the monitor once started. No-op if monitorFactory is nil
+// or executor is not a *DefaultProcessExecutor.
+// expectedWidth/expectedHeight are the display dimensions for size-based window detection.
+func (s *DefaultService) installMonitorHook(displayID string, expectedWidth, expectedHeight int, onCreated func(procmetrics.Monitor)) {
+	if s.monitorFactory == nil {
+		return
+	}
+	dpe, ok := s.executor.(*DefaultProcessExecutor)
+	if !ok {
+		return
+	}
+	dpe.onProcessStartedPID = func(pid int) {
+		m := s.monitorFactory.NewMonitor()
+		if err := m.Start(context.Background(), pid, displayID, expectedWidth, expectedHeight); err != nil {
+			s.logger.Warn("failed to start process monitor", "pid", pid, "error", err)
+			return
+		}
+		onCreated(m)
+	}
+}
+
+// clearMonitorHook removes the PID callback from the executor.
+func (s *DefaultService) clearMonitorHook() {
+	if dpe, ok := s.executor.(*DefaultProcessExecutor); ok {
+		dpe.onProcessStartedPID = nil
+	}
+}
+
+// harvestMonitor stops a running monitor and writes its metrics into the smoke test status.
+func (s *DefaultService) harvestMonitor(monitor procmetrics.Monitor, smokeTestID string) {
+	if monitor == nil {
+		return
+	}
+	monitor.Stop()
+	report := monitor.Report()
+	if report == nil {
+		return
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.SplashDurationMs = report.Startup.SplashDurationMs
+		status.ReadyDurationMs = report.Startup.ReadyMs
+		status.ResourceSummary = report.Summary
+	})
 }

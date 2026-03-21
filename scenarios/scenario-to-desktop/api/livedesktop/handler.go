@@ -29,6 +29,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch", h.launchApp).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/artifact", h.findArtifact).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/control", h.controlAction).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/metrics", h.getMetrics).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/files/{filename}", h.serveFile).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.stopSession).Methods("DELETE")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/ws", h.handleVNCProxy)
@@ -150,6 +151,21 @@ func (h *Handler) controlAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+// DOC: docs/reference/live-desktop-api.md#process-metrics
+func (h *Handler) getMetrics(w http.ResponseWriter, r *http.Request) {
+	session, err := h.service.GetSession(extractSessionID(r))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	monitor := session.GetMonitor()
+	if monitor == nil {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "no_monitor"})
+		return
+	}
+	writeJSON(w, http.StatusOK, monitor.Report())
 }
 
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {

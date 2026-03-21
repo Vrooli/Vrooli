@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, type RefObject } from "react";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import type { ConnectionStatus } from "../../lib/api/livedesktop";
 import { DesktopControlsMenu } from "./DesktopControlsMenu";
+import { MetricsBar } from "./MetricsBar";
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
   disconnected: "bg-slate-500",
@@ -99,6 +100,7 @@ export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarP
           </button>
         </div>
       </div>
+      {connectionStatus === "connected" && <MetricsBar />}
     </div>
   );
 }

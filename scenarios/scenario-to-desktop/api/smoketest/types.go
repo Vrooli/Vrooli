@@ -1,6 +1,10 @@
 package smoketest
 
-import "time"
+import (
+	"time"
+
+	"scenario-to-desktop-api/procmetrics"
+)
 
 // State represents the current phase of a smoke test.
 type State string
@@ -148,6 +152,11 @@ type Status struct {
 	// Screen recording configuration and results
 	RecordingConfig *ScreenRecordingConfig `json:"recording_config,omitempty"`
 	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
+
+	// Process metrics from app execution
+	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
+	ReadyDurationMs  *int64               `json:"ready_duration_ms,omitempty"`
+	ResourceSummary  *procmetrics.Summary `json:"resource_summary,omitempty"`
 }
 
 // ScreenRecordingConfig controls whether the smoke test records the display.

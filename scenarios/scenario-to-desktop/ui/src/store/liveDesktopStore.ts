@@ -35,11 +35,19 @@ interface LiveDesktopActions {
 export type LiveDesktopStore = LiveDesktopState & LiveDesktopActions;
 
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let metricsInterval: ReturnType<typeof setInterval> | null = null;
 
 function clearHeartbeat() {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
+  }
+}
+
+function clearMetricsPolling() {
+  if (metricsInterval) {
+    clearInterval(metricsInterval);
+    metricsInterval = null;
   }
 }
 
@@ -50,6 +58,19 @@ function startHeartbeat(sessionId: string) {
       // Heartbeat failure is non-fatal
     });
   }, 30_000);
+}
+
+function startMetricsPolling(sessionId: string) {
+  clearMetricsPolling();
+  metricsInterval = setInterval(() => {
+    getDesktopSession(sessionId)
+      .then((updated) => {
+        useLiveDesktopStore.setState({ activeSession: updated });
+      })
+      .catch(() => {
+        // Metrics refresh failure is non-fatal
+      });
+  }, 2_000);
 }
 
 export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
@@ -76,6 +97,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
       // Stop session in background
       stopDesktopSession(activeSession.id).catch(() => {});
       clearHeartbeat();
+      clearMetricsPolling();
     }
     // Refresh captures summary so CapturesSection picks up new captures
     if (scenarioName) {
@@ -111,6 +133,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
       }
       set({ activeSession: session, connectionStatus: "connecting" });
       startHeartbeat(session.id);
+      startMetricsPolling(session.id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to start desktop session";
       set({ connectionStatus: "error", error: msg });
@@ -121,6 +144,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     clearHeartbeat();
+    clearMetricsPolling();
     try {
       await stopDesktopSession(activeSession.id);
     } catch {

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
 
@@ -37,14 +38,15 @@ type Session struct {
 	Height        int                             `json:"height"`
 
 	// Control state
-	IsRecording   bool              `json:"-"`
-	CaptureID     string            `json:"-"`
-	NetworkMode   string            `json:"network_mode"`
-	BandwidthKbps int               `json:"bandwidth_kbps,omitempty"`
-	EnvVars       map[string]string `json:"-"`
-	DarkMode      bool              `json:"dark_mode"`
-	Locale        string            `json:"locale,omitempty"`
-	AppRunning    bool              `json:"app_running"`
+	IsRecording   bool                `json:"-"`
+	CaptureID     string              `json:"-"`
+	NetworkMode   string              `json:"network_mode"`
+	BandwidthKbps int                 `json:"bandwidth_kbps,omitempty"`
+	EnvVars       map[string]string   `json:"-"`
+	DarkMode      bool                `json:"dark_mode"`
+	Locale        string              `json:"locale,omitempty"`
+	AppRunning    bool                `json:"app_running"`
+	Monitor       procmetrics.Monitor `json:"-"`
 
 	mu sync.Mutex
 }
@@ -79,6 +81,23 @@ type SessionConfig struct {
 	AppPath      string `json:"app_path,omitempty"`
 }
 
+// DOC: docs/reference/live-desktop-api.md#process-metrics
+// MetricsView is the lightweight metrics snapshot included in session API responses.
+type MetricsView struct {
+	// SplashDurationMs is launch → first visible window (splash screen or immediate main window).
+	SplashDurationMs *int64 `json:"splash_duration_ms,omitempty"`
+	SplashDetected   bool   `json:"splash_detected"`
+
+	// ReadyDurationMs is launch → main application window (meets size threshold).
+	ReadyDurationMs *int64 `json:"ready_duration_ms,omitempty"`
+	ReadyDetected   bool   `json:"ready_detected"`
+
+	CurrentCPU   *float64 `json:"current_cpu_percent,omitempty"`
+	CurrentRSSMB *float64 `json:"current_rss_mb,omitempty"`
+	PeakRSSMB    *float64 `json:"peak_rss_mb,omitempty"`
+	SampleCount  int      `json:"sample_count"`
+}
+
 // SessionView is the JSON-safe view of a session for API responses.
 type SessionView struct {
 	ID            string       `json:"id"`
@@ -97,13 +116,14 @@ type SessionView struct {
 	DarkMode      bool         `json:"dark_mode"`
 	Locale        string       `json:"locale,omitempty"`
 	AppRunning    bool         `json:"app_running"`
+	Metrics       *MetricsView `json:"metrics,omitempty"`
 }
 
 // View returns a JSON-safe snapshot of the session.
 func (s *Session) View() SessionView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return SessionView{
+	v := SessionView{
 		ID:            s.ID,
 		ScenarioName:  s.ScenarioName,
 		State:         s.State,
@@ -121,6 +141,34 @@ func (s *Session) View() SessionView {
 		Locale:        s.Locale,
 		AppRunning:    s.AppRunning,
 	}
+	if s.Monitor != nil {
+		v.Metrics = buildMetricsView(s.Monitor.Report())
+	}
+	return v
+}
+
+// buildMetricsView converts a procmetrics.Report to a lightweight MetricsView.
+func buildMetricsView(r *procmetrics.Report) *MetricsView {
+	if r == nil {
+		return nil
+	}
+	mv := &MetricsView{
+		SplashDurationMs: r.Startup.SplashDurationMs,
+		SplashDetected:   r.Startup.SplashVisibleAt != nil,
+		ReadyDurationMs:  r.Startup.ReadyMs,
+		ReadyDetected:    r.Startup.ReadyAt != nil,
+		SampleCount:      len(r.Samples),
+	}
+	if n := len(r.Samples); n > 0 {
+		latest := r.Samples[n-1]
+		cpu := latest.CPUPercent
+		mv.CurrentCPU = &cpu
+		rssMB := float64(latest.RSSBytes) / (1024 * 1024)
+		mv.CurrentRSSMB = &rssMB
+		peakMB := float64(latest.PeakBytes) / (1024 * 1024)
+		mv.PeakRSSMB = &peakMB
+	}
+	return mv
 }
 
 // SetNetworkMode updates the network mode under lock.
@@ -179,4 +227,18 @@ func (s *Session) GetEnvVars() map[string]string {
 		cp[k] = v
 	}
 	return cp
+}
+
+// SetMonitor sets the process monitor under lock.
+func (s *Session) SetMonitor(m procmetrics.Monitor) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Monitor = m
+}
+
+// GetMonitor returns the process monitor under lock.
+func (s *Session) GetMonitor() procmetrics.Monitor {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Monitor
 }

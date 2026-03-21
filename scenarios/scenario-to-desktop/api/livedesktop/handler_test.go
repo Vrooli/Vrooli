@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
 
@@ -155,4 +156,114 @@ func TestLaunchApp_MissingPath(t *testing.T) {
 	err = json.NewDecoder(rr.Body).Decode(&resp)
 	require.NoError(t, err)
 	assert.Contains(t, resp["error"], "auto-discover artifact")
+}
+
+func TestGetMetrics_WithMonitor(t *testing.T) {
+	h, svc := newTestHandler()
+	router := newTestRouter(h)
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	splashDur := int64(500)
+	readyDur := int64(1200)
+	now := time.Now()
+	splashAt := now.Add(-700 * time.Millisecond)
+	monitor := newMockMonitor(&procmetrics.Report{
+		Startup: procmetrics.StartupTiming{
+			LaunchAt:         now.Add(-1200 * time.Millisecond),
+			SplashVisibleAt:  &splashAt,
+			SplashDurationMs: &splashDur,
+			ReadyAt:          &now,
+			ReadyMs:          &readyDur,
+		},
+		Samples: []procmetrics.Sample{
+			{Timestamp: now, CPUPercent: 15.0, RSSBytes: 100 * 1024 * 1024, PeakBytes: 150 * 1024 * 1024, Threads: 4},
+		},
+	})
+	session.SetMonitor(monitor)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/livedesktop/sessions/%s/metrics", session.ID), nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var report procmetrics.Report
+	err = json.NewDecoder(rr.Body).Decode(&report)
+	require.NoError(t, err)
+	require.NotNil(t, report.Startup.ReadyMs)
+	assert.Equal(t, int64(1200), *report.Startup.ReadyMs)
+	assert.Len(t, report.Samples, 1)
+}
+
+func TestGetMetrics_NoMonitor(t *testing.T) {
+	h, svc := newTestHandler()
+	router := newTestRouter(h)
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/livedesktop/sessions/%s/metrics", session.ID), nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var body map[string]string
+	err = json.NewDecoder(rr.Body).Decode(&body)
+	require.NoError(t, err)
+	assert.Equal(t, "no_monitor", body["status"])
+}
+
+func TestGetMetrics_SessionNotFound(t *testing.T) {
+	h, _ := newTestHandler()
+	router := newTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/livedesktop/sessions/nonexistent/metrics", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestGetSession_IncludesMetricsInView(t *testing.T) {
+	h, svc := newTestHandler()
+	router := newTestRouter(h)
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	splashDur := int64(300)
+	readyDur := int64(800)
+	now := time.Now()
+	splashAt := now.Add(-500 * time.Millisecond)
+	monitor := newMockMonitor(&procmetrics.Report{
+		Startup: procmetrics.StartupTiming{
+			LaunchAt:         now.Add(-800 * time.Millisecond),
+			SplashVisibleAt:  &splashAt,
+			SplashDurationMs: &splashDur,
+			ReadyAt:          &now,
+			ReadyMs:          &readyDur,
+		},
+		Samples: []procmetrics.Sample{
+			{Timestamp: now, CPUPercent: 10.0, RSSBytes: 50 * 1024 * 1024, PeakBytes: 80 * 1024 * 1024, Threads: 2},
+		},
+	})
+	session.SetMonitor(monitor)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/livedesktop/sessions/%s", session.ID), nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var view SessionView
+	err = json.NewDecoder(rr.Body).Decode(&view)
+	require.NoError(t, err)
+	require.NotNil(t, view.Metrics)
+	assert.True(t, view.Metrics.SplashDetected)
+	assert.True(t, view.Metrics.ReadyDetected)
+	require.NotNil(t, view.Metrics.ReadyDurationMs)
+	assert.Equal(t, int64(800), *view.Metrics.ReadyDurationMs)
 }

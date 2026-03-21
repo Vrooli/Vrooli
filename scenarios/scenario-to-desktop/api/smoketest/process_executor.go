@@ -56,13 +56,23 @@ func WithOnProcessStarted(fn func()) ProcessExecutorOption {
 	}
 }
 
+// WithOnProcessStartedPID sets a callback invoked with the PID after the process starts.
+// This runs after cmd.Start() succeeds and before cmd.Wait() blocks,
+// enabling monitoring of the process while it runs.
+func WithOnProcessStartedPID(fn func(pid int)) ProcessExecutorOption {
+	return func(e *DefaultProcessExecutor) {
+		e.onProcessStartedPID = fn
+	}
+}
+
 // DefaultProcessExecutor implements ProcessExecutor using real process execution.
 type DefaultProcessExecutor struct {
-	logger           Logger
-	maxOutputBytes   int
-	clock            Clock
-	killGracePeriod  time.Duration
-	onProcessStarted func() // testing hook: called when process starts
+	logger              Logger
+	maxOutputBytes      int
+	clock               Clock
+	killGracePeriod     time.Duration
+	onProcessStarted    func()    // testing hook: called when process starts
+	onProcessStartedPID func(int) // monitoring hook: called with PID after process starts
 }
 
 // NewProcessExecutor creates a new process executor.
@@ -133,12 +143,23 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	resultCh := make(chan execResult, 1)
 
 	go func() {
-		// Notify test hooks that the process is starting (before cmd.Run blocks)
+		// Notify test hooks that the process is starting
 		if e.onProcessStarted != nil {
 			e.onProcessStarted()
 		}
-		err := cmd.Run()
-		resultCh <- execResult{err: err}
+
+		// Split Start/Wait so we can expose the PID for monitoring.
+		if startErr := cmd.Start(); startErr != nil {
+			resultCh <- execResult{err: startErr}
+			return
+		}
+
+		// Notify PID-aware hooks (e.g. process monitoring).
+		if e.onProcessStartedPID != nil && cmd.Process != nil {
+			e.onProcessStartedPID(cmd.Process.Pid)
+		}
+
+		resultCh <- execResult{err: cmd.Wait()}
 	}()
 
 	buildResult := func() *ExecutionResult {

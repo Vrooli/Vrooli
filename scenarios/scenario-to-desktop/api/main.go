@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
 	preflightdomain "scenario-to-desktop-api/preflight"
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/records"
 	"scenario-to-desktop-api/scenario"
 	"scenario-to-desktop-api/screenrecording"
@@ -159,6 +161,19 @@ func NewServer(port int) *Server {
 	displayMgr := screenrecording.NewDisplayManager()
 	smokeTestService.WithRecording(recorder, displayMgr)
 
+	// Process monitoring for app startup time and resource usage
+	procReader := &procmetrics.LinuxProcReader{}
+	shellFn := procmetrics.ShellFunc(func(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
+		cmd := exec.CommandContext(ctx, name, args...)
+		if len(env) > 0 {
+			cmd.Env = env
+		}
+		return cmd.Output()
+	})
+	windowDetector := procmetrics.NewXdotoolDetector(shellFn, logger)
+	monitorFactory := procmetrics.NewDefaultMonitorFactory(procReader, windowDetector, logger)
+	smokeTestService.WithMonitor(monitorFactory)
+
 	// Wire smoke test store into records handler for video data enrichment
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
 
@@ -193,6 +208,7 @@ func NewServer(port int) *Server {
 	liveDesktopStore := livedesktop.NewInMemoryStore()
 	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger, vrooliRoot)
 	liveDesktopService.WithRecorder(recorder)
+	liveDesktopService.WithMonitor(monitorFactory)
 	if capturesService != nil {
 		liveDesktopService.WithCaptures(capturesService)
 	}

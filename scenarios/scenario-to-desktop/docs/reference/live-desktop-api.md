@@ -85,6 +85,66 @@ Stop and clean up a session.
 
 ---
 
+## GET `/api/v1/livedesktop/sessions/{id}/metrics` {#process-metrics}
+
+Returns the full process metrics report for a session, including all resource samples and startup timing. This is the detailed endpoint for charting and analysis — the `GET /sessions/{id}` response includes a lightweight `metrics` summary instead.
+
+**Response (200) — when monitor is active:**
+```json
+{
+  "startup": {
+    "launch_at": "2026-03-20T12:00:00Z",
+    "splash_visible_at": "2026-03-20T12:00:00.5Z",
+    "splash_duration_ms": 500,
+    "ready_at": "2026-03-20T12:00:01.2Z",
+    "ready_ms": 1200
+  },
+  "samples": [
+    {
+      "timestamp": "2026-03-20T12:00:01Z",
+      "cpu_percent": 25.5,
+      "rss_bytes": 157286400,
+      "peak_bytes": 209715200,
+      "threads": 8
+    }
+  ],
+  "summary": {
+    "peak_rss_bytes": 209715200,
+    "avg_rss_bytes": 157286400,
+    "peak_cpu_percent": 45.2,
+    "avg_cpu_percent": 18.7,
+    "max_threads": 12,
+    "sample_count": 60,
+    "duration_ms": 60000
+  }
+}
+```
+
+**Response (200) — when no monitor is running:**
+```json
+{"status": "no_monitor"}
+```
+
+**Session View `metrics` field** (included in `GET /sessions/{id}` and `POST /sessions` responses):
+```json
+{
+  "metrics": {
+    "splash_duration_ms": 500,
+    "splash_detected": true,
+    "ready_duration_ms": 1200,
+    "ready_detected": true,
+    "current_cpu_percent": 12.3,
+    "current_rss_mb": 150.0,
+    "peak_rss_mb": 200.0,
+    "sample_count": 42
+  }
+}
+```
+
+The `metrics` field is `null` when no monitor is active (e.g., app not launched, or `monitorFactory` not configured).
+
+---
+
 ## GET `/api/v1/livedesktop/sessions/{id}/ws`
 
 WebSocket endpoint for VNC proxy. The browser's noVNC client connects here. Binary VNC frames are proxied bidirectionally to the websockify instance.

@@ -1713,4 +1713,29 @@ interface WindowState {
 - **Test Double**: `mockShell` in `api/livedesktop/action_test.go` — records invocations and returns configurable output
 - **Injected via**: `Service.shell` field (set during construction, overridable in tests)
 
+#### Process Monitor Seam
+- **Interface**: `procmetrics.Monitor` (`api/procmetrics/interfaces.go`)
+- **Purpose**: Observes a running process to measure startup time (via window detection) and resource usage (CPU, memory, threads)
+- **Default Implementation**: `DefaultMonitor` in `api/procmetrics/monitor.go` — polls `/proc/<pid>/stat` and `/proc/<pid>/status` for resource samples, polls `xdotool` for window detection
+- **Test Double**: `mockMonitor` in `api/livedesktop/service_test.go` — records Start/Stop calls and returns canned Reports
+- **Injected via**: `MonitorFactory` on `livedesktop.Service` and `smoketest.DefaultService` (via `WithMonitor`)
+
+#### ProcReader Seam
+- **Interface**: `procmetrics.ProcReader` (`api/procmetrics/interfaces.go`)
+- **Purpose**: Abstracts `/proc` filesystem reads for CPU time and memory stats
+- **Default Implementation**: `LinuxProcReader` in `api/procmetrics/proc_reader.go` — parses `/proc/<pid>/stat` and `/proc/<pid>/status`
+- **Test Double**: `mockProcReader` in `api/procmetrics/monitor_test.go` — returns configurable stats
+
+#### WindowDetector Seam
+- **Interface**: `procmetrics.WindowDetector` (`api/procmetrics/interfaces.go`)
+- **Purpose**: Checks for visible X11 windows belonging to a process on a given display
+- **Default Implementation**: `XdotoolDetector` in `api/procmetrics/window_detector.go` — runs `xdotool search --onlyvisible --pid`
+- **Test Double**: `mockWindowDetector` in `api/procmetrics/monitor_test.go` — returns configurable visibility
+
+#### MonitorFactory Seam
+- **Interface**: `procmetrics.MonitorFactory` (`api/procmetrics/interfaces.go`)
+- **Purpose**: Creates fresh Monitor instances for each app launch (injectable into services)
+- **Default Implementation**: `DefaultMonitorFactory` in `api/procmetrics/factory.go`
+- **Test Double**: `mockMonitorFactory` in `api/livedesktop/service_test.go`
+
 **Status**: ✅ Implemented

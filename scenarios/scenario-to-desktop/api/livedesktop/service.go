@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/packaging"
 )
@@ -26,16 +27,17 @@ type VNCStopFunc func(session *Session)
 
 // Service orchestrates live desktop session lifecycle.
 type Service struct {
-	store      Store
-	displayMgr screenrecording.DisplayManager
-	logger     *slog.Logger
-	vrooliRoot string
-	startVNC   VNCStartFunc
-	stopVNC    VNCStopFunc
-	recorder   screenrecording.Recorder
-	captures   *captures.Service
-	shell      ShellFunc
-	dataDir    string
+	store          Store
+	displayMgr     screenrecording.DisplayManager
+	logger         *slog.Logger
+	vrooliRoot     string
+	startVNC       VNCStartFunc
+	stopVNC        VNCStopFunc
+	recorder       screenrecording.Recorder
+	captures       *captures.Service
+	shell          ShellFunc
+	dataDir        string
+	monitorFactory procmetrics.MonitorFactory
 }
 
 // NewService creates a new live desktop service.
@@ -65,6 +67,11 @@ func (s *Service) WithCaptures(svc *captures.Service) {
 // WithDataDir overrides the data directory for screenshots and recordings.
 func (s *Service) WithDataDir(dir string) {
 	s.dataDir = dir
+}
+
+// WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
+func (s *Service) WithMonitor(factory procmetrics.MonitorFactory) {
+	s.monitorFactory = factory
 }
 
 // StartSession creates a new live desktop session with VNC access.
@@ -259,9 +266,22 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	session.AppRunning = true
 	session.mu.Unlock()
 
+	// Start process monitor if factory is configured.
+	if s.monitorFactory != nil {
+		monitor := s.monitorFactory.NewMonitor()
+		if err := monitor.Start(context.Background(), cmd.Process.Pid, session.Display.DisplayID, session.Width, session.Height); err != nil {
+			s.logger.Warn("failed to start process monitor", "error", err)
+		} else {
+			session.SetMonitor(monitor)
+		}
+	}
+
 	// Reap the process in the background so it doesn't become a zombie
 	go func() {
 		_ = cmd.Wait()
+		if m := session.GetMonitor(); m != nil {
+			m.Stop()
+		}
 		session.SetAppRunning(false)
 	}()
 
@@ -293,6 +313,12 @@ func (s *Service) ExecuteAction(ctx context.Context, sessionID, action string, p
 
 // killAppProcess kills and cleans up the app process for a session.
 func (s *Service) killAppProcess(session *Session) {
+	// Stop the monitor before killing the process so it can compute final metrics.
+	if m := session.GetMonitor(); m != nil {
+		m.Stop()
+		session.SetMonitor(nil)
+	}
+
 	session.mu.Lock()
 	cmd := session.AppCmd
 	session.AppCmd = nil

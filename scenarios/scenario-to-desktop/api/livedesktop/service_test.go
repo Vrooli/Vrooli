@@ -6,12 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 )
 
@@ -238,4 +240,240 @@ func TestListSessions(t *testing.T) {
 
 	sessions := svc.ListSessions()
 	assert.Len(t, sessions, 2)
+}
+
+// --- Process Monitor Tests ---
+
+// mockMonitor records Start/Stop calls and returns a canned report.
+type mockMonitor struct {
+	mu        sync.Mutex
+	started   bool
+	stopped   bool
+	startPID  int
+	startDisp string
+	startErr  error
+	report    *procmetrics.Report
+	doneCh    chan struct{}
+}
+
+func newMockMonitor(report *procmetrics.Report) *mockMonitor {
+	return &mockMonitor{
+		report: report,
+		doneCh: make(chan struct{}),
+	}
+}
+
+func (m *mockMonitor) Start(_ context.Context, pid int, display string, _, _ int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.started = true
+	m.startPID = pid
+	m.startDisp = display
+	if m.startErr != nil {
+		return m.startErr
+	}
+	return nil
+}
+
+func (m *mockMonitor) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.stopped {
+		m.stopped = true
+		close(m.doneCh)
+	}
+}
+
+func (m *mockMonitor) Report() *procmetrics.Report {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.report
+}
+
+func (m *mockMonitor) Done() <-chan struct{} {
+	return m.doneCh
+}
+
+// mockMonitorFactory creates mockMonitors.
+type mockMonitorFactory struct {
+	monitor *mockMonitor
+}
+
+func (f *mockMonitorFactory) NewMonitor() procmetrics.Monitor {
+	return f.monitor
+}
+
+func TestSessionView_IncludesMetrics(t *testing.T) {
+	splashDur := int64(800)
+	readyDur := int64(1500)
+	now := time.Now()
+	splashAt := now.Add(-1500 * time.Millisecond)
+	report := &procmetrics.Report{
+		Startup: procmetrics.StartupTiming{
+			LaunchAt:         now.Add(-2000 * time.Millisecond),
+			SplashVisibleAt:  &splashAt,
+			SplashDurationMs: &splashDur,
+			ReadyAt:          &now,
+			ReadyMs:          &readyDur,
+		},
+		Samples: []procmetrics.Sample{
+			{Timestamp: now, CPUPercent: 25.5, RSSBytes: 150 * 1024 * 1024, PeakBytes: 200 * 1024 * 1024, Threads: 8},
+		},
+	}
+	monitor := newMockMonitor(report)
+
+	session := &Session{
+		ID:           "test-1",
+		ScenarioName: "myapp",
+		State:        StateRunning,
+		AppRunning:   true,
+		Monitor:      monitor,
+	}
+
+	view := session.View()
+	require.NotNil(t, view.Metrics)
+	assert.True(t, view.Metrics.SplashDetected)
+	require.NotNil(t, view.Metrics.SplashDurationMs)
+	assert.Equal(t, int64(800), *view.Metrics.SplashDurationMs)
+	assert.True(t, view.Metrics.ReadyDetected)
+	require.NotNil(t, view.Metrics.ReadyDurationMs)
+	assert.Equal(t, int64(1500), *view.Metrics.ReadyDurationMs)
+	require.NotNil(t, view.Metrics.CurrentCPU)
+	assert.InDelta(t, 25.5, *view.Metrics.CurrentCPU, 0.01)
+	require.NotNil(t, view.Metrics.CurrentRSSMB)
+	assert.InDelta(t, 150.0, *view.Metrics.CurrentRSSMB, 0.01)
+	assert.Equal(t, 1, view.Metrics.SampleCount)
+}
+
+func TestSessionView_NilMonitor(t *testing.T) {
+	session := &Session{
+		ID:    "test-1",
+		State: StateRunning,
+	}
+	view := session.View()
+	assert.Nil(t, view.Metrics)
+}
+
+func TestSetGetMonitor(t *testing.T) {
+	session := &Session{}
+	assert.Nil(t, session.GetMonitor())
+
+	m := newMockMonitor(nil)
+	session.SetMonitor(m)
+	assert.Equal(t, m, session.GetMonitor())
+
+	session.SetMonitor(nil)
+	assert.Nil(t, session.GetMonitor())
+}
+
+func TestStopSession_StopsMonitor(t *testing.T) {
+	store := NewInMemoryStore()
+	dm := &mockDisplayManager{
+		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
+	}
+	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	monitor := newMockMonitor(nil)
+	session.SetMonitor(monitor)
+
+	err = svc.StopSession(session.ID)
+	require.NoError(t, err)
+
+	monitor.mu.Lock()
+	assert.True(t, monitor.stopped, "monitor should be stopped when session is stopped")
+	monitor.mu.Unlock()
+}
+
+func TestKillApp_StopsMonitor(t *testing.T) {
+	store := NewInMemoryStore()
+	dm := &mockDisplayManager{
+		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
+	}
+	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	// Set up a running app with a monitor
+	cmd := exec.Command("sleep", "3600")
+	require.NoError(t, cmd.Start())
+	session.mu.Lock()
+	session.AppCmd = cmd
+	session.AppRunning = true
+	session.mu.Unlock()
+
+	monitor := newMockMonitor(nil)
+	session.SetMonitor(monitor)
+
+	// Kill the app (simulates relaunch scenario)
+	svc.killAppProcess(session)
+
+	monitor.mu.Lock()
+	assert.True(t, monitor.stopped, "monitor should be stopped when app is killed")
+	monitor.mu.Unlock()
+	assert.Nil(t, session.GetMonitor(), "monitor should be nil after kill")
+}
+
+func TestSessionView_MonitorStartedNoSamplesYet(t *testing.T) {
+	// Simulates the state right after app launch: monitor is running but
+	// no resource samples collected and window not yet detected.
+	monitor := newMockMonitor(&procmetrics.Report{
+		Startup: procmetrics.StartupTiming{
+			LaunchAt: time.Now(),
+		},
+	})
+
+	session := &Session{
+		ID:         "test-1",
+		State:      StateRunning,
+		AppRunning: true,
+		Monitor:    monitor,
+	}
+
+	view := session.View()
+	require.NotNil(t, view.Metrics, "metrics should be non-nil even with no samples")
+	assert.False(t, view.Metrics.SplashDetected)
+	assert.Nil(t, view.Metrics.SplashDurationMs)
+	assert.False(t, view.Metrics.ReadyDetected)
+	assert.Nil(t, view.Metrics.ReadyDurationMs)
+	assert.Nil(t, view.Metrics.CurrentCPU, "no CPU data before first sample")
+	assert.Nil(t, view.Metrics.CurrentRSSMB, "no memory data before first sample")
+	assert.Equal(t, 0, view.Metrics.SampleCount)
+}
+
+func TestBuildMetricsView_NilReport(t *testing.T) {
+	assert.Nil(t, buildMetricsView(nil))
+}
+
+func TestBuildMetricsView_EmptyReport(t *testing.T) {
+	mv := buildMetricsView(&procmetrics.Report{})
+	require.NotNil(t, mv)
+	assert.False(t, mv.SplashDetected)
+	assert.Nil(t, mv.SplashDurationMs)
+	assert.False(t, mv.ReadyDetected)
+	assert.Nil(t, mv.ReadyDurationMs)
+	assert.Equal(t, 0, mv.SampleCount)
+}
+
+func TestLaunchApp_NoMonitorFactory_NoError(t *testing.T) {
+	store := NewInMemoryStore()
+	dm := &mockDisplayManager{
+		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
+	}
+	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+	// No monitor factory set — should work fine
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	// Launch a real binary (sleep) to test the path without monitor
+	err = svc.LaunchApp(session.ID, "/bin/sleep")
+	require.NoError(t, err)
+	assert.Nil(t, session.GetMonitor())
+
+	// Clean up
+	svc.killAppProcess(session)
 }
