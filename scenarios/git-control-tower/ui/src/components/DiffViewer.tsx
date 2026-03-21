@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -608,6 +608,7 @@ export function DiffViewer({
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState("");
   const [expectedHash, setExpectedHash] = useState<string | undefined>();
@@ -712,7 +713,6 @@ export function DiffViewer({
   const canEdit =
     Boolean(selectedFile) &&
     !isHistoryMode &&
-    canEditMode &&
     hasFullContent &&
     canEditTextFile &&
     Boolean(onSaveFileContent);
@@ -765,12 +765,15 @@ export function DiffViewer({
 
   const handleStartEditing = useCallback(() => {
     if (!canEdit) return;
+    if (!canEditMode) {
+      onViewModeChange("source");
+    }
     setDraftContent(fullContent);
     setExpectedHash(diff?.content_hash);
     setSaveError(null);
     setConflictHash(null);
     setIsEditing(true);
-  }, [canEdit, diff?.content_hash, fullContent]);
+  }, [canEdit, canEditMode, diff?.content_hash, fullContent, onViewModeChange]);
 
   const handleCancelEditing = useCallback(() => {
     setDraftContent(fullContent);
@@ -970,8 +973,8 @@ export function DiffViewer({
   const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
 
   return (
-    <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
-      <CardHeader className={`space-y-0 ${isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} data-testid="diff-viewer-panel">
+      <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
         <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
           <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
@@ -1007,8 +1010,8 @@ export function DiffViewer({
                 <span className="text-xs">Diff Viewer</span>
               )}
             </CardTitle>
-            {/* Desktop-only: inline copy/related buttons */}
-            {!isMobile && selectedFile && (
+            {/* Desktop-only: inline copy/related buttons (hidden in fullscreen) */}
+            {!isMobile && !isFullscreen && selectedFile && (
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
@@ -1024,7 +1027,7 @@ export function DiffViewer({
                 )}
               </button>
             )}
-            {!isMobile && selectedFile && onShowRelatedFiles && (
+            {!isMobile && !isFullscreen && selectedFile && onShowRelatedFiles && (
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
@@ -1036,7 +1039,7 @@ export function DiffViewer({
                 <Link2 className="h-3.5 w-3.5" />
               </button>
             )}
-            {selectedFile && !isMobile && (
+            {selectedFile && !isMobile && !isFullscreen && (
               isHistoryMode ? (
                 <Badge variant="warning">
                   {commitHash ? commitHash.substring(0, 7) : "history"}
@@ -1051,8 +1054,8 @@ export function DiffViewer({
 
           {/* Right side of row 1 */}
           <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
-            {/* Mobile: colored dot status indicator */}
-            {selectedFile && isMobile && !isHistoryMode && (
+            {/* Mobile: colored dot status indicator (hidden in fullscreen) */}
+            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && (
               <span
                 className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
                   isUntracked ? "bg-slate-400" :
@@ -1062,12 +1065,12 @@ export function DiffViewer({
                 title={isUntracked ? "Untracked" : isStaged ? "Staged" : "Modified"}
               />
             )}
-            {selectedFile && isMobile && isHistoryMode && (
+            {selectedFile && isMobile && !isFullscreen && isHistoryMode && (
               <Badge variant="warning">
                 {commitHash ? commitHash.substring(0, 7) : "hist"}
               </Badge>
             )}
-            {diff?.stats && diff.has_diff && viewMode !== "source" && (
+            {!isFullscreen && diff?.stats && diff.has_diff && viewMode !== "source" && (
               <button
                 type="button"
                 className="flex items-center gap-2 hover:underline decoration-slate-600 cursor-pointer"
@@ -1085,8 +1088,76 @@ export function DiffViewer({
                 </span>
               </button>
             )}
-            {/* Mobile overflow menu trigger */}
-            {isMobile && selectedFile && (
+
+            {/* Fullscreen: inline view mode + edit controls */}
+            {isFullscreen && selectedFile && !isLoading && !error && (
+              <ViewModeSelector
+                mode={viewMode}
+                onChange={onViewModeChange}
+                compact={true}
+                disabled={isLoading}
+                filePath={selectedFile}
+                hasDiff={!isReadOnly && diff?.has_diff}
+              />
+            )}
+            {isFullscreen && selectedFile && !isLoading && !error && canEdit && !isEditing && (
+              <button
+                type="button"
+                className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
+                onClick={handleStartEditing}
+                title="Edit file"
+                aria-label="Edit file"
+                data-testid="start-editing-button"
+              >
+                <Pencil className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+              </button>
+            )}
+            {isFullscreen && selectedFile && !isLoading && !error && isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEditing}
+                  className={isMobile ? "h-9 px-3" : "h-7 px-2"}
+                  disabled={isSavingFile}
+                  data-testid="cancel-editing-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveContent}
+                  className={`${isMobile ? "h-9 px-3" : "h-7 px-2"} bg-emerald-600 hover:bg-emerald-700`}
+                  disabled={isSavingFile || !isDirty}
+                  data-testid="save-file-button"
+                >
+                  {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                  Save
+                </Button>
+              </>
+            )}
+
+            {/* Fullscreen toggle (before ellipsis so ellipsis stays last) */}
+            {selectedFile && (
+              <button
+                type="button"
+                className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
+                onClick={() => setIsFullscreen((v) => !v)}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                data-testid="fullscreen-toggle"
+              >
+                {isFullscreen ? (
+                  <Minimize2 className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                ) : (
+                  <Maximize2 className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                )}
+              </button>
+            )}
+            {/* Mobile overflow menu trigger (hidden in fullscreen) */}
+            {isMobile && !isFullscreen && selectedFile && (
               <button
                 type="button"
                 className="h-10 w-10 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-800/70 active:bg-slate-700 touch-target"
@@ -1097,8 +1168,8 @@ export function DiffViewer({
                 <MoreVertical className="h-5 w-5" />
               </button>
             )}
-            {/* Desktop: view mode + edit/save buttons */}
-            {!isMobile && (
+            {/* Desktop: view mode + edit/save buttons (hidden in fullscreen) */}
+            {!isMobile && !isFullscreen && (
               <>
                 {selectedFile && !isLoading && !error && (
                   <ViewModeSelector
@@ -1111,16 +1182,16 @@ export function DiffViewer({
                   />
                 )}
                 {selectedFile && !isLoading && !error && canEdit && !isEditing && (
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 h-7 w-7"
                     onClick={handleStartEditing}
-                    className="h-7 px-2"
+                    title="Edit file"
+                    aria-label="Edit file"
                     data-testid="start-editing-button"
                   >
-                    <Pencil className="h-3.5 w-3.5 mr-1" />
-                    Edit
-                  </Button>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                 )}
                 {selectedFile && !isLoading && !error && isEditing && (
                   <>
@@ -1163,11 +1234,12 @@ export function DiffViewer({
                 )}
               </>
             )}
+
           </div>
         </div>
 
-        {/* Row 2 (mobile only): View mode + edit actions */}
-        {isMobile && selectedFile && !isLoading && !error && (
+        {/* Row 2 (mobile only): View mode + edit actions (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && (
           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/50">
             <ViewModeSelector
               mode={viewMode}
@@ -1179,16 +1251,16 @@ export function DiffViewer({
             />
             <div className="flex-1" />
             {canEdit && !isEditing && (
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 h-10 w-10"
                 onClick={handleStartEditing}
-                className="h-9 px-3"
+                title="Edit file"
+                aria-label="Edit file"
                 data-testid="start-editing-button"
               >
-                <Pencil className="h-3.5 w-3.5 mr-1" />
-                Edit
-              </Button>
+                <Pencil className="h-4 w-4" />
+              </button>
             )}
             {isEditing && (
               <>
@@ -1403,8 +1475,8 @@ export function DiffViewer({
             </pre>
           )}
 
-          {/* Mobile spacer to account for fixed action bar */}
-          {isMobile && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
+          {/* Mobile spacer to account for fixed action bar (not needed in fullscreen) */}
+          {isMobile && !isFullscreen && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
         {showMinimap && (
@@ -1463,8 +1535,8 @@ export function DiffViewer({
           </aside>
         )}
 
-        {/* Mobile Action Bar - history mode: delete only */}
-        {isMobile && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
+        {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
@@ -1481,8 +1553,8 @@ export function DiffViewer({
           </div>
         )}
 
-        {/* Mobile Action Bar - normal mode */}
-        {isMobile && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
+        {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">

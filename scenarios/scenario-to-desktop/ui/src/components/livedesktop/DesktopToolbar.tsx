@@ -1,31 +1,25 @@
-import { Square, Maximize2, Minimize2, Play, AlertCircle, X } from "lucide-react";
+import { Square, Maximize2, Minimize2, Play, AlertCircle, X, Monitor } from "lucide-react";
 import { useState, useCallback, useEffect, useRef, type RefObject } from "react";
-import { Button } from "../ui/button";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import { launchAppOnDesktop } from "../../lib/api/livedesktop";
 import type { ConnectionStatus } from "../../lib/api/livedesktop";
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
   disconnected: "bg-slate-500",
-  connecting: "bg-amber-500 animate-pulse",
-  connected: "bg-emerald-500",
-  error: "bg-red-500",
-};
-
-const STATUS_LABELS: Record<ConnectionStatus, string> = {
-  disconnected: "Disconnected",
-  connecting: "Connecting...",
-  connected: "Connected",
-  error: "Error",
+  connecting: "bg-amber-400 animate-pulse",
+  connected: "bg-emerald-400",
+  error: "bg-red-400",
 };
 
 interface DesktopToolbarProps {
   fullscreenTargetRef: RefObject<HTMLDivElement | null>;
+  onClose: () => void;
 }
 
-export function DesktopToolbar({ fullscreenTargetRef }: DesktopToolbarProps) {
+export function DesktopToolbar({ fullscreenTargetRef, onClose }: DesktopToolbarProps) {
   const connectionStatus = useLiveDesktopStore((s) => s.connectionStatus);
   const activeSession = useLiveDesktopStore((s) => s.activeSession);
+  const scenarioName = useLiveDesktopStore((s) => s.scenarioName);
   const appPath = useLiveDesktopStore((s) => s.appPath);
   const stopSession = useLiveDesktopStore((s) => s.stopSession);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -67,75 +61,86 @@ export function DesktopToolbar({ fullscreenTargetRef }: DesktopToolbarProps) {
   }, [activeSession, appPath]);
 
   return (
-    <div className="border-b border-slate-800 bg-slate-900/80">
-      <div className="flex items-center justify-between gap-3 px-4 py-2">
-        <div className="flex items-center gap-3">
-          {/* Connection status */}
-          <div className="flex items-center gap-2">
-            <div className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[connectionStatus]}`} />
-            <span className="text-xs text-slate-400">{STATUS_LABELS[connectionStatus]}</span>
-          </div>
-
-          {/* Resolution */}
-          {activeSession && (
-            <span className="text-xs text-slate-500">
-              {activeSession.width}x{activeSession.height}
-            </span>
+    <div className="border-b border-slate-800 bg-slate-900/80 shrink-0">
+      {/* Single compact bar: identity | status | actions | close */}
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        {/* Left: scenario identity + connection status */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Monitor className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+          {scenarioName && (
+            <span className="text-xs font-medium text-slate-300 truncate">{scenarioName}</span>
           )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className={`h-2 w-2 rounded-full ${STATUS_COLORS[connectionStatus]}`} />
+            {activeSession && (
+              <span className="text-[11px] text-slate-500">
+                {activeSession.width}&times;{activeSession.height}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-1 shrink-0">
           {/* Launch App */}
           {connectionStatus === "connected" && (
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => void handleLaunchApp()}
               disabled={launching}
-              className="border-emerald-800/60 text-emerald-300 hover:bg-emerald-950/30 hover:text-emerald-200"
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-emerald-300 border border-emerald-800/50 hover:bg-emerald-950/30 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              <Play className="mr-1.5 h-3.5 w-3.5" />
+              <Play className="h-3 w-3" />
               {launching ? "Launching..." : "Launch App"}
-            </Button>
+            </button>
           )}
 
           {/* Fullscreen toggle */}
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
             onClick={toggleFullscreen}
-            className="text-slate-400 hover:text-slate-200"
+            className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
 
           {/* Stop session */}
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             onClick={() => void stopSession()}
-            className="border-red-800/60 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+            className="rounded p-1.5 text-red-400 hover:bg-red-950/40 hover:text-red-300 transition"
+            title="Stop session"
           >
-            <Square className="mr-1.5 h-3.5 w-3.5" />
-            Stop Session
-          </Button>
+            <Square className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-slate-700 mx-0.5" />
+
+          {/* Close drawer */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+            aria-label="Close"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Inline launch error banner — does NOT destroy the VNC view */}
+      {/* Inline launch error banner */}
       {launchError && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-red-950/40 border-t border-red-800/40">
-          <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-          <span className="text-xs text-red-300 truncate flex-1">{launchError}</span>
+        <div className="flex items-center gap-2 px-3 py-1 bg-red-950/40 border-t border-red-800/40">
+          <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
+          <span className="text-[11px] text-red-300 truncate flex-1">{launchError}</span>
           <button
             type="button"
             onClick={() => setLaunchError(null)}
             className="text-red-400 hover:text-red-200 p-0.5"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
           </button>
         </div>
       )}

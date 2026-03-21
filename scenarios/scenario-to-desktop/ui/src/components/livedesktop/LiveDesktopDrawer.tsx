@@ -22,6 +22,8 @@ export function LiveDesktopDrawer() {
   const [width, setWidth] = useState(1280);
   const [height, setHeight] = useState(720);
 
+  const isDesktopActive = activeSession && (connectionStatus === "connected" || connectionStatus === "connecting");
+
   const handleStart = useCallback(async () => {
     if (!scenarioName) return;
     await startSession({
@@ -39,29 +41,29 @@ export function LiveDesktopDrawer() {
 
   return (
     <Drawer open={isOpen} onClose={close} side="right" panelClassName="w-full md:w-[90vw] md:max-w-6xl">
-      <DrawerHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Monitor className="h-5 w-5 text-blue-400 shrink-0" />
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-slate-50 truncate">Interactive Desktop</h2>
-              {scenarioName && (
-                <p className="text-sm text-slate-400 truncate">{scenarioName}</p>
-              )}
+      {/* When desktop is active, skip the header — the toolbar handles everything */}
+      {!isDesktopActive && (
+        <DrawerHeader className="px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Monitor className="h-4 w-4 text-blue-400 shrink-0" />
+              <h2 className="text-sm font-semibold text-slate-50 truncate">
+                {scenarioName ? `Desktop — ${scenarioName}` : "Interactive Desktop"}
+              </h2>
             </div>
+            <button
+              type="button"
+              onClick={close}
+              className="rounded p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              aria-label="Close"
+            >
+              <span className="text-lg leading-none">&times;</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={close}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
-            aria-label="Close"
-          >
-            <span className="text-xl leading-none">&times;</span>
-          </button>
-        </div>
-      </DrawerHeader>
+        </DrawerHeader>
+      )}
 
-      <DrawerBody className="flex flex-col gap-4 p-0 overflow-hidden">
+      <DrawerBody className="flex flex-col p-0 overflow-hidden">
         {/* No session — config form */}
         {!activeSession && connectionStatus === "disconnected" && !error && (
           <div className="p-5 space-y-4">
@@ -107,10 +109,10 @@ export function LiveDesktopDrawer() {
           </div>
         )}
 
-        {/* Connected — VNC canvas */}
-        {activeSession && (connectionStatus === "connected" || connectionStatus === "connecting") && (
+        {/* Connected — single toolbar + VNC canvas, no header */}
+        {isDesktopActive && (
           <div ref={desktopAreaRef} className="flex flex-col flex-1 min-h-0">
-            <DesktopToolbar fullscreenTargetRef={desktopAreaRef} />
+            <DesktopToolbar fullscreenTargetRef={desktopAreaRef} onClose={close} />
             <div className="flex-1 min-h-0 relative">
               <VncCanvas sessionId={activeSession.id} />
             </div>
