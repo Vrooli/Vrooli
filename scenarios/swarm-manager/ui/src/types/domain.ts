@@ -46,6 +46,7 @@ export type BacklogStatus =
   | "queued"
   | "in_progress"
   | "completed"
+  | "failed"
   | "archived";
 
 /**

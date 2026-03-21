@@ -646,6 +646,135 @@ func TestMigrateRecords_OrphanedRunning(t *testing.T) {
 	}
 }
 
+// TestRefreshRunning_FailedRunSetsBacklogFailed verifies that when an agent-manager
+// run transitions to "failed", the backlog item status is set to "failed" (not
+// silently reverted to its previous status).
+func TestRefreshRunning_FailedRunSetsBacklogFailed(t *testing.T) {
+	root := t.TempDir()
+	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
+
+	mustWriteBacklogItem(t, root, "idea", "fail-status", map[string]any{
+		"name":        "fail-status",
+		"title":       "Fail Status",
+		"description": "desc",
+		"status":      "in_progress",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	// Seed an execution record that looks like a running execution.
+	store := NewStore(storePath)
+	if err := store.Save([]Record{{
+		ExecutionID:    "exec-fail-1",
+		BacklogKind:    "idea",
+		BacklogName:    "fail-status",
+		PreviousStatus: "backlog",
+		Status:         StatusRunning,
+		Mode:           ModeManual,
+		RunID:          "run-fail-1",
+		CreatedAt:      "2026-01-28T00:00:00Z",
+		UpdatedAt:      "2026-01-28T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save seed record: %v", err)
+	}
+
+	// Inspector returns "failed" for the run.
+	inspector := &stubInspector{
+		state: agentmanager.RunState{
+			RunID:      "run-fail-1",
+			Status:     "failed",
+			ErrorMsg:   "agent crashed",
+			FinishedAt: "2026-01-28T01:00:00Z",
+		},
+	}
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: storePath,
+	})
+	service.inspector = inspector
+
+	// List triggers refreshRunningLocked which should detect the failed run.
+	records, err := service.List(context.Background(), ListFilters{})
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	if records[0].Status != StatusFailed {
+		t.Fatalf("expected execution status failed, got %s", records[0].Status)
+	}
+
+	// Verify the backlog item was set to "failed" (not reverted to "backlog").
+	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "fail-status", "spec.json"))
+	if storedItem["status"] != "failed" {
+		t.Fatalf("expected backlog status 'failed', got %#v", storedItem["status"])
+	}
+}
+
+// TestRefreshRunning_CanceledRunRestoresBacklogStatus verifies that when a run
+// is canceled, the backlog item status is restored to its previous status.
+func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
+	root := t.TempDir()
+	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
+
+	mustWriteBacklogItem(t, root, "idea", "cancel-restore", map[string]any{
+		"name":        "cancel-restore",
+		"title":       "Cancel Restore",
+		"description": "desc",
+		"status":      "in_progress",
+		"priority":    3,
+		"tags":        []string{},
+	})
+
+	store := NewStore(storePath)
+	if err := store.Save([]Record{{
+		ExecutionID:    "exec-cancel-1",
+		BacklogKind:    "idea",
+		BacklogName:    "cancel-restore",
+		PreviousStatus: "ready",
+		Status:         StatusRunning,
+		Mode:           ModeManual,
+		RunID:          "run-cancel-1",
+		CreatedAt:      "2026-01-28T00:00:00Z",
+		UpdatedAt:      "2026-01-28T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save seed record: %v", err)
+	}
+
+	inspector := &stubInspector{
+		state: agentmanager.RunState{
+			RunID:      "run-cancel-1",
+			Status:     "cancelled",
+			FinishedAt: "2026-01-28T01:00:00Z",
+		},
+	}
+
+	service := NewService(ServiceConfig{
+		RootDir:   root,
+		StorePath: storePath,
+	})
+	service.inspector = inspector
+
+	records, err := service.List(context.Background(), ListFilters{})
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	if records[0].Status != StatusCanceled {
+		t.Fatalf("expected execution status canceled, got %s", records[0].Status)
+	}
+
+	// Verify the backlog item was restored to previous status "ready" (not "failed").
+	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "cancel-restore", "spec.json"))
+	if storedItem["status"] != "ready" {
+		t.Fatalf("expected backlog status 'ready', got %#v", storedItem["status"])
+	}
+}
+
 func mustLoadRecords(t *testing.T, path string) []map[string]any {
 	t.Helper()
 	bytes, err := os.ReadFile(path)

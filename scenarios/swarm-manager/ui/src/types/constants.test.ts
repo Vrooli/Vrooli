@@ -29,6 +29,7 @@ describe("Constants - Decision Boundaries", () => {
     "queued",
     "in_progress",
     "completed",
+    "failed",
     "archived",
   ];
 
@@ -43,7 +44,9 @@ describe("Constants - Decision Boundaries", () => {
   const ALL_EXECUTION_STATUSES: ExecutionStatus[] = [
     "pending",
     "scheduled",
+    "starting",
     "running",
+    "needs_review",
     "completed",
     "failed",
     "canceled",

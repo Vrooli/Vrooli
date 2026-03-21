@@ -68,8 +68,9 @@ const STATUS_SORT_ORDER: Record<BacklogStatus, number> = {
   ready: 2,
   queued: 3,
   in_progress: 4,
-  completed: 5,
-  archived: 6,
+  failed: 5,
+  completed: 6,
+  archived: 7,
 };
 
 const STATUS_OPTIONS: BacklogStatus[] = [
@@ -78,6 +79,7 @@ const STATUS_OPTIONS: BacklogStatus[] = [
   "ready",
   "queued",
   "in_progress",
+  "failed",
   "completed",
   "archived",
 ];
@@ -145,6 +147,7 @@ export function BacklogPage() {
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
   const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
   const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
+  const [showFinished, setShowFinished] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | null>(null);
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
@@ -215,6 +218,8 @@ export function BacklogPage() {
     [items, activeKind]
   );
 
+  const FINISHED_STATUSES: BacklogStatus[] = ["completed", "failed", "archived"];
+
   const filteredItems = useMemo(() => {
     let result = kindItems;
     if (searchTerm.trim()) {
@@ -228,9 +233,11 @@ export function BacklogPage() {
     }
     if (statusFilter) {
       result = result.filter((item) => item.status === statusFilter);
+    } else if (!showFinished) {
+      result = result.filter((item) => !FINISHED_STATUSES.includes(item.status));
     }
     return result;
-  }, [kindItems, searchTerm, statusFilter]);
+  }, [kindItems, searchTerm, statusFilter, showFinished]);
 
   const sortedItems = useMemo(() => {
     const sorted = [...filteredItems];
@@ -260,9 +267,11 @@ export function BacklogPage() {
   }, [filteredItems, sortField]);
 
   const stats = useMemo(() => {
+    const finishedCount = kindItems.filter((item) => FINISHED_STATUSES.includes(item.status)).length;
     return {
       total: kindItems.length,
       ready: kindItems.filter((item) => item.status === "ready").length,
+      finishedCount,
     };
   }, [kindItems]);
 
@@ -476,6 +485,16 @@ export function BacklogPage() {
                   <span className="text-cyan-400" data-testid={selectors.backlog.readyCount}>
                     {stats.ready} ready to queue
                   </span>
+                )}
+                {!statusFilter && stats.finishedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFinished((prev) => !prev)}
+                    className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs text-slate-400 transition-colors hover:border-white/20 hover:text-slate-200"
+                    data-testid={selectors.backlog.showFinishedToggle}
+                  >
+                    {showFinished ? "Hide finished" : `Show ${stats.finishedCount} finished`}
+                  </button>
                 )}
                 <StatusLegend
                   items={BACKLOG_STATUS_LEGEND_ITEMS}

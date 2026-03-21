@@ -41,6 +41,12 @@ export const BACKLOG_STATUS_LEGEND_ITEMS: StatusItem[] = [
     description: "Implementation done",
   },
   {
+    status: "failed",
+    label: "Failed",
+    colorClass: "bg-red-600",
+    description: "Last execution failed",
+  },
+  {
     status: "archived",
     label: "Archived",
     colorClass: "bg-gray-600",

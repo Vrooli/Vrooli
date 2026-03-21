@@ -15,7 +15,7 @@
   "priority": 5,
   "sourceScenarioName": "web-console",
   "sourceScenarioPath": "/home/matthalloran8/Vrooli/scenarios/web-console",
-  "status": "queued",
+  "status": "archived",
   "tags": [
     "terminal",
     "shortcuts",
@@ -26,5 +26,5 @@
     "from-scenario"
   ],
   "title": "[Archived] web-console",
-  "updated": "2026-02-19T03:04:36Z"
+  "updated": "2026-03-21T12:45:54Z"
 }

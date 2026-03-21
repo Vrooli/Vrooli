@@ -4,7 +4,7 @@
   "kind": "idea",
   "name": "stream-of-consciousness-analyzer",
   "priority": 2,
-  "status": "queued",
+  "status": "completed",
   "tags": [
     "productivity",
     "mobile-first",
@@ -14,5 +14,5 @@
     "canvas"
   ],
   "title": "Stream of Consciousness Analyzer",
-  "updated": "2026-03-20T12:02:02Z"
+  "updated": "2026-03-21T15:04:04Z"
 }

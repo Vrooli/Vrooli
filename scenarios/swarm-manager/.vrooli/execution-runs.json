@@ -5,13 +5,15 @@
     "backlog_name": "test-validate",
     "task_id": "c9cc31c1-b485-4e52-8364-971c8eb78838",
     "run_id": "29c31d1b-5ec0-4b3c-ab4f-14a9d60f5462",
-    "status": "needs_review",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-02-13T23:36:13Z",
+    "finished_at": "2026-03-21T12:45:58Z",
+    "failure_reason": "agent-manager run failed",
     "started_by": "swarm-manager",
     "operation": "generator",
     "created_at": "2026-02-13T23:36:13Z",
-    "updated_at": "2026-03-15T01:25:37Z"
+    "updated_at": "2026-03-21T12:46:01Z"
   },
   {
     "execution_id": "54fa526fed82be52",
@@ -60,9 +62,11 @@
     "previous_status": "archived",
     "task_id": "5376eda8-b0ed-4f29-b05f-909520cbc53b",
     "run_id": "b8bcf7dd-5d95-49ad-b18d-759ec4bd8b54",
-    "status": "needs_review",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-02-19T03:04:36Z",
+    "finished_at": "2026-03-21T12:45:51Z",
+    "failure_reason": "agent-manager run failed",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -87,7 +91,7 @@
       "captured_at": "2026-02-19T03:04:36Z"
     },
     "created_at": "2026-02-19T03:04:36Z",
-    "updated_at": "2026-03-15T01:25:37Z"
+    "updated_at": "2026-03-21T12:45:54Z"
   },
   {
     "execution_id": "7370c602918bdd4e",
@@ -96,9 +100,11 @@
     "previous_status": "backlog",
     "task_id": "e929a193-030d-4696-8d44-2767732c7872",
     "run_id": "123248f2-0131-47ff-95fe-58f1d17a6972",
-    "status": "needs_review",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-02-19T05:33:07Z",
+    "finished_at": "2026-03-21T12:32:01Z",
+    "failure_reason": "agent-manager run failed",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -123,7 +129,7 @@
       "captured_at": "2026-02-19T05:33:07Z"
     },
     "created_at": "2026-02-19T05:33:07Z",
-    "updated_at": "2026-03-15T01:25:37Z"
+    "updated_at": "2026-03-21T12:32:08Z"
   },
   {
     "execution_id": "c656de691e10f028",
@@ -170,9 +176,11 @@
     "previous_status": "backlog",
     "task_id": "08b9512a-9277-4504-bc6e-9ca702fee237",
     "run_id": "b38a0353-98af-4359-9894-23aea7ae9ed7",
-    "status": "needs_review",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-03-18T20:37:05Z",
+    "finished_at": "2026-03-21T12:31:45Z",
+    "failure_reason": "agent-manager run failed",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -197,7 +205,7 @@
       "captured_at": "2026-03-18T20:37:05Z"
     },
     "created_at": "2026-03-18T20:37:05Z",
-    "updated_at": "2026-03-19T15:23:52Z"
+    "updated_at": "2026-03-21T12:31:49Z"
   },
   {
     "execution_id": "f84b9be07e66251b",
@@ -206,9 +214,11 @@
     "previous_status": "backlog",
     "task_id": "7e11f6cd-eaa3-4d0d-8a49-87d15bdf8014",
     "run_id": "f81421fb-6f8a-4178-9f28-35aab1627977",
-    "status": "needs_review",
+    "status": "failed",
     "mode": "yolo",
     "started_at": "2026-03-20T12:02:02Z",
+    "finished_at": "2026-03-21T12:31:34Z",
+    "failure_reason": "agent-manager run failed",
     "started_by": "swarm-manager-ui",
     "operation": "generator",
     "prompt_trace": {
@@ -233,6 +243,6 @@
       "captured_at": "2026-03-20T12:02:02Z"
     },
     "created_at": "2026-03-20T12:02:02Z",
-    "updated_at": "2026-03-20T16:28:45Z"
+    "updated_at": "2026-03-21T12:31:37Z"
   }
 ]

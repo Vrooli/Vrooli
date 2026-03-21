@@ -52,6 +52,7 @@ import { Card } from "../components/ui/card";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
+import { Select } from "../components/ui/select";
 import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loading-states";
 import { FileTree, type TreeFile } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
@@ -89,14 +90,16 @@ import {
   computeQuestionsSynthesisSummary,
   computeSuggestionsSynthesisSummary,
 } from "../lib/idea-agent-files";
-import { backlogService } from "../services";
+import { backlogService, executionService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
   BACKLOG_KINDS,
   BACKLOG_RESEARCH_TARGET_LABELS,
   BACKLOG_STATUS_COLORS,
+  EXECUTION_STATUS_COLORS,
   formatBacklogStatus,
+  formatExecutionStatus,
 } from "../types";
 import type {
   ArchiveRequirement,
@@ -107,6 +110,8 @@ import type {
   BacklogKind,
   BacklogResearchTarget,
   BacklogStatus,
+  ExecutionRecord,
+  ExecutionStatus,
   IdeaAgentMode,
   ClarifyQuestionFormValues,
   IdeaClarificationQuestion,
@@ -117,8 +122,13 @@ import type {
 } from "../types";
 import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
 
+/** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
+const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed", "archived"];
+
 const RECENT_FILES_LIMIT = 5;
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
+/** How often to poll agent-manager for active run status updates (ms). */
+const AGENT_RUN_REFRESH_MS = 6000;
 const MIN_FILES_PANEL_WIDTH = 240;
 const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
@@ -227,6 +237,70 @@ export function BacklogDetailsPage() {
     if (!backlogKind || !name) return null;
     return selectLatestRunForBacklog(state, backlogKind, name);
   });
+
+  // Sync the agentRunsStore with the execution service's canonical run ID.
+  //
+  // The execution service is the single source of truth for which run is
+  // associated with a backlog item. When an execution is retried, the
+  // execution record gets a new RunID, but the agentRunsStore (localStorage)
+  // still points to the old run. This effect detects the mismatch and
+  // updates the store so the "Last Agent Run" section shows the correct run.
+  useEffect(() => {
+    if (!backlogKind || !name) return;
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const executions = await executionService.list({
+          backlogKind: backlogKind as BacklogKind,
+          backlogName: name,
+        });
+        if (cancelled || executions.length === 0) return;
+        // Find the most recent execution with a run ID.
+        const latest = executions
+          .filter((e) => e.runId)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        if (!latest?.runId) return;
+        const currentStoreRun = useAgentRunsStore.getState().runs.find(
+          (r) => r.backlogKind === backlogKind && r.backlogName === name,
+        );
+        // If the execution service has a different (newer) run ID, update the store.
+        if (!currentStoreRun || currentStoreRun.runId !== latest.runId) {
+          upsertSpawnedRun({
+            runId: latest.runId,
+            taskId: latest.taskId ?? "",
+            baseUrl: currentStoreRun?.baseUrl ?? "",
+            createdAt: latest.createdAt,
+            backlogKind: backlogKind as BacklogKind,
+            backlogName: name,
+          });
+          // Immediately refresh the new run to get its current status.
+          void refreshRun(latest.runId);
+        }
+      } catch {
+        // Execution service unavailable — keep existing store data.
+      }
+    };
+    void sync();
+    return () => { cancelled = true; };
+  }, [backlogKind, name, upsertSpawnedRun, refreshRun]);
+
+  // Auto-refresh the latest agent run while it's in an active status.
+  // Without this, the BacklogDetailsPage shows stale localStorage data
+  // while the ExecutionPage (which polls independently) shows the real status.
+  const agentRunId = latestAgentRun?.runId;
+  const agentRunIsActive = latestAgentRun
+    ? ["pending", "starting", "running", "needs_review"].includes(latestAgentRun.status)
+    : false;
+  useEffect(() => {
+    if (!agentRunId || !agentRunIsActive) return;
+    // Refresh immediately on mount/when run becomes active.
+    void refreshRun(agentRunId);
+    const interval = window.setInterval(() => {
+      void refreshRun(agentRunId);
+    }, AGENT_RUN_REFRESH_MS);
+    return () => window.clearInterval(interval);
+  }, [agentRunId, agentRunIsActive, refreshRun]);
+
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const headerFileActionsRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
@@ -249,7 +323,10 @@ export function BacklogDetailsPage() {
   const [showRunModal, setShowRunModal] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
-  const [agentRunExpanded, setAgentRunExpanded] = useState(true);
+  const [agentRunExpanded, setAgentRunExpanded] = useState(
+    latestAgentRun ? ["running", "needs_review"].includes(latestAgentRun.status) : false,
+  );
+  const [execHistoryExpanded, setExecHistoryExpanded] = useState(false);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [reqDialogOpen, setReqDialogOpen] = useState(false);
@@ -300,6 +377,17 @@ export function BacklogDetailsPage() {
     },
     enabled: !!backlogKind && !!name,
     ...defaultQueryOptions,
+  });
+
+  // Fetch execution history for this backlog item.
+  const { data: executionHistory } = useQuery({
+    queryKey: ["executions", backlogKind, name],
+    queryFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return executionService.list({ backlogKind: backlogKind as BacklogKind, backlogName: name });
+    },
+    enabled: !!backlogKind && !!name,
+    refetchInterval: 10_000,
   });
 
   const clarifyFile = useMemo(
@@ -372,7 +460,7 @@ export function BacklogDetailsPage() {
         ? "Unable to load suggestions."
         : suggestionsParsed.error;
 
-  const LOCKED_STATUSES = new Set(["queued", "in_progress", "completed"]);
+  const LOCKED_STATUSES = new Set(["queued", "in_progress"]);
   const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
   const clarifyEnhanceCount = typeof clarifyParsed.raw?.enhanceCount === "number" ? clarifyParsed.raw.enhanceCount : 0;
   const suggestionsEnhanceCount = typeof suggestionsParsed.raw?.enhanceCount === "number" ? suggestionsParsed.raw.enhanceCount : 0;
@@ -1624,6 +1712,40 @@ export function BacklogDetailsPage() {
           <Sparkles className="mr-2 h-4 w-4" />
           {agentLabel}
         </Button>
+        {!isLocked && item && (
+          <div className="space-y-1">
+            <label htmlFor="action-status-select" className="text-xs text-slate-400">
+              Status
+            </label>
+            <Select
+              id="action-status-select"
+              variant="filter"
+              withChevron
+              value={item.status}
+              onChange={(e) => {
+                const newStatus = e.target.value as BacklogStatus;
+                if (newStatus !== item.status) {
+                  updateMutation.mutate({
+                    title: item.title,
+                    description: item.description,
+                    status: newStatus,
+                    priority: item.priority,
+                    tags: item.tags,
+                    researchTarget: item.researchTarget,
+                  });
+                  if (closeOnAction) setShowActionsSheet(false);
+                }
+              }}
+              data-testid={selectors.backlogDetails.statusSelect}
+            >
+              {USER_SETTABLE_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {formatBacklogStatus(s)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -1791,6 +1913,72 @@ export function BacklogDetailsPage() {
           )}
         </Card>
       )}
+      {/* Execution History */}
+      {executionHistory && executionHistory.length > 0 && (
+        <Card padding="sm" data-testid={selectors.backlogDetails.executionHistory}>
+          <button
+            type="button"
+            onClick={() => setExecHistoryExpanded(!execHistoryExpanded)}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            {execHistoryExpanded ? (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            )}
+            <span className="flex-1 text-sm font-semibold text-slate-100">
+              Execution History
+            </span>
+            <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-400">
+              {executionHistory.length}
+            </span>
+          </button>
+          {execHistoryExpanded && (
+            <div className="mt-2 space-y-1.5">
+              {executionHistory.slice(0, 5).map((exec: ExecutionRecord) => (
+                <div
+                  key={exec.executionId}
+                  className="flex items-start gap-2 rounded-md bg-slate-800/40 px-2.5 py-1.5"
+                >
+                  <span
+                    className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500"}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-200">
+                        {formatExecutionStatus(exec.status as ExecutionStatus)}
+                      </span>
+                      {exec.operation && (
+                        <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px] text-slate-400">
+                          {exec.operation}
+                        </span>
+                      )}
+                      <span className="ml-auto text-[10px] text-slate-500">
+                        {formatRelativeTime(exec.createdAt)}
+                      </span>
+                    </div>
+                    {exec.failureReason && (
+                      <p className="mt-0.5 truncate text-[11px] text-red-300/80">
+                        {exec.failureReason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {executionHistory.length > 5 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-transparent text-xs text-slate-400 hover:text-slate-200"
+                  onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+                >
+                  View all {executionHistory.length} executions
+                </Button>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
       {detailsPanel}
       {notesPanel}
       {archiveTargets?.has_archive && (
@@ -1900,12 +2088,48 @@ export function BacklogDetailsPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-block h-3 w-3 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-                  />
-                  <span className="text-xs uppercase tracking-wider text-slate-500 sm:text-sm">
-                    {formatBacklogStatus(item.status)}
-                  </span>
+                  {isLocked ? (
+                    <>
+                      <span
+                        className={`inline-block h-3 w-3 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
+                      />
+                      <span className="text-xs uppercase tracking-wider text-slate-500 sm:text-sm">
+                        {formatBacklogStatus(item.status)}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`inline-block h-2.5 w-2.5 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
+                      />
+                      <Select
+                        variant="compact"
+                        withChevron
+                        value={item.status}
+                        onChange={(e) => {
+                          const newStatus = e.target.value as BacklogStatus;
+                          if (newStatus !== item.status) {
+                            updateMutation.mutate({
+                              title: item.title,
+                              description: item.description,
+                              status: newStatus,
+                              priority: item.priority,
+                              tags: item.tags,
+                              researchTarget: item.researchTarget,
+                            });
+                          }
+                        }}
+                        data-testid={selectors.backlogDetails.statusSelect}
+                        className="w-auto uppercase tracking-wider"
+                      >
+                        {USER_SETTABLE_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {formatBacklogStatus(s)}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                   <span className="rounded-full bg-slate-700 px-3 py-1 text-xs text-slate-300 sm:text-sm">
                     Priority {item.priority}
                   </span>

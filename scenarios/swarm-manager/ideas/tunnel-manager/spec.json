@@ -4,7 +4,7 @@
   "kind": "idea",
   "name": "tunnel-manager",
   "priority": 2,
-  "status": "queued",
+  "status": "backlog",
   "tags": [
     "infrastructure",
     "cloudflare",
@@ -12,5 +12,5 @@
     "reliability"
   ],
   "title": "Tunnel Manager",
-  "updated": "2026-02-19T05:33:07Z"
+  "updated": "2026-03-21T12:32:08Z"
 }

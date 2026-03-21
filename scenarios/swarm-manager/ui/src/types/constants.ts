@@ -43,6 +43,7 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
   "queued",
   "in_progress",
   "completed",
+  "failed",
   "archived",
 ];
 
@@ -63,6 +64,7 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
   queued: "bg-yellow-600",
   in_progress: "bg-purple-600",
   completed: "bg-emerald-600",
+  failed: "bg-red-600",
   archived: "bg-gray-600",
 };
 

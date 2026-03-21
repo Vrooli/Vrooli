@@ -48,6 +48,7 @@ const (
 	StatusQueued      BacklogStatus = "queued"
 	StatusInProgress  BacklogStatus = "in_progress"
 	StatusCompleted   BacklogStatus = "completed"
+	StatusFailed      BacklogStatus = "failed"
 	StatusArchived    BacklogStatus = "archived"
 )
 
@@ -156,7 +157,7 @@ func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, pr
 
 func validateBacklogStatus(status string) bool {
 	switch status {
-	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "archived":
+	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed", "archived":
 		return true
 	default:
 		return false
@@ -208,6 +209,9 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest) strin
 	}
 	if !validateBacklogStatus(req.Status) {
 		return "status must be a valid backlog status"
+	}
+	if req.Status == "queued" || req.Status == "in_progress" {
+		return "status 'queued' and 'in_progress' can only be set by the execution system"
 	}
 	if req.Priority < 1 || req.Priority > 10 {
 		return "priority must be between 1 and 10"

@@ -995,6 +995,7 @@ func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.Back
 func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
+
 func (m *mockAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return agentmanager.RunState{}, nil
 }
@@ -1066,4 +1067,111 @@ func TestUploadFile_ConflictWithDirectory(t *testing.T) {
 	if w.Code != http.StatusConflict {
 		t.Errorf("expected 409, got %d", w.Code)
 	}
+}
+
+func TestUpdate_FailedStatus_Accepted(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:        "failed-test",
+		Title:       "Failed Test",
+		Description: "Desc",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{
+		"title":       "Failed Test",
+		"description": "Desc",
+		"status":      "failed",
+		"priority":    5,
+		"tags":        []string{},
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/failed-test", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "failed-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	testutil.AssertStatusOK(t, w)
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "failed-test", "spec.json"))
+	if saved.Status != StatusFailed {
+		t.Errorf("expected status failed, got '%s'", saved.Status)
+	}
+}
+
+func TestUpdate_QueuedStatus_Rejected(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:        "queued-reject",
+		Title:       "Queued Reject",
+		Description: "Desc",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{
+		"title":       "Queued Reject",
+		"description": "Desc",
+		"status":      "queued",
+		"priority":    5,
+		"tags":        []string{},
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/queued-reject", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queued-reject"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	testutil.AssertStatus(t, w, http.StatusBadRequest)
+}
+
+func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:        "inprog-reject",
+		Title:       "InProgress Reject",
+		Description: "Desc",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{
+		"title":       "InProgress Reject",
+		"description": "Desc",
+		"status":      "in_progress",
+		"priority":    5,
+		"tags":        []string{},
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/inprog-reject", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "inprog-reject"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	testutil.AssertStatus(t, w, http.StatusBadRequest)
 }

@@ -109,6 +109,7 @@ export const literalSelectors = {
     summaryStats: "backlog-summary-stats",
     readyCount: "backlog-ready-count",
     cliHint: "backlog-cli-hint",
+    showFinishedToggle: "backlog-show-finished-toggle",
     // Iteration 5 additions
     statusLegend: "backlog-status-legend",
     welcomeHint: "backlog-welcome-hint",
@@ -149,6 +150,8 @@ export const literalSelectors = {
     suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
     breadcrumb: "backlog-details-breadcrumb",
+    statusSelect: "backlog-details-status-select",
+    executionHistory: "backlog-details-execution-history",
   },
   // Backlog form dialog selectors
   backlogForm: {

@@ -589,7 +589,9 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
 				if nextStatus == StatusCompleted {
 					_ = s.updateBacklogStatus(item, "completed")
-				} else if nextStatus == StatusFailed || nextStatus == StatusCanceled {
+				} else if nextStatus == StatusFailed {
+					_ = s.updateBacklogStatus(item, "failed")
+				} else if nextStatus == StatusCanceled {
 					_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
 				}
 			}

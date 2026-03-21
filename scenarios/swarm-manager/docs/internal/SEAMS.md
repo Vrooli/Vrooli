@@ -804,6 +804,19 @@ const SCENARIO_STATUS_ICONS: Record<ScenarioStatus, LucideIcon> = {
 
 These decisions exist but could benefit from further extraction or clarification:
 
+#### 0. Backlog Status Update Guard
+
+**Current Location**: `api/internal/backlog/handler.go:validateUpdateBacklogItemRequest()`
+
+**Decision**: Users cannot set backlog status to "queued" or "in_progress" via the update API — these are execution-system-only statuses. The "failed" status is set by the execution service when an agent-manager run fails, and can be manually changed by users (e.g., reset to "backlog" to retry).
+
+**Execution → Backlog Sync**: When an execution's run reaches a terminal state:
+- `completed` → backlog status set to "completed"
+- `failed` → backlog status set to "failed" (not silently reverted)
+- `canceled` → backlog status restored to previous status (user intentionally stopped)
+
+**Status**: Implemented. Guard enforced at the proto validation layer and Go handler validation.
+
 #### 1. Tag Truncation (Inlined in Pages)
 
 **Current Location**: `BacklogPage.tsx:110-120`, `ScenariosPage.tsx:104-114`
@@ -1082,7 +1095,7 @@ The scenario has the following observable states:
 
 | Component | States | Transitions | Observable Signals |
 |-----------|--------|-------------|-------------------|
-| **Idea** | backlog, researching, ready, queued, in_progress, completed, archived | Create → backlog; Update status; Delete | API logs, HTTP status codes, UI status indicators |
+| **Idea** | backlog, researching, ready, queued, in_progress, completed, failed, archived | Create → backlog; Update status; Delete; Execution failure → failed | API logs, HTTP status codes, UI status indicators |
 | **API Server** | starting, running, degraded | Startup, health checks | Health endpoint, request logs |
 | **UI** | loading, error, empty, data | Data fetch lifecycle | Loading indicators, error states, empty states |
 

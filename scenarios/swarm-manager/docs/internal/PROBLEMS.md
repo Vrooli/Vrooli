@@ -8,6 +8,14 @@ This document tracks known issues, technical debt, and stability concerns for th
 
 No known open issues at this time.
 
+## Recently Resolved
+
+### Backlog status silently reverted on execution failure (2026-03-21)
+
+**Problem**: When an execution failed, `restoreBacklogStatus()` silently reverted the backlog item to its previous status (e.g., "backlog"). Users couldn't distinguish items that were never executed from those that failed multiple times.
+
+**Fix**: Added a "failed" backlog status. Execution failures now set the backlog item to "failed" instead of reverting. Cancellations still restore the previous status (user-initiated). Added a status dropdown on BacklogDetailsPage for manual status control, inline execution history, and a default filter that hides finished items (completed/failed/archived) on BacklogPage.
+
 ## Deferred Work
 
 ### P2 Targets (Future)

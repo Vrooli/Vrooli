@@ -25,6 +25,8 @@ export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string
       return "Already in progress. Wait for it to finish before re-queueing.";
     case "completed":
       return "Completed items cannot be queued again.";
+    case "failed":
+      return "Reset status to retry. Check Execution History for failure details.";
     case "archived":
       return "Only archived ideas can be queued directly.";
     default:

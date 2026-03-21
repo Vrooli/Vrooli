@@ -232,6 +232,12 @@ describe("BacklogPage", () => {
 
     renderPage();
 
+    // Completed items are hidden by default — reveal them.
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("backlog-show-finished-toggle"));
+
     await waitFor(() => {
       expect(screen.getByText("Completed items cannot be queued again.")).toBeInTheDocument();
     });
@@ -253,6 +259,12 @@ describe("BacklogPage", () => {
     ]);
 
     renderPage();
+
+    // Archived items are hidden by default — reveal them.
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("backlog-show-finished-toggle"));
 
     await waitFor(() => {
       expect(screen.getByText("Run")).toBeInTheDocument();
