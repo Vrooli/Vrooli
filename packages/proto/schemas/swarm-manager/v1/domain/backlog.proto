@@ -45,6 +45,7 @@ message BacklogItem {
     "queued",
     "in_progress",
     "completed",
+    "failed",
     "archived"
   ] }];
 

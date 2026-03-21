@@ -131,7 +131,7 @@ type UpdateBacklogItemRequest struct {
 	// Optional description.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Lifecycle status.
-	// @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+	// @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed, archived
 	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	// Priority level (1-10).
 	Priority int32 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
@@ -1262,11 +1262,11 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x0fresearch_target\x18\a \x01(\tB&\xbaH#r!R\x04ideaR\x03fixR\aexecuteR\vunspecifiedH\x02R\x0eresearchTarget\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
-	"\x10_research_target\"\xf0\x02\n" +
+	"\x10_research_target\"\xf8\x02\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12d\n" +
-	"\x06status\x18\x03 \x01(\tBL\xbaHIrGR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\barchivedR\x06status\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
+	"\x06status\x18\x03 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12\x1c\n" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12T\n" +
