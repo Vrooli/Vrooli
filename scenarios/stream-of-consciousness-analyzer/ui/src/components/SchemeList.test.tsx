@@ -123,4 +123,95 @@ describe("SchemeList", () => {
       { timeout: 3000 },
     );
   });
+
+  // [REQ:P0-001] Error retry refetches the scheme list
+  it("calls refetch when retry button is clicked on list error", async () => {
+    mockListSchemes.mockRejectedValue(new Error("Network error"));
+    renderComponent();
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("error-banner")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+    // After the error renders, resolve the next fetch
+    mockListSchemes.mockResolvedValue([
+      { id: "s1", name: "Recovered", created_at: "", updated_at: "" },
+    ]);
+    // Click retry button — triggers refetch + resetAll
+    fireEvent.click(screen.getByLabelText("Retry"));
+    await waitFor(() => {
+      expect(screen.getByText("Recovered")).toBeInTheDocument();
+    });
+  });
+
+  // [REQ:P0-001] Delete a scheme from the sidebar
+  it("calls deleteScheme when delete button is clicked", async () => {
+    mockListSchemes.mockResolvedValue([
+      { id: "s1", name: "Delete Me", created_at: "", updated_at: "" },
+    ]);
+    mockDeleteScheme.mockResolvedValue(undefined);
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Delete Me")).toBeInTheDocument();
+    });
+    const deleteBtn = screen.getByLabelText("Delete scheme: Delete Me");
+    fireEvent.click(deleteBtn);
+    await waitFor(() => {
+      expect(mockDeleteScheme).toHaveBeenCalledWith("s1", expect.anything());
+    });
+  });
+
+  // [REQ:P0-001] Keyboard navigation — Enter selects a scheme
+  it("selects a scheme on Enter key press", async () => {
+    const scheme = { id: "s1", name: "Enter Me", created_at: "", updated_at: "" };
+    mockListSchemes.mockResolvedValue([scheme]);
+    const onSelect = vi.fn();
+    renderComponent({ onSelect });
+    await waitFor(() => {
+      expect(screen.getByText("Enter Me")).toBeInTheDocument();
+    });
+    fireEvent.keyDown(screen.getByTestId("scheme-item"), { key: "Enter" });
+    expect(onSelect).toHaveBeenCalledWith(scheme);
+  });
+
+  // [REQ:P0-001] Keyboard navigation — Space selects a scheme
+  it("selects a scheme on Space key press", async () => {
+    const scheme = { id: "s1", name: "Space Me", created_at: "", updated_at: "" };
+    mockListSchemes.mockResolvedValue([scheme]);
+    const onSelect = vi.fn();
+    renderComponent({ onSelect });
+    await waitFor(() => {
+      expect(screen.getByText("Space Me")).toBeInTheDocument();
+    });
+    fireEvent.keyDown(screen.getByTestId("scheme-item"), { key: " " });
+    expect(onSelect).toHaveBeenCalledWith(scheme);
+  });
+
+  // [REQ:P0-001] Create scheme calls onSelect with newly created scheme
+  it("calls onSelect with newly created scheme on success", async () => {
+    mockListSchemes.mockResolvedValue([]);
+    const newScheme = { id: "new-1", name: "Untitled", created_at: "", updated_at: "" };
+    mockCreateScheme.mockResolvedValue(newScheme);
+    const onSelect = vi.fn();
+    renderComponent({ onSelect });
+    fireEvent.click(screen.getByTestId("create-scheme-btn"));
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledWith(newScheme);
+    });
+  });
+
+  // [REQ:P0-001] aria-current marks the active scheme
+  it("sets aria-current on the active scheme item", async () => {
+    mockListSchemes.mockResolvedValue([
+      { id: "s1", name: "Active", created_at: "", updated_at: "" },
+      { id: "s2", name: "Inactive", created_at: "", updated_at: "" },
+    ]);
+    renderComponent({ activeSchemeId: "s1" });
+    await waitFor(() => {
+      const items = screen.getAllByTestId("scheme-item");
+      expect(items[0]).toHaveAttribute("aria-current", "true");
+      expect(items[1]).not.toHaveAttribute("aria-current");
+    });
+  });
 });

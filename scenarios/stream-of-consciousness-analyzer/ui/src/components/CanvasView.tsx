@@ -1,24 +1,17 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-layer
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { listInformation, updateInformation, deleteInformation } from "../lib/api";
 import { CANVAS_ZOOM_MIN, CANVAS_ZOOM_MAX, CANVAS_ZOOM_IN_FACTOR, CANVAS_ZOOM_OUT_FACTOR, CANVAS_PAN_STEP } from "../lib/config";
 import { useMutationErrors } from "../hooks/useMutationErrors";
+import { useWindowDrag } from "../hooks/useWindowDrag";
 import { ErrorBanner } from "./ErrorBanner";
 import { KeyboardShortcutHelp } from "./KeyboardShortcutHelp";
 import type { Information } from "../lib/types";
 
 interface Props {
   schemeId: string;
-}
-
-interface DragState {
-  itemId: string;
-  startX: number;
-  startY: number;
-  origX: number;
-  origY: number;
 }
 
 export function CanvasView({ schemeId }: Props) {
@@ -30,11 +23,11 @@ export function CanvasView({ schemeId }: Props) {
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [, setDrag] = useState<DragState | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+
+  // Track the item being dragged so the move/end callbacks can reference it
+  const dragItemRef = useRef<{ id: string; origX: number; origY: number } | null>(null);
 
   const updateMut = useMutation({
     mutationFn: ({ id, x, y }: { id: string; x: number; y: number }) =>
@@ -46,6 +39,47 @@ export function CanvasView({ schemeId }: Props) {
     mutationFn: (id: string) => deleteInformation(schemeId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["information", schemeId] }),
   });
+
+  // Item drag — moves the DOM element during drag, commits position on drop
+  const itemDragCallbacks = useMemo(
+    () => ({
+      onMove: (dx: number, dy: number) => {
+        const item = dragItemRef.current;
+        if (!item) return;
+        const el = document.querySelector<HTMLElement>(`[data-item-id="${item.id}"]`);
+        if (el) {
+          el.style.left = `${item.origX + dx}px`;
+          el.style.top = `${item.origY + dy}px`;
+        }
+      },
+      onEnd: (dx: number, dy: number) => {
+        const item = dragItemRef.current;
+        if (!item) return;
+        updateMut.mutate({ id: item.id, x: item.origX + dx, y: item.origY + dy });
+        dragItemRef.current = null;
+      },
+    }),
+    [],
+  );
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const { startDrag: startItemDrag } = useWindowDrag({
+    ...itemDragCallbacks,
+    get scale() { return 1 / zoomRef.current; },
+  });
+
+  // Pan drag — updates pan state during drag
+  const panOriginRef = useRef({ x: 0, y: 0 });
+  const panDragCallbacks = useMemo(
+    () => ({
+      onMove: (dx: number, dy: number) => {
+        const orig = panOriginRef.current;
+        setPan({ x: orig.x + dx, y: orig.y + dy });
+      },
+    }),
+    [],
+  );
+  const { startDrag: startPanDrag } = useWindowDrag(panDragCallbacks);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -87,76 +121,23 @@ export function CanvasView({ schemeId }: Props) {
     }
   }, []);
 
-  // Track item-drag cleanup so listeners can be removed on unmount or interruption.
-  // The cleanup function removes the window listeners without committing the position.
-  const dragCleanupRef = useRef<(() => void) | null>(null);
-
   const handleMouseDown = (e: React.MouseEvent, item: Information) => {
     e.stopPropagation();
-    const dragState: DragState = { itemId: item.id, startX: e.clientX, startY: e.clientY, origX: item.canvas_x, origY: item.canvas_y };
-    setDrag(dragState);
-
-    // Attach window-level listeners so mouseup outside the canvas is still captured
-    const onMove = (me: MouseEvent) => {
-      const dx = (me.clientX - dragState.startX) / zoomRef.current;
-      const dy = (me.clientY - dragState.startY) / zoomRef.current;
-      const el = document.querySelector<HTMLElement>(`[data-item-id="${dragState.itemId}"]`);
-      if (el) {
-        el.style.left = `${dragState.origX + dx}px`;
-        el.style.top = `${dragState.origY + dy}px`;
-      }
-    };
-    const onUp = (me: MouseEvent) => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      dragCleanupRef.current = null;
-      const dx = (me.clientX - dragState.startX) / zoomRef.current;
-      const dy = (me.clientY - dragState.startY) / zoomRef.current;
-      updateMut.mutate({ id: dragState.itemId, x: dragState.origX + dx, y: dragState.origY + dy });
-      setDrag(null);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    dragCleanupRef.current = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
+    dragItemRef.current = { id: item.id, origX: item.canvas_x, origY: item.canvas_y };
+    startItemDrag(e);
   };
 
   // Clear drag state when scheme changes to avoid stale item references
   useEffect(() => {
-    setDrag(null);
+    dragItemRef.current = null;
     setPan({ x: 0, y: 0 });
     setZoom(1);
   }, [schemeId]);
 
-  // Track pan-drag listeners so they can be cleaned up on unmount
-  const panCleanupRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    return () => {
-      panCleanupRef.current?.();
-      dragCleanupRef.current?.();
-    };
-  }, []);
-
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const origPan = { ...pan };
-
-      const onMove = (me: MouseEvent) => {
-        setPan({ x: origPan.x + (me.clientX - startX), y: origPan.y + (me.clientY - startY) });
-      };
-      const onUp = () => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        panCleanupRef.current = null;
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-      panCleanupRef.current = onUp;
+      panOriginRef.current = { ...pan };
+      startPanDrag(e);
     }
   };
 

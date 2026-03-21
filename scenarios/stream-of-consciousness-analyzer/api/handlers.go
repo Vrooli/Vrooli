@@ -14,6 +14,32 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// decodeBody reads and decodes the JSON request body into T.
+// Returns the decoded value and true on success. On failure, it writes
+// a validation error response and returns the zero value and false.
+func decodeBody[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
+	var v T
+	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+		writeValidationError(w, "invalid JSON body")
+		return v, false
+	}
+	return v, true
+}
+
+// handleDelete creates a handler that extracts a mux path variable and
+// delegates to a deleter function. All delete endpoints share this
+// pattern: extract ID, call service, classify error, write 204.
+func handleDelete(varKey, resourceName string, deleter func(string) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)[varKey]
+		if err := deleter(id); err != nil {
+			classifyAndWriteError(w, err, resourceName)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // --- Scheme Handlers ---
 
 func handleListSchemes(svc SchemeStore) http.HandlerFunc {
@@ -29,9 +55,8 @@ func handleListSchemes(svc SchemeStore) http.HandlerFunc {
 
 func handleCreateScheme(svc SchemeStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var input CreateSchemeInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[CreateSchemeInput](w, r)
+		if !ok {
 			return
 		}
 		scheme, err := svc.Create(&input)
@@ -58,9 +83,8 @@ func handleGetScheme(svc SchemeStore) http.HandlerFunc {
 func handleUpdateScheme(svc SchemeStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := mux.Vars(r)["id"]
-		var input UpdateSchemeInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[UpdateSchemeInput](w, r)
+		if !ok {
 			return
 		}
 		if input.Name == "" {
@@ -77,15 +101,7 @@ func handleUpdateScheme(svc SchemeStore) http.HandlerFunc {
 }
 
 func handleDeleteScheme(svc SchemeStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
-		err := svc.Delete(id)
-		if err != nil {
-			classifyAndWriteError(w, err, "scheme")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return handleDelete("id", "scheme", svc.Delete)
 }
 
 // --- Information Handlers ---
@@ -105,9 +121,8 @@ func handleListInformation(svc InformationStore) http.HandlerFunc {
 func handleCreateInformation(svc InformationStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		schemeID := mux.Vars(r)["schemeId"]
-		var input CreateInformationInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[CreateInformationInput](w, r)
+		if !ok {
 			return
 		}
 		info, err := svc.Create(schemeID, &input)
@@ -122,9 +137,8 @@ func handleCreateInformation(svc InformationStore) http.HandlerFunc {
 func handleUpdateInformation(svc InformationStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := mux.Vars(r)["infoId"]
-		var input UpdateInformationInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[UpdateInformationInput](w, r)
+		if !ok {
 			return
 		}
 		info, err := svc.Update(id, &input)
@@ -137,15 +151,7 @@ func handleUpdateInformation(svc InformationStore) http.HandlerFunc {
 }
 
 func handleDeleteInformation(svc InformationStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["infoId"]
-		err := svc.Delete(id)
-		if err != nil {
-			classifyAndWriteError(w, err, "information item")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return handleDelete("infoId", "information item", svc.Delete)
 }
 
 // --- Thought Handlers ---
@@ -164,9 +170,8 @@ func handleListThoughts(svc ThoughtStore) http.HandlerFunc {
 
 func handleCreateThought(svc ThoughtStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var input CreateThoughtInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[CreateThoughtInput](w, r)
+		if !ok {
 			return
 		}
 		thought, err := svc.Create(&input)
@@ -193,9 +198,8 @@ func handleGetThought(svc ThoughtStore) http.HandlerFunc {
 func handleUpdateThought(svc ThoughtStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := mux.Vars(r)["id"]
-		var input UpdateThoughtInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[UpdateThoughtInput](w, r)
+		if !ok {
 			return
 		}
 		thought, err := svc.Update(id, &input)
@@ -208,15 +212,7 @@ func handleUpdateThought(svc ThoughtStore) http.HandlerFunc {
 }
 
 func handleDeleteThought(svc ThoughtStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
-		err := svc.Delete(id)
-		if err != nil {
-			classifyAndWriteError(w, err, "thought")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return handleDelete("id", "thought", svc.Delete)
 }
 
 // --- Edge Handlers ---
@@ -228,9 +224,8 @@ func handleDeleteThought(svc ThoughtStore) http.HandlerFunc {
 func handleCreateEdge(svc ThoughtStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sourceID := mux.Vars(r)["id"]
-		var input CreateEdgeInput
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			writeValidationError(w, "invalid JSON body")
+		input, ok := decodeBody[CreateEdgeInput](w, r)
+		if !ok {
 			return
 		}
 		if input.TargetID == "" {
@@ -263,15 +258,7 @@ func handleListEdges(svc ThoughtStore) http.HandlerFunc {
 }
 
 func handleDeleteEdge(svc ThoughtStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		edgeID := mux.Vars(r)["edgeId"]
-		err := svc.DeleteEdge(edgeID)
-		if err != nil {
-			classifyAndWriteError(w, err, "edge")
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
+	return handleDelete("edgeId", "edge", svc.DeleteEdge)
 }
 
 // --- Export Handlers ---

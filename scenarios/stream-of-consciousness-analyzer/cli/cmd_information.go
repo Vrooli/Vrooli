@@ -52,7 +52,7 @@ func (a *App) cmdInfoCreate(args []string) error {
 	if *schemeID == "" || *content == "" {
 		return fmt.Errorf("usage: info create --scheme ID --content TEXT [--type TYPE]")
 	}
-	return a.postResource("/schemes/"+*schemeID+"/information", map[string]interface{}{
+	return a.postResource("/schemes/"+*schemeID+"/information", map[string]any{
 		"type":    *infoType,
 		"content": *content,
 	}, jsonOut, func(resp []byte) error {
@@ -79,7 +79,7 @@ func (a *App) cmdInfoUpdate(args []string) error {
 	if fs.NArg() < 1 || *schemeID == "" {
 		return fmt.Errorf("usage: info update <info-id> --scheme SCHEME_ID [--content TEXT] [--type TYPE]")
 	}
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	if *content != "" {
 		input["content"] = *content
 	}

@@ -72,7 +72,7 @@ func (a *App) cmdThoughtCreate(args []string) error {
 	if *title == "" {
 		return fmt.Errorf("usage: thought create --title TITLE [--body BODY] [--scheme ID]")
 	}
-	input := map[string]interface{}{
+	input := map[string]any{
 		"title": *title,
 		"body":  *body,
 	}
@@ -103,7 +103,7 @@ func (a *App) cmdThoughtUpdate(args []string) error {
 	if err := requireArg(fs, "thought update <id> [--title TITLE] [--body BODY] [--json]"); err != nil {
 		return err
 	}
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	if *title != "" {
 		input["title"] = *title
 	}

@@ -4,10 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Link } from "lucide-react";
 import { listThoughts, createThought, deleteThought, listEdges, createEdge, deleteEdge } from "../lib/api";
 import { THOUGHT_PLACEMENT_WIDTH, THOUGHT_PLACEMENT_HEIGHT, EDGE_STROKE_COLOR, EDGE_STROKE_WIDTH, GRAPH_MIN_HEIGHT, LINK_MODE_WAITING } from "../lib/config";
-import { randomCanvasPosition } from "../lib/utils";
+import { randomCanvasPosition, deduplicateEdges } from "../lib/utils";
 import { useMutationErrors } from "../hooks/useMutationErrors";
 import { ErrorBanner } from "./ErrorBanner";
-import type { Thought, ThoughtEdge } from "../lib/types";
+import { ThoughtNode } from "./ThoughtNode";
+import type { Thought } from "../lib/types";
 
 interface Props {
   schemeId: string;
@@ -29,17 +30,7 @@ export function GraphView({ schemeId }: Props) {
     queryFn: async () => {
       if (thoughts.length === 0) return [];
       const edgeSets = await Promise.all(thoughts.map((t) => listEdges(t.id)));
-      const seen = new Set<string>();
-      const unique: ThoughtEdge[] = [];
-      for (const edges of edgeSets) {
-        for (const e of edges) {
-          if (!seen.has(e.id)) {
-            seen.add(e.id);
-            unique.push(e);
-          }
-        }
-      }
-      return unique;
+      return deduplicateEdges(edgeSets);
     },
     enabled: thoughts.length > 0,
   });
@@ -185,9 +176,11 @@ export function GraphView({ schemeId }: Props) {
         {/* Thought nodes */}
         <div className="relative" style={{ minHeight: GRAPH_MIN_HEIGHT }}>
           {thoughts.map((t) => (
-            <div
+            <ThoughtNode
               key={t.id}
-              data-testid="thought-node"
+              thought={t}
+              isSource={linkSource === t.id}
+              isLinkMode={!!linkSource}
               onClick={() => {
                 if (linkSource === LINK_MODE_WAITING) {
                   setLinkSource(t.id);
@@ -195,30 +188,8 @@ export function GraphView({ schemeId }: Props) {
                   handleThoughtClick(t);
                 }
               }}
-              style={{ left: t.canvas_x, top: t.canvas_y }}
-              className={`absolute group rounded-lg border p-3 min-w-[140px] max-w-[220px] cursor-pointer select-none transition-colors ${
-                linkSource === t.id
-                  ? "border-blue-500 bg-blue-900/30"
-                  : linkSource
-                    ? "border-white/20 bg-slate-800/90 hover:border-blue-400"
-                    : "border-white/10 bg-slate-800/90 hover:border-white/20"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-1">
-                <h3 className="text-sm font-medium text-white">{t.title || "Untitled"}</h3>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteMut.mutate(t.id);
-                  }}
-                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400"
-                  aria-label={`Delete thought: ${t.title || "Untitled"}`}
-                >
-                  <Trash2 className="h-3 w-3" aria-hidden="true" />
-                </button>
-              </div>
-              {t.body && <p className="mt-1 text-xs text-slate-400 line-clamp-3">{t.body}</p>}
-            </div>
+              onDelete={() => deleteMut.mutate(t.id)}
+            />
           ))}
         </div>
 

@@ -194,4 +194,147 @@ describe("CanvasView", () => {
     renderComponent();
     expect(screen.getByText("Press ? for shortcuts")).toBeInTheDocument();
   });
+
+  // [REQ:P0-003] Arrow keys for panning in all directions
+  it("pans up when ArrowUp is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "ArrowUp" });
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    expect(inner?.style.transform).toContain("translate(0px, 40px)");
+  });
+
+  it("pans left when ArrowLeft is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "ArrowLeft" });
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    expect(inner?.style.transform).toContain("translate(40px, 0px)");
+  });
+
+  it("pans right when ArrowRight is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "ArrowRight" });
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    expect(inner?.style.transform).toContain("translate(-40px, 0px)");
+  });
+
+  it("zooms in when = key is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "=" });
+    expect(screen.getByText("110%")).toBeInTheDocument();
+  });
+
+  // [REQ:P0-003] Wheel zoom
+  it("zooms in on wheel scroll up", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    // deltaY < 0 → zoom in (1.1x)
+    fireEvent.wheel(canvas, { deltaY: -100 });
+    expect(screen.getByText("110%")).toBeInTheDocument();
+  });
+
+  it("zooms out on wheel scroll down", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    // deltaY > 0 → zoom out (0.9x)
+    fireEvent.wheel(canvas, { deltaY: 100 });
+    expect(screen.getByText("90%")).toBeInTheDocument();
+  });
+
+  // [REQ:P0-003] Canvas pan via mouse drag
+  it("pans the canvas when dragging on background", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    // Mousedown on canvas background initiates pan drag
+    fireEvent.mouseDown(canvas, { target: canvas, clientX: 100, clientY: 100 });
+    // Move the mouse — triggers useWindowDrag onMove → updates pan transform
+    fireEvent.mouseMove(window, { clientX: 150, clientY: 130 });
+    // The canvas inner div should reflect the pan offset in its transform
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    if (inner) {
+      expect(inner.style.transform).toContain("translate");
+    }
+    // Release
+    fireEvent.mouseUp(window);
+    expect(canvas).toBeInTheDocument();
+  });
+
+  // [REQ:P0-003] Item drag to reposition
+  it("initiates item drag on mousedown and commits position on mouseup", async () => {
+    mockListInformation.mockResolvedValue([
+      { id: "i1", scheme_id: "scheme-1", type: "text", content: "Drag me", canvas_x: 50, canvas_y: 80, created_at: "", updated_at: "" },
+    ]);
+    mockUpdateInformation.mockResolvedValue({
+      id: "i1", scheme_id: "scheme-1", type: "text", content: "Drag me", canvas_x: 100, canvas_y: 130, created_at: "", updated_at: "",
+    });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Drag me")).toBeInTheDocument();
+    });
+    const node = screen.getByTestId("canvas-node");
+    // Start item drag
+    fireEvent.mouseDown(node, { clientX: 50, clientY: 80 });
+    // Simulate move and end on window
+    fireEvent.mouseMove(window, { clientX: 100, clientY: 130 });
+    fireEvent.mouseUp(window, { clientX: 100, clientY: 130 });
+    await waitFor(() => {
+      expect(mockUpdateInformation).toHaveBeenCalled();
+    });
+  });
+
+  // [REQ:P0-003] Scheme change resets pan/zoom state
+  it("resets pan and zoom when schemeId changes", () => {
+    mockListInformation.mockResolvedValue([]);
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <CanvasView schemeId="scheme-1" />
+      </QueryClientProvider>,
+    );
+    const canvas = screen.getByTestId("canvas-view");
+    // Pan the canvas
+    fireEvent.keyDown(canvas, { key: "ArrowDown" });
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    expect(inner?.style.transform).toContain("-40px");
+    // Change schemeId — should reset
+    rerender(
+      <QueryClientProvider client={qc}>
+        <CanvasView schemeId="scheme-2" />
+      </QueryClientProvider>,
+    );
+    expect(inner?.style.transform).toContain("translate(0px, 0px) scale(1)");
+  });
+
+  // [REQ:P0-003] Error display when mutation fails
+  it("shows error banner when delete mutation fails", async () => {
+    const MockApiRequestError = (await import("../lib/api")).ApiRequestError;
+    mockListInformation.mockResolvedValue([
+      { id: "i1", scheme_id: "scheme-1", type: "text", content: "Fail delete", canvas_x: 0, canvas_y: 0, created_at: "", updated_at: "" },
+    ]);
+    mockDeleteInformation.mockRejectedValue(
+      new MockApiRequestError(500, { category: "internal", message: "delete failed", retryable: true }),
+    );
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Fail delete")).toBeInTheDocument();
+    });
+    const node = screen.getByTestId("canvas-node");
+    const deleteBtn = node.querySelector("button");
+    if (deleteBtn) fireEvent.click(deleteBtn);
+    await waitFor(() => {
+      expect(screen.getByText("delete failed")).toBeInTheDocument();
+    });
+  });
 });

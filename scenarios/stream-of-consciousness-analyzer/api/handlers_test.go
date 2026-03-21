@@ -28,8 +28,8 @@ func TestWriteJSON(t *testing.T) {
 	}
 }
 
-// [REQ:P0-001] Test structured error response format
-func TestWriteValidationError(t *testing.T) {
+// [REQ:P0-001] Test structured validation error response format from handlers
+func TestWriteValidationError_HandlerLevel(t *testing.T) {
 	w := httptest.NewRecorder()
 	writeValidationError(w, "invalid input")
 
@@ -41,6 +41,71 @@ func TestWriteValidationError(t *testing.T) {
 	if result.Message != "invalid input" {
 		t.Errorf("expected message=invalid input, got %s", result.Message)
 	}
+}
+
+// --- decodeBody tests ---
+
+// [REQ:P0-001] Test that decodeBody decodes valid JSON
+func TestDecodeBody_Success(t *testing.T) {
+	req := httptest.NewRequest("POST", "/", bytes.NewBufferString(`{"name":"test"}`))
+	w := httptest.NewRecorder()
+	input, ok := decodeBody[CreateSchemeInput](w, req)
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if input.Name != "test" {
+		t.Errorf("expected name=test, got %s", input.Name)
+	}
+}
+
+// [REQ:P0-001] Test that decodeBody writes validation error on bad JSON
+func TestDecodeBody_BadJSON(t *testing.T) {
+	req := httptest.NewRequest("POST", "/", bytes.NewBufferString("not json"))
+	w := httptest.NewRecorder()
+	_, ok := decodeBody[CreateSchemeInput](w, req)
+	if ok {
+		t.Fatal("expected ok=false for bad JSON")
+	}
+	assertStatus(t, w, http.StatusBadRequest)
+	result := decodeJSON[APIError](t, w)
+	if result.Category != ErrCategoryValidation {
+		t.Errorf("expected validation category, got %s", result.Category)
+	}
+}
+
+// --- handleDelete tests ---
+
+// [REQ:P0-001] Test that handleDelete returns 204 on success
+func TestHandleDelete_Success(t *testing.T) {
+	called := false
+	deleter := func(id string) error {
+		called = true
+		if id != "abc" {
+			t.Errorf("expected id=abc, got %s", id)
+		}
+		return nil
+	}
+	handler := handleDelete("id", "thing", deleter)
+	req := httptest.NewRequest("DELETE", "/thing/abc", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "abc"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assertStatus(t, w, http.StatusNoContent)
+	if !called {
+		t.Error("expected deleter to be called")
+	}
+}
+
+// [REQ:P0-001] Test that handleDelete classifies errors
+func TestHandleDelete_Error(t *testing.T) {
+	handler := handleDelete("id", "widget", func(string) error {
+		return fmt.Errorf("boom")
+	})
+	req := httptest.NewRequest("DELETE", "/widget/x", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "x"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assertStatus(t, w, http.StatusInternalServerError)
 }
 
 // --- Scheme Handler Behavioral Tests ---

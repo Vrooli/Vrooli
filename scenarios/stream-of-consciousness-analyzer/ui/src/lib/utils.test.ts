@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cn, randomCanvasPosition } from "./utils";
+import { cn, randomCanvasPosition, deduplicateEdges } from "./utils";
+import type { ThoughtEdge } from "./types";
 
 // [REQ:P0-002] [REQ:P0-003] Utility functions
 
@@ -57,5 +58,41 @@ describe("randomCanvasPosition", () => {
     expect(pos).toHaveProperty("y");
     expect(typeof pos.x).toBe("number");
     expect(typeof pos.y).toBe("number");
+  });
+});
+
+// [REQ:P0-002] Edge deduplication for graph queries
+describe("deduplicateEdges", () => {
+  const makeEdge = (id: string, sourceId: string, targetId: string): ThoughtEdge => ({
+    id,
+    source_id: sourceId,
+    target_id: targetId,
+    label: "",
+    created_at: "2026-01-01T00:00:00Z",
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(deduplicateEdges([])).toEqual([]);
+  });
+
+  it("returns edges from a single set unchanged", () => {
+    const edges = [makeEdge("e1", "a", "b"), makeEdge("e2", "b", "c")];
+    expect(deduplicateEdges([edges])).toEqual(edges);
+  });
+
+  it("removes duplicates across multiple sets", () => {
+    const e1 = makeEdge("e1", "a", "b");
+    const e2 = makeEdge("e2", "b", "c");
+    const result = deduplicateEdges([[e1, e2], [e1], [e2]]);
+    expect(result).toHaveLength(2);
+    expect(result).toEqual([e1, e2]);
+  });
+
+  it("preserves order of first occurrence", () => {
+    const e1 = makeEdge("e1", "a", "b");
+    const e2 = makeEdge("e2", "b", "c");
+    const e3 = makeEdge("e3", "c", "d");
+    const result = deduplicateEdges([[e2], [e1, e3], [e2, e3]]);
+    expect(result.map((e) => e.id)).toEqual(["e2", "e1", "e3"]);
   });
 });

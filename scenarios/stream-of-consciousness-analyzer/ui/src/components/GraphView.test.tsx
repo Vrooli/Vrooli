@@ -181,4 +181,139 @@ describe("GraphView", () => {
       expect(screen.getAllByTestId("edge-item").length).toBe(1);
     });
   });
+
+  // [REQ:P0-004] Full link flow: activate link mode → select source → select target
+  it("completes a link between two thoughts via click sequence", async () => {
+    mockListThoughts.mockResolvedValue([
+      { id: "t1", scheme_id: "scheme-1", title: "Source", body: "", canvas_x: 0, canvas_y: 0, created_at: "", updated_at: "" },
+      { id: "t2", scheme_id: "scheme-1", title: "Target", body: "", canvas_x: 100, canvas_y: 0, created_at: "", updated_at: "" },
+    ]);
+    mockListEdges.mockResolvedValue([]);
+    mockCreateEdge.mockResolvedValue({ id: "e-new", source_id: "t1", target_id: "t2", label: "", created_at: "" });
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Source")).toBeInTheDocument();
+    });
+
+    // Activate link mode
+    fireEvent.click(screen.getByTestId("link-mode-btn"));
+    expect(screen.getByTestId("link-mode-hint")).toHaveTextContent(/Click a thought to select it as the source/);
+
+    // Click source thought — transitions from WAITING to source selected
+    fireEvent.click(screen.getByText("Source"));
+
+    // Hint should now show "click another thought to connect"
+    await waitFor(() => {
+      expect(screen.getByTestId("link-mode-hint")).toHaveTextContent(/click another thought to connect them/i);
+    });
+
+    // Aria-live should announce source selected
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveTextContent(/Source selected/);
+
+    // Click target thought — creates the edge
+    fireEvent.click(screen.getByText("Target"));
+    await waitFor(() => {
+      expect(mockCreateEdge).toHaveBeenCalledWith("t1", { target_id: "t2", label: "" });
+    });
+  });
+
+  // [REQ:P0-004] Clicking the same thought as source does not create a self-loop
+  it("does not link a thought to itself", async () => {
+    mockListThoughts.mockResolvedValue([
+      { id: "t1", scheme_id: "scheme-1", title: "Only", body: "", canvas_x: 0, canvas_y: 0, created_at: "", updated_at: "" },
+    ]);
+    mockListEdges.mockResolvedValue([]);
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Only")).toBeInTheDocument();
+    });
+
+    // Activate link mode → select source
+    fireEvent.click(screen.getByTestId("link-mode-btn"));
+    fireEvent.click(screen.getByText("Only"));
+
+    // Click the same thought again — handleThoughtClick guards against self-link
+    fireEvent.click(screen.getByText("Only"));
+    expect(mockCreateEdge).not.toHaveBeenCalled();
+  });
+
+  // [REQ:P0-004] Delete edge from the connections list
+  it("deletes an edge when its delete button is clicked", async () => {
+    mockListThoughts.mockResolvedValue([
+      { id: "t1", scheme_id: "scheme-1", title: "A", body: "", canvas_x: 0, canvas_y: 0, created_at: "", updated_at: "" },
+      { id: "t2", scheme_id: "scheme-1", title: "B", body: "", canvas_x: 100, canvas_y: 0, created_at: "", updated_at: "" },
+    ]);
+    mockListEdges.mockResolvedValue([
+      { id: "e1", source_id: "t1", target_id: "t2", label: "", created_at: "" },
+    ]);
+    mockDeleteEdge.mockResolvedValue(undefined);
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("edge-item").length).toBe(1);
+    });
+    const edgeItem = screen.getByTestId("edge-item");
+    const deleteBtn = edgeItem.querySelector("button");
+    expect(deleteBtn).toBeTruthy();
+    if (deleteBtn) fireEvent.click(deleteBtn);
+    await waitFor(() => {
+      expect(mockDeleteEdge).toHaveBeenCalledWith("t1", "e1");
+    });
+  });
+
+  // [REQ:P0-004] Delete a thought from the graph
+  it("deletes a thought when its delete button is clicked", async () => {
+    mockListThoughts.mockResolvedValue([
+      { id: "t1", scheme_id: "scheme-1", title: "Deletable", body: "", canvas_x: 50, canvas_y: 50, created_at: "", updated_at: "" },
+    ]);
+    mockListEdges.mockResolvedValue([]);
+    mockDeleteThought.mockResolvedValue(undefined);
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText("Deletable")).toBeInTheDocument();
+    });
+    // ThoughtNode has a delete button with thought title in aria-label
+    const deleteBtn = screen.getByLabelText("Delete thought: Deletable");
+    fireEvent.click(deleteBtn);
+    await waitFor(() => {
+      expect(mockDeleteThought).toHaveBeenCalledWith("t1", expect.anything());
+    });
+  });
+
+  // [REQ:P0-004] Error banner displays when a mutation fails
+  it("shows error banner when createThought mutation fails", async () => {
+    mockListThoughts.mockResolvedValue([]);
+    mockCreateThought.mockRejectedValue(new Error("Network error"));
+    renderComponent();
+    fireEvent.change(screen.getByTestId("thought-title-input"), { target: { value: "Fail" } });
+    fireEvent.click(screen.getByTestId("create-thought-btn"));
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("error-banner")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  // [REQ:P0-004] Edge connection list shows source→target names
+  it("displays source and target names in the connections list", async () => {
+    mockListThoughts.mockResolvedValue([
+      { id: "t1", scheme_id: "scheme-1", title: "Start", body: "", canvas_x: 10, canvas_y: 20, created_at: "", updated_at: "" },
+      { id: "t2", scheme_id: "scheme-1", title: "End", body: "", canvas_x: 200, canvas_y: 100, created_at: "", updated_at: "" },
+    ]);
+    mockListEdges.mockResolvedValue([
+      { id: "e1", source_id: "t1", target_id: "t2", label: "", created_at: "" },
+    ]);
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("edge-item").length).toBe(1);
+    });
+    const edgeItem = screen.getByTestId("edge-item");
+    // Should show source and target thought titles
+    expect(edgeItem).toHaveTextContent("Start");
+    expect(edgeItem).toHaveTextContent("End");
+    // Delete button should have descriptive aria-label
+    const deleteBtn = edgeItem.querySelector("button");
+    expect(deleteBtn).toHaveAttribute("aria-label", "Delete connection from Start to End");
+  });
 });
