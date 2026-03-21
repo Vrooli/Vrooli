@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2 } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -417,7 +417,7 @@ function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
   }
 
   return (
-    <div className={`flex font-mono text-xs ${bgColor}`} data-testid="diff-line">
+    <div className={`flex font-mono ${bgColor}`} style={{ fontSize: "var(--code-font-size, 12px)" }} data-testid="diff-line">
       {lineNumber !== undefined && (
         <span
           className={`w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 ${lineNumColor}`}
@@ -449,7 +449,7 @@ function HighlightedCodeLine({
   const isDeleted = change === "deleted";
 
   return (
-    <div className={`flex font-mono text-xs ${bgColor}`} data-testid="code-line">
+    <div className={`flex font-mono ${bgColor}`} style={{ fontSize: "var(--code-font-size, 12px)" }} data-testid="code-line">
       {/* Line number gutter */}
       <span
         className={`w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 ${lineNumColor}`}
@@ -478,7 +478,7 @@ function HunkDisplay({ hunk, index }: { hunk: DiffHunk; index: number }) {
   return (
     <div className="border-b border-slate-800 last:border-b-0" data-testid={`diff-hunk-${index}`}>
       {/* Hunk header */}
-      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-xs text-slate-500">
+      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-slate-500" style={{ fontSize: "var(--code-font-size, 12px)" }}>
         {hunk.header}
       </div>
 
@@ -609,6 +609,10 @@ export function DiffViewer({
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [codeFontSize, setCodeFontSize] = useState(() => {
+    const saved = localStorage.getItem("gct-code-font-size");
+    return saved ? Number(saved) : 12;
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState("");
   const [expectedHash, setExpectedHash] = useState<string | undefined>();
@@ -662,6 +666,14 @@ export function DiffViewer({
     const timer = window.setTimeout(() => setCopied(false), 1500);
     return () => window.clearTimeout(timer);
   }, [copied]);
+
+  const handleFontSizeChange = useCallback((delta: number) => {
+    setCodeFontSize((prev) => {
+      const next = Math.min(24, Math.max(8, prev + delta));
+      localStorage.setItem("gct-code-font-size", String(next));
+      return next;
+    });
+  }, []);
 
   const handleCopyPath = async () => {
     if (!absolutePath) return;
@@ -973,7 +985,7 @@ export function DiffViewer({
   const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
 
   return (
-    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} data-testid="diff-viewer-panel">
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties} data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
         <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
@@ -1139,22 +1151,65 @@ export function DiffViewer({
               </>
             )}
 
-            {/* Fullscreen toggle (before ellipsis so ellipsis stays last) */}
+            {/* Display settings popover (before ellipsis so ellipsis stays last) */}
             {selectedFile && (
-              <button
-                type="button"
-                className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
-                onClick={() => setIsFullscreen((v) => !v)}
-                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                data-testid="fullscreen-toggle"
+              <Popover
+                align="end"
+                trigger={
+                  <span
+                    className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
+                    title="Display settings"
+                    aria-label="Display settings"
+                    data-testid="display-settings-trigger"
+                  >
+                    <SlidersHorizontal className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                  </span>
+                }
               >
-                {isFullscreen ? (
-                  <Minimize2 className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
-                ) : (
-                  <Maximize2 className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
-                )}
-              </button>
+                <div className="p-3 flex flex-col gap-3 min-w-[200px]">
+                  {/* Fullscreen toggle */}
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 w-full text-left text-sm text-slate-200 hover:bg-slate-800/70 rounded-md px-2 py-1.5 transition-colors"
+                    onClick={() => setIsFullscreen((v) => !v)}
+                    data-testid="fullscreen-toggle"
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    )}
+                    {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  </button>
+                  {/* Font size controls */}
+                  <div className="flex items-center gap-2 px-2">
+                    <span className="text-sm text-slate-400 flex-shrink-0">Font</span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 active:bg-slate-700 h-7 w-7 text-xs font-bold transition-colors disabled:opacity-40"
+                        onClick={() => handleFontSizeChange(-1)}
+                        disabled={codeFontSize <= 8}
+                        title="Decrease font size"
+                        aria-label="Decrease font size"
+                      >
+                        A-
+                      </button>
+                      <span className="text-xs text-slate-300 w-8 text-center tabular-nums">{codeFontSize}px</span>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 active:bg-slate-700 h-7 w-7 text-xs font-bold transition-colors disabled:opacity-40"
+                        onClick={() => handleFontSizeChange(1)}
+                        disabled={codeFontSize >= 24}
+                        title="Increase font size"
+                        aria-label="Increase font size"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Popover>
             )}
             {/* Mobile overflow menu trigger (hidden in fullscreen) */}
             {isMobile && !isFullscreen && selectedFile && (
@@ -1382,8 +1437,8 @@ export function DiffViewer({
                   minimap: { enabled: false },
                   scrollBeyondLastLine: false,
                   wordWrap: "off",
-                  fontSize: 12,
-                  lineHeight: 20,
+                  fontSize: codeFontSize,
+                  lineHeight: Math.round(codeFontSize * 1.67),
                   lineNumbersMinChars: 3,
                   fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
                   padding: { top: 2, bottom: 2 },
@@ -1468,7 +1523,8 @@ export function DiffViewer({
             diff.raw &&
             (!isBinaryDiff || showBinary) && (
             <pre
-              className="p-4 font-mono text-xs text-slate-300 whitespace-pre overflow-x-auto"
+              className="p-4 font-mono text-slate-300 whitespace-pre overflow-x-auto"
+              style={{ fontSize: "var(--code-font-size, 12px)" }}
               data-testid="diff-raw"
             >
               {diff.raw}
