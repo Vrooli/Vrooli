@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1102,10 +1103,10 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	ctx := context.Background()
 	executor.Execute(ctx)
 
-	// Verify run was updated to needs_review (success requires review)
+	// In-place runs auto-complete (no sandbox to diff/approve against)
 	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
-	if updatedRun.Status != domain.RunStatusNeedsReview {
-		t.Errorf("expected run status 'needs_review', got '%s'", updatedRun.Status)
+	if updatedRun.Status != domain.RunStatusComplete {
+		t.Errorf("expected in-place run status 'complete', got '%s'", updatedRun.Status)
 	}
 
 	// Verify StartedAt was set
@@ -1152,10 +1153,11 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	ctx := context.Background()
 	executor.Execute(ctx)
 
-	// Verify approval state was set to pending
+	// In-place runs skip the approval workflow entirely (no sandbox to
+	// diff/approve against), so approval state should be "none".
 	updatedRun, _ := repos.Runs.Get(context.Background(), f.run.ID)
-	if updatedRun.ApprovalState != domain.ApprovalStatePending {
-		t.Errorf("expected approval state 'pending', got '%s'", updatedRun.ApprovalState)
+	if updatedRun.ApprovalState != domain.ApprovalStateNone {
+		t.Errorf("expected approval state 'none' for in-place run, got '%s'", updatedRun.ApprovalState)
 	}
 }
 
@@ -1425,10 +1427,11 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 		t.Fatal("expected at least one status broadcast on successful completion")
 	}
 
-	// The last broadcast should have the terminal status
+	// The last broadcast should have the terminal status.
+	// In-place runs auto-complete (no sandbox to diff/approve against).
 	last := broadcasts[len(broadcasts)-1]
-	if last.Status != domain.RunStatusNeedsReview {
-		t.Errorf("expected final broadcast status needs_review, got %s", last.Status)
+	if last.Status != domain.RunStatusComplete {
+		t.Errorf("expected final broadcast status complete for in-place run, got %s", last.Status)
 	}
 }
 
@@ -1549,4 +1552,198 @@ func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 
 	executor.Execute(context.Background())
 	// If we get here without panic, the nil guard works
+}
+
+// =============================================================================
+// IN-PLACE RUN APPROVAL BYPASS TESTS
+// =============================================================================
+// In-place runs apply changes directly to the working tree (no sandbox).
+// Since there is no sandbox to diff against or merge from, the approval
+// workflow is skipped entirely and the run auto-completes.
+
+func TestRunExecutor_InPlace_SkipsApproval_EvenWhenRequiresApprovalTrue(t *testing.T) {
+	// An in-place run should auto-complete even when RequiresApproval is
+	// explicitly set to true in the resolved config.
+	f := newInPlaceFixtures()
+	f.run.ResolvedConfig = &domain.RunConfig{
+		RunnerType:       domain.RunnerTypeClaudeCode,
+		RequiresApproval: true,
+	}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updatedRun.Status != domain.RunStatusComplete {
+		t.Errorf("expected in-place run status 'complete', got '%s'", updatedRun.Status)
+	}
+	if updatedRun.ApprovalState != domain.ApprovalStateNone {
+		t.Errorf("expected approval state 'none' for in-place run, got '%s'", updatedRun.ApprovalState)
+	}
+}
+
+func TestRunExecutor_Sandboxed_StillRequiresApproval(t *testing.T) {
+	// Sandboxed runs should continue entering needs_review when
+	// RequiresApproval is true and auto-approval does not succeed.
+	f := newTestFixtures() // sandboxed mode
+	f.run.ResolvedConfig = &domain.RunConfig{
+		RunnerType:       domain.RunnerTypeClaudeCode,
+		RequiresApproval: true,
+		SandboxConfig: &domain.SandboxConfig{
+			Acceptance: domain.SandboxAcceptanceConfig{
+				// Disable all auto-approval paths so we hit needs_review
+				DisableAutoApproveIfEmpty: true,
+			},
+		},
+	}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	sandboxProvider := newMockSandboxProvider()
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, sandboxProvider, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updatedRun.Status != domain.RunStatusNeedsReview {
+		t.Errorf("expected sandboxed run status 'needs_review', got '%s'", updatedRun.Status)
+	}
+	if updatedRun.ApprovalState != domain.ApprovalStatePending {
+		t.Errorf("expected approval state 'pending' for sandboxed run, got '%s'", updatedRun.ApprovalState)
+	}
+}
+
+func TestRunExecutor_Sandboxed_NoApprovalRequired_Completes(t *testing.T) {
+	// Sandboxed runs with RequiresApproval=false should still auto-complete.
+	f := newTestFixtures() // sandboxed mode
+	f.run.ResolvedConfig = &domain.RunConfig{
+		RunnerType:       domain.RunnerTypeClaudeCode,
+		RequiresApproval: false,
+	}
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	sandboxProvider := newMockSandboxProvider()
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, sandboxProvider, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	updatedRun, err := repos.Runs.Get(context.Background(), f.run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updatedRun.Status != domain.RunStatusComplete {
+		t.Errorf("expected status 'complete', got '%s'", updatedRun.Status)
+	}
+	if updatedRun.ApprovalState != domain.ApprovalStateNone {
+		t.Errorf("expected approval state 'none', got '%s'", updatedRun.ApprovalState)
+	}
+}
+
+func TestRunExecutor_InPlace_EmitsSkipApprovalEvent(t *testing.T) {
+	// Verify that in-place runs emit a system event explaining the
+	// approval skip, so operators can trace the decision.
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config)
+
+	executor.Execute(context.Background())
+
+	// Check that a system event was emitted explaining the approval skip
+	events, err := eventStore.Get(context.Background(), f.run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+
+	found := false
+	for _, evt := range events {
+		if evt.EventType == domain.EventTypeLog {
+			if logData, ok := evt.Data.(*domain.LogEventData); ok {
+				if logData.Level == "info" &&
+					strings.Contains(logData.Message, "in-place run completed") &&
+					strings.Contains(logData.Message, "skipping approval") {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected system event explaining in-place approval skip, but none found")
+	}
 }

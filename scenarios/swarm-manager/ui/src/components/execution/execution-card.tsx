@@ -1,4 +1,5 @@
-import { ArrowUpRight, ExternalLink, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatRelativeTime } from "../../lib";
 import {
@@ -44,11 +45,13 @@ export function ExecutionCard({
   agentManagerUiUrl,
   testId,
 }: ExecutionCardProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
 
   return (
-    <article className="group block" data-testid={testId}>
-      <div className="flex items-start justify-between gap-3">
+    <article className="group block space-y-3" data-testid={testId}>
+      {/* Header: status + mode */}
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
             className={`inline-block h-2 w-2 rounded-full ${EXECUTION_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
@@ -57,38 +60,38 @@ export function ExecutionCard({
             {formatExecutionStatus(item.status)}
           </span>
         </div>
-        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+        <span className="rounded bg-slate-700/50 px-2 py-0.5 text-[11px] text-slate-400">
           {formatExecutionMode(item.mode)}
         </span>
       </div>
 
-      <h3 className="mt-3 font-medium text-slate-100">
+      {/* Title */}
+      <h3 className="text-base font-medium text-slate-100">
         {backlogKindLabel}: {item.backlogName}
       </h3>
-      <p className="mt-1 truncate font-mono text-xs text-slate-500" title={item.executionId}>
-        {item.executionId}
-      </p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-        {item.operation ? <span className="rounded bg-slate-700/80 px-1.5 py-0.5">{item.operation}</span> : null}
-        {item.startedBy ? <span title={item.startedBy}>by {item.startedBy}</span> : null}
-        {item.runId ? <span title={item.runId}>run {item.runId}</span> : null}
-        {item.taskId ? <span title={item.taskId}>task {item.taskId}</span> : null}
+      {/* Metadata row: operation + source */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        {item.operation ? <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-slate-400">{item.operation}</span> : null}
+        {item.startedBy ? <span>by {item.startedBy}</span> : null}
       </div>
 
+      {/* Failure reason */}
       {item.failureReason ? (
-        <p className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
           {item.failureReason}
         </p>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-        <span title={new Date(item.updatedAt).toLocaleString()}>{formatRelativeTime(item.updatedAt)}</span>
+      {/* Timestamps — both labeled */}
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span title={new Date(item.updatedAt).toLocaleString()}>Updated {formatRelativeTime(item.updatedAt)}</span>
         <span title={new Date(item.createdAt).toLocaleString()}>Created {formatRelativeTime(item.createdAt)}</span>
       </div>
 
+      {/* Primary actions: Start / Cancel / Retry */}
       {(canStart || canCancel || canRetry) && (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {canStart && (
             <Button
               size="sm"
@@ -138,18 +141,23 @@ export function ExecutionCard({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Divider between primary and secondary actions */}
+      <div className="border-t border-white/5" />
+
+      {/* Secondary actions: navigation + trace */}
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           variant="outline"
+          className="border-slate-600/40 text-slate-400 hover:text-slate-200"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             onViewBacklog(item.backlogKind, item.backlogName);
           }}
         >
-          <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
-          View {backlogKindLabel}
+          <ArrowUpRight className="mr-1.5 h-3 w-3" />
+          {backlogKindLabel}
         </Button>
         {item.runId && agentManagerUiUrl ? (
           <a
@@ -158,24 +166,45 @@ export function ExecutionCard({
             rel="noopener noreferrer"
             onClick={(event) => event.stopPropagation()}
           >
-            <Button size="sm" variant="outline">
-              <ExternalLink className="mr-2 h-3.5 w-3.5" />
-              View Run
+            <Button size="sm" variant="outline" className="border-slate-600/40 text-slate-400 hover:text-slate-200">
+              <ExternalLink className="mr-1.5 h-3 w-3" />
+              Run
             </Button>
           </a>
         ) : null}
         <Button
           size="sm"
           variant="outline"
+          className="border-slate-600/40 text-slate-400 hover:text-slate-200"
           onClick={() => onViewTrace(item.executionId)}
         >
-          {traceLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-          Prompt Trace
+          {traceLoading ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+          Trace
         </Button>
+
+        {/* Details toggle for IDs */}
+        <button
+          type="button"
+          onClick={() => setShowDetails(!showDetails)}
+          className="ml-auto flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+        >
+          IDs
+          {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
       </div>
 
+      {/* Collapsible ID details */}
+      {showDetails && (
+        <div className="space-y-1 rounded-md bg-slate-800/50 px-2.5 py-2 font-mono text-[11px] text-slate-500">
+          <p>exec {item.executionId}</p>
+          {item.runId ? <p>run {item.runId}</p> : null}
+          {item.taskId ? <p>task {item.taskId}</p> : null}
+        </div>
+      )}
+
+      {/* Prompt trace */}
       {trace ? (
-        <div className="mt-3 rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs" data-testid="execution-prompt-trace">
+        <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs" data-testid="execution-prompt-trace">
           <p className="font-mono text-cyan-300">{trace.skill_id}</p>
           <p className="mt-1 text-slate-300">Captured {formatRelativeTime(trace.captured_at)}</p>
           <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-slate-200">

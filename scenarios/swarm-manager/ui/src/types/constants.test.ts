@@ -181,8 +181,8 @@ describe("Constants - Decision Boundaries", () => {
       });
     });
 
-    it("formats yolo mode as start now", () => {
-      expect(formatExecutionMode("yolo")).toBe("Start now");
+    it("formats yolo mode as Auto", () => {
+      expect(formatExecutionMode("yolo")).toBe("Auto");
     });
   });
 });

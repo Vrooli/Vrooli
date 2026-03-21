@@ -143,7 +143,7 @@ export function formatExecutionStatus(status: ExecutionStatus): string {
  */
 export function formatExecutionMode(mode: ExecutionMode): string {
   if (mode === "yolo") {
-    return "Start now";
+    return "Auto";
   }
   return formatDisplayText(mode);
 }

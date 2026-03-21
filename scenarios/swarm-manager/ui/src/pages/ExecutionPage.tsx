@@ -125,11 +125,13 @@ export function ExecutionPage() {
   }, [filteredItems]);
 
   const stats = useMemo(() => {
-    const running = tabItems.filter((item) => item.status === "starting" || item.status === "running" || item.status === "needs_review").length;
+    const running = tabItems.filter((item) => item.status === "starting" || item.status === "running").length;
+    const review = tabItems.filter((item) => item.status === "needs_review").length;
     const failed = tabItems.filter((item) => item.status === "failed" || item.status === "canceled").length;
     return {
       total: tabItems.length,
       running,
+      review,
       failed,
     };
   }, [tabItems]);
@@ -223,9 +225,11 @@ export function ExecutionPage() {
             size="sm"
             onClick={() => void fetchExecutions({ force: true })}
             disabled={status === "loading" || isRefreshing}
+            aria-label="Refresh"
+            className="shrink-0"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${status === "loading" || isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 lg:mr-2 ${status === "loading" || isRefreshing ? "animate-spin" : ""}`} />
+            <span className="hidden lg:inline">Refresh</span>
           </Button>
         </div>
 
@@ -366,6 +370,7 @@ export function ExecutionPage() {
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
             <span>{stats.total} run{stats.total !== 1 ? "s" : ""}</span>
             {stats.running > 0 ? <span className="text-cyan-400">{stats.running} running</span> : null}
+            {stats.review > 0 ? <span className="text-yellow-400">{stats.review} needs review</span> : null}
             {stats.failed > 0 ? <span className="text-amber-400">{stats.failed} failed/canceled</span> : null}
           </div>
         </div>
@@ -466,7 +471,7 @@ export function ExecutionPage() {
         {filteredItems.length > 0 ? (
           <div className="space-y-3">
             {activeRuns.length > 0 ? (
-              <div className="text-sm font-medium text-slate-400">All {activeTabConfig.label}</div>
+              <div className="text-sm font-medium text-slate-400">{activeTabConfig.id === "all" ? "All Runs" : `All ${activeTabConfig.label}`}</div>
             ) : null}
             <ResponsiveList data-testid={selectors.execution.grid} columns="md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
               {filteredItems.map((item) => (

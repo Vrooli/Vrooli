@@ -1019,17 +1019,28 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		}
 	}
 
-	autoApplied := false
-	if requiresApproval {
-		autoApplied = e.tryAutoApproval(ctx)
-		if !autoApplied {
-			e.run.Status = domain.RunStatusNeedsReview
-			e.run.ApprovalState = domain.ApprovalStatePending
-		}
-	} else {
-		// Skip approval workflow - mark as complete directly
+	// In-place runs (no sandbox) skip the approval workflow entirely.
+	// The approval/review flow depends on having a sandbox to diff against
+	// and merge from. Without a sandbox, changes were applied directly to the
+	// working tree, so there is nothing to approve or reject — the run is
+	// already complete.
+	if e.run.RunMode == domain.RunModeInPlace {
 		e.run.Status = domain.RunStatusComplete
 		e.run.ApprovalState = domain.ApprovalStateNone
+		e.emitSystemEvent(ctx, "info", "in-place run completed — skipping approval (no sandbox to diff)")
+	} else {
+		autoApplied := false
+		if requiresApproval {
+			autoApplied = e.tryAutoApproval(ctx)
+			if !autoApplied {
+				e.run.Status = domain.RunStatusNeedsReview
+				e.run.ApprovalState = domain.ApprovalStatePending
+			}
+		} else {
+			// Skip approval workflow - mark as complete directly
+			e.run.Status = domain.RunStatusComplete
+			e.run.ApprovalState = domain.ApprovalStateNone
+		}
 	}
 
 	// Queue recommendation extraction for investigation runs
