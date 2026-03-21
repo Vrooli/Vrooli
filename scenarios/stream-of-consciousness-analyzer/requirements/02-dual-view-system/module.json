@@ -15,11 +15,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P0-003a1", "REQ-P0-003a2"],
       "description": "Information items support canvas coordinate storage and partial updates for spatial positioning",
       "id": "REQ-P0-003a",
       "prd_ref": "OT-P0-002",
       "status": "passed",
-      "title": "Canvas Coordinate Persistence",
+      "title": "Canvas Coordinate Persistence"
+    },
+    {
+      "category": "api",
+      "description": "Information model serializes canvas coordinates correctly in JSON roundtrips",
+      "id": "REQ-P0-003a1",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Coordinate Serialization",
       "validation": [
         {
           "notes": "Test Information JSON serialization with canvas coords",
@@ -34,7 +43,17 @@
           "ref": "api/model_test.go:TestCreateInformationInputJSON",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Partial update input omits unchanged coordinate fields to support incremental saves",
+      "id": "REQ-P0-003a2",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Partial Coordinate Updates",
+      "validation": [
         {
           "notes": "Test partial update fields for information input (omit unchanged fields)",
           "phase": "unit",
@@ -86,11 +105,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P0-004a1", "REQ-P0-004a2"],
       "description": "Thought CRUD handlers manage graph nodes with proper creation, retrieval, update, and deletion",
       "id": "REQ-P0-004a",
       "prd_ref": "OT-P0-002",
       "status": "passed",
-      "title": "Thought Node Operations",
+      "title": "Thought Node Operations"
+    },
+    {
+      "category": "api",
+      "description": "Thought creation handler validates input and returns created thought with generated ID",
+      "id": "REQ-P0-004a1",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Thought Creation Validation",
       "validation": [
         {
           "notes": "Test thought creation handler success",
@@ -105,7 +133,17 @@
           "ref": "api/thought_handlers_test.go:TestHandleCreateThought_BadJSON",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "ThoughtEdge model serializes source/target IDs and labels for graph transport",
+      "id": "REQ-P0-004a2",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Edge Model Serialization",
+      "validation": [
         {
           "notes": "Test ThoughtEdge JSON serialization",
           "phase": "unit",

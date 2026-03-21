@@ -15,11 +15,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P1-001a1", "REQ-P1-001a2"],
       "description": "Suggestion service configures and prioritizes LLM providers for connection generation",
       "id": "REQ-P1-001a",
       "prd_ref": "OT-P1-001",
       "status": "passed",
-      "title": "Provider Configuration",
+      "title": "Provider Configuration"
+    },
+    {
+      "category": "api",
+      "description": "Suggestion service initializes with correct provider list from configuration",
+      "id": "REQ-P1-001a1",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Provider Initialization",
       "validation": [
         {
           "notes": "Test SuggestionService provider configuration",
@@ -27,7 +36,17 @@
           "ref": "api/suggestion_service_test.go:TestSuggestionServiceProviders",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Provider list endpoint returns configured providers with status information",
+      "id": "REQ-P1-001a2",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Provider List Endpoint",
+      "validation": [
         {
           "notes": "Test GET /providers endpoint returns provider list",
           "phase": "unit",
@@ -72,11 +91,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P1-003a1", "REQ-P1-003a2"],
       "description": "Suggestion model tracks dismissed state and confidence bounds for UI rendering",
       "id": "REQ-P1-003a",
       "prd_ref": "OT-P1-001",
       "status": "passed",
-      "title": "Suggestion State Model",
+      "title": "Suggestion State Model"
+    },
+    {
+      "category": "api",
+      "description": "Suggestion dismissed field persists through JSON serialization roundtrip",
+      "id": "REQ-P1-003a1",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Dismissed State Persistence",
       "validation": [
         {
           "notes": "Test Suggestion dismissed field serialization roundtrip",
@@ -84,7 +112,17 @@
           "ref": "api/model_test.go:TestSuggestionDismissedField",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Suggestion confidence score is bounded within 0-1 range for UI rendering",
+      "id": "REQ-P1-003a2",
+      "prd_ref": "OT-P1-001",
+      "status": "passed",
+      "title": "Confidence Score Bounds",
+      "validation": [
         {
           "notes": "Test suggestion confidence bounds (0-1 range)",
           "phase": "unit",

@@ -13,7 +13,8 @@ describe("cn", () => {
   });
 
   it("handles conditional classes via clsx", () => {
-    expect(cn("base", false && "hidden", "text-sm")).toBe("base text-sm");
+    const showHidden = false;
+    expect(cn("base", showHidden && "hidden", "text-sm")).toBe("base text-sm");
   });
 
   it("handles undefined and null inputs", () => {

@@ -8,17 +8,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
-}
-
-// writeJSONError writes a flat {"error": msg} response.
-// DEPRECATED: Prefer writeAPIError or classifyAndWriteError for structured errors.
-// Kept for backward-compatible test assertions that expect the flat format.
-func writeJSONError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
 }
 
 // --- Scheme Handlers ---
@@ -312,7 +305,7 @@ func handleGenerateSuggestions(svc SuggestionProvider) http.HandlerFunc {
 				"LLM provider is unavailable — suggestions will resume when a provider comes online", err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		writeJSON(w, http.StatusOK, map[string]any{
 			"suggestions": suggestions,
 			"provider":    provider.Name,
 		})

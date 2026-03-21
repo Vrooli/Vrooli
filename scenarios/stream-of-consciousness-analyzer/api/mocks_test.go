@@ -10,9 +10,11 @@ import (
 
 // mockSchemes implements SchemeStore for handler testing.
 type mockSchemes struct {
-	schemes map[string]*Scheme
-	nextIdx int
-	listErr error
+	schemes   map[string]*Scheme
+	nextIdx   int
+	listErr   error
+	createErr error
+	updateErr error
 }
 
 func newMockSchemes() *mockSchemes {
@@ -21,6 +23,16 @@ func newMockSchemes() *mockSchemes {
 
 func (m *mockSchemes) WithListError(err error) *mockSchemes {
 	m.listErr = err
+	return m
+}
+
+func (m *mockSchemes) WithCreateError(err error) *mockSchemes {
+	m.createErr = err
+	return m
+}
+
+func (m *mockSchemes) WithUpdateError(err error) *mockSchemes {
+	m.updateErr = err
 	return m
 }
 
@@ -44,6 +56,9 @@ func (m *mockSchemes) List() ([]Scheme, error) {
 }
 
 func (m *mockSchemes) Create(input *CreateSchemeInput) (*Scheme, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
 	name := input.Name
 	if name == "" {
 		name = "Untitled"
@@ -60,6 +75,9 @@ func (m *mockSchemes) GetByID(id string) (*Scheme, error) {
 }
 
 func (m *mockSchemes) Update(id string, input *UpdateSchemeInput) (*Scheme, error) {
+	if m.updateErr != nil {
+		return nil, m.updateErr
+	}
 	s, ok := m.schemes[id]
 	if !ok {
 		return nil, sql.ErrNoRows
@@ -79,9 +97,11 @@ func (m *mockSchemes) Delete(id string) error {
 
 // mockInfo implements InformationStore for handler testing.
 type mockInfo struct {
-	items   map[string]*Information
-	nextIdx int
-	listErr error
+	items     map[string]*Information
+	nextIdx   int
+	listErr   error
+	createErr error
+	updateErr error
 }
 
 func newMockInfo() *mockInfo {
@@ -90,6 +110,16 @@ func newMockInfo() *mockInfo {
 
 func (m *mockInfo) WithListError(err error) *mockInfo {
 	m.listErr = err
+	return m
+}
+
+func (m *mockInfo) WithCreateError(err error) *mockInfo {
+	m.createErr = err
+	return m
+}
+
+func (m *mockInfo) WithUpdateError(err error) *mockInfo {
+	m.updateErr = err
 	return m
 }
 
@@ -115,6 +145,9 @@ func (m *mockInfo) ListByScheme(schemeID string) ([]Information, error) {
 }
 
 func (m *mockInfo) Create(schemeID string, input *CreateInformationInput) (*Information, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
 	itemType := input.Type
 	if itemType == "" {
 		itemType = "text"
@@ -127,6 +160,9 @@ func (m *mockInfo) Create(schemeID string, input *CreateInformationInput) (*Info
 }
 
 func (m *mockInfo) Update(id string, input *UpdateInformationInput) (*Information, error) {
+	if m.updateErr != nil {
+		return nil, m.updateErr
+	}
 	info, ok := m.items[id]
 	if !ok {
 		return nil, sql.ErrNoRows
@@ -157,10 +193,14 @@ func (m *mockInfo) Delete(id string) error {
 
 // mockThoughts implements ThoughtStore for handler testing.
 type mockThoughts struct {
-	thoughts map[string]*Thought
-	edges    map[string]*ThoughtEdge
-	nextIdx  int
-	listErr  error
+	thoughts      map[string]*Thought
+	edges         map[string]*ThoughtEdge
+	nextIdx       int
+	listErr       error
+	createErr     error
+	updateErr     error
+	createEdgeErr error
+	listEdgesErr  error
 }
 
 func newMockThoughts() *mockThoughts {
@@ -172,6 +212,26 @@ func newMockThoughts() *mockThoughts {
 
 func (m *mockThoughts) WithListError(err error) *mockThoughts {
 	m.listErr = err
+	return m
+}
+
+func (m *mockThoughts) WithCreateError(err error) *mockThoughts {
+	m.createErr = err
+	return m
+}
+
+func (m *mockThoughts) WithUpdateError(err error) *mockThoughts {
+	m.updateErr = err
+	return m
+}
+
+func (m *mockThoughts) WithCreateEdgeError(err error) *mockThoughts {
+	m.createEdgeErr = err
+	return m
+}
+
+func (m *mockThoughts) WithListEdgesError(err error) *mockThoughts {
+	m.listEdgesErr = err
 	return m
 }
 
@@ -205,6 +265,9 @@ func (m *mockThoughts) List(schemeID string) ([]Thought, error) {
 }
 
 func (m *mockThoughts) Create(input *CreateThoughtInput) (*Thought, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
 	return m.seedThought(input.Title, input.SchemeID), nil
 }
 
@@ -217,6 +280,9 @@ func (m *mockThoughts) GetByID(id string) (*Thought, error) {
 }
 
 func (m *mockThoughts) Update(id string, input *UpdateThoughtInput) (*Thought, error) {
+	if m.updateErr != nil {
+		return nil, m.updateErr
+	}
 	t, ok := m.thoughts[id]
 	if !ok {
 		return nil, sql.ErrNoRows
@@ -240,10 +306,16 @@ func (m *mockThoughts) Delete(id string) error {
 }
 
 func (m *mockThoughts) CreateEdge(sourceID string, input *CreateEdgeInput) (*ThoughtEdge, error) {
+	if m.createEdgeErr != nil {
+		return nil, m.createEdgeErr
+	}
 	return m.seedEdge(sourceID, input.TargetID, input.Label), nil
 }
 
 func (m *mockThoughts) ListEdges(thoughtID string) ([]ThoughtEdge, error) {
+	if m.listEdgesErr != nil {
+		return nil, m.listEdgesErr
+	}
 	out := make([]ThoughtEdge, 0)
 	for _, e := range m.edges {
 		if e.SourceID == thoughtID || e.TargetID == thoughtID {

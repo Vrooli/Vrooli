@@ -28,15 +28,18 @@ func TestWriteJSON(t *testing.T) {
 	}
 }
 
-// [REQ:P0-001] Test error response format
-func TestWriteJSONError(t *testing.T) {
+// [REQ:P0-001] Test structured error response format
+func TestWriteValidationError(t *testing.T) {
 	w := httptest.NewRecorder()
-	writeJSONError(w, http.StatusBadRequest, "invalid input")
+	writeValidationError(w, "invalid input")
 
 	assertStatus(t, w, http.StatusBadRequest)
-	result := decodeJSON[map[string]string](t, w)
-	if result["error"] != "invalid input" {
-		t.Errorf("expected error=invalid input, got %s", result["error"])
+	result := decodeJSON[APIError](t, w)
+	if result.Category != ErrCategoryValidation {
+		t.Errorf("expected category=validation, got %s", result.Category)
+	}
+	if result.Message != "invalid input" {
+		t.Errorf("expected message=invalid input, got %s", result.Message)
 	}
 }
 
@@ -199,6 +202,30 @@ func TestHandleDeleteScheme_NotFound(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-002] Test creating a scheme returns 500 on service error
+func TestHandleCreateScheme_ServiceError(t *testing.T) {
+	store := newMockSchemes().WithCreateError(fmt.Errorf("db write failed"))
+	handler := handleCreateScheme(store)
+	req := httptest.NewRequest("POST", "/api/v1/schemes", bytes.NewBufferString(`{"name":"Test"}`))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-001] Test updating a scheme returns 500 on service error
+func TestHandleUpdateScheme_ServiceError(t *testing.T) {
+	store := newMockSchemes().WithUpdateError(fmt.Errorf("db update failed"))
+	store.seed("Exists")
+	handler := handleUpdateScheme(store)
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/any", bytes.NewBufferString(`{"name":"New"}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "any"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
 }
 
 // --- Information Handler Behavioral Tests ---

@@ -432,6 +432,231 @@ func TestThoughtWithoutScheme(t *testing.T) {
 	}
 }
 
+// [REQ:P0-001] Test Scheme zero-value fields serialize correctly
+func TestSchemeZeroValue(t *testing.T) {
+	var s Scheme
+	b, err := json.Marshal(s)
+	if err != nil {
+		t.Fatalf("marshal zero scheme: %v", err)
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, ok := decoded["id"]; !ok {
+		t.Error("expected id field in JSON even when empty")
+	}
+	if _, ok := decoded["name"]; !ok {
+		t.Error("expected name field in JSON even when empty")
+	}
+}
+
+// [REQ:P0-003] Test Information zero-value canvas coordinates
+func TestInformationZeroCoords(t *testing.T) {
+	info := Information{ID: "i1", SchemeID: "s1", Type: "text", Content: "test"}
+	b, _ := json.Marshal(info)
+	var decoded Information
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.CanvasX != 0 || decoded.CanvasY != 0 {
+		t.Errorf("expected zero coords, got %f,%f", decoded.CanvasX, decoded.CanvasY)
+	}
+}
+
+// [REQ:P0-004] Test Thought with body and canvas coordinates
+func TestThoughtFullSerialization(t *testing.T) {
+	sid := "s1"
+	th := Thought{
+		ID:       "t1",
+		SchemeID: &sid,
+		Title:    "Important",
+		Body:     "Detailed description",
+		CanvasX:  300.5,
+		CanvasY:  400.2,
+	}
+	b, err := json.Marshal(th)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded Thought
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Body != "Detailed description" {
+		t.Errorf("expected body preserved, got %s", decoded.Body)
+	}
+	if decoded.CanvasX != 300.5 {
+		t.Errorf("expected canvas_x=300.5, got %f", decoded.CanvasX)
+	}
+}
+
+// [REQ:P0-002] Test UpdateSchemeInput JSON roundtrip
+func TestUpdateSchemeInputJSON(t *testing.T) {
+	body := `{"name":"Renamed Scheme"}`
+	var input UpdateSchemeInput
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if input.Name != "Renamed Scheme" {
+		t.Errorf("expected Renamed Scheme, got %s", input.Name)
+	}
+}
+
+// [REQ:P0-003] Test UpdateInformationInput with all fields set
+func TestUpdateInformationInputAllFields(t *testing.T) {
+	body := `{"type":"voice","content":"transcribed","canvas_x":10.5,"canvas_y":20.3}`
+	var input UpdateInformationInput
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if input.Type == nil || *input.Type != "voice" {
+		t.Error("expected type=voice")
+	}
+	if input.Content == nil || *input.Content != "transcribed" {
+		t.Error("expected content=transcribed")
+	}
+	if input.CanvasX == nil || *input.CanvasX != 10.5 {
+		t.Error("expected canvas_x=10.5")
+	}
+	if input.CanvasY == nil || *input.CanvasY != 20.3 {
+		t.Error("expected canvas_y=20.3")
+	}
+}
+
+// [REQ:P0-004] Test UpdateThoughtInput with body and canvas
+func TestUpdateThoughtInputAllFields(t *testing.T) {
+	body := `{"title":"New","body":"Updated body","canvas_x":50.0,"canvas_y":60.0}`
+	var input UpdateThoughtInput
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if input.Title == nil || *input.Title != "New" {
+		t.Error("expected title=New")
+	}
+	if input.Body == nil || *input.Body != "Updated body" {
+		t.Error("expected body=Updated body")
+	}
+	if input.CanvasX == nil || *input.CanvasX != 50.0 {
+		t.Error("expected canvas_x=50.0")
+	}
+}
+
+// [REQ:P0-004] Test CreateEdgeInput with empty label
+func TestCreateEdgeInputEmptyLabel(t *testing.T) {
+	body := `{"target_id":"t2"}`
+	var input CreateEdgeInput
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if input.TargetID != "t2" {
+		t.Errorf("expected target_id=t2, got %s", input.TargetID)
+	}
+	if input.Label != "" {
+		t.Errorf("expected empty label, got %s", input.Label)
+	}
+}
+
+// [REQ:P1-001] Test Suggestion with all fields populated
+func TestSuggestionFullFields(t *testing.T) {
+	s := Suggestion{
+		ID:         "sug-1",
+		SchemeID:   "scheme-1",
+		SourceID:   "t1",
+		TargetID:   "t2",
+		Label:      "supports",
+		Confidence: 0.92,
+		Dismissed:  false,
+	}
+	b, _ := json.Marshal(s)
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	expectedFields := []string{"id", "scheme_id", "source_id", "target_id", "label", "confidence", "dismissed"}
+	for _, field := range expectedFields {
+		if _, ok := decoded[field]; !ok {
+			t.Errorf("missing field %s in JSON output", field)
+		}
+	}
+}
+
+// [REQ:P2-001] Test LLMProvider with fallback set
+func TestLLMProviderFallbackSerialization(t *testing.T) {
+	p := LLMProvider{
+		Name:     "openrouter",
+		URL:      "https://openrouter.ai/api/v1",
+		Active:   true,
+		Fallback: true,
+	}
+	b, _ := json.Marshal(p)
+	var decoded LLMProvider
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !decoded.Fallback {
+		t.Error("expected fallback=true")
+	}
+	if !decoded.Active {
+		t.Error("expected active=true")
+	}
+}
+
+// [REQ:P0-004] Test ThoughtEdge with empty label
+func TestThoughtEdgeEmptyLabel(t *testing.T) {
+	edge := ThoughtEdge{
+		ID:       "e1",
+		SourceID: "src",
+		TargetID: "tgt",
+		Label:    "",
+	}
+	b, _ := json.Marshal(edge)
+	var decoded ThoughtEdge
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Label != "" {
+		t.Errorf("expected empty label, got %s", decoded.Label)
+	}
+}
+
+// [REQ:P1-002] Test ExportData with empty graph components
+func TestExportDataEmptyGraph(t *testing.T) {
+	data := ExportData{
+		Scheme:       Scheme{ID: "s1", Name: "Empty"},
+		Information:  []Information{},
+		Thoughts:     []Thought{},
+		Edges:        []ThoughtEdge{},
+		ExportFormat: "vrooli-graph-v1",
+	}
+	b, _ := json.Marshal(data)
+	var decoded ExportData
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(decoded.Information) != 0 || len(decoded.Thoughts) != 0 || len(decoded.Edges) != 0 {
+		t.Error("expected empty slices for empty graph")
+	}
+}
+
+// [REQ:P0-003] Test CreateInformationInput without optional fields
+func TestCreateInformationInputMinimal(t *testing.T) {
+	body := `{"content":"just content"}`
+	var input CreateInformationInput
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if input.Content != "just content" {
+		t.Errorf("expected content='just content', got %s", input.Content)
+	}
+	if input.Type != "" {
+		t.Errorf("expected empty type when not specified, got %s", input.Type)
+	}
+	if input.CanvasX != 0 || input.CanvasY != 0 {
+		t.Error("expected zero canvas coords when not specified")
+	}
+}
+
 // [REQ:P2-004] Test thoughts with nil vs set scheme_id for cross-scheme linking
 func TestThoughtNilSchemeForCrossScheme(t *testing.T) {
 	sid := "scheme-1"

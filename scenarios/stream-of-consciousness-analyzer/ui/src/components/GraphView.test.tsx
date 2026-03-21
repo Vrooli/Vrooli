@@ -138,6 +138,36 @@ describe("GraphView", () => {
     expect(screen.getByTestId("link-mode-btn")).toBeInTheDocument();
   });
 
+  // [REQ:P0-004] Link mode guidance and accessibility
+  it("shows link mode hint when link mode is activated", async () => {
+    mockListThoughts.mockResolvedValue([]);
+    renderComponent();
+    const linkBtn = screen.getByTestId("link-mode-btn");
+    fireEvent.click(linkBtn);
+    const hint = screen.getByTestId("link-mode-hint");
+    expect(hint).toBeInTheDocument();
+    expect(hint).toHaveTextContent(/Click a thought to select it as the source/);
+  });
+
+  it("hides link mode hint when link mode is deactivated", async () => {
+    mockListThoughts.mockResolvedValue([]);
+    renderComponent();
+    const linkBtn = screen.getByTestId("link-mode-btn");
+    fireEvent.click(linkBtn);
+    expect(screen.getByTestId("link-mode-hint")).toBeInTheDocument();
+    fireEvent.click(linkBtn);
+    expect(screen.queryByTestId("link-mode-hint")).not.toBeInTheDocument();
+  });
+
+  it("announces link mode state change via aria-live", () => {
+    mockListThoughts.mockResolvedValue([]);
+    renderComponent();
+    const linkBtn = screen.getByTestId("link-mode-btn");
+    fireEvent.click(linkBtn);
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveTextContent(/Link mode active/);
+  });
+
   it("renders edge items when edges exist", async () => {
     mockListThoughts.mockResolvedValue([
       { id: "t1", scheme_id: "scheme-1", title: "A", body: "", canvas_x: 0, canvas_y: 0, created_at: "", updated_at: "" },

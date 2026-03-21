@@ -34,3 +34,13 @@ export interface ThoughtEdge {
   label: string;
   created_at: string;
 }
+
+export interface Suggestion {
+  id: string;
+  source_id: string;
+  target_id: string;
+  label: string;
+  confidence: number;
+  dismissed: boolean;
+  provider: string;
+}

@@ -190,3 +190,159 @@ func TestSuggestionCommandsValidation(t *testing.T) {
 		t.Error("expected error for missing scheme ID")
 	}
 }
+
+// [REQ:P0-001] Test App version is set
+func TestAppConstants(t *testing.T) {
+	if appName == "" {
+		t.Error("appName must be set")
+	}
+	if appVersion == "" {
+		t.Error("appVersion must be set")
+	}
+	if appName != "stream-of-consciousness-analyzer" {
+		t.Errorf("expected appName=stream-of-consciousness-analyzer, got %s", appName)
+	}
+}
+
+// [REQ:P0-001] Test apiPath handles various input formats
+func TestApiPathEdgeCases(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"with leading slash", "/test", "/api/v1/test"},
+		{"without leading slash", "test", "/api/v1/test"},
+		{"nested path", "/test/nested/deep", "/api/v1/test/nested/deep"},
+		{"empty string", "", ""},
+		{"whitespace only", "   ", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := app.apiPath(tc.input)
+			if got != tc.expected {
+				t.Errorf("apiPath(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// [REQ:P0-003] Test info create requires both scheme and content
+func TestInfoCreateRequiresBothFlags(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args at all", nil},
+		{"only scheme", []string{"--scheme", "s1"}},
+		{"only content", []string{"--content", "hello"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := app.cmdInfoCreate(tc.args)
+			if err == nil {
+				t.Error("expected error for incomplete arguments")
+			}
+		})
+	}
+}
+
+// [REQ:P0-003] Test info update requires scheme and at least one field
+func TestInfoUpdateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args", nil},
+		{"id only", []string{"some-id"}},
+		{"id and scheme but no fields", []string{"some-id", "--scheme", "s1"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := app.cmdInfoUpdate(tc.args)
+			if err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
+// [REQ:P0-003] Test info delete requires scheme and id
+func TestInfoDeleteValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args", nil},
+		{"id only no scheme", []string{"some-id"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := app.cmdInfoDelete(tc.args)
+			if err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
+// [REQ:P0-001] Test command group count matches expected
+func TestCommandGroupCount(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+	groups := app.registerCommands()
+	if len(groups) != 7 {
+		t.Errorf("expected 7 command groups, got %d", len(groups))
+	}
+}
+
+// [REQ:P0-004] Test edge create requires source and target
+func TestEdgeCreateFullValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args", nil},
+		{"source only", []string{"source-id"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := app.cmdEdgeCreate(tc.args)
+			if err == nil {
+				t.Error("expected error for missing arguments")
+			}
+		})
+	}
+}

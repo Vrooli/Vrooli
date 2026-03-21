@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -87,6 +88,31 @@ func TestHandleListEdges_Empty(t *testing.T) {
 	}
 }
 
+// [REQ:P0-004] Test listing edges returns 500 on service error
+func TestHandleListEdges_Error(t *testing.T) {
+	store := newMockThoughts().WithListEdgesError(fmt.Errorf("db failure"))
+	handler := handleListEdges(store)
+	req := httptest.NewRequest("GET", "/api/v1/thoughts/t1/edges", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "t1"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-004] Test creating edge returns 500 on service error
+func TestHandleCreateEdge_ServiceError(t *testing.T) {
+	store := newMockThoughts().WithCreateEdgeError(fmt.Errorf("db write failed"))
+	handler := handleCreateEdge(store)
+	body := `{"target_id":"t2","label":"test"}`
+	req := httptest.NewRequest("POST", "/api/v1/thoughts/t1/edges", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "t1"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
 // [REQ:P0-004] Test listing edges returns connected edges
 func TestHandleListEdges_WithEdges(t *testing.T) {
 	store := newMockThoughts()
@@ -135,4 +161,62 @@ func TestHandleDeleteEdge_Missing(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-004] [REQ:P2-004a] Test creating edge rejects malformed JSON body
+func TestHandleCreateEdge_MalformedJSON(t *testing.T) {
+	store := newMockThoughts()
+	sid := strPtr("s1")
+	source := store.seedThought("Source", sid)
+
+	handler := handleCreateEdge(store)
+	req := httptest.NewRequest("POST", "/api/v1/thoughts/"+source.ID+"/edges", bytes.NewBufferString("{bad"))
+	req = mux.SetURLVars(req, map[string]string{"id": source.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusBadRequest)
+}
+
+// [REQ:P0-004] [REQ:P2-004a] Test edge creation without label uses empty string
+func TestHandleCreateEdge_NoLabel(t *testing.T) {
+	store := newMockThoughts()
+	sid := strPtr("s1")
+	source := store.seedThought("A", sid)
+	target := store.seedThought("B", sid)
+
+	handler := handleCreateEdge(store)
+	body := `{"target_id":"` + target.ID + `"}`
+	req := httptest.NewRequest("POST", "/api/v1/thoughts/"+source.ID+"/edges", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"id": source.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusCreated)
+	edge := decodeJSON[ThoughtEdge](t, w)
+	if edge.Label != "" {
+		t.Errorf("expected empty label, got %q", edge.Label)
+	}
+}
+
+// [REQ:P0-004] Test listing edges from target perspective includes edge
+func TestHandleListEdges_TargetPerspective(t *testing.T) {
+	store := newMockThoughts()
+	sid := strPtr("s1")
+	t1 := store.seedThought("A", sid)
+	t2 := store.seedThought("B", sid)
+	store.seedEdge(t1.ID, t2.ID, "flows-to")
+
+	// List edges from target's perspective
+	handler := handleListEdges(store)
+	req := httptest.NewRequest("GET", "/api/v1/thoughts/"+t2.ID+"/edges", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": t2.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	edges := decodeJSON[[]ThoughtEdge](t, w)
+	if len(edges) != 1 {
+		t.Errorf("expected 1 edge from target perspective, got %d", len(edges))
+	}
 }

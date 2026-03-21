@@ -3,9 +3,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { listInformation, updateInformation, deleteInformation } from "../lib/api";
-import { CANVAS_ZOOM_MIN, CANVAS_ZOOM_MAX, CANVAS_ZOOM_IN_FACTOR, CANVAS_ZOOM_OUT_FACTOR } from "../lib/config";
+import { CANVAS_ZOOM_MIN, CANVAS_ZOOM_MAX, CANVAS_ZOOM_IN_FACTOR, CANVAS_ZOOM_OUT_FACTOR, CANVAS_PAN_STEP } from "../lib/config";
 import { useMutationErrors } from "../hooks/useMutationErrors";
 import { ErrorBanner } from "./ErrorBanner";
+import { KeyboardShortcutHelp } from "./KeyboardShortcutHelp";
 import type { Information } from "../lib/types";
 
 interface Props {
@@ -30,6 +31,7 @@ export function CanvasView({ schemeId }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [, setDrag] = useState<DragState | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
@@ -49,6 +51,40 @@ export function CanvasView({ schemeId }: Props) {
     e.preventDefault();
     const delta = e.deltaY > 0 ? CANVAS_ZOOM_OUT_FACTOR : CANVAS_ZOOM_IN_FACTOR;
     setZoom((z) => Math.max(CANVAS_ZOOM_MIN, Math.min(CANVAS_ZOOM_MAX, z * delta)));
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowUp":
+        e.preventDefault();
+        setPan((p) => ({ ...p, y: p.y + CANVAS_PAN_STEP }));
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        setPan((p) => ({ ...p, y: p.y - CANVAS_PAN_STEP }));
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        setPan((p) => ({ ...p, x: p.x + CANVAS_PAN_STEP }));
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        setPan((p) => ({ ...p, x: p.x - CANVAS_PAN_STEP }));
+        break;
+      case "+":
+      case "=":
+        e.preventDefault();
+        setZoom((z) => Math.min(CANVAS_ZOOM_MAX, z * CANVAS_ZOOM_IN_FACTOR));
+        break;
+      case "-":
+        e.preventDefault();
+        setZoom((z) => Math.max(CANVAS_ZOOM_MIN, z * CANVAS_ZOOM_OUT_FACTOR));
+        break;
+      case "?":
+        e.preventDefault();
+        setShowHelp((v) => !v);
+        break;
+    }
   }, []);
 
   // Track item-drag cleanup so listeners can be removed on unmount or interruption.
@@ -130,9 +166,13 @@ export function CanvasView({ schemeId }: Props) {
     <div
       ref={canvasRef}
       data-testid="canvas-view"
-      className="flex-1 relative overflow-hidden bg-slate-950 cursor-grab active:cursor-grabbing"
+      className="flex-1 relative overflow-hidden bg-slate-950 cursor-grab active:cursor-grabbing focus:outline-none focus:ring-1 focus:ring-white/20"
       onWheel={handleWheel}
       onMouseDown={handleCanvasMouseDown}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="application"
+      aria-label="Spatial canvas. Use arrow keys to pan, plus and minus to zoom."
     >
       {activeError && (
         <div className="absolute top-2 left-2 right-2 z-10">
@@ -179,8 +219,13 @@ export function CanvasView({ schemeId }: Props) {
           </div>
         ))}
       </div>
-      <div className="absolute bottom-3 right-3 text-xs text-slate-600">
-        {Math.round(zoom * 100)}%
+      <KeyboardShortcutHelp open={showHelp} onClose={() => setShowHelp(false)} />
+      <div className="absolute bottom-3 right-3 flex items-center gap-2 text-xs text-slate-600" aria-hidden="true">
+        <span className="opacity-60">Press ? for shortcuts</span>
+        <span>{Math.round(zoom * 100)}%</span>
+      </div>
+      <div className="sr-only" aria-live="polite" role="status">
+        Zoom {Math.round(zoom * 100)}%
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import "database/sql"
 
 // scanner is the interface shared by *sql.Row and *sql.Rows.
 type scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // scanScheme scans a single row into a Scheme.

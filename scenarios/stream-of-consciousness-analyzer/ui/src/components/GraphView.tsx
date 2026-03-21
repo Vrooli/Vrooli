@@ -135,6 +135,25 @@ export function GraphView({ schemeId }: Props) {
         </button>
       </div>
 
+      {/* Link mode guidance */}
+      {linkSource && (
+        <div data-testid="link-mode-hint" className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 border-b border-blue-500/30 text-xs text-blue-300">
+          <Link className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span>
+            {linkSource === LINK_MODE_WAITING
+              ? "Click a thought to select it as the source."
+              : "Now click another thought to connect them."}
+          </span>
+        </div>
+      )}
+      <div className="sr-only" aria-live="polite" role="status">
+        {linkSource
+          ? linkSource === LINK_MODE_WAITING
+            ? "Link mode active. Click a thought to select it as the source."
+            : "Source selected. Click another thought to create a connection."
+          : ""}
+      </div>
+
       {/* Graph content */}
       <div className="flex-1 overflow-auto p-4">
         {thoughts.length === 0 && (

@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // [REQ:P1-002] ExportFormatVersion must follow the vrooli-graph-vN convention
@@ -83,5 +84,29 @@ func TestSuggestionServiceUsesOpenRouterURL(t *testing.T) {
 	}
 	if orURL != OpenRouterURL {
 		t.Errorf("expected openrouter URL %q, got %q", OpenRouterURL, orURL)
+	}
+}
+
+// [REQ:P0-001] RequestTimeout is reasonable for API operations
+func TestRequestTimeoutBounds(t *testing.T) {
+	if RequestTimeout < 5*time.Second {
+		t.Errorf("RequestTimeout too short for production: %v", RequestTimeout)
+	}
+	if RequestTimeout > 5*time.Minute {
+		t.Errorf("RequestTimeout too long, will hang clients: %v", RequestTimeout)
+	}
+}
+
+// [REQ:P0-001] AppVersion is not empty
+func TestAppVersionNonEmpty(t *testing.T) {
+	if AppVersion == "" {
+		t.Error("AppVersion must not be empty")
+	}
+}
+
+// [REQ:P1-002] ExportFormatVersion is not empty
+func TestExportFormatVersionNonEmpty(t *testing.T) {
+	if ExportFormatVersion == "" {
+		t.Error("ExportFormatVersion must not be empty")
 	}
 }

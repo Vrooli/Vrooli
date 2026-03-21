@@ -296,12 +296,14 @@ const literalSelectors: LiteralSelectorTree = {
   canvas: {
     view: "canvas-view",
     node: "canvas-node",
+    shortcutHelp: "keyboard-shortcut-help",
   },
   graph: {
     view: "graph-view",
     thoughtTitleInput: "thought-title-input",
     createThoughtBtn: "create-thought-btn",
     linkModeBtn: "link-mode-btn",
+    linkModeHint: "link-mode-hint",
     thoughtNode: "thought-node",
     edgeItem: "edge-item",
   },

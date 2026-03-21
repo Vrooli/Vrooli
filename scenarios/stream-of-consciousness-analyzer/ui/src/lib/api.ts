@@ -1,7 +1,7 @@
 // DOC: docs/internal/SEAMS.md#ui--api
 // DOC: docs/reference/api-endpoints.md
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-import type { Scheme, Information, Thought, ThoughtEdge } from "./types";
+import type { Scheme, Information, Thought, ThoughtEdge, Suggestion } from "./types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
@@ -9,9 +9,13 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 export const API_ROUTES: Readonly<Record<string, string>> = {
   health: "/api/v1/health",
   schemes: "/api/v1/schemes",
+  schemeById: "/api/v1/schemes/:id",
   information: "/api/v1/schemes/:schemeId/information",
+  informationById: "/api/v1/schemes/:schemeId/information/:infoId",
   thoughts: "/api/v1/thoughts",
+  thoughtById: "/api/v1/thoughts/:id",
   edges: "/api/v1/thoughts/:id/edges",
+  edgeById: "/api/v1/thoughts/:id/edges/:edgeId",
   export: "/api/v1/schemes/:id/export",
   providers: "/api/v1/providers",
   suggestions: "/api/v1/schemes/:id/suggestions",
@@ -100,7 +104,7 @@ async function apiFetch<T = void>(path: string, init?: RequestInit): Promise<T> 
     throw new ApiRequestError(res.status, await parseErrorBody(res));
   }
   if (res.status === 204) return undefined as never;
-  const body: T = await res.json();
+  const body = (await res.json()) as T;
   return body;
 }
 
@@ -148,6 +152,10 @@ export const deleteEdge = (thoughtId: string, edgeId: string) =>
 // Export
 export const exportScheme = (schemeId: string) =>
   apiFetch<{ scheme: Scheme; information: Information[]; thoughts: Thought[]; edges: ThoughtEdge[]; export_format: string }>(`/schemes/${schemeId}/export`);
+
+// Suggestions
+export const generateSuggestions = (schemeId: string) =>
+  apiFetch<{ suggestions: Suggestion[]; provider: string }>(`/schemes/${schemeId}/suggestions`, { method: "POST" });
 
 // Providers
 export const listProviders = () =>

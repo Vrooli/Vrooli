@@ -15,11 +15,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P1-002a1", "REQ-P1-002a2"],
       "description": "Export handler processes scheme export requests and produces structured output",
       "id": "REQ-P1-002a",
       "prd_ref": "OT-P1-002",
       "status": "passed",
-      "title": "Export Handler Pipeline",
+      "title": "Export Handler Pipeline"
+    },
+    {
+      "category": "api",
+      "description": "Export handler initializes correctly and returns full export data on success",
+      "id": "REQ-P1-002a1",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Success Path",
       "validation": [
         {
           "notes": "Test export handler factory initialization",
@@ -34,7 +43,17 @@
           "ref": "api/export_handlers_test.go:TestHandleExportScheme_Success",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Export handler returns 404 with structured error for unknown scheme IDs",
+      "id": "REQ-P1-002a2",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Export Not-Found Handling",
+      "validation": [
         {
           "notes": "Export handler returns 404 for unknown scheme",
           "phase": "unit",
@@ -103,11 +122,20 @@
     },
     {
       "category": "data",
+      "children": ["REQ-P1-004b1", "REQ-P1-004b2"],
       "description": "Export format string is consistent and machine-readable for downstream consumers",
       "id": "REQ-P1-004b",
       "prd_ref": "OT-P1-002",
       "status": "passed",
-      "title": "Export Format Consistency",
+      "title": "Export Format Consistency"
+    },
+    {
+      "category": "data",
+      "description": "Export format string is present and consistent in serialized JSON output",
+      "id": "REQ-P1-004b1",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Format String Presence",
       "validation": [
         {
           "notes": "Test export format string is present and consistent in JSON output",
@@ -115,7 +143,17 @@
           "ref": "api/model_test.go:TestExportFormatString",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "Export format constant matches expected version convention",
+      "id": "REQ-P1-004b2",
+      "prd_ref": "OT-P1-002",
+      "status": "passed",
+      "title": "Format Version Constant",
+      "validation": [
         {
           "notes": "Test export format constant",
           "phase": "unit",

@@ -15,11 +15,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P0-001a1", "REQ-P0-001a2"],
       "description": "API response helpers produce correct JSON format and status codes for all handler responses",
       "id": "REQ-P0-001a",
       "prd_ref": "OT-P0-001",
       "status": "passed",
-      "title": "API Response Formatting",
+      "title": "API Response Formatting"
+    },
+    {
+      "category": "api",
+      "description": "JSON success response helper serializes data with correct Content-Type and 200 status",
+      "id": "REQ-P0-001a1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Success Response Serialization",
       "validation": [
         {
           "notes": "Test JSON response helpers used by all handlers",
@@ -27,7 +36,17 @@
           "ref": "api/handlers_test.go:TestWriteJSON",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Error response helper produces structured error JSON with appropriate HTTP status codes",
+      "id": "REQ-P0-001a2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Error Response Structure",
+      "validation": [
         {
           "notes": "Test error response format for API consistency",
           "phase": "unit",
@@ -96,11 +115,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P0-002b1", "REQ-P0-002b2"],
       "description": "Scheme CRUD operations handle success and error paths correctly",
       "id": "REQ-P0-002b",
       "prd_ref": "OT-P0-001",
       "status": "passed",
-      "title": "Scheme CRUD Operations",
+      "title": "Scheme CRUD Operations"
+    },
+    {
+      "category": "api",
+      "description": "Scheme creation input deserializes correctly from JSON request bodies",
+      "id": "REQ-P0-002b1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme Input Deserialization",
       "validation": [
         {
           "notes": "Test CreateSchemeInput deserialization",
@@ -108,7 +136,17 @@
           "ref": "api/model_test.go:TestCreateSchemeInputJSON",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Full scheme lifecycle (create, update, delete) completes without errors",
+      "id": "REQ-P0-002b2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme Lifecycle Integrity",
+      "validation": [
         {
           "notes": "Scheme lifecycle create/update/delete",
           "phase": "unit",

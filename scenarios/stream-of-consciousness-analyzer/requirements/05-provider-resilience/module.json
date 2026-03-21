@@ -16,11 +16,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P2-001a1", "REQ-P2-001a2"],
       "description": "Provider selection logic prefers primary providers and falls back correctly",
       "id": "REQ-P2-001a",
       "prd_ref": "OT-P2-001",
       "status": "passed",
-      "title": "Provider Selection Logic",
+      "title": "Provider Selection Logic"
+    },
+    {
+      "category": "api",
+      "description": "Primary provider is always selected first when available",
+      "id": "REQ-P2-001a1",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Primary Provider Priority",
       "validation": [
         {
           "notes": "Test provider fallback returns primary when available",
@@ -35,7 +44,17 @@
           "ref": "api/decision_boundaries_test.go:TestGetActiveProvider_FirstPrimaryWins",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Fallback provider is only selected when no primary provider is available",
+      "id": "REQ-P2-001a2",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Fallback Selection Guard",
+      "validation": [
         {
           "notes": "Fallback only selected when no primary available",
           "phase": "unit",
@@ -81,11 +100,20 @@
     },
     {
       "category": "api",
+      "children": ["REQ-P2-003a1", "REQ-P2-003a2"],
       "description": "Provider list endpoint returns structured data with primary/fallback designations",
       "id": "REQ-P2-003a",
       "prd_ref": "OT-P2-001",
       "status": "passed",
-      "title": "Provider List Structure",
+      "title": "Provider List Structure"
+    },
+    {
+      "category": "api",
+      "description": "Provider list includes both primary and fallback providers with designations",
+      "id": "REQ-P2-003a1",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider List Completeness",
       "validation": [
         {
           "notes": "Test provider list includes both primary and fallback providers",
@@ -93,7 +121,17 @@
           "ref": "api/suggestion_service_test.go:TestProviderListStructure",
           "status": "passing",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Provider Active and Fallback JSON fields serialize correctly for API consumers",
+      "id": "REQ-P2-003a2",
+      "prd_ref": "OT-P2-001",
+      "status": "passed",
+      "title": "Provider Field Serialization",
+      "validation": [
         {
           "notes": "Test provider Active and Fallback JSON fields serialize correctly",
           "phase": "unit",

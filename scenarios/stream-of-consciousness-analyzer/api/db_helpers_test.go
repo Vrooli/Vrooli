@@ -44,6 +44,23 @@ func TestDeleteByID_NotFound(t *testing.T) {
 	}
 }
 
+// [REQ:P0-001] Test deleteByID propagates RowsAffected errors
+func TestDeleteByID_RowsAffectedError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	defer db.Close()
+
+	mock.ExpectExec("DELETE FROM schemes").
+		WithArgs("abc-123").
+		WillReturnResult(sqlmock.NewErrorResult(sql.ErrConnDone))
+
+	if err := deleteByID(db, "DELETE FROM schemes WHERE id = $1", "abc-123"); err != sql.ErrConnDone {
+		t.Errorf("expected ErrConnDone from RowsAffected, got %v", err)
+	}
+}
+
 // [REQ:P0-001] Test deleteByID propagates DB errors
 func TestDeleteByID_ExecError(t *testing.T) {
 	db, mock, err := sqlmock.New()

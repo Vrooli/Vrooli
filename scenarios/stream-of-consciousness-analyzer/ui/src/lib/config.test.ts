@@ -4,6 +4,7 @@ import {
   CANVAS_ZOOM_MAX,
   CANVAS_ZOOM_IN_FACTOR,
   CANVAS_ZOOM_OUT_FACTOR,
+  CANVAS_PAN_STEP,
   INFO_PLACEMENT_WIDTH,
   INFO_PLACEMENT_HEIGHT,
   THOUGHT_PLACEMENT_WIDTH,
@@ -37,6 +38,11 @@ describe("Canvas zoom config", () => {
   it("zoom factors are close to 1 (smooth scrolling)", () => {
     expect(CANVAS_ZOOM_IN_FACTOR).toBeLessThan(1.5);
     expect(CANVAS_ZOOM_OUT_FACTOR).toBeGreaterThan(0.5);
+  });
+
+  it("pan step is positive and reasonable", () => {
+    expect(CANVAS_PAN_STEP).toBeGreaterThan(0);
+    expect(CANVAS_PAN_STEP).toBeLessThanOrEqual(200);
   });
 });
 

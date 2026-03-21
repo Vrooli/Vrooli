@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: dark;
+  --edge-stroke-color: rgba(148, 163, 184, 0.3);
 }
 
 html, body, #root {

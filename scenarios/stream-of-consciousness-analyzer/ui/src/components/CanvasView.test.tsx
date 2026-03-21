@@ -124,4 +124,74 @@ describe("CanvasView", () => {
     const { unmount } = renderComponent();
     expect(() => unmount()).not.toThrow();
   });
+
+  // [REQ:P0-003] Keyboard accessibility for canvas navigation
+  it("pans down when ArrowDown is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "ArrowDown" });
+    // Canvas transform should reflect pan change (negative y = scroll down)
+    const inner = canvas.querySelector<HTMLElement>("[style]");
+    expect(inner?.style.transform).toContain("translate(0px, -40px)");
+  });
+
+  it("zooms in when + key is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "+" });
+    // Zoom should change from 100% to 110%
+    expect(screen.getByText("110%")).toBeInTheDocument();
+  });
+
+  it("zooms out when - key is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "-" });
+    expect(screen.getByText("90%")).toBeInTheDocument();
+  });
+
+  it("has appropriate ARIA attributes for keyboard users", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    expect(canvas).toHaveAttribute("role", "application");
+    expect(canvas).toHaveAttribute("tabindex", "0");
+    expect(canvas).toHaveAttribute("aria-label", expect.stringContaining("arrow keys"));
+  });
+
+  it("announces zoom level via aria-live region", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveTextContent("Zoom 100%");
+  });
+
+  // [REQ:P0-003] Keyboard shortcut help discoverability
+  it("shows keyboard shortcut help when ? is pressed", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    expect(screen.queryByTestId("keyboard-shortcut-help")).not.toBeInTheDocument();
+    fireEvent.keyDown(canvas, { key: "?" });
+    expect(screen.getByTestId("keyboard-shortcut-help")).toBeInTheDocument();
+  });
+
+  it("hides keyboard shortcut help when ? is pressed again", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    const canvas = screen.getByTestId("canvas-view");
+    fireEvent.keyDown(canvas, { key: "?" });
+    expect(screen.getByTestId("keyboard-shortcut-help")).toBeInTheDocument();
+    fireEvent.keyDown(canvas, { key: "?" });
+    expect(screen.queryByTestId("keyboard-shortcut-help")).not.toBeInTheDocument();
+  });
+
+  it("shows shortcut hint text near zoom indicator", () => {
+    mockListInformation.mockResolvedValue([]);
+    renderComponent();
+    expect(screen.getByText("Press ? for shortcuts")).toBeInTheDocument();
+  });
 });

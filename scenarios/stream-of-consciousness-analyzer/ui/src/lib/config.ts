@@ -24,10 +24,15 @@ export const THOUGHT_PLACEMENT_WIDTH = 500;
 /** Height of the random placement area for new thought nodes (px). */
 export const THOUGHT_PLACEMENT_HEIGHT = 300;
 
+// --- Canvas keyboard navigation ---
+
+/** Number of pixels to pan per arrow-key press. */
+export const CANVAS_PAN_STEP = 40;
+
 // --- Graph view ---
 
-/** SVG edge stroke color between connected thoughts. */
-export const EDGE_STROKE_COLOR = "rgba(148,163,184,0.3)";
+/** SVG edge stroke color between connected thoughts. Uses CSS variable for theming. */
+export const EDGE_STROKE_COLOR = "var(--edge-stroke-color, rgba(148,163,184,0.3))";
 /** SVG edge stroke width in pixels. */
 export const EDGE_STROKE_WIDTH = 2;
 /** Minimum height of the thought graph container (px). */

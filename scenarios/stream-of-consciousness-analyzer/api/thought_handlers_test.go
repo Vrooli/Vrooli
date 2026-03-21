@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -160,6 +161,53 @@ func TestHandleDeleteThought_NotFound(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-004] Test listing thoughts returns 500 on service error
+func TestHandleListThoughts_Error(t *testing.T) {
+	store := newMockThoughts().WithListError(fmt.Errorf("db failure"))
+	handler := handleListThoughts(store)
+	req := httptest.NewRequest("GET", "/api/v1/thoughts", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-004] Test creating a thought returns 500 on service error
+func TestHandleCreateThought_ServiceError(t *testing.T) {
+	store := newMockThoughts().WithCreateError(fmt.Errorf("db write failed"))
+	handler := handleCreateThought(store)
+	body := `{"title":"Test","body":"Content","scheme_id":"s1"}`
+	req := httptest.NewRequest("POST", "/api/v1/thoughts", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-004] Test updating a thought rejects bad JSON
+func TestHandleUpdateThought_BadJSON(t *testing.T) {
+	handler := handleUpdateThought(newMockThoughts())
+	req := httptest.NewRequest("PUT", "/api/v1/thoughts/test", bytes.NewBufferString("{bad"))
+	req = mux.SetURLVars(req, map[string]string{"id": "test"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusBadRequest)
+}
+
+// [REQ:P0-004] Test updating a thought returns 500 on service error
+func TestHandleUpdateThought_ServiceError(t *testing.T) {
+	store := newMockThoughts().WithUpdateError(fmt.Errorf("db update failed"))
+	handler := handleUpdateThought(store)
+	body := `{"title":"New"}`
+	req := httptest.NewRequest("PUT", "/api/v1/thoughts/any", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "any"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
 }
 
 // [REQ:P2-002] Test cross-scheme thought creation via handler

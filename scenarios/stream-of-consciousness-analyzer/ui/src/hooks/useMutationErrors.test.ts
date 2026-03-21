@@ -5,26 +5,46 @@ import type { UseMutationResult } from "@tanstack/react-query";
 
 // [REQ:P0-001] Consolidated mutation error handling
 
+const sharedFields = {
+  reset: vi.fn(),
+  data: undefined,
+  variables: undefined,
+  failureCount: 0,
+  failureReason: null,
+  isPaused: false,
+  submittedAt: 0,
+  context: undefined,
+  mutate: vi.fn(),
+  mutateAsync: vi.fn(),
+} satisfies Partial<UseMutationResult<unknown, Error, unknown, unknown>>;
+
 function mockMutation(error: Error | null = null): UseMutationResult<unknown, Error, unknown, unknown> {
+  if (error) {
+    return {
+      ...sharedFields,
+      reset: vi.fn(),
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      error,
+      isError: true,
+      isIdle: false,
+      isPending: false,
+      isSuccess: false,
+      status: "error",
+    };
+  }
   return {
-    error,
+    ...sharedFields,
     reset: vi.fn(),
-    // Minimal stubs for the rest of the interface
-    data: undefined,
-    isError: !!error,
-    isIdle: !error,
-    isPending: false,
-    isSuccess: false,
-    status: error ? "error" : "idle",
-    variables: undefined,
-    failureCount: 0,
-    failureReason: null,
-    isPaused: false,
-    submittedAt: 0,
-    context: undefined,
     mutate: vi.fn(),
     mutateAsync: vi.fn(),
-  } as unknown as UseMutationResult<unknown, Error, unknown, unknown>;
+    error: null,
+    isError: false,
+    isIdle: true,
+    isPending: false,
+    isSuccess: false,
+    status: "idle",
+  };
 }
 
 describe("useMutationErrors", () => {

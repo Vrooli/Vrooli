@@ -28,37 +28,28 @@ describe("slugify", () => {
 describe("downloadJSON", () => {
   let createObjectURLSpy: ReturnType<typeof vi.fn>;
   let revokeObjectURLSpy: ReturnType<typeof vi.fn>;
-  let clickSpy: ReturnType<typeof vi.fn>;
   let capturedBlob: Blob | undefined;
-  let anchorDownload = "";
-  let anchorHref = "";
+  let anchor: HTMLAnchorElement;
+
+  const origCreateElement = document.createElement.bind(document);
 
   beforeEach(() => {
     capturedBlob = undefined;
-    anchorDownload = "";
-    anchorHref = "";
+    anchor = origCreateElement("a");
+    vi.spyOn(anchor, "click").mockImplementation(() => {});
 
     createObjectURLSpy = vi.fn().mockImplementation((blob: Blob) => {
       capturedBlob = blob;
       return "blob:fake-url";
     });
     revokeObjectURLSpy = vi.fn();
-    clickSpy = vi.fn();
 
     globalThis.URL.createObjectURL = createObjectURLSpy;
     globalThis.URL.revokeObjectURL = revokeObjectURLSpy;
 
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
-      if (tag === "a") {
-        return {
-          click: clickSpy,
-          get href() { return anchorHref; },
-          set href(v: string) { anchorHref = v; },
-          get download() { return anchorDownload; },
-          set download(v: string) { anchorDownload = v; },
-        } as unknown as HTMLAnchorElement;
-      }
-      return document.createElement(tag);
+      if (tag === "a") return anchor;
+      return origCreateElement(tag);
     });
   });
 
@@ -72,9 +63,9 @@ describe("downloadJSON", () => {
     expect(createObjectURLSpy).toHaveBeenCalledOnce();
     expect(capturedBlob).toBeInstanceOf(Blob);
 
-    expect(anchorDownload).toBe("test.json");
-    expect(anchorHref).toBe("blob:fake-url");
-    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(anchor.download).toBe("test.json");
+    expect(anchor.href).toBe("blob:fake-url");
+    expect(anchor.click).toHaveBeenCalledOnce();
     expect(revokeObjectURLSpy).toHaveBeenCalledWith("blob:fake-url");
   });
 

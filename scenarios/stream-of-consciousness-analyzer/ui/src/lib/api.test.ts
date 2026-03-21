@@ -106,3 +106,57 @@ describe("apiFetch error mapping", () => {
     }
   });
 });
+
+// [REQ:P1-001] [REQ:P1-003] Suggestion generation API integration
+describe("generateSuggestions", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("calls POST /schemes/:id/suggestions and returns suggestions", async () => {
+    const mockResponse = {
+      suggestions: [
+        { id: "s1", source_id: "t1", target_id: "t2", label: "related", confidence: 0.85, dismissed: false, provider: "ollama" },
+      ],
+      provider: "ollama",
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockResponse),
+    });
+
+    const { generateSuggestions } = await import("./api");
+    const result = await generateSuggestions("scheme-1");
+
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions[0]?.label).toBe("related");
+    expect(result.provider).toBe("ollama");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/schemes/scheme-1/suggestions"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("throws ApiRequestError when provider is unavailable", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({ category: "dependency", message: "no LLM provider available", retryable: true }),
+    });
+
+    const { generateSuggestions } = await import("./api");
+
+    try {
+      await generateSuggestions("scheme-1");
+      expect.unreachable("should have thrown");
+    } catch (e) {
+      if (!(e instanceof ApiRequestError)) throw e;
+      expect(e.status).toBe(503);
+      expect(e.category).toBe("dependency");
+      expect(e.retryable).toBe(true);
+    }
+  });
+});
