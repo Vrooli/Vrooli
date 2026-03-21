@@ -172,6 +172,55 @@ func TestLaunchApp_DisplayNotRunning(t *testing.T) {
 	assert.Contains(t, err.Error(), "not running")
 }
 
+func TestStopSession_KillsAppProcess(t *testing.T) {
+	store := NewInMemoryStore()
+	dm := &mockDisplayManager{
+		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
+	}
+	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	// Simulate an app process by setting AppCmd to a long-running command
+	cmd := exec.Command("sleep", "3600")
+	require.NoError(t, cmd.Start())
+	session.AppCmd = cmd
+
+	// Stop session should kill the app process
+	err = svc.StopSession(session.ID)
+	require.NoError(t, err)
+
+	// The app process should have been killed (Wait returns immediately)
+	err = cmd.Wait()
+	assert.Error(t, err, "process should have been killed")
+}
+
+func TestLaunchApp_KillsPreviousApp(t *testing.T) {
+	store := NewInMemoryStore()
+	dm := &mockDisplayManager{
+		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
+	}
+	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+
+	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
+	require.NoError(t, err)
+
+	// Simulate a running app
+	oldCmd := exec.Command("sleep", "3600")
+	require.NoError(t, oldCmd.Start())
+	session.mu.Lock()
+	session.AppCmd = oldCmd
+	session.mu.Unlock()
+
+	// Launch a new app (will fail since /nonexistent doesn't exist, but the old app should be killed first)
+	_ = svc.LaunchApp(session.ID, "/nonexistent-binary")
+
+	// The old app process should have been killed
+	err = oldCmd.Wait()
+	assert.Error(t, err, "old app process should have been killed before new launch")
+}
+
 func TestListSessions(t *testing.T) {
 	store := NewInMemoryStore()
 	dm := &mockDisplayManager{

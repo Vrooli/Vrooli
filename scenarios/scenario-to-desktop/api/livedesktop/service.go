@@ -112,6 +112,9 @@ func (s *Service) StopSession(sessionID string) error {
 	session.SetState(StateStopping)
 	_ = s.store.Update(session)
 
+	// Kill launched app process
+	s.killAppProcess(session)
+
 	// Stop VNC processes
 	s.stopVNC(session)
 
@@ -139,6 +142,7 @@ func (s *Service) Heartbeat(sessionID string) error {
 
 // LaunchApp starts an application on the session's display.
 // If appPath is empty, it auto-discovers the latest build artifact for the session's scenario.
+// If an app is already running, it is killed before launching the new one.
 func (s *Service) LaunchApp(sessionID, appPath string) error {
 	session, err := s.store.Get(sessionID)
 	if err != nil {
@@ -157,14 +161,39 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 		appPath = discovered
 	}
 
+	// Kill any previously launched app process to prevent pileup
+	s.killAppProcess(session)
+
 	cmd := exec.CommandContext(context.Background(), appPath)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("DISPLAY=%s", session.Display.DisplayID))
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("launching app: %w", err)
 	}
 
+	session.mu.Lock()
+	session.AppCmd = cmd
+	session.mu.Unlock()
+
+	// Reap the process in the background so it doesn't become a zombie
+	go func() {
+		_ = cmd.Wait()
+	}()
+
 	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath)
 	return nil
+}
+
+// killAppProcess kills and cleans up the app process for a session.
+func (s *Service) killAppProcess(session *Session) {
+	session.mu.Lock()
+	cmd := session.AppCmd
+	session.AppCmd = nil
+	session.mu.Unlock()
+
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}
 }
 
 // FindArtifact finds the latest build artifact for a scenario.

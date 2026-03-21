@@ -116,45 +116,21 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 - **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 
-## 🧠 Skill Discovery (Planning Only)
+## 🧠 Situational Skill Loading
 
-When creating implementation plans and the user has **not** provided specific skills, find relevant skills before writing the plan. Do **not** search for skills during routine task execution — skills should already be embedded in the plan.
-
-### Decision tree: how to search
+At conversation start, assess the user's intent and proactively load the relevant skill. Do not wait for the user to request it — recognize the pattern and act.
 
 ```
-What kind of work is this?
-├─ Bug/debugging       → prompt-manager search "debugging <domain>" -limit 3
-├─ New feature/scenario → prompt-manager search "<scenario-name> OR <domain>" -limit 5
-├─ Refactor/cleanup    → prompt-manager search "refactor <area>" -limit 3
-├─ Deployment/infra    → prompt-manager search "deploy OR infrastructure <target>" -limit 3
-└─ Unsure              → prompt-manager search "<describe the goal>" -limit 5
-
-Too many results? Narrow with tags:
-  prompt-manager search "<query>" -tag testing
-  prompt-manager search "<query>" -tag infrastructure
+What is the user doing?
+├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
+├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
+├─ Creating an implementation plan        → prompt-manager skill read plan-skill-discovery
+├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
+├─ (add new entries as patterns emerge)
+└─ None of the above                      → proceed normally, no skill needed
 ```
 
-### Confirm relevance, then read
-
-```bash
-prompt-manager skill read <id-1> <id-2> -output combined
-```
-
-### Embed in the plan
-
-Every plan **must** include a Required Reading section with explicit read commands so the executing agent loads the same skills:
-
-```markdown
-## Required Reading
-prompt-manager skill read <skill-1> <skill-2> <skill-3>
-```
-
-### When to skip
-
-- The user already provided specific skills to use
-- The task is a quick one-step fix with no planning phase
-- You are executing a plan that already contains Required Reading
+Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
 
 ## 📚 Session Start Checklist
 1. [ ] Run `vrooli info` for the consolidated project overview

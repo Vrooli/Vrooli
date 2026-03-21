@@ -29,6 +29,7 @@ type Session struct {
 	WSPort        int                             `json:"ws_port"`
 	X11VNCCmd     *exec.Cmd                       `json:"-"`
 	WebsockifyCmd *exec.Cmd                       `json:"-"`
+	AppCmd        *exec.Cmd                       `json:"-"`
 	CreatedAt     time.Time                       `json:"created_at"`
 	LastHeartbeat time.Time                       `json:"last_heartbeat"`
 	Error         string                          `json:"error,omitempty"`

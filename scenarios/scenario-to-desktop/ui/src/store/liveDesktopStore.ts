@@ -82,7 +82,13 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
   },
 
   startSession: async (config) => {
-    set({ connectionStatus: "connecting", error: null });
+    // Clean up any existing session before starting a new one
+    const { activeSession: oldSession } = get();
+    if (oldSession) {
+      clearHeartbeat();
+      stopDesktopSession(oldSession.id).catch(() => {});
+    }
+    set({ activeSession: null, connectionStatus: "connecting", error: null });
     try {
       const session = await startDesktopSession(config);
       if (session.state === "error") {

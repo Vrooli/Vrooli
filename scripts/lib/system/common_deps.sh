@@ -31,9 +31,11 @@ common_deps::check_and_install() {
             common_deps::try_optional_install "Xvfb" "screen recording (FFmpeg screen-capture)"
             common_deps::try_optional_install "xdotool" "screen recording (window automation)"
             common_deps::try_optional_install "openbox" "screen recording (window management)"
+            common_deps::try_optional_install "x11vnc" "interactive desktop (VNC server)"
+            common_deps::try_optional_install "websockify" "interactive desktop (VNC-to-WebSocket bridge)"
             ;;
         *)
-            log::info "Skipping Linux-only dependencies (nproc, free, systemctl, Xvfb, xdotool) on package manager $pm"
+            log::info "Skipping Linux-only dependencies (nproc, free, systemctl, Xvfb, xdotool, x11vnc, websockify) on package manager $pm"
             ;;
     esac
 
