@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
 )
 
@@ -71,6 +72,23 @@ func (a *ScreenshotAction) Execute(ctx context.Context, session *Session, svc *S
 		session.Display.DisplayID, outputPath)
 	if _, err := svc.shell(ctx, nil, "sh", "-c", pipeline); err != nil {
 		return nil, fmt.Errorf("screenshot pipeline failed: %w", err)
+	}
+
+	// Persist to captures service if available
+	if svc.captures != nil {
+		cap, err := svc.captures.SaveCapture(session.ScenarioName, captures.CaptureScreenshot, session.ID, outputPath, session.Width, session.Height, 0)
+		if err == nil {
+			url := fmt.Sprintf("/api/v1/captures/%s/%s/file", session.ScenarioName, cap.ID)
+			return &ActionResult{
+				Status: "ok",
+				Data: map[string]any{
+					"url":        url,
+					"filename":   cap.Filename,
+					"capture_id": cap.ID,
+				},
+			}, nil
+		}
+		// Fall through to session-scoped URL on error
 	}
 
 	url := fmt.Sprintf("/api/v1/livedesktop/sessions/%s/files/%s", session.ID, filename)
@@ -148,6 +166,24 @@ func (a *StopRecordingAction) Execute(ctx context.Context, session *Session, svc
 	}
 
 	session.SetRecording(false, "")
+
+	// Persist to captures service if available
+	if svc.captures != nil {
+		cap, err := svc.captures.SaveCapture(session.ScenarioName, captures.CaptureRecording, session.ID, result.VideoPath, session.Width, session.Height, result.DurationMs)
+		if err == nil {
+			videoURL := fmt.Sprintf("/api/v1/captures/%s/%s/file", session.ScenarioName, cap.ID)
+			return &ActionResult{
+				Status: "ok",
+				Data: map[string]any{
+					"video_url":   videoURL,
+					"duration_ms": result.DurationMs,
+					"size_bytes":  result.FileSizeBytes,
+					"capture_id":  cap.ID,
+				},
+			}, nil
+		}
+		// Fall through to session-scoped URL on error
+	}
 
 	videoFilename := filepath.Base(result.VideoPath)
 	videoURL := fmt.Sprintf("/api/v1/livedesktop/sessions/%s/files/%s", session.ID, videoFilename)

@@ -182,6 +182,17 @@ export {
   fetchScenarioPort,
 } from "./misc";
 
+// Captures functions
+export {
+  listCaptures,
+  getCapturesSummary,
+  buildCaptureFileUrl,
+  deleteCapture,
+  deleteAllCaptures,
+  buildCapturesDownloadUrl,
+} from "./captures";
+export type { Capture, CapturesSummary } from "./captures";
+
 // Live desktop functions
 export {
   startDesktopSession,

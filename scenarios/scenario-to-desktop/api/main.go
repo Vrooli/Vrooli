@@ -17,10 +17,12 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/livedesktop"
@@ -77,6 +79,9 @@ type Server struct {
 
 	// Live desktop handler
 	liveDesktopHandler *livedesktop.Handler
+
+	// Captures handler
+	capturesHandler *captures.Handler
 
 	// Smoke test store for video serving
 	smokeTestStore smoketest.Store
@@ -157,10 +162,40 @@ func NewServer(port int) *Server {
 	// Wire smoke test store into records handler for video data enrichment
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
 
+	// Captures domain (persistent screenshot/recording storage)
+	capturesResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		logger.Warn("captures storage resolver unavailable", "error", err)
+	}
+	capturesOpts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
+	var capturesService *captures.Service
+	var capturesHandler *captures.Handler
+	if capturesResolver != nil {
+		metaPath, err := capturesResolver.Path(capturesOpts, storage.ClassData, "captures_meta.json")
+		if err != nil {
+			logger.Warn("captures meta path unavailable", "error", err)
+		} else {
+			capturesStore, err := captures.NewFileStore(metaPath)
+			if err != nil {
+				logger.Warn("captures store unavailable", "error", err)
+			} else {
+				capturesService = captures.NewService(capturesResolver, capturesOpts, capturesStore)
+				capturesHandler = captures.NewHandler(capturesService)
+				logger.Info("captures service initialized", "meta_path", metaPath)
+			}
+		}
+	}
+
 	// Live desktop domain (interactive VNC sessions)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
 	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger, vrooliRoot)
 	liveDesktopService.WithRecorder(recorder)
+	if capturesService != nil {
+		liveDesktopService.WithCaptures(capturesService)
+	}
 	liveDesktopHandler := livedesktop.NewHandler(liveDesktopService)
 	// Start idle session janitor (30s check interval, 30m idle timeout)
 	livedesktop.StartJanitor(context.Background(), liveDesktopService, 30*time.Second, 30*time.Minute)
@@ -374,6 +409,8 @@ func NewServer(port int) *Server {
 		deployHandler:    deployHandler,
 		// Live desktop handler
 		liveDesktopHandler: liveDesktopHandler,
+		// Captures handler
+		capturesHandler: capturesHandler,
 		// Tool Protocol handlers
 		toolsHandler:         toolsHandler,
 		toolExecutionHandler: toolExecutionHandler,
@@ -441,6 +478,11 @@ func (s *Server) registerDomainHandlers() {
 	// Live desktop: /api/v1/livedesktop/*
 	if s.liveDesktopHandler != nil {
 		s.liveDesktopHandler.RegisterRoutes(s.router)
+	}
+
+	// Captures: /api/v1/captures/*
+	if s.capturesHandler != nil {
+		s.capturesHandler.RegisterRoutes(s.router)
 	}
 
 	// Task orchestration - agent spawning for pipeline investigations

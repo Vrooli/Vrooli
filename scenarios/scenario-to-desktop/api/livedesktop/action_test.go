@@ -15,7 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // mockShell records all invocations and returns configurable output.
@@ -597,4 +600,109 @@ func TestServeFile_ValidFilename(t *testing.T) {
 
 	r.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+// ===================== Capture Persistence Tests =====================
+
+func newCapturesService(t *testing.T) *captures.Service {
+	t.Helper()
+	tmpDir := t.TempDir()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileDesktop,
+		// Override home dir to use temp
+		UserHomeDir:   func() (string, error) { return tmpDir, nil },
+		UserConfigDir: func() (string, error) { return filepath.Join(tmpDir, ".config"), nil },
+		UserCacheDir:  func() (string, error) { return filepath.Join(tmpDir, ".cache"), nil },
+	})
+	require.NoError(t, err)
+	opts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
+	metaPath, err := resolver.Path(opts, storage.ClassData, "captures_meta.json")
+	require.NoError(t, err)
+	store, err := captures.NewFileStore(metaPath)
+	require.NoError(t, err)
+	return captures.NewService(resolver, opts, store)
+}
+
+// captureCreatingShell creates the screenshot output file when the ffmpeg pipeline runs.
+type captureCreatingShell struct {
+	mockShell
+	sessionDir string
+}
+
+func (m *captureCreatingShell) fn(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
+	m.calls = append(m.calls, shellCall{name: name, args: args, env: env})
+	if name == "sh" && len(args) >= 2 {
+		// Extract output path from the pipeline command (last space-separated token)
+		parts := bytes.Split([]byte(args[1]), []byte(" "))
+		if len(parts) > 0 {
+			outPath := string(parts[len(parts)-1])
+			_ = os.WriteFile(outPath, []byte("PNG fake"), 0o644)
+		}
+	}
+	return nil, nil
+}
+
+func TestScreenshotAction_PersistsCapture(t *testing.T) {
+	cshell := &captureCreatingShell{}
+	svc := newTestServiceWithShell(&cshell.mockShell)
+	svc.dataDir = t.TempDir()
+	svc.shell = cshell.fn
+
+	capSvc := newCapturesService(t)
+	svc.captures = capSvc
+
+	session := newTestSession()
+	cshell.sessionDir = filepath.Join(svc.dataDir, "sessions", session.ID)
+
+	action := &ScreenshotAction{}
+	result, err := action.Execute(context.Background(), session, svc, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result.Status)
+
+	// Verify capture was persisted via captures service
+	if result.Data["capture_id"] != nil {
+		assert.Contains(t, result.Data["url"], "/api/v1/captures/")
+		caps, err := capSvc.Store().List("test-scenario")
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(caps), 1)
+	}
+}
+
+func TestStopRecordingAction_PersistsCapture(t *testing.T) {
+	shell := &mockShell{}
+	svc := newTestServiceWithShell(shell)
+
+	capSvc := newCapturesService(t)
+	svc.captures = capSvc
+
+	// Create a fake recording file
+	tmpDir := t.TempDir()
+	videoPath := filepath.Join(tmpDir, "recording-123.mp4")
+	require.NoError(t, os.WriteFile(videoPath, []byte("MP4 fake data"), 0o644))
+
+	svc.recorder = &mockRecorder{
+		result: &screenrecording.CaptureResult{
+			VideoPath:     videoPath,
+			DurationMs:    5000,
+			FileSizeBytes: 1024,
+		},
+	}
+	session := newTestSession()
+	session.IsRecording = true
+	session.CaptureID = "cap-123"
+
+	action := &StopRecordingAction{}
+	result, err := action.Execute(context.Background(), session, svc, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result.Status)
+
+	// Verify capture was persisted
+	if result.Data["capture_id"] != nil {
+		assert.Contains(t, result.Data["video_url"], "/api/v1/captures/")
+		caps, err := capSvc.Store().List("test-scenario")
+		require.NoError(t, err)
+		assert.Len(t, caps, 1)
+		assert.Equal(t, captures.CaptureRecording, caps[0].Type)
+	}
 }

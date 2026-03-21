@@ -9,6 +9,7 @@ import { SigningPage } from "./components/signing";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
 import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
 import { LiveDesktopDrawer } from "./components/livedesktop";
+import { CapturesDrawer } from "./components/captures";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
 import { usePipelineStore } from "./store";
 import { useFormStore } from "./store/formStore";
@@ -298,6 +299,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AppContent />
         <LiveDesktopDrawer />
+        <CapturesDrawer />
       </QueryClientProvider>
     </ErrorBoundary>
   );

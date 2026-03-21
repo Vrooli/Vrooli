@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/packaging"
 )
@@ -32,6 +33,7 @@ type Service struct {
 	startVNC   VNCStartFunc
 	stopVNC    VNCStopFunc
 	recorder   screenrecording.Recorder
+	captures   *captures.Service
 	shell      ShellFunc
 	dataDir    string
 }
@@ -53,6 +55,11 @@ func NewService(store Store, displayMgr screenrecording.DisplayManager, logger *
 // WithRecorder sets the screen recorder on the service.
 func (s *Service) WithRecorder(r screenrecording.Recorder) {
 	s.recorder = r
+}
+
+// WithCaptures sets the captures service for persistent capture storage.
+func (s *Service) WithCaptures(svc *captures.Service) {
+	s.captures = svc
 }
 
 // WithDataDir overrides the data directory for screenshots and recordings.

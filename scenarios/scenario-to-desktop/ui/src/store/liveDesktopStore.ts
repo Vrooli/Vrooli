@@ -10,6 +10,7 @@ import {
   type ConnectionStatus,
   type ControlResult,
 } from "../lib/api/livedesktop";
+import { useCapturesStore } from "./capturesStore";
 
 interface LiveDesktopState {
   activeSession: DesktopSession | null;
@@ -70,11 +71,15 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
   },
 
   close: () => {
-    const { activeSession } = get();
+    const { activeSession, scenarioName } = get();
     if (activeSession) {
       // Stop session in background
       stopDesktopSession(activeSession.id).catch(() => {});
       clearHeartbeat();
+    }
+    // Refresh captures summary so CapturesSection picks up new captures
+    if (scenarioName) {
+      useCapturesStore.getState().fetchSummary(scenarioName);
     }
     set({
       isOpen: false,
@@ -133,7 +138,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
   setError: (error) => set({ error, connectionStatus: error ? "error" : get().connectionStatus }),
 
   executeControl: async (action, params) => {
-    const { activeSession } = get();
+    const { activeSession, scenarioName } = get();
     if (!activeSession) throw new Error("No active session");
     const result = await executeDesktopControl(activeSession.id, { action, params });
     // Refresh session state after control action
@@ -142,6 +147,10 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
       set({ activeSession: updated });
     } catch {
       // Best effort refresh
+    }
+    // Refresh captures summary when a new capture was persisted
+    if (result.data?.capture_id && scenarioName) {
+      useCapturesStore.getState().fetchSummary(scenarioName);
     }
     return result;
   },
