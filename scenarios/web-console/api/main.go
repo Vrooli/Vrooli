@@ -110,6 +110,7 @@ type Server struct {
 	lastTTSAckBySrc    map[string]ttsAckSnapshot
 	lastTTSPlayback    *TTSPlaybackEvent
 	lastTTSPlayAt      time.Time
+	systemContext      *SystemContext
 }
 
 type conversationAppendSnapshot struct {
@@ -196,6 +197,11 @@ func NewServer(db *sql.DB) *Server {
 		lastTTSBySource:    make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:    make(map[string]ttsAckSnapshot),
 	}
+	srv.systemContext = DiscoverSystemContext(DefaultLookPath)
+	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
+		srv.systemContext.OS, srv.systemContext.Arch,
+		srv.systemContext.Shell, countFoundTools(srv.systemContext.Tools))
+
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")

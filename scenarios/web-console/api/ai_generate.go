@@ -108,7 +108,7 @@ func (s *Server) handleAISuggest(w http.ResponseWriter, r *http.Request) {
 		userPrompt = fmt.Sprintf("%s\n\nTerminal context: %s", req.Prompt, req.Context)
 	}
 
-	raw, provider, err := s.executeAI(r.Context(), suggestSystemPrompt, userPrompt)
+	raw, provider, err := s.executeAI(r.Context(), buildSuggestSystemPrompt(s.systemContext), userPrompt)
 	if err != nil {
 		log.Printf("ai-suggest [%s]: all providers failed: %v", reqID, err)
 		writeCatalogError(w, "ai_provider_unavailable",
@@ -153,7 +153,7 @@ func (s *Server) handleAIGenerate(w http.ResponseWriter, r *http.Request) {
 		userPrompt = fmt.Sprintf("%s\n\nTerminal context: %s", req.Prompt, req.Context)
 	}
 
-	raw, provider, err := s.executeAI(r.Context(), commandSystemPrompt, userPrompt)
+	raw, provider, err := s.executeAI(r.Context(), buildCommandSystemPrompt(s.systemContext), userPrompt)
 	if err != nil {
 		log.Printf("ai-generate [%s]: all providers failed: %v", reqID, err)
 		writeCatalogError(w, "ai_provider_unavailable",
