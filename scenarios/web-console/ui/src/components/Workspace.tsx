@@ -27,6 +27,7 @@ import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
+import AiSuggestBar from "./AiSuggestBar";
 import FloatingToolbar from "./FloatingToolbar";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
@@ -98,6 +99,7 @@ export default function Workspace() {
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [mobileInputText, setMobileInputText] = useState("");
   const pendingActivePaneRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
@@ -335,13 +337,13 @@ export default function Workspace() {
   useEffect(() => {
     if (!store.activePane || isMobile) return;
     // Don't steal focus from open modals
-    if (store.settingsModalOpen || store.aiModalOpen || store.appearanceModalPane !== null) return;
+    if (store.settingsModalOpen || store.aiModalOpen || store.aiSuggestActive || store.appearanceModalPane !== null) return;
     const paneId = store.activePane;
     const rafId = requestAnimationFrame(() => {
       focusActiveTerminal(paneId);
     });
     return () => cancelAnimationFrame(rafId);
-  }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.appearanceModalPane, focusActiveTerminal]);
+  }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.aiSuggestActive, store.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {
@@ -1055,6 +1057,18 @@ export default function Workspace() {
             />
           );
         })()}
+        {/* AI suggestion bar (mobile only) */}
+        {store.aiSuggestActive && (
+          <AiSuggestBar
+            inputText={mobileInputText}
+            onExecute={(cmd) => {
+              handleSendToTerminal(cmd);
+              mobileToolbarRef.current?.clearInput();
+              store.setAiSuggestActive(false);
+            }}
+            onClose={() => store.setAiSuggestActive(false)}
+          />
+        )}
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
@@ -1073,7 +1087,9 @@ export default function Workspace() {
           onVoiceStop={handleVoiceStop}
           onVoiceCancel={handleVoiceCancel}
           onUploadImage={handleMobileUploadImage}
-          onOpenAi={() => store.setAiModalOpen(true)}
+          onOpenAi={() => store.setAiSuggestActive(!store.aiSuggestActive)}
+          onInputChange={setMobileInputText}
+          aiSuggestActive={store.aiSuggestActive}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
           viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}

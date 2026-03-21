@@ -30,6 +30,8 @@ type Metrics struct {
 
 	// AI generation counter
 	AIGenerations atomic.Int64
+	// AI suggestion counter
+	AISuggestions atomic.Int64
 
 	// StartTime records when the server started for uptime calculation.
 	StartTime time.Time
@@ -48,6 +50,7 @@ type MetricsResponse struct {
 	Connections   ConnectionMetrics `json:"connections"`
 	Messages      MessageMetrics    `json:"messages"`
 	AIGenerations int64             `json:"ai_generations"`
+	AISuggestions int64             `json:"ai_suggestions"`
 	Uptime        string            `json:"uptime"`
 }
 
@@ -89,6 +92,7 @@ func (m *Metrics) Snapshot() MetricsResponse {
 			Received: m.WSMessagesReceived.Load(),
 		},
 		AIGenerations: m.AIGenerations.Load(),
+		AISuggestions: m.AISuggestions.Load(),
 		Uptime:        time.Since(m.StartTime).Truncate(time.Second).String(),
 	}
 }

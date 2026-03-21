@@ -27,6 +27,7 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 		{"PUT", "/api/v1/sessions/test-id/policy"},
 		{"GET", "/api/v1/sessions/test-id/ws"},
 		{"POST", "/api/v1/ai/generate"},
+		{"POST", "/api/v1/ai/suggest"},
 		{"GET", "/api/v1/shortcuts"},
 		{"GET", "/api/v1/shortcuts/profiles"},
 		{"PUT", "/api/v1/shortcuts/profiles"},

@@ -29,6 +29,8 @@ export interface MobileToolbarHandle {
   /** Focus the command textarea. Used after mic permission is granted so the
    *  user lands in a useful input target instead of nowhere. */
   focusInput: () => void;
+  /** Clear the command textarea and its draft persistence. */
+  clearInput: () => void;
 }
 
 interface MobileToolbarProps {
@@ -57,6 +59,10 @@ interface MobileToolbarProps {
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
   onOpenAi?: () => void;
+  /** Called when the textarea value changes (for AI suggest bar). */
+  onInputChange?: (value: string) => void;
+  /** Whether the inline AI suggestion bar is active. Highlights the sparkles button. */
+  aiSuggestActive?: boolean;
   /** Whether TTS is currently playing audio on the active pane. */
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
@@ -85,6 +91,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceCancel,
   onUploadImage,
   onOpenAi,
+  onInputChange,
+  aiSuggestActive,
   isTtsSpeaking,
   onTtsStop,
   viewMode = "terminal",
@@ -102,7 +110,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     focusInput: () => {
       textareaRef.current?.focus();
     },
-  }), [setInputValue]);
+    clearInput: () => {
+      clearDraft();
+    },
+  }), [setInputValue, clearDraft]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
@@ -223,7 +234,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             ref={textareaRef}
             data-testid="mobile-command-input"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              onInputChange?.(e.target.value);
+            }}
             autoComplete="off"
             autoCorrect="on"
             spellCheck={false}
@@ -288,7 +302,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               tabIndex={-1}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onOpenAi}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              className={cn(
+                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
+                aiSuggestActive
+                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+              )}
               title="AI Command"
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -414,7 +433,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 tabIndex={-1}
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={onOpenAi}
-                className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+                className={cn(
+                  "shrink-0 rounded border p-2 transition active:bg-wc-accent-active touch-manipulation",
+                  aiSuggestActive
+                    ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+                )}
                 title="AI Command"
               >
                 <Sparkles className="h-4 w-4" />
@@ -507,7 +531,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               tabIndex={-1}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onOpenAi}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
+              className={cn(
+                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
+                aiSuggestActive
+                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
+                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+              )}
               title="AI Command"
             >
               <Sparkles className="h-3.5 w-3.5" />

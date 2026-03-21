@@ -310,6 +310,7 @@ func (s *Server) setupRoutes() {
 
 	// AI command generation - [REQ:P0-005a]
 	s.router.HandleFunc("/api/v1/ai/generate", s.handleAIGenerate).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/suggest", s.handleAISuggest).Methods("POST")
 
 	// Shortcut profiles - [REQ:P1-002a]
 	s.router.HandleFunc("/api/v1/shortcuts", s.handleGetEffectiveShortcuts).Methods("GET")

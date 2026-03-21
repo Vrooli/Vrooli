@@ -13,6 +13,7 @@ Last updated: 2026-03-17
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
 - [CODE: ui/src/components/MobileToolbar.tsx] — Floating key toolbar for mobile input injection
+- [CODE: ui/src/components/AiSuggestBar.tsx] — Inline AI suggestion bar for mobile; sits above MobileToolbar, shows debounced command suggestions from textarea input
 - [CODE: ui/src/components/KeyComboPicker.tsx] — Bottom sheet picker for sending key combos with a single tap
 
 ### 1b. Session Orchestration

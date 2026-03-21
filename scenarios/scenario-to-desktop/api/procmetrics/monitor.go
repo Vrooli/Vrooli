@@ -18,8 +18,10 @@ const (
 	// clockTicksPerSec is the standard Linux clock ticks per second (sysconf _SC_CLK_TCK).
 	clockTicksPerSec = 100
 	// readySizeRatio is the fraction of expected dimensions a window must meet
-	// to be considered the main app window (not a splash screen).
-	readySizeRatio = 0.5
+	// to be considered the main app window (not a splash screen). Set high
+	// (90%) because on our dedicated virtual displays, the main app window
+	// fills the display while splash screens are much smaller.
+	readySizeRatio = 0.9
 )
 
 // DefaultMonitor implements Monitor using ProcReader and WindowDetector.
@@ -248,6 +250,10 @@ func (m *DefaultMonitor) detectWindow(ctx context.Context, pid int, display stri
 					m.setReady(now, dur, pid)
 					return
 				}
+
+				// Skip to next tick — don't check size on the same tick as
+				// splash detection, since the splash window itself would match.
+				continue
 			}
 
 			// Phase 2: wait for a window that meets the size threshold.

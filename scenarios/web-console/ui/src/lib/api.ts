@@ -209,6 +209,25 @@ export async function generateAICommand(prompt: string, context?: string): Promi
   return (await res.json()) as AIGenerateResponse;
 }
 
+// [REQ:P0-005a] AI Suggestion API - client
+export interface AISuggestResponse {
+  commands: string[];
+  provider: string;
+}
+
+export async function generateAISuggestions(prompt: string, context?: string): Promise<AISuggestResponse> {
+  const url = buildApiUrl("/ai/suggest", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, context }),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "AI suggestion failed");
+  }
+  return (await res.json()) as AISuggestResponse;
+}
+
 export interface TTSPlaybackEvent {
   source: string;
   stage: string;

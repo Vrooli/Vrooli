@@ -182,7 +182,7 @@ func TestMonitor_TwoPhaseDetection(t *testing.T) {
 	}
 
 	m := NewDefaultMonitor(proc, window, silentLogger())
-	// Expected size 1280x720 → threshold 640x360.
+	// Expected size 1280x720 → threshold 1152x648 (90%).
 	if err := m.Start(context.Background(), 1, ":99", 1280, 720); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}

@@ -42,6 +42,8 @@ interface WorkspaceState {
   toolbarLayout: ToolbarLayout;
   settingsModalOpen: boolean;
   aiModalOpen: boolean;
+  /** Whether the inline AI suggestion bar is active (mobile only). Not persisted. */
+  aiSuggestActive: boolean;
   voiceEnabled: boolean;
   voiceShortcut: string;
   vadAutoStop: boolean;
@@ -85,6 +87,7 @@ interface WorkspaceActions {
   setToolbarLayout: (layout: ToolbarLayout) => void;
   setSettingsModalOpen: (open: boolean) => void;
   setAiModalOpen: (open: boolean) => void;
+  setAiSuggestActive: (active: boolean) => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceShortcut: (shortcut: string) => void;
   setVadAutoStop: (enabled: boolean) => void;
@@ -129,6 +132,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       toolbarLayout: "expanded",
       settingsModalOpen: false,
       aiModalOpen: false,
+      aiSuggestActive: false,
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
       vadAutoStop: true,
@@ -235,6 +239,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setToolbarLayout: (layout) => set({ toolbarLayout: layout }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
+      setAiSuggestActive: (active) => set({ aiSuggestActive: active }),
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
       setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),

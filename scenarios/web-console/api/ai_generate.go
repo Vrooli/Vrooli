@@ -55,6 +55,82 @@ func extractCommand(raw string) string {
 	return strings.TrimSpace(s)
 }
 
+// suggestSystemPrompt is the system instruction for multi-command suggestion.
+const suggestSystemPrompt = "You are a command-line assistant. Given a natural language description, output 1 to 3 shell commands (one per line) that accomplish the task. If there is only one reasonable command, output just that one. No explanation, no numbering, no markdown, no backticks."
+
+// AISuggestRequest is the JSON body for the AI suggest endpoint.
+type AISuggestRequest struct {
+	Prompt  string `json:"prompt"`
+	Context string `json:"context,omitempty"`
+}
+
+// AISuggestResponse is the JSON body returned by the AI suggest endpoint.
+type AISuggestResponse struct {
+	Commands []string `json:"commands"`
+	Provider string   `json:"provider"`
+}
+
+// extractCommands splits raw AI output into 1–3 individual commands.
+// Each line is cleaned of markdown fences and whitespace; empty lines are dropped.
+func extractCommands(raw string) []string {
+	lines := strings.Split(strings.TrimSpace(raw), "\n")
+	var commands []string
+	for _, line := range lines {
+		cmd := extractCommand(line)
+		if cmd != "" {
+			commands = append(commands, cmd)
+		}
+		if len(commands) >= 3 {
+			break
+		}
+	}
+	return commands
+}
+
+// handleAISuggest handles POST /api/v1/ai/suggest
+func (s *Server) handleAISuggest(w http.ResponseWriter, r *http.Request) {
+	reqID := getRequestID(r)
+
+	var req AISuggestRequest
+	if !decodeJSON(w, r, &req) {
+		log.Printf("ai-suggest [%s]: malformed JSON body", reqID)
+		return
+	}
+
+	if strings.TrimSpace(req.Prompt) == "" {
+		writeCatalogError(w, "invalid_body",
+			"Prompt is required")
+		return
+	}
+
+	userPrompt := req.Prompt
+	if req.Context != "" {
+		userPrompt = fmt.Sprintf("%s\n\nTerminal context: %s", req.Prompt, req.Context)
+	}
+
+	raw, provider, err := s.executeAI(r.Context(), suggestSystemPrompt, userPrompt)
+	if err != nil {
+		log.Printf("ai-suggest [%s]: all providers failed: %v", reqID, err)
+		writeCatalogError(w, "ai_provider_unavailable",
+			"AI suggestion is currently unavailable. Check that Ollama is running or OPENROUTER_API_KEY is set.")
+		return
+	}
+
+	commands := extractCommands(raw)
+
+	s.events.Emit(EventAISuggest, "", map[string]string{
+		"provider": provider,
+		"prompt":   req.Prompt,
+		"count":    fmt.Sprintf("%d", len(commands)),
+	})
+	s.metrics.AISuggestions.Add(1)
+
+	writeJSON(w, http.StatusOK, AISuggestResponse{
+		Commands: commands,
+		Provider: provider,
+	})
+}
+
 // handleAIGenerate handles POST /api/v1/ai/generate
 // [REQ:P0-005a] AI Command Generation API
 func (s *Server) handleAIGenerate(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,7 @@ const (
 	EventSessionDeleted      = "session.deleted"
 	EventPaneResized         = "pane.resized"
 	EventAIGenerate          = "ai.generate"
+	EventAISuggest           = "ai.suggest"
 	EventSessionPolicyUpdate = "session.policy_updated"
 
 	// Workspace layout events
