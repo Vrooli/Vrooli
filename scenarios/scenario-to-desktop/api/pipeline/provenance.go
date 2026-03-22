@@ -1,8 +1,11 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -31,6 +34,11 @@ type BuildProvenance struct {
 // If dir is not inside a git repository, returns a partial provenance with
 // an empty commit hash and dirty=true (conservative default).
 func CaptureProvenance(dir, version string) *BuildProvenance {
+	// If no version provided, read from the scenario's service.json
+	if version == "" {
+		version = readServiceJSONVersion(dir)
+	}
+
 	p := &BuildProvenance{
 		BuiltAt: time.Now(),
 		Version: version,
@@ -55,6 +63,24 @@ func CaptureProvenance(dir, version string) *BuildProvenance {
 	}
 
 	return p
+}
+
+// readServiceJSONVersion reads the version from a scenario's .vrooli/service.json.
+// Returns empty string if the file doesn't exist or the version field is missing.
+func readServiceJSONVersion(scenarioDir string) string {
+	data, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		return ""
+	}
+	var doc struct {
+		Service struct {
+			Version string `json:"version"`
+		} `json:"service"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return ""
+	}
+	return doc.Service.Version
 }
 
 // gitCommand runs a git command in the given directory and returns trimmed stdout.

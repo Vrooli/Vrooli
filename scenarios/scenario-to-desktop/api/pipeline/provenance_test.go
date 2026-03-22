@@ -84,6 +84,48 @@ func TestCaptureProvenance_BranchName(t *testing.T) {
 	}
 }
 
+func TestCaptureProvenance_VersionFromServiceJSON(t *testing.T) {
+	dir := initTestRepo(t)
+
+	// Create .vrooli/service.json with a version
+	vrooliDir := filepath.Join(dir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	serviceJSON := `{"service": {"version": "2.5.1", "displayName": "Test"}}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pass empty version — should fall back to service.json
+	p := CaptureProvenance(dir, "")
+
+	if p.Version != "2.5.1" {
+		t.Errorf("expected version 2.5.1 from service.json, got %q", p.Version)
+	}
+}
+
+func TestCaptureProvenance_ExplicitVersionOverridesServiceJSON(t *testing.T) {
+	dir := initTestRepo(t)
+
+	// Create .vrooli/service.json with a version
+	vrooliDir := filepath.Join(dir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	serviceJSON := `{"service": {"version": "2.5.1"}}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pass explicit version — should NOT read service.json
+	p := CaptureProvenance(dir, "3.0.0")
+
+	if p.Version != "3.0.0" {
+		t.Errorf("expected explicit version 3.0.0, got %q", p.Version)
+	}
+}
+
 // initTestRepo creates a temporary git repo with one commit.
 func initTestRepo(t *testing.T) string {
 	t.Helper()
