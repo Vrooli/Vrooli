@@ -390,7 +390,14 @@ func (c *TestMetricsCollector) countEdgeCases(scenarioName string) int {
 
 	// Search for edge case patterns in test files
 	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			base := filepath.Base(path)
+			if base == "node_modules" || base == "vendor" || base == ".git" || base == "dist" || base == "build" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -448,7 +455,14 @@ func (c *TestMetricsCollector) detectFlakyTests(scenarioName string) int {
 	scenarioPath := filepath.Join(c.projectRoot, "scenarios", scenarioName)
 
 	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			base := filepath.Base(path)
+			if base == "node_modules" || base == "vendor" || base == ".git" || base == "dist" || base == "build" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -475,9 +489,9 @@ func (c *TestMetricsCollector) detectFlakyTests(scenarioName string) int {
 			"time.Sleep",
 			"Date.now()",
 			"Math.random()",
-			"eventually",
-			"retry",
-			".skip",
+			"eventually(",
+			"retry(",
+			".skip(",
 			"xit(",
 			"xdescribe(",
 		}
