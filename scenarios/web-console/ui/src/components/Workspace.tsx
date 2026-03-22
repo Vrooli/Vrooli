@@ -375,6 +375,32 @@ export default function Workspace() {
     voiceInput.cancelTranscription();
   }, [voiceInput]);
 
+  const handleVoiceCommandConfirm = useCallback((suggestion: { commandId: string; rawText: string; args: Record<string, unknown> }) => {
+    voiceInput.dismissCommandSuggestion();
+    // Command execution is handled by the command vocabulary in commands.ts.
+    import("../hooks/voice/commands").then(({ VOICE_COMMANDS }) => {
+      const cmd = VOICE_COMMANDS.find((c) => c.id === suggestion.commandId);
+      if (!cmd) return;
+      cmd.execute({
+        createTab: () => handleLaunch(),
+        switchToTab: (index: number) => {
+          const pane = store.panes[index - 1];
+          if (pane) store.setActivePane(pane.sessionId);
+        },
+        closeTab: () => {
+          const active = store.activePane;
+          if (active) doRemovePane(active);
+        },
+        sendToTerminal: (data: string) => handleSendToTerminal(data),
+        exitVoiceMode: () => voiceInput.stopRecording(),
+      }, suggestion.args);
+    });
+  }, [voiceInput, handleSendToTerminal, handleLaunch, doRemovePane, store]);
+
+  const handleVoiceCommandDismiss = useCallback(() => {
+    voiceInput.dismissCommandSuggestion();
+  }, [voiceInput]);
+
   // ── Post-mic-permission focus ──
   // After the user grants microphone permission (or the browser permission
   // dialog closes), the browser leaves focus in limbo — nothing is focused.
@@ -832,6 +858,7 @@ export default function Workspace() {
         voiceSupported={voiceInput.supported}
         voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
+        voiceListening={voiceInput.isListening}
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
@@ -1078,6 +1105,7 @@ export default function Workspace() {
           voiceSupported={voiceInput.supported}
           voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
+          voiceListening={voiceInput.isListening}
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
@@ -1086,6 +1114,9 @@ export default function Workspace() {
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
           onVoiceCancel={handleVoiceCancel}
+          voiceCommandSuggestion={voiceInput.commandSuggestion}
+          onVoiceCommandConfirm={handleVoiceCommandConfirm}
+          onVoiceCommandDismiss={handleVoiceCommandDismiss}
           onUploadImage={handleMobileUploadImage}
           onOpenAi={() => store.setAiSuggestActive(!store.aiSuggestActive)}
           onInputChange={setMobileInputText}

@@ -5,9 +5,15 @@
 
 export type VadState = "idle" | "calibrating" | "waitingForSpeech" | "speechDetected" | "watchingSilence";
 
+/** Action returned by vadTick. "segment-boundary" fires when silence exceeds
+ *  segmentSilenceMs but hasn't yet reached the full stop threshold. */
+export type VadAction = "stop" | "no-speech" | "segment-boundary";
+
 export const VAD_CALIBRATION_MS = 500;
 /** Default silence timeout (ms). Configurable via workspace store `vadSilenceTimeoutMs`. */
 export const VAD_DEFAULT_SILENCE_TIMEOUT_MS = 2000;
+/** Default silence duration (ms) that triggers a segment boundary in persistent mode. */
+export const VAD_DEFAULT_SEGMENT_SILENCE_MS = 1500;
 export const VAD_NO_SPEECH_TIMEOUT_MS = 15_000;
 export const VAD_MIN_SILENCE_THRESHOLD = 0.02;
 export const VAD_MIN_SPEECH_THRESHOLD = 0.06;
@@ -24,6 +30,12 @@ export interface VadRefs {
   slidingWindow: number[];
   slidingWindowIdx: number;
   lastFloorUpdateTime: number;
+  /** When set, enables segment-boundary detection. Silence ≥ this threshold
+   *  emits "segment-boundary" before the full stop timeout fires. */
+  segmentSilenceMs: number;
+  /** Whether segment-boundary was already emitted for the current silence gap.
+   *  Reset when speech resumes. */
+  segmentBoundaryEmitted: boolean;
 }
 
 export function createVadRefs(): VadRefs {
@@ -37,6 +49,8 @@ export function createVadRefs(): VadRefs {
     slidingWindow: [],
     slidingWindowIdx: 0,
     lastFloorUpdateTime: 0,
+    segmentSilenceMs: 0,
+    segmentBoundaryEmitted: false,
   };
 }
 
@@ -66,12 +80,16 @@ export function computeSlidingNoiseFloor(
 }
 
 /**
- * Run one VAD tick. Returns "stop" if recording should auto-stop,
- * "no-speech" if the no-speech timeout expired, or null to continue.
+ * Run one VAD tick. Returns a VadAction if an event occurred, or null to continue.
+ *
+ * - `"stop"`: silence exceeded the full stop timeout — recording should end.
+ * - `"segment-boundary"`: silence exceeded `segmentSilenceMs` — a segment
+ *   boundary was detected (only when `vad.segmentSilenceMs > 0`).
+ * - `"no-speech"`: no speech detected within the no-speech timeout.
  *
  * Pure function -- all inputs are explicit parameters with no external dependencies.
  */
-export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs: number = VAD_DEFAULT_SILENCE_TIMEOUT_MS): "stop" | "no-speech" | null {
+export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs: number = VAD_DEFAULT_SILENCE_TIMEOUT_MS): VadAction | null {
   if (vad.state === "idle") return null;
 
   if (vad.state === "calibrating") {
@@ -127,6 +145,7 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
     if (rms < vad.silenceThreshold) {
       vad.state = "watchingSilence";
       vad.silenceStart = now;
+      vad.segmentBoundaryEmitted = false;
     }
     return null;
   }
@@ -136,7 +155,13 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
       vad.state = "speechDetected";
       return null;
     }
-    if (now - vad.silenceStart >= silenceTimeoutMs) {
+    const elapsed = now - vad.silenceStart;
+    // Segment boundary fires once per silence gap, before the full stop timeout
+    if (vad.segmentSilenceMs > 0 && !vad.segmentBoundaryEmitted && elapsed >= vad.segmentSilenceMs) {
+      vad.segmentBoundaryEmitted = true;
+      return "segment-boundary";
+    }
+    if (elapsed >= silenceTimeoutMs) {
       return "stop";
     }
     return null;

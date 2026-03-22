@@ -26,6 +26,19 @@ func TestDefaultVoiceStreamConfig(t *testing.T) {
 	}
 }
 
+func TestDefaultVoiceStreamConfig_PersistentModeDefaults(t *testing.T) {
+	cfg := DefaultVoiceStreamConfig()
+	if cfg.PersistentMode {
+		t.Error("PersistentMode should default to false")
+	}
+	if cfg.CommandPrefix != "hey do" {
+		t.Errorf("CommandPrefix = %q, want 'hey do'", cfg.CommandPrefix)
+	}
+	if cfg.SegmentSilenceMs != 1500 {
+		t.Errorf("SegmentSilenceMs = %d, want 1500", cfg.SegmentSilenceMs)
+	}
+}
+
 func TestVoiceStreamConfig_Validate(t *testing.T) {
 	valid := DefaultVoiceStreamConfig()
 
@@ -51,6 +64,19 @@ func TestVoiceStreamConfig_Validate(t *testing.T) {
 		{"overlap_at_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16384 }, ""},
 		{"overlap_below_min", func(c *VoiceStreamConfig) { c.OverlapBytes = -1 }, "overlapBytes"},
 		{"overlap_above_max", func(c *VoiceStreamConfig) { c.OverlapBytes = 16385 }, "overlapBytes"},
+
+		// SegmentSilenceMs bounds
+		{"segment_at_min", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 800 }, ""},
+		{"segment_at_max", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 3000 }, ""},
+		{"segment_below_min", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 799 }, "segmentSilenceMs"},
+		{"segment_above_max", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 3001 }, "segmentSilenceMs"},
+		{"segment_zero_allowed", func(c *VoiceStreamConfig) { c.SegmentSilenceMs = 0 }, ""},
+
+		// CommandPrefix
+		{"prefix_too_long", func(c *VoiceStreamConfig) {
+			c.CommandPrefix = strings.Repeat("x", 51)
+		}, "commandPrefix"},
+		{"prefix_empty_ok", func(c *VoiceStreamConfig) { c.CommandPrefix = "" }, ""},
 	}
 
 	for _, tc := range tests {
@@ -115,6 +141,31 @@ func TestVoiceStreamConfig_PatchApply(t *testing.T) {
 			t.Errorf("empty patch should not change config: %+v != %+v", result, base)
 		}
 	})
+
+	t.Run("persistent_mode_patch", func(t *testing.T) {
+		boolVal := true
+		prefix := "run"
+		segMs := 2000
+		patch := VoiceStreamConfigPatch{
+			PersistentMode:   &boolVal,
+			CommandPrefix:    &prefix,
+			SegmentSilenceMs: &segMs,
+		}
+		result := patch.Apply(base)
+		if !result.PersistentMode {
+			t.Error("PersistentMode should be true")
+		}
+		if result.CommandPrefix != "run" {
+			t.Errorf("CommandPrefix = %q, want 'run'", result.CommandPrefix)
+		}
+		if result.SegmentSilenceMs != 2000 {
+			t.Errorf("SegmentSilenceMs = %d, want 2000", result.SegmentSilenceMs)
+		}
+		// Original fields unchanged
+		if result.FlushIntervalMs != base.FlushIntervalMs {
+			t.Errorf("FlushIntervalMs changed unexpectedly")
+		}
+	})
 }
 
 func TestVoiceConfig_FileRoundTrip(t *testing.T) {
@@ -122,9 +173,12 @@ func TestVoiceConfig_FileRoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "voice-config.json")
 
 	cfg := VoiceStreamConfig{
-		FlushIntervalMs: 200,
-		MinDeltaBytes:   8192,
-		OverlapBytes:    1024,
+		FlushIntervalMs:  200,
+		MinDeltaBytes:    8192,
+		OverlapBytes:     1024,
+		PersistentMode:   true,
+		CommandPrefix:    "run",
+		SegmentSilenceMs: 2000,
 	}
 
 	if err := saveVoiceConfig(path, cfg); err != nil {
@@ -278,6 +332,86 @@ func TestHandleUpdateVoiceConfig_InvalidJSON(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestHandleUpdateVoiceConfig_PersistentMode(t *testing.T) {
+	srv := voiceConfigTestServer(t)
+
+	body := `{"persistentMode": true, "commandPrefix": "run", "segmentSilenceMs": 2000}`
+	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.handleUpdateVoiceConfig(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var cfg VoiceStreamConfig
+	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !cfg.PersistentMode {
+		t.Error("PersistentMode should be true")
+	}
+	if cfg.CommandPrefix != "run" {
+		t.Errorf("CommandPrefix = %q, want 'run'", cfg.CommandPrefix)
+	}
+	if cfg.SegmentSilenceMs != 2000 {
+		t.Errorf("SegmentSilenceMs = %d, want 2000", cfg.SegmentSilenceMs)
+	}
+}
+
+func TestHandleUpdateVoiceConfig_SegmentSilenceOutOfRange(t *testing.T) {
+	srv := voiceConfigTestServer(t)
+
+	body := `{"segmentSilenceMs": 500}`
+	req := httptest.NewRequest("PUT", "/api/v1/voice/config", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.handleUpdateVoiceConfig(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVoiceStreamMessage_SegmentFinalJSON(t *testing.T) {
+	msg := VoiceStreamMessage{
+		Type:         VoiceMsgSegmentFinal,
+		Text:         "hello world",
+		SegmentIndex: 2,
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var decoded VoiceStreamMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if decoded.Type != "segment-final" {
+		t.Errorf("Type = %q, want 'segment-final'", decoded.Type)
+	}
+	if decoded.SegmentIndex != 2 {
+		t.Errorf("SegmentIndex = %d, want 2", decoded.SegmentIndex)
+	}
+}
+
+func TestVoiceStreamMessage_SegmentIndexOmitEmpty(t *testing.T) {
+	msg := VoiceStreamMessage{Type: VoiceMsgPartial, Text: "test"}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	// SegmentIndex should be omitted when 0
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if _, exists := raw["segmentIndex"]; exists {
+		t.Error("segmentIndex should be omitted when 0")
 	}
 }
 

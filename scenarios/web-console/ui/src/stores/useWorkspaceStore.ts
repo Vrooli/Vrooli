@@ -50,6 +50,12 @@ interface WorkspaceState {
   /** Silence duration (ms) before VAD auto-stops recording. */
   vadSilenceTimeoutMs: number;
   voiceLanguage: string;
+  /** Persistent voice mode — mic stays active until tapped again. */
+  persistentMode: boolean;
+  /** Prefix keyword for voice commands (e.g., "hey do"). */
+  commandPrefix: string;
+  /** Silence duration (ms) that triggers a segment boundary in persistent mode. */
+  segmentSilenceMs: number;
   ttsVoice: string;
   ttsRate: number;
   ttsPitch: number;
@@ -93,6 +99,9 @@ interface WorkspaceActions {
   setVadAutoStop: (enabled: boolean) => void;
   setVadSilenceTimeoutMs: (ms: number) => void;
   setVoiceLanguage: (lang: string) => void;
+  setPersistentMode: (enabled: boolean) => void;
+  setCommandPrefix: (prefix: string) => void;
+  setSegmentSilenceMs: (ms: number) => void;
   setTtsVoice: (voice: string) => void;
   setTtsRate: (rate: number) => void;
   setTtsPitch: (pitch: number) => void;
@@ -138,6 +147,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       vadAutoStop: true,
       vadSilenceTimeoutMs: 2000,
       voiceLanguage: "en-US",
+      persistentMode: false,
+      commandPrefix: "hey do",
+      segmentSilenceMs: 1500,
       ttsVoice: "",
       ttsRate: 1.0,
       ttsPitch: 1.0,
@@ -245,6 +257,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),
       setVadSilenceTimeoutMs: (ms) => set({ vadSilenceTimeoutMs: ms }),
       setVoiceLanguage: (lang) => set({ voiceLanguage: lang }),
+      setPersistentMode: (enabled) => set({ persistentMode: enabled }),
+      setCommandPrefix: (prefix) => set({ commandPrefix: prefix }),
+      setSegmentSilenceMs: (ms) => set({ segmentSilenceMs: ms }),
       setTtsVoice: (voice) => set({ ttsVoice: voice }),
       setTtsRate: (rate) => set({ ttsRate: rate }),
       setTtsPitch: (pitch) => set({ ttsPitch: pitch }),
@@ -284,7 +299,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -324,6 +339,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 9) {
           state.plusButtonBehavior ??= "launcher";
         }
+        if (version < 10) {
+          state.persistentMode ??= false;
+          state.commandPrefix ??= "hey do";
+          state.segmentSilenceMs ??= 1500;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -337,6 +357,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         vadAutoStop: state.vadAutoStop,
         vadSilenceTimeoutMs: state.vadSilenceTimeoutMs,
         voiceLanguage: state.voiceLanguage,
+        persistentMode: state.persistentMode,
+        commandPrefix: state.commandPrefix,
+        segmentSilenceMs: state.segmentSilenceMs,
         ttsVoice: state.ttsVoice,
         ttsRate: state.ttsRate,
         ttsPitch: state.ttsPitch,

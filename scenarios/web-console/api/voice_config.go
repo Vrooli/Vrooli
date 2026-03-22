@@ -37,15 +37,32 @@ type VoiceStreamConfig struct {
 	// At 48 kbps (~6 KB/s), 2048 bytes ≈ 0.33s.
 	// Range: 0–16384.
 	OverlapBytes int `json:"overlapBytes"`
+
+	// PersistentMode enables always-on listening where the mic stays active
+	// until explicitly toggled off. VAD silence triggers segment boundaries
+	// instead of recording stop.
+	PersistentMode bool `json:"persistentMode"`
+
+	// CommandPrefix is the keyword prefix that identifies a voice command
+	// (e.g., "hey do new tab"). Case-insensitive.
+	CommandPrefix string `json:"commandPrefix"`
+
+	// SegmentSilenceMs is the silence duration (ms) that triggers a segment
+	// boundary in persistent mode. Must be less than the VAD auto-stop
+	// silence timeout. Range: 800–3000.
+	SegmentSilenceMs int `json:"segmentSilenceMs"`
 }
 
 // DefaultVoiceStreamConfig returns production defaults matching the original
 // hardcoded values. These are known to work well on a local Whisper instance.
 func DefaultVoiceStreamConfig() VoiceStreamConfig {
 	return VoiceStreamConfig{
-		FlushIntervalMs: 500,
-		MinDeltaBytes:   4096,
-		OverlapBytes:    2048,
+		FlushIntervalMs:  500,
+		MinDeltaBytes:    4096,
+		OverlapBytes:     2048,
+		PersistentMode:   false,
+		CommandPrefix:    "hey do",
+		SegmentSilenceMs: 1500,
 	}
 }
 
@@ -61,15 +78,24 @@ func (c VoiceStreamConfig) Validate() error {
 	if c.OverlapBytes < 0 || c.OverlapBytes > 16384 {
 		return fmt.Errorf("overlapBytes must be between 0 and 16384, got %d", c.OverlapBytes)
 	}
+	if c.SegmentSilenceMs != 0 && (c.SegmentSilenceMs < 800 || c.SegmentSilenceMs > 3000) {
+		return fmt.Errorf("segmentSilenceMs must be between 800 and 3000, got %d", c.SegmentSilenceMs)
+	}
+	if c.CommandPrefix != "" && len(c.CommandPrefix) > 50 {
+		return fmt.Errorf("commandPrefix must be at most 50 characters, got %d", len(c.CommandPrefix))
+	}
 	return nil
 }
 
 // VoiceStreamConfigPatch is the partial update type for voice config. Pointer
 // fields allow distinguishing "not provided" from "set to zero value".
 type VoiceStreamConfigPatch struct {
-	FlushIntervalMs *int `json:"flushIntervalMs,omitempty"`
-	MinDeltaBytes   *int `json:"minDeltaBytes,omitempty"`
-	OverlapBytes    *int `json:"overlapBytes,omitempty"`
+	FlushIntervalMs  *int    `json:"flushIntervalMs,omitempty"`
+	MinDeltaBytes    *int    `json:"minDeltaBytes,omitempty"`
+	OverlapBytes     *int    `json:"overlapBytes,omitempty"`
+	PersistentMode   *bool   `json:"persistentMode,omitempty"`
+	CommandPrefix    *string `json:"commandPrefix,omitempty"`
+	SegmentSilenceMs *int    `json:"segmentSilenceMs,omitempty"`
 }
 
 // Apply merges non-nil patch fields into base, returning the updated config.
@@ -82,6 +108,15 @@ func (p VoiceStreamConfigPatch) Apply(base VoiceStreamConfig) VoiceStreamConfig 
 	}
 	if p.OverlapBytes != nil {
 		base.OverlapBytes = *p.OverlapBytes
+	}
+	if p.PersistentMode != nil {
+		base.PersistentMode = *p.PersistentMode
+	}
+	if p.CommandPrefix != nil {
+		base.CommandPrefix = *p.CommandPrefix
+	}
+	if p.SegmentSilenceMs != nil {
+		base.SegmentSilenceMs = *p.SegmentSilenceMs
 	}
 	return base
 }

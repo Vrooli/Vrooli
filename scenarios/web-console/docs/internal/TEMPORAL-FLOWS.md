@@ -94,3 +94,22 @@
 | Health retry count | 3 | `consts/config.ts:63` |
 | Health retry delay | 1000ms | `consts/config.ts:66` |
 | Client channel buffer | Config-driven | `config.go` |
+
+### Voice — Persistent Mode & Segment Finals
+
+| Flow | File | Trigger | Depends On | Updates | Completion |
+|------|------|---------|------------|---------|------------|
+| **Segment boundary detection** | `vad.ts` | VAD silence ≥ segmentSilenceMs | Audio level monitor (rAF loop) | Emits "segment-boundary" action | Speech resumes or stop timeout |
+| **Segment-final transcription** | `voice_stream_ws.go` | Client sends `segment-boundary` message | Audio buffer snapshot, Whisper server | Sends `segment-final` to client | Whisper returns transcription |
+| **Adaptive silence threshold** | `useVoiceInput.ts` | Partial transcript contains command prefix | VoiceStreamProvider partials | Temporarily reduces VAD segmentSilenceMs | Segment final resolves |
+| **Command suggestion lifecycle** | `VoiceCommandSuggestion.tsx` | Segment-final parsed as command | `parseCommand()` result | Shows suggestion UI above toolbar | User confirms, dismisses, or 5s auto-dismiss |
+
+### Two-Tier Transcription Timing
+
+In persistent voice mode, transcription operates at two quality tiers:
+
+1. **Tier 1 — Streaming partials** (every ~500ms): Fast, rough transcription of audio deltas for real-time UI feedback. Same mechanism as one-shot mode.
+
+2. **Tier 2 — Segment finals** (on VAD silence ≥ segmentSilenceMs): High-quality retranscription of the complete speech segment with ffmpeg WAV transcoding. Replaces rough partials with accurate text. Runs in a separate goroutine so it doesn't block Tier 1 partials for the next segment.
+
+**Adaptive silence threshold**: When the command prefix is detected in a partial, segmentSilenceMs is temporarily reduced from its configured value (default 1500ms) to ~700ms so commands resolve faster. The original threshold is restored when the segment final resolves.

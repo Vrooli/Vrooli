@@ -7,7 +7,9 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
+import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import type { CommandSuggestion } from "../hooks/voice/types";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
 
@@ -46,6 +48,8 @@ interface MobileToolbarProps {
   voiceSupported?: boolean;
   voicePreparing?: boolean;
   voiceRecording?: boolean;
+  /** True when persistent voice mode is active. */
+  voiceListening?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
@@ -55,6 +59,12 @@ interface MobileToolbarProps {
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
   onVoiceCancel?: () => void;
+  /** Current voice command suggestion awaiting confirmation. */
+  voiceCommandSuggestion?: CommandSuggestion | null;
+  /** Called when user confirms a voice command suggestion. */
+  onVoiceCommandConfirm?: (suggestion: CommandSuggestion) => void;
+  /** Called when user dismisses a voice command suggestion. */
+  onVoiceCommandDismiss?: (suggestion: CommandSuggestion) => void;
   onUploadImage?: () => void;
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
@@ -81,6 +91,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceSupported,
   voicePreparing,
   voiceRecording,
+  voiceListening,
   voiceTranscribing,
   voiceError,
   voiceLevel,
@@ -89,6 +100,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceStart,
   onVoiceStop,
   onVoiceCancel,
+  voiceCommandSuggestion,
+  onVoiceCommandConfirm,
+  onVoiceCommandDismiss,
   onUploadImage,
   onOpenAi,
   onInputChange,
@@ -227,6 +241,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // keyboard is open since the keyboard covers the bottom edge.
       className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation pb-[var(--wc-safe-bottom)]"
     >
+      {/* Voice command suggestion bar */}
+      {voiceCommandSuggestion && onVoiceCommandConfirm && onVoiceCommandDismiss && (
+        <VoiceCommandSuggestion
+          suggestion={voiceCommandSuggestion}
+          onConfirm={onVoiceCommandConfirm}
+          onDismiss={onVoiceCommandDismiss}
+        />
+      )}
       {/* Command input row */}
       <div className="flex items-end gap-0.5 px-1 py-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -330,6 +352,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               supported={voiceSupported}
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
+              isListening={voiceListening ?? false}
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
@@ -465,6 +488,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 supported={voiceSupported}
                 isPreparing={voicePreparing ?? false}
                 isRecording={voiceRecording ?? false}
+                isListening={voiceListening ?? false}
                 isTranscribing={voiceTranscribing ?? false}
                 error={voiceError ?? null}
                 audioLevel={voiceLevel}
@@ -559,6 +583,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               supported={voiceSupported}
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
+              isListening={voiceListening ?? false}
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}

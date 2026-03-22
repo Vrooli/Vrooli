@@ -11,6 +11,8 @@ interface VoiceMicButtonProps {
   supported: boolean;
   isPreparing: boolean;
   isRecording: boolean;
+  /** True when persistent voice mode is active (distinct from one-shot recording). */
+  isListening?: boolean;
   isTranscribing: boolean;
   error: string | null;
   /** 0-1 audio level for live mic visualization */
@@ -76,6 +78,7 @@ export default function VoiceMicButton({
   supported,
   isPreparing,
   isRecording,
+  isListening = false,
   isTranscribing,
   error,
   audioLevel = 0,
@@ -89,6 +92,8 @@ export default function VoiceMicButton({
   className: wrapperClassName,
   buttonClassName,
 }: VoiceMicButtonProps) {
+  /** True when the mic is actively capturing (either one-shot or persistent). */
+  const isMicActive = isRecording || isListening;
   const btnRef = useRef<HTMLButtonElement>(null);
   const pressStartRef = useRef(0);
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
@@ -101,7 +106,7 @@ export default function VoiceMicButton({
     pressStartRef.current = Date.now();
     if (isTranscribing) {
       pressIntentRef.current = onCancel ? "cancel" : "none";
-    } else if (isRecording) {
+    } else if (isMicActive) {
       pressIntentRef.current = "stop";
     } else {
       // Stop TTS if it's playing, then start recording
@@ -109,7 +114,7 @@ export default function VoiceMicButton({
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isPreparing, isRecording, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
+  }, [isPreparing, isMicActive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
 
   const handlePointerUp = useCallback(() => {
     if (isPreparing) return;
@@ -118,17 +123,18 @@ export default function VoiceMicButton({
     if (intent === "cancel") {
       onCancel?.();
     } else if (intent === "stop") {
+      // In persistent (listening) mode, any tap stops — no push-to-talk distinction.
       onStop();
-    } else if (intent === "start" && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
-      // Long press release -- push-to-talk: stop recording
+    } else if (intent === "start" && !isListening && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
+      // Long press release -- push-to-talk: stop recording (one-shot only)
       onStop();
     }
     // Short press on "start" -- tap-to-toggle: keep recording
-  }, [isPreparing, onStop, onCancel]);
+  }, [isPreparing, isListening, onStop, onCancel]);
 
   if (!supported) return null;
 
-  const isIdle = !isRecording && !isTranscribing && !isPreparing;
+  const isIdle = !isMicActive && !isTranscribing && !isPreparing;
   const hasError = error !== null && isIdle && !isTtsSpeaking;
   const showTtsSpeaking = isTtsSpeaking && isIdle;
 
@@ -145,38 +151,47 @@ export default function VoiceMicButton({
           buttonClassName,
           isPreparing
             ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-            : isRecording
-              ? "border-red-500 bg-red-500/20 text-red-400"
-              : isTranscribing
-                ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                : showTtsSpeaking
-                  ? "border-green-500 bg-green-500/20 text-green-400"
-                  : hasError
-                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+            : isListening
+              ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
+              : isRecording
+                ? "border-red-500 bg-red-500/20 text-red-400"
+                : isTranscribing
+                  ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                  : showTtsSpeaking
+                    ? "border-green-500 bg-green-500/20 text-green-400"
+                    : hasError
+                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
         title={
           isPreparing
             ? "Preparing..."
-            : isRecording
-              ? "Recording... tap to stop"
-              : isTranscribing
-                ? "Transcribing... tap to cancel"
-                : showTtsSpeaking
-                  ? "Speaking... tap to stop"
-                  : hasError
-                    ? `Voice error: ${error}`
-                    : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
+            : isListening
+              ? "Listening... tap to stop"
+              : isRecording
+                ? "Recording... tap to stop"
+                : isTranscribing
+                  ? "Transcribing... tap to cancel"
+                  : showTtsSpeaking
+                    ? "Speaking... tap to stop"
+                    : hasError
+                      ? `Voice error: ${error}`
+                      : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
         }
       >
-        {/* Audio level fill -- rises from bottom */}
-        {isRecording && (
+        {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
+        {isMicActive && (
           <span
-            className="absolute inset-x-0 bottom-0 bg-red-500/30 rounded-[inherit] transition-[height] duration-75"
+            className={cn(
+              "absolute inset-x-0 bottom-0 rounded-[inherit] transition-[height] duration-75",
+              isListening ? "bg-cyan-500/30" : "bg-red-500/30",
+            )}
             style={{ height: `${Math.round(audioLevel * 100)}%` }}
           />
         )}
         {isPreparing ? (
+          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : isListening ? (
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
         ) : isTranscribing ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
@@ -191,7 +206,7 @@ export default function VoiceMicButton({
       {hasError && btnRef.current && (
         <ErrorTooltip anchor={btnRef.current} text={error as string} />
       )}
-      {isRecording && partialTranscript && btnRef.current && (
+      {isMicActive && partialTranscript && btnRef.current && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
           {partialTranscript}
         </div>

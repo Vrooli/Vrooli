@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { fetchCapabilities, getVoiceStreamConfig, toErrorInfo, type CapabilityState, type VoiceStreamConfig, updateVoiceStreamConfig } from "../../lib/api";
+import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
@@ -27,6 +28,12 @@ export default function VoiceInputSection() {
   const setVadSilenceTimeoutMs = useWorkspaceStore((state) => state.setVadSilenceTimeoutMs);
   const voiceLanguage = useWorkspaceStore((state) => state.voiceLanguage);
   const setVoiceLanguage = useWorkspaceStore((state) => state.setVoiceLanguage);
+  const storePersistentMode = useWorkspaceStore((state) => state.persistentMode);
+  const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
+  const storeCommandPrefix = useWorkspaceStore((state) => state.commandPrefix);
+  const setStoreCommandPrefix = useWorkspaceStore((state) => state.setCommandPrefix);
+  const storeSegmentSilenceMs = useWorkspaceStore((state) => state.segmentSilenceMs);
+  const setStoreSegmentSilenceMs = useWorkspaceStore((state) => state.setSegmentSilenceMs);
 
   const [recordingShortcut, setRecordingShortcut] = useState(false);
   const [voiceCaps, setVoiceCaps] = useState<CapabilityState[]>([]);
@@ -106,6 +113,11 @@ export default function VoiceInputSection() {
       const config = await getVoiceStreamConfig();
       if (!signal?.cancelled) {
         setVsConfig(config);
+        // Hydrate workspace store from backend config so useVoiceInput picks up
+        // persisted values without waiting for the user to toggle settings.
+        setStorePersistentMode(config.persistentMode);
+        setStoreCommandPrefix(config.commandPrefix || "hey do");
+        setStoreSegmentSilenceMs(config.segmentSilenceMs || 1500);
       }
     } catch (error) {
       if (!signal?.cancelled) {
@@ -116,16 +128,18 @@ export default function VoiceInputSection() {
         setVsConfigLoading(false);
       }
     }
-  }, []);
+  }, [setStorePersistentMode, setStoreCommandPrefix, setStoreSegmentSilenceMs]);
 
+  // Load voice config when voice is enabled (needed for persistent mode settings
+  // and advanced streaming section)
   useEffect(() => {
-    if (!advancedOpen) return;
+    if (!voiceEnabled) return;
     const signal = { cancelled: false };
     void loadVoiceStreamConfig(signal);
     return () => {
       signal.cancelled = true;
     };
-  }, [advancedOpen, loadVoiceStreamConfig]);
+  }, [voiceEnabled, loadVoiceStreamConfig]);
 
   useEffect(() => {
     return () => {
@@ -137,6 +151,11 @@ export default function VoiceInputSection() {
 
   const handleVsConfigChange = useCallback((patch: Partial<VoiceStreamConfig>) => {
     setVsConfig((current) => (current ? { ...current, ...patch } : null));
+    // Update workspace store immediately for reactive consumers (useVoiceInput)
+    if (patch.persistentMode !== undefined) setStorePersistentMode(patch.persistentMode);
+    if (patch.commandPrefix !== undefined) setStoreCommandPrefix(patch.commandPrefix);
+    if (patch.segmentSilenceMs !== undefined) setStoreSegmentSilenceMs(patch.segmentSilenceMs);
+    // Debounce the backend write
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
@@ -149,7 +168,7 @@ export default function VoiceInputSection() {
         setVsConfigError(toErrorInfo(error).message);
       }
     }, 500);
-  }, []);
+  }, [setStorePersistentMode, setStoreCommandPrefix, setStoreSegmentSilenceMs]);
 
   const resetVsConfig = useCallback(async () => {
     try {
@@ -157,6 +176,9 @@ export default function VoiceInputSection() {
         flushIntervalMs: 500,
         minDeltaBytes: 4096,
         overlapBytes: 2048,
+        persistentMode: false,
+        commandPrefix: "hey do",
+        segmentSilenceMs: 1500,
       });
       setVsConfig(updated);
       setVsConfigError(null);
@@ -250,7 +272,98 @@ export default function VoiceInputSection() {
             />
           </>
         )}
+      </SettingsCard>
 
+      {voiceEnabled && (
+        <SettingsCard className="space-y-4">
+          <SettingsSectionIntro
+            eyebrow="Persistent Mode"
+            title="Always-on listening"
+            description="Keep the microphone active until you tap it again. Speak naturally — pauses trigger high-quality retranscription. Say a command prefix to execute terminal actions."
+          />
+
+          {vsConfig && (
+            <>
+              <SettingsRow
+                label="Persistent mode"
+                hint="Toggle always-on listening. Requires Whisper streaming backend."
+                control={(
+                  <SettingsToggle
+                    testId="persistent-mode-toggle"
+                    checked={vsConfig.persistentMode}
+                    onClick={() => handleVsConfigChange({ persistentMode: !vsConfig.persistentMode })}
+                  />
+                )}
+              />
+
+              {vsConfig.persistentMode && (
+                <>
+                  <SettingsRow
+                    label="Command prefix"
+                    hint="Say this word before a command (e.g., &quot;hey do new tab&quot;)."
+                    control={(
+                      <input
+                        data-testid="command-prefix-input"
+                        type="text"
+                        value={vsConfig.commandPrefix}
+                        onChange={(event) => handleVsConfigChange({ commandPrefix: event.target.value })}
+                        className="w-28 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                        placeholder="hey do"
+                      />
+                    )}
+                  />
+
+                  <SettingsRow
+                    label="Segment silence"
+                    hint="How long a pause triggers segment retranscription."
+                    control={(
+                      <div className="flex items-center gap-2">
+                        <input
+                          data-testid="segment-silence-slider"
+                          type="range"
+                          min={800}
+                          max={3000}
+                          step={100}
+                          value={vsConfig.segmentSilenceMs}
+                          onChange={(event) => handleVsConfigChange({ segmentSilenceMs: Number(event.target.value) })}
+                          className="w-24 accent-wc-accent"
+                        />
+                        <span className="w-9 text-right text-xs text-wc-text-muted">
+                          {(vsConfig.segmentSilenceMs / 1000).toFixed(1)}s
+                        </span>
+                      </div>
+                    )}
+                  />
+
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-wc-text-secondary">Voice commands</div>
+                    <div className="text-[11px] text-wc-text-muted mb-1">
+                      Say &quot;{vsConfig.commandPrefix}&quot; followed by a command:
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {VOICE_COMMANDS.map((cmd) => (
+                        <div key={cmd.id} className="text-[10px] text-wc-text-faint">
+                          <span className="text-wc-text-muted">{cmd.description}</span>
+                          {" — "}
+                          {cmd.patterns[0]}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {!vsConfig && !vsConfigLoading && (
+            <div className="text-xs text-wc-text-faint">
+              Voice config not available. Start the voice streaming backend to configure persistent mode.
+            </div>
+          )}
+        </SettingsCard>
+      )}
+
+      <SettingsCard className="space-y-4">
         <SettingsRow
           label="Shortcut"
           hint="Capture a keyboard combo to start voice input quickly."

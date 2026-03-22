@@ -53,6 +53,7 @@ interface FloatingToolbarProps {
   voiceSupported?: boolean;
   voicePreparing?: boolean;
   voiceRecording?: boolean;
+  voiceListening?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
@@ -78,6 +79,7 @@ export default function FloatingToolbar({
   voiceSupported,
   voicePreparing,
   voiceRecording,
+  voiceListening,
   voiceTranscribing,
   voiceError,
   voiceLevel = 0,
@@ -241,6 +243,7 @@ export default function FloatingToolbar({
           supported={voiceSupported}
           isPreparing={voicePreparing ?? false}
           isRecording={voiceRecording ?? false}
+          isListening={voiceListening ?? false}
           isTranscribing={voiceTranscribing ?? false}
           error={voiceError ?? null}
           audioLevel={voiceLevel}

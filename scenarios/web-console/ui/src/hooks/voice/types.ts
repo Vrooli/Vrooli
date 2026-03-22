@@ -21,8 +21,20 @@ export function computeFinalTimeout(recordingDurationMs: number): number {
 
 export type VoiceBackend = "whisper" | "web-speech" | "none";
 
-/** Explicit state machine replacing the old isRecording/isTranscribing boolean combo. */
-export type VoiceState = "idle" | "preparing" | "recording" | "transcribing";
+/** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
+ *  "listening" is the persistent voice mode equivalent of "recording" — the mic
+ *  stays active until the user taps it again. */
+export type VoiceState = "idle" | "preparing" | "recording" | "listening" | "transcribing";
+
+/** The voice input mode — one-shot records a single utterance, persistent
+ *  stays active with segment-boundary detection until manually stopped. */
+export type VoiceMode = "one-shot" | "persistent";
+
+/** Tracks a single speech segment within a persistent voice session. */
+export interface VoiceSegment {
+  text: string;
+  isFinal: boolean;
+}
 
 export interface VoiceInputState {
   supported: boolean;
@@ -35,6 +47,24 @@ export interface VoiceInputState {
   fallbackNotice: string | null;
   /** Partial transcript from streaming transcription. */
   partialTranscript: string;
+  /** Active voice mode for the current session. */
+  voiceMode: VoiceMode;
+  /** Accumulated segment texts during persistent mode. */
+  segments: VoiceSegment[];
+  /** Current command suggestion awaiting user confirmation, or null. */
+  commandSuggestion: CommandSuggestion | null;
+}
+
+/** A voice command detected from a segment-final transcript. */
+export interface CommandSuggestion {
+  id: string;
+  commandId: string;
+  description: string;
+  confidence: number;
+  rawText: string;
+  timestamp: number;
+  /** Parsed arguments from the command (e.g., { number: 3 } for "switch tab 3"). */
+  args: Record<string, unknown>;
 }
 
 export interface StartRecordingOpts {

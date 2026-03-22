@@ -20,16 +20,19 @@ import (
 
 // Voice streaming WebSocket message types.
 const (
-	VoiceMsgDone    = "done"    // client → server: recording finished
-	VoiceMsgPartial = "partial" // server → client: partial transcript
-	VoiceMsgFinal   = "final"   // server → client: definitive transcript
-	VoiceMsgError   = "error"   // server → client: error
+	VoiceMsgDone            = "done"             // client → server: recording finished
+	VoiceMsgSegmentBoundary = "segment-boundary" // client → server: VAD detected silence gap
+	VoiceMsgPartial         = "partial"          // server → client: partial transcript
+	VoiceMsgFinal           = "final"            // server → client: definitive transcript
+	VoiceMsgSegmentFinal    = "segment-final"    // server → client: high-quality segment transcription
+	VoiceMsgError           = "error"            // server → client: error
 )
 
 // VoiceStreamMessage is the JSON message format for voice streaming.
 type VoiceStreamMessage struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Type         string `json:"type"`
+	Text         string `json:"text,omitempty"`
+	SegmentIndex int    `json:"segmentIndex,omitempty"`
 }
 
 // findWebMInitEnd locates the end of the WebM initialization segment (EBML
@@ -103,6 +106,18 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var tickerDone sync.WaitGroup
 	tickerDone.Add(1)
 
+	// Segment tracking: segmentStartOffset marks the beginning of the current
+	// speech segment within the audio buffer. On segment-boundary, we snapshot
+	// audio from segmentStartOffset..currentLen for high-quality retranscription.
+	var segmentStartOffset int
+	var segmentIndex int
+	// segmentFinalWg tracks in-flight segment-final goroutines so we can wait
+	// for them before closing the WebSocket.
+	var segmentFinalWg sync.WaitGroup
+
+	// Channel for segment-boundary requests from the input loop to the ticker goroutine.
+	segmentBoundaryCh := make(chan struct{}, 4)
+
 	// WebM init segment: everything before the first Cluster element.
 	// Detected lazily once enough data has arrived. Prepended to each
 	// partial chunk so Whisper receives a valid container.
@@ -125,6 +140,50 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				return
 			case <-partialCtx.Done():
 				return
+			case <-segmentBoundaryCh:
+				// Segment boundary: snapshot the current segment audio and
+				// run a high-quality retranscription in a separate goroutine.
+				bufMu.Lock()
+				currentLen := audioBuffer.Len()
+				segAudioLen := currentLen - segmentStartOffset
+				if segAudioLen <= 0 {
+					bufMu.Unlock()
+					continue
+				}
+				segAudio := make([]byte, segAudioLen)
+				copy(segAudio, audioBuffer.Bytes()[segmentStartOffset:currentLen])
+				// Prepend WebM init segment for a valid container
+				if len(webmInitSegment) > 0 && segmentStartOffset > 0 {
+					segAudio = append(webmInitSegment, segAudio...)
+				}
+				thisSegIdx := segmentIndex
+				segmentIndex++
+				segmentStartOffset = currentLen
+				lastPartialOffset = currentLen
+				bufMu.Unlock()
+
+				log.Printf("voice-ws: segment-boundary #%d: audioBytes=%d", thisSegIdx, segAudioLen)
+				segmentFinalWg.Add(1)
+				go func(audio []byte, idx int) {
+					defer segmentFinalWg.Done()
+					segCtx, segCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer segCancel()
+					t0 := time.Now()
+					text, err := transcribeBytes(segCtx, audio, language, true, "")
+					if err != nil {
+						log.Printf("voice-ws: segment-final #%d failed (%v): %v", idx, time.Since(t0), err)
+						return
+					}
+					text = strings.TrimSpace(text)
+					log.Printf("voice-ws: segment-final #%d took %v, text=%q", idx, time.Since(t0), truncateForLog(text, 200))
+					_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgSegmentFinal, Text: text, SegmentIndex: idx})
+				}(segAudio, thisSegIdx)
+
+				// Reset accumulated transcript for partial dedup in the next segment,
+				// preserving context for the initial_prompt.
+				previousTranscript = ""
+				firstTick = true
+
 			case <-ticker.C:
 				bufMu.Lock()
 				currentLen := audioBuffer.Len()
@@ -153,8 +212,8 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				// Prepend trailing overlap from previous audio for Whisper context.
 				prevOffset := currentLen - deltaSize // offset before this tick's delta
 				overlapStart := prevOffset - vcfg.OverlapBytes
-				if overlapStart < 0 {
-					overlapStart = 0
+				if overlapStart < segmentStartOffset {
+					overlapStart = segmentStartOffset
 				}
 				sendData := deltaCopy
 				actualOverlap := 0
@@ -167,7 +226,10 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				// Prepend WebM init segment so Whisper receives a valid
 				// container even for mid-stream partial chunks.
-				if len(webmInitSegment) > 0 && lastPartialOffset > 0 {
+				if len(webmInitSegment) > 0 && lastPartialOffset > segmentStartOffset {
+					sendData = append(webmInitSegment, sendData...)
+				} else if len(webmInitSegment) > 0 && lastPartialOffset == segmentStartOffset && segmentStartOffset > 0 {
+					// First partial of a new segment after boundary — needs init header
 					sendData = append(webmInitSegment, sendData...)
 				}
 
@@ -250,14 +312,25 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 			if msg.Type == VoiceMsgDone {
 				break
 			}
+			if msg.Type == VoiceMsgSegmentBoundary {
+				// Non-blocking send to avoid deadlock if channel is full
+				select {
+				case segmentBoundaryCh <- struct{}{}:
+				default:
+					log.Printf("voice-ws: segment-boundary dropped (channel full)")
+				}
+			}
 		}
 	}
 
 	close(done)
 	partialCancel()   // cancel any in-flight partial HTTP request to Whisper
-	tickerDone.Wait() // wait for goroutine to fully exit before final retranscribe
+	tickerDone.Wait() // wait for ticker goroutine to fully exit
 
-	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d", audioBuffer.Len(), partialCount)
+	// Wait for any in-flight segment-final transcriptions to complete
+	segmentFinalWg.Wait()
+
+	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d, segments=%d", audioBuffer.Len(), partialCount, segmentIndex)
 
 	// Full retranscription of entire audio buffer. Partials above are for
 	// real-time UI feedback only; the final result always comes from a single
@@ -288,7 +361,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), strings.TrimSpace(text))
-	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d", time.Since(sessionStart), len(finalAudio), partialCount)
+	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, segments=%d", time.Since(sessionStart), len(finalAudio), partialCount, segmentIndex)
 	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
 }
 

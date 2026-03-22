@@ -15,6 +15,7 @@ Last updated: 2026-03-17
 - [CODE: ui/src/components/MobileToolbar.tsx] — Floating key toolbar for mobile input injection
 - [CODE: ui/src/components/AiSuggestBar.tsx] — Inline AI suggestion bar for mobile; sits above MobileToolbar, shows debounced command suggestions from textarea input
 - [CODE: ui/src/components/KeyComboPicker.tsx] — Bottom sheet picker for sending key combos with a single tap
+- [CODE: ui/src/components/VoiceCommandSuggestion.tsx] — Command confirmation bar displayed above MobileToolbar when a voice command is detected in persistent mode
 
 ### 1b. Session Orchestration
 **Owner**: [CODE: ui/src/hooks/useSessionManager.ts]
@@ -156,6 +157,40 @@ Last updated: 2026-03-17
 | `IntegrationsPanel` | Renders capability cards with status icons, feature pills, diagnostic messages | `renderWithProviders` + mocked fetch |
 
 **Benefits**: Unified view of all dependency health (Whisper, Kokoro, Ollama, OpenRouter) in one panel. No API injection seam needed — react-query's QueryClient injection in test-utils handles test isolation.
+
+### Voice Command Parser Seam (UI)
+**File**: `ui/src/hooks/voice/commandParser.ts`
+**Purpose**: Decouple command detection from transcription and UI so parsing logic is testable in isolation.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `parseCommand()` | Matches segment-final text against command vocabulary | Direct function calls with controlled input strings |
+| `levenshtein()` | Fuzzy matching for Whisper misrecognitions | Direct function calls with known edit distances |
+| `partialContainsPrefix()` | Hint for adaptive silence threshold | Direct boolean assertions |
+
+**Benefits**: Command detection is a pure function with no UI or provider dependencies. All matching logic (prefix stripping, fuzzy matching, number extraction) can be tested with simple string inputs.
+
+### Voice Segment Boundary Seam (API)
+**File**: `api/voice_stream_ws.go`
+**Purpose**: Segment-final transcription runs in a goroutine separate from the partial ticker, allowing high-quality retranscription without blocking streaming partials.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| Segment boundary channel | Receives from WebSocket input loop | Can be directly sent to in tests |
+| Segment-final goroutine | Calls Whisper with transcoded audio | Mockable via `transcribeBytes` |
+
+**Benefits**: Segment finals are decoupled from the partial transcription loop, so each can be tested independently.
+
+### Voice Command Vocabulary Seam (UI)
+**File**: `ui/src/hooks/voice/commands.ts`
+**Purpose**: Command definitions and execution are separated from UI components via the CommandContext interface.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `VOICE_COMMANDS` | Fixed command list with execute functions | Directly iterable for testing |
+| `CommandContext` | Real session/terminal handles from Workspace | Mock implementations with assertion tracking |
+
+**Benefits**: Commands can be tested by calling execute() with mock CommandContext, verifying the right terminal sequences are sent.
 
 ### Voice Input Provider Seam (UI)
 **Files**: `ui/src/hooks/useVoiceInput.ts` (orchestrator), `ui/src/hooks/voice/` (modules)

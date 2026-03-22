@@ -39,16 +39,28 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
+  /** Fired when a segment-final transcription arrives from the backend. */
+  onSegmentFinal: ((text: string, segmentIndex: number) => void) | null = null;
 
   getStream(): MediaStream | null {
     return this.stream;
   }
 
+  /** Send a segment-boundary signal to the backend, triggering a high-quality
+   *  retranscription of the current speech segment. */
+  sendSegmentBoundary(): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "segment-boundary" }));
+    }
+  }
+
   private setupWsHandlers(ws: WebSocket): void {
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data as string) as { type: string; text?: string };
-        if (msg.type === "partial" && msg.text) {
+        const msg = JSON.parse(event.data as string) as { type: string; text?: string; segmentIndex?: number };
+        if (msg.type === "segment-final" && msg.text !== undefined) {
+          this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
+        } else if (msg.type === "partial" && msg.text) {
           if (!this.firstPartialLogged) {
             const latency = Date.now() - this.recordingStartTime;
             console.info("[voice] First partial received, latency=%dms, text=%s",

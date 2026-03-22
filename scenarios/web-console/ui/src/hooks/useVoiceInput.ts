@@ -7,19 +7,23 @@
 // audio level monitoring, VAD, and React state management. Provider
 // implementations, VAD logic, and audio utilities live in ./voice/.
 //
-// State machine: idle -> preparing -> recording -> transcribing -> idle
+// State machine:
+//   One-shot:   idle -> preparing -> recording -> transcribing -> idle
+//   Persistent: idle -> preparing -> listening -> idle
+//
 // The "preparing" state is visible to the UI while the mic is being acquired
 // and the provider is initializing.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchCapabilities, fetchCapabilitiesLiveness } from "../lib/api";
+import { fetchCapabilities, fetchCapabilitiesLiveness, getVoiceStreamConfig } from "../lib/api";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
-import { createVadRefs, vadTick } from "./voice/vad";
+import { createVadRefs, vadTick, VAD_DEFAULT_SEGMENT_SILENCE_MS } from "./voice/vad";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
 import { WebSpeechProvider } from "./voice/WebSpeechProvider";
+import { parseCommand, partialContainsPrefix } from "./voice/commandParser";
 import {
   CAP_CHECK_FAIL_THRESHOLD,
   WHISPER_FAILED_SENTINEL,
@@ -28,15 +32,21 @@ import type {
   TranscriptionProvider,
   VoiceBackend,
   VoiceInputState,
+  VoiceMode,
+  VoiceSegment,
+  CommandSuggestion,
   StartRecordingOpts,
 } from "./voice/types";
 
 // Re-export public types and utilities for consumers and tests
-export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceInputState, StartRecordingOpts } from "./voice/types";
+export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./voice/types";
 export { createAudioFilterChain } from "./voice/audioUtils";
-export type { VadState, VadRefs } from "./voice/vad";
-export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, createVadRefs, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
+export type { VadState, VadRefs, VadAction } from "./voice/vad";
+export { VAD_DEFAULT_SILENCE_TIMEOUT_MS, VAD_DEFAULT_SEGMENT_SILENCE_MS, createVadRefs, computeSlidingNoiseFloor, vadTick } from "./voice/vad";
+
+/** Reduced segment silence threshold when a command prefix is detected in partials. */
+const ADAPTIVE_COMMAND_SILENCE_MS = 700;
 
 const INITIAL_STATE: VoiceInputState = {
   supported: false,
@@ -46,18 +56,34 @@ const INITIAL_STATE: VoiceInputState = {
   audioLevel: 0,
   fallbackNotice: null,
   partialTranscript: "",
+  voiceMode: "one-shot",
+  segments: [],
+  commandSuggestion: null,
 };
+
+export interface UseVoiceInputCallbacks {
+  /** Called when a completed transcript is available (both one-shot and persistent). */
+  onTranscript: (text: string) => void;
+  /** Called when a voice command is confirmed by the user. */
+  onCommandExecute?: (suggestion: CommandSuggestion) => void;
+}
 
 export function useVoiceInput(onTranscript: (text: string) => void) {
   const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
   const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
+  const persistentMode = useWorkspaceStore((s) => s.persistentMode);
+  const commandPrefix = useWorkspaceStore((s) => s.commandPrefix);
+  const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
   const [state, setState] = useState<VoiceInputState>(INITIAL_STATE);
 
   // Derived booleans for backward compatibility with UI components
   const isRecording = state.voiceState === "recording";
+  const isListening = state.voiceState === "listening";
   const isTranscribing = state.voiceState === "transcribing";
   const isPreparing = state.voiceState === "preparing";
+  /** True when mic is active in either mode. */
+  const isActive = isRecording || isListening;
 
   const providerRef = useRef<TranscriptionProvider | null>(null);
   const onTranscriptRef = useRef(onTranscript);
@@ -65,6 +91,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const backendRef = useRef<VoiceBackend>(state.backend);
   backendRef.current = state.backend;
   const streamingAvailableRef = useRef(false);
+
+  // Keep refs in sync with reactive store values so non-React code (RAF tick, callbacks) sees latest
+  const persistentModeRef = useRef(persistentMode);
+  persistentModeRef.current = persistentMode;
+  const commandPrefixRef = useRef(commandPrefix);
+  commandPrefixRef.current = commandPrefix;
+  const segmentSilenceMsRef = useRef(segmentSilenceMs);
+  segmentSilenceMsRef.current = segmentSilenceMs;
+  /** Original segment silence threshold (restored after adaptive shortening). */
+  const baseSegmentSilenceMsRef = useRef(segmentSilenceMs);
+  baseSegmentSilenceMsRef.current = segmentSilenceMs;
+
+  // Segment tracking for persistent mode
+  const segmentsRef = useRef<VoiceSegment[]>([]);
 
   // Audio level monitoring refs -- AudioContext is reused across recording
   // sessions to avoid hitting the browser's 6-8 context limit.
@@ -91,6 +131,70 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   // Track whether the mount-time capability check has resolved,
   // so startRecording knows if streamingAvailableRef is trustworthy.
   const capCheckResolvedRef = useRef(false);
+
+  // Hydrate workspace store from backend config on mount. This ensures the store
+  // has the correct values even if Settings hasn't been opened yet.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (!voiceEnabled || hydratedRef.current) return;
+    hydratedRef.current = true;
+    getVoiceStreamConfig()
+      .then((cfg) => {
+        const store = useWorkspaceStore.getState();
+        if (cfg.persistentMode !== store.persistentMode) store.setPersistentMode(cfg.persistentMode);
+        if (cfg.commandPrefix && cfg.commandPrefix !== store.commandPrefix) store.setCommandPrefix(cfg.commandPrefix);
+        if (cfg.segmentSilenceMs && cfg.segmentSilenceMs !== store.segmentSilenceMs) store.setSegmentSilenceMs(cfg.segmentSilenceMs);
+      })
+      .catch(() => { /* Use store defaults */ });
+  }, [voiceEnabled]);
+
+  // Sync voice mode state from reactive store value
+  useEffect(() => {
+    setState((s) => {
+      const target: VoiceMode = persistentMode ? "persistent" : "one-shot";
+      return s.voiceMode === target ? s : { ...s, voiceMode: target };
+    });
+  }, [persistentMode]);
+
+  /** Handle a segment-final transcript in persistent mode. */
+  const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
+    // Restore adaptive silence threshold
+    vadRef.current.segmentSilenceMs = baseSegmentSilenceMsRef.current;
+
+    if (!text.trim()) return;
+
+    // Check for command prefix
+    const parsed = parseCommand(text, commandPrefixRef.current);
+    if (parsed) {
+      console.info("[voice] Command detected: %s (confidence=%.2f)", parsed.command.id, parsed.confidence);
+      const suggestion: CommandSuggestion = {
+        id: `cmd-${Date.now()}-${segmentIndex}`,
+        commandId: parsed.command.id,
+        description: parsed.command.description,
+        confidence: parsed.confidence,
+        rawText: parsed.rawText,
+        timestamp: Date.now(),
+        args: parsed.args,
+      };
+      setState((s) => ({ ...s, commandSuggestion: suggestion, partialTranscript: "" }));
+      return;
+    }
+
+    // Not a command — append as dictation text
+    const finalText = text.trim();
+    segmentsRef.current = [
+      ...segmentsRef.current.slice(0, segmentIndex),
+      { text: finalText, isFinal: true },
+      ...segmentsRef.current.slice(segmentIndex + 1),
+    ];
+    setState((s) => ({
+      ...s,
+      segments: [...segmentsRef.current],
+      partialTranscript: "",
+    }));
+    // Deliver the segment text to the transcript callback
+    onTranscriptRef.current(finalText);
+  }, []);
 
   const startLevelMonitor = useCallback((stream: MediaStream) => {
     try {
@@ -142,14 +246,41 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             console.debug("[voice] VAD:", prevState, "\u2192", vadRef.current.state,
               "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
           }
-          if (result === "stop") {
-            stopRecordingRef.current?.();
+          if (result === "segment-boundary") {
+            // In persistent mode: trigger segment-final transcription
+            const provider = providerRef.current;
+            if (provider && "sendSegmentBoundary" in provider) {
+              (provider as VoiceStreamProvider).sendSegmentBoundary();
+              console.info("[voice] Segment boundary sent to backend");
+            }
+          } else if (result === "stop") {
+            // In persistent mode, VAD stop is suppressed — only segment boundaries fire.
+            // In one-shot mode, stop recording as usual.
+            if (!persistentModeRef.current) {
+              stopRecordingRef.current?.();
+            }
+            // In persistent mode, this fires after segmentSilenceMs + remaining silence.
+            // We treat it as another segment boundary.
+            if (persistentModeRef.current) {
+              const provider = providerRef.current;
+              if (provider && "sendSegmentBoundary" in provider) {
+                (provider as VoiceStreamProvider).sendSegmentBoundary();
+              }
+            }
           } else if (result === "no-speech") {
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
             stopRecordingRef.current?.();
             setState((s) => ({ ...s, error: "No speech detected" }));
           }
+        }
+
+        // Adaptive silence threshold: when a command prefix is detected in
+        // the partial transcript, temporarily reduce the segment silence
+        // threshold so commands feel snappy.
+        if (persistentModeRef.current && vadRef.current.segmentSilenceMs > 0) {
+          const partial = audioLevelRef.current > 0 ? "" : ""; // partials are tracked in state
+          // We read the latest partial from state via a separate check
         }
 
         rafRef.current = requestAnimationFrame(tick);
@@ -247,14 +378,21 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     const prepareStart = Date.now();
     setState((s) => ({ ...s, voiceState: "preparing", error: null }));
 
+    // Determine the mode for this session
+    const isPersistent = persistentModeRef.current;
+
+    // Persistent mode requires Whisper streaming — if not available, disable persistent mode
+    if (isPersistent && (backendRef.current !== "whisper" || !streamingAvailableRef.current)) {
+      console.warn("[voice] Persistent mode requires Whisper streaming, falling back to one-shot");
+      persistentModeRef.current = false;
+    }
+
     try {
       // Pre-recording capability check (debounced to every 10s)
       const isWhisperOrFallback = state.backend === "whisper" || state.backend === "web-speech";
       if (isWhisperOrFallback && Date.now() - lastCapCheckRef.current > 10_000) {
         lastCapCheckRef.current = Date.now();
         try {
-          // Use liveness check (GET-only) for pre-recording checks,
-          // not the full capability check that includes a test transcription.
           const capCheckStart = Date.now();
           const caps = await fetchCapabilitiesLiveness();
           console.info("[voice] Pre-record liveness check took %dms", Date.now() - capCheckStart);
@@ -294,7 +432,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           }
         } catch (err) {
           console.warn("[voice] Capabilities check failed:", err);
-          // Network error -- don't count as Whisper being unavailable
         }
       }
 
@@ -311,7 +448,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           }
           capCheckResolvedRef.current = true;
         } catch {
-          // Proceed with defaults
           capCheckResolvedRef.current = true;
         }
       }
@@ -341,13 +477,26 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           ? (navigator.language || "en-US")
           : voiceLanguage;
       }
+
+      // Wire up segment-final handler for persistent mode
+      if (provider instanceof VoiceStreamProvider) {
+        provider.onSegmentFinal = handleSegmentFinal;
+      }
+
       provider.onResult = (text) => {
         console.info("[voice] Transcript:", text.length, "chars");
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
-        setState((s) => ({ ...s, voiceState: "idle", error: null, audioLevel: 0, partialTranscript: "" }));
+        setState((s) => ({
+          ...s,
+          voiceState: "idle",
+          error: null,
+          audioLevel: 0,
+          partialTranscript: "",
+          segments: [],
+        }));
         onTranscriptRef.current(text);
       };
       provider.onError = (error) => {
@@ -389,6 +538,13 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
           setState((s) => ({ ...s, partialTranscript: text }));
+          // Adaptive silence threshold: if the partial contains the command prefix,
+          // temporarily reduce the segment silence threshold so commands resolve faster.
+          if (persistentModeRef.current && vadRef.current.segmentSilenceMs > 0) {
+            if (partialContainsPrefix(text, commandPrefixRef.current)) {
+              vadRef.current.segmentSilenceMs = ADAPTIVE_COMMAND_SILENCE_MS;
+            }
+          }
         };
       }
 
@@ -400,19 +556,30 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // Check if the mic stream was acquired before entering recording state.
       const stream = provider.getStream();
       if (stream) {
-        // Arm VAD if requested
-        if (opts?.vadEnabled) {
+        // Arm VAD
+        if (opts?.vadEnabled || isPersistent) {
           vadActiveRef.current = true;
           vadRef.current = createVadRefs();
           vadRef.current.state = "calibrating";
           vadRef.current.recordingStart = Date.now();
+          // Enable segment boundary detection in persistent mode
+          if (isPersistent) {
+            vadRef.current.segmentSilenceMs = segmentSilenceMsRef.current;
+          }
         }
 
-        console.info("[voice] Recording started (preparing took %dms)", Date.now() - prepareStart);
-        setState((s) => ({ ...s, voiceState: "recording" }));
-        // Audible cue: rising chime confirms "mic is live, start speaking."
-        // Critical for hands-free / walking use where the user can't watch
-        // the screen and might start talking before the mic is ready.
+        // Reset segment tracking for persistent mode
+        segmentsRef.current = [];
+
+        const targetState = isPersistent ? "listening" : "recording";
+        console.info("[voice] %s started (preparing took %dms)", targetState, Date.now() - prepareStart);
+        setState((s) => ({
+          ...s,
+          voiceState: targetState,
+          voiceMode: isPersistent ? "persistent" : "one-shot",
+          segments: [],
+          commandSuggestion: null,
+        }));
         playRecordingStartCue();
         startLevelMonitor(stream);
 
@@ -420,7 +587,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = setTimeout(() => {
           if (audioLevelRef.current === 0) {
-            setState((s) => s.voiceState === "recording" ? { ...s, error: "No audio detected \u2014 check your microphone" } : s);
+            setState((s) => (s.voiceState === "recording" || s.voiceState === "listening")
+              ? { ...s, error: "No audio detected \u2014 check your microphone" }
+              : s);
             console.warn("[voice] No audio detected after 2s");
           }
         }, 2000);
@@ -437,21 +606,19 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             voiceState: "idle",
             audioLevel: 0,
             partialTranscript: "",
+            segments: [],
           }));
           provider.dispose();
           providerRef.current = null;
           return;
         }
       } else {
-        // provider.start() failed -- onError should have fired, but ensure
-        // we don't get stuck in "preparing" state.
         setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
       }
     } finally {
-      // Always clear the starting guard, even on unexpected errors.
       startingRef.current = false;
     }
-  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor]);
+  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal]);
 
   const stopRecording = useCallback(() => {
     // If start is in progress, signal it to abort after completing
@@ -461,34 +628,34 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     }
 
     const provider = providerRef.current;
-    if (!provider || !isRecording) return;
+    if (!provider || !isActive) return;
 
-    console.info("[voice] Recording stopped");
-    // Audible cue: falling chime confirms "recording has ended."
-    // Especially important when VAD auto-stop fires — without this the
-    // user may keep talking without realising the mic cut off after a
-    // silence timeout.
-    //
-    // We must play the cue BEFORE releasing the mic stream. playChime is
-    // async (awaits AudioContext.resume()), so we delay provider.stop()
-    // briefly to let the cue begin playing while the audio routing is
-    // still in "communication" mode — otherwise mobile browsers attenuate
-    // or swallow the sound during the routing transition.
+    console.info("[voice] %s stopped", isListening ? "Listening" : "Recording");
     playRecordingStopCue();
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
-    setState((s) => ({
-      ...s,
-      voiceState: state.backend === "whisper" ? "transcribing" : "idle",
-      audioLevel: 0,
-      partialTranscript: "",
-    }));
-    // Small delay lets the stop cue's oscillators get scheduled and start
-    // producing sound before the mic release changes audio routing.
+
+    if (isListening) {
+      // Persistent mode: stop cleanly, the final segment-final will be
+      // the last retranscription from the backend's "done" handler.
+      setState((s) => ({
+        ...s,
+        voiceState: state.backend === "whisper" ? "transcribing" : "idle",
+        audioLevel: 0,
+        partialTranscript: "",
+      }));
+    } else {
+      setState((s) => ({
+        ...s,
+        voiceState: state.backend === "whisper" ? "transcribing" : "idle",
+        audioLevel: 0,
+        partialTranscript: "",
+      }));
+    }
     setTimeout(() => provider.stop(), 120);
-  }, [isRecording, state.backend, stopLevelMonitor]);
+  }, [isActive, isListening, state.backend, stopLevelMonitor]);
 
   const cancelTranscription = useCallback(() => {
     const provider = providerRef.current;
@@ -498,6 +665,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
+    if (provider instanceof VoiceStreamProvider) provider.onSegmentFinal = null;
     provider.dispose();
     providerRef.current = null;
 
@@ -512,20 +680,30 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       error: null,
       audioLevel: 0,
       partialTranscript: "",
+      segments: [],
+      commandSuggestion: null,
     }));
   }, [isTranscribing, stopLevelMonitor]);
+
+  /** Dismiss a command suggestion (either confirmed or rejected). */
+  const dismissCommandSuggestion = useCallback(() => {
+    setState((s) => s.commandSuggestion ? { ...s, commandSuggestion: null } : s);
+  }, []);
 
   // Keep the ref in sync so the tick loop can call stopRecording
   stopRecordingRef.current = stopRecording;
 
   return {
     ...state,
-    // Derived booleans for backward compat with UI components
+    // Derived booleans for UI components
     isRecording,
+    isListening,
     isTranscribing,
     isPreparing,
+    isActive,
     startRecording,
     stopRecording,
     cancelTranscription,
+    dismissCommandSuggestion,
   };
 }

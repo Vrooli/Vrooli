@@ -555,6 +555,9 @@ export interface VoiceStreamConfig {
   flushIntervalMs: number;
   minDeltaBytes: number;
   overlapBytes: number;
+  persistentMode: boolean;
+  commandPrefix: string;
+  segmentSilenceMs: number;
 }
 
 export async function getVoiceStreamConfig(): Promise<VoiceStreamConfig> {
