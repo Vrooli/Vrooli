@@ -2,7 +2,7 @@
  * TeamActivityTab - Container with sub-tabs for Handoffs, Tasks, and Decisions.
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { Clock, ListTodo, Scale } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,17 +18,33 @@ interface TeamActivityTabProps {
   members: TeamMember[]
   allAgents?: Agent[]
   decisionMode?: string
+  /** Externally-requested sub-tab (e.g. from URL deep-link) */
+  initialSubTab?: string | null
+  /** Called when the active sub-tab changes */
+  onSubTabChange?: (subTab: string) => void
   className?: string
 }
 
-export function TeamActivityTab({ teamId, members, allAgents, decisionMode, className }: TeamActivityTabProps) {
+export function TeamActivityTab({ teamId, members, allAgents, decisionMode, initialSubTab, onSubTabChange, className }: TeamActivityTabProps) {
   const [activeSubTab, setActiveSubTab] = useState('handoffs')
+
+  // Respond to external sub-tab navigation requests
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab)
+    }
+  }, [initialSubTab])
+
+  const handleSubTabChange = useCallback((value: string) => {
+    setActiveSubTab(value)
+    onSubTabChange?.(value)
+  }, [onSubTabChange])
 
   return (
     <div className={cn('flex flex-col', className)}>
       <Tabs.Root
         value={activeSubTab}
-        onValueChange={setActiveSubTab}
+        onValueChange={handleSubTabChange}
         className="flex-1 flex flex-col min-h-0"
       >
         <TabList>

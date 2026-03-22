@@ -6,6 +6,7 @@
  * - URL updates without page reload
  * - popstate event handling (browser back/forward)
  * - Dirty state integration
+ * - Tab and sub-tab deep-link support
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -152,12 +153,45 @@ describe('useUrlState', () => {
         skillId: 'my-skill',
         agentId: null,
         teamId: null,
+        runId: null,
         settingsOpen: true,
         view: null,
+        tab: null,
+        subTab: null,
         hlFile: null,
         hlLine: null,
         hlText: null,
       })
+    })
+
+    it('should parse tab and subTab from URL', () => {
+      vi.useFakeTimers()
+      window.location.search = '?team=team-1&tab=activity&subTab=decisions'
+
+      const onTabChange = vi.fn()
+      const onSubTabChange = vi.fn()
+      const options = createOptions({ onTabChange, onSubTabChange })
+      renderHook(() => useUrlState(options))
+
+      act(() => {
+        vi.runAllTimers()
+      })
+
+      expect(options.onTeamIdChange).toHaveBeenCalledWith('team-1')
+      expect(onTabChange).toHaveBeenCalledWith('activity')
+      expect(onSubTabChange).toHaveBeenCalledWith('decisions')
+    })
+
+    it('should include tab and subTab in getInitialState', () => {
+      window.location.search = '?team=t1&tab=members&subTab=roles'
+
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      const state = result.current.getInitialState()
+      expect(state.teamId).toBe('t1')
+      expect(state.tab).toBe('members')
+      expect(state.subTab).toBe('roles')
     })
   })
 
@@ -267,6 +301,74 @@ describe('useUrlState', () => {
         '/?skill=skill-merge&settings=true'
       )
     })
+
+    it('should update URL with tab param', () => {
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      act(() => {
+        result.current.updateUrl({ teamId: 'team-1', tab: 'activity' })
+      })
+
+      expect(mockReplaceState).toHaveBeenCalledWith(
+        expect.objectContaining({ teamId: 'team-1', tab: 'activity' }),
+        '',
+        '/?team=team-1&tab=activity'
+      )
+    })
+
+    it('should update URL with tab and subTab params', () => {
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      act(() => {
+        result.current.updateUrl({ teamId: 'team-1', tab: 'activity', subTab: 'decisions' })
+      })
+
+      expect(mockReplaceState).toHaveBeenCalledWith(
+        expect.objectContaining({ teamId: 'team-1', tab: 'activity', subTab: 'decisions' }),
+        '',
+        '/?team=team-1&tab=activity&subTab=decisions'
+      )
+    })
+
+    it('should clear tab and subTab from URL when set to null', () => {
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      // Set tab state
+      act(() => {
+        result.current.updateUrl({ teamId: 'team-1', tab: 'activity', subTab: 'decisions' })
+      })
+
+      // Clear tab state
+      act(() => {
+        result.current.updateUrl({ tab: null, subTab: null })
+      })
+
+      expect(mockReplaceState).toHaveBeenLastCalledWith(
+        expect.objectContaining({ teamId: 'team-1', tab: null, subTab: null }),
+        '',
+        '/?team=team-1'
+      )
+    })
+
+    it('should not trigger update when tab state has not changed', () => {
+      const options = createOptions()
+      const { result } = renderHook(() => useUrlState(options))
+
+      act(() => {
+        result.current.updateUrl({ tab: 'activity', subTab: 'decisions' })
+      })
+
+      const callCount = mockReplaceState.mock.calls.length
+
+      act(() => {
+        result.current.updateUrl({ tab: 'activity', subTab: 'decisions' })
+      })
+
+      expect(mockReplaceState.mock.calls.length).toBe(callCount)
+    })
   })
 
   describe('popstate event handling', () => {
@@ -331,6 +433,39 @@ describe('useUrlState', () => {
       })
 
       expect(options.onSkillIdChange).toHaveBeenCalledWith('url-parsed-skill')
+    })
+
+    it('should call onTabChange and onSubTabChange on popstate', () => {
+      const onTabChange = vi.fn()
+      const onSubTabChange = vi.fn()
+      const options = createOptions({ onTabChange, onSubTabChange })
+      renderHook(() => useUrlState(options))
+
+      const event = new PopStateEvent('popstate', {
+        state: { skillId: null, agentId: null, teamId: 'team-1', settingsOpen: false, tab: 'activity', subTab: 'decisions' },
+      })
+
+      act(() => {
+        popstateHandler?.(event)
+      })
+
+      expect(onTabChange).toHaveBeenCalledWith('activity')
+      expect(onSubTabChange).toHaveBeenCalledWith('decisions')
+    })
+
+    it('should call onTabChange with null when popstate has no tab', () => {
+      const onTabChange = vi.fn()
+      const options = createOptions({ onTabChange })
+      renderHook(() => useUrlState(options))
+
+      window.location.search = '?team=team-1'
+      const event = new PopStateEvent('popstate', { state: null })
+
+      act(() => {
+        popstateHandler?.(event)
+      })
+
+      expect(onTabChange).toHaveBeenCalledWith(null)
     })
   })
 

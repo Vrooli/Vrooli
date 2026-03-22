@@ -324,6 +324,8 @@ describe('copySkillsToClipboard', () => {
   beforeEach(() => {
     vi.stubGlobal('navigator', { clipboard: mockClipboard })
     mockClipboard.writeText.mockReset()
+    // Define document.execCommand for clipboard fallback path (may not exist in test env)
+    document.execCommand = vi.fn().mockReturnValue(true)
   })
 
   it('should copy displayed content to clipboard', async () => {
@@ -338,6 +340,10 @@ describe('copySkillsToClipboard', () => {
 
   it('should return error on clipboard failure', async () => {
     mockClipboard.writeText.mockRejectedValue(new Error('Permission denied'))
+    // Also make the execCommand fallback fail
+    document.execCommand = vi.fn().mockImplementation(() => {
+      throw new Error('Permission denied')
+    })
     const skills = [createTestSkill()]
 
     const result = await copySkillsToClipboard(skills, 'xml')

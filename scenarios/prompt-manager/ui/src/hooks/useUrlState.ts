@@ -32,6 +32,8 @@ export interface UrlState {
   runId: string | null
   settingsOpen: boolean
   view: ViewMode | null
+  tab: string | null
+  subTab: string | null
   hlFile: string | null
   hlLine: number | null
   hlText: string | null
@@ -48,6 +50,10 @@ export interface UseUrlStateOptions {
   onRunIdChange?: (id: string | null) => void
   /** Called when settings open state changes from URL navigation */
   onSettingsOpenChange: (open: boolean) => void
+  /** Called when tab changes from URL navigation */
+  onTabChange?: (tab: string | null) => void
+  /** Called when sub-tab changes from URL navigation */
+  onSubTabChange?: (subTab: string | null) => void
   /** Called when view mode changes from URL navigation */
   onViewChange?: (view: ViewMode) => void
   /** Called when highlight params change from URL navigation */
@@ -73,6 +79,8 @@ const URL_PARAMS = {
   RUN: 'run',
   SETTINGS: 'settings',
   VIEW: 'view',
+  TAB: 'tab',
+  SUB_TAB: 'subTab',
   HL_FILE: 'hlFile',
   HL_LINE: 'hlLine',
   HL_TEXT: 'hlText',
@@ -95,6 +103,8 @@ function parseUrlState(search: string): UrlState {
     runId: params.get(URL_PARAMS.RUN),
     settingsOpen: params.get(URL_PARAMS.SETTINGS) === 'true',
     view: viewRaw && VALID_VIEWS.has(viewRaw) ? viewRaw : null,
+    tab: params.get(URL_PARAMS.TAB),
+    subTab: params.get(URL_PARAMS.SUB_TAB),
     hlFile: params.get(URL_PARAMS.HL_FILE),
     hlLine: hlLine !== null && !Number.isNaN(hlLine) ? hlLine : null,
     hlText: params.get(URL_PARAMS.HL_TEXT),
@@ -129,6 +139,14 @@ function buildUrlSearch(state: UrlState): string {
 
   if (state.view) {
     params.set(URL_PARAMS.VIEW, state.view)
+  }
+
+  if (state.tab) {
+    params.set(URL_PARAMS.TAB, state.tab)
+  }
+
+  if (state.subTab) {
+    params.set(URL_PARAMS.SUB_TAB, state.subTab)
   }
 
   if (state.hlFile) {
@@ -178,6 +196,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     runId: null,
     settingsOpen: false,
     view: null,
+    tab: null,
+    subTab: null,
     hlFile: null,
     hlLine: null,
     hlText: null,
@@ -194,7 +214,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
    */
   const getInitialState = useCallback((): UrlState => {
     if (typeof window === 'undefined') {
-      return { skillId: null, agentId: null, teamId: null, runId: null, settingsOpen: false, view: null, hlFile: null, hlLine: null, hlText: null }
+      return { skillId: null, agentId: null, teamId: null, runId: null, settingsOpen: false, view: null, tab: null, subTab: null, hlFile: null, hlLine: null, hlText: null }
     }
     return parseUrlState(window.location.search)
   }, [])
@@ -219,6 +239,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
       newState.runId === currentStateRef.current.runId &&
       newState.settingsOpen === currentStateRef.current.settingsOpen &&
       newState.view === currentStateRef.current.view &&
+      newState.tab === currentStateRef.current.tab &&
+      newState.subTab === currentStateRef.current.subTab &&
       newState.hlFile === currentStateRef.current.hlFile &&
       newState.hlLine === currentStateRef.current.hlLine &&
       newState.hlText === currentStateRef.current.hlText
@@ -264,6 +286,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     if (urlState.view) {
       opts.onViewChange?.(urlState.view)
     }
+    opts.onTabChange?.(urlState.tab)
+    opts.onSubTabChange?.(urlState.subTab)
     opts.onHighlightChange?.(extractHighlightRequest(urlState))
   }, [])
 
@@ -280,7 +304,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
 
     // Apply initial state (defer to allow component to mount)
     const hlRequest = extractHighlightRequest(initialState)
-    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.runId || initialState.settingsOpen || initialState.view || hlRequest) {
+    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.runId || initialState.settingsOpen || initialState.view || initialState.tab || initialState.subTab || hlRequest) {
       // Use setTimeout to ensure this runs after initial render
       setTimeout(() => {
         if (initialState.skillId) {
@@ -300,6 +324,12 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
         }
         if (initialState.view) {
           options.onViewChange?.(initialState.view)
+        }
+        if (initialState.tab) {
+          options.onTabChange?.(initialState.tab)
+        }
+        if (initialState.subTab) {
+          options.onSubTabChange?.(initialState.subTab)
         }
         if (hlRequest) {
           options.onHighlightChange?.(hlRequest)

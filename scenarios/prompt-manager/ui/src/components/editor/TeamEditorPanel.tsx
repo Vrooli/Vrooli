@@ -69,6 +69,14 @@ interface TeamEditorPanelProps {
   isDeleting?: boolean
   /** Navigate to an agent's files in the Agent Editor */
   onNavigateToAgentFiles?: (agentId: string, filePath?: string) => void
+  /** Externally-requested tab (e.g. from URL deep-link) */
+  initialTab?: string | null
+  /** Externally-requested sub-tab (e.g. from URL deep-link) */
+  initialSubTab?: string | null
+  /** Called when the active tab changes */
+  onTabChange?: (tab: string) => void
+  /** Called when the active sub-tab changes */
+  onSubTabChange?: (subTab: string | null) => void
   /** Cross-reference highlight request */
   highlightRequest?: HighlightRequest | null
   /** Called after highlight is applied (clears URL params) */
@@ -93,12 +101,28 @@ export function TeamEditorPanel({
   onDelete,
   isDeleting = false,
   onNavigateToAgentFiles,
+  initialTab,
+  initialSubTab,
+  onTabChange,
+  onSubTabChange,
   highlightRequest,
   onHighlightHandled,
   className,
 }: TeamEditorPanelProps) {
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
+
+  // Respond to external tab navigation requests (e.g. from URL deep-link)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value)
+    onTabChange?.(value)
+  }, [onTabChange])
 
   // Dashboard health/activity state
   const [teamHealth, setTeamHealth] = useState<'green' | 'yellow' | 'red' | 'gray'>('gray')
@@ -477,7 +501,7 @@ export function TeamEditorPanel({
       {/* Tabs */}
       <Tabs.Root
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
         {/* Tab List */}
@@ -643,6 +667,8 @@ export function TeamEditorPanel({
               members={team.members}
               allAgents={allAgents}
               decisionMode={team.decisionMode}
+              initialSubTab={initialSubTab}
+              onSubTabChange={(subTab) => onSubTabChange?.(subTab)}
               className="h-full min-h-0"
             />
           </Tabs.Content>

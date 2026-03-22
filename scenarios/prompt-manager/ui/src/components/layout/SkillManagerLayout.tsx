@@ -172,6 +172,10 @@ export function SkillManagerLayout() {
   // Cross-reference highlight request (set when clicking an xref)
   const [highlightRequest, setHighlightRequest] = useState<HighlightRequest | null>(null)
 
+  // Tab deep-link state (e.g. from pending decisions → team activity → decisions)
+  const [pendingTab, setPendingTab] = useState<string | null>(null)
+  const [pendingSubTab, setPendingSubTab] = useState<string | null>(null)
+
   // Filter matches to only those for the currently selected skill
   const currentSkillMatches = useMemo(() => {
     if (!selectedSkillId || searchMode !== 'content') {
@@ -481,28 +485,50 @@ export function SkillManagerLayout() {
     onHighlightChange: useCallback((hl: HighlightRequest | null) => {
       setHighlightRequest(hl)
     }, []),
+    onTabChange: useCallback((tab: string | null) => {
+      setPendingTab(tab)
+    }, []),
+    onSubTabChange: useCallback((subTab: string | null) => {
+      setPendingSubTab(subTab)
+    }, []),
     isDirty,
     storeCurrentChanges,
   })
 
-  // Sync URL when selected skill changes
+  // Sync URL when selected skill changes (clear tab state — only applies to teams)
   useEffect(() => {
     updateUrl({ skillId: selectedSkillId })
+    if (selectedSkillId) {
+      setPendingTab(null)
+      setPendingSubTab(null)
+    }
   }, [selectedSkillId, updateUrl])
 
-  // Sync URL when selected agent changes
+  // Sync URL when selected agent changes (clear tab state — only applies to teams)
   useEffect(() => {
     updateUrl({ agentId: selectedAgentId })
+    if (selectedAgentId) {
+      setPendingTab(null)
+      setPendingSubTab(null)
+    }
   }, [selectedAgentId, updateUrl])
 
   // Sync URL when selected team changes
   useEffect(() => {
     updateUrl({ teamId: selectedTeamId })
+    if (!selectedTeamId) {
+      setPendingTab(null)
+      setPendingSubTab(null)
+    }
   }, [selectedTeamId, updateUrl])
 
-  // Sync URL when selected run changes
+  // Sync URL when selected run changes (clear tab state — only applies to teams)
   useEffect(() => {
     updateUrl({ runId: selectedRunId })
+    if (selectedRunId) {
+      setPendingTab(null)
+      setPendingSubTab(null)
+    }
   }, [selectedRunId, updateUrl])
 
   // Sync URL when settings dialog state changes
@@ -514,6 +540,15 @@ export function SkillManagerLayout() {
   useEffect(() => {
     updateUrl({ view: graphViewActive ? 'graph' : 'world' })
   }, [graphViewActive, updateUrl])
+
+  // Sync URL when tab deep-link state changes
+  useEffect(() => {
+    updateUrl({ tab: pendingTab })
+  }, [pendingTab, updateUrl])
+
+  useEffect(() => {
+    updateUrl({ subTab: pendingSubTab })
+  }, [pendingSubTab, updateUrl])
 
   // Auto-expand tree to show selected item
   useEffect(() => {
@@ -1095,6 +1130,8 @@ export function SkillManagerLayout() {
     (teamId: string) => {
       setActiveTab('teams')
       setSelectedTeamId(teamId)
+      setPendingTab('activity')
+      setPendingSubTab('decisions')
       if (isMobile) {
         setIsMobileSidebarOpen(false)
       }
@@ -1296,6 +1333,10 @@ export function SkillManagerLayout() {
               <TeamEditorPanel
                 team={currentTeam ?? null}
                 allAgents={agents}
+                initialTab={pendingTab}
+                initialSubTab={pendingSubTab}
+                onTabChange={(tab) => setPendingTab(tab)}
+                onSubTabChange={(subTab) => setPendingSubTab(subTab)}
                 onNavigateToAgentFiles={handleNavigateToAgentFiles}
                 onUpdate={async (updates) => {
                   if (selectedTeamId) {

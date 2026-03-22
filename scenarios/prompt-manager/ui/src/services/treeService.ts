@@ -153,6 +153,7 @@ export function filterTree(nodes: TreeNode[], query: string, skills: Skill[]): T
       .filter((p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.description.toLowerCase().includes(lowerQuery) ||
+        p.content.toLowerCase().includes(lowerQuery) ||
         p.tags.some((t) => t.toLowerCase().includes(lowerQuery)) ||
         p.modes.some((m) => m.toLowerCase().includes(lowerQuery))
       )

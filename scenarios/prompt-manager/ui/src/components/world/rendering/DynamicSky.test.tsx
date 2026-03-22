@@ -68,15 +68,19 @@ vi.mock('@react-three/drei', () => ({
   Sky: vi.fn(() => null),
 }))
 
-// Mock SKYBOX_PRESETS
-vi.mock('@/config/environments', () => ({
-  SKYBOX_PRESETS: {
-    morning: { type: 'gradient', source: ['#FFE4B5', '#87CEEB', '#FFF8DC'] },
-    noon: { type: 'gradient', source: ['#87CEEB', '#ADD8E6', '#FFFFF0'] },
-    sunset: { type: 'gradient', source: ['#FF6B35', '#FF8C42', '#FFD700'] },
-    night: { type: 'gradient', source: ['#0f172a', '#1e293b', '#0f172a'] },
-  },
-}))
+// Mock @/config/environments — re-export everything from the real module
+vi.mock('@/config/environments', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/config/environments')>()
+  return {
+    ...actual,
+    SKYBOX_PRESETS: {
+      morning: { type: 'gradient', source: ['#FFE4B5', '#87CEEB', '#FFF8DC'] },
+      noon: { type: 'gradient', source: ['#87CEEB', '#ADD8E6', '#FFFFF0'] },
+      sunset: { type: 'gradient', source: ['#FF6B35', '#FF8C42', '#FFD700'] },
+      night: { type: 'gradient', source: ['#0f172a', '#1e293b', '#0f172a'] },
+    },
+  }
+})
 
 // =============================================================================
 // TEST UTILITIES
