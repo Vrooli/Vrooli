@@ -8,4 +8,5 @@ export {
   selectActiveAgentRuns,
   selectLatestRunForBacklog,
 } from "./agent-runs-store";
+export { useCaptureStore, captureStoreInitialState } from "./capture-store";
 export type { LoadStatus } from "./store-utils";

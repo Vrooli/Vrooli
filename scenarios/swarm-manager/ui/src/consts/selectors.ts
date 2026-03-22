@@ -122,6 +122,18 @@ export const literalSelectors = {
       cta: "feedback-hub-cta",
     },
   },
+  // Captures (unified feed) selectors
+  captures: {
+    quickInput: "captures-quick-input",
+    quickInputSubmit: "captures-quick-input-submit",
+    card: "capture-card",
+    retryButton: "capture-retry-button",
+    acceptAllButton: "capture-accept-all-button",
+    dismissButton: "capture-dismiss-button",
+    itemAcceptButton: "capture-item-accept-button",
+    itemEditButton: "capture-item-edit-button",
+    itemDismissButton: "capture-item-dismiss-button",
+  },
   // Backlog details page selectors
   backlogDetails: {
     page: "backlog-details-page",
@@ -299,7 +311,7 @@ export const dynamicSelectorDefinitions = {
       description: "Backlog card filtered by kind and name",
       testIdPattern: "backlog-card-${kind}-${name}",
       params: {
-        kind: { type: "enum", values: ["idea", "research", "fix", "execute"] },
+        kind: { type: "enum", values: ["idea", "research", "fix", "execute", "chore"] },
         name: { type: "string" },
       },
     }),

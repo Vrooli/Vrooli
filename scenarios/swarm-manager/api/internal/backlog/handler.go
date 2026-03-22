@@ -60,6 +60,7 @@ const (
 	KindResearch BacklogKind = "research"
 	KindFix      BacklogKind = "fix"
 	KindExecute  BacklogKind = "execute"
+	KindChore    BacklogKind = "chore"
 )
 
 var backlogKindDirs = map[BacklogKind]string{
@@ -67,6 +68,7 @@ var backlogKindDirs = map[BacklogKind]string{
 	KindResearch: "research",
 	KindFix:      "fix",
 	KindExecute:  "execute",
+	KindChore:    "chore",
 }
 
 // BacklogItem represents a unit of work stored on disk.
@@ -117,12 +119,14 @@ var researchSkillIDs = map[ResearchMode]map[BacklogKind]string{
 		KindFix:      "swarm-manager-research-fix",
 		KindExecute:  "swarm-manager-research-general",
 		KindResearch: "swarm-manager-research-general",
+		KindChore:    "swarm-manager-research-general",
 	},
 	ResearchModeInitialize: {
 		KindIdea:     "swarm-manager-initialize-backlog",
 		KindResearch: "swarm-manager-initialize-backlog",
 		KindFix:      "swarm-manager-initialize-backlog",
 		KindExecute:  "swarm-manager-initialize-backlog",
+		KindChore:    "swarm-manager-initialize-backlog",
 	},
 }
 
@@ -698,7 +702,7 @@ func (h *Handler) loadAllItems(kinds []BacklogKind) ([]BacklogItem, error) {
 	var items []BacklogItem
 
 	if len(kinds) == 0 {
-		kinds = []BacklogKind{KindIdea, KindResearch, KindFix, KindExecute}
+		kinds = []BacklogKind{KindIdea, KindResearch, KindFix, KindExecute, KindChore}
 	}
 
 	for _, kind := range kinds {

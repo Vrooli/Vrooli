@@ -47,11 +47,16 @@ import {
 } from "../types";
 import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
+import { CaptureCard } from "../components/backlog/capture-card";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
 import { MaturityPhaseBar } from "../components/backlog/maturity-phase-bar";
+import { PendingDecisionBadge } from "../components/backlog/pending-decision-badge";
+import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
-import { useBacklogStore } from "../stores";
+import { buildFeed, countActionableItems, type FeedbackItem, type MaturityItem } from "../lib/feed";
+import { useBacklogStore, useCaptureStore } from "../stores";
+import type { BacklogFormValues } from "../types";
 
 type SortField = "priority" | "updated" | "status" | "title";
 
@@ -98,8 +103,8 @@ const BACKLOG_KIND_TABS: Array<{
     kind: "all",
     label: "All",
     icon: LayoutGrid,
-    emptyTitle: "No backlog items yet",
-    emptyDescription: "Create your first backlog item to start tracking ideas, fixes, and tasks.",
+    emptyTitle: "Capture your first thought",
+    emptyDescription: "Type what's on your mind above — the system will classify and organize it for you.",
     ctaLabel: "New Item",
   },
   {
@@ -134,16 +139,25 @@ const BACKLOG_KIND_TABS: Array<{
     emptyDescription: "Track tasks that should be executed by the swarm with focused instructions.",
     ctaLabel: "New Execution",
   },
+  {
+    kind: "chore",
+    label: "Chore",
+    icon: Wrench,
+    emptyTitle: "No chores yet",
+    emptyDescription: "Track maintenance, cleanup, dependency updates, and infrastructure work.",
+    ctaLabel: "New Chore",
+  },
 ];
 
 export function BacklogPage() {
-  const [activeKind, setActiveKind] = useState<TabKind>("idea");
+  const [activeKind, setActiveKind] = useState<TabKind>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<BacklogStatus | "">("");
   const [sortField, setSortField] = useState<SortField>("priority");
   const [showSort, setShowSort] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [createPrefill, setCreatePrefill] = useState<BacklogFormValues | undefined>();
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
   const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
   const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
@@ -159,9 +173,29 @@ export function BacklogPage() {
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const hasLoaded = status !== "idle";
 
+  const captures = useCaptureStore((s) => s.captures);
+  const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
+
   useEffect(() => {
     void fetchBacklog();
-  }, [fetchBacklog]);
+    void fetchCaptures();
+  }, [fetchBacklog, fetchCaptures]);
+
+  // Polling: refresh captures every 3s when any are classifying (max 60s then stop)
+  useEffect(() => {
+    const classifyingCaptures = captures.filter((c) => c.status === "classifying");
+    if (classifyingCaptures.length === 0) return;
+
+    // Stop polling if all classifying captures are older than 60s (let backend auto-fail at 2 min)
+    const allStale = classifyingCaptures.every((c) => {
+      const age = Date.now() - new Date(c.created).getTime();
+      return age > 60_000;
+    });
+    if (allStale) return;
+
+    const interval = setInterval(() => void fetchCaptures({ force: true }), 3000);
+    return () => clearInterval(interval);
+  }, [captures, fetchCaptures]);
 
   const feedbackSummaryQuery = useQuery({
     queryKey: ["backlog-feedback-summary"],
@@ -195,6 +229,26 @@ export function BacklogPage() {
     }
     return map;
   }, [maturityQuery.data]);
+
+  // Build unified feed for the "All" tab
+  const feedItems = useMemo(() => {
+    if (activeKind !== "all") return [];
+    const feedbackItems: FeedbackItem[] = (feedbackSummary?.items ?? []).map((item: Record<string, unknown>) => ({
+      kind: item.kind as string,
+      name: item.name as string,
+      unansweredQuestions: (item.unanswered_questions as number) ?? 0,
+      pendingSuggestions: (item.pending_suggestions as number) ?? 0,
+    }));
+    const maturityItems: MaturityItem[] = (maturityQuery.data?.items ?? []).map((item: Record<string, unknown>) => ({
+      kind: item.kind as string,
+      name: item.name as string,
+      questionsNewOrUpdated: (item.questions_new_or_updated as number) ?? 0,
+      suggestionsNewOrUpdated: (item.suggestions_new_or_updated as number) ?? 0,
+    }));
+    return buildFeed(captures, items, feedbackItems, maturityItems);
+  }, [activeKind, captures, items, feedbackSummary, maturityQuery.data]);
+
+  const actionableCount = useMemo(() => countActionableItems(feedItems), [feedItems]);
 
   const createMutation = useMutation({
     mutationFn: backlogService.create,
@@ -340,10 +394,16 @@ export function BacklogPage() {
                 >
                   {BACKLOG_KIND_TABS.map((tab) => {
                     const Icon = tab.icon;
+                    const count = tab.kind === "all" ? actionableCount : 0;
                     return (
                       <TabsTrigger key={tab.kind} value={tab.kind} className="gap-2">
                         <Icon className="h-4 w-4" />
                         {tab.label}
+                        {count > 0 && (
+                          <span className="ml-1 rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-medium text-cyan-400">
+                            {count}
+                          </span>
+                        )}
                       </TabsTrigger>
                     );
                   })}
@@ -529,6 +589,9 @@ export function BacklogPage() {
         />
       )}
 
+      {/* Quick capture input — only on "All" tab */}
+      {activeKind === "all" && <QuickCaptureInput />}
+
       <div className="space-y-4">
         {(status === "loading" || !hasLoaded) && items.length === 0 && (
           <PageLoadingState
@@ -546,7 +609,7 @@ export function BacklogPage() {
           />
         )}
 
-        {!error && kindItems.length === 0 && hasLoaded && (
+        {!error && kindItems.length === 0 && hasLoaded && !(activeKind === "all" && captures.length > 0) && (
           <Card padding="lg" centered data-testid={selectors.backlog.empty}>
             <EmptyIcon className="mx-auto h-12 w-12 text-slate-600" />
             <h3 className="mt-4 text-lg font-medium text-slate-300">{activeTab.emptyTitle}</h3>
@@ -593,7 +656,92 @@ export function BacklogPage() {
           </Card>
         )}
 
-        {filteredItems.length > 0 && (
+        {/* Unified feed rendering for "All" tab */}
+        {activeKind === "all" && feedItems.length > 0 && !searchTerm && !statusFilter && (
+          <div className="space-y-3">
+            <ResponsiveList data-testid={selectors.backlog.grid}>
+              {feedItems.map((entry) => {
+                if (entry.type === "capture") {
+                  return (
+                    <ResponsiveListItem key={entry.capture.id}>
+                      <CaptureCard
+                        capture={entry.capture}
+                        onEditItem={(prefill: BacklogFormValues) => {
+                          setCreatePrefill(prefill);
+                          setShowCreate(true);
+                        }}
+                      />
+                    </ResponsiveListItem>
+                  );
+                }
+                const item = entry.type === "attention" ? entry.item : entry.item;
+                const reasons = entry.type === "attention" ? entry.reasons : [];
+                return (
+                  <ResponsiveListItem
+                    as={Link}
+                    key={`${item.kind}-${item.name}`}
+                    to={`/backlog/${item.kind}/${item.name}`}
+                    interactive
+                    className="group block"
+                    data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
+                        />
+                        <span className="text-xs uppercase tracking-wider text-slate-400">
+                          {formatBacklogStatus(item.status)}
+                        </span>
+                      </div>
+                      <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                        P{item.priority}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
+                    {reasons.length > 0 && (
+                      <div className="mt-2">
+                        <PendingDecisionBadge reasons={reasons} />
+                      </div>
+                    )}
+                    <TagList
+                      tags={item.tags}
+                      maxTags={displayLimitsConfig.backlogCardMaxTags}
+                      className="mt-3"
+                    />
+                    {(() => {
+                      const mat = item.kind === "idea" ? maturityMap.get(`${item.kind}/${item.name}`) : undefined;
+                      return mat ? <MaturityPhaseBar maturity={mat} className="mt-3" /> : null;
+                    })()}
+                    <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                      <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
+                      <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
+                    </div>
+                    {isBacklogQueueable(item) && (
+                      <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                        <Button
+                          size="sm"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                          }}
+                        >
+                          <Play className="mr-1 h-3 w-3" />
+                          Run
+                        </Button>
+                      </div>
+                    )}
+                  </ResponsiveListItem>
+                );
+              })}
+            </ResponsiveList>
+          </div>
+        )}
+
+        {/* Standard list rendering (kind tabs or filtered "all" tab) */}
+        {(activeKind !== "all" || searchTerm || statusFilter) && filteredItems.length > 0 && (
           <div className="space-y-3">
             {batchMode && (
               <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
@@ -737,11 +885,13 @@ export function BacklogPage() {
       <BacklogFormDialog
         isOpen={showCreate}
         mode="create"
-        defaultKind={activeKind === "all" ? "idea" : activeKind}
+        defaultKind={createPrefill?.kind ?? (activeKind === "all" ? "idea" : activeKind)}
+        initialValues={createPrefill}
         isSubmitting={createMutation.isPending}
         submitError={createError}
         onClose={() => {
           setShowCreate(false);
+          setCreatePrefill(undefined);
           createMutation.reset();
         }}
         onSubmit={(values) => createMutation.mutate(values)}

@@ -17,7 +17,7 @@ import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { promptService } from "../services";
 import type { BacklogKind, IdeaAgentMode, PromptBinding, PromptSkillVersion } from "../types";
 
-const KINDS: BacklogKind[] = ["idea", "research", "fix", "execute"];
+const KINDS: BacklogKind[] = ["idea", "research", "fix", "execute", "chore"];
 const MODES: Array<IdeaAgentMode | "research"> = ["clarify", "suggest", "enhance", "research"];
 const OPERATIONS: Array<"" | "generator" | "improver"> = ["", "generator", "improver"];
 const STAGE_ORDER = ["Backlog", "Research", "Execution"] as const;

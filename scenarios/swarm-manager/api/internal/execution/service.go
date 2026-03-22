@@ -860,6 +860,8 @@ func (s *Service) kindDir(kind string) string {
 		return filepath.Join(s.rootDir, "fix")
 	case "execute":
 		return filepath.Join(s.rootDir, "execute")
+	case "chore":
+		return filepath.Join(s.rootDir, "chore")
 	default:
 		return filepath.Join(s.rootDir, "ideas")
 	}
@@ -898,6 +900,8 @@ func buildProcessingTitle(item backlogItem) string {
 		return "Apply fix: " + label
 	case "execute":
 		return "Execute task: " + label
+	case "chore":
+		return "Run chore: " + label
 	default:
 		return "Generate scenario: " + label
 	}
@@ -909,6 +913,7 @@ var processingSkillIDs = map[string]string{
 	"fix":      "swarm-manager-process-fix",
 	"execute":  "swarm-manager-process-execute",
 	"research": "swarm-manager-process-execute",
+	"chore":    "swarm-manager-process-execute",
 }
 
 // fetchProcessingPrompt loads a processing prompt from prompt-manager.

@@ -90,6 +90,7 @@ func TestResearch_InitializeMode_AllKinds(t *testing.T) {
 		{KindFix, "fix"},
 		{KindExecute, "execute"},
 		{KindResearch, "research"},
+		{KindChore, "chore"},
 	}
 
 	for _, tc := range kinds {
@@ -195,7 +196,7 @@ func TestParseResearchMode_Initialize(t *testing.T) {
 }
 
 func TestResearchSkillID_Initialize(t *testing.T) {
-	kinds := []BacklogKind{KindIdea, KindFix, KindExecute, KindResearch}
+	kinds := []BacklogKind{KindIdea, KindFix, KindExecute, KindResearch, KindChore}
 	for _, kind := range kinds {
 		t.Run(string(kind), func(t *testing.T) {
 			got := researchSkillID(ResearchModeInitialize, kind)

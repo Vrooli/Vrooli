@@ -93,6 +93,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/captures"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/prompts"
@@ -135,6 +136,7 @@ func (s *Server) setupRoutes() {
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.registerHealthRoutes()
 	s.registerBacklogRoutes(scenarioRoot)
+	s.registerCapturesRoutes(scenarioRoot)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerSettingsRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
@@ -160,6 +162,12 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) {
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
 	backlogHandler.RegisterRoutes(s.router)
+}
+
+func (s *Server) registerCapturesRoutes(scenarioRoot string) {
+	// Captures endpoints for quick-capture unified feed
+	capturesHandler := captures.NewHandler(scenarioRoot, s.agentSvc, nil)
+	capturesHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerScenarioRoutes(scenariosDir string) {

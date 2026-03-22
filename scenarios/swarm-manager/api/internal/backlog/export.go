@@ -22,6 +22,7 @@ var kindEmoji = map[BacklogKind]string{
 	KindFix:      "\U0001f527",
 	KindResearch: "\U0001f52c",
 	KindExecute:  "\u25b6\ufe0f",
+	KindChore:    "\U0001f9f9",
 }
 
 // clarifyQuestion represents a single clarification question stored on disk.

@@ -501,7 +501,7 @@ func resolveResearchSkill(mode, kind string) string {
 			return "swarm-manager-research-idea"
 		case "fix":
 			return "swarm-manager-research-fix"
-		case "execute", "research":
+		case "execute", "research", "chore":
 			return "swarm-manager-research-general"
 		default:
 			return "swarm-manager-research-general"

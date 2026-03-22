@@ -14,6 +14,10 @@
 export { backlogService, createBacklogService } from "./backlog-service";
 export type { IBacklogService, QueueResponse } from "./backlog-service";
 
+// Captures
+export { captureService, createCaptureService } from "./capture-service";
+export type { ICaptureService, CreateCaptureResponse, ClassifyResponse } from "./capture-service";
+
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";
 export type { IScenariosService } from "./scenarios-service";

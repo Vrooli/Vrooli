@@ -36,12 +36,14 @@ const KIND_OPTIONS: Array<{ value: BacklogKind; label: string; helper: string }>
   { value: "research", label: "Research", helper: "Investigations that feed into ideas, fixes, or execution." },
   { value: "fix", label: "Fix", helper: "Targeted fixes to existing scenarios or tooling." },
   { value: "execute", label: "Execute", helper: "Focused tasks to carry out inside the swarm." },
+  { value: "chore", label: "Chore", helper: "Maintenance, cleanup, dependency updates, or infrastructure work." },
 ];
 
 const RESEARCH_TARGET_OPTIONS: Array<{ value: BacklogResearchTarget; label: string; helper: string }> = [
   { value: "idea", label: "Idea", helper: "Research feeds scenario ideation." },
   { value: "fix", label: "Fix", helper: "Research supports a fix backlog item." },
   { value: "execute", label: "Execute", helper: "Research supports a task to execute." },
+  { value: "chore", label: "Chore", helper: "Research supports a chore or maintenance task." },
   { value: "unspecified", label: "Unspecified", helper: "Open-ended research with no target yet." },
 ];
 

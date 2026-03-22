@@ -20,19 +20,21 @@ import type {
 // Backlog Status Display
 // ============================================================================
 
-export const BACKLOG_KINDS: BacklogKind[] = ["idea", "research", "fix", "execute"];
+export const BACKLOG_KINDS: BacklogKind[] = ["idea", "research", "fix", "execute", "chore"];
 
 export const BACKLOG_KIND_LABELS: Record<BacklogKind, string> = {
   idea: "Idea",
   research: "Research",
   fix: "Fix",
   execute: "Execute",
+  chore: "Chore",
 };
 
 export const BACKLOG_RESEARCH_TARGETS: BacklogResearchTarget[] = [
   "idea",
   "fix",
   "execute",
+  "chore",
   "unspecified",
 ];
 
@@ -51,6 +53,7 @@ export const BACKLOG_RESEARCH_TARGET_LABELS: Record<BacklogResearchTarget, strin
   idea: "Idea",
   fix: "Fix",
   execute: "Execute",
+  chore: "Chore",
   unspecified: "Unspecified",
 };
 

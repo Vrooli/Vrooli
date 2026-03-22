@@ -52,12 +52,12 @@ export type BacklogStatus =
 /**
  * Main backlog categories.
  */
-export type BacklogKind = "idea" | "research" | "fix" | "execute";
+export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 
 /**
  * Optional target kind for research items.
  */
-export type BacklogResearchTarget = "idea" | "fix" | "execute" | "unspecified";
+export type BacklogResearchTarget = "idea" | "fix" | "execute" | "chore" | "unspecified";
 
 /**
  * A backlog item represents a unit of work for the swarm.
@@ -101,6 +101,51 @@ export type BacklogFile = Omit<ProtoMessage<ProtoBacklogFile>, "type" | "size" |
   /** Child files (only for directories) */
   children?: BacklogFile[];
 };
+
+// ============================================================================
+// Capture Domain
+// ============================================================================
+
+/**
+ * Lifecycle status of a capture.
+ */
+export type CaptureStatus = "classifying" | "classified" | "failed";
+
+/**
+ * A raw, unclassified thought from the user.
+ */
+export interface Capture {
+  id: string;
+  text: string;
+  attachments: string[];
+  created: string;
+  status: CaptureStatus;
+  classification: CaptureClassification | null;
+}
+
+/**
+ * Classification result — contains 1-N suggested backlog items from a single capture.
+ */
+export interface CaptureClassification {
+  items: CaptureClassificationItem[];
+  classifiedAt: string;
+}
+
+/**
+ * One suggested backlog item extracted from a capture.
+ */
+export interface CaptureClassificationItem {
+  kind: BacklogKind;
+  title: string;
+  description: string;
+  priority: number;
+  tags: string[];
+  confidence: number;
+}
+
+// ============================================================================
+// Backlog Agent Domain
+// ============================================================================
 
 /**
  * Supported agent workflows for idea refinement (idea backlog items).

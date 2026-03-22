@@ -411,6 +411,8 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 		kindDir = "fix"
 	case "execute":
 		kindDir = "execute"
+	case "chore":
+		kindDir = "chore"
 	}
 	dir := filepath.Join(root, kindDir, name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -462,6 +464,8 @@ func mustWriteClarifyQuestions(t *testing.T, root, kind, name string, payload ma
 		kindDir = "fix"
 	case "execute":
 		kindDir = "execute"
+	case "chore":
+		kindDir = "chore"
 	}
 	dir := filepath.Join(root, kindDir, name, "clarify")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

@@ -57,6 +57,9 @@ export const API_ENDPOINTS = {
   promptSkillRevert: (skillId: string, version: number) => `/prompts/skills/${skillId}/revert/${version}`,
   promptsPreview: "/prompts/preview",
   promptsSimulate: "/prompts/simulate",
+  captures: "/captures",
+  captureById: (id: string) => `/captures/${id}`,
+  captureClassify: (id: string) => `/captures/${id}/classify`,
   health: "/health",
 } as const;
 
