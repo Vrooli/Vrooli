@@ -1,6 +1,9 @@
 /**
  * useDragDrop - Hook for drag-and-drop functionality in 3D space.
  * Manages drag state and provides event handlers.
+ *
+ * Includes a pixel-distance threshold so that short taps on touch devices
+ * are not misinterpreted as drags.
  */
 // AI_CHECK: R3F_DRAG_RENDER_PATH=1 | LAST: 2026-02-17
 
@@ -10,13 +13,22 @@ import * as THREE from 'three'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
 
+/** Minimum screen-space movement (px) before a pointer-down is promoted to a drag. */
+const DRAG_THRESHOLD_PX = 8
+
+interface PointerEvent3D {
+  stopPropagation: () => void
+  point: THREE.Vector3
+  nativeEvent?: { clientX: number; clientY: number }
+}
+
 interface DragDropResult {
   /** Whether this object is currently being dragged */
   isDragging: boolean
   /** Start drag operation */
-  startDrag: (e: { stopPropagation: () => void; point: THREE.Vector3 }) => void
+  startDrag: (e: PointerEvent3D) => void
   /** Update drag position */
-  updateDrag: (e: { point: THREE.Vector3 }) => void
+  updateDrag: (e: PointerEvent3D) => void
   /** End drag operation */
   endDrag: () => void
   /** Cancel drag operation */
@@ -25,8 +37,8 @@ interface DragDropResult {
   dragOffset: [number, number, number] | null
   /** Props for pointer events */
   dragProps: {
-    onPointerDown: (e: { stopPropagation: () => void; point: THREE.Vector3 }) => void
-    onPointerMove: (e: { point: THREE.Vector3 }) => void
+    onPointerDown: (e: PointerEvent3D) => void
+    onPointerMove: (e: PointerEvent3D) => void
     onPointerUp: () => void
   }
 }
@@ -101,30 +113,66 @@ export function useDragDrop(
   const intersectionPoint = useRef(new THREE.Vector3())
   const dragUpdateCountRef = useRef(0)
 
+  // Pending-drag state: stores pointer-down info until the threshold is exceeded.
+  const pendingDragRef = useRef<{
+    point: THREE.Vector3
+    screenX: number
+    screenY: number
+  } | null>(null)
+
   const startDrag = useCallback(
-    (e: { stopPropagation: () => void; point: THREE.Vector3 }) => {
+    (e: PointerEvent3D) => {
       if (!enabled) return
       e.stopPropagation()
 
+      // Store pointer-down info; don't activate drag until threshold exceeded.
+      pendingDragRef.current = {
+        point: e.point.clone(),
+        screenX: e.nativeEvent?.clientX ?? 0,
+        screenY: e.nativeEvent?.clientY ?? 0,
+      }
+
+      // Update drag plane height eagerly so it's ready if drag activates.
+      dragPlaneRef.current.constant = -(planeY ?? currentPosition[1])
+    },
+    [enabled, planeY, currentPosition]
+  )
+
+  /** Promote the pending pointer-down to a real drag start. */
+  const activateDrag = useCallback(
+    (point: THREE.Vector3) => {
       const startPos: [number, number, number] = [
-        e.point.x,
-        constrainToPlane ? (planeY ?? currentPosition[1]) : e.point.y,
-        e.point.z,
+        point.x,
+        constrainToPlane ? (planeY ?? currentPosition[1]) : point.y,
+        point.z,
       ]
 
       startDragFn(objectId, startPos)
       onDragStart?.(startPos)
       usePerformanceStore.getState().recordTraceMarker('drag-start', `Drag start: ${objectId}`)
-
-      // Update drag plane height
-      dragPlaneRef.current.constant = -(planeY ?? currentPosition[1])
     },
-    [objectId, enabled, startDragFn, onDragStart, constrainToPlane, planeY, currentPosition]
+    [objectId, startDragFn, onDragStart, constrainToPlane, planeY, currentPosition]
   )
 
   const updateDrag = useCallback(
-    (e: { point: THREE.Vector3 }) => {
-      if (!isDragging || !enabled) return
+    (e: PointerEvent3D) => {
+      if (!enabled) return
+
+      // Check if we have a pending drag that hasn't exceeded the threshold yet.
+      if (pendingDragRef.current) {
+        const dx = (e.nativeEvent?.clientX ?? 0) - pendingDragRef.current.screenX
+        const dy = (e.nativeEvent?.clientY ?? 0) - pendingDragRef.current.screenY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < DRAG_THRESHOLD_PX) return // Still within threshold — ignore.
+
+        // Threshold exceeded — activate the drag with the original pointer-down point.
+        const pending = pendingDragRef.current
+        pendingDragRef.current = null
+        activateDrag(pending.point)
+        // Fall through to handle this move event as a normal drag update.
+      }
+
+      if (!isDragging) return
       const t0 = performance.now()
       usePerformanceStore.getState().recordPointerMoveEvent()
 
@@ -173,10 +221,17 @@ export function useDragDrop(
       raycaster,
       updateDragFn,
       onDrag,
+      activateDrag,
     ]
   )
 
   const endDrag = useCallback(() => {
+    // If threshold was never exceeded, this was a tap — just clear pending state.
+    if (pendingDragRef.current) {
+      pendingDragRef.current = null
+      return
+    }
+
     if (!isDragging) return
 
     const dragState = useInteractionStore.getState().dragState
@@ -189,6 +244,7 @@ export function useDragDrop(
   }, [isDragging, objectId, onDragEnd, endDragFn])
 
   const cancelDrag = useCallback(() => {
+    pendingDragRef.current = null
     if (isDragging) {
       usePerformanceStore.getState().recordTraceMarker('drag-end', `Drag cancel: ${objectId}`)
     }

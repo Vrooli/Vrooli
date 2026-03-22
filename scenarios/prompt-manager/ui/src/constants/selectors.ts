@@ -96,6 +96,7 @@ const literalSelectors = {
     mobilePanelBackdrop: 'view-overlay-mobile-panel-backdrop',
     mobilePanelSheet: 'view-overlay-mobile-panel-sheet',
     performancePanel: 'view-overlay-performance-panel',
+    mobileAgentPickerButton: 'view-overlay-mobile-agent-picker-button',
   },
   graph: {
     modeToggle: 'graph-mode-toggle',

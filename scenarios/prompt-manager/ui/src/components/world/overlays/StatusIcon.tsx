@@ -64,6 +64,8 @@ interface StatusIconProps {
   size?: number
   /** Optional message to show on hover */
   message?: string
+  /** Click handler (e.g. focus camera on agent) */
+  onClick?: () => void
 }
 
 /**
@@ -77,6 +79,7 @@ export function StatusIcon({
   yOffset = 1.5,
   size = 20,
   message,
+  onClick,
 }: StatusIconProps) {
   const [showTooltip, setShowTooltip] = useState(false)
   const Icon = STATUS_ICONS[status]
@@ -85,7 +88,7 @@ export function StatusIcon({
     return null
   }
 
-  const hasMessage = !!message
+  const isInteractive = !!message || !!onClick
 
   return (
     <Html
@@ -93,7 +96,7 @@ export function StatusIcon({
       center
       zIndexRange={[10, 0]}
       style={{
-        pointerEvents: hasMessage ? 'auto' : 'none',
+        pointerEvents: isInteractive ? 'auto' : 'none',
         userSelect: 'none',
       }}
     >
@@ -101,8 +104,9 @@ export function StatusIcon({
         className={`
           relative flex flex-col items-center
           ${STATUS_COLORS[status]} ${STATUS_ANIMATIONS[status]}
-          cursor-default
+          ${onClick ? 'cursor-pointer' : 'cursor-default'}
         `}
+        onClick={onClick ? (e) => { e.stopPropagation(); onClick() } : undefined}
         onPointerEnter={() => setShowTooltip(true)}
         onPointerLeave={() => setShowTooltip(false)}
       >

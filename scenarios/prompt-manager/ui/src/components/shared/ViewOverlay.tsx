@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu } from 'lucide-react'
+import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { usePerformanceStore } from '@/stores/performanceStore'
@@ -17,6 +17,7 @@ import { selectors } from '@/constants/selectors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { StatsBar } from './StatsBar'
 import { FloatingPanel } from './FloatingPanel'
+import { AgentPickerList } from './AgentPickerList'
 import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
@@ -44,7 +45,7 @@ export function ViewOverlay({
 }: ViewOverlayProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
-  const [activeMobilePanel, setActiveMobilePanel] = useState<'stats' | 'left' | null>(null)
+  const [activeMobilePanel, setActiveMobilePanel] = useState<'stats' | 'left' | 'agents' | null>(null)
 
   const graphViewActive = useSelectionStore((s) => s.graphViewActive)
   const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
@@ -81,7 +82,7 @@ export function ViewOverlay({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeMobilePanel, isHelpOpen, isSettingsOpen])
 
-  const mobilePanelTitle = activeMobilePanel === 'stats' ? 'Stats' : 'Queries'
+  const mobilePanelTitle = activeMobilePanel === 'stats' ? 'Stats' : activeMobilePanel === 'agents' ? 'Agents' : 'Queries'
 
   return (
     <>
@@ -131,6 +132,16 @@ export function ViewOverlay({
                   <Search className="h-4 w-4" />
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setActiveMobilePanel(activeMobilePanel === 'agents' ? null : 'agents')}
+                className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
+                title="Find agent"
+                data-testid={selectors.viewOverlay.mobileAgentPickerButton}
+              >
+                <Users className="h-4 w-4" />
+              </Button>
             </div>
           ) : (
             <>
@@ -203,7 +214,7 @@ export function ViewOverlay({
               </button>
             </div>
             <div className="p-4">
-              {activeMobilePanel === 'stats' ? <StatsBar compact /> : leftPanelContent}
+              {activeMobilePanel === 'stats' ? <StatsBar compact /> : activeMobilePanel === 'agents' ? <AgentPickerList onSelect={() => setActiveMobilePanel(null)} /> : leftPanelContent}
             </div>
           </div>
         </>

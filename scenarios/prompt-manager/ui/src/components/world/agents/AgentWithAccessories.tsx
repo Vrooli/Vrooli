@@ -17,6 +17,7 @@ import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
 import { AgentOverlayGroup } from '../overlays/AgentOverlayGroup'
 import { HoverGlow } from '../effects'
 import { useAccessoryStore } from '@/stores/accessoryStore'
+import { useCameraStore } from '@/stores/cameraStore'
 import { useWorldScaleStore } from '@/stores/worldScaleStore'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import type { AgentProps } from '@/types/world'
@@ -312,6 +313,12 @@ export function AgentWithAccessories({
           position={LOCAL_ORIGIN}
           isHovered={isHovered}
           overlayScale={overlayScale}
+          onStatusClick={() => {
+            if (locomotionRef.current) {
+              const pos = locomotionRef.current.position
+              useCameraStore.getState().zoomToAgent(agent.id, [pos.x, pos.y, pos.z])
+            }
+          }}
         />
       )}
     </group>

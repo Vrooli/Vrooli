@@ -27,6 +27,8 @@ interface AgentOverlayGroupProps {
   enabled?: boolean
   /** Uniform scale multiplier for all overlays */
   overlayScale?: number
+  /** Called when the status icon is clicked (e.g. to focus camera) */
+  onStatusClick?: () => void
 }
 
 /**
@@ -41,6 +43,7 @@ export function AgentOverlayGroup({
   status,
   enabled = true,
   overlayScale = 1,
+  onStatusClick,
 }: AgentOverlayGroupProps) {
   // Subscribe to a single agent slice to avoid rerendering all overlays on any status change.
   const agentAccessoryState = useAccessoryStore((state) => state.agentAccessories[agentId])
@@ -79,6 +82,7 @@ export function AgentOverlayGroup({
           position={position}
           yOffset={1.7}
           message={statusMessage}
+          onClick={onStatusClick}
         />
       </WorldErrorBoundary>
 

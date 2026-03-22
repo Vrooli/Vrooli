@@ -37,6 +37,7 @@ import { useDecorationList } from '@/stores/decorationStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import { applyPlacementConstraints } from '@/lib/world'
 import { useLODManager } from '@/hooks/useLOD'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
 import type { DecorationInstance } from '@/types/decoration'
@@ -215,6 +216,7 @@ export function WorldScene({
 }: WorldSceneProps) {
   const controlsRef = useRef<OrbitControlsRef>(null)
   const { camera } = useThree()
+  const isMobile = useIsMobile()
 
   // Disable orbit controls during drag
   const isDragging = useInteractionStore((state) => state.isDragging)
@@ -366,6 +368,13 @@ export function WorldScene({
         maxDistance={30}
         maxPolarAngle={Math.PI * 0.45}
         minPolarAngle={Math.PI * 0.15}
+        {...(isMobile ? {
+          enableRotate: false,
+          touches: {
+            ONE: THREE.TOUCH.PAN,
+            TWO: THREE.TOUCH.DOLLY_ROTATE,
+          },
+        } : {})}
       />
 
       {/* Drag plane - catches pointer events during drag */}
