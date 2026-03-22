@@ -10,6 +10,10 @@ import type { PipelineStore, PipelineStage } from "./pipelineTypes";
 // Pipeline Status Selectors
 // ============================================================================
 
+/** Get build provenance from pipeline status */
+export const selectProvenance = (state: PipelineStore) =>
+  state.pipelineStatus?.provenance ?? null;
+
 /** Check if pipeline is currently running or starting */
 export const selectIsRunning = (state: PipelineStore) =>
   state.runStatus === "running" || state.runStatus === "starting";

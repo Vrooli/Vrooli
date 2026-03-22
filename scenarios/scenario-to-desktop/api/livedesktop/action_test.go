@@ -21,24 +21,6 @@ import (
 	"github.com/vrooli/api-core/storage"
 )
 
-// mockShell records all invocations and returns configurable output.
-type mockShell struct {
-	calls  []shellCall
-	output []byte
-	err    error
-}
-
-type shellCall struct {
-	name string
-	args []string
-	env  []string
-}
-
-func (m *mockShell) fn(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
-	m.calls = append(m.calls, shellCall{name: name, args: args, env: env})
-	return m.output, m.err
-}
-
 // mockRecorder implements screenrecording.Recorder for testing.
 type mockRecorder struct {
 	startErr  error
@@ -66,7 +48,7 @@ func newTestSession() *Session {
 		ID:           "test-session-1",
 		ScenarioName: "test-scenario",
 		State:        StateRunning,
-		Display:      &screenrecording.ManagedDisplay{DisplayID: ":99"},
+		Display:      &mockDisplay{id: ":99", w: 1280, h: 720, running: true},
 		Width:        1280,
 		Height:       720,
 		NetworkMode:  "normal",
@@ -74,15 +56,10 @@ func newTestSession() *Session {
 	}
 }
 
-func newTestServiceWithShell(shell *mockShell) *Service {
+func newTestServiceForActions() *Service {
 	store := NewInMemoryStore()
-	dm := &mockDisplayManager{
-		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
-	}
-	svc := NewService(store, dm, newTestLogger(), "")
-	svc.startVNC = mockVNCStart(5900, 6080)
-	svc.stopVNC = mockVNCStop
-	svc.shell = shell.fn
+	backend := newMockBackend()
+	svc := NewService(store, backend, newTestLogger(), "")
 	svc.dataDir = os.TempDir()
 	return svc
 }
@@ -90,8 +67,7 @@ func newTestServiceWithShell(shell *mockShell) *Service {
 // ===================== LaunchAppAction Tests =====================
 
 func TestLaunchAppAction_NoArtifact(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
 
@@ -104,8 +80,7 @@ func TestLaunchAppAction_NoArtifact(t *testing.T) {
 // ===================== QuitAppAction Tests =====================
 
 func TestQuitAppAction_NoApp(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	session := newTestSession()
 
 	action := &QuitAppAction{}
@@ -115,8 +90,7 @@ func TestQuitAppAction_NoApp(t *testing.T) {
 }
 
 func TestQuitAppAction_Success(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	session := newTestSession()
 	session.AppRunning = true
 
@@ -130,8 +104,7 @@ func TestQuitAppAction_Success(t *testing.T) {
 // ===================== ScreenshotAction Tests =====================
 
 func TestScreenshotAction_Success(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	svc.dataDir = t.TempDir()
 	session := newTestSession()
 
@@ -140,17 +113,13 @@ func TestScreenshotAction_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ok", result.Status)
 	assert.Contains(t, result.Data["url"], "/api/v1/livedesktop/sessions/test-session-1/files/screenshot-")
-
-	// Verify shell was called with mkdir and sh -c pipeline
-	require.GreaterOrEqual(t, len(shell.calls), 2)
-	assert.Equal(t, "mkdir", shell.calls[0].name)
-	assert.Equal(t, "sh", shell.calls[1].name)
 }
 
-func TestScreenshotAction_ShellError(t *testing.T) {
-	shell := &mockShell{err: fmt.Errorf("xwd not found")}
-	svc := newTestServiceWithShell(shell)
+func TestScreenshotAction_BackendError(t *testing.T) {
+	svc := newTestServiceForActions()
 	svc.dataDir = t.TempDir()
+	// Set screenshot to fail
+	svc.backend.(*mockPlatformBackend).screenshotErr = fmt.Errorf("capture failed")
 	session := newTestSession()
 
 	action := &ScreenshotAction{}
@@ -159,10 +128,9 @@ func TestScreenshotAction_ShellError(t *testing.T) {
 }
 
 func TestScreenshotAction_DisplayNotRunning(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	session := newTestSession()
-	session.Display.Stop()
+	session.Display.(*mockDisplay).running = false
 
 	action := &ScreenshotAction{}
 	_, err := action.Execute(context.Background(), session, svc, nil)
@@ -173,8 +141,7 @@ func TestScreenshotAction_DisplayNotRunning(t *testing.T) {
 // ===================== StartRecordingAction Tests =====================
 
 func TestStartRecordingAction_Success(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	svc.dataDir = t.TempDir()
 	svc.recorder = &mockRecorder{captureID: "cap-123"}
 	session := newTestSession()
@@ -188,8 +155,7 @@ func TestStartRecordingAction_Success(t *testing.T) {
 }
 
 func TestStartRecordingAction_AlreadyRecording(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	svc.recorder = &mockRecorder{}
 	session := newTestSession()
 	session.IsRecording = true
@@ -201,8 +167,7 @@ func TestStartRecordingAction_AlreadyRecording(t *testing.T) {
 }
 
 func TestStartRecordingAction_NoRecorder(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	session := newTestSession()
 
 	action := &StartRecordingAction{}
@@ -214,8 +179,7 @@ func TestStartRecordingAction_NoRecorder(t *testing.T) {
 // ===================== StopRecordingAction Tests =====================
 
 func TestStopRecordingAction_Success(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	svc.recorder = &mockRecorder{
 		result: &screenrecording.CaptureResult{
 			VideoPath:     "/tmp/sessions/test/recording-123.mp4",
@@ -236,8 +200,7 @@ func TestStopRecordingAction_Success(t *testing.T) {
 }
 
 func TestStopRecordingAction_NotRecording(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 	svc.recorder = &mockRecorder{}
 	session := newTestSession()
 
@@ -251,8 +214,7 @@ func TestStopRecordingAction_NotRecording(t *testing.T) {
 
 func TestOfflineModeAction_Enable(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &OfflineModeAction{}
 	params, _ := json.Marshal(map[string]bool{"enabled": true})
@@ -265,8 +227,7 @@ func TestOfflineModeAction_Enable(t *testing.T) {
 func TestOfflineModeAction_Disable(t *testing.T) {
 	session := newTestSession()
 	session.NetworkMode = "offline"
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &OfflineModeAction{}
 	params, _ := json.Marshal(map[string]bool{"enabled": false})
@@ -280,8 +241,7 @@ func TestOfflineModeAction_Disable(t *testing.T) {
 
 func TestSlowConnectionAction_Enable(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &SlowConnectionAction{}
 	params, _ := json.Marshal(map[string]any{"enabled": true})
@@ -294,8 +254,7 @@ func TestSlowConnectionAction_Enable(t *testing.T) {
 
 func TestSlowConnectionAction_CustomBandwidth(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &SlowConnectionAction{}
 	params, _ := json.Marshal(map[string]any{"enabled": true, "bandwidth_kbps": 128})
@@ -310,8 +269,7 @@ func TestSlowConnectionAction_CustomBandwidth(t *testing.T) {
 func TestInjectEnvAction_Merge(t *testing.T) {
 	session := newTestSession()
 	session.EnvVars = map[string]string{"EXISTING": "value"}
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &InjectEnvAction{}
 	params, _ := json.Marshal(map[string]any{
@@ -328,8 +286,7 @@ func TestInjectEnvAction_Merge(t *testing.T) {
 func TestInjectEnvAction_Replace(t *testing.T) {
 	session := newTestSession()
 	session.EnvVars = map[string]string{"EXISTING": "value"}
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &InjectEnvAction{}
 	merge := false
@@ -352,8 +309,7 @@ func TestInjectEnvAction_Replace(t *testing.T) {
 
 func TestResizeDisplayAction_Success(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &ResizeDisplayAction{}
 	params, _ := json.Marshal(map[string]int{"width": 1920, "height": 1080})
@@ -362,15 +318,11 @@ func TestResizeDisplayAction_Success(t *testing.T) {
 	assert.Equal(t, "ok", result.Status)
 	assert.Equal(t, 1920, session.Width)
 	assert.Equal(t, 1080, session.Height)
-
-	require.Len(t, shell.calls, 1)
-	assert.Equal(t, "xrandr", shell.calls[0].name)
 }
 
 func TestResizeDisplayAction_InvalidDimensions(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &ResizeDisplayAction{}
 	params, _ := json.Marshal(map[string]int{"width": 0, "height": 1080})
@@ -383,26 +335,21 @@ func TestResizeDisplayAction_InvalidDimensions(t *testing.T) {
 
 func TestClipboardReadAction_Success(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{output: []byte("clipboard content")}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
+	svc.backend.(*mockPlatformBackend).clipboardVal = "clipboard content"
 
 	action := &ClipboardReadAction{}
 	result, err := action.Execute(context.Background(), session, svc, nil)
-	// This will return the install_dependency error if xclip is not installed
-	// or succeed if it is - both are valid behaviors
-	if err == nil && result.Status == "error" {
-		assert.Equal(t, "install_dependency", result.Data["recovery"])
-	} else if err == nil {
-		assert.Equal(t, "ok", result.Status)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result.Status)
+	assert.Equal(t, "clipboard content", result.Data["content"])
 }
 
 // ===================== ClipboardWriteAction Tests =====================
 
 func TestClipboardWriteAction_Success(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &ClipboardWriteAction{}
 	params, _ := json.Marshal(map[string]string{"content": "hello"})
@@ -418,8 +365,7 @@ func TestClipboardWriteAction_Success(t *testing.T) {
 
 func TestDarkModeAction_Toggle(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &DarkModeAction{}
 	params, _ := json.Marshal(map[string]bool{"enabled": true})
@@ -439,8 +385,7 @@ func TestDarkModeAction_Toggle(t *testing.T) {
 
 func TestLocaleAction_Set(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &LocaleAction{}
 	params, _ := json.Marshal(map[string]string{"locale": "fr_FR.UTF-8"})
@@ -452,8 +397,7 @@ func TestLocaleAction_Set(t *testing.T) {
 
 func TestLocaleAction_Empty(t *testing.T) {
 	session := newTestSession()
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	action := &LocaleAction{}
 	params, _ := json.Marshal(map[string]string{"locale": ""})
@@ -530,10 +474,8 @@ func TestControlEndpoint_EmptyAction(t *testing.T) {
 
 func TestExecuteAction_RegistryLookup(t *testing.T) {
 	store := NewInMemoryStore()
-	dm := &mockDisplayManager{
-		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
-	}
-	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+	backend := newMockBackend()
+	svc := newTestService(store, backend)
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -624,36 +566,26 @@ func newCapturesService(t *testing.T) *captures.Service {
 	return captures.NewService(resolver, opts, store)
 }
 
-// captureCreatingShell creates the screenshot output file when the ffmpeg pipeline runs.
-type captureCreatingShell struct {
-	mockShell
-	sessionDir string
+// screenshotCreatingBackend creates the screenshot file when CaptureScreenshot is called.
+type screenshotCreatingBackend struct {
+	mockPlatformBackend
 }
 
-func (m *captureCreatingShell) fn(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
-	m.calls = append(m.calls, shellCall{name: name, args: args, env: env})
-	if name == "sh" && len(args) >= 2 {
-		// Extract output path from the pipeline command (last space-separated token)
-		parts := bytes.Split([]byte(args[1]), []byte(" "))
-		if len(parts) > 0 {
-			outPath := string(parts[len(parts)-1])
-			_ = os.WriteFile(outPath, []byte("PNG fake"), 0o644)
-		}
-	}
-	return nil, nil
+func (b *screenshotCreatingBackend) CaptureScreenshot(ctx context.Context, display PlatformDisplay, outputPath string) error {
+	return os.WriteFile(outputPath, []byte("PNG fake"), 0o644)
 }
 
 func TestScreenshotAction_PersistsCapture(t *testing.T) {
-	cshell := &captureCreatingShell{}
-	svc := newTestServiceWithShell(&cshell.mockShell)
+	backend := &screenshotCreatingBackend{mockPlatformBackend: *newMockBackend()}
+	store := NewInMemoryStore()
+	svc := NewService(store, backend, newTestLogger(), "")
 	svc.dataDir = t.TempDir()
-	svc.shell = cshell.fn
 
 	capSvc := newCapturesService(t)
 	svc.captures = capSvc
 
 	session := newTestSession()
-	cshell.sessionDir = filepath.Join(svc.dataDir, "sessions", session.ID)
+	_ = store.Create(session)
 
 	action := &ScreenshotAction{}
 	result, err := action.Execute(context.Background(), session, svc, nil)
@@ -670,8 +602,7 @@ func TestScreenshotAction_PersistsCapture(t *testing.T) {
 }
 
 func TestStopRecordingAction_PersistsCapture(t *testing.T) {
-	shell := &mockShell{}
-	svc := newTestServiceWithShell(shell)
+	svc := newTestServiceForActions()
 
 	capSvc := newCapturesService(t)
 	svc.captures = capSvc

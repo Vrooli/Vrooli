@@ -39,6 +39,7 @@ export type { PipelineStage, PipelineRunStatus, PipelineErrorInfo, StatusSubscri
 
 // Re-export selectors for convenience
 export {
+  selectProvenance,
   selectIsRunning,
   selectCurrentStage,
   selectProgress,

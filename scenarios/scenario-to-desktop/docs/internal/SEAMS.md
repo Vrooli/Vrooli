@@ -1676,17 +1676,26 @@ interface WindowState {
 
 ### Live Desktop Seams
 
-#### ManagedDisplay Seam
-- **Interface**: `screenrecording.DisplayManager.CreateManagedDisplay` (`api/screenrecording/display.go`)
-- **Purpose**: Returns a queryable display handle shared between smoketest and livedesktop
-- **Default Implementation**: `XvfbDisplayManager` / `systemDisplayManager`
-- **Test Double**: Mock `DisplayManager` returning a pre-built `ManagedDisplay`
+#### PlatformBackend Seam (Multi-Platform Readiness)
+- **Interface**: `livedesktop.PlatformBackend` (`api/livedesktop/platform.go`)
+- **Purpose**: Abstracts ALL platform-specific desktop session operations behind a single interface. This is the primary seam for multi-platform support.
+- **Default Implementation**: `LinuxBackend` (`api/livedesktop/platform_linux.go`) — uses Xvfb, x11vnc, websockify, xclip, xrandr, unshare/tc, procfs, xdotool
+- **Future Local Backends**:
+  - `QemuWindowsBackend` — Windows VM via QEMU/KVM + RDP
+  - `AndroidEmulatorBackend` — Android emulator/Waydroid + scrcpy
+- **Future Remote Backends**:
+  - `RemoteNodeBackend` — Proxies all calls over the network to a Vrooli instance on remote hardware. Required for macOS (Apple EULA restricts macOS virtualization to Apple hardware) and iOS (Simulator requires macOS/Xcode). A Mac Mini or similar runs a Vrooli instance exposing the same session API; the RemoteNodeBackend translates PlatformBackend calls into HTTP/WebSocket RPCs. A future "remote-validation-node" scenario will run on such machines.
+- **Test Double**: `mockPlatformBackend` in `api/livedesktop/service_test.go`
+- **Design Constraints**:
+  - Recordings/screenshots return URLs, not byte blobs (async-friendly for remote backends)
+  - The caller (Service) is stateless; the backend owns process/display state
+  - The WebSocket proxy in `proxy.go` is generic and works unchanged across all backends
 
-#### Live Desktop CommandExecutor Seam
-- **Interface**: `livedesktop.CommandExecutor` (`api/livedesktop/vnc.go`)
-- **Purpose**: Abstracts VNC process management (x11vnc + websockify) via resource-vnc CLI
-- **Default Implementation**: `screenrecordingExecutorAdapter` (shared with FFmpeg recorder)
-- **Test Double**: `mockExecutor` in `api/livedesktop/service_test.go`
+#### PlatformDisplay Seam
+- **Interface**: `livedesktop.PlatformDisplay` (`api/livedesktop/platform.go`)
+- **Purpose**: Opaque handle for a virtual display, with methods for ID, dimensions, running state, and cleanup
+- **Default Implementation**: `linuxDisplay` wrapping `screenrecording.ManagedDisplay`
+- **Test Double**: `mockDisplay` in `api/livedesktop/service_test.go`
 
 #### Live Desktop Store Seam
 - **Interface**: `livedesktop.Store` (`api/livedesktop/store.go`)
@@ -1696,46 +1705,29 @@ interface WindowState {
 
 #### WebSocket Proxy Seam
 - **Location**: `api/livedesktop/proxy.go`
-- **Purpose**: Bridges browser WebSocket to websockify, enabling single-origin VNC access
-- **Variation Point**: Could add authentication, rate limiting, or session recording
+- **Purpose**: Bridges browser WebSocket to the platform's remote access endpoint (VNC via websockify, or any other WebSocket-based protocol)
+- **Variation Point**: Could add authentication, rate limiting, or session recording. Works unchanged across local and remote backends.
 
 #### Action Executor Seam
 - **Interface**: `livedesktop.ActionExecutor` (`api/livedesktop/action.go`)
-- **Purpose**: Each desktop control action (screenshot, recording, network mode, etc.) implements this interface for dispatch via the `/control` endpoint
+- **Purpose**: Each desktop control action (screenshot, recording, network mode, etc.) implements this interface for dispatch via the `/control` endpoint. Actions delegate platform-specific work to `Service.backend`.
 - **Default Implementation**: `LaunchAppAction`, `QuitAppAction`, `ScreenshotAction`, `OfflineModeAction`, `DarkModeAction`, `LocaleAction`, etc.
 - **Registry**: `actionRegistry` map in `action.go` — new actions are added by implementing the interface and registering in `init()`
-- **Test Double**: Actions are tested directly with mock `ShellFunc` and mock `Recorder`
-
-#### ShellFunc Seam
-- **Type**: `livedesktop.ShellFunc` (`api/livedesktop/action.go`)
-- **Purpose**: Abstracts all shell command execution (xwd, ffmpeg, xrandr, xclip, unshare, tc) for testability
-- **Default Implementation**: `defaultShell` — wraps `exec.CommandContext`
-- **Test Double**: `mockShell` in `api/livedesktop/action_test.go` — records invocations and returns configurable output
-- **Injected via**: `Service.shell` field (set during construction, overridable in tests)
 
 #### Process Monitor Seam
 - **Interface**: `procmetrics.Monitor` (`api/procmetrics/interfaces.go`)
 - **Purpose**: Observes a running process to measure startup time (via window detection) and resource usage (CPU, memory, threads)
-- **Default Implementation**: `DefaultMonitor` in `api/procmetrics/monitor.go` — polls `/proc/<pid>/stat` and `/proc/<pid>/status` for resource samples, polls `xdotool` for window detection
-- **Test Double**: `mockMonitor` in `api/livedesktop/service_test.go` — records Start/Stop calls and returns canned Reports
-- **Injected via**: `MonitorFactory` on `livedesktop.Service` and `smoketest.DefaultService` (via `WithMonitor`)
+- **Default Implementation**: `DefaultMonitor` — polls `/proc/<pid>/stat` and `/proc/<pid>/status` for resource samples, polls `xdotool` for window detection
+- **Test Double**: `mockMonitor` in `api/livedesktop/service_test.go`
+- **Injected via**: `PlatformBackend.NewMonitorFactory()` — each backend provides its own monitoring implementation
 
-#### ProcReader Seam
-- **Interface**: `procmetrics.ProcReader` (`api/procmetrics/interfaces.go`)
-- **Purpose**: Abstracts `/proc` filesystem reads for CPU time and memory stats
-- **Default Implementation**: `LinuxProcReader` in `api/procmetrics/proc_reader.go` — parses `/proc/<pid>/stat` and `/proc/<pid>/status`
-- **Test Double**: `mockProcReader` in `api/procmetrics/monitor_test.go` — returns configurable stats
+### Build Provenance Seam
 
-#### WindowDetector Seam
-- **Interface**: `procmetrics.WindowDetector` (`api/procmetrics/interfaces.go`)
-- **Purpose**: Checks for visible X11 windows belonging to a process on a given display
-- **Default Implementation**: `XdotoolDetector` in `api/procmetrics/window_detector.go` — runs `xdotool search --onlyvisible --pid`
-- **Test Double**: `mockWindowDetector` in `api/procmetrics/monitor_test.go` — returns configurable visibility
-
-#### MonitorFactory Seam
-- **Interface**: `procmetrics.MonitorFactory` (`api/procmetrics/interfaces.go`)
-- **Purpose**: Creates fresh Monitor instances for each app launch (injectable into services)
-- **Default Implementation**: `DefaultMonitorFactory` in `api/procmetrics/factory.go`
-- **Test Double**: `mockMonitorFactory` in `api/livedesktop/service_test.go`
+#### BuildProvenance
+- **Type**: `pipeline.BuildProvenance` (`api/pipeline/provenance.go`)
+- **Purpose**: Captures git state (commit hash, branch, dirty flag) at pipeline build time for downstream traceability (e.g., deployment-manager approval gating)
+- **Function**: `CaptureProvenance(dir, version)` — shells out to `git` CLI
+- **Variation Point**: Could accept a `ProvenanceProvider` interface for non-git VCS
+- **Stored on**: `pipeline.Status.Provenance` and `pipeline.StageInput.Provenance`; flows into `build.Status.Metadata`
 
 **Status**: ✅ Implemented

@@ -142,9 +142,8 @@ func (a *ResizeDisplayAction) Execute(ctx context.Context, session *Session, svc
 		return nil, fmt.Errorf("session display is not running")
 	}
 
-	sizeArg := fmt.Sprintf("%dx%d", p.Width, p.Height)
-	if _, err := svc.shell(ctx, nil, "xrandr", "--display", session.Display.DisplayID, "-s", sizeArg); err != nil {
-		return nil, fmt.Errorf("xrandr resize failed: %w", err)
+	if err := svc.backend.ResizeDisplay(ctx, session.Display, p.Width, p.Height); err != nil {
+		return nil, err
 	}
 
 	session.mu.Lock()

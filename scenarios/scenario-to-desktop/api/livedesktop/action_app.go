@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -63,15 +64,13 @@ func (a *ScreenshotAction) Execute(ctx context.Context, session *Session, svc *S
 	outputPath := filepath.Join(sessionDir, filename)
 
 	// Ensure session directory exists
-	if _, err := svc.shell(ctx, nil, "mkdir", "-p", sessionDir); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating session directory: %w", err)
 	}
 
-	// Use a single pipeline: xwd captures root window, piped to ffmpeg for PNG conversion
-	pipeline := fmt.Sprintf("xwd -display %s -root -silent | ffmpeg -y -f xwd_pipe -i - -frames:v 1 -update 1 %s",
-		session.Display.DisplayID, outputPath)
-	if _, err := svc.shell(ctx, nil, "sh", "-c", pipeline); err != nil {
-		return nil, fmt.Errorf("screenshot pipeline failed: %w", err)
+	// Capture screenshot through platform backend
+	if err := svc.backend.CaptureScreenshot(ctx, session.Display, outputPath); err != nil {
+		return nil, fmt.Errorf("screenshot failed: %w", err)
 	}
 
 	// Persist to captures service if available
@@ -120,13 +119,13 @@ func (a *StartRecordingAction) Execute(ctx context.Context, session *Session, sv
 	}
 
 	sessionDir := filepath.Join(svc.dataDir, "sessions", session.ID)
-	if _, err := svc.shell(ctx, nil, "mkdir", "-p", sessionDir); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating session directory: %w", err)
 	}
 
 	outputPath := filepath.Join(sessionDir, fmt.Sprintf("recording-%d.mp4", time.Now().UnixMilli()))
 	captureID, err := svc.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
-		Display:    session.Display.DisplayID,
+		Display:    session.Display.DisplayID(),
 		Width:      session.Width,
 		Height:     session.Height,
 		FPS:        15,

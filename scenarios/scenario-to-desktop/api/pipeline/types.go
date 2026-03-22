@@ -346,6 +346,10 @@ type Status struct {
 	// Stored on the status to enable lookup of existing pipelines by idempotency key.
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
 
+	// Provenance captures the git state at pipeline start time.
+	// Used by deployment-manager for approval gating and build-to-commit traceability.
+	Provenance *BuildProvenance `json:"provenance,omitempty"`
+
 	// lastStateChange tracks when the current state was entered (for duration calculation).
 	lastStateChange time.Time
 }
@@ -415,6 +419,10 @@ type StageInput struct {
 
 	// ScenarioMetadata contains analyzed scenario metadata.
 	ScenarioMetadata *generation.ScenarioMetadata `json:"scenario_metadata,omitempty"`
+
+	// Provenance captures the git state at pipeline start time.
+	// Carried through stages so build metadata can include commit info.
+	Provenance *BuildProvenance `json:"provenance,omitempty"`
 
 	// Logger for stage logging. Not serialized.
 	Logger Logger `json:"-"`

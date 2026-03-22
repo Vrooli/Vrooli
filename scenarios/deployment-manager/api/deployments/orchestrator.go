@@ -48,6 +48,10 @@ type DeployDesktopRequest struct {
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 	// VisualValidation enables screen-recorded smoke test validation before publishing
 	VisualValidation bool `json:"visual_validation,omitempty"`
+	// GitCommitHash ties this deployment to a specific source commit.
+	// When provided, the release gate is checked: all required platforms must be
+	// approved for this exact commit before deployment proceeds.
+	GitCommitHash string `json:"git_commit_hash,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
@@ -77,21 +81,28 @@ type OrchestrationStep struct {
 
 // Orchestrator handles the full desktop deployment workflow.
 type Orchestrator struct {
-	profileRepo profiles.Repository
-	vrooli      string
-	log         func(string, map[string]interface{})
+	profileRepo   profiles.Repository
+	approvalsRepo ApprovalsRepository
+	vrooli        string
+	log           func(string, map[string]interface{})
 }
 
 // NewOrchestrator creates a new deployment orchestrator.
 func NewOrchestrator(profileRepo profiles.Repository, log func(string, map[string]interface{})) *Orchestrator {
+	return NewOrchestratorWithApprovals(profileRepo, nil, log)
+}
+
+// NewOrchestratorWithApprovals creates a new deployment orchestrator with approval gating.
+func NewOrchestratorWithApprovals(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, log func(string, map[string]interface{})) *Orchestrator {
 	vrooli := os.Getenv("VROOLI_ROOT")
 	if vrooli == "" {
 		vrooli = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
 	return &Orchestrator{
-		profileRepo: profileRepo,
-		vrooli:      vrooli,
-		log:         log,
+		profileRepo:   profileRepo,
+		approvalsRepo: approvalsRepo,
+		vrooli:        vrooli,
+		log:           log,
 	}
 }
 
@@ -150,6 +161,35 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 	response.Scenario = profile.Scenario
 	o.successStep(&step, fmt.Sprintf("loaded profile for scenario %s", profile.Scenario))
 	response.Steps = append(response.Steps, step)
+
+	// Release gate check: if a git commit hash is provided and approvals repo
+	// is configured, verify all required platforms are approved for this commit.
+	if req.GitCommitHash != "" && o.approvalsRepo != nil {
+		step = o.startStep("Check release gate")
+		gate, gateErr := o.approvalsRepo.CheckReleaseGate(ctx, req.ProfileID, req.GitCommitHash)
+		if gateErr != nil {
+			o.failStep(&step, fmt.Sprintf("release gate check failed: %v", gateErr))
+			response.Steps = append(response.Steps, step)
+			response.Status = "failed"
+			o.writeJSON(w, http.StatusInternalServerError, response)
+			return
+		}
+		if !gate.Ready {
+			msg := fmt.Sprintf("release gate blocked for commit %s:", req.GitCommitHash)
+			for _, p := range gate.Platforms {
+				if p.Status != ApprovalStatusApproved {
+					msg += fmt.Sprintf(" %s=%s", p.Platform, p.Status)
+				}
+			}
+			o.failStep(&step, msg)
+			response.Steps = append(response.Steps, step)
+			response.Status = "blocked"
+			o.writeJSON(w, http.StatusPreconditionFailed, response)
+			return
+		}
+		o.successStep(&step, fmt.Sprintf("all required platforms approved for commit %s", req.GitCommitHash))
+		response.Steps = append(response.Steps, step)
+	}
 
 	// Step 2: Validate profile (unless skipped)
 	if !req.SkipValidation {

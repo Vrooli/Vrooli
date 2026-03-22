@@ -51,6 +51,7 @@ type Server struct {
 	SigningHandler      *codesigning.Handler
 	BuildHandler        *build.Handler
 	ValidationHandler   *visualvalidation.Handler
+	ApprovalsHandler    *deployments.ApprovalsHandler
 	Orchestrator        *deployments.Orchestrator
 
 	// Repositories
@@ -104,6 +105,12 @@ func New() (*Server, error) {
 	signingChecker := validation.NewPrerequisiteChecker()
 	signingValidatorAdapter := deployments.NewSigningValidatorAdapter(signingRepo, signingValidator, signingChecker)
 
+	// Create approvals repository and ensure schema
+	approvalsRepo := deployments.NewSQLApprovalsRepository(db)
+	if err := approvalsRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure approvals schema", map[string]interface{}{"error": err.Error()})
+	}
+
 	srv := &Server{
 		Config:              cfg,
 		DB:                  db,
@@ -122,7 +129,8 @@ func New() (*Server, error) {
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 		BuildHandler:        build.NewHandler(profilesRepo, logFn),
 		ValidationHandler:   visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), validationVideoDir(), logFn),
-		Orchestrator:        deployments.NewOrchestrator(profilesRepo, logFn),
+		ApprovalsHandler:    deployments.NewApprovalsHandler(approvalsRepo, logFn),
+		Orchestrator:        deployments.NewOrchestratorWithApprovals(profilesRepo, approvalsRepo, logFn),
 	}
 
 	srv.setupRoutes()

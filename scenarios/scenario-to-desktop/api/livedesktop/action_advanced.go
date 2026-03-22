@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
-	"strings"
 )
 
 // ClipboardReadAction reads the clipboard contents from the session's display.
@@ -16,25 +14,14 @@ func (a *ClipboardReadAction) Execute(ctx context.Context, session *Session, svc
 		return nil, fmt.Errorf("session display is not running")
 	}
 
-	if _, err := exec.LookPath("xclip"); err != nil {
-		return &ActionResult{
-			Status:  "error",
-			Message: "xclip is not installed",
-			Data: map[string]any{
-				"recovery":      "install_dependency",
-				"recovery_hint": "Run: sudo apt-get install -y xclip",
-			},
-		}, nil
-	}
-
-	out, err := svc.shell(ctx, nil, "xclip", "-display", session.Display.DisplayID, "-selection", "clipboard", "-o")
+	content, err := svc.backend.ReadClipboard(ctx, session.Display)
 	if err != nil {
 		return nil, fmt.Errorf("clipboard read failed: %w", err)
 	}
 
 	return &ActionResult{
 		Status: "ok",
-		Data:   map[string]any{"content": string(out)},
+		Data:   map[string]any{"content": content},
 	}, nil
 }
 
@@ -53,21 +40,7 @@ func (a *ClipboardWriteAction) Execute(ctx context.Context, session *Session, sv
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	if _, err := exec.LookPath("xclip"); err != nil {
-		return &ActionResult{
-			Status:  "error",
-			Message: "xclip is not installed",
-			Data: map[string]any{
-				"recovery":      "install_dependency",
-				"recovery_hint": "Run: sudo apt-get install -y xclip",
-			},
-		}, nil
-	}
-
-	// Pipe content to xclip via sh -c with echo
-	cmd := fmt.Sprintf("echo -n %s | xclip -display %s -selection clipboard -i",
-		shellQuote(p.Content), session.Display.DisplayID)
-	if _, err := svc.shell(ctx, nil, "sh", "-c", cmd); err != nil {
+	if err := svc.backend.WriteClipboard(ctx, session.Display, p.Content); err != nil {
 		return nil, fmt.Errorf("clipboard write failed: %w", err)
 	}
 
@@ -75,11 +48,6 @@ func (a *ClipboardWriteAction) Execute(ctx context.Context, session *Session, sv
 		Status:  "ok",
 		Message: "Clipboard updated",
 	}, nil
-}
-
-// shellQuote wraps a string in single quotes, escaping existing single quotes.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // DarkModeAction toggles dark mode for the session's app.

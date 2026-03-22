@@ -4,12 +4,13 @@
  */
 
 import { useState } from "react";
-import { Bug, Copy, Check, Plus, History, Clock } from "lucide-react";
+import { Bug, Copy, Check, Plus, History, Clock, GitCommit } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { DebugJsonModal } from "./DebugJsonModal";
 import { PipelineHistoryDropdown } from "./PipelineHistoryDropdown";
-import { usePipelineStore, selectProgress, selectCurrentStage, selectIsRunning } from "../../store";
+import { usePipelineStore, selectProgress, selectCurrentStage, selectIsRunning, selectProvenance } from "../../store";
+import { ProvenanceCard } from "../provenance/ProvenanceCard";
 import { cn } from "../../lib/utils";
 import { writeToClipboard } from "../../lib/browser";
 import { getPipelineStatusDisplay, formatStageName } from "../../lib/status-display";
@@ -47,6 +48,7 @@ export function SidebarHeader() {
   const isRunningStore = usePipelineStore(selectIsRunning);
   const isLoadingActivePipeline = usePipelineStore((s) => s.isLoadingActivePipeline);
   const createNewPipelineForScenario = usePipelineStore((s) => s.createNewPipelineForScenario);
+  const provenance = usePipelineStore(selectProvenance);
 
   // Use server-side status if available, otherwise use local runStatus
   // "idle" is a valid status (created but not started), so don't filter it out
@@ -166,6 +168,16 @@ export function SidebarHeader() {
             {label}
           </Badge>
         </div>
+
+        {/* Build Provenance */}
+        {provenance ? (
+          <ProvenanceCard provenance={provenance} compact />
+        ) : pipelineStatus?.started_at ? (
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <GitCommit className="h-3 w-3" />
+            <span>No provenance — run a new pipeline to capture git info</span>
+          </div>
+        ) : null}
 
         {/* Timestamps */}
         {(startedAt || completedAt) && (

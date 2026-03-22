@@ -67,6 +67,17 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/signing/prerequisites", s.SigningHandler.CheckPrerequisites).Methods("GET")
 	s.Router.HandleFunc("/api/v1/signing/discover/{platform}", s.SigningHandler.DiscoverCertificates).Methods("GET")
 
+	// Deployment approval endpoints
+	if s.ApprovalsHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/approvals", s.ApprovalsHandler.Create).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/approvals", s.ApprovalsHandler.ListByProfile).Methods("GET")
+		s.Router.HandleFunc("/api/v1/approvals/{id}", s.ApprovalsHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/approvals/{id}/decide", s.ApprovalsHandler.Decide).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/release-gate", s.ApprovalsHandler.CheckReleaseGate).Methods("GET")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/required-platforms", s.ApprovalsHandler.SetRequiredPlatforms).Methods("PUT")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/required-platforms", s.ApprovalsHandler.GetRequiredPlatforms).Methods("GET")
+	}
+
 	// Visual validation endpoints
 	if s.ValidationHandler != nil {
 		s.Router.HandleFunc("/api/v1/validations", s.ValidationHandler.Create).Methods("POST")

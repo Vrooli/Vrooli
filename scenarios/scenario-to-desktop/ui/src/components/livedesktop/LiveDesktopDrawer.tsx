@@ -6,6 +6,7 @@ import { Input } from "../ui/input";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import { VncCanvas } from "./VncCanvas";
 import { DesktopToolbar } from "./DesktopToolbar";
+import { PlatformSelector } from "./PlatformSelector";
 
 export function LiveDesktopDrawer() {
   const isOpen = useLiveDesktopStore((s) => s.isOpen);
@@ -19,6 +20,7 @@ export function LiveDesktopDrawer() {
   const setError = useLiveDesktopStore((s) => s.setError);
 
   const desktopAreaRef = useRef<HTMLDivElement>(null);
+  const [platform, setPlatform] = useState("linux");
   const [width, setWidth] = useState(1280);
   const [height, setHeight] = useState(720);
 
@@ -31,8 +33,9 @@ export function LiveDesktopDrawer() {
       height,
       scenario_name: scenarioName,
       app_path: appPath ?? undefined,
+      platform,
     });
-  }, [scenarioName, appPath, width, height, startSession]);
+  }, [scenarioName, appPath, width, height, platform, startSession]);
 
   const handleRetry = useCallback(() => {
     setError(null);
@@ -70,6 +73,10 @@ export function LiveDesktopDrawer() {
             <p className="text-sm text-slate-400">
               Start an interactive desktop session to control the virtual display from your browser.
             </p>
+            <div className="space-y-1">
+              <label className="text-xs text-slate-500">Platform</label>
+              <PlatformSelector value={platform} onChange={setPlatform} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs text-slate-500">Width</label>

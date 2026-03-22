@@ -27,6 +27,7 @@ type Record struct {
 	ReviewDecision  string     `json:"review_decision,omitempty"` // approved, rejected
 	ReviewedBy      string     `json:"reviewed_by,omitempty"`
 	ReviewNotes     string     `json:"review_notes,omitempty"`
+	ApprovalID      string     `json:"approval_id,omitempty"` // links to deployment_approvals
 	CreatedAt       time.Time  `json:"created_at"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
 	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`

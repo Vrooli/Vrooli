@@ -34,6 +34,7 @@ export interface DesktopSession {
   dark_mode: boolean;
   locale?: string;
   app_running: boolean;
+  platform?: string;
   metrics?: MetricsView;
 }
 
@@ -42,6 +43,7 @@ export interface DesktopSessionConfig {
   height?: number;
   scenario_name: string;
   app_path?: string;
+  platform?: string;
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";

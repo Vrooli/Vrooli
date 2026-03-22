@@ -293,6 +293,7 @@ export interface BuildStatus {
   error_log?: string[];
   build_log?: string[];
   artifacts?: Record<string, string>;
+  metadata?: Record<string, unknown>;
 }
 
 // ==================== Smoke Test Types ====================

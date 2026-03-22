@@ -150,6 +150,18 @@ export const VerboseStageResultSchema = z.object({
 });
 
 /**
+ * Build provenance captures git state at pipeline build time.
+ */
+export const BuildProvenanceSchema = z.object({
+  git_commit_hash: z.string(),
+  git_branch: z.string(),
+  git_dirty: z.boolean(),
+  built_at: z.string(),
+  version: z.string(),
+});
+export type BuildProvenance = z.infer<typeof BuildProvenanceSchema>;
+
+/**
  * Overall pipeline status.
  * @see PipelineStatus in pipeline/types_pb.ts
  *
@@ -174,6 +186,7 @@ export const PipelineStatusSchema = z.object({
   stopped_after_stage: z.union([StageNameSchema, z.string()]).optional(),
   parent_pipeline_id: z.string().optional(),
   idempotency_key: z.string().optional(),
+  provenance: BuildProvenanceSchema.optional(),
 });
 export type PipelineStatus = z.infer<typeof PipelineStatusSchema>;
 
@@ -202,6 +215,7 @@ export const VerbosePipelineStatusSchema = z.object({
   stopped_after_stage: z.union([StageNameSchema, z.string()]).optional(),
   parent_pipeline_id: z.string().optional(),
   idempotency_key: z.string().optional(),
+  provenance: BuildProvenanceSchema.optional(),
 });
 export type VerbosePipelineStatus = z.infer<typeof VerbosePipelineStatusSchema>;
 

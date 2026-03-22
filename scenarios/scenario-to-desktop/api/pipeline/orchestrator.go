@@ -557,11 +557,19 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		s.UpdateProgress()
 	})
 
+	// Capture git provenance for build traceability
+	scenarioPath := filepath.Join(o.scenarioRoot, config.ScenarioName)
+	provenance := CaptureProvenance(scenarioPath, config.Version)
+	o.store.Update(pipelineID, func(s *Status) {
+		s.Provenance = provenance
+	})
+
 	// Build stage input
 	input := &StageInput{
 		Config:       config,
 		PipelineID:   pipelineID,
-		ScenarioPath: filepath.Join(o.scenarioRoot, config.ScenarioName),
+		ScenarioPath: scenarioPath,
+		Provenance:   provenance,
 		Logger:       o.logger,
 	}
 

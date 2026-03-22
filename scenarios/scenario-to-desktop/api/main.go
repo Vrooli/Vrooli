@@ -205,10 +205,10 @@ func NewServer(port int) *Server {
 	}
 
 	// Live desktop domain (interactive VNC sessions)
+	linuxBackend := livedesktop.NewLinuxBackend(logger)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
-	liveDesktopService := livedesktop.NewService(liveDesktopStore, displayMgr, logger, vrooliRoot)
+	liveDesktopService := livedesktop.NewService(liveDesktopStore, linuxBackend, logger, vrooliRoot)
 	liveDesktopService.WithRecorder(recorder)
-	liveDesktopService.WithMonitor(monitorFactory)
 	if capturesService != nil {
 		liveDesktopService.WithCaptures(capturesService)
 	}

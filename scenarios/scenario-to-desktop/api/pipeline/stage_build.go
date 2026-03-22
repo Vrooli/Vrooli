@@ -220,6 +220,14 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// so we must create it here first.
 	if s.store != nil {
 		now := time.Unix(s.timeProvider.Now(), 0)
+		metadata := map[string]interface{}{}
+		if input.Provenance != nil {
+			metadata["git_commit_hash"] = input.Provenance.GitCommitHash
+			metadata["git_branch"] = input.Provenance.GitBranch
+			metadata["git_dirty"] = input.Provenance.GitDirty
+			metadata["built_at"] = input.Provenance.BuiltAt
+			metadata["version"] = input.Provenance.Version
+		}
 		initialStatus := &build.Status{
 			BuildID:            buildID,
 			ScenarioName:       scenarioName,
@@ -230,6 +238,7 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 			BuildLog:           []string{},
 			ErrorLog:           []string{},
 			Artifacts:          map[string]string{},
+			Metadata:           metadata,
 		}
 		// Initialize platform results as pending
 		for _, plt := range platforms {

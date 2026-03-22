@@ -64,6 +64,14 @@ export interface PipelineStageResult {
   details?: unknown;
 }
 
+export interface BuildProvenance {
+  git_commit_hash: string;
+  git_branch: string;
+  git_dirty: boolean;
+  built_at: string;
+  version: string;
+}
+
 export interface PipelineStatus {
   pipeline_id: string;
   scenario_name?: string;
@@ -81,6 +89,7 @@ export interface PipelineStatus {
   error?: string;
   final_artifacts?: Record<string, string>;
   stopped_after_stage?: string;
+  provenance?: BuildProvenance;
 }
 
 export interface PipelineRunResponse {
@@ -229,6 +238,7 @@ export interface VerboseStageResult extends Omit<PipelineStageResult, "details">
 /** Verbose pipeline status includes full stage details */
 export interface VerbosePipelineStatus extends Omit<PipelineStatus, "stages"> {
   stages: Record<string, VerboseStageResult>;
+  provenance?: BuildProvenance;
 }
 
 // ==================== Pipeline API Functions ====================

@@ -5,51 +5,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/packaging"
 )
 
-// VNCStartFunc is the signature for starting a VNC session.
-type VNCStartFunc func(display string) (vncPort, wsPort int, x11vncCmd, websockifyCmd *exec.Cmd, err error)
-
-// VNCStopFunc is the signature for stopping VNC processes.
-type VNCStopFunc func(session *Session)
-
 // Service orchestrates live desktop session lifecycle.
 type Service struct {
-	store          Store
-	displayMgr     screenrecording.DisplayManager
-	logger         *slog.Logger
-	vrooliRoot     string
-	startVNC       VNCStartFunc
-	stopVNC        VNCStopFunc
-	recorder       screenrecording.Recorder
-	captures       *captures.Service
-	shell          ShellFunc
-	dataDir        string
-	monitorFactory procmetrics.MonitorFactory
+	store      Store
+	backend    PlatformBackend
+	logger     *slog.Logger
+	vrooliRoot string
+	recorder   screenrecording.Recorder
+	captures   *captures.Service
+	dataDir    string
 }
 
 // NewService creates a new live desktop service.
-func NewService(store Store, displayMgr screenrecording.DisplayManager, logger *slog.Logger, vrooliRoot string) *Service {
+func NewService(store Store, backend PlatformBackend, logger *slog.Logger, vrooliRoot string) *Service {
 	return &Service{
 		store:      store,
-		displayMgr: displayMgr,
+		backend:    backend,
 		logger:     logger,
 		vrooliRoot: vrooliRoot,
-		startVNC:   startVNCSession,
-		stopVNC:    stopVNCProcesses,
-		shell:      defaultShell,
 		dataDir:    filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"),
 	}
 }
@@ -69,12 +54,7 @@ func (s *Service) WithDataDir(dir string) {
 	s.dataDir = dir
 }
 
-// WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
-func (s *Service) WithMonitor(factory procmetrics.MonitorFactory) {
-	s.monitorFactory = factory
-}
-
-// StartSession creates a new live desktop session with VNC access.
+// StartSession creates a new live desktop session with remote access.
 func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 	if cfg.Width == 0 {
 		cfg.Width = 1280
@@ -83,12 +63,23 @@ func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session
 		cfg.Height = 720
 	}
 
+	// Validate platform against available backend
+	requestedPlatform := cfg.Platform
+	if requestedPlatform == "" {
+		requestedPlatform = "linux"
+	}
+	backendBase := strings.SplitN(s.backend.PlatformID(), "-", 2)[0]
+	if requestedPlatform != backendBase {
+		return nil, fmt.Errorf("unsupported platform: %q (only %q is currently available)", requestedPlatform, backendBase)
+	}
+
 	session := &Session{
 		ID:            uuid.New().String(),
 		ScenarioName:  cfg.ScenarioName,
 		State:         StateCreating,
 		Width:         cfg.Width,
 		Height:        cfg.Height,
+		Platform:      requestedPlatform,
 		CreatedAt:     time.Now(),
 		LastHeartbeat: time.Now(),
 	}
@@ -97,8 +88,8 @@ func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session
 		return nil, fmt.Errorf("storing session: %w", err)
 	}
 
-	// Create managed display
-	display, err := s.displayMgr.CreateManagedDisplay(cfg.Width, cfg.Height)
+	// Create display via platform backend
+	display, err := s.backend.CreateDisplay(cfg.Width, cfg.Height)
 	if err != nil {
 		session.SetError(fmt.Sprintf("display creation failed: %v", err))
 		_ = s.store.Update(session)
@@ -106,27 +97,28 @@ func (s *Service) StartSession(ctx context.Context, cfg SessionConfig) (*Session
 	}
 	session.Display = display
 
-	// Start VNC toolchain
-	vncPort, wsPort, x11vncCmd, websockifyCmd, err := s.startVNC(display.DisplayID)
+	// Start remote access via platform backend
+	info, handle, err := s.backend.StartRemoteAccess(display)
 	if err != nil {
 		display.Stop()
-		session.SetError(fmt.Sprintf("VNC start failed: %v", err))
+		session.SetError(fmt.Sprintf("remote access start failed: %v", err))
 		_ = s.store.Update(session)
-		return session, fmt.Errorf("starting VNC: %w", err)
+		return session, fmt.Errorf("starting remote access: %w", err)
 	}
-	session.VNCPort = vncPort
-	session.WSPort = wsPort
-	session.X11VNCCmd = x11vncCmd
-	session.WebsockifyCmd = websockifyCmd
+	session.RemoteAccess = handle
+	session.RemoteInfo = info
+	session.VNCPort = info.Port
+	session.WSPort = info.WSPort
 
 	session.SetState(StateRunning)
 	_ = s.store.Update(session)
 
 	s.logger.Info("live desktop session started",
 		"session_id", session.ID,
-		"display", display.DisplayID,
-		"vnc_port", vncPort,
-		"ws_port", wsPort,
+		"display", display.DisplayID(),
+		"platform", s.backend.PlatformID(),
+		"vnc_port", info.Port,
+		"ws_port", info.WSPort,
 	)
 
 	return session, nil
@@ -145,8 +137,10 @@ func (s *Service) StopSession(sessionID string) error {
 	// Kill launched app process
 	s.killAppProcess(session)
 
-	// Stop VNC processes
-	s.stopVNC(session)
+	// Stop remote access
+	if session.RemoteAccess != nil {
+		s.backend.StopRemoteAccess(session.RemoteAccess)
+	}
 
 	// Stop display
 	if session.Display != nil {
@@ -194,82 +188,36 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	// Kill any previously launched app process to prevent pileup
 	s.killAppProcess(session)
 
-	// Build command and environment based on session control state
+	// Collect launch options from session state
 	session.mu.Lock()
-	networkMode := session.NetworkMode
-	bandwidthKbps := session.BandwidthKbps
-	darkMode := session.DarkMode
-	locale := session.Locale
-	envVars := make(map[string]string)
+	opts := LaunchOptions{
+		NetworkMode:   session.NetworkMode,
+		BandwidthKbps: session.BandwidthKbps,
+		DarkMode:      session.DarkMode,
+		Locale:        session.Locale,
+		EnvVars:       make(map[string]string),
+	}
 	for k, v := range session.EnvVars {
-		envVars[k] = v
+		opts.EnvVars[k] = v
 	}
 	session.mu.Unlock()
 
-	// Build environment
-	env := os.Environ()
-	env = append(env, fmt.Sprintf("DISPLAY=%s", session.Display.DisplayID))
-
-	// Apply custom env vars
-	for k, v := range envVars {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// Apply dark mode
-	if darkMode {
-		env = append(env, "GTK_THEME=Adwaita:dark")
-	}
-
-	// Apply locale
-	if locale != "" {
-		env = append(env, fmt.Sprintf("LANG=%s", locale))
-		env = append(env, fmt.Sprintf("LC_ALL=%s", locale))
-	}
-
-	// Build command args based on network mode
-	var cmdName string
-	var cmdArgs []string
-
-	switch networkMode {
-	case "offline":
-		cmdName = "unshare"
-		cmdArgs = []string{"--net", appPath}
-	case "slow":
-		// Use unshare + tc for bandwidth limiting
-		tcCmd := fmt.Sprintf("tc qdisc add dev lo root tbf rate %dkbit burst 32kbit latency 400ms && exec %s",
-			bandwidthKbps, appPath)
-		cmdName = "unshare"
-		cmdArgs = []string{"--net", "sh", "-c", tcCmd}
-	default:
-		cmdName = appPath
-		cmdArgs = nil
-	}
-
-	// Append dark mode flag for Electron apps
-	if darkMode {
-		if cmdName == appPath {
-			cmdArgs = append(cmdArgs, "--force-dark-mode")
-		} else {
-			// For unshare-wrapped commands, the app path is in args
-			cmdArgs = append(cmdArgs, "--force-dark-mode")
-		}
-	}
-
-	cmd := exec.CommandContext(context.Background(), cmdName, cmdArgs...)
-	cmd.Env = env
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("launching app: %w", err)
+	// Launch through platform backend
+	proc, err := s.backend.LaunchApp(context.Background(), session.Display, appPath, opts)
+	if err != nil {
+		return err
 	}
 
 	session.mu.Lock()
-	session.AppCmd = cmd
+	session.AppProcess = proc
 	session.AppRunning = true
 	session.mu.Unlock()
 
-	// Start process monitor if factory is configured.
-	if s.monitorFactory != nil {
-		monitor := s.monitorFactory.NewMonitor()
-		if err := monitor.Start(context.Background(), cmd.Process.Pid, session.Display.DisplayID, session.Width, session.Height); err != nil {
+	// Start process monitor if backend supports it
+	monitorFactory := s.backend.NewMonitorFactory()
+	if monitorFactory != nil {
+		monitor := monitorFactory.NewMonitor()
+		if err := monitor.Start(context.Background(), proc.PID(), session.Display.DisplayID(), session.Width, session.Height); err != nil {
 			s.logger.Warn("failed to start process monitor", "error", err)
 		} else {
 			session.SetMonitor(monitor)
@@ -278,7 +226,10 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 
 	// Reap the process in the background so it doesn't become a zombie
 	go func() {
-		_ = cmd.Wait()
+		// Wait for process to exit by polling
+		for proc.IsRunning() {
+			time.Sleep(500 * time.Millisecond)
+		}
 		if m := session.GetMonitor(); m != nil {
 			m.Stop()
 		}
@@ -286,7 +237,7 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	}()
 
 	s.logger.Info("app launched on desktop", "session_id", sessionID, "app", appPath,
-		"network_mode", networkMode, "dark_mode", darkMode, "locale", locale)
+		"network_mode", opts.NetworkMode, "dark_mode", opts.DarkMode, "locale", opts.Locale)
 	return nil
 }
 
@@ -320,14 +271,13 @@ func (s *Service) killAppProcess(session *Session) {
 	}
 
 	session.mu.Lock()
-	cmd := session.AppCmd
-	session.AppCmd = nil
+	proc := session.AppProcess
+	session.AppProcess = nil
 	session.AppRunning = false
 	session.mu.Unlock()
 
-	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+	if proc != nil {
+		s.backend.KillApp(proc)
 	}
 }
 

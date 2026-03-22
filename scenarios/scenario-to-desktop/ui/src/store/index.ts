@@ -11,6 +11,7 @@ export {
   type PipelineErrorInfo,
   type StatusSubscriber,
   // Selectors
+  selectProvenance,
   selectIsRunning,
   selectCurrentStage,
   selectProgress,

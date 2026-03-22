@@ -1,12 +1,10 @@
 package livedesktop
 
 import (
-	"os/exec"
 	"sync"
 	"time"
 
 	"scenario-to-desktop-api/procmetrics"
-	"scenario-to-desktop-api/screenrecording"
 )
 
 // SessionState represents the lifecycle state of a live desktop session.
@@ -22,20 +20,22 @@ const (
 
 // Session holds the full state of a live desktop session.
 type Session struct {
-	ID            string                          `json:"id"`
-	ScenarioName  string                          `json:"scenario_name"`
-	State         SessionState                    `json:"state"`
-	Display       *screenrecording.ManagedDisplay `json:"-"`
-	VNCPort       int                             `json:"vnc_port"`
-	WSPort        int                             `json:"ws_port"`
-	X11VNCCmd     *exec.Cmd                       `json:"-"`
-	WebsockifyCmd *exec.Cmd                       `json:"-"`
-	AppCmd        *exec.Cmd                       `json:"-"`
-	CreatedAt     time.Time                       `json:"created_at"`
-	LastHeartbeat time.Time                       `json:"last_heartbeat"`
-	Error         string                          `json:"error,omitempty"`
-	Width         int                             `json:"width"`
-	Height        int                             `json:"height"`
+	ID            string             `json:"id"`
+	ScenarioName  string             `json:"scenario_name"`
+	State         SessionState       `json:"state"`
+	Display       PlatformDisplay    `json:"-"`
+	RemoteAccess  RemoteAccessHandle `json:"-"`
+	RemoteInfo    RemoteAccessInfo   `json:"-"`
+	AppProcess    PlatformProcess    `json:"-"`
+	VNCPort       int                `json:"vnc_port"`
+	WSPort        int                `json:"ws_port"`
+	CreatedAt     time.Time          `json:"created_at"`
+	LastHeartbeat time.Time          `json:"last_heartbeat"`
+	Error         string             `json:"error,omitempty"`
+	Width         int                `json:"width"`
+	Height        int                `json:"height"`
+
+	Platform string `json:"platform"`
 
 	// Control state
 	IsRecording   bool                `json:"-"`
@@ -79,6 +79,7 @@ type SessionConfig struct {
 	Height       int    `json:"height"`
 	ScenarioName string `json:"scenario_name"`
 	AppPath      string `json:"app_path,omitempty"`
+	Platform     string `json:"platform,omitempty"`
 }
 
 // DOC: docs/reference/live-desktop-api.md#process-metrics
@@ -116,6 +117,7 @@ type SessionView struct {
 	DarkMode      bool         `json:"dark_mode"`
 	Locale        string       `json:"locale,omitempty"`
 	AppRunning    bool         `json:"app_running"`
+	Platform      string       `json:"platform"`
 	Metrics       *MetricsView `json:"metrics,omitempty"`
 }
 
@@ -140,6 +142,7 @@ func (s *Session) View() SessionView {
 		DarkMode:      s.DarkMode,
 		Locale:        s.Locale,
 		AppRunning:    s.AppRunning,
+		Platform:      s.Platform,
 	}
 	if s.Monitor != nil {
 		v.Metrics = buildMetricsView(s.Monitor.Report())

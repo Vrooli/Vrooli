@@ -63,6 +63,7 @@ export type {
 
 // Pipeline types and functions
 export type {
+  BuildProvenance,
   PipelineConfig,
   PipelineStageResult,
   PipelineStatus,

@@ -6,16 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/screenrecording"
 )
 
 func TestReapIdleSessions(t *testing.T) {
 	store := NewInMemoryStore()
-	dm := &mockDisplayManager{
-		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
-	}
-	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+	svc := newTestService(store, newMockBackend())
 
 	// Create a session with a very old heartbeat
 	session := &Session{
@@ -36,10 +31,7 @@ func TestReapIdleSessions(t *testing.T) {
 
 func TestReapIdleSessions_ActiveNotReaped(t *testing.T) {
 	store := NewInMemoryStore()
-	dm := &mockDisplayManager{
-		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
-	}
-	svc := newTestService(store, dm, mockVNCStart(5900, 6080))
+	svc := newTestService(store, newMockBackend())
 
 	// Create a session with a recent heartbeat
 	session := &Session{

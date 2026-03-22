@@ -11,6 +11,7 @@ import {
   Hammer,
   Info,
   ScreenShare,
+  AlertTriangle,
 } from "lucide-react";
 import type { DesktopRecordResponse } from "../../lib/api";
 import { buildUrl } from "../../lib/api";
@@ -60,6 +61,7 @@ export function AppDetailDrawer({
   const destinationPath = rec.destination_path;
   const showDestination = destinationPath && destinationPath !== locationPath;
   const hasSmokeVideo = item.smoke_test_id && item.screen_recording?.recorded;
+  const metadata = item.build_status?.metadata;
 
   return (
     <Drawer
@@ -139,7 +141,30 @@ export function AppDetailDrawer({
             />
             <InfoItem label="Framework" value={rec.framework || item.build_status?.framework} />
             <InfoItem label="Location Mode" value={rec.location_mode || "proper"} />
+            {typeof metadata?.version === "string" && (
+              <InfoItem label="Version" value={metadata.version} />
+            )}
+            {typeof metadata?.git_branch === "string" && (
+              <InfoItem label="Branch" value={metadata.git_branch} />
+            )}
+            {typeof metadata?.git_commit_hash === "string" && (
+              <InfoItem
+                label="Commit"
+                value={metadata.git_commit_hash.slice(0, 7)}
+              />
+            )}
           </div>
+          {metadata?.git_dirty === true && (
+            <div className="flex items-center gap-1.5 text-xs text-yellow-400 mt-1">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Built with uncommitted changes</span>
+            </div>
+          )}
+          {!metadata?.git_commit_hash && (
+            <p className="text-xs text-slate-500 mt-1">
+              No provenance data — rebuild to capture git info.
+            </p>
+          )}
         </section>
 
         {/* File Location */}

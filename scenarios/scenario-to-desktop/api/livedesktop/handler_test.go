@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -17,18 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"scenario-to-desktop-api/procmetrics"
-	"scenario-to-desktop-api/screenrecording"
 )
 
 func newTestHandler() (*Handler, *Service) {
 	store := NewInMemoryStore()
-	dm := &mockDisplayManager{
-		display: &screenrecording.ManagedDisplay{DisplayID: ":99"},
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	svc := NewService(store, dm, logger, "")
-	svc.startVNC = mockVNCStart(5900, 6080)
-	svc.stopVNC = mockVNCStop
+	backend := newMockBackend()
+	svc := NewService(store, backend, newTestLogger(), "")
 	handler := NewHandler(svc)
 	return handler, svc
 }
