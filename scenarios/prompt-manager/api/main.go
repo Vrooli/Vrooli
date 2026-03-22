@@ -491,6 +491,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
 	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
 	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
+	v1.HandleFunc("/decisions/pending", heartbeatHandlers.GetAllPendingDecisions).Methods("GET")
 	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.AddDecision).Methods("POST")
 	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.GetDecisions).Methods("GET")
 	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")

@@ -21,6 +21,10 @@ import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
   onOpenMobileSidebar?: () => void
+  /** Number of pending decisions needing attention */
+  pendingDecisionCount?: number
+  /** Number of currently running agents */
+  runningAgentCount?: number
   leftPanelContent?: ReactNode
   settingsContent: ReactNode
   settingsTitle?: string
@@ -30,6 +34,8 @@ interface ViewOverlayProps {
 
 export function ViewOverlay({
   onOpenMobileSidebar,
+  pendingDecisionCount = 0,
+  runningAgentCount = 0,
   leftPanelContent,
   settingsContent,
   settingsTitle = 'Settings',
@@ -85,16 +91,23 @@ export function ViewOverlay({
           {isMobile ? (
             <div className="flex flex-col items-start gap-1">
               {onOpenMobileSidebar && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={onOpenMobileSidebar}
-                  className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
-                  title="Open sidebar"
-                  data-testid={selectors.viewOverlay.mobileSidebarButton}
-                >
-                  <Menu className="h-4 w-4" />
-                </Button>
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={onOpenMobileSidebar}
+                    className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
+                    title="Open sidebar"
+                    data-testid={selectors.viewOverlay.mobileSidebarButton}
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                  {(pendingDecisionCount > 0 || runningAgentCount > 0) && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white px-1 pointer-events-none">
+                      {pendingDecisionCount + runningAgentCount}
+                    </span>
+                  )}
+                </div>
               )}
               <Button
                 variant="outline"

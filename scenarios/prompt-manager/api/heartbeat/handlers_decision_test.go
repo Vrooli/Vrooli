@@ -353,7 +353,7 @@ func TestDeleteDecisionHandler_Success(t *testing.T) {
 	}
 
 	// Verify deletion
-	all, err := teamStore.GetDecisions(ctx, "team-1", "", 0)
+	all, err := teamStore.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,5 +373,452 @@ func TestDeleteDecisionHandler_NotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- Status filter tests ---
+
+func TestGetDecisions_StatusFilter_Pending(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	for _, e := range []store.DecisionEntry{
+		{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "D1", Rationale: "R1", Status: store.DecisionStatusPending},
+		{ID: "dec-2", At: "2025-01-01T01:00:00Z", By: "agent-1", Decision: "D2", Rationale: "R2", Status: store.DecisionStatusAccepted},
+		{ID: "dec-3", At: "2025-01-01T02:00:00Z", By: "agent-1", Decision: "D3", Rationale: "R3", Status: store.DecisionStatusPending},
+	} {
+		e := e
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions?status=pending", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 2 {
+		t.Fatalf("expected 2 pending entries, got %d", len(resp.Entries))
+	}
+	for _, e := range resp.Entries {
+		if e.Status != store.DecisionStatusPending {
+			t.Errorf("expected status pending, got %s", e.Status)
+		}
+	}
+}
+
+func TestGetDecisions_StatusFilter_Accepted(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	for _, e := range []store.DecisionEntry{
+		{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "D1", Rationale: "R1", Status: store.DecisionStatusPending},
+		{ID: "dec-2", At: "2025-01-01T01:00:00Z", By: "agent-1", Decision: "D2", Rationale: "R2", Status: store.DecisionStatusAccepted},
+	} {
+		e := e
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions?status=accepted", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 1 {
+		t.Fatalf("expected 1 accepted entry, got %d", len(resp.Entries))
+	}
+	if resp.Entries[0].Status != store.DecisionStatusAccepted {
+		t.Errorf("expected status accepted, got %s", resp.Entries[0].Status)
+	}
+}
+
+func TestGetDecisions_StatusFilter_Combined(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	for _, e := range []store.DecisionEntry{
+		{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "D1", Rationale: "R1", Context: "auth", Status: store.DecisionStatusPending},
+		{ID: "dec-2", At: "2025-01-01T01:00:00Z", By: "agent-1", Decision: "D2", Rationale: "R2", Context: "auth", Status: store.DecisionStatusAccepted},
+		{ID: "dec-3", At: "2025-01-01T02:00:00Z", By: "agent-1", Decision: "D3", Rationale: "R3", Context: "cache", Status: store.DecisionStatusPending},
+	} {
+		e := e
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions?status=pending&context=auth", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 1 {
+		t.Fatalf("expected 1 entry (pending+auth), got %d", len(resp.Entries))
+	}
+	if resp.Entries[0].ID != "dec-1" {
+		t.Errorf("expected dec-1, got %s", resp.Entries[0].ID)
+	}
+}
+
+func TestGetDecisions_StatusFilter_EmptyStatusMatchesPending(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	// Pre-existing decisions with no status field (empty string)
+	for _, e := range []store.DecisionEntry{
+		{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Old decision", Rationale: "R1"},
+		{ID: "dec-2", At: "2025-01-01T01:00:00Z", By: "agent-1", Decision: "New decision", Rationale: "R2", Status: store.DecisionStatusAccepted},
+	} {
+		e := e
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions?status=pending", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 1 {
+		t.Fatalf("expected 1 entry (empty status treated as pending), got %d", len(resp.Entries))
+	}
+	if resp.Entries[0].ID != "dec-1" {
+		t.Errorf("expected dec-1, got %s", resp.Entries[0].ID)
+	}
+}
+
+// --- Auto-pending test ---
+
+func TestAddDecision_AlwaysSetsStatusPending(t *testing.T) {
+	handlers, _ := setupDecisionTestHandlers(t)
+
+	body, _ := json.Marshal(AddDecisionRequest{
+		By:        "agent-1",
+		Decision:  "A decision",
+		Rationale: "Some reason",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/decisions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.AddDecision(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var entry store.DecisionEntry
+	if err := json.NewDecoder(w.Body).Decode(&entry); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if entry.Status != store.DecisionStatusPending {
+		t.Errorf("expected status 'pending', got: %s", entry.Status)
+	}
+}
+
+// --- Approval enforcement tests ---
+
+// setupApprovalTestHandlers sets up handlers with a team in approval mode and a member agent.
+func setupApprovalTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
+	t.Helper()
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	executor := NewExecutor(teamStore, agentStore, nil, "", nil, nil)
+	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+
+	ctx := context.Background()
+
+	// Create team in approval mode
+	if err := teamStore.Create(ctx, &store.Team{
+		ID: "team-approval", DisplayName: "Approval Team", Enabled: true, DecisionMode: "approval",
+	}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+
+	// Create agent and add as team member
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1"}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+		TeamID: "team-approval", AgentID: "agent-1", Status: "active",
+	}); err != nil {
+		t.Fatalf("set team member: %v", err)
+	}
+
+	return handlers, teamStore
+}
+
+func TestUpdateDecision_ApprovalMode_AgentBlockedFromAccepting(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusPending}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusAccepted
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var errResp approvalError
+	if err := json.NewDecoder(w.Body).Decode(&errResp); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if errResp.Error != "decision_approval_required" {
+		t.Errorf("expected error 'decision_approval_required', got: %s", errResp.Error)
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentBlockedFromRejecting(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusPending}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusRejected
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentCanSetPending(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusRunning}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusPending
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentCanSetRunning_WhenAccepted(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusAccepted}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusRunning
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentCannotSetRunning_WhenPending(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusPending}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusRunning
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var errResp approvalError
+	if err := json.NewDecoder(w.Body).Decode(&errResp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if errResp.Error != "decision_not_accepted" {
+		t.Errorf("expected error 'decision_not_accepted', got: %s", errResp.Error)
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentCanSetCompleted_WhenRunning(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusRunning}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusCompleted
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_AgentCannotSetCompleted_WhenAccepted(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusAccepted}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusCompleted
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ApprovalMode_HumanCanSetAnyStatus(t *testing.T) {
+	handlers, teamStore := setupApprovalTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusPending}
+	if err := teamStore.AppendDecision(ctx, "team-approval", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	// Human (no X-Caller-ID) can set accepted directly
+	status := store.DecisionStatusAccepted
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-approval/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-approval", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for human caller, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_YoloMode_AgentCanSetAnyStatus(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	// Default team (team-1) is yolo mode (no DecisionMode set)
+	entry := store.DecisionEntry{ID: "dec-1", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Test", Rationale: "R", Status: store.DecisionStatusPending}
+	if err := teamStore.AppendDecision(ctx, "team-1", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := store.DecisionStatusAccepted
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-1/decisions/dec-1", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Caller-ID", "agent-1")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "decisionId": "dec-1"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for yolo mode, got %d: %s", w.Code, w.Body.String())
 	}
 }

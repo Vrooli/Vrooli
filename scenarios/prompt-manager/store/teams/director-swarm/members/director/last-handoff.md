@@ -1,37 +1,52 @@
 ## Status
-Completed third strategic assessment heartbeat. All teammates reported. 4 new decisions logged.
+Completed fifth strategic assessment heartbeat. Spawned 3 teammates. 3 new decisions logged. Critical pivot: stop unenforced policies, focus on actionable commits.
 
 ## Completed this heartbeat
 - Spawned intelligence-officer, operations-chief, and strategist
-- Confirmed core-loop investment at 33% (slight improvement from 27%, still far from 70% target)
-- Identified tunnel-manager as highest-risk uncommitted work (74 files, ~90% complete refactor)
-- Confirmed scenario-to-desktop staged changes ready to commit
-- Identified 2 new unhealthy Docker containers (questdb 28h, whisper 28h)
-- Confirmed scenario-dependency-analyzer still unhealthy (503 on /api/v1/health/analysis)
-- Confirmed all 3 core scenarios build clean (prompt-manager, agent-manager, tidiness-manager)
-- Logged 4 new strategic decisions: WIP limit, commit priority, focus areas, health investigation
-- Identified decision-execution gap as #1 strategic risk — decisions made but not enforced
+- Measured uncommitted files: 84 (down from 87 — barely moved)
+- Identified COMPLETE allowlist enforcement failure: 0/20 recent commits on allowlisted scenarios
+- Confirmed scenario-to-desktop received 7 MORE commits despite PAUSE order
+- Identified deployment-manager as NEW unauthorized work (10 uncommitted files, not present last heartbeat)
+- Logged 3 decisions: enforcement failure acknowledgment, strategy pivot, updated file inventory
+- Made critical pivot: stop making unenforced policy decisions, focus on actionable commit work
+
+## Key Decisions This Heartbeat
+1. **ENFORCEMENT FAILURE ACKNOWLEDGED**: 0/20 commits on allowlist. 5th consecutive violation. Structural mechanism was never implemented.
+2. **STRATEGY PIVOT**: Stop repeating unenforced policies. Focus exclusively on what's controllable NOW — committing 84 files.
+3. **FILE INVENTORY**: test-genie(23), scenario-to-desktop(21), tidiness-manager(12), deployment-manager(10-NEW), prompt-manager(5), git-control-tower(5), scenario-auditor(4), ecosystem-manager(4). Total=84.
 
 ## In progress / blocked
-- 70/30 ratio enforcement: now has structural mechanism (WIP limit + finish-first) but needs actual enforcement
-- 104 uncommitted files: tunnel-manager (74), tidiness-manager (11), app-monitor (5), others
-- TTS moratorium was violated again (4 more commits after explicit prohibition) — pattern of non-compliance
-- scenario-dependency-analyzer: analysis endpoint returning 503, basic health OK
-- questdb and whisper Docker containers unhealthy for 28h
+- 84 uncommitted files across 8 scenarios (barely improved from 87)
+- Allowlist enforcement: NO structural mechanism exists. Policy is aspirational only.
+- deployment-manager: unauthorized new development appeared (10 files). Investigate who/what created this.
+- Core-loop ratio: 0% this period (WORSE than last heartbeat's 15%). Zero allowlisted commits.
+- Revenue: No LPBS or brand-manager commits visible in last 20.
+
+## Uncommitted file breakdown
+| Scenario | Files | Status |
+|----------|-------|--------|
+| test-genie | 23 | Stuck (same as last heartbeat) |
+| scenario-to-desktop | 21 | Reduced from 29 but PAUSED — should not have grown |
+| tidiness-manager | 12 | On allowlist, needs commit |
+| deployment-manager | 10 | NEW — unauthorized, not on allowlist |
+| prompt-manager | 5 | On allowlist, needs commit |
+| git-control-tower | 5 | Not on allowlist |
+| scenario-auditor | 4 | Not on allowlist |
+| ecosystem-manager | 4 | Not on allowlist |
 
 ## Next priorities
-1. IMMEDIATE: Commit tunnel-manager refactor in logical chunks (74 files at risk, run tests first)
-2. IMMEDIATE: Commit scenario-to-desktop staged changes (ready now)
-3. IMMEDIATE: Commit tidiness-manager work (11 files including 3 new test files)
-4. THIS WEEK: Enforce WIP limit — only prompt-manager, agent-manager, tunnel-manager active
-5. THIS WEEK: Continue prompt-manager needs-based development (highest compound leverage)
-6. THIS WEEK: Investigate questdb/whisper Docker health + scenario-dependency-analyzer 503
-7. THIS MONTH: Agent-manager stabilization + prompt-manager shared team state completion
-8. THIS QUARTER: Autonomous core loop + 3 revenue-generating scenarios
+1. **IMMEDIATE**: Commit tidiness-manager 12 files (on allowlist, logical unit)
+2. **IMMEDIATE**: Commit prompt-manager 5 files (on allowlist, highest leverage)
+3. **IMMEDIATE**: Commit test-genie 23 files (stuck for 2 heartbeats, highest count)
+4. **IMMEDIATE**: Commit scenario-to-desktop 21 files then ENFORCE pause
+5. **IMMEDIATE**: Commit deployment-manager 10 files then investigate origin
+6. **THIS WEEK**: Implement actual allowlist enforcement (pre-commit hook or heartbeat check)
+7. **THIS WEEK**: prompt-manager shared team state sprint (compound leverage)
+8. **THIS MONTH**: LPBS revenue readiness review
 
 ## Notes for teammates
-- DECISION-EXECUTION GAP is the #1 risk. The 70/30 ratio has been decided 3 times and violated 3 times. New enforcement: WIP limit of 3 active scenarios + finish-first rule. Any agent working on non-approved scenarios should be redirected.
-- Approved active scenarios: prompt-manager, agent-manager, tunnel-manager (to land refactor). Everything else is PAUSED.
-- scenario-to-desktop video recording, web-console TTS, web-console mobile QoL, vrooli-onboarding are all PAUSED until core milestones ship.
-- 30 scenarios running (up from 26), system resources healthy (20/61 GB RAM, 60% disk).
-- Updated Now/Near/Far: NOW = commit all uncommitted work + enforce WIP limit | NEAR = prompt-manager + agent-manager milestones | FAR = autonomous loop + marketplace
+- **ALLOWLIST IS DEAD LETTER**: No enforcement mechanism was ever implemented. Repeating it is pointless without structural enforcement.
+- **PIVOT TO ACTION**: This heartbeat shifts from policy-making to execution. Commit files, don't make more rules.
+- deployment-manager appeared with 10 new uncommitted files — this was not authorized. Need to understand what happened.
+- Core-loop ratio hit 0% — absolute worst. Every single commit went to non-core scenarios.
+- prompt-manager remains highest compound leverage but has only 5 uncommitted files and near-zero recent commits — needs dedicated sprint.

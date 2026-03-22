@@ -40,6 +40,9 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useUrlState, type ViewMode } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
+import { usePendingDecisionSync } from '@/hooks/usePendingDecisionSync'
+import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
+import { PendingDecisionsPopover } from '@/components/tree/PendingDecisionsPopover'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
@@ -65,6 +68,8 @@ const COLLAPSED_SIDEBAR_WIDTH = 60
 export function SkillManagerLayout() {
   // Running agent sync (single polling instance, feeds 3D world + stores)
   const runningAgentsData = useRunningAgentStatusSync()
+  // Pending decision sync (single polling instance, feeds sidebar + world view)
+  const pendingDecisionsData = usePendingDecisionSync()
 
   // Mobile state
   const [isMobile, setIsMobile] = useState(
@@ -1085,6 +1090,18 @@ export function SkillManagerLayout() {
     [setActiveTab, setSelectedTeamId, isMobile]
   )
 
+  // Navigate to a team's decision log
+  const handleNavigateToDecision = useCallback(
+    (teamId: string) => {
+      setActiveTab('teams')
+      setSelectedTeamId(teamId)
+      if (isMobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    },
+    [setActiveTab, setSelectedTeamId, isMobile]
+  )
+
   // Handle cross-reference navigation with highlight
   const handleNavigateToXRef = useCallback(
     (ref: Reference) => {
@@ -1212,6 +1229,8 @@ export function SkillManagerLayout() {
         onContentMatchesChange={setContentMatches}
         onNavigateToRunningAgent={handleNavigateToRunningAgent}
         runningAgentsData={runningAgentsData}
+        pendingDecisionsData={pendingDecisionsData}
+        onNavigateToDecision={handleNavigateToDecision}
         onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
         onCustomizeAgent={handleCustomizeAgentById}
         onPreviewPrompt={handlePreviewPromptById}
@@ -1376,6 +1395,8 @@ export function SkillManagerLayout() {
                 onNavigateToXRef={handleNavigateToXRef}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onOpenMobileSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
+                pendingDecisionCount={pendingDecisionsData?.count}
+                runningAgentCount={runningAgentsData?.count}
                 className="h-full"
               />
             )}
@@ -1410,6 +1431,31 @@ export function SkillManagerLayout() {
                 <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
               </div>
               <div className="flex items-center gap-1">
+                {(runningAgentsData?.count ?? 0) > 0 && (
+                  <RunningAgentsPopover
+                    onNavigateToMember={(teamId, agentId) => {
+                      handleNavigateToRunningAgent(teamId, agentId)
+                      setIsMobileSidebarOpen(false)
+                    }}
+                    groupedByTeam={runningAgentsData?.groupedByTeam}
+                    count={runningAgentsData?.count}
+                    stopAgent={runningAgentsData?.stopAgent}
+                    stoppingIds={runningAgentsData?.stoppingIds}
+                  />
+                )}
+                {(pendingDecisionsData?.count ?? 0) > 0 && (
+                  <PendingDecisionsPopover
+                    onNavigateToDecision={(teamId) => {
+                      handleNavigateToDecision(teamId)
+                      setIsMobileSidebarOpen(false)
+                    }}
+                    groupedByTeam={pendingDecisionsData?.groupedByTeam}
+                    count={pendingDecisionsData?.count}
+                    acceptDecision={pendingDecisionsData?.acceptDecision}
+                    rejectDecision={pendingDecisionsData?.rejectDecision}
+                    processingIds={pendingDecisionsData?.processingIds}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setShowSettingsDialog(true)}
@@ -1505,6 +1551,8 @@ export function SkillManagerLayout() {
                 onContentMatchesChange={setContentMatches}
                 onNavigateToRunningAgent={handleNavigateToRunningAgent}
                 runningAgentsData={runningAgentsData}
+        pendingDecisionsData={pendingDecisionsData}
+        onNavigateToDecision={handleNavigateToDecision}
                 onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
                 onCustomizeAgent={handleCustomizeAgentById}
                 onPreviewPrompt={handlePreviewPromptById}

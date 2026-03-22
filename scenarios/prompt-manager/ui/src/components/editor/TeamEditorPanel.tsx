@@ -642,6 +642,7 @@ export function TeamEditorPanel({
               teamId={team.id}
               members={team.members}
               allAgents={allAgents}
+              decisionMode={team.decisionMode}
               className="h-full min-h-0"
             />
           </Tabs.Content>

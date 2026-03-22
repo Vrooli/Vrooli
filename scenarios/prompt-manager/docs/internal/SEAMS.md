@@ -561,6 +561,33 @@ const agents = await agentService.getAgents()
 expect(agents).toHaveLength(1)
 ```
 
+## Decision Approval Seams
+
+### X-Caller-ID Header (Caller Type Seam)
+
+The `X-Caller-ID` HTTP header identifies who is making a decision status update. In production:
+- Agents send their agent ID (e.g., `agent-1`)
+- The UI sends nothing or `"ui-user"`
+
+In tests, set this header to simulate agent vs human callers:
+```go
+req.Header.Set("X-Caller-ID", "agent-1") // simulate agent caller
+// or omit header to simulate human caller
+```
+
+**File**: [CODE: api/heartbeat/handlers.go#checkApprovalEnforcement]
+
+### DecisionMode (Behavior Toggle Seam)
+
+The `Team.DecisionMode` field (`"yolo"` or `"approval"`) controls whether approval enforcement is active. In tests, create teams with the desired mode:
+```go
+teamStore.Create(ctx, &store.Team{
+    ID: "team-test", DecisionMode: "approval",
+})
+```
+
+**File**: [CODE: api/store/models.go#Team]
+
 ## Related Documentation
 
 - [ARCHITECTURE.md](../concepts/ARCHITECTURE.md) - System architecture overview

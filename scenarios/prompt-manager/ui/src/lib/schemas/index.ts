@@ -168,6 +168,7 @@ export {
 
 // Team schemas
 export {
+  DecisionModeSchema,
   SpawnModeSchema,
   TeamMemberStatusSchema,
   TeamRoleSchema,
@@ -191,6 +192,7 @@ export {
   ExportCCResponseSchema,
   ExclusiveMemberSchema,
   ExclusiveMembersResponseSchema,
+  type DecisionMode,
   type SpawnMode,
   type TeamMemberStatus,
   type TeamRole,

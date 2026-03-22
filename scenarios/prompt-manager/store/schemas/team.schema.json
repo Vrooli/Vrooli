@@ -51,6 +51,12 @@
       "default": "multi-process",
       "description": "How the team is spawned: multi-process (separate agent per member) or single-process (one CC Team lead agent)"
     },
+    "decisionMode": {
+      "type": "string",
+      "enum": ["yolo", "approval"],
+      "default": "yolo",
+      "description": "Decision approval mode: yolo (agents can self-approve) or approval (requires human review)"
+    },
     "shared": {
       "type": "object",
       "description": "Team shared documents configuration",

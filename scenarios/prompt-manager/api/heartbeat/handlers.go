@@ -1938,6 +1938,7 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 		Rationale:  req.Rationale,
 		Context:    req.Context,
 		Supersedes: req.Supersedes,
+		Status:     store.DecisionStatusPending,
 	}
 
 	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
@@ -1955,6 +1956,7 @@ func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	contextFilter := r.URL.Query().Get("context")
+	statusFilter := r.URL.Query().Get("status")
 	last := 20
 	if v := r.URL.Query().Get("last"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -1962,7 +1964,7 @@ func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, last)
+	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, statusFilter, last)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1988,6 +1990,16 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Approval enforcement: check if the team is in approval mode and restrict agent callers.
+	if req.Status != nil {
+		if blocked, msg := h.checkApprovalEnforcement(r, teamID, decisionID, *req.Status); blocked {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(msg)
+			return
+		}
 	}
 
 	err := h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
@@ -2017,7 +2029,7 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Fetch updated entry to return
-	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, "", 0)
+	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, "", "", 0)
 	if err != nil {
 		http.Error(w, "decision updated but fetch failed", http.StatusInternalServerError)
 		return
@@ -2030,6 +2042,100 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
+}
+
+// approvalError is the JSON response body for approval enforcement failures.
+type approvalError struct {
+	Error         string `json:"error"`
+	Message       string `json:"message"`
+	CurrentStatus string `json:"currentStatus,omitempty"`
+}
+
+// checkApprovalEnforcement checks whether the requested status transition is allowed.
+// Returns (true, error) if blocked, (false, nil) if allowed.
+func (h *Handlers) checkApprovalEnforcement(r *http.Request, teamID, decisionID, newStatus string) (bool, *approvalError) {
+	ctx := r.Context()
+
+	// Fetch team to check decision mode
+	team, err := h.teamStore.Get(ctx, teamID)
+	if err != nil || team == nil {
+		return false, nil // fail open if team not found
+	}
+
+	if team.DecisionMode != "approval" {
+		return false, nil // yolo mode — no restrictions
+	}
+
+	// Determine if caller is an agent
+	callerID := r.Header.Get("X-Caller-ID")
+	if callerID == "" || callerID == "ui-user" {
+		return false, nil // human caller — no restrictions
+	}
+
+	// Check if the caller ID matches a team member (agent)
+	isAgent := false
+	if h.relationStore != nil {
+		members, err := h.relationStore.ListTeamMembers(ctx, teamID)
+		if err == nil {
+			for _, m := range members {
+				if m.AgentID == callerID {
+					isAgent = true
+					break
+				}
+			}
+		}
+	}
+	if !isAgent {
+		return false, nil // not a known agent — treat as human
+	}
+
+	// Agents in approval mode cannot set accepted or rejected
+	if newStatus == store.DecisionStatusAccepted || newStatus == store.DecisionStatusRejected {
+		return true, &approvalError{
+			Error:   "decision_approval_required",
+			Message: "This team requires human approval. Do not proceed with this decision until a human sets the status to 'accepted'.",
+		}
+	}
+
+	// Agents can set running only if current status is accepted
+	if newStatus == store.DecisionStatusRunning {
+		currentStatus := h.getDecisionStatus(ctx, teamID, decisionID)
+		if currentStatus != store.DecisionStatusAccepted {
+			return true, &approvalError{
+				Error:         "decision_not_accepted",
+				Message:       "Decision must be accepted by a human before it can be set to running. Current status: " + currentStatus,
+				CurrentStatus: currentStatus,
+			}
+		}
+	}
+
+	// Agents can set completed only if current status is running
+	if newStatus == store.DecisionStatusCompleted {
+		currentStatus := h.getDecisionStatus(ctx, teamID, decisionID)
+		if currentStatus != store.DecisionStatusRunning {
+			return true, &approvalError{
+				Error:         "decision_not_running",
+				Message:       "Decision must be running before it can be set to completed. Current status: " + currentStatus,
+				CurrentStatus: currentStatus,
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// getDecisionStatus returns the current status of a decision, or empty string if not found.
+func (h *Handlers) getDecisionStatus(ctx context.Context, teamID, decisionID string) string {
+	entries, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.ID == decisionID {
+			return e.Status
+		}
+	}
+	return ""
 }
 
 // DeleteDecisionHandler handles DELETE /teams/{id}/decisions/{decisionId}

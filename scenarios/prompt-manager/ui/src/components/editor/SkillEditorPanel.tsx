@@ -99,6 +99,9 @@ interface SkillEditorPanelProps {
   onNavigateToXRef?: (ref: Reference) => void
   onOpenSidebar?: () => void
   onOpenMobileSidebar?: () => void
+  /** Notification counts for mobile hamburger badge */
+  pendingDecisionCount?: number
+  runningAgentCount?: number
 
   className?: string
 }
@@ -135,6 +138,8 @@ export function SkillEditorPanel({
   onNavigateToXRef,
   onOpenSidebar,
   onOpenMobileSidebar,
+  pendingDecisionCount,
+  runningAgentCount,
   className,
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -176,6 +181,8 @@ export function SkillEditorPanel({
         )}
         <ViewOverlay
           onOpenMobileSidebar={onOpenMobileSidebar}
+          pendingDecisionCount={pendingDecisionCount}
+          runningAgentCount={runningAgentCount}
           leftPanelContent={graphViewActive ? (
             <>
               <PanelErrorBoundary panelName="Graph Queries">

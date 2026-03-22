@@ -23,6 +23,7 @@ import type { Agent } from '@/types/agent'
 import type { CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
+import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
@@ -36,6 +37,7 @@ import { AISearchModal } from '../search/AISearchModal'
 import { CombineActionBar } from './CombineActionBar'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
+import { PendingDecisionsPopover } from './PendingDecisionsPopover'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeService'
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
@@ -342,6 +344,10 @@ interface SkillTreeSidebarProps {
   onNavigateToRunningAgent?: (teamId: string, agentId: string) => void
   /** Pre-fetched running agents data from the sync hook (eliminates duplicate polling) */
   runningAgentsData?: UseRunningAgentsResult
+  /** Pre-fetched pending decisions data from the sync hook */
+  pendingDecisionsData?: UsePendingDecisionsResult
+  /** Callback to navigate to a team's decision log */
+  onNavigateToDecision?: (teamId: string) => void
   // Agent context menu callbacks
   /** Called when user requests to duplicate an agent via context menu */
   onDuplicateAgent?: (agentId: string) => void
@@ -425,6 +431,8 @@ export function SkillTreeSidebar({
   onContentMatchesChange,
   onNavigateToRunningAgent,
   runningAgentsData,
+  pendingDecisionsData,
+  onNavigateToDecision,
   onDuplicateAgent,
   onCustomizeAgent,
   onPreviewPrompt,
@@ -847,6 +855,16 @@ export function SkillTreeSidebar({
                       count={runningAgentsData?.count}
                       stopAgent={runningAgentsData?.stopAgent}
                       stoppingIds={runningAgentsData?.stoppingIds}
+                    />
+                  )}
+                  {onNavigateToDecision && (
+                    <PendingDecisionsPopover
+                      onNavigateToDecision={onNavigateToDecision}
+                      groupedByTeam={pendingDecisionsData?.groupedByTeam}
+                      count={pendingDecisionsData?.count}
+                      acceptDecision={pendingDecisionsData?.acceptDecision}
+                      rejectDecision={pendingDecisionsData?.rejectDecision}
+                      processingIds={pendingDecisionsData?.processingIds}
                     />
                   )}
                   {dirtyCount > 0 && (

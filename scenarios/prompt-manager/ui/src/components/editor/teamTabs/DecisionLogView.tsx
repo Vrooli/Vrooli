@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2 } from 'lucide-react'
+import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -24,6 +24,7 @@ interface DecisionLogViewProps {
   teamId: string
   members: TeamMember[]
   allAgents?: Agent[]
+  decisionMode?: string
 }
 
 /** Status badge rendering */
@@ -44,6 +45,22 @@ function StatusBadge({ status }: { status?: DecisionEntry['status'] }) {
       </span>
     )
   }
+  if (status === 'running') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400">
+        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+        Running
+      </span>
+    )
+  }
+  if (status === 'completed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400">
+        <CheckCircle className="h-2.5 w-2.5" />
+        Completed
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
       <Scale className="h-2.5 w-2.5" />
@@ -52,7 +69,7 @@ function StatusBadge({ status }: { status?: DecisionEntry['status'] }) {
   )
 }
 
-export function DecisionLogView({ teamId, members, allAgents }: DecisionLogViewProps) {
+export function DecisionLogView({ teamId, members, allAgents, decisionMode }: DecisionLogViewProps) {
   const [entries, setEntries] = useState<DecisionEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -256,6 +273,13 @@ export function DecisionLogView({ teamId, members, allAgents }: DecisionLogViewP
 
   return (
     <div className="space-y-3">
+      {decisionMode === 'approval' && (
+        <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
+          <Scale className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>This team requires human approval for decisions.</span>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <select

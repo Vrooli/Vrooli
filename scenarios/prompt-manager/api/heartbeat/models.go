@@ -198,7 +198,7 @@ type UpdateDecisionRequest struct {
 	Decision   *string `json:"decision,omitempty"`
 	Rationale  *string `json:"rationale,omitempty"`
 	Context    *string `json:"context,omitempty"`
-	Status     *string `json:"status,omitempty"`     // "pending", "accepted", "rejected"
+	Status     *string `json:"status,omitempty"` // "pending", "accepted", "rejected"
 	Supersedes *string `json:"supersedes,omitempty"`
 }
 
@@ -206,6 +206,19 @@ type UpdateDecisionRequest struct {
 type DecisionListResponse struct {
 	TeamID  string                `json:"teamId"`
 	Entries []store.DecisionEntry `json:"entries"`
+}
+
+// PendingDecisionTeamGroup groups pending decisions by team.
+type PendingDecisionTeamGroup struct {
+	TeamID   string                `json:"teamId"`
+	TeamName string                `json:"teamName"`
+	Entries  []store.DecisionEntry `json:"entries"`
+}
+
+// AllPendingDecisionsResponse is the response for the aggregate pending decisions endpoint.
+type AllPendingDecisionsResponse struct {
+	Teams      []PendingDecisionTeamGroup `json:"teams"`
+	TotalCount int                        `json:"totalCount"`
 }
 
 // MemberContextResponse is the response for the member context endpoint.

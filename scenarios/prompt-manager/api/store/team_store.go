@@ -816,8 +816,8 @@ func (s *FileTeamStore) AppendDecision(_ context.Context, teamID string, entry *
 	return err
 }
 
-// GetDecisions reads decision entries, optionally filtered by context tag and limited.
-func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag string, last int) ([]DecisionEntry, error) {
+// GetDecisions reads decision entries, optionally filtered by context tag, status, and limited.
+func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag, statusFilter string, last int) ([]DecisionEntry, error) {
 	entries, _, err := s.readAllDecisions(teamID)
 	if err != nil {
 		return nil, err
@@ -827,6 +827,22 @@ func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag strin
 		filtered := make([]DecisionEntry, 0, len(entries))
 		for _, e := range entries {
 			if e.Context == contextTag {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+
+	if statusFilter != "" {
+		filtered := make([]DecisionEntry, 0, len(entries))
+		for _, e := range entries {
+			status := e.Status
+			// Treat empty status as "pending" for backward compatibility
+			// with decisions created before the status field was added.
+			if status == "" {
+				status = DecisionStatusPending
+			}
+			if status == statusFilter {
 				filtered = append(filtered, e)
 			}
 		}

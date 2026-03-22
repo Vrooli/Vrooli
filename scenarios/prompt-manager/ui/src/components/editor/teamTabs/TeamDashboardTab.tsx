@@ -386,6 +386,38 @@ export function TeamDashboardTab({
         </div>
       </section>
 
+      {/* Decision Mode */}
+      <section data-testid={selectors.teamEditor.decisionMode}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Decision Approval</h3>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(['yolo', 'approval'] as const).map((mode) => {
+              const selected = team.decisionMode === mode || (!team.decisionMode && mode === 'yolo')
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => void onUpdate({ decisionMode: mode })}
+                  className={cn(
+                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                    selected
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
+                  )}
+                >
+                  {mode === 'yolo' ? 'Auto-approve' : 'Require Approval'}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {(team.decisionMode === 'approval')
+              ? 'Decisions require human approval before agents can act on them.'
+              : 'Agents can freely approve and act on their own decisions.'}
+          </p>
+        </div>
+      </section>
+
       {/* ================================================================ */}
       {/* Section 2: "When" - Schedule                                     */}
       {/* ================================================================ */}

@@ -17,10 +17,11 @@ interface TeamActivityTabProps {
   teamId: string
   members: TeamMember[]
   allAgents?: Agent[]
+  decisionMode?: string
   className?: string
 }
 
-export function TeamActivityTab({ teamId, members, allAgents, className }: TeamActivityTabProps) {
+export function TeamActivityTab({ teamId, members, allAgents, decisionMode, className }: TeamActivityTabProps) {
   const [activeSubTab, setActiveSubTab] = useState('handoffs')
 
   return (
@@ -46,7 +47,7 @@ export function TeamActivityTab({ teamId, members, allAgents, className }: TeamA
           </Tabs.Content>
 
           <Tabs.Content value="decisions" className="p-4 data-[state=inactive]:hidden">
-            <DecisionLogView teamId={teamId} members={members} allAgents={allAgents} />
+            <DecisionLogView teamId={teamId} members={members} allAgents={allAgents} decisionMode={decisionMode} />
           </Tabs.Content>
         </div>
       </Tabs.Root>

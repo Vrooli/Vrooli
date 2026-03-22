@@ -250,7 +250,7 @@ func TestAppendAndGetDecisions(t *testing.T) {
 	}
 
 	// Get all
-	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	all, err := s.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatalf("GetDecisions all: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestAppendAndGetDecisions(t *testing.T) {
 	}
 
 	// Filter by context
-	auth, err := s.GetDecisions(ctx, "team-1", "auth", 0)
+	auth, err := s.GetDecisions(ctx, "team-1", "auth", "", 0)
 	if err != nil {
 		t.Fatalf("GetDecisions filtered: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestAppendAndGetDecisions(t *testing.T) {
 	}
 
 	// Limit
-	limited, err := s.GetDecisions(ctx, "team-1", "", 1)
+	limited, err := s.GetDecisions(ctx, "team-1", "", "", 1)
 	if err != nil {
 		t.Fatalf("GetDecisions limited: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestUpdateDecision(t *testing.T) {
 		t.Fatalf("UpdateDecision: %v", err)
 	}
 
-	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	all, err := s.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatalf("GetDecisions: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestDeleteDecision(t *testing.T) {
 		t.Fatalf("DeleteDecision: %v", err)
 	}
 
-	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	all, err := s.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatalf("GetDecisions: %v", err)
 	}
@@ -388,7 +388,7 @@ func TestDeleteDecisionOnly(t *testing.T) {
 		t.Fatalf("DeleteDecision: %v", err)
 	}
 
-	all, err := s.GetDecisions(ctx, "team-1", "", 0)
+	all, err := s.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatalf("GetDecisions: %v", err)
 	}

@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { Html } from '@react-three/drei'
-import { AlertTriangle, XCircle, Info, Loader2, MessageCircle } from 'lucide-react'
+import { AlertTriangle, XCircle, Info, Loader2, MessageCircle, Scale } from 'lucide-react'
 import type { AgentStatusType } from '@/types/accessory'
 
 /** Icon mapping for status types */
@@ -17,6 +17,7 @@ const STATUS_ICONS: Record<AgentStatusType, typeof AlertTriangle | null> = {
   info: Info,
   thinking: Loader2,
   speaking: MessageCircle,
+  'pending-decision': Scale,
 }
 
 /** Color mapping for status types */
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<AgentStatusType, string> = {
   info: 'text-blue-500',
   thinking: 'text-purple-500',
   speaking: 'text-green-500',
+  'pending-decision': 'text-amber-500',
 }
 
 /** Background color mapping for tooltips */
@@ -37,6 +39,7 @@ const STATUS_BG_COLORS: Record<AgentStatusType, string> = {
   info: 'bg-blue-500/10 border-blue-500/30',
   thinking: 'bg-purple-500/10 border-purple-500/30',
   speaking: 'bg-green-500/10 border-green-500/30',
+  'pending-decision': 'bg-amber-500/10 border-amber-500/30',
 }
 
 /** Animation classes for status types */
@@ -47,6 +50,7 @@ const STATUS_ANIMATIONS: Record<AgentStatusType, string> = {
   info: '',
   thinking: 'animate-spin',
   speaking: 'animate-pulse',
+  'pending-decision': '',
 }
 
 interface StatusIconProps {

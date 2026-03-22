@@ -168,7 +168,7 @@ export interface DecisionEntry {
   rationale: string
   context?: string
   supersedes?: string
-  status?: 'pending' | 'accepted' | 'rejected'
+  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
 }
 
 export interface UpdateDecisionRequest {
@@ -182,6 +182,17 @@ export interface UpdateDecisionRequest {
 export interface DecisionListResponse {
   teamId: string
   entries: DecisionEntry[]
+}
+
+export interface PendingDecisionTeamGroup {
+  teamId: string
+  teamName: string
+  entries: DecisionEntry[]
+}
+
+export interface AllPendingDecisionsResponse {
+  teams: PendingDecisionTeamGroup[]
+  totalCount: number
 }
 
 export interface AddDecisionRequest {
@@ -1054,13 +1065,18 @@ export async function deleteTask(teamId: string, taskId: string): Promise<void> 
 
 export async function getDecisions(
   teamId: string,
-  opts?: { context?: string; last?: number }
+  opts?: { context?: string; status?: string; last?: number }
 ): Promise<DecisionListResponse> {
   const params = new URLSearchParams()
   if (opts?.context) params.set('context', opts.context)
+  if (opts?.status) params.set('status', opts.status)
   if (opts?.last) params.set('last', String(opts.last))
   const qs = params.toString()
   return apiRequest<DecisionListResponse>(`/teams/${encodeURIComponent(teamId)}/decisions${qs ? `?${qs}` : ''}`)
+}
+
+export async function getAllPendingDecisions(): Promise<AllPendingDecisionsResponse> {
+  return apiRequest<AllPendingDecisionsResponse>('/decisions/pending')
 }
 
 export async function addDecision(

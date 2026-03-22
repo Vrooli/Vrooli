@@ -79,13 +79,14 @@ type AgentRuntime struct {
 // Team represents a team entity from team.json
 type Team struct {
 	BaseEntity
-	ID          string      `json:"id"`
-	DisplayName string      `json:"displayName"`
-	Mission     string      `json:"mission,omitempty"`
-	Enabled     bool        `json:"enabled"`
-	EnabledSet  bool        `json:"-"`
-	SpawnMode   string      `json:"spawnMode,omitempty"` // "multi-process" or "single-process"
-	Shared      *TeamShared `json:"shared,omitempty"`
+	ID           string      `json:"id"`
+	DisplayName  string      `json:"displayName"`
+	Mission      string      `json:"mission,omitempty"`
+	Enabled      bool        `json:"enabled"`
+	EnabledSet   bool        `json:"-"`
+	SpawnMode    string      `json:"spawnMode,omitempty"`    // "multi-process" or "single-process"
+	DecisionMode string      `json:"decisionMode,omitempty"` // "yolo" (default) or "approval"
+	Shared       *TeamShared `json:"shared,omitempty"`
 	Timestamps
 }
 
@@ -279,6 +280,15 @@ type TeamTaskBoard struct {
 }
 
 // --- Decision Log ---
+
+// Decision status constants.
+const (
+	DecisionStatusPending   = "pending"
+	DecisionStatusAccepted  = "accepted"
+	DecisionStatusRejected  = "rejected"
+	DecisionStatusRunning   = "running"
+	DecisionStatusCompleted = "completed"
+)
 
 // DecisionEntry represents a recorded decision in the team's decision log.
 type DecisionEntry struct {

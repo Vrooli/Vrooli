@@ -54,6 +54,12 @@ export const SpawnModeSchema = z.enum(['multi-process', 'single-process'])
 export type SpawnMode = z.infer<typeof SpawnModeSchema>
 
 /**
+ * Decision mode for team decision approval.
+ */
+export const DecisionModeSchema = z.enum(['yolo', 'approval'])
+export type DecisionMode = z.infer<typeof DecisionModeSchema>
+
+/**
  * Team schema matching the API's Response type (brief version).
  */
 export const TeamSchema = z.object({
@@ -62,6 +68,7 @@ export const TeamSchema = z.object({
   mission: z.string().optional(),
   enabled: z.boolean().optional().default(false),
   spawnMode: SpawnModeSchema.optional().default('multi-process'),
+  decisionMode: DecisionModeSchema.optional().default('yolo'),
   memberCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -93,6 +100,7 @@ export const CreateTeamRequestSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
   spawnMode: SpawnModeSchema.optional(),
+  decisionMode: DecisionModeSchema.optional(),
 })
 
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
@@ -106,6 +114,7 @@ export const UpdateTeamRequestSchema = z.object({
   mission: z.string().max(500).optional(),
   enabled: z.boolean().optional(),
   spawnMode: SpawnModeSchema.optional(),
+  decisionMode: DecisionModeSchema.optional(),
 })
 
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
