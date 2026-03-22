@@ -126,6 +126,8 @@ export const literalSelectors = {
   captures: {
     quickInput: "captures-quick-input",
     quickInputSubmit: "captures-quick-input-submit",
+    quickInputAttach: "captures-quick-input-attach",
+    quickInputSend: "captures-quick-input-send",
     card: "capture-card",
     retryButton: "capture-retry-button",
     acceptAllButton: "capture-accept-all-button",

@@ -1,12 +1,15 @@
 package captures
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +21,39 @@ func setupTestHandler(t *testing.T) (*Handler, string) {
 	rootDir := t.TempDir()
 	h := NewHandler(rootDir, nil, nil)
 	return h, rootDir
+}
+
+// newMultipartRequest builds a multipart POST request with a text field and optional file parts.
+func newMultipartRequest(t *testing.T, text string, files map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	if text != "" {
+		if err := w.WriteField("text", text); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for name, contentType := range files {
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files"; filename="%s"`, name))
+		h.Set("Content-Type", contentType)
+		part, err := w.CreatePart(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Write some fake image bytes.
+		_, _ = part.Write([]byte("fake-image-data"))
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/api/v1/captures", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
 }
 
 func TestList_Empty(t *testing.T) {
@@ -42,8 +78,7 @@ func TestList_Empty(t *testing.T) {
 
 func TestCreate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
-	body := strings.NewReader(`{"text":"we should add a backup cron"}`)
-	req := httptest.NewRequest("POST", "/api/v1/captures", body)
+	req := newMultipartRequest(t, "we should add a backup cron", nil)
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
@@ -63,7 +98,7 @@ func TestCreate_Success(t *testing.T) {
 	}
 
 	id, ok := capMap["id"].(string)
-	if !ok || !strings.HasPrefix(id, "cap-") {
+	if !ok || len(id) < 4 || id[:4] != "cap-" {
 		t.Errorf("expected cap- prefixed ID, got %v", capMap["id"])
 	}
 
@@ -85,8 +120,21 @@ func TestCreate_Success(t *testing.T) {
 
 func TestCreate_EmptyText(t *testing.T) {
 	h, _ := setupTestHandler(t)
-	body := strings.NewReader(`{"text":""}`)
-	req := httptest.NewRequest("POST", "/api/v1/captures", body)
+	req := newMultipartRequest(t, "", nil)
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreate_InvalidForm(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	// Send a non-multipart body.
+	req := httptest.NewRequest("POST", "/api/v1/captures", bytes.NewReader([]byte("not-multipart")))
+	req.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
@@ -96,16 +144,53 @@ func TestCreate_EmptyText(t *testing.T) {
 	}
 }
 
-func TestCreate_InvalidJSON(t *testing.T) {
+func TestCreate_WithImageFiles(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	req := newMultipartRequest(t, "screenshot of the bug", map[string]string{
+		"bug.png":    "image/png",
+		"detail.jpg": "image/jpeg",
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	capMap := resp["capture"].(map[string]any)
+	id := capMap["id"].(string)
+
+	attachments, ok := capMap["attachments"].([]any)
+	if !ok || len(attachments) != 2 {
+		t.Fatalf("expected 2 attachments, got %v", capMap["attachments"])
+	}
+
+	// Verify files exist on disk.
+	for _, att := range attachments {
+		attPath := filepath.Join(rootDir, "captures", id, att.(string))
+		if _, err := os.Stat(attPath); os.IsNotExist(err) {
+			t.Errorf("attachment file not found: %s", attPath)
+		}
+	}
+}
+
+func TestCreate_RejectsNonImage(t *testing.T) {
 	h, _ := setupTestHandler(t)
-	body := strings.NewReader(`{invalid`)
-	req := httptest.NewRequest("POST", "/api/v1/captures", body)
+	req := newMultipartRequest(t, "here is a pdf", map[string]string{
+		"doc.pdf": "application/pdf",
+	})
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

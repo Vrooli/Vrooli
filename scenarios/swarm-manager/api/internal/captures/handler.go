@@ -13,11 +13,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -136,16 +139,23 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 	_ = httputil.JSON(w, map[string]any{"captures": caps})
 }
 
-// Create creates a new capture and auto-triggers classification.
+// allowedImageTypes lists Content-Types accepted for capture attachments.
+var allowedImageTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+// Create creates a new capture from a multipart form (text + optional image files).
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Text string `json:"text"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[captures] create", "invalid JSON body")
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		httputil.BadRequest(w, "[captures] create", "invalid multipart form")
 		return
 	}
-	if req.Text == "" {
+
+	text := strings.TrimSpace(r.FormValue("text"))
+	if text == "" {
 		httputil.BadRequest(w, "[captures] create", "text is required")
 		return
 	}
@@ -155,7 +165,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	cap := capture{
 		ID:          id,
-		Text:        req.Text,
+		Text:        text,
 		Attachments: []string{},
 		Created:     now,
 		Status:      "classifying",
@@ -165,6 +175,54 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		httputil.InternalError(w, "[captures] create", "failed to create capture directory")
 		return
+	}
+
+	// Save attached image files.
+	files := r.MultipartForm.File["files"]
+	for _, fh := range files {
+		mediaType, _, _ := mime.ParseMediaType(fh.Header.Get("Content-Type"))
+		if !allowedImageTypes[mediaType] {
+			// Clean up the capture directory on rejection.
+			_ = os.RemoveAll(dir)
+			httputil.BadRequest(w, "[captures] create", fmt.Sprintf("unsupported file type: %s", mediaType))
+			return
+		}
+
+		attDir := filepath.Join(dir, "attachments")
+		if err := os.MkdirAll(attDir, 0o755); err != nil {
+			_ = os.RemoveAll(dir)
+			httputil.InternalError(w, "[captures] create", "failed to create attachments directory")
+			return
+		}
+
+		safeName := sanitizeFilename(fh.Filename)
+		destPath := filepath.Join(attDir, safeName)
+
+		src, err := fh.Open()
+		if err != nil {
+			_ = os.RemoveAll(dir)
+			httputil.InternalError(w, "[captures] create", "failed to read uploaded file")
+			return
+		}
+
+		dst, err := os.Create(destPath)
+		if err != nil {
+			src.Close()
+			_ = os.RemoveAll(dir)
+			httputil.InternalError(w, "[captures] create", "failed to save uploaded file")
+			return
+		}
+
+		_, copyErr := io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		if copyErr != nil {
+			_ = os.RemoveAll(dir)
+			httputil.InternalError(w, "[captures] create", "failed to write uploaded file")
+			return
+		}
+
+		cap.Attachments = append(cap.Attachments, filepath.Join("attachments", safeName))
 	}
 
 	if err := h.writeCapture(&cap); err != nil {
@@ -188,6 +246,24 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = httputil.JSONWithStatus(w, http.StatusCreated, resp)
+}
+
+// sanitizeFilename removes path separators and dangerous characters from a filename.
+func sanitizeFilename(name string) string {
+	// Use only the base name (strip any directory components).
+	name = filepath.Base(name)
+	// Replace characters that could cause issues.
+	replacer := strings.NewReplacer(
+		"..", "_",
+		"/", "_",
+		"\\", "_",
+		"\x00", "_",
+	)
+	name = replacer.Replace(name)
+	if name == "" || name == "." {
+		name = "unnamed"
+	}
+	return name
 }
 
 // Get returns a single capture by ID.

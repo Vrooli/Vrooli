@@ -29,7 +29,7 @@ export interface CreateCaptureResponse {
 export interface ICaptureService {
   list(): Promise<Capture[]>;
   get(id: string): Promise<Capture>;
-  create(text: string): Promise<CreateCaptureResponse>;
+  create(text: string, files?: File[]): Promise<CreateCaptureResponse>;
   remove(id: string): Promise<void>;
   classify(id: string): Promise<ClassifyResponse>;
 }
@@ -70,13 +70,20 @@ export function createCaptureService(apiClient: IApiClient = defaultApiClient): 
       return mapCapture(data.capture);
     },
 
-    async create(text: string): Promise<CreateCaptureResponse> {
+    async create(text: string, files?: File[]): Promise<CreateCaptureResponse> {
+      const formData = new FormData();
+      formData.append("text", text);
+      if (files) {
+        for (const file of files) {
+          formData.append("files", file);
+        }
+      }
       const data = await apiClient.post<{
         capture: Record<string, unknown>;
         task_id?: string;
         run_id?: string;
         base_url?: string;
-      }>(API_ENDPOINTS.captures, { text });
+      }>(API_ENDPOINTS.captures, formData);
       return {
         capture: mapCapture(data.capture),
         taskId: data.task_id,
