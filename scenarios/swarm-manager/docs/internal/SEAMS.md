@@ -128,12 +128,11 @@ ideas/
     │   ├── PRD.md       #   Files from the original scenario, namespaced
     │   ├── README.md    #   to avoid collisions with backlog-specific data
     │   └── docs/
-    ├── clarify/         # Agent-generated questions (questions.json)
-    │   └── questions.json
-    ├── suggest/         # Agent-generated suggestions (suggestions.json)
-    │   └── suggestions.json
-    └── enhance/         # Agent-generated refinements (summary.md)
-        └── summary.md
+    ├── plan.md          # Primary execution artifact (workshop output)
+    └── workshop/        # Workshop rounds (iterative refinement)
+        ├── round-1.json
+        ├── round-2.json
+        └── ...
 research/
 └── {item-name}/
     ├── spec.json
@@ -153,6 +152,32 @@ execute/
 ```
 
 **Status**: Backlog, scenario metadata, settings, and queue storage implemented.
+
+### Workshop Computation Boundary
+
+`api/internal/workshop/workshop.go` is a pure computation boundary with no HTTP or integration dependencies. It provides:
+
+- **Readiness scoring**: `ComputeEffectiveScores(raw, roundsCompleted, kind)` applies the boost formula
+- **Ready check**: `IsReady(effective)` returns true when all 5 dimensions reach 3
+- **Round I/O**: `LoadRounds(itemDir)` and `SaveRound(itemDir, round)` handle filesystem serialization
+- **Boost configuration**: `BoostN` map defines per-kind divisors
+
+This package is imported by both `internal/backlog/` (for research handler) and `internal/execution/` (for preflight readiness checks), avoiding import cycles.
+
+**Testing at the seam**: Unit tests exercise boost edge cases (raw < 2 not boosted, round accumulation, kind-specific divisors) and round serialization without needing HTTP or agent-manager mocks.
+
+### Workshop Parsing Boundary (UI)
+
+`ui/src/lib/workshop-files.ts` is the UI-side parsing boundary for workshop data:
+
+- **Round parsing**: `parseWorkshopRound(content)` with truncation recovery for robustness against agent crashes mid-write
+- **Round serialization**: `buildWorkshopRoundContent(round)` for sending updated rounds back
+- **Metrics**: `getUnansweredCount(round)` and `getPendingProposalCount(round)` for UI progress indicators
+- **File tree**: `findBacklogFileByPath(files, path)` for navigating backlog file hierarchies
+
+The truncation recovery algorithm (ported from the former `idea-agent-files.ts`) scans for the last complete JSON object in a truncated array, enabling graceful degradation when an agent crashes mid-write.
+
+**Testing at the seam**: Tests exercise valid JSON, truncated JSON recovery, empty/null input, and malformed content.
 
 ## Architectural Decisions
 
@@ -239,6 +264,7 @@ ui/src/
 │   ├── api-endpoints.ts # Endpoint path constants
 │   ├── error-utils.ts # Error categorization, logging, recovery paths
 │   ├── query-utils.ts # React Query default configuration
+│   ├── workshop-files.ts # Workshop round parsing, truncation recovery, metrics
 │   ├── utils.ts       # Generic utilities (cn for classnames)
 │   └── index.ts       # Barrel export
 └── consts/            # UI-specific constants
@@ -294,6 +320,9 @@ api/
     │   └── handler.go
     ├── settings/        # ✅ Implemented
     │   └── handler.go
+    ├── workshop/        # ✅ Implemented (readiness scoring, round I/O)
+    │   ├── workshop.go
+    │   └── workshop_test.go
     ├── queue/           # ✅ Implemented
     │   └── handler.go
     └── integrations/    # agent-manager, ecosystem-manager

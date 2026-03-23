@@ -61,35 +61,23 @@ import { TagList } from "../components/ui/tag-list";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
-import { IdeaClarifyPanel } from "../components/backlog/idea-clarify-panel";
-import { IdeaSuggestionsPanel } from "../components/backlog/idea-suggestions-panel";
-import { MaturityDetailsPanel } from "../components/backlog/maturity-details-panel";
+import { WorkshopPanel } from "../components/backlog/workshop-panel";
+import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
 import { TargetFormDialog } from "../components/backlog/target-form-dialog";
-import { QuestionFormDialog } from "../components/backlog/question-form-dialog";
-import { SuggestionFormDialog } from "../components/backlog/suggestion-form-dialog";
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import {
-  buildClarifyQuestionsContent,
-  buildMaturityInputFromLocal,
-  buildSuggestionsContent,
   cn,
-  computeMaturity,
   defaultQueryOptions,
-  findBacklogFileByPath,
   formatRelativeTime,
   getBacklogNotQueueableReason,
-  IDEA_AGENT_FILE_PATHS,
   isBacklogQueueable,
-  parseClarifyQuestionsFile,
-  parseSuggestionsFile,
 } from "../lib";
-import {
-  computeQuestionsSynthesisSummary,
-  computeSuggestionsSynthesisSummary,
-} from "../lib/idea-agent-files";
+import { parseWorkshopRound, WORKSHOP_FILE_PATHS, findBacklogFileByPath } from "../lib/workshop-files";
+import { buildReadinessData } from "../lib/maturity";
+import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService, executionService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
@@ -112,14 +100,10 @@ import type {
   BacklogStatus,
   ExecutionRecord,
   ExecutionStatus,
-  IdeaAgentMode,
-  ClarifyQuestionFormValues,
-  IdeaClarificationQuestion,
-  IdeaSuggestion,
   ModuleFormValues,
   ResearchResponse,
-  SuggestionFormValues,
 } from "../types";
+import type { WorkshopRound } from "../types/domain";
 import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
 
 /** Statuses that users can manually set via the status dropdown. "queued" and "in_progress" are execution-system-only. */
@@ -171,13 +155,6 @@ const collectMatchingFiles = (entries: BacklogFile[], query: string): BacklogFil
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const buildFollowupPrompt = (mode: IdeaAgentMode): string => {
-  if (mode === "suggest") {
-    return "Use clarify/questions.json (with answers) to generate actionable suggestions for this idea. Append new suggestions without deleting prior ones.";
-  }
-  return "Use clarify/questions.json answers to refine the idea and produce an enhanced plan. If suggestions exist, apply accepted ones and ignore rejected ones.";
-};
 
 const formatDuration = (seconds?: number): string => {
   if (!seconds || seconds <= 0) return "Unknown";
@@ -244,7 +221,7 @@ export function BacklogDetailsPage() {
   // associated with a backlog item. When an execution is retried, the
   // execution record gets a new RunID, but the agentRunsStore (localStorage)
   // still points to the old run. This effect detects the mismatch and
-  // updates the store so the "Last Agent Run" section shows the correct run.
+  // updates the store so the active run banner shows the correct run.
   useEffect(() => {
     if (!backlogKind || !name) return;
     let cancelled = false;
@@ -323,10 +300,8 @@ export function BacklogDetailsPage() {
   const [showRunModal, setShowRunModal] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
-  const [agentRunExpanded, setAgentRunExpanded] = useState(
-    latestAgentRun ? ["running", "needs_review"].includes(latestAgentRun.status) : false,
-  );
-  const [execHistoryExpanded, setExecHistoryExpanded] = useState(false);
+  const [execSectionOpen, setExecSectionOpen] = useState(false);
+  const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [reqDialogOpen, setReqDialogOpen] = useState(false);
@@ -338,16 +313,6 @@ export function BacklogDetailsPage() {
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
   const [targetDialogMode, setTargetDialogMode] = useState<"create" | "edit">("create");
   const [editingTarget, setEditingTarget] = useState<ArchiveTarget | null>(null);
-  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
-  const [questionDialogMode, setQuestionDialogMode] = useState<"create" | "edit">("create");
-  const [editingQuestion, setEditingQuestion] = useState<IdeaClarificationQuestion | null>(null);
-  const [questionSubmitting, setQuestionSubmitting] = useState(false);
-  const [questionSubmitError, setQuestionSubmitError] = useState<string | null>(null);
-  const [suggestionDialogOpen, setSuggestionDialogOpen] = useState(false);
-  const [suggestionDialogMode, setSuggestionDialogMode] = useState<"create" | "edit">("create");
-  const [editingSuggestion, setEditingSuggestion] = useState<IdeaSuggestion | null>(null);
-  const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
-  const [suggestionSubmitError, setSuggestionSubmitError] = useState<string | null>(null);
 
   const {
     data: item,
@@ -390,42 +355,57 @@ export function BacklogDetailsPage() {
     refetchInterval: 10_000,
   });
 
-  const clarifyFile = useMemo(
-    () => (item?.kind === "idea" ? findBacklogFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.clarify) : null),
-    [files, item?.kind]
+  // Workshop round files — find workshop/ directory, then load each round file
+  const workshopDir = useMemo(
+    () => findBacklogFileByPath(files ?? [], WORKSHOP_FILE_PATHS.workshopDir.replace(/\/$/, "")),
+    [files],
   );
-  const suggestionsFile = useMemo(
-    () => (item?.kind === "idea" ? findBacklogFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.suggest) : null),
-    [files, item?.kind]
-  );
+  const workshopRoundPaths = useMemo(() => {
+    if (!workshopDir?.children) return [];
+    return workshopDir.children
+      .filter((f) => f.type === "file" && /^round-\d+\.json$/.test(f.name))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+      .map((f) => f.path);
+  }, [workshopDir]);
 
   const {
-    data: clarifyContent,
-    error: clarifyContentError,
-    refetch: refetchClarifyContent,
+    data: workshopRoundContents,
+    refetch: refetchWorkshopRounds,
   } = useQuery({
-    queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify],
-    queryFn: () => {
+    queryKey: ["backlog", backlogKind, name, "workshop-rounds", workshopRoundPaths],
+    queryFn: async () => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.getFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.clarify);
+      const contents = await Promise.all(
+        workshopRoundPaths.map((p) => backlogService.getFileContent(backlogKind, name, p)),
+      );
+      return contents;
     },
-    enabled: !!backlogKind && !!name && !!clarifyFile,
+    enabled: !!backlogKind && !!name && workshopRoundPaths.length > 0,
     ...defaultQueryOptions,
   });
 
-  const {
-    data: suggestionsContent,
-    error: suggestionsContentError,
-    refetch: refetchSuggestionsContent,
-  } = useQuery({
-    queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest],
-    queryFn: () => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return backlogService.getFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.suggest);
-    },
-    enabled: !!backlogKind && !!name && !!suggestionsFile,
+  const workshopRounds = useMemo(() => {
+    if (!workshopRoundContents) return [];
+    return workshopRoundContents
+      .map((content) => parseWorkshopRound(content))
+      .filter((r): r is { round: WorkshopRound; error?: string } => r.round !== null)
+      .map((r) => r.round!);
+  }, [workshopRoundContents]);
+
+  // Maturity / readiness data from the maturity-summary endpoint
+  const { data: maturitySummaryData } = useQuery({
+    queryKey: ["backlog-maturity-summary"],
+    queryFn: () => backlogService.getMaturitySummary(),
     ...defaultQueryOptions,
   });
+
+  const readinessData = useMemo<ReadinessIndicatorData | null>(() => {
+    if (!maturitySummaryData || !backlogKind || !name) return null;
+    const match = maturitySummaryData.items.find(
+      (i) => i.kind === backlogKind && i.name === name,
+    );
+    return match ? buildReadinessData(match) : null;
+  }, [maturitySummaryData, backlogKind, name]);
 
   const {
     data: archiveTargets,
@@ -439,54 +419,8 @@ export function BacklogDetailsPage() {
     ...defaultQueryOptions,
   });
 
-  const clarifyParsed = useMemo(
-    () => parseClarifyQuestionsFile(clarifyContent),
-    [clarifyContent]
-  );
-  const suggestionsParsed = useMemo(
-    () => parseSuggestionsFile(suggestionsContent),
-    [suggestionsContent]
-  );
-  const clarifyErrorMessage =
-    clarifyContentError instanceof Error
-      ? clarifyContentError.message
-      : clarifyContentError
-        ? "Unable to load clarify questions."
-        : clarifyParsed.error;
-  const suggestionsErrorMessage =
-    suggestionsContentError instanceof Error
-      ? suggestionsContentError.message
-      : suggestionsContentError
-        ? "Unable to load suggestions."
-        : suggestionsParsed.error;
-
   const LOCKED_STATUSES = new Set(["queued", "in_progress"]);
   const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
-  const clarifyEnhanceCount = typeof clarifyParsed.raw?.enhanceCount === "number" ? clarifyParsed.raw.enhanceCount : 0;
-  const suggestionsEnhanceCount = typeof suggestionsParsed.raw?.enhanceCount === "number" ? suggestionsParsed.raw.enhanceCount : 0;
-
-  const enhanceFile = useMemo(
-    () => (item?.kind === "idea" ? findBacklogFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.enhance) : null),
-    [files, item?.kind]
-  );
-
-  const maturityData = useMemo(() => {
-    if (item?.kind !== "idea") return null;
-    const qSynthesis = computeQuestionsSynthesisSummary(clarifyParsed.questions);
-    const sSynthesis = computeSuggestionsSynthesisSummary(suggestionsParsed.suggestions);
-    const input = buildMaturityInputFromLocal({
-      clarifyRaw: clarifyParsed.raw,
-      questionsCount: clarifyParsed.questions.length,
-      questionsAnsweredCount: clarifyParsed.questions.filter((q) => q.answer && q.answer.trim()).length,
-      questionsNewOrUpdated: qSynthesis.new + qSynthesis.updated,
-      suggestionsRaw: suggestionsParsed.raw,
-      suggestionsCount: suggestionsParsed.suggestions.length,
-      suggestionsDecidedCount: suggestionsParsed.suggestions.filter((s) => s.status && s.status !== "pending").length,
-      suggestionsNewOrUpdated: sSynthesis.new + sSynthesis.updated,
-      hasEnhanceSummary: !!enhanceFile,
-    });
-    return { maturity: computeMaturity(input), input };
-  }, [item?.kind, clarifyParsed, suggestionsParsed, enhanceFile]);
 
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
@@ -556,7 +490,7 @@ export function BacklogDetailsPage() {
 
   const agentMutation = useMutation({
     mutationFn: ({ mode, prompt, targetKind, contextPaths, contextTargetIds, contextRequirementIds }: {
-      mode?: IdeaAgentMode;
+      mode?: string;
       prompt: string;
       targetKind?: BacklogResearchTarget;
       contextPaths?: string[];
@@ -590,91 +524,19 @@ export function BacklogDetailsPage() {
     },
   });
 
-  const clarifyMutation = useMutation({
-    mutationFn: async ({
-      questions,
-      nextMode,
-    }: {
-      questions: IdeaClarificationQuestion[];
-      nextMode: IdeaAgentMode | "none";
-    }): Promise<ResearchResponse | null> => {
+  // Workshop save mutation — saves user answers/decisions back to a round file
+  const workshopSaveMutation = useMutation({
+    mutationFn: async ({ roundNumber, content }: { roundNumber: number; content: string }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
-      await backlogService.saveFileContent(
-        backlogKind,
-        name,
-        IDEA_AGENT_FILE_PATHS.clarify,
-        content,
-        "application/json"
-      );
-      if (nextMode !== "none") {
-        return backlogService.research(backlogKind, name, {
-          mode: nextMode,
-          prompt: buildFollowupPrompt(nextMode),
-        });
-      }
-      return null;
+      const filePath = `workshop/round-${roundNumber}.json`;
+      await backlogService.saveFileContent(backlogKind, name, filePath, content, "application/json");
     },
-    onSuccess: (result, variables) => {
+    onSuccess: () => {
       if (!backlogKind || !name) return;
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-      queryClient.invalidateQueries({
-        queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify],
-      });
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
       void refetchFiles();
-      void refetchClarifyContent();
-      if (result) {
-        upsertSpawnedRun({
-          runId: result.runId,
-          taskId: result.taskId,
-          baseUrl: result.baseUrl,
-          createdAt: result.created,
-          backlogKind,
-          backlogName: name,
-          backlogTitle: item?.title ?? name,
-          mode: variables.nextMode,
-        });
-        void refreshRun(result.runId);
-      }
-    },
-  });
-
-  const suggestionsMutation = useMutation({
-    mutationFn: async (updatedSuggestions: IdeaSuggestion[]): Promise<ResearchResponse> => {
-      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      const content = buildSuggestionsContent(suggestionsParsed.raw, updatedSuggestions);
-      await backlogService.saveFileContent(
-        backlogKind,
-        name,
-        IDEA_AGENT_FILE_PATHS.suggest,
-        content,
-        "application/json"
-      );
-      return backlogService.research(backlogKind, name, {
-        mode: "enhance",
-        prompt:
-          "Use suggest/suggestions.json decisions and notes to enhance this idea. Apply accepted suggestions (considering any notes for context), ignore rejected ones, and reference clarify/questions.json answers if available.",
-      });
-    },
-    onSuccess: (result) => {
-      if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-      queryClient.invalidateQueries({
-        queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest],
-      });
-      void refetchFiles();
-      void refetchSuggestionsContent();
-      upsertSpawnedRun({
-        runId: result.runId,
-        taskId: result.taskId,
-        baseUrl: result.baseUrl,
-        createdAt: result.created,
-        backlogKind,
-        backlogName: name,
-        backlogTitle: item?.title ?? name,
-        mode: "enhance",
-      });
-      void refreshRun(result.runId);
+      void refetchWorkshopRounds();
     },
   });
 
@@ -886,117 +748,18 @@ export function BacklogDetailsPage() {
     }
   }, [moduleDialogMode, editingModuleId, createModuleMutation, updateModuleMetaMutation]);
 
-  // --- Question CRUD handlers ---
-  const saveQuestions = useCallback(async (questions: IdeaClarificationQuestion[]) => {
-    if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-    const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
-    await backlogService.saveFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.clarify, content, "application/json");
-    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify] });
-    void refetchFiles();
-    void refetchClarifyContent();
-  }, [backlogKind, name, clarifyParsed.raw, queryClient, refetchFiles, refetchClarifyContent]);
+  // --- Workshop handlers ---
+  const handleSaveRound = useCallback((roundNumber: number, content: string) => {
+    workshopSaveMutation.mutate({ roundNumber, content });
+  }, [workshopSaveMutation]);
 
-  const handleAddQuestion = useCallback(() => {
-    setEditingQuestion(null);
-    setQuestionDialogMode("create");
-    setQuestionSubmitError(null);
-    setQuestionDialogOpen(true);
-  }, []);
-
-  const handleEditQuestion = useCallback((question: IdeaClarificationQuestion) => {
-    setEditingQuestion(question);
-    setQuestionDialogMode("edit");
-    setQuestionSubmitError(null);
-    setQuestionDialogOpen(true);
-  }, []);
-
-  const handleDeleteQuestion = useCallback(async (questionId: string) => {
-    if (!window.confirm(`Delete this question?`)) return;
-    const updated = clarifyParsed.questions.filter((q) => q.id !== questionId);
-    try {
-      await saveQuestions(updated);
-    } catch { /* error handled by query invalidation */ }
-  }, [clarifyParsed.questions, saveQuestions]);
-
-  const handleQuestionDialogSubmit = useCallback(async (values: ClarifyQuestionFormValues) => {
-    setQuestionSubmitting(true);
-    setQuestionSubmitError(null);
-    try {
-      let updated: IdeaClarificationQuestion[];
-      if (questionDialogMode === "edit" && editingQuestion) {
-        updated = clarifyParsed.questions.map((q) =>
-          q.id === editingQuestion.id ? { ...q, ...values } : q
-        );
-      } else {
-        const newId = `q-${Date.now().toString(36)}`;
-        updated = [...clarifyParsed.questions, { id: newId, ...values }];
-      }
-      await saveQuestions(updated);
-      setQuestionDialogOpen(false);
-      setEditingQuestion(null);
-    } catch (err) {
-      setQuestionSubmitError(err instanceof Error ? err.message : "Failed to save question.");
-    } finally {
-      setQuestionSubmitting(false);
-    }
-  }, [questionDialogMode, editingQuestion, clarifyParsed.questions, saveQuestions]);
-
-  // --- Suggestion CRUD handlers ---
-  const saveSuggestions = useCallback(async (suggestions: IdeaSuggestion[]) => {
-    if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-    const content = buildSuggestionsContent(suggestionsParsed.raw, suggestions);
-    await backlogService.saveFileContent(backlogKind, name, IDEA_AGENT_FILE_PATHS.suggest, content, "application/json");
-    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-    queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest] });
-    void refetchFiles();
-    void refetchSuggestionsContent();
-  }, [backlogKind, name, suggestionsParsed.raw, queryClient, refetchFiles, refetchSuggestionsContent]);
-
-  const handleAddSuggestion = useCallback(() => {
-    setEditingSuggestion(null);
-    setSuggestionDialogMode("create");
-    setSuggestionSubmitError(null);
-    setSuggestionDialogOpen(true);
-  }, []);
-
-  const handleEditSuggestion = useCallback((suggestion: IdeaSuggestion) => {
-    setEditingSuggestion(suggestion);
-    setSuggestionDialogMode("edit");
-    setSuggestionSubmitError(null);
-    setSuggestionDialogOpen(true);
-  }, []);
-
-  const handleDeleteSuggestion = useCallback(async (suggestionId: string) => {
-    if (!window.confirm(`Delete this suggestion?`)) return;
-    const updated = suggestionsParsed.suggestions.filter((s) => s.id !== suggestionId);
-    try {
-      await saveSuggestions(updated);
-    } catch { /* error handled by query invalidation */ }
-  }, [suggestionsParsed.suggestions, saveSuggestions]);
-
-  const handleSuggestionDialogSubmit = useCallback(async (values: SuggestionFormValues) => {
-    setSuggestionSubmitting(true);
-    setSuggestionSubmitError(null);
-    try {
-      let updated: IdeaSuggestion[];
-      if (suggestionDialogMode === "edit" && editingSuggestion) {
-        updated = suggestionsParsed.suggestions.map((s) =>
-          s.id === editingSuggestion.id ? { ...s, ...values } : s
-        );
-      } else {
-        const newId = `s-${Date.now().toString(36)}`;
-        updated = [...suggestionsParsed.suggestions, { id: newId, ...values }];
-      }
-      await saveSuggestions(updated);
-      setSuggestionDialogOpen(false);
-      setEditingSuggestion(null);
-    } catch (err) {
-      setSuggestionSubmitError(err instanceof Error ? err.message : "Failed to save suggestion.");
-    } finally {
-      setSuggestionSubmitting(false);
-    }
-  }, [suggestionDialogMode, editingSuggestion, suggestionsParsed.suggestions, saveSuggestions]);
+  const handleRunWorkshop = useCallback(() => {
+    if (!backlogKind || !name) return;
+    agentMutation.mutate({
+      mode: "workshop",
+      prompt: "Run the next workshop round for this backlog item.",
+    });
+  }, [backlogKind, name, agentMutation]);
 
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
@@ -1065,11 +828,8 @@ export function BacklogDetailsPage() {
   const agentError = agentMutation.isError
     ? agentMutation.error instanceof Error ? agentMutation.error.message : "Failed to start the agent. Make sure agent-manager is running."
     : null;
-  const clarifyError = clarifyMutation.isError
-    ? clarifyMutation.error instanceof Error ? clarifyMutation.error.message : "Failed to save answers or start the next agent."
-    : null;
-  const suggestionsError = suggestionsMutation.isError
-    ? suggestionsMutation.error instanceof Error ? suggestionsMutation.error.message : "Failed to save suggestions or start the Enhance agent."
+  const workshopSaveError = workshopSaveMutation.isError
+    ? workshopSaveMutation.error instanceof Error ? workshopSaveMutation.error.message : "Failed to save workshop round."
     : null;
   const convertError = convertMutation.isError
     ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
@@ -1098,7 +858,6 @@ export function BacklogDetailsPage() {
     hasResearchOutput;
 
   const convertTarget = canConvert ? (item.researchTarget as BacklogKind) : null;
-  const hasNotes = Boolean(item?.kind === "idea" && (clarifyFile || suggestionsFile || maturityData));
   const searchResults = useMemo(
     () => collectMatchingFiles(files ?? [], fileSearch),
     [files, fileSearch]
@@ -1599,49 +1358,209 @@ export function BacklogDetailsPage() {
     </Card>
   ) : null;
 
-  const notesPanel = hasNotes ? (
+  const notesPanel = (
     <div className="space-y-4">
-      {maturityData && (
-        <MaturityDetailsPanel maturity={maturityData.maturity} input={maturityData.input} />
-      )}
+      {readinessData && <ReadinessDetailsPanel data={readinessData} />}
       {isLocked && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-sm text-amber-300">
           This item is {item ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
         </div>
       )}
-      {clarifyFile && (
-        <IdeaClarifyPanel
-          questions={clarifyParsed.questions}
-          filePath={IDEA_AGENT_FILE_PATHS.clarify}
-          parseError={clarifyErrorMessage}
-          isSubmitting={clarifyMutation.isPending}
-          submitError={clarifyError}
-          onSubmit={({ questions, nextMode }) =>
-            clarifyMutation.mutate({ questions, nextMode })
-          }
-          onAdd={isLocked ? undefined : handleAddQuestion}
-          onEdit={isLocked ? undefined : handleEditQuestion}
-          onDelete={isLocked ? undefined : handleDeleteQuestion}
-          disabled={isLocked}
-          enhanceCount={clarifyEnhanceCount}
-        />
-      )}
-      {suggestionsFile && (
-        <IdeaSuggestionsPanel
-          suggestions={suggestionsParsed.suggestions}
-          filePath={IDEA_AGENT_FILE_PATHS.suggest}
-          parseError={suggestionsErrorMessage}
-          isSubmitting={suggestionsMutation.isPending}
-          submitError={suggestionsError}
-          onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
-          onAdd={isLocked ? undefined : handleAddSuggestion}
-          onEdit={isLocked ? undefined : handleEditSuggestion}
-          onDelete={isLocked ? undefined : handleDeleteSuggestion}
-          disabled={isLocked}
-          enhanceCount={suggestionsEnhanceCount}
-        />
-      )}
+      <WorkshopPanel
+        rounds={workshopRounds}
+        backlogKind={backlogKind as BacklogKind}
+        backlogName={name ?? ""}
+        disabled={isLocked}
+        isSaving={workshopSaveMutation.isPending}
+        isRunningWorkshop={agentMutation.isPending}
+        onSaveRound={handleSaveRound}
+        onRunWorkshop={handleRunWorkshop}
+      />
     </div>
+  );
+
+  const toggleExecExpand = useCallback((id: string) => {
+    setExpandedExecIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const activeRunBanner = agentRunIsActive && latestAgentRun ? (
+    <div
+      className="flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5"
+      data-testid={selectors.backlogDetails.activeRunBanner}
+    >
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+      </span>
+      <span className="text-xs font-medium capitalize text-cyan-200">
+        {latestAgentRun.status.replace("_", " ")}
+      </span>
+      <span className="text-xs text-slate-400">
+        {formatRelativeTime(latestAgentRun.createdAt)}
+      </span>
+      <div className="ml-auto flex items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => void stopRun(latestAgentRun.runId)}
+          disabled={latestAgentRun.isStopping}
+        >
+          <Square className="mr-1 h-3 w-3" />
+          {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 w-7 p-0"
+          onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+          aria-label="View execution"
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
+  const executionHistorySection = executionHistory && executionHistory.length > 0 ? (
+    <Card padding="sm" data-testid={selectors.backlogDetails.executionHistory}>
+      <button
+        type="button"
+        onClick={() => setExecSectionOpen(!execSectionOpen)}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        {execSectionOpen ? (
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-slate-400" />
+        )}
+        <span className="flex-1 text-sm font-semibold text-slate-100">
+          Execution History
+        </span>
+        {!execSectionOpen && executionHistory[0] && (
+          <span className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${EXECUTION_STATUS_COLORS[executionHistory[0].status as ExecutionStatus] ?? "bg-slate-500"}`}
+            />
+            {formatExecutionStatus(executionHistory[0].status as ExecutionStatus)}
+            {executionHistory[0].operation && (
+              <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px]">
+                {executionHistory[0].operation}
+              </span>
+            )}
+          </span>
+        )}
+        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-400">
+          {executionHistory.length}
+        </span>
+      </button>
+      {execSectionOpen && (
+        <div className="mt-2 space-y-1.5">
+          {executionHistory.slice(0, 5).map((exec: ExecutionRecord) => {
+            const isExpanded = expandedExecIds.has(exec.executionId);
+            const isActiveExecRun = !!(exec.runId && latestAgentRun && exec.runId === latestAgentRun.runId && agentRunIsActive);
+            const duration = exec.startedAt && exec.finishedAt
+              ? (new Date(exec.finishedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000
+              : undefined;
+            return (
+              <div key={exec.executionId} className="rounded-md bg-slate-800/40">
+                <button
+                  type="button"
+                  onClick={() => toggleExecExpand(exec.executionId)}
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-500" />
+                  )}
+                  <span
+                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500"}`}
+                  />
+                  <span className="text-xs font-medium text-slate-200">
+                    {formatExecutionStatus(exec.status as ExecutionStatus)}
+                  </span>
+                  {exec.operation && (
+                    <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px] text-slate-400">
+                      {exec.operation}
+                    </span>
+                  )}
+                  <span className="ml-auto text-[10px] text-slate-500">
+                    {formatRelativeTime(exec.createdAt)}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="space-y-2 border-t border-slate-700/40 px-2.5 py-2">
+                    {exec.failureReason && (
+                      <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+                        {exec.failureReason}
+                      </p>
+                    )}
+                    <div className="space-y-1 text-xs text-slate-400">
+                      {duration !== undefined && (
+                        <p>Duration: {formatDuration(duration)}</p>
+                      )}
+                      {exec.startedAt && (
+                        <p>Started: {formatRelativeTime(exec.startedAt)}</p>
+                      )}
+                      {exec.finishedAt && (
+                        <p>Finished: {formatRelativeTime(exec.finishedAt)}</p>
+                      )}
+                      <p className="font-mono text-[11px] text-slate-500">
+                        ID: {exec.executionId}
+                      </p>
+                      {exec.runId && (
+                        <p className="font-mono text-[11px] text-slate-500">
+                          Run: {exec.runId}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+                      >
+                        <ArrowUpRight className="mr-1 h-3 w-3" />
+                        View
+                      </Button>
+                      {isActiveExecRun && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => void stopRun(latestAgentRun.runId)}
+                          disabled={latestAgentRun.isStopping}
+                        >
+                          <Square className="mr-1 h-3 w-3" />
+                          {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {executionHistory.length > 5 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-transparent text-xs text-slate-400 hover:text-slate-200"
+              onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
+            >
+              View all {executionHistory.length} executions
+            </Button>
+          )}
+        </div>
+      )}
+    </Card>
   ) : null;
 
   const renderActionButtons = (closeOnAction = false) => {
@@ -1854,131 +1773,7 @@ export function BacklogDetailsPage() {
           )}
         </Card>
       )}
-      {latestAgentRun && (
-        <Card padding="sm" className="rounded-lg border-cyan-500/30 bg-cyan-500/10">
-          <button
-            type="button"
-            onClick={() => setAgentRunExpanded(!agentRunExpanded)}
-            className="flex w-full items-center gap-2 text-left"
-          >
-            {agentRunExpanded ? (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            )}
-            <span className="flex-1 text-sm font-semibold text-slate-100">Last Agent Run</span>
-            <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-xs text-cyan-200">
-              {latestAgentRun.status.replace("_", " ")}
-            </span>
-          </button>
-          {agentRunExpanded && (
-            <div className="mt-2 space-y-2">
-              <p className="font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
-              <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
-              <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
-              {latestAgentRun.errorMessage ? (
-                <p className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
-                  {latestAgentRun.errorMessage}
-                </p>
-              ) : null}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void refreshRun(latestAgentRun.runId)}
-                >
-                  Refresh
-                </Button>
-                {latestAgentRun.active && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void stopRun(latestAgentRun.runId)}
-                    disabled={latestAgentRun.isStopping}
-                  >
-                    <Square className="mr-2 h-3.5 w-3.5" />
-                    {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
-                >
-                  <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
-                  View
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-      {/* Execution History */}
-      {executionHistory && executionHistory.length > 0 && (
-        <Card padding="sm" data-testid={selectors.backlogDetails.executionHistory}>
-          <button
-            type="button"
-            onClick={() => setExecHistoryExpanded(!execHistoryExpanded)}
-            className="flex w-full items-center gap-2 text-left"
-          >
-            {execHistoryExpanded ? (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            )}
-            <span className="flex-1 text-sm font-semibold text-slate-100">
-              Execution History
-            </span>
-            <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-400">
-              {executionHistory.length}
-            </span>
-          </button>
-          {execHistoryExpanded && (
-            <div className="mt-2 space-y-1.5">
-              {executionHistory.slice(0, 5).map((exec: ExecutionRecord) => (
-                <div
-                  key={exec.executionId}
-                  className="flex items-start gap-2 rounded-md bg-slate-800/40 px-2.5 py-1.5"
-                >
-                  <span
-                    className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500"}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-slate-200">
-                        {formatExecutionStatus(exec.status as ExecutionStatus)}
-                      </span>
-                      {exec.operation && (
-                        <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px] text-slate-400">
-                          {exec.operation}
-                        </span>
-                      )}
-                      <span className="ml-auto text-[10px] text-slate-500">
-                        {formatRelativeTime(exec.createdAt)}
-                      </span>
-                    </div>
-                    {exec.failureReason && (
-                      <p className="mt-0.5 truncate text-[11px] text-red-300/80">
-                        {exec.failureReason}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {executionHistory.length > 5 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-transparent text-xs text-slate-400 hover:text-slate-200"
-                  onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
-                >
-                  View all {executionHistory.length} executions
-                </Button>
-              )}
-            </div>
-          )}
-        </Card>
-      )}
+      {activeRunBanner}
       {detailsPanel}
       {notesPanel}
       {archiveTargets?.has_archive && (
@@ -2002,6 +1797,7 @@ export function BacklogDetailsPage() {
           onDeleteTarget={handleDeleteTarget}
         />
       )}
+      {executionHistorySection}
     </div>
   );
 
@@ -2237,54 +2033,9 @@ export function BacklogDetailsPage() {
                 )}
               </div>
             )}
-            {latestAgentRun && (
-              <div className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-100">Last Agent Run</p>
-                  <span className="rounded-full bg-slate-900/70 px-2 py-0.5 text-xs text-cyan-200">
-                    {latestAgentRun.status.replace("_", " ")}
-                  </span>
-                </div>
-                <p className="mt-1 font-mono text-xs text-cyan-300">{latestAgentRun.runId}</p>
-                <p className="text-xs text-slate-300">Spawned {formatRelativeTime(latestAgentRun.createdAt)}</p>
-                <p className="text-xs text-slate-300">Duration {formatDuration(latestAgentRun.durationSeconds)}</p>
-                {latestAgentRun.errorMessage ? (
-                  <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
-                    {latestAgentRun.errorMessage}
-                  </p>
-                ) : null}
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void refreshRun(latestAgentRun.runId)}
-                  >
-                    Refresh
-                  </Button>
-                  {latestAgentRun.active && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void stopRun(latestAgentRun.runId)}
-                      disabled={latestAgentRun.isStopping}
-                    >
-                      <Square className="mr-2 h-3.5 w-3.5" />
-                      {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/execution?backlog=${encodeURIComponent(`${backlogKind}/${name}`)}`)}
-                  >
-                    <ArrowUpRight className="mr-2 h-3.5 w-3.5" />
-                    View
-                  </Button>
-                </div>
-              </div>
-            )}
           </Card>
 
+            {activeRunBanner}
             {detailsPanel}
             {notesPanel}
             {archiveTargets?.has_archive && (
@@ -2304,6 +2055,7 @@ export function BacklogDetailsPage() {
                 onDeleteTarget={handleDeleteTarget}
               />
             )}
+            {executionHistorySection}
             {fileWorkspace}
           </div>
 
@@ -2452,6 +2204,7 @@ export function BacklogDetailsPage() {
         isOpen={showRunModal}
         onClose={() => setShowRunModal(false)}
         target={backlogKind && name ? { kind: backlogKind, name, title: item?.title } : undefined}
+        readinessData={readinessData}
         onSuccess={(result) => {
           if (result.item) upsertItem(result.item);
           if (backlogKind && name) {
@@ -2531,33 +2284,6 @@ export function BacklogDetailsPage() {
         onSubmit={handleTargetDialogSubmit}
       />
 
-      <QuestionFormDialog
-        isOpen={questionDialogOpen}
-        mode={questionDialogMode}
-        initialValues={editingQuestion ? {
-          question: editingQuestion.question,
-          options: editingQuestion.options,
-          answer: editingQuestion.answer,
-        } : undefined}
-        isSubmitting={questionSubmitting}
-        submitError={questionSubmitError}
-        onClose={() => { setQuestionDialogOpen(false); setEditingQuestion(null); setQuestionSubmitError(null); }}
-        onSubmit={handleQuestionDialogSubmit}
-      />
-
-      <SuggestionFormDialog
-        isOpen={suggestionDialogOpen}
-        mode={suggestionDialogMode}
-        initialValues={editingSuggestion ? {
-          suggestion: editingSuggestion.suggestion,
-          details: editingSuggestion.details,
-          status: editingSuggestion.status,
-        } : undefined}
-        isSubmitting={suggestionSubmitting}
-        submitError={suggestionSubmitError}
-        onClose={() => { setSuggestionDialogOpen(false); setEditingSuggestion(null); setSuggestionSubmitError(null); }}
-        onSubmit={handleSuggestionDialogSubmit}
-      />
     </div>
   );
 }

@@ -11,17 +11,13 @@ interface PendingDecisionBadgeProps {
 }
 
 const REASON_CONFIG: Record<AttentionReason["kind"], { label: (count: number) => string; color: string }> = {
-  "unanswered-questions": {
-    label: (n) => `${n} unanswered`,
+  "pending-decisions": {
+    label: (n) => `${n} decision${n !== 1 ? "s" : ""}`,
     color: "bg-amber-500/20 text-amber-400",
   },
-  "pending-suggestions": {
-    label: (n) => `${n} suggestion${n !== 1 ? "s" : ""}`,
-    color: "bg-blue-500/20 text-blue-400",
-  },
-  "unsynthesized": {
-    label: (n) => `${n} unsynthesized`,
-    color: "bg-orange-500/20 text-orange-400",
+  "plan-ready": {
+    label: () => "Plan ready",
+    color: "bg-emerald-500/20 text-emerald-400",
   },
   "research-complete": {
     label: () => "Review ready",

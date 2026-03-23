@@ -38,6 +38,7 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "test-idea")
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
@@ -95,6 +96,7 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "policy-idea")
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
@@ -199,6 +201,7 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "archived-idea")
 
 	service := NewService(ServiceConfig{
 		RootDir:   root,
@@ -228,6 +231,7 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "rollback-idea")
 
 	agent := &stubAgentService{spawnErr: errors.New("spawn failed")}
 	service := NewService(ServiceConfig{
@@ -268,6 +272,7 @@ func TestCancel_RestoresArchivedStatus(t *testing.T) {
 		"tags":          []string{},
 		"archiveReason": "scenario deleted with archive=true",
 	})
+	mustWritePlanFile(t, root, "idea", "archived-cancel")
 
 	service := NewService(ServiceConfig{
 		RootDir:   root,
@@ -308,16 +313,7 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 		"tags":          []string{},
 		"archiveReason": "scenario deleted with archive=true",
 	})
-	mustWriteClarifyQuestions(t, root, "idea", "archived-cancel-forced", map[string]any{
-		"questions": []map[string]any{
-			{
-				"id":         "q1",
-				"importance": "critical",
-				"question":   "Should this be revived under original scenario?",
-				"answer":     "",
-			},
-		},
-	})
+	mustWritePlanFile(t, root, "idea", "archived-cancel-forced")
 
 	service := NewService(ServiceConfig{
 		RootDir:   root,
@@ -355,6 +351,7 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "cancel-restore-error")
 
 	service := NewService(ServiceConfig{
 		RootDir:   root,
@@ -427,6 +424,30 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 	}
 }
 
+// mustWritePlanFile creates a plan.md in the item directory so that
+// workshop readiness preflight passes (plan exists with no rounds = manually created plan).
+func mustWritePlanFile(t *testing.T, root, kind, name string) {
+	t.Helper()
+	kindDir := "ideas"
+	switch kind {
+	case "research":
+		kindDir = "research"
+	case "fix":
+		kindDir = "fix"
+	case "execute":
+		kindDir = "execute"
+	case "chore":
+		kindDir = "chore"
+	}
+	dir := filepath.Join(root, kindDir, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir for plan.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "plan.md"), []byte("# Plan\nManually created plan for testing."), 0o644); err != nil {
+		t.Fatalf("write plan.md: %v", err)
+	}
+}
+
 func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 	t.Helper()
 	bytes, err := os.ReadFile(path)
@@ -454,31 +475,6 @@ func mustWritePolicy(t *testing.T, path string, payload map[string]any) {
 	}
 }
 
-func mustWriteClarifyQuestions(t *testing.T, root, kind, name string, payload map[string]any) {
-	t.Helper()
-	kindDir := "ideas"
-	switch kind {
-	case "research":
-		kindDir = "research"
-	case "fix":
-		kindDir = "fix"
-	case "execute":
-		kindDir = "execute"
-	case "chore":
-		kindDir = "chore"
-	}
-	dir := filepath.Join(root, kindDir, name, "clarify")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir clarify dir: %v", err)
-	}
-	bytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal clarify payload: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "questions.json"), bytes, 0o644); err != nil {
-		t.Fatalf("write questions file: %v", err)
-	}
-}
 
 func TestMapRunStatus_DirectMappings(t *testing.T) {
 	tests := []struct {
@@ -542,6 +538,7 @@ func TestCancel_StartingExecution(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "starting-cancel")
 
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
@@ -591,6 +588,7 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
+	mustWritePlanFile(t, root, "idea", "review-cancel")
 
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}

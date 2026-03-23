@@ -166,6 +166,7 @@ export const literalSelectors = {
     breadcrumb: "backlog-details-breadcrumb",
     statusSelect: "backlog-details-status-select",
     executionHistory: "backlog-details-execution-history",
+    activeRunBanner: "backlog-details-active-run-banner",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -264,6 +265,7 @@ export const literalSelectors = {
     submitButton: "run-backlog-submit",
     queueDepth: "run-backlog-queue-depth",
     blockingReasons: "run-backlog-blocking-reasons",
+    readinessWarning: "run-backlog-readiness-warning",
     error: "run-backlog-error",
   },
   prompts: {

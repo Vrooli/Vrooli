@@ -15,10 +15,10 @@ import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loadi
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { promptService } from "../services";
-import type { BacklogKind, IdeaAgentMode, PromptBinding, PromptSkillVersion } from "../types";
+import type { BacklogKind, PromptBinding, PromptSkillVersion } from "../types";
 
 const KINDS: BacklogKind[] = ["idea", "research", "fix", "execute", "chore"];
-const MODES: Array<IdeaAgentMode | "research"> = ["clarify", "suggest", "enhance", "research"];
+const MODES: string[] = ["workshop", "research", "initialize"];
 const OPERATIONS: Array<"" | "generator" | "improver"> = ["", "generator", "improver"];
 const STAGE_ORDER = ["Backlog", "Research", "Execution"] as const;
 
@@ -57,7 +57,7 @@ type PromptTab = "map" | "viewer";
 
 type SimulationPayload = {
   kind: BacklogKind;
-  mode: IdeaAgentMode | "research";
+  mode: string;
   operation?: "generator" | "improver";
   item_name: string;
   item_title: string;
@@ -641,7 +641,7 @@ export function PromptsPage() {
             <Select
               value={simulationPayload.mode}
               onChange={(event) =>
-                setSimulationPayload((prev) => ({ ...prev, mode: event.target.value as IdeaAgentMode | "research" }))
+                setSimulationPayload((prev) => ({ ...prev, mode: event.target.value }))
               }
             >
               {MODES.map((mode) => (

@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { BacklogPage } from "./BacklogPage";
-import { useBacklogStore } from "../stores";
+import { useBacklogStore, useCaptureStore } from "../stores";
 
 vi.mock("../config", () => ({
   dataFetchingConfig: {
@@ -25,6 +25,13 @@ vi.mock("../config", () => ({
   },
 }));
 
+vi.mock("../services/capture-service", () => ({
+  captureService: {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+  },
+}));
+
 vi.mock("../services", () => ({
   backlogService: {
     list: vi.fn(),
@@ -33,6 +40,8 @@ vi.mock("../services", () => ({
     update: vi.fn(),
     delete: vi.fn(),
     queue: vi.fn(),
+    getMaturitySummary: vi.fn().mockResolvedValue({ items: [] }),
+    getFeedbackSummary: vi.fn().mockResolvedValue({ items: [], total_unanswered: 0, total_pending: 0, total_items_affected: 0 }),
   },
   executionService: {
     list: vi.fn().mockResolvedValue([]),
@@ -54,6 +63,7 @@ describe("BacklogPage", () => {
     });
     vi.clearAllMocks();
     useBacklogStore.getState().reset();
+    useCaptureStore.getState().reset();
     vi.mocked(backlogService.queue).mockResolvedValue({
       item: {
         name: "queued-item",
@@ -74,7 +84,7 @@ describe("BacklogPage", () => {
       queued: true,
       message: "",
       blockingReasons: [],
-      unansweredQuestions: 0,
+      pendingDecisions: 0,
       pendingSuggestions: 0,
     });
   });
@@ -107,7 +117,7 @@ describe("BacklogPage", () => {
       expect(screen.getByTestId("backlog-empty")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("No ideas yet")).toBeInTheDocument();
+    expect(screen.getByText("Capture your first thought")).toBeInTheDocument();
     expect(screen.getByTestId("create-first-backlog")).toBeInTheDocument();
   });
 
@@ -232,10 +242,17 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Completed items are hidden by default — open filter dropdown, then toggle.
+    // Type a search term to force the standard list renderer (the "All" tab's
+    // unified feed doesn't render not-queueable reasons, but searching activates
+    // the standard list which does).
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-filter")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("backlog-search"), {
+      target: { value: "Done" },
+    });
+
+    // Completed items are hidden by default — open filter dropdown, then toggle.
     fireEvent.click(screen.getByTestId("backlog-filter"));
     await waitFor(() => {
       expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
@@ -264,10 +281,16 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Archived items are hidden by default — open filter dropdown, then toggle.
+    // Type a search term to force the standard list renderer (the "All" tab's
+    // unified feed doesn't render Run buttons for individual items the same way).
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-filter")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("backlog-search"), {
+      target: { value: "Archived" },
+    });
+
+    // Archived items are hidden by default — open filter dropdown, then toggle.
     fireEvent.click(screen.getByTestId("backlog-filter"));
     await waitFor(() => {
       expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
@@ -308,10 +331,22 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Enter batch mode to reveal the "Run Selected" button and item checkboxes
+    // Type a search term to force the standard list renderer (the "All" tab's
+    // unified feed doesn't render batch-mode controls, but searching activates
+    // the standard list which does).
     await waitFor(() => {
-      expect(screen.getByLabelText("Toggle batch mode")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByTestId("backlog-search"), {
+      target: { value: "Idea" },
+    });
+
+    // Wait for items to render in the standard list.
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-grid")).toBeInTheDocument();
+    });
+
+    // Enter batch mode to reveal the "Run Selected" button and item checkboxes
     fireEvent.click(screen.getByLabelText("Toggle batch mode"));
 
     // "Run Selected" button appears (disabled since nothing selected yet)

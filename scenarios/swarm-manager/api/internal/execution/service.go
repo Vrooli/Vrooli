@@ -17,10 +17,10 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/jsonutil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/storage"
+	"swarm-manager/internal/workshop"
 )
 
 var errNotFound = errors.New("execution not found")
@@ -924,6 +924,7 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 	}
 	targetScenarioID, archivedRevival := resolveTargetScenario(item)
 
+	itemFolder := s.itemDir(item.Kind, item.Name)
 	vars := map[string]string{
 		"ITEM_NAME":            item.Name,
 		"ITEM_TITLE":           item.Title,
@@ -932,10 +933,11 @@ func (s *Service) fetchProcessingPrompt(ctx context.Context, item backlogItem, o
 		"ITEM_STATUS":          item.Status,
 		"ITEM_PRIORITY":        fmt.Sprintf("%d", item.Priority),
 		"ITEM_TAGS":            strings.Join(item.Tags, ", "),
-		"ITEM_FOLDER":          s.itemDir(item.Kind, item.Name),
+		"ITEM_FOLDER":          itemFolder,
 		"TARGET_SCENARIO_ID":   targetScenarioID,
 		"ARCHIVED_REVIVAL":     fmt.Sprintf("%t", archivedRevival),
 		"SOURCE_SCENARIO_NAME": strings.TrimSpace(item.SourceScenarioName),
+		"PLAN_DRAFT":           workshop.LoadPlanContent(itemFolder),
 	}
 
 	prompt, err := s.promptClient.ReadSkill(ctx, skillID, vars, false)
@@ -995,75 +997,39 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 		preflight.BlockingReasons = append(preflight.BlockingReasons, "research items must be converted before processing")
 	}
 
-	questionsPath := filepath.Join(s.itemDir(item.Kind, item.Name), "clarify", "questions.json")
-	blockingQuestions := loadBlockingQuestions(questionsPath)
-	if len(blockingQuestions) > 0 {
-		preflight.BlockingQuestions = blockingQuestions
-		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("%d critical clarify question(s) remain unanswered", len(blockingQuestions)))
+	// Check workshop readiness instead of clarify questions.
+	itemDir := s.itemDir(item.Kind, item.Name)
+	if !workshop.HasPlan(itemDir) {
+		preflight.BlockingReasons = append(preflight.BlockingReasons, "no implementation plan (plan.md) exists — run workshop first")
+	}
+	rounds, _ := workshop.LoadRounds(itemDir)
+	if len(rounds) > 0 {
+		latest := rounds[len(rounds)-1]
+		rawScores := make(map[string]int, len(workshop.ReadinessDimensions))
+		for _, dim := range workshop.ReadinessDimensions {
+			if v, ok := latest.Readiness[dim]; ok {
+				rawScores[dim] = v
+			}
+		}
+		effective := workshop.ComputeEffectiveScores(rawScores, len(rounds), item.Kind)
+		for _, dim := range workshop.ReadinessDimensions {
+			if effective[dim] < 3 {
+				preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("readiness dimension %q is %d/3 — needs more workshop refinement", dim, effective[dim]))
+			}
+		}
+	} else if workshop.HasPlan(itemDir) {
+		// Plan exists but no workshop rounds — allow execution (manually created plan)
+	} else {
+		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
 
 	preflight.Ready = len(preflight.BlockingReasons) == 0
 	return preflight
 }
 
-type clarifyQuestionsFile struct {
-	Questions []clarifyQuestion `json:"questions"`
-}
-
-type clarifyQuestion struct {
-	ID         string `json:"id"`
-	Importance string `json:"importance"`
-	Question   string `json:"question"`
-	Answer     any    `json:"answer"`
-}
-
-func loadBlockingQuestions(path string) []ProcessBlockingQuestion {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var parsed clarifyQuestionsFile
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		// Attempt to salvage complete questions from truncated JSON
-		repaired := jsonutil.RepairTruncatedJSON(data)
-		if repaired == nil {
-			return nil
-		}
-		if err := json.Unmarshal(repaired, &parsed); err != nil {
-			return nil
-		}
-	}
-	blocking := make([]ProcessBlockingQuestion, 0)
-	for _, q := range parsed.Questions {
-		if !strings.EqualFold(strings.TrimSpace(q.Importance), "critical") {
-			continue
-		}
-		if isQuestionAnswered(q.Answer) {
-			continue
-		}
-		blocking = append(blocking, ProcessBlockingQuestion{
-			ID:         strings.TrimSpace(q.ID),
-			Importance: strings.TrimSpace(q.Importance),
-			Question:   strings.TrimSpace(q.Question),
-		})
-	}
-	return blocking
-}
-
-func isQuestionAnswered(answer any) bool {
-	switch v := answer.(type) {
-	case nil:
-		return false
-	case string:
-		return strings.TrimSpace(v) != ""
-	case []any:
-		return len(v) > 0
-	case map[string]any:
-		return len(v) > 0
-	default:
-		return true
-	}
-}
+// Old clarify-based blocking question types and loading have been removed.
+// The execution preflight now uses workshop readiness from backlog.LoadWorkshopRounds
+// and backlog.ComputeEffectiveScores instead.
 
 func resolveTargetScenario(item backlogItem) (string, bool) {
 	source := strings.TrimSpace(item.SourceScenarioName)
@@ -1079,7 +1045,7 @@ func hasNonForceableExecutionReasons(reasons []string) bool {
 		if normalized == "" {
 			continue
 		}
-		if strings.Contains(normalized, "clarify question") || strings.Contains(normalized, "suggestion") {
+		if strings.Contains(normalized, "workshop decision") || strings.Contains(normalized, "pending decision") {
 			continue
 		}
 		return true

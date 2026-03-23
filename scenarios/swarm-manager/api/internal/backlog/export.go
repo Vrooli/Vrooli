@@ -3,7 +3,6 @@
 package backlog
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -72,7 +71,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	// Parse kind filters.
 	var kinds []BacklogKind
 	for _, raw := range req.GetKinds() {
-		k, err := parseBacklogKind(raw)
+		k, err := ParseBacklogKind(raw)
 		if err != nil {
 			httputil.BadRequest(w, "[backlog] export", err.Error())
 			return
@@ -269,14 +268,9 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 		renderRequirements(b, itemDir)
 	}
 
-	// Clarify questions section.
-	if includeClarify {
-		renderClarifyQuestions(b, itemDir, item.Kind, item.Name)
-	}
-
-	// Suggestions section.
-	if includeSuggestions {
-		renderSuggestions(b, itemDir, item.Kind, item.Name)
+	// Workshop items section (replaces old clarify/suggest sections).
+	if includeClarify || includeSuggestions {
+		renderWorkshopItems(b, itemDir, item.Kind, item.Name)
 	}
 
 	// Notes section placeholder.
@@ -336,96 +330,51 @@ func renderRequirementGroups(b *strings.Builder, groups []ArchiveRequirementGrou
 	}
 }
 
-// renderClarifyQuestions reads clarify/questions.json and renders with checkboxes.
-func renderClarifyQuestions(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
-	qPath := filepath.Join(itemDir, "clarify", "questions.json")
-	data, err := os.ReadFile(qPath)
-	if err != nil {
+// renderWorkshopItems reads the latest workshop round and renders questions/proposals.
+func renderWorkshopItems(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
+	latestRound, roundCount, err := LoadLatestRound(itemDir)
+	if err != nil || latestRound == nil {
 		return
 	}
 
-	var questions []clarifyQuestion
-	if err := json.Unmarshal(data, &questions); err != nil {
-		return
-	}
-	if len(questions) == 0 {
-		return
-	}
+	fmt.Fprintf(b, "<!-- workshop:%s/%s round:%d -->\n", kind, name, roundCount)
+	b.WriteString("### Workshop Items\n\n")
 
-	fmt.Fprintf(b, "<!-- clarify:%s/%s -->\n", kind, name)
-	b.WriteString("### Clarify Questions\n\n")
-	for i, q := range questions {
-		fmt.Fprintf(b, "**Q%d: %s** (%s, %s)\n\n", i+1, q.Question, q.Category, q.Importance)
-
-		if len(q.Options) > 0 {
-			for _, opt := range q.Options {
-				check := " "
-				if q.Answer == opt {
-					check = "x"
+	for i, item := range latestRound.Items {
+		switch item.Type {
+		case "decision":
+			resolved := item.Selected != nil && strings.TrimSpace(*item.Selected) != ""
+			topic := item.Topic
+			if topic == "" {
+				topic = item.Text
+			}
+			fmt.Fprintf(b, "**D%d: %s**\n", i+1, topic)
+			if item.Context != "" {
+				fmt.Fprintf(b, "> %s\n", item.Context)
+			}
+			for _, opt := range item.Options {
+				optCheck := " "
+				if resolved && *item.Selected == opt.Key {
+					optCheck = "x"
 				}
-				fmt.Fprintf(b, "- [%s] %s\n", check, opt)
+				fmt.Fprintf(b, "- [%s] **%s**: %s — %s\n", optCheck, opt.Key, opt.Label, opt.Rationale)
 			}
-			// If answer is non-empty but doesn't match any option, show as freeform note.
-			if q.Answer != "" && !containsOption(q.Options, q.Answer) {
-				fmt.Fprintf(b, "\n> **Answer:** %s\n", q.Answer)
+			if resolved && *item.Selected == "__other__" && item.Freeform != nil && *item.Freeform != "" {
+				fmt.Fprintf(b, "\n> **Other:** %s\n", *item.Freeform)
 			}
-		} else if q.Answer != "" {
-			fmt.Fprintf(b, "> **Answer:** %s\n", q.Answer)
-		}
-
-		if q.Notes != "" {
-			fmt.Fprintf(b, "\n> **Notes:** %s\n", q.Notes)
-		}
-		b.WriteString("\n")
-	}
-	fmt.Fprintf(b, "<!-- /clarify -->\n\n")
-}
-
-// containsOption checks if answer matches one of the provided options.
-func containsOption(options []string, answer string) bool {
-	for _, opt := range options {
-		if opt == answer {
-			return true
+			if item.Notes != nil && *item.Notes != "" {
+				fmt.Fprintf(b, "\n> **Notes:** %s\n", *item.Notes)
+			}
+			b.WriteString("\n")
+		case "info":
+			text := item.Text
+			if text == "" {
+				text = item.Topic
+			}
+			fmt.Fprintf(b, "**Info:** %s\n\n", text)
 		}
 	}
-	return false
-}
-
-// renderSuggestions reads suggest/suggestions.json and renders with accept checkboxes.
-func renderSuggestions(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
-	sPath := filepath.Join(itemDir, "suggest", "suggestions.json")
-	data, err := os.ReadFile(sPath)
-	if err != nil {
-		return
-	}
-
-	var suggestions []suggestion
-	if err := json.Unmarshal(data, &suggestions); err != nil {
-		return
-	}
-	if len(suggestions) == 0 {
-		return
-	}
-
-	fmt.Fprintf(b, "<!-- suggest:%s/%s -->\n", kind, name)
-	b.WriteString("### Suggestions\n\n")
-	for i, s := range suggestions {
-		check := " "
-		if s.Accepted {
-			check = "x"
-		}
-		fmt.Fprintf(b, "#### S%d: %s\n", i+1, s.Title)
-		fmt.Fprintf(b, "**Impact**: %s | **Category**: %s\n", s.Impact, s.Category)
-		fmt.Fprintf(b, "- [%s] Accept this suggestion\n", check)
-		if s.Rationale != "" {
-			fmt.Fprintf(b, "  > %s\n", s.Rationale)
-		}
-		if s.RejectionReason != "" {
-			fmt.Fprintf(b, "\n> Rejection reason: %s\n", s.RejectionReason)
-		}
-		b.WriteString("\n")
-	}
-	fmt.Fprintf(b, "<!-- /suggest -->\n\n")
+	fmt.Fprintf(b, "<!-- /workshop -->\n\n")
 }
 
 // renderNewItemTemplate appends a template for adding new items to the export.

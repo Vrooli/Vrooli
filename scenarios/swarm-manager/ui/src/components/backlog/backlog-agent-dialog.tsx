@@ -7,7 +7,6 @@ import { Dialog } from "../ui/dialog";
 import { Select } from "../ui/select";
 import { FileTree } from "../ui/file-tree";
 import { selectors } from "../../consts/selectors";
-import { IDEA_AGENT_FILE_PATHS } from "../../lib";
 import {
   BACKLOG_KIND_LABELS,
   BACKLOG_RESEARCH_TARGET_LABELS,
@@ -15,7 +14,6 @@ import {
   type BacklogKind,
   type BacklogFile,
   type BacklogResearchTarget,
-  type IdeaAgentMode,
   type ArchiveRequirementGroup,
   type ArchiveTargetsResponse,
 } from "../../types";
@@ -34,7 +32,7 @@ interface BacklogAgentDialogProps {
   initialSelectedRequirementIds?: Set<string>;
   onClose: () => void;
   onSubmit: (payload: {
-    mode?: IdeaAgentMode;
+    mode?: string;
     prompt: string;
     targetKind?: BacklogResearchTarget;
     contextPaths?: string[];
@@ -44,38 +42,24 @@ interface BacklogAgentDialogProps {
 }
 
 const MODE_OPTIONS: Array<{
-  value: IdeaAgentMode;
+  value: string;
   title: string;
   description: string;
-  output: string;
 }> = [
+  {
+    value: "workshop",
+    title: "Workshop",
+    description: "Run a workshop round to refine the implementation plan",
+  },
+  {
+    value: "research",
+    title: "Research",
+    description: "Deep research on feasibility, dependencies, and risks",
+  },
   {
     value: "initialize",
     title: "Initialize",
-    description:
-      "Bootstrap this item with questions, suggestions, a refined plan, and optionally a PRD — all in one pass.",
-    output: "Writes to clarify/, suggest/, enhance/, and optionally archive/",
-  },
-  {
-    value: "clarify",
-    title: "Clarify",
-    description:
-      "Gather the most relevant questions needed to clarify scope, constraints, and implementation details.",
-    output: `Writes questions to ${IDEA_AGENT_FILE_PATHS.clarify}`,
-  },
-  {
-    value: "suggest",
-    title: "Suggest",
-    description:
-      "Generate improvements and alternative approaches for the idea, ready for review and selection.",
-    output: `Writes suggestions to ${IDEA_AGENT_FILE_PATHS.suggest}`,
-  },
-  {
-    value: "enhance",
-    title: "Enhance",
-    description:
-      "Produce a refined plan using answered clarifications and accepted suggestions.",
-    output: `Writes enhancements to ${IDEA_AGENT_FILE_PATHS.enhance}`,
+    description: "Bootstrap the item with a plan scaffold and first round",
   },
 ];
 
@@ -176,7 +160,7 @@ export function BacklogAgentDialog({
   onSubmit,
 }: BacklogAgentDialogProps) {
   const [prompt, setPrompt] = useState("");
-  const [mode, setMode] = useState<IdeaAgentMode>("clarify");
+  const [mode, setMode] = useState<string>("workshop");
   const [targetKind, setTargetKind] = useState<BacklogResearchTarget>(researchTarget ?? "idea");
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
@@ -197,7 +181,7 @@ export function BacklogAgentDialog({
   useEffect(() => {
     if (isOpen) {
       setPrompt("");
-      setMode(itemStatus === "backlog" ? "initialize" : "clarify");
+      setMode(itemStatus === "backlog" ? "initialize" : "workshop");
       setTargetKind(researchTarget ?? "idea");
       setSelectedFilePaths(new Set());
       const initTargets = initialSelectedTargetIds?.size ? new Set(initialSelectedTargetIds) : new Set<string>();
@@ -211,10 +195,9 @@ export function BacklogAgentDialog({
   }, [isOpen, researchTarget, itemStatus, initialSelectedTargetIds, initialSelectedRequirementIds]);
 
   const filteredModes = useMemo(() => {
-    if (isIdea) return MODE_OPTIONS;
-    if (itemStatus === "backlog") return MODE_OPTIONS.filter((o) => o.value === "initialize");
-    return [];
-  }, [isIdea, itemStatus]);
+    if (itemStatus === "backlog") return MODE_OPTIONS;
+    return MODE_OPTIONS.filter((o) => o.value !== "initialize");
+  }, [itemStatus]);
 
   const activeMode = useMemo(() => MODE_OPTIONS.find((option) => option.value === mode), [mode]);
 
@@ -272,7 +255,6 @@ export function BacklogAgentDialog({
                     />
                   </div>
                   <p className="text-xs text-slate-400">{option.description}</p>
-                  <p className="text-xs text-slate-500">{option.output}</p>
                 </label>
               );
             })}
@@ -318,11 +300,6 @@ export function BacklogAgentDialog({
           data-testid={selectors.backlogForm.agentContext}
           disabled={isSubmitting}
         />
-        {isIdea && activeMode && (
-          <div className="text-xs text-slate-400">
-            Next output: <span className="text-slate-200">{activeMode.output}</span>
-          </div>
-        )}
         {errorMessage && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             {errorMessage}

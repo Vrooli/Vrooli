@@ -605,7 +605,7 @@ func extractSuggestionNumber(heading string) int {
 // buildCreateChange builds a change for creating a new item.
 func (h *Handler) buildCreateChange(parsed parsedItemSection) (importChange, []string) {
 	var errs []string
-	kind, err := parseBacklogKind(parsed.kind)
+	kind, err := ParseBacklogKind(parsed.kind)
 	if err != nil {
 		return importChange{}, []string{fmt.Sprintf("new item: invalid kind %q", parsed.kind)}
 	}
@@ -678,7 +678,7 @@ type updateItemData struct {
 
 // buildUpdateChange builds a change for an existing item.
 func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []string) {
-	kind, err := parseBacklogKind(parsed.kind)
+	kind, err := ParseBacklogKind(parsed.kind)
 	if err != nil {
 		return importChange{}, []string{fmt.Sprintf("item %s/%s: invalid kind", parsed.kind, parsed.name)}
 	}

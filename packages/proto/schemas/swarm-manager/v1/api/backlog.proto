@@ -185,7 +185,8 @@ message BacklogResearchRequest {
     "research",
     "explore",
     "investigate",
-    "initialize"
+    "initialize",
+    "workshop"
   ] }];
 
   // Optional research target for research items.

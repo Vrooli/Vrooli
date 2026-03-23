@@ -15,6 +15,34 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
+// createQuestions writes clarify/questions.json for a backlog item.
+func createQuestions(t *testing.T, tmpDir string, kind BacklogKind, name string, questions []clarifyQuestion) {
+	t.Helper()
+	qDir := filepath.Join(tmpDir, backlogKindDirs[kind], name, "clarify")
+	testutil.MakeDir(t, qDir)
+	data, err := json.MarshalIndent(questions, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(qDir, "questions.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// createSuggestions writes suggest/suggestions.json for a backlog item.
+func createSuggestions(t *testing.T, tmpDir string, kind BacklogKind, name string, suggestions []suggestion) {
+	t.Helper()
+	sDir := filepath.Join(tmpDir, backlogKindDirs[kind], name, "suggest")
+	testutil.MakeDir(t, sDir)
+	data, err := json.MarshalIndent(suggestions, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sDir, "suggestions.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // postImportRequest creates an import request with a markdown file and optional apply flag.
 func postImportRequest(t *testing.T, markdown string, apply bool) *http.Request {
 	t.Helper()
@@ -560,43 +588,15 @@ func TestRoundTrip_ExportEditImport(t *testing.T) {
 		Updated:     "2026-02-15T00:00:00Z",
 	})
 
-	createQuestions(t, tmpDir, KindIdea, "my-app", []clarifyQuestion{
-		{
-			ID:         "q1",
-			Question:   "What auth method?",
-			Category:   "technical",
-			Importance: "critical",
-			Options:    []string{"OAuth 2.0", "JWT tokens", "Session-based"},
-			Answer:     "",
-			Notes:      "",
-		},
-		{
-			ID:         "q2",
-			Question:   "Target platform?",
-			Category:   "platform",
-			Importance: "important",
-			Options:    []string{"Web", "Mobile", "Both"},
-			Answer:     "",
-			Notes:      "",
-		},
-	})
-
-	createSuggestions(t, tmpDir, KindIdea, "my-app", []suggestion{
-		{
-			ID:        "s1",
-			Title:     "Use WebSocket",
-			Impact:    "high",
-			Category:  "architecture",
-			Rationale: "Reduces latency by 10x",
-			Accepted:  false,
-		},
-		{
-			ID:        "s2",
-			Title:     "Add caching",
-			Impact:    "medium",
-			Category:  "ux",
-			Rationale: "Improves mobile experience",
-			Accepted:  false,
+	createWorkshopRound(t, tmpDir, KindIdea, "my-app", WorkshopRound{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
+		Items: []WorkshopItem{
+			{ID: "w1", Type: "decision", Topic: "What auth method?", Options: []WorkshopOption{{Key: "A", Label: "OAuth 2.0", Rationale: "Industry standard"}, {Key: "B", Label: "JWT tokens", Rationale: "Stateless auth"}, {Key: "C", Label: "Session-based", Rationale: "Traditional approach"}}},
+			{ID: "w2", Type: "decision", Topic: "Target platform?", Options: []WorkshopOption{{Key: "A", Label: "Web", Rationale: "Broad reach"}, {Key: "B", Label: "Mobile", Rationale: "On the go"}, {Key: "C", Label: "Both", Rationale: "Maximum coverage"}}},
+			{ID: "w3", Type: "decision", Topic: "Use WebSocket", Context: "Reduces latency by 10x", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Real-time benefits"}, {Key: "B", Label: "No", Rationale: "Added complexity"}}},
+			{ID: "w4", Type: "decision", Topic: "Add caching", Context: "Improves mobile experience", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Performance boost"}, {Key: "B", Label: "No", Rationale: "Simplicity"}}},
 		},
 	})
 
@@ -629,12 +629,6 @@ func TestRoundTrip_ExportEditImport(t *testing.T) {
 	// Step 3: Edit the markdown.
 	edited := exported
 
-	// Answer Q1 with JWT tokens.
-	edited = strings.Replace(edited, "- [ ] JWT tokens", "- [x] JWT tokens", 1)
-	// Answer Q2 with Both.
-	edited = strings.Replace(edited, "- [ ] Both", "- [x] Both", 1)
-	// Accept S1 (WebSocket) — find the first unchecked "Accept this suggestion" which belongs to S1.
-	edited = strings.Replace(edited, "- [ ] Accept this suggestion", "- [x] Accept this suggestion", 1)
 	// Update my-app description.
 	edited = strings.Replace(edited, "Build a great app", "Build a great app with real-time features and offline support", 1)
 	// Update bug-fix priority from 1 to 2.
@@ -714,40 +708,6 @@ Add offline-first capabilities using service workers.
 	}
 	if bugFix.Priority != 2 {
 		t.Errorf("expected priority 2 for bug-fix, got %d", bugFix.Priority)
-	}
-
-	// Verify clarify answers were applied.
-	qPath := filepath.Join(tmpDir, "ideas", "my-app", "clarify", "questions.json")
-	qData, err := os.ReadFile(qPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var questions []clarifyQuestion
-	if err := json.Unmarshal(qData, &questions); err != nil {
-		t.Fatal(err)
-	}
-	if questions[0].Answer != "JWT tokens" {
-		t.Errorf("expected Q1 answer 'JWT tokens', got %q", questions[0].Answer)
-	}
-	if questions[1].Answer != "Both" {
-		t.Errorf("expected Q2 answer 'Both', got %q", questions[1].Answer)
-	}
-
-	// Verify suggestion S1 was accepted.
-	sPath := filepath.Join(tmpDir, "ideas", "my-app", "suggest", "suggestions.json")
-	sData, err := os.ReadFile(sPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var suggestions []suggestion
-	if err := json.Unmarshal(sData, &suggestions); err != nil {
-		t.Fatal(err)
-	}
-	if !suggestions[0].Accepted {
-		t.Error("expected S1 to be accepted")
-	}
-	if suggestions[1].Accepted {
-		t.Error("expected S2 to remain not accepted")
 	}
 
 	// Verify new item was created.

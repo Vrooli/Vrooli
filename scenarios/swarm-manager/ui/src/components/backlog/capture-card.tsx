@@ -1,18 +1,22 @@
 /**
  * Capture Card
  *
- * Displays a raw capture in the unified action feed with classification status.
+ * Compact inline display for a raw capture with classification triage.
+ *
+ * Design: Slim rows instead of full cards. Suggested items show as a single
+ * line (kind badge + title) with icon-only action buttons. Detail (description,
+ * tags) is hidden by default and revealed on expand.
  *
  * States:
- * 1. Classifying: spinner + original text
- * 2. Classified: original text + list of suggested items with accept/edit/dismiss
- * 3. Failed: error state with retry button
+ * 1. Classifying: spinner + original text on one line
+ * 2. Classified: original text + compact suggested items with accept/edit/dismiss
+ * 3. Classified (no-op): single line with auto-fade dismiss
+ * 4. Failed: error with retry
  */
 
 import { useState } from "react";
-import { Check, CheckCheck, Loader2, Pencil, RefreshCw, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronUp, Loader2, Pencil, RefreshCw, X } from "lucide-react";
 import { Button } from "../ui/button";
-import { Card } from "../ui/card";
 import { TagList } from "../ui/tag-list";
 import { backlogService } from "../../services/backlog-service";
 import { captureService } from "../../services/capture-service";
@@ -29,6 +33,105 @@ interface CaptureCardProps {
   onEditItem?: (prefill: BacklogFormValues) => void;
 }
 
+function toSlug(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function SuggestionRow({
+  item,
+  index,
+  isAccepting,
+  onAccept,
+  onEdit,
+  onDismiss,
+}: {
+  item: CaptureClassificationItem;
+  index: number;
+  isAccepting: boolean;
+  onAccept: () => void;
+  onEdit?: () => void;
+  onDismiss: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasDetail = !!(item.description || item.tags.length > 0);
+
+  return (
+    <div className="group/row">
+      <div className="flex flex-wrap items-start gap-x-2 gap-y-1 py-1">
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="shrink-0 rounded bg-slate-700/80 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
+            {BACKLOG_KIND_LABELS[item.kind] ?? item.kind}
+          </span>
+          <span className="text-sm text-slate-200">{item.title}</span>
+          <span className="shrink-0 text-[11px] text-slate-500">P{item.priority}</span>
+          {item.confidence >= 0.8 && (
+            <span className="shrink-0 text-[11px] text-emerald-500">{Math.round(item.confidence * 100)}%</span>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5">
+          {hasDetail && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setExpanded(!expanded)}
+              className="opacity-60 hover:opacity-100"
+              aria-label={expanded ? "Collapse details" : "Expand details"}
+            >
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onAccept}
+            disabled={isAccepting}
+            title="Accept"
+            data-testid={selectors.captures.itemAcceptButton}
+          >
+            {isAccepting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5 text-emerald-400" />
+            )}
+          </Button>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onEdit}
+              title="Edit before adding"
+              data-testid={selectors.captures.itemEditButton}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDismiss}
+            title="Dismiss"
+            data-testid={selectors.captures.itemDismissButton}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="ml-6 pb-1.5">
+          {item.description && (
+            <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
+          )}
+          {item.tags.length > 0 && (
+            <TagList tags={item.tags} maxTags={4} className="mt-1" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
   const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
   const [acceptedIndices, setAcceptedIndices] = useState<Set<number>>(new Set());
@@ -40,12 +143,13 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
 
   const items = capture.classification?.items ?? [];
   const allResolved = items.length > 0 && items.every((_, i) => acceptedIndices.has(i) || dismissedIndices.has(i));
+  const unresolvedCount = items.filter((_, i) => !acceptedIndices.has(i) && !dismissedIndices.has(i)).length;
 
   const handleAcceptItem = async (item: CaptureClassificationItem, index: number) => {
     setAcceptingIndex(index);
     try {
       const created = await backlogService.create({
-        name: item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        name: toSlug(item.title),
         title: item.title,
         description: item.description,
         kind: item.kind,
@@ -54,11 +158,20 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
         tags: item.tags,
       });
       upsertBacklogItem(created);
+
+      // Auto-initialize newly accepted backlog items with a plan scaffold and first
+      // workshop round. This ensures items don't sit empty waiting for manual
+      // initialization. Fire-and-forget: don't block the accept flow on this.
+      // TODO: Make configurable via settings (autoInitializeOnCapture) once the
+      // settings schema supports boolean flags beyond theme.
+      backlogService.research(item.kind, created.name, { mode: "initialize" }).catch((err) => {
+        console.error("[capture-card] auto-initialize failed for %s/%s:", item.kind, created.name, err);
+      });
+
       const next = new Set(acceptedIndices);
       next.add(index);
       setAcceptedIndices(next);
 
-      // Auto-delete capture when all items resolved.
       if (items.every((_, i) => next.has(i) || dismissedIndices.has(i))) {
         await captureService.remove(capture.id);
         removeCapture(capture.id);
@@ -73,7 +186,7 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
   const handleAcceptAll = async () => {
     for (let i = 0; i < items.length; i++) {
       if (!acceptedIndices.has(i) && !dismissedIndices.has(i)) {
-        await handleAcceptItem(items[i], i);
+        await handleAcceptItem(items[i]!, i);
       }
     }
   };
@@ -83,7 +196,6 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
     next.add(index);
     setDismissedIndices(next);
 
-    // Auto-delete capture when all items resolved.
     if (items.every((_, i) => acceptedIndices.has(i) || next.has(i))) {
       captureService.remove(capture.id).then(() => removeCapture(capture.id));
     }
@@ -112,7 +224,7 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
       next.add(index);
       setDismissedIndices(next);
       onEditItem({
-        name: item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        name: toSlug(item.title),
         title: item.title,
         description: item.description,
         kind: item.kind,
@@ -123,157 +235,107 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
     }
   };
 
-  const borderColor =
+  const accentColor =
     capture.status === "classified" && items.length > 0 ? "border-l-emerald-500" :
-    capture.status === "classified" && items.length === 0 ? "border-l-slate-500" :
     capture.status === "failed" ? "border-l-red-500" :
-    "border-l-cyan-500";
+    capture.status === "classifying" ? "border-l-cyan-500" :
+    "border-l-slate-600";
 
   return (
-    <Card
-      className={`border-l-4 ${borderColor} relative`}
+    <div
+      className={`relative border-l-2 ${accentColor} rounded-r-lg bg-slate-800/40 px-3 py-2`}
       data-testid={selectors.captures.card}
     >
-      <div className="p-4">
-        {/* Original text */}
-        <p className="mb-2 text-sm text-slate-300 line-clamp-3">{capture.text}</p>
-        <p className="mb-3 text-xs text-slate-600">{formatRelativeTime(capture.created)}</p>
-
-        {/* Classifying state */}
-        {capture.status === "classifying" && (
-          <div className="flex items-center gap-2 text-xs text-cyan-400">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Classifying...
-          </div>
-        )}
-
-        {/* Failed state */}
-        {capture.status === "failed" && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-red-400">Classification failed</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetry}
-              disabled={isRetrying}
-              data-testid={selectors.captures.retryButton}
-            >
-              <RefreshCw className={`mr-1 h-3 w-3 ${isRetrying ? "animate-spin" : ""}`} />
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {/* Classified but nothing actionable (no-op) */}
-        {capture.status === "classified" && items.length === 0 && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">Nothing actionable detected</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismissCapture}
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
-
-        {/* Classified state — show suggested items */}
-        {capture.status === "classified" && items.length > 0 && !allResolved && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400">
-                {items.length} item{items.length !== 1 ? "s" : ""} suggested
-              </span>
-              {items.length > 1 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAcceptAll}
-                  data-testid={selectors.captures.acceptAllButton}
-                >
-                  <CheckCheck className="mr-1 h-3 w-3" />
-                  Accept All
-                </Button>
-              )}
-            </div>
-
-            {items.map((item, index) => {
-              if (acceptedIndices.has(index) || dismissedIndices.has(index)) return null;
-              return (
-                <div
-                  key={index}
-                  className="rounded-lg border border-slate-700 bg-slate-800/50 p-3"
-                >
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="rounded bg-slate-700 px-1.5 py-0.5 text-xs font-medium text-slate-300">
-                      {BACKLOG_KIND_LABELS[item.kind] ?? item.kind}
-                    </span>
-                    <span className="text-xs text-slate-500">P{item.priority}</span>
-                    {item.confidence >= 0.8 && (
-                      <span className="text-xs text-emerald-500">{Math.round(item.confidence * 100)}%</span>
-                    )}
-                  </div>
-                  <h4 className="mb-1 text-sm font-medium text-slate-200">{item.title}</h4>
-                  {item.description && (
-                    <p className="mb-2 text-xs text-slate-400 line-clamp-2">{item.description}</p>
-                  )}
-                  {item.tags.length > 0 && (
-                    <div className="mb-2">
-                      <TagList tags={item.tags} maxTags={3} />
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAcceptItem(item, index)}
-                      disabled={acceptingIndex === index}
-                      data-testid={selectors.captures.itemAcceptButton}
-                    >
-                      {acceptingIndex === index ? (
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      ) : (
-                        <Check className="mr-1 h-3 w-3" />
-                      )}
-                      Accept
-                    </Button>
-                    {onEditItem && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditItem(item, index)}
-                        data-testid={selectors.captures.itemEditButton}
-                      >
-                        <Pencil className="mr-1 h-3 w-3" />
-                        Edit
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDismissItem(index)}
-                      data-testid={selectors.captures.itemDismissButton}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Dismiss button (top-right) */}
+      {/* Header: original text + timestamp + dismiss */}
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-slate-300">{capture.text}</p>
+        </div>
+        <span className="shrink-0 pt-0.5 text-[11px] text-slate-600">{formatRelativeTime(capture.created)}</span>
         <button
           onClick={handleDismissCapture}
-          className="absolute right-2 top-2 rounded p-1 text-slate-600 transition-colors hover:bg-slate-700 hover:text-slate-400"
+          className="shrink-0 rounded p-0.5 text-slate-600 transition-colors hover:bg-slate-700 hover:text-slate-400"
           title="Dismiss capture"
           data-testid={selectors.captures.dismissButton}
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
-    </Card>
+
+      {/* Classifying */}
+      {capture.status === "classifying" && (
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-cyan-400">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Classifying...
+        </div>
+      )}
+
+      {/* Failed */}
+      {capture.status === "failed" && (
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-xs text-red-400">Classification failed</span>
+          <button
+            onClick={handleRetry}
+            disabled={isRetrying}
+            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
+            data-testid={selectors.captures.retryButton}
+          >
+            <RefreshCw className={`h-3 w-3 ${isRetrying ? "animate-spin" : ""}`} />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* No-op: nothing actionable */}
+      {capture.status === "classified" && items.length === 0 && (
+        <div className="mt-1 flex items-center justify-between">
+          <span className="text-xs text-slate-500 italic">Nothing actionable detected</span>
+          <button
+            onClick={handleDismissCapture}
+            className="text-xs text-slate-500 hover:text-slate-300"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Suggestions */}
+      {capture.status === "classified" && items.length > 0 && !allResolved && (
+        <div className="mt-1.5">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[11px] text-slate-500">
+              {unresolvedCount} suggestion{unresolvedCount !== 1 ? "s" : ""}
+            </span>
+            {unresolvedCount > 1 && (
+              <button
+                onClick={handleAcceptAll}
+                className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300"
+                data-testid={selectors.captures.acceptAllButton}
+              >
+                <CheckCheck className="h-3 w-3" />
+                Accept all
+              </button>
+            )}
+          </div>
+
+          <div className="divide-y divide-slate-700/40">
+            {items.map((item, index) => {
+              if (acceptedIndices.has(index) || dismissedIndices.has(index)) return null;
+              return (
+                <SuggestionRow
+                  key={index}
+                  item={item}
+                  index={index}
+                  isAccepting={acceptingIndex === index}
+                  onAccept={() => handleAcceptItem(item, index)}
+                  onEdit={onEditItem ? () => handleEditItem(item, index) : undefined}
+                  onDismiss={() => handleDismissItem(index)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

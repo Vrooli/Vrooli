@@ -1,111 +1,96 @@
 /**
- * Maturity computation for idea backlog items.
+ * Readiness computation for backlog items.
  *
- * Computes a 3-phase maturity indicator (Clarify → Suggest → Enhance)
- * from either a MaturityItemSummary (API response) or locally parsed data.
+ * Computes a 5-dimension readiness indicator from MaturityItemSummary data.
+ * Replaces the old 3-phase maturity model (clarify/suggest/enhance).
+ *
+ * DOC: docs/concepts/ARCHITECTURE.md#workshop-refinement
  */
 
-export type MaturityPhase = "clarify" | "suggest" | "enhance";
-export type PhaseState = "empty" | "in-progress" | "complete";
+import type { MaturityItemSummary, ReadinessDimension } from "../types/domain";
 
-export interface MaturityIndicatorData {
-  phases: Record<MaturityPhase, PhaseState>;
-  enhanceRound: number;
-  needsResynthesis: number;
+export const READINESS_DIMENSIONS: ReadinessDimension[] = [
+  "problem_clarity",
+  "scope_defined",
+  "approach_solid",
+  "testable",
+  "risk_awareness",
+];
+
+export const DIMENSION_LABELS: Record<ReadinessDimension, string> = {
+  problem_clarity: "Problem Clarity",
+  scope_defined: "Scope",
+  approach_solid: "Approach",
+  testable: "Testability",
+  risk_awareness: "Risk Awareness",
+};
+
+export const DIMENSION_SHORT_LABELS: Record<ReadinessDimension, string> = {
+  problem_clarity: "P",
+  scope_defined: "S",
+  approach_solid: "A",
+  testable: "T",
+  risk_awareness: "R",
+};
+
+export const SCORE_COLORS: Record<number, string> = {
+  0: "slate",
+  1: "rose",
+  2: "amber",
+  3: "emerald",
+};
+
+export interface ReadinessIndicatorData {
+  rawScores: Record<ReadinessDimension, number>;
+  effectiveScores: Record<ReadinessDimension, number>;
+  roundsCompleted: number;
+  ready: boolean;
+  pendingItems: number;
+  hasPlan: boolean;
   nextNudge: string | null;
 }
 
-export interface MaturityInput {
-  clarifyCount: number;
-  suggestCount: number;
-  enhanceCount: number;
-  questionsTotal: number;
-  questionsAnswered: number;
-  suggestionsTotal: number;
-  suggestionsDecided: number;
-  questionsNewOrUpdated: number;
-  suggestionsNewOrUpdated: number;
-  hasEnhanceSummary: boolean;
-}
-
-export function computeMaturity(input: MaturityInput): MaturityIndicatorData {
-  const { questionsTotal, questionsAnswered, suggestionsTotal, suggestionsDecided } = input;
-  const totalNewOrUpdated = input.questionsNewOrUpdated + input.suggestionsNewOrUpdated;
-
-  // Clarify phase
-  let clarify: PhaseState = "empty";
-  if (questionsTotal > 0) {
-    clarify = questionsAnswered >= questionsTotal ? "complete" : "in-progress";
-  }
-
-  // Suggest phase
-  let suggest: PhaseState = "empty";
-  if (suggestionsTotal > 0) {
-    suggest = suggestionsDecided >= suggestionsTotal ? "complete" : "in-progress";
-  }
-
-  // Enhance phase
-  let enhance: PhaseState = "empty";
-  if (input.hasEnhanceSummary) {
-    enhance = totalNewOrUpdated > 0 ? "in-progress" : "complete";
-  }
-
-  // Next nudge
-  let nextNudge: string | null = null;
-  if (clarify === "empty" && suggest === "empty" && enhance === "empty") {
-    nextNudge = "Run Clarify to start refining this idea";
-  } else if (clarify === "in-progress") {
-    const remaining = questionsTotal - questionsAnswered;
-    nextNudge = `Answer ${remaining} remaining question${remaining === 1 ? "" : "s"}`;
-  } else if (suggest === "in-progress") {
-    const remaining = suggestionsTotal - suggestionsDecided;
-    nextNudge = `Decide on ${remaining} pending suggestion${remaining === 1 ? "" : "s"}`;
-  } else if (enhance === "empty" && (clarify === "complete" || suggest === "complete")) {
-    nextNudge = "Run Enhance to synthesize into a refined plan";
-  } else if (enhance === "in-progress") {
-    nextNudge = `Run Enhance to incorporate ${totalNewOrUpdated} change${totalNewOrUpdated === 1 ? "" : "s"}`;
-  } else if (clarify === "complete" && suggest === "empty" && enhance === "complete") {
-    nextNudge = "Run Suggest to get improvement ideas, or queue if ready";
-  }
-
+export function buildReadinessData(summary: MaturityItemSummary): ReadinessIndicatorData {
   return {
-    phases: { clarify, suggest, enhance },
-    enhanceRound: input.enhanceCount,
-    needsResynthesis: totalNewOrUpdated,
-    nextNudge,
+    rawScores: summary.raw_scores,
+    effectiveScores: summary.effective_scores,
+    roundsCompleted: summary.rounds_completed,
+    ready: summary.ready,
+    pendingItems: summary.pending_items,
+    hasPlan: summary.has_plan,
+    nextNudge: computeNextNudge({
+      rawScores: summary.raw_scores,
+      effectiveScores: summary.effective_scores,
+      roundsCompleted: summary.rounds_completed,
+      ready: summary.ready,
+      pendingItems: summary.pending_items,
+      hasPlan: summary.has_plan,
+      nextNudge: null,
+    }),
   };
 }
 
-/**
- * Build a MaturityInput from locally parsed data on the details page,
- * avoiding an extra API call.
- */
-export function buildMaturityInputFromLocal(opts: {
-  clarifyRaw: Record<string, unknown> | null;
-  questionsCount: number;
-  questionsAnsweredCount: number;
-  questionsNewOrUpdated: number;
-  suggestionsRaw: Record<string, unknown> | null;
-  suggestionsCount: number;
-  suggestionsDecidedCount: number;
-  suggestionsNewOrUpdated: number;
-  hasEnhanceSummary: boolean;
-}): MaturityInput {
-  const clarifyCount = typeof opts.clarifyRaw?.clarifyCount === "number" ? opts.clarifyRaw.clarifyCount : 0;
-  const suggestCount = typeof opts.suggestionsRaw?.suggestCount === "number" ? opts.suggestionsRaw.suggestCount : 0;
-  const enhanceCountQ = typeof opts.clarifyRaw?.enhanceCount === "number" ? opts.clarifyRaw.enhanceCount : 0;
-  const enhanceCountS = typeof opts.suggestionsRaw?.enhanceCount === "number" ? opts.suggestionsRaw.enhanceCount : 0;
+export function computeNextNudge(data: ReadinessIndicatorData): string | null {
+  if (data.roundsCompleted === 0) {
+    return "Run Workshop to start refining this item";
+  }
 
-  return {
-    clarifyCount,
-    suggestCount,
-    enhanceCount: Math.max(enhanceCountQ, enhanceCountS),
-    questionsTotal: opts.questionsCount,
-    questionsAnswered: opts.questionsAnsweredCount,
-    suggestionsTotal: opts.suggestionsCount,
-    suggestionsDecided: opts.suggestionsDecidedCount,
-    questionsNewOrUpdated: opts.questionsNewOrUpdated,
-    suggestionsNewOrUpdated: opts.suggestionsNewOrUpdated,
-    hasEnhanceSummary: opts.hasEnhanceSummary,
-  };
+  if (data.pendingItems > 0) {
+    return `Respond to ${data.pendingItems} pending item${data.pendingItems === 1 ? "" : "s"} from the latest workshop round`;
+  }
+
+  if (data.ready) {
+    return "Ready for execution — review the plan and queue when satisfied";
+  }
+
+  // Find the weakest dimension
+  const weakDims = READINESS_DIMENSIONS.filter(
+    (dim) => data.effectiveScores[dim] < 3,
+  );
+  if (weakDims.length > 0) {
+    const labels = weakDims.map((d) => DIMENSION_LABELS[d]).join(", ");
+    return `Run another Workshop round to strengthen: ${labels}`;
+  }
+
+  return null;
 }

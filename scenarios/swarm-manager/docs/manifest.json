@@ -42,9 +42,9 @@
       "icon": "compass",
       "documents": [
         {
-          "path": "guides/idea-agent-workflow.md",
-          "title": "Idea Agent Workflow",
-          "description": "3-phase AI refinement pipeline: clarify, suggest, enhance",
+          "path": "guides/workshop-workflow.md",
+          "title": "Workshop Refinement Workflow",
+          "description": "Universal iterative workshop loop with readiness scoring for all backlog kinds",
           "audience": ["developers", "operators"]
         },
         {

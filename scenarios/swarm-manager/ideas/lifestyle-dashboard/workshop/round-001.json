@@ -1,0 +1,154 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-09T19:00:00Z",
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "q1",
+      "type": "decision",
+      "topic": "Which wearable device(s) are you planning to use for passive data collection (sleep, HRV, activity)?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Oura Ring",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Whoop",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Apple Watch",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Garmin",
+          "rationale": ""
+        },
+        {
+          "key": "E",
+          "label": "None yet - decide later",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "None yet. But should be written with dependency injection to ensure  that device support can be added easily. Also should be able to manually enter data",
+      "notes": null
+    },
+    {
+      "id": "q2",
+      "type": "decision",
+      "topic": "Should the dashboard support mobile-first interactions (PWA/responsive) or is desktop-primary acceptable for P0?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Mobile-first PWA",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Desktop-primary with responsive",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Desktop-only for P0",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Both (responsive) but mobile is most important",
+      "notes": null
+    },
+    {
+      "id": "q3",
+      "type": "decision",
+      "topic": "What's the preferred event retention policy - keep all historical data indefinitely or implement retention windows?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep all data indefinitely",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Rolling 2-year window",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Configurable per-domain retention",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Keep all data indefinitely (personal server, storage is cheap, historical trends are valuable). Also a way to manage data from the UI settings (like viewing the size and large files, cleaning all or selected data, etc. - the typical storage management type of things)",
+      "notes": null
+    },
+    {
+      "id": "q4",
+      "type": "decision",
+      "topic": "Should the correlation engine require a minimum sample size before surfacing insights (to avoid spurious correlations)?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Yes, require 30+ data points",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Yes, require 14+ data points",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "No minimum, show with confidence warnings",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Configurable threshold",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Yes - configurable threshold (from PRD OT-P1-1: \"Configurable minimum data threshold before generating correlations\")",
+      "notes": null
+    },
+    {
+      "id": "q5",
+      "type": "decision",
+      "topic": "Which domain scenario should be built first alongside the dashboard to validate the integration contract?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Nootropics Tracker",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Sleep Tracker",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Diet \u0026 Nutrition",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Nootropics Tracker (from VISION.md: \"lowest friction, immediate value, tight feedback loop\", doesn't require hardware purchase)",
+      "notes": null
+    }
+  ],
+  "plan_updates": "Migrated from clarify/suggest workflow"
+}

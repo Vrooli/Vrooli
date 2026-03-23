@@ -19,13 +19,15 @@ var (
 )
 
 type App struct {
-	core *cliapp.ScenarioApp
+	core       *cliapp.ScenarioApp
+	globalDry  bool // set by preflight from --dry-run global flag
 }
 
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
 		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 	})
+	app := &App{}
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
 		Version:           appVersion,
@@ -41,12 +43,16 @@ func NewApp() (*App, error) {
 		BuildTimestamp:    buildTimestamp,
 		BuildSourceRoot:   buildSourceRoot,
 		AllowAnonymous:    true,
+		Preflight: func(_ cliapp.Command, global cliapp.GlobalOptions, _ *cliapp.ScenarioApp) error {
+			app.globalDry = global.DryRun
+			return nil
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	app := &App{core: core}
+	app.core = core
 	app.core.SetCommandsWithSubgroups(app.registerCommands(), app.registerSubcommandGroups())
 	return app, nil
 }
@@ -70,7 +76,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, config}
+	migration := cliapp.CommandGroup{
+		Title: "Migration",
+		Commands: []cliapp.Command{
+			{Name: "migrate-workshop", Description: "Migrate backlog items from clarify/suggest/enhance to workshop/plan.md [--dry-run] [--root PATH]", Run: a.cmdMigrateWorkshop},
+		},
+	}
+
+	return []cliapp.CommandGroup{health, config, migration}
 }
 
 func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {

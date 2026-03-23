@@ -48,21 +48,24 @@ export {
 } from "./error-utils";
 export type { ErrorCategory, ErrorLogEntry } from "./error-utils";
 
-// Idea agent file utilities
+// Workshop file utilities
 export {
-  IDEA_AGENT_FILE_PATHS,
-  parseClarifyQuestionsFile,
-  parseClarifyQuestionsObject,
-  buildClarifyQuestionsContent,
-  parseSuggestionsFile,
-  parseSuggestionsObject,
-  buildSuggestionsContent,
+  WORKSHOP_FILE_PATHS,
+  parseWorkshopRound,
+  buildWorkshopRoundContent,
+  getPendingDecisionCount,
   findBacklogFileByPath,
-} from "./idea-agent-files";
+} from "./workshop-files";
 
-// Maturity computation
-export { computeMaturity, buildMaturityInputFromLocal } from "./maturity";
-export type { MaturityPhase, PhaseState, MaturityIndicatorData, MaturityInput } from "./maturity";
+// Readiness computation
+export {
+  READINESS_DIMENSIONS,
+  DIMENSION_LABELS,
+  SCORE_COLORS,
+  buildReadinessData,
+  computeNextNudge,
+} from "./maturity";
+export type { ReadinessIndicatorData } from "./maturity";
 
 // Execution Utilities
 export {

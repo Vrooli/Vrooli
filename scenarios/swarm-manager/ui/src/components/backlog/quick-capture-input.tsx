@@ -24,7 +24,12 @@ const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
 const DRAFT_KEY = "swarm-capture-draft";
 const DRAFT_DEBOUNCE_MS = 300;
 
-export function QuickCaptureInput() {
+interface QuickCaptureInputProps {
+  /** Called when the user taps the form icon to create manually. Receives current draft text. */
+  onOpenForm?: (draftText: string) => void;
+}
+
+export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
   const [text, setText] = useState(() => {
     try {
       return localStorage.getItem(DRAFT_KEY) ?? "";
@@ -123,7 +128,18 @@ export function QuickCaptureInput() {
       <CaptureAttachmentPreview attachments={attachments} onRemove={removeFile} />
 
       <div className="flex items-end gap-2 rounded-xl border border-slate-700 bg-slate-800/50 p-3 transition-colors focus-within:border-cyan-500/50 focus-within:bg-slate-800">
-        <MessageSquarePlus className="mb-0.5 h-5 w-5 shrink-0 text-slate-500" />
+        <button
+          type="button"
+          onClick={() => {
+            onOpenForm?.(text.trim());
+            setText("");
+            try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+          }}
+          className="mb-0.5 shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-300"
+          title="Create manually"
+        >
+          <MessageSquarePlus className="h-5 w-5" />
+        </button>
 
         <textarea
           ref={inputRef}

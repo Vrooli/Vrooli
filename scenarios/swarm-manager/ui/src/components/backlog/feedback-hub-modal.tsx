@@ -11,27 +11,16 @@ import {
   Upload,
   ChevronDown,
   ChevronRight,
-  MessageSquareText,
-  Sparkles,
   Info,
 } from "lucide-react";
 import { renderMarkdown } from "../../lib/render-markdown";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { Select } from "../ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
-import { ClarifyQuestionList } from "./clarify-question-list";
 import { selectors } from "../../consts/selectors";
 import { backlogService } from "../../services";
 import type { ImportBacklogResponse } from "../../services/backlog-service";
-import {
-  IDEA_AGENT_FILE_PATHS,
-  parseClarifyQuestionsObject,
-  buildClarifyQuestionsContent,
-  parseSuggestionsObject,
-  buildSuggestionsContent,
-} from "../../lib";
 import {
   BACKLOG_KINDS,
   BACKLOG_KIND_LABELS,
@@ -43,9 +32,6 @@ import type {
   BacklogStatus,
   FeedbackSummaryResponse,
   FeedbackItemSummary,
-  IdeaClarificationQuestion,
-  IdeaSuggestion,
-  IdeaSuggestionDecision,
 } from "../../types";
 
 type TabKind = BacklogKind | "all";
@@ -61,105 +47,23 @@ interface FeedbackHubModalProps {
   initialTab?: "review" | "export" | "import";
 }
 
-const DECISION_OPTIONS: Array<{ value: IdeaSuggestionDecision; label: string }> = [
-  { value: "accepted", label: "Accept" },
-  { value: "rejected", label: "Reject" },
-  { value: "pending", label: "Pending" },
-];
-
 // ---------------------------------------------------------------------------
-// Review Tab - Expandable item sections with inline question/suggestion editing
+// Review Tab - Expandable item sections showing pending workshop proposals
 // ---------------------------------------------------------------------------
-
-interface ReviewItemState {
-  questions: IdeaClarificationQuestion[];
-  questionsRaw: Record<string, unknown> | null;
-  suggestions: IdeaSuggestion[];
-  suggestionsRaw: Record<string, unknown> | null;
-  saved: boolean;
-  questionsDirty: boolean;
-  suggestionsDirty: boolean;
-}
 
 function ReviewItemSection({
   item,
-  onSaved,
 }: {
   item: FeedbackItemSummary;
   onSaved: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
-  const parsed = useMemo(() => {
-    const cResult = parseClarifyQuestionsObject(item.questions_content);
-    const sResult = parseSuggestionsObject(item.suggestions_content);
-    return { cResult, sResult };
-  }, [item.questions_content, item.suggestions_content]);
-
-  const [local, setLocal] = useState<ReviewItemState>(() => ({
-    questions: parsed.cResult.questions,
-    questionsRaw: parsed.cResult.raw,
-    suggestions: parsed.sResult.suggestions,
-    suggestionsRaw: parsed.sResult.raw,
-    saved: false,
-    questionsDirty: false,
-    suggestionsDirty: false,
-  }));
-
-  useEffect(() => {
-    setLocal({
-      questions: parsed.cResult.questions,
-      questionsRaw: parsed.cResult.raw,
-      suggestions: parsed.sResult.suggestions,
-      suggestionsRaw: parsed.sResult.raw,
-      saved: false,
-      questionsDirty: false,
-      suggestionsDirty: false,
-    });
-  }, [parsed]);
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const promises: Promise<unknown>[] = [];
-      if (local.questionsDirty && local.questions.length > 0) {
-        promises.push(
-          backlogService.saveFileContent(
-            item.kind,
-            item.name,
-            IDEA_AGENT_FILE_PATHS.clarify,
-            buildClarifyQuestionsContent(local.questionsRaw, local.questions),
-            "application/json",
-          ),
-        );
-      }
-      if (local.suggestionsDirty && local.suggestions.length > 0) {
-        promises.push(
-          backlogService.saveFileContent(
-            item.kind,
-            item.name,
-            IDEA_AGENT_FILE_PATHS.suggest,
-            buildSuggestionsContent(local.suggestionsRaw, local.suggestions),
-            "application/json",
-          ),
-        );
-      }
-      if (promises.length > 0) await Promise.all(promises);
-    },
-    onSuccess: () => {
-      setLocal((prev) =>
-        prev ? { ...prev, saved: true, questionsDirty: false, suggestionsDirty: false } : prev,
-      );
-      onSaved();
-    },
-  });
-
   const counts: string[] = [];
-  if (item.unanswered_questions > 0)
-    counts.push(`${item.unanswered_questions} question${item.unanswered_questions === 1 ? "" : "s"}`);
-  if (item.pending_suggestions > 0)
-    counts.push(`${item.pending_suggestions} suggestion${item.pending_suggestions === 1 ? "" : "s"}`);
+  if (item.pending_decisions > 0)
+    counts.push(`${item.pending_decisions} decision${item.pending_decisions === 1 ? "" : "s"}`);
 
-  const isDirty = local.questionsDirty || local.suggestionsDirty;
+  const totalPending = item.pending_decisions;
 
   return (
     <div className="rounded-lg border border-white/10 bg-slate-800/40">
@@ -184,91 +88,21 @@ function ReviewItemSection({
 
       {expanded && (
         <div className="border-t border-white/5 px-4 py-4 space-y-4">
-              {/* Questions */}
-              {local.questions.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                    <MessageSquareText className="h-4 w-4 text-cyan-400" />
-                    Questions
-                  </div>
-                  <ClarifyQuestionList
-                    questions={local.questions}
-                    onChange={(updated) =>
-                      setLocal((prev) =>
-                        prev ? { ...prev, saved: false, questionsDirty: true, questions: updated } : prev,
-                      )
-                    }
-                    testIdPrefix={`feedback-${item.kind}-${item.name}`}
-                  />
-                </div>
-              )}
-
-              {/* Suggestions */}
-              {local.suggestions.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
-                    <Sparkles className="h-4 w-4 text-cyan-400" />
-                    Suggestions
-                  </div>
-                  {local.suggestions.map((s, idx) => (
-                    <div key={s.id} className="rounded-lg border border-white/10 bg-slate-900/40 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-slate-100">Suggestion {idx + 1}</p>
-                        <Select
-                          value={s.status ?? "pending"}
-                          onChange={(e) => {
-                            const status = e.target.value as IdeaSuggestionDecision;
-                            setLocal((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    saved: false,
-                                    suggestionsDirty: true,
-                                    suggestions: prev.suggestions.map((item) =>
-                                      item.id === s.id ? { ...item, status } : item,
-                                    ),
-                                  }
-                                : prev,
-                            );
-                          }}
-                          variant="compact"
-                        >
-                          {DECISION_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-300">{s.suggestion}</p>
-                      {s.details && <p className="mt-1 text-xs text-slate-400">{s.details}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {saveMutation.isError && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                  {saveMutation.error instanceof Error ? saveMutation.error.message : "Failed to save. Please try again."}
-                </div>
-              )}
-
-              {local.saved && (
-                <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-300">
-                  <Info className="h-4 w-4" />
-                  Answers saved. Visit the item detail page to trigger the next agent step.
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending || !isDirty}
-                >
-                  {saveMutation.isPending ? "Saving..." : "Save"}
-                </Button>
+          {totalPending > 0 ? (
+            <div className="flex items-start gap-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+              <div className="text-sm text-slate-300">
+                <p>
+                  This item has {totalPending} pending workshop item{totalPending === 1 ? "" : "s"} that need{totalPending === 1 ? "s" : ""} your response.
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Visit the item detail page to review and respond to workshop proposals.
+                </p>
               </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">No pending items for this entry.</p>
+          )}
         </div>
       )}
     </div>

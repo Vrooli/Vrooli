@@ -8,8 +8,8 @@
  * when the queue is empty (since it would behave identically to "Run Now").
  */
 
-import { useEffect, useState } from "react";
-import { Play, Clock, ListOrdered, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Play, Clock, ListOrdered, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -17,6 +17,8 @@ import { backlogService, executionService } from "../../services";
 import type { QueueResponse } from "../../services";
 import type { BacklogKind } from "../../types";
 import { selectors } from "../../consts/selectors";
+import type { ReadinessIndicatorData } from "../../lib/maturity";
+import { READINESS_DIMENSIONS, DIMENSION_LABELS } from "../../lib/maturity";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +41,10 @@ export interface RunBacklogModalProps {
   targets?: RunBacklogTarget[];
   /** Called after a successful (non-dry-run) queue */
   onSuccess?: (result: QueueResponse) => void;
+  /** Readiness data for single-item mode */
+  readinessData?: ReadinessIndicatorData | null;
+  /** Readiness data map for bulk mode (keyed by "kind/name") */
+  readinessDataMap?: Map<string, ReadinessIndicatorData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +93,8 @@ export function RunBacklogModal({
   target,
   targets,
   onSuccess,
+  readinessData,
+  readinessDataMap,
 }: RunBacklogModalProps) {
   // State
   const [selectedMode, setSelectedMode] = useState<RunMode>("yolo");
@@ -94,6 +102,7 @@ export function RunBacklogModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blockedResult, setBlockedResult] = useState<QueueResponse | null>(null);
+  const [showReadinessWarning, setShowReadinessWarning] = useState(false);
 
   // Queue depth
   const [pendingCount, setPendingCount] = useState(0);
@@ -112,6 +121,7 @@ export function RunBacklogModal({
     setError(null);
     setBlockedResult(null);
     setIsSubmitting(false);
+    setShowReadinessWarning(false);
 
     let cancelled = false;
     setIsLoadingCounts(true);
@@ -146,11 +156,54 @@ export function RunBacklogModal({
   }, [isLoadingCounts, queueDepth, selectedMode]);
 
   // -------------------------------------------------------------------------
+  // Readiness warnings
+  // -------------------------------------------------------------------------
+
+  /** Collect readiness warnings for items that have a plan but are not fully ready. */
+  const readinessWarnings = useMemo(() => {
+    const warnings: Array<{
+      key: string;
+      title?: string;
+      noWorkshopRounds: boolean;
+      weakDimensions: string[];
+    }> = [];
+
+    for (const t of effectiveTargets) {
+      const key = `${t.kind}/${t.name}`;
+      const data = isBulk
+        ? readinessDataMap?.get(key)
+        : readinessData ?? undefined;
+      if (!data) continue;
+      // Only warn when a plan exists but readiness is incomplete
+      if (!data.hasPlan) continue;
+      if (data.ready) continue;
+
+      const noWorkshopRounds = data.roundsCompleted === 0;
+      const weakDimensions = READINESS_DIMENSIONS
+        .filter((dim) => data.effectiveScores[dim] < 3)
+        .map((dim) => `${DIMENSION_LABELS[dim]} (${data.effectiveScores[dim]}/3)`);
+
+      if (noWorkshopRounds || weakDimensions.length > 0) {
+        warnings.push({ key, title: t.title, noWorkshopRounds, weakDimensions });
+      }
+    }
+    return warnings;
+  }, [effectiveTargets, isBulk, readinessData, readinessDataMap]);
+
+  const needsReadinessConfirmation = readinessWarnings.length > 0;
+
+  // -------------------------------------------------------------------------
   // Submit
   // -------------------------------------------------------------------------
 
   const handleSubmit = async () => {
     if (effectiveTargets.length === 0 || isSubmitting) return;
+
+    // Gate: show readiness warning if needed and not yet acknowledged
+    if (needsReadinessConfirmation && !showReadinessWarning) {
+      setShowReadinessWarning(true);
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -333,6 +386,38 @@ export function RunBacklogModal({
           </div>
         )}
 
+        {/* Readiness warning */}
+        {showReadinessWarning && readinessWarnings.length > 0 && (
+          <div
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+            data-testid={selectors.runBacklog.readinessWarning}
+          >
+            <div className="mb-2 flex items-center gap-2 font-medium">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              Low readiness — proceed with caution
+            </div>
+            {readinessWarnings.map((w) => (
+              <div key={w.key} className="mt-1.5">
+                {isBulk && (
+                  <p className="font-medium text-amber-100">
+                    {w.title ?? w.key}
+                  </p>
+                )}
+                {w.noWorkshopRounds && (
+                  <p>No workshop rounds completed — plan was created manually</p>
+                )}
+                {w.weakDimensions.length > 0 && (
+                  <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                    {w.weakDimensions.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Blocking reasons */}
         {blockedResult && blockedResult.blockingReasons.length > 0 && (
           <div
@@ -345,10 +430,10 @@ export function RunBacklogModal({
                 <li key={i}>{reason}</li>
               ))}
             </ul>
-            {blockedResult.unansweredQuestions > 0 && (
+            {blockedResult.pendingDecisions > 0 && (
               <p className="mt-2 text-xs text-amber-300">
-                {blockedResult.unansweredQuestions} unanswered question
-                {blockedResult.unansweredQuestions === 1 ? "" : "s"}
+                {blockedResult.pendingDecisions} pending decision
+                {blockedResult.pendingDecisions === 1 ? "" : "s"}
               </p>
             )}
           </div>
@@ -368,10 +453,16 @@ export function RunBacklogModal({
         <div className="flex justify-end gap-3 pt-2">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={() => {
+              if (showReadinessWarning) {
+                setShowReadinessWarning(false);
+              } else {
+                onClose();
+              }
+            }}
             disabled={isSubmitting}
           >
-            Cancel
+            {showReadinessWarning ? "Back" : "Cancel"}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -383,6 +474,8 @@ export function RunBacklogModal({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {submitLabel.pending}
               </>
+            ) : showReadinessWarning ? (
+              "Execute Anyway"
             ) : (
               submitLabel.idle
             )}

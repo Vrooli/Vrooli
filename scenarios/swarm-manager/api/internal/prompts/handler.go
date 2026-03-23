@@ -60,30 +60,12 @@ func promptBindings() []PromptBinding {
 	return []PromptBinding{
 		{
 			Area:        "research",
-			Trigger:     "Backlog Research: Idea Clarify",
-			Kind:        "idea",
-			Mode:        "clarify",
-			SkillID:     "swarm-manager-clarify-idea",
-			Purpose:     "Generate clarifying questions before implementation.",
-			OutputPaths: []string{"clarify/questions.json"},
-		},
-		{
-			Area:        "research",
-			Trigger:     "Backlog Research: Idea Suggest",
-			Kind:        "idea",
-			Mode:        "suggest",
-			SkillID:     "swarm-manager-suggest-idea",
-			Purpose:     "Propose improvements and alternatives for an idea.",
-			OutputPaths: []string{"suggest/suggestions.json"},
-		},
-		{
-			Area:        "research",
-			Trigger:     "Backlog Research: Idea Enhance",
-			Kind:        "idea",
-			Mode:        "enhance",
-			SkillID:     "swarm-manager-enhance-idea",
-			Purpose:     "Synthesize answers and accepted suggestions into an implementation-ready plan.",
-			OutputPaths: []string{"enhance/summary.md"},
+			Trigger:     "Backlog Workshop: All Kinds",
+			Kind:        "idea,research,fix,execute,chore",
+			Mode:        "workshop",
+			SkillID:     "swarm-manager-workshop",
+			Purpose:     "Run one workshop round: generate questions, proposals, assess readiness, and update implementation plan.",
+			OutputPaths: []string{"workshop/round-NNN.json", "plan.md"},
 		},
 		{
 			Area:        "research",
@@ -185,9 +167,7 @@ func bindingCountBySkill() map[string]int {
 func requiredVariablesBySkill() map[string][]string {
 	common := []string{"ITEM_TITLE", "ITEM_FOLDER"}
 	return map[string][]string{
-		"swarm-manager-clarify-idea":     common,
-		"swarm-manager-suggest-idea":     common,
-		"swarm-manager-enhance-idea":     common,
+		"swarm-manager-workshop":         common,
 		"swarm-manager-research-idea":    common,
 		"swarm-manager-research-fix":     common,
 		"swarm-manager-research-general": append([]string{}, common...),
@@ -489,12 +469,8 @@ func resolveResearchSkill(mode, kind string) string {
 	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
 	normalizedKind := strings.ToLower(strings.TrimSpace(kind))
 	switch normalizedMode {
-	case "clarify":
-		return "swarm-manager-clarify-idea"
-	case "suggest":
-		return "swarm-manager-suggest-idea"
-	case "enhance":
-		return "swarm-manager-enhance-idea"
+	case "workshop":
+		return "swarm-manager-workshop"
 	default:
 		switch normalizedKind {
 		case "idea":

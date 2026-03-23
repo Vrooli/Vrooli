@@ -34,8 +34,9 @@ import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.cons
 import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { computeMaturity, formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
-import type { MaturityInput } from "../lib";
+import { formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
+import { buildReadinessData } from "../lib/maturity";
+import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
@@ -49,7 +50,7 @@ import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { CaptureCard } from "../components/backlog/capture-card";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
-import { MaturityPhaseBar } from "../components/backlog/maturity-phase-bar";
+import { ReadinessBar } from "../components/backlog/readiness-bar";
 import { PendingDecisionBadge } from "../components/backlog/pending-decision-badge";
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
@@ -209,23 +210,11 @@ export function BacklogPage() {
     queryFn: () => backlogService.getMaturitySummary(),
     staleTime: 60_000,
   });
-  const maturityMap = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof computeMaturity>>();
+  const readinessMap = useMemo(() => {
+    const map = new Map<string, ReadinessIndicatorData>();
     if (!maturityQuery.data?.items) return map;
     for (const item of maturityQuery.data.items) {
-      const input: MaturityInput = {
-        clarifyCount: item.clarify_count,
-        suggestCount: item.suggest_count,
-        enhanceCount: item.enhance_count,
-        questionsTotal: item.questions_total,
-        questionsAnswered: item.questions_answered,
-        suggestionsTotal: item.suggestions_total,
-        suggestionsDecided: item.suggestions_decided,
-        questionsNewOrUpdated: item.questions_new_or_updated,
-        suggestionsNewOrUpdated: item.suggestions_new_or_updated,
-        hasEnhanceSummary: item.has_enhance_summary,
-      };
-      map.set(`${item.kind}/${item.name}`, computeMaturity(input));
+      map.set(`${item.kind}/${item.name}`, buildReadinessData(item));
     }
     return map;
   }, [maturityQuery.data]);
@@ -233,17 +222,16 @@ export function BacklogPage() {
   // Build unified feed for the "All" tab
   const feedItems = useMemo(() => {
     if (activeKind !== "all") return [];
-    const feedbackItems: FeedbackItem[] = (feedbackSummary?.items ?? []).map((item: Record<string, unknown>) => ({
-      kind: item.kind as string,
-      name: item.name as string,
-      unansweredQuestions: (item.unanswered_questions as number) ?? 0,
-      pendingSuggestions: (item.pending_suggestions as number) ?? 0,
+    const feedbackItems: FeedbackItem[] = (feedbackSummary?.items ?? []).map((item) => ({
+      kind: item.kind,
+      name: item.name,
+      pendingDecisions: item.pending_decisions ?? 0,
     }));
-    const maturityItems: MaturityItem[] = (maturityQuery.data?.items ?? []).map((item: Record<string, unknown>) => ({
-      kind: item.kind as string,
-      name: item.name as string,
-      questionsNewOrUpdated: (item.questions_new_or_updated as number) ?? 0,
-      suggestionsNewOrUpdated: (item.suggestions_new_or_updated as number) ?? 0,
+    const maturityItems: MaturityItem[] = (maturityQuery.data?.items ?? []).map((item) => ({
+      kind: item.kind,
+      name: item.name,
+      ready: item.ready ?? false,
+      pendingItems: item.pending_items ?? 0,
     }));
     return buildFeed(captures, items, feedbackItems, maturityItems);
   }, [activeKind, captures, items, feedbackSummary, maturityQuery.data]);
@@ -591,7 +579,16 @@ export function BacklogPage() {
       )}
 
       {/* Quick capture input — only on "All" tab */}
-      {activeKind === "all" && <QuickCaptureInput />}
+      {activeKind === "all" && (
+        <QuickCaptureInput
+          onOpenForm={(draftText) => {
+            if (draftText) {
+              setCreatePrefill({ description: draftText } as BacklogFormValues);
+            }
+            setShowCreate(true);
+          }}
+        />
+      )}
 
       <div className="space-y-4">
         {(status === "loading" || !hasLoaded) && items.length === 0 && (
@@ -657,88 +654,90 @@ export function BacklogPage() {
           </Card>
         )}
 
-        {/* Unified feed rendering for "All" tab */}
+        {/* Capture triage strip — compact rows above the backlog grid */}
+        {activeKind === "all" && captures.length > 0 && (
+          <div className="space-y-1.5">
+            {captures.map((cap) => (
+              <CaptureCard
+                key={cap.id}
+                capture={cap}
+                onEditItem={(prefill: BacklogFormValues) => {
+                  setCreatePrefill(prefill);
+                  setShowCreate(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Unified feed rendering for "All" tab (backlog items only) */}
         {activeKind === "all" && feedItems.length > 0 && !searchTerm && !statusFilter && (
-          <div className="space-y-3">
-            <ResponsiveList data-testid={selectors.backlog.grid}>
-              {feedItems.map((entry) => {
-                if (entry.type === "capture") {
-                  return (
-                    <ResponsiveListItem key={entry.capture.id}>
-                      <CaptureCard
-                        capture={entry.capture}
-                        onEditItem={(prefill: BacklogFormValues) => {
-                          setCreatePrefill(prefill);
-                          setShowCreate(true);
-                        }}
+          <ResponsiveList data-testid={selectors.backlog.grid}>
+            {feedItems.map((entry) => {
+              if (entry.type === "capture") return null;
+              const item = entry.type === "attention" ? entry.item : entry.item;
+              const reasons = entry.type === "attention" ? entry.reasons : [];
+              return (
+                <ResponsiveListItem
+                  as={Link}
+                  key={`${item.kind}-${item.name}`}
+                  to={`/backlog/${item.kind}/${item.name}`}
+                  interactive
+                  className="group block"
+                  data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
                       />
-                    </ResponsiveListItem>
-                  );
-                }
-                const item = entry.type === "attention" ? entry.item : entry.item;
-                const reasons = entry.type === "attention" ? entry.reasons : [];
-                return (
-                  <ResponsiveListItem
-                    as={Link}
-                    key={`${item.kind}-${item.name}`}
-                    to={`/backlog/${item.kind}/${item.name}`}
-                    interactive
-                    className="group block"
-                    data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-                        />
-                        <span className="text-xs uppercase tracking-wider text-slate-400">
-                          {formatBacklogStatus(item.status)}
-                        </span>
-                      </div>
-                      <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                        P{item.priority}
+                      <span className="text-xs uppercase tracking-wider text-slate-400">
+                        {formatBacklogStatus(item.status)}
                       </span>
                     </div>
-                    <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
-                    {reasons.length > 0 && (
-                      <div className="mt-2">
-                        <PendingDecisionBadge reasons={reasons} />
-                      </div>
-                    )}
-                    <TagList
-                      tags={item.tags}
-                      maxTags={displayLimitsConfig.backlogCardMaxTags}
-                      className="mt-3"
-                    />
-                    {(() => {
-                      const mat = item.kind === "idea" ? maturityMap.get(`${item.kind}/${item.name}`) : undefined;
-                      return mat ? <MaturityPhaseBar maturity={mat} className="mt-3" /> : null;
-                    })()}
-                    <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                      <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
-                      <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
+                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                      P{item.priority}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
+                  {reasons.length > 0 && (
+                    <div className="mt-2">
+                      <PendingDecisionBadge reasons={reasons} />
                     </div>
-                    {isBacklogQueueable(item) && (
-                      <div className="mt-3" onClick={(event) => event.preventDefault()}>
-                        <Button
-                          size="sm"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
-                          }}
-                        >
-                          <Play className="mr-1 h-3 w-3" />
-                          Run
-                        </Button>
-                      </div>
-                    )}
-                  </ResponsiveListItem>
-                );
-              })}
-            </ResponsiveList>
-          </div>
+                  )}
+                  <TagList
+                    tags={item.tags}
+                    maxTags={displayLimitsConfig.backlogCardMaxTags}
+                    className="mt-3"
+                  />
+                  {(() => {
+                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
+                    return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
+                  })()}
+                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                    <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
+                    <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
+                  </div>
+                  {isBacklogQueueable(item) && (
+                    <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                      <Button
+                        size="sm"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                        }}
+                      >
+                        <Play className="mr-1 h-3 w-3" />
+                        Run
+                      </Button>
+                    </div>
+                  )}
+                </ResponsiveListItem>
+              );
+            })}
+          </ResponsiveList>
         )}
 
         {/* Standard list rendering (kind tabs or filtered "all" tab) */}
@@ -841,8 +840,8 @@ export function BacklogPage() {
                     className="mt-3"
                   />
                   {(() => {
-                    const mat = item.kind === "idea" ? maturityMap.get(`${item.kind}/${item.name}`) : undefined;
-                    return mat ? <MaturityPhaseBar maturity={mat} className="mt-3" /> : null;
+                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
+                    return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
                   })()}
                   <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
@@ -880,7 +879,7 @@ export function BacklogPage() {
         label={activeTab.ctaLabel}
         onClick={() => setShowCreate(true)}
         disabled={createMutation.isPending}
-        className="md:hidden"
+        className={activeKind === "all" ? "hidden" : "md:hidden"}
       />
 
       <BacklogFormDialog
@@ -906,6 +905,8 @@ export function BacklogPage() {
         }}
         target={runModalTarget ?? undefined}
         targets={runModalTargets ?? undefined}
+        readinessData={runModalTarget ? readinessMap.get(`${runModalTarget.kind}/${runModalTarget.name}`) ?? null : null}
+        readinessDataMap={readinessMap}
         onSuccess={() => {
           void fetchBacklog({ force: true });
           setSelectedKeys([]);

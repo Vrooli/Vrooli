@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, IdeaAgentMode, ModuleFormValues, ResearchResponse } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, ResearchResponse } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -60,7 +60,7 @@ export interface QueueResponse {
   queued: boolean;
   message: string;
   blockingReasons: string[];
-  unansweredQuestions: number;
+  pendingDecisions: number;
   pendingSuggestions: number;
 }
 
@@ -116,7 +116,7 @@ export interface IBacklogService {
       prompt?: string;
       scopePath?: string;
       projectRoot?: string;
-      mode?: IdeaAgentMode;
+      mode?: string;
       targetKind?: BacklogResearchTarget;
       contextPaths?: string[];
       contextTargetIds?: string[];
@@ -336,7 +336,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         queued: parsed.queued ?? false,
         message: parsed.message ?? "",
         blockingReasons: parsed.blockingReasons ?? [],
-        unansweredQuestions: parsed.unansweredQuestions ?? 0,
+        pendingDecisions: parsed.unansweredQuestions ?? 0,
         pendingSuggestions: parsed.pendingSuggestions ?? 0,
       };
     },
@@ -348,7 +348,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         prompt?: string;
         scopePath?: string;
         projectRoot?: string;
-        mode?: IdeaAgentMode;
+        mode?: string;
         targetKind?: BacklogResearchTarget;
         contextPaths?: string[];
         contextTargetIds?: string[];

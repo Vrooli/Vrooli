@@ -80,6 +80,15 @@ func createTestItem(t *testing.T, rootDir string, kind BacklogKind, item Backlog
 	testutil.WriteJSONFile(t, filepath.Join(itemDir, "spec.json"), item)
 }
 
+// createReadyTestItem creates a test backlog item that passes workshop readiness preflight
+// by writing both spec.json and plan.md (plan exists with no workshop rounds = manually created plan).
+func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item BacklogItem) {
+	t.Helper()
+	createTestItem(t, rootDir, kind, item)
+	itemDir := filepath.Join(rootDir, backlogKindDirs[kind], item.Name)
+	testutil.WriteFile(t, filepath.Join(itemDir, "plan.md"), "# Plan\nManually created plan for testing.")
+}
+
 func TestList_Empty(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
@@ -562,7 +571,7 @@ func TestQueue_ManualMode_DoesNotSpawnImmediately(t *testing.T) {
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 	}
-	createTestItem(t, rootDir, KindIdea, item)
+	createReadyTestItem(t, rootDir, KindIdea, item)
 
 	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator","confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-manual-test/queue", reqBody)
@@ -601,7 +610,7 @@ func TestQueue_ScheduledMode_DoesNotSpawnImmediately(t *testing.T) {
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-28T00:00:00Z",
 	}
-	createTestItem(t, rootDir, KindIdea, item)
+	createReadyTestItem(t, rootDir, KindIdea, item)
 
 	reqBody := bytes.NewBufferString(`{"mode":"scheduled","delay_seconds":60,"confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/queue-scheduled-test/queue", reqBody)
@@ -641,7 +650,7 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
 	}
-	createTestItem(t, rootDir, KindIdea, item)
+	createReadyTestItem(t, rootDir, KindIdea, item)
 
 	reqBody := bytes.NewBufferString(`{"mode":"manual","operation":"generator","confirm":true}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/archived-idea/queue", reqBody)
@@ -653,7 +662,7 @@ func TestQueue_AllowsArchivedIdea(t *testing.T) {
 	testutil.AssertStatus(t, w, http.StatusAccepted)
 }
 
-func TestProcessPreflight_BlocksUnansweredCriticalQuestions(t *testing.T) {
+func TestProcessPreflight_BlocksMissingWorkshopReadiness(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
 
 	item := BacklogItem{
@@ -679,11 +688,6 @@ func TestProcessPreflight_BlocksUnansweredCriticalQuestions(t *testing.T) {
   "updated":"2026-01-28T00:00:00Z",
   "kind":"idea",
   "sourceScenarioName":"web-console"
-}`)
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "archived-preflight", "clarify", "questions.json"), `{
-  "questions":[
-    {"id":"Q1","importance":"critical","question":"q1","answer":null}
-  ]
 }`)
 
 	req := httptest.NewRequest("GET", "/api/v1/backlog/idea/archived-preflight/process-preflight", nil)
@@ -716,12 +720,8 @@ func TestQueue_BlocksWhenProcessPreflightFails(t *testing.T) {
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
 	}
+	// No plan.md or workshop rounds — preflight will block.
 	createTestItem(t, rootDir, KindIdea, item)
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "blocked-queue", "clarify", "questions.json"), `{
-  "questions":[
-    {"id":"Q1","importance":"critical","question":"q1","answer":null}
-  ]
-}`)
 
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/blocked-queue/queue", bytes.NewBufferString(`{"mode":"manual","confirm":true}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -792,10 +792,14 @@ func TestQueue_BlocksOnPendingSuggestionsUnlessForced(t *testing.T) {
 		Updated:     "2026-01-28T00:00:00Z",
 		Kind:        KindIdea,
 	}
-	createTestItem(t, rootDir, KindIdea, item)
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "pending-suggest", "suggest", "suggestions.json"), `{
-  "suggestions":[
-    {"id":"S1","status":"pending","suggestion":"keep pending"}
+	createReadyTestItem(t, rootDir, KindIdea, item)
+	// Add a workshop round with a pending decision to trigger blocking.
+	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "pending-suggest", "workshop", "round-001.json"), `{
+  "round": 1,
+  "generated_at": "2026-01-01T00:00:00Z",
+  "readiness": {"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+  "items": [
+    {"id": "d1", "type": "decision", "topic": "Use caching?", "options": [{"key": "A", "label": "Yes", "rationale": "Faster"}, {"key": "B", "label": "No", "rationale": "Simpler"}], "selected": null}
   ]
 }`)
 
@@ -832,7 +836,7 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	payload := map[string]any{"mode": "clarify", "prompt": "focus"}
+	payload := map[string]any{"mode": "workshop", "prompt": "focus"}
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/research-test/research", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -851,8 +855,8 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	traceW := httptest.NewRecorder()
 	h.GetPromptTrace(traceW, traceReq)
 	testutil.AssertStatusOK(t, traceW)
-	if !strings.Contains(traceW.Body.String(), `"skill_id":"swarm-manager-clarify-idea"`) {
-		t.Fatalf("expected prompt trace with clarify skill, got %s", traceW.Body.String())
+	if !strings.Contains(traceW.Body.String(), `"skill_id":"swarm-manager-workshop"`) {
+		t.Fatalf("expected prompt trace with workshop skill, got %s", traceW.Body.String())
 	}
 }
 

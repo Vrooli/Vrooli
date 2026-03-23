@@ -3,6 +3,7 @@ package backlog
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,30 +14,17 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
-// createQuestions writes clarify/questions.json for a backlog item.
-func createQuestions(t *testing.T, tmpDir string, kind BacklogKind, name string, questions []clarifyQuestion) {
+// createWorkshopRound writes workshop/round-001.json for a backlog item.
+func createWorkshopRound(t *testing.T, tmpDir string, kind BacklogKind, name string, round WorkshopRound) {
 	t.Helper()
-	qDir := filepath.Join(tmpDir, backlogKindDirs[kind], name, "clarify")
-	testutil.MakeDir(t, qDir)
-	data, err := json.MarshalIndent(questions, "", "  ")
+	wDir := filepath.Join(tmpDir, backlogKindDirs[kind], name, "workshop")
+	testutil.MakeDir(t, wDir)
+	data, err := json.MarshalIndent(round, "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(qDir, "questions.json"), data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// createSuggestions writes suggest/suggestions.json for a backlog item.
-func createSuggestions(t *testing.T, tmpDir string, kind BacklogKind, name string, suggestions []suggestion) {
-	t.Helper()
-	sDir := filepath.Join(tmpDir, backlogKindDirs[kind], name, "suggest")
-	testutil.MakeDir(t, sDir)
-	data, err := json.MarshalIndent(suggestions, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(sDir, "suggestions.json"), data, 0o644); err != nil {
+	fileName := fmt.Sprintf("round-%03d.json", round.RoundNum)
+	if err := os.WriteFile(filepath.Join(wDir, fileName), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -114,7 +102,7 @@ func TestExport_SingleItem(t *testing.T) {
 	}
 }
 
-func TestExport_WithClarifyQuestions(t *testing.T) {
+func TestExport_WithDecisions(t *testing.T) {
 	h, tmpDir := setupTestHandler(t)
 
 	createTestItem(t, tmpDir, KindIdea, BacklogItem{
@@ -127,24 +115,14 @@ func TestExport_WithClarifyQuestions(t *testing.T) {
 		Updated:  "2026-02-10T00:00:00Z",
 	})
 
-	createQuestions(t, tmpDir, KindIdea, "test-item", []clarifyQuestion{
-		{
-			ID:         "q1",
-			Question:   "What auth method?",
-			Category:   "technical",
-			Importance: "critical",
-			Options:    []string{"OAuth 2.0", "JWT tokens", "Session-based"},
-			Answer:     "",
-			Notes:      "",
-		},
-		{
-			ID:         "q2",
-			Question:   "Target user base?",
-			Category:   "users",
-			Importance: "important",
-			Options:    []string{"Developers", "End users", "Both"},
-			Answer:     "Both",
-			Notes:      "Both developers and consumers",
+	selectedKey := "A"
+	createWorkshopRound(t, tmpDir, KindIdea, "test-item", WorkshopRound{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
+		Items: []WorkshopItem{
+			{ID: "w1", Type: "decision", Topic: "What auth method?", Options: []WorkshopOption{{Key: "A", Label: "OAuth", Rationale: "Industry standard"}, {Key: "B", Label: "JWT", Rationale: "Stateless"}}, Selected: nil},
+			{ID: "w2", Type: "decision", Topic: "Target user base?", Options: []WorkshopOption{{Key: "A", Label: "Developers", Rationale: "Primary audience"}, {Key: "B", Label: "End users", Rationale: "Broad reach"}, {Key: "C", Label: "Both", Rationale: "Maximum coverage"}}, Selected: &selectedKey},
 		},
 	})
 
@@ -155,21 +133,21 @@ func TestExport_WithClarifyQuestions(t *testing.T) {
 	h.Export(w, req)
 
 	body := w.Body.String()
-	if !strings.Contains(body, "Q1: What auth method?") {
-		t.Error("expected Q1 text")
+	if !strings.Contains(body, "Workshop Items") {
+		t.Error("expected Workshop Items heading")
 	}
-	if !strings.Contains(body, "[ ] OAuth 2.0") {
-		t.Error("expected unchecked OAuth option")
+	if !strings.Contains(body, "D1: What auth method?") {
+		t.Error("expected D1 text")
 	}
-	if !strings.Contains(body, "[x] Both") {
-		t.Error("expected checked Both option")
+	if !strings.Contains(body, "[ ] **A**: OAuth") {
+		t.Error("expected unchecked option for D1")
 	}
-	if !strings.Contains(body, "Both developers and consumers") {
-		t.Error("expected notes for Q2")
+	if !strings.Contains(body, "[x] **A**: Developers") {
+		t.Error("expected checked option for D2")
 	}
 }
 
-func TestExport_WithSuggestions(t *testing.T) {
+func TestExport_WithDecisionOptions(t *testing.T) {
 	h, tmpDir := setupTestHandler(t)
 
 	createTestItem(t, tmpDir, KindIdea, BacklogItem{
@@ -182,22 +160,14 @@ func TestExport_WithSuggestions(t *testing.T) {
 		Updated:  "2026-02-10T00:00:00Z",
 	})
 
-	createSuggestions(t, tmpDir, KindIdea, "test-item", []suggestion{
-		{
-			ID:        "s1",
-			Title:     "Use WebSocket",
-			Impact:    "high",
-			Category:  "architecture",
-			Rationale: "Reduces latency by 10x",
-			Accepted:  false,
-		},
-		{
-			ID:        "s2",
-			Title:     "Add caching",
-			Impact:    "medium",
-			Category:  "ux",
-			Rationale: "Improves mobile experience",
-			Accepted:  true,
+	selectedKey := "B"
+	createWorkshopRound(t, tmpDir, KindIdea, "test-item", WorkshopRound{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
+		Items: []WorkshopItem{
+			{ID: "w1", Type: "decision", Topic: "Transport protocol", Options: []WorkshopOption{{Key: "A", Label: "Use WebSocket", Rationale: "For real-time updates"}, {Key: "B", Label: "Use SSE", Rationale: "Simpler implementation"}}, Selected: nil},
+			{ID: "w2", Type: "decision", Topic: "Caching strategy", Options: []WorkshopOption{{Key: "A", Label: "No caching", Rationale: "Simple"}, {Key: "B", Label: "Add caching", Rationale: "Improves mobile experience"}}, Selected: &selectedKey},
 		},
 	})
 
@@ -209,13 +179,13 @@ func TestExport_WithSuggestions(t *testing.T) {
 
 	body := w.Body.String()
 	if !strings.Contains(body, "Use WebSocket") {
-		t.Error("expected S1 title")
+		t.Error("expected option label in output")
 	}
-	if !strings.Contains(body, "[ ] Accept this suggestion") {
-		t.Error("expected unchecked accept checkbox for S1")
+	if !strings.Contains(body, "[ ] **A**: Use WebSocket") {
+		t.Error("expected unchecked option for D1")
 	}
-	if !strings.Contains(body, "[x] Accept this suggestion") {
-		t.Error("expected checked accept checkbox for S2")
+	if !strings.Contains(body, "[x] **B**: Add caching") {
+		t.Error("expected checked option for D2 selected choice")
 	}
 }
 
@@ -369,20 +339,25 @@ func TestExport_ToggleClarifyQuestionsOff(t *testing.T) {
 		Created:  "2026-02-10T00:00:00Z",
 		Updated:  "2026-02-10T00:00:00Z",
 	})
-	createQuestions(t, tmpDir, KindIdea, "toggle-test", []clarifyQuestion{
-		{ID: "q1", Question: "Test question?", Category: "tech", Importance: "high"},
+	createWorkshopRound(t, tmpDir, KindIdea, "toggle-test", WorkshopRound{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 1, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
+		Items: []WorkshopItem{
+			{ID: "w1", Type: "decision", Topic: "Test decision?", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Confirm"}}},
+		},
 	})
 
-	// Default: questions included.
+	// Default: workshop items included.
 	bodyDefault := exportWithBody(t, h, `{}`)
-	if !strings.Contains(bodyDefault, "Clarify Questions") {
-		t.Error("expected clarify questions by default")
+	if !strings.Contains(bodyDefault, "Workshop Items") {
+		t.Error("expected workshop items by default")
 	}
 
-	// Explicitly off.
-	bodyOff := exportWithBody(t, h, `{"includeClarifyQuestions": false}`)
-	if strings.Contains(bodyOff, "Clarify Questions") {
-		t.Error("expected clarify questions to be omitted when toggled off")
+	// Both includeClarifyQuestions and includeSuggestions off => workshop excluded.
+	bodyOff := exportWithBody(t, h, `{"includeClarifyQuestions": false, "includeSuggestions": false}`)
+	if strings.Contains(bodyOff, "Workshop Items") {
+		t.Error("expected workshop items to be omitted when both clarify and suggestions toggled off")
 	}
 }
 
@@ -398,18 +373,24 @@ func TestExport_ToggleSuggestionsOff(t *testing.T) {
 		Created:  "2026-02-10T00:00:00Z",
 		Updated:  "2026-02-10T00:00:00Z",
 	})
-	createSuggestions(t, tmpDir, KindIdea, "toggle-test", []suggestion{
-		{ID: "s1", Title: "Test suggestion", Impact: "high", Category: "arch", Accepted: false},
+	createWorkshopRound(t, tmpDir, KindIdea, "toggle-test", WorkshopRound{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 1, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
+		Items: []WorkshopItem{
+			{ID: "w1", Type: "decision", Topic: "Test suggestion", Context: "Some details", Options: []WorkshopOption{{Key: "A", Label: "Accept", Rationale: "Good idea"}}},
+		},
 	})
 
 	bodyDefault := exportWithBody(t, h, `{}`)
-	if !strings.Contains(bodyDefault, "Suggestions") {
-		t.Error("expected suggestions by default")
+	if !strings.Contains(bodyDefault, "Workshop Items") {
+		t.Error("expected workshop items by default")
 	}
 
-	bodyOff := exportWithBody(t, h, `{"includeSuggestions": false}`)
-	if strings.Contains(bodyOff, "Suggestions") {
-		t.Error("expected suggestions to be omitted when toggled off")
+	// Both includeClarifyQuestions and includeSuggestions off => workshop excluded.
+	bodyOff := exportWithBody(t, h, `{"includeClarifyQuestions": false, "includeSuggestions": false}`)
+	if strings.Contains(bodyOff, "Workshop Items") {
+		t.Error("expected workshop items to be omitted when both clarify and suggestions toggled off")
 	}
 }
 

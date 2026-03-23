@@ -1,0 +1,189 @@
+/**
+ * Workshop panel for backlog detail views.
+ *
+ * Renders all workshop rounds, latest expanded by default, older collapsed.
+ * Users can answer questions, decide on proposals, and trigger the next round.
+ */
+import { useState, useCallback } from "react";
+import { ChevronDown, ChevronRight, Play, Save } from "lucide-react";
+import { Button } from "../ui/button";
+import { WorkshopItemCard } from "./workshop-item-card";
+import { ReadinessDots } from "./readiness-dots";
+import { cn } from "../../lib";
+import { buildWorkshopRoundContent, getPendingDecisionCount } from "../../lib/workshop-files";
+import type { WorkshopRound, WorkshopItem, BacklogKind } from "../../types/domain";
+
+interface WorkshopPanelProps {
+  rounds: WorkshopRound[];
+  backlogKind: BacklogKind;
+  backlogName: string;
+  disabled?: boolean;
+  isSaving?: boolean;
+  isRunningWorkshop?: boolean;
+  onSaveRound?: (roundNumber: number, content: string) => void;
+  onRunWorkshop?: () => void;
+}
+
+export function WorkshopPanel({
+  rounds,
+  backlogKind,
+  backlogName,
+  disabled,
+  isSaving,
+  isRunningWorkshop,
+  onSaveRound,
+  onRunWorkshop,
+}: WorkshopPanelProps) {
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
+    if (rounds.length === 0) return new Set();
+    const last = rounds[rounds.length - 1];
+    return new Set(last ? [last.round] : []);
+  });
+  const [localUpdates, setLocalUpdates] = useState<Map<string, WorkshopItem>>(new Map());
+
+  const toggleRound = useCallback((roundNum: number) => {
+    setExpandedRounds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roundNum)) {
+        next.delete(roundNum);
+      } else {
+        next.add(roundNum);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleItemUpdate = useCallback((roundNum: number, updated: WorkshopItem) => {
+    setLocalUpdates((prev) => {
+      const next = new Map(prev);
+      next.set(`${roundNum}:${updated.id}`, updated);
+      return next;
+    });
+  }, []);
+
+  const getEffectiveItems = useCallback((round: WorkshopRound): WorkshopItem[] => {
+    return round.items.map((item) => {
+      const key = `${round.round}:${item.id}`;
+      return localUpdates.get(key) ?? item;
+    });
+  }, [localUpdates]);
+
+  const handleSave = useCallback((round: WorkshopRound) => {
+    const effectiveItems = getEffectiveItems(round);
+    const updatedRound: WorkshopRound = { ...round, items: effectiveItems };
+    const content = buildWorkshopRoundContent(updatedRound);
+    onSaveRound?.(round.round, content);
+  }, [getEffectiveItems, onSaveRound]);
+
+  const latestRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
+  const hasUnsavedChanges = localUpdates.size > 0;
+
+  if (rounds.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+        <div className="text-center space-y-3">
+          <p className="text-sm text-slate-400">No workshop rounds yet</p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled || isRunningWorkshop}
+            onClick={onRunWorkshop}
+          >
+            <Play className="mr-2 h-3.5 w-3.5" />
+            Start Workshop
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-slate-200">
+          Workshop Rounds ({rounds.length})
+        </h3>
+        <div className="flex items-center gap-2">
+          {hasUnsavedChanges && latestRound && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled || isSaving}
+              onClick={() => handleSave(latestRound)}
+            >
+              <Save className="mr-2 h-3.5 w-3.5" />
+              {isSaving ? "Saving..." : "Save Responses"}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled || isRunningWorkshop}
+            onClick={onRunWorkshop}
+          >
+            <Play className="mr-2 h-3.5 w-3.5" />
+            {isRunningWorkshop ? "Running..." : "Next Round"}
+          </Button>
+        </div>
+      </div>
+
+      {[...rounds].reverse().map((round, reversedIdx) => {
+        const isExpanded = expandedRounds.has(round.round);
+        const effectiveItems = getEffectiveItems(round);
+        const pendingDecisions = getPendingDecisionCount({ ...round, items: effectiveItems });
+        // Find the previous round for delta comparison
+        const roundIdx = rounds.findIndex((r) => r.round === round.round);
+        const prevRound = roundIdx > 0 ? rounds[roundIdx - 1] : null;
+
+        return (
+          <div
+            key={round.round}
+            className="rounded-lg border border-slate-700 bg-slate-800/50"
+          >
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+              onClick={() => toggleRound(round.round)}
+            >
+              <div className="flex items-center gap-3">
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                )}
+                <span className="text-sm font-medium text-slate-200">
+                  Round {round.round}
+                </span>
+                <ReadinessDots round={round} prevRound={prevRound} />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                {pendingDecisions > 0 && (
+                  <span className="text-amber-400">{pendingDecisions}D</span>
+                )}
+                <span>{round.items.length} items</span>
+              </div>
+            </button>
+
+            {isExpanded && (
+              <div className="border-t border-slate-700 px-4 py-3 space-y-2">
+                {round.plan_updates && (
+                  <p className="text-xs text-slate-500 italic mb-2">
+                    Plan updates: {round.plan_updates}
+                  </p>
+                )}
+                {effectiveItems.map((item) => (
+                  <WorkshopItemCard
+                    key={item.id}
+                    item={item}
+                    disabled={disabled}
+                    onUpdate={(updated) => handleItemUpdate(round.round, updated)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

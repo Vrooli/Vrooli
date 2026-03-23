@@ -1319,14 +1319,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10blocking_reasons\x18\t \x03(\tR\x0fblockingReasons\x121\n" +
 	"\x14unanswered_questions\x18\n" +
 	" \x01(\x05R\x13unansweredQuestions\x12/\n" +
-	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\x8c\x04\n" +
+	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\x96\x04\n" +
 	"\x16BacklogResearchRequest\x12\x1b\n" +
 	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"scope_path\x18\x02 \x01(\tH\x01R\tscopePath\x88\x01\x01\x12&\n" +
-	"\fproject_root\x18\x03 \x01(\tH\x02R\vprojectRoot\x88\x01\x01\x12e\n" +
-	"\x04mode\x18\x04 \x01(\tBL\xbaHIrGR\aclarifyR\asuggestR\aenhanceR\bresearchR\aexploreR\vinvestigateR\n" +
-	"initializeH\x03R\x04mode\x88\x01\x01\x12S\n" +
+	"\fproject_root\x18\x03 \x01(\tH\x02R\vprojectRoot\x88\x01\x01\x12o\n" +
+	"\x04mode\x18\x04 \x01(\tBV\xbaHSrQR\aclarifyR\asuggestR\aenhanceR\bresearchR\aexploreR\vinvestigateR\n" +
+	"initializeR\bworkshopH\x03R\x04mode\x88\x01\x01\x12S\n" +
 	"\vtarget_kind\x18\x05 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x04R\n" +
 	"targetKind\x88\x01\x01\x12#\n" +
 	"\rcontext_paths\x18\x06 \x03(\tR\fcontextPaths\x12,\n" +

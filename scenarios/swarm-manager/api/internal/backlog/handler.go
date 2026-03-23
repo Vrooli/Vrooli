@@ -111,9 +111,13 @@ type promptSelection struct {
 
 // researchSkillIDs maps (ResearchMode, BacklogKind) to prompt-manager skill IDs.
 var researchSkillIDs = map[ResearchMode]map[BacklogKind]string{
-	ResearchModeClarify: {KindIdea: "swarm-manager-clarify-idea"},
-	ResearchModeSuggest: {KindIdea: "swarm-manager-suggest-idea"},
-	ResearchModeEnhance: {KindIdea: "swarm-manager-enhance-idea"},
+	ResearchModeWorkshop: {
+		KindIdea:     "swarm-manager-workshop",
+		KindResearch: "swarm-manager-workshop",
+		KindFix:      "swarm-manager-workshop",
+		KindExecute:  "swarm-manager-workshop",
+		KindChore:    "swarm-manager-workshop",
+	},
 	ResearchModeResearch: {
 		KindIdea:     "swarm-manager-research-idea",
 		KindFix:      "swarm-manager-research-fix",
@@ -168,7 +172,8 @@ func validateBacklogStatus(status string) bool {
 	}
 }
 
-func parseBacklogKind(raw string) (BacklogKind, error) {
+// ParseBacklogKind validates and normalizes a raw kind string.
+func ParseBacklogKind(raw string) (BacklogKind, error) {
 	candidate := BacklogKind(strings.ToLower(strings.TrimSpace(raw)))
 	if _, ok := backlogKindDirs[candidate]; ok {
 		return candidate, nil
@@ -310,13 +315,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
 }
 
-// ResearchMode describes the intent for idea agent work.
+// ResearchMode describes the intent for backlog agent work.
 type ResearchMode string
 
 const (
-	ResearchModeClarify    ResearchMode = "clarify"
-	ResearchModeSuggest    ResearchMode = "suggest"
-	ResearchModeEnhance    ResearchMode = "enhance"
+	ResearchModeWorkshop   ResearchMode = "workshop"
 	ResearchModeResearch   ResearchMode = "research"
 	ResearchModeInitialize ResearchMode = "initialize"
 )
@@ -324,12 +327,8 @@ const (
 func parseResearchMode(raw string) ResearchMode {
 	candidate := strings.ToLower(strings.TrimSpace(raw))
 	switch candidate {
-	case "clarify":
-		return ResearchModeClarify
-	case "suggest":
-		return ResearchModeSuggest
-	case "enhance":
-		return ResearchModeEnhance
+	case "workshop":
+		return ResearchModeWorkshop
 	case "research", "", "explore", "investigate":
 		return ResearchModeResearch
 	case "initialize":
@@ -339,15 +338,8 @@ func parseResearchMode(raw string) ResearchMode {
 	}
 }
 
-func validateResearchModeForKind(kind BacklogKind, mode ResearchMode) error {
-	if kind == KindIdea {
-		switch mode {
-		case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance, ResearchModeInitialize:
-			return nil
-		default:
-			return fmt.Errorf("mode must be clarify, suggest, or enhance")
-		}
-	}
+func validateResearchModeForKind(_ BacklogKind, _ ResearchMode) error {
+	// All modes are valid for all kinds.
 	return nil
 }
 
@@ -452,7 +444,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kind, err := parseBacklogKind(req.Kind)
+	kind, err := ParseBacklogKind(req.Kind)
 	if err != nil {
 		httputil.BadRequest(w, "[backlog] create", err.Error())
 		return
@@ -1264,14 +1256,13 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	// overrides below so callers receive one canonical queue response
 	// shape with clear next actions.
 
-	unansweredQuestions := countUnansweredQuestions(filepath.Join(h.itemDir(kind, item.Name), "clarify", "questions.json"))
-	pendingSuggestions := countPendingSuggestions(filepath.Join(h.itemDir(kind, item.Name), "suggest", "suggestions.json"))
+	// Check workshop feedback state for additional blocking signals.
+	itemDir := h.itemDir(kind, item.Name)
+	latestRound, _, _ := LoadLatestRound(itemDir)
+	pendingDecisions := CountPendingDecisions(latestRound)
 	blockingReasons := append([]string{}, preflight.BlockingReasons...)
-	if unansweredQuestions > 0 && !containsQueueReasonSnippet(blockingReasons, "clarify question") {
-		blockingReasons = append(blockingReasons, fmt.Sprintf("%d unanswered clarify question(s) remain", unansweredQuestions))
-	}
-	if pendingSuggestions > 0 {
-		blockingReasons = append(blockingReasons, fmt.Sprintf("%d suggestion(s) still pending decision", pendingSuggestions))
+	if pendingDecisions > 0 {
+		blockingReasons = append(blockingReasons, fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions))
 	}
 	blockingReasons = dedupeQueueReasons(blockingReasons)
 
@@ -1286,8 +1277,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 			Queued:              queued,
 			Message:             message,
 			BlockingReasons:     blockingReasons,
-			UnansweredQuestions: int32(unansweredQuestions),
-			PendingSuggestions:  int32(pendingSuggestions),
+			UnansweredQuestions: 0,
+			PendingSuggestions:  int32(pendingDecisions),
 		}
 	}
 
@@ -1360,8 +1351,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		Queued:              true,
 		Message:             "Queue created successfully.",
 		BlockingReasons:     []string{},
-		UnansweredQuestions: int32(unansweredQuestions),
-		PendingSuggestions:  int32(pendingSuggestions),
+		UnansweredQuestions: 0,
+		PendingSuggestions:  int32(pendingDecisions),
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
 		httputil.InternalError(w, "[backlog] queue", "failed to encode response")
@@ -1388,18 +1379,6 @@ func dedupeQueueReasons(reasons []string) []string {
 	return result
 }
 
-func containsQueueReasonSnippet(reasons []string, snippet string) bool {
-	needle := strings.ToLower(strings.TrimSpace(snippet))
-	if needle == "" {
-		return false
-	}
-	for _, reason := range reasons {
-		if strings.Contains(strings.ToLower(reason), needle) {
-			return true
-		}
-	}
-	return false
-}
 
 func hasNonForceableQueueReasons(reasons []string) bool {
 	for _, reason := range reasons {
@@ -1412,7 +1391,8 @@ func hasNonForceableQueueReasons(reasons []string) bool {
 
 func isForceableQueueReason(reason string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(reason))
-	return strings.Contains(normalized, "clarify question") || strings.Contains(normalized, "suggestion")
+	return strings.Contains(normalized, "workshop decision") ||
+		strings.Contains(normalized, "pending decision")
 }
 
 // ProcessPreflight evaluates whether a backlog item is ready for processing.
@@ -1613,26 +1593,6 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Snapshot synthesis state / increment counters before spawning the agent.
-	itemDir := h.itemDir(kind, item.Name)
-	switch mode {
-	case ResearchModeEnhance:
-		if err := snapshotQuestionsForEnhance(filepath.Join(itemDir, "clarify", "questions.json")); err != nil {
-			log.Printf("[backlog] research: failed to snapshot questions for enhance: %v", err)
-		}
-		if err := snapshotSuggestionsForEnhance(filepath.Join(itemDir, "suggest", "suggestions.json")); err != nil {
-			log.Printf("[backlog] research: failed to snapshot suggestions for enhance: %v", err)
-		}
-	case ResearchModeClarify:
-		if err := incrementClarifyCount(filepath.Join(itemDir, "clarify", "questions.json")); err != nil {
-			log.Printf("[backlog] research: failed to increment clarify count: %v", err)
-		}
-	case ResearchModeSuggest:
-		if err := incrementSuggestCount(filepath.Join(itemDir, "suggest", "suggestions.json")); err != nil {
-			log.Printf("[backlog] research: failed to increment suggest count: %v", err)
-		}
-	}
-
 	runResult, err := service.SpawnBacklog(r.Context(), agentmanager.BacklogSpawnRequest{
 		Kind:        string(kind),
 		Name:        item.Name,
@@ -1690,7 +1650,7 @@ func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targetKind, err := parseBacklogKind(req.TargetKind)
+	targetKind, err := ParseBacklogKind(req.TargetKind)
 	if err != nil {
 		httputil.BadRequest(w, "[backlog] convert", err.Error())
 		return
@@ -1775,7 +1735,7 @@ func (h *Handler) parseKindAndName(w http.ResponseWriter, r *http.Request, actio
 	vars := mux.Vars(r)
 	kindRaw := vars["kind"]
 	name := vars["name"]
-	kind, err := parseBacklogKind(kindRaw)
+	kind, err := ParseBacklogKind(kindRaw)
 	if err != nil {
 		httputil.BadRequest(w, "[backlog] "+action, "invalid kind")
 		return "", "", false
@@ -1800,7 +1760,7 @@ func parseKindsQuery(r *http.Request) ([]BacklogKind, error) {
 	parts := strings.Split(raw, ",")
 	kinds := make([]BacklogKind, 0, len(parts))
 	for _, part := range parts {
-		kind, err := parseBacklogKind(part)
+		kind, err := ParseBacklogKind(part)
 		if err != nil {
 			return nil, err
 		}
@@ -1839,12 +1799,8 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 		label = "backlog item"
 	}
 	switch mode {
-	case ResearchModeClarify:
-		return "Clarify idea: " + label
-	case ResearchModeSuggest:
-		return "Suggest improvements: " + label
-	case ResearchModeEnhance:
-		return "Enhance idea: " + label
+	case ResearchModeWorkshop:
+		return "Workshop: " + label
 	case ResearchModeInitialize:
 		return "Initialize: " + label
 	default:
@@ -1856,11 +1812,6 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 func researchSkillID(mode ResearchMode, kind BacklogKind) string {
 	if kindMap, ok := researchSkillIDs[mode]; ok {
 		if id, ok := kindMap[kind]; ok {
-			return id
-		}
-		// Workflow skills (clarify/suggest/enhance) only have KindIdea.
-		// For other kinds in workflow modes, fall back to idea.
-		if id, ok := kindMap[KindIdea]; ok {
 			return id
 		}
 	}
@@ -2144,7 +2095,7 @@ func (h *Handler) DeleteModuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.
 func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
-	return map[string]string{
+	vars := map[string]string{
 		"ITEM_NAME":        item.Name,
 		"ITEM_TITLE":       item.Title,
 		"ITEM_DESCRIPTION": item.Description,
@@ -2155,6 +2106,14 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 		"ITEM_FOLDER":      itemFolder,
 		"RESEARCH_TARGET":  item.ResearchTarget,
 	}
+
+	// Add workshop-specific variables.
+	rounds, _ := LoadWorkshopRounds(itemFolder)
+	vars["PLAN_DRAFT"] = LoadPlanContent(itemFolder)
+	vars["WORKSHOP_HISTORY"] = BuildWorkshopHistory(rounds)
+	vars["ROUND_NUMBER"] = fmt.Sprintf("%03d", len(rounds)+1)
+
+	return vars
 }
 
 func getContentType(ext string) string {

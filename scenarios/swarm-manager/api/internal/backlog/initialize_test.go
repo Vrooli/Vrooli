@@ -2,7 +2,6 @@ package backlog
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -208,28 +207,3 @@ func TestResearchSkillID_Initialize(t *testing.T) {
 	}
 }
 
-// mockInitRecordingAgent records calls and verifies skill ID.
-type mockInitRecordingAgent struct {
-	lastReq *agentmanager.BacklogSpawnRequest
-	result  agentmanager.RunResult
-}
-
-func (m *mockInitRecordingAgent) IsEnabled() bool                    { return true }
-func (m *mockInitRecordingAgent) IsAvailable(_ context.Context) bool { return true }
-func (m *mockInitRecordingAgent) ResolveURL(_ context.Context) (string, error) {
-	return "http://agent", nil
-}
-func (m *mockInitRecordingAgent) GetProfileID() string { return "" }
-func (m *mockInitRecordingAgent) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	m.lastReq = &req
-	return m.result, nil
-}
-
-func (m *mockInitRecordingAgent) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
-	return agentmanager.RunResult{}, nil
-}
-
-func (m *mockInitRecordingAgent) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
-	return agentmanager.RunState{}, nil
-}
-func (m *mockInitRecordingAgent) StopRun(_ context.Context, _ string) error { return nil }

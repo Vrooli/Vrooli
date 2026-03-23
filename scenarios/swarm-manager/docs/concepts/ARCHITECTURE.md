@@ -11,13 +11,13 @@ prompt-manager                         swarm-manager
 │  ┌──────────────────┐  │             │                                  │
 │  │ Debug Team       │──┼── fix ─────▶│  ┌──────────┐                    │
 │  │ Feature Team     │──┼── idea ────▶│  │ BACKLOG  │  Operator reviews  │
-│  │ QA Team          │──┼── fix ─────▶│  │ items    │  plans, uses Idea  │
-│  │ Refactor Team    │──┼── execute ─▶│  └────┬─────┘  Agent to refine   │
-│  └──────────────────┘  │             │       │                           │
+│  │ QA Team          │──┼── fix ─────▶│  │ items    │  plans, uses       │
+│  │ Refactor Team    │──┼── execute ─▶│  └────┬─────┘  Workshop loop     │
+│  └──────────────────┘  │             │       │        to refine          │
 │                        │             │       ▼                           │
 │  Skills define how     │             │  ┌──────────┐                    │
-│  teams analyze and     │             │  │  IDEA    │  clarify → suggest │
-│  produce findings      │             │  │  AGENT   │  → enhance         │
+│  teams analyze and     │             │  │ WORKSHOP │  iterative rounds  │
+│  produce findings      │             │  │  LOOP    │  → plan.md          │
 │                        │             │  └────┬─────┘                    │
 └────────────────────────┘             │       │                           │
                                        │       ▼                           │
@@ -32,7 +32,7 @@ prompt-manager                         swarm-manager
                                        └──────────────────────────────────┘
 ```
 
-**Why this matters:** Agent teams in prompt-manager do analysis and produce plans, but they do not execute directly. Instead, they deposit their findings as backlog items into swarm-manager. This gives the operator a single place to review all agent-generated plans, refine them with the Idea Agent (clarify/suggest/enhance), and control execution — effectively a "pull request review" for agent work.
+**Why this matters:** Agent teams in prompt-manager do analysis and produce plans, but they do not execute directly. Instead, they deposit their findings as backlog items into swarm-manager. This gives the operator a single place to review all agent-generated plans, refine them through the workshop loop (iterative rounds of questions, proposals, and readiness scoring), and control execution -- effectively a "pull request review" for agent work.
 
 Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
@@ -40,7 +40,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
-| **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`) | `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
+| **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
 | **Execution Run** | Governed execution record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 
@@ -48,9 +48,9 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
 1. **Backlog creation and refinement**
    ```
-   Team finding -> Backlog item (idea/fix/execute/research) -> optional clarify/suggest/enhance -> queue
+   Team finding -> Backlog item (idea/fix/execute/research/chore) -> workshop loop -> plan.md -> queue
    ```
-   For idea items, the **Idea Agent** provides a 3-phase refinement workflow (clarify questions, suggest improvements, enhance into spec). See [DOC: docs/guides/idea-agent-workflow.md] for the full pipeline, schemas, and visual flow.
+   All backlog kinds use the **workshop loop** for iterative refinement. Each round generates questions, proposals, and readiness scores across 5 dimensions. The loop continues until all dimensions reach score 3, producing `plan.md` as the primary execution artifact. See [DOC: docs/guides/workshop-workflow.md] for the full pipeline, schemas, and readiness model.
 
 2. **Archive scenario into backlog context**
    ```
@@ -97,6 +97,24 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | Domain Logic | Implemented | CRUD, archive, queue, research, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
+
+## Workshop Readiness Model
+
+The workshop system uses a 5-dimension readiness model to measure how prepared a backlog item is for execution. Each dimension is scored 0-3 per round by the workshop agent:
+
+| Dimension | Measures |
+|-----------|----------|
+| `problem_clarity` | Is the problem well-understood? |
+| `scope_defined` | Are boundaries and deliverables defined? |
+| `approach_solid` | Is the technical approach viable? |
+| `testable` | Can success be verified? |
+| `risk_awareness` | Are risks identified and mitigated? |
+
+A **round-based boost** rewards iterative engagement: `effective = raw >= 2 ? min(3, raw + floor(rounds/N)) : raw`, where N varies by kind (1 for fix/chore, 2 for idea/research/execute). An item is **ready** when all 5 effective scores reach 3.
+
+The primary output of the workshop loop is `plan.md`, which serves as the execution specification handed to Generator/Improver agents. Workshop rounds are supporting evidence and audit trail.
+
+See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and schemas. Readiness computation lives in [CODE: api/internal/workshop/workshop.go].
 
 ## Physical Structure
 

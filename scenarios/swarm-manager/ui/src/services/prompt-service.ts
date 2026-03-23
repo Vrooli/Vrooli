@@ -3,7 +3,6 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   BacklogKind,
-  IdeaAgentMode,
   PromptBinding,
   PromptSkillSummary,
   PromptSkillVersions,
@@ -19,7 +18,7 @@ export interface PromptPreviewResponse {
 
 export interface PromptSimulateRequest {
   kind: BacklogKind;
-  mode?: IdeaAgentMode | "research";
+  mode?: string;
   operation?: "generator" | "improver";
   item_name?: string;
   item_title?: string;

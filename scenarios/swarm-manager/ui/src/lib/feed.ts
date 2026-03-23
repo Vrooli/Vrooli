@@ -4,14 +4,15 @@
  * Merges captures and backlog items into a single prioritized feed.
  * Captures appear at top, attention items (needing user input) are boosted,
  * and normal items follow their standard priority ordering.
+ *
+ * DOC: docs/concepts/ARCHITECTURE.md#unified-feed
  */
 
 import type { BacklogItem, Capture } from "../types";
 
 export type AttentionReason =
-  | { kind: "unanswered-questions"; count: number }
-  | { kind: "pending-suggestions"; count: number }
-  | { kind: "unsynthesized"; count: number }
+  | { kind: "pending-decisions"; count: number }
+  | { kind: "plan-ready" }
   | { kind: "research-complete" };
 
 export type FeedItem =
@@ -22,15 +23,14 @@ export type FeedItem =
 export interface FeedbackItem {
   kind: string;
   name: string;
-  unansweredQuestions: number;
-  pendingSuggestions: number;
+  pendingDecisions: number;
 }
 
 export interface MaturityItem {
   kind: string;
   name: string;
-  questionsNewOrUpdated: number;
-  suggestionsNewOrUpdated: number;
+  ready: boolean;
+  pendingItems: number;
 }
 
 /**
@@ -46,20 +46,14 @@ function getAttentionReasons(
 
   const feedback = feedbackMap.get(key);
   if (feedback) {
-    if (feedback.unansweredQuestions > 0) {
-      reasons.push({ kind: "unanswered-questions", count: feedback.unansweredQuestions });
-    }
-    if (feedback.pendingSuggestions > 0) {
-      reasons.push({ kind: "pending-suggestions", count: feedback.pendingSuggestions });
+    if (feedback.pendingDecisions > 0) {
+      reasons.push({ kind: "pending-decisions", count: feedback.pendingDecisions });
     }
   }
 
   const maturity = maturityMap.get(key);
-  if (maturity) {
-    const unsynthesized = (maturity.questionsNewOrUpdated ?? 0) + (maturity.suggestionsNewOrUpdated ?? 0);
-    if (unsynthesized > 0) {
-      reasons.push({ kind: "unsynthesized", count: unsynthesized });
-    }
+  if (maturity?.ready) {
+    reasons.push({ kind: "plan-ready" });
   }
 
   if (item.status === "researching") {

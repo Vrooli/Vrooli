@@ -686,7 +686,7 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 	fs := flag.NewFlagSet("backlog file-upload", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
-	serverPath := fs.String("path", "", "Full server-side destination path (e.g. clarify/questions.json)")
+	serverPath := fs.String("path", "", "Full server-side destination path (e.g. workshop/round-001.json)")
 	localFile := fs.String("file", "", "Local file path to upload")
 	contentStr := fs.String("content", "", "Inline content string to upload (⚠️  prefer --stdin to avoid shell quoting issues)")
 	stdinFlag := fs.Bool("stdin", false, "Read content from stdin (safest for content with special characters)")
