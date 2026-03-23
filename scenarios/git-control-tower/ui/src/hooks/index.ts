@@ -3,3 +3,5 @@ export { useViewportSize, useIsMobile, useIsMobileOrTablet } from "./useViewport
 export type { Breakpoint, ViewportSize } from "./useViewportSize";
 export { useUrlState, parseUrlState, buildUrlSearch, updateUrl, pushUrl } from "./useUrlState";
 export type { UrlState, ReviewTab } from "./useUrlState";
+export { useScenarioReviewState } from "./useScenarioReviewState";
+export type { ScenarioReviewState, DeepPartial } from "./useScenarioReviewState";

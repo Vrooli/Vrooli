@@ -19,7 +19,7 @@ import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
-import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
+import { useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
@@ -159,8 +159,11 @@ export default function App() {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
-  const [reviewTab, setReviewTab] = useState<ReviewTab>("overview");
-  const [agentRunId, setAgentRunId] = useState<string | null>(null);
+  // URL overrides are captured once on mount so the hook can prioritize URL params
+  const urlInitOverridesRef = useRef<{ activeTab?: ReviewTab; agentRunId?: string | null } | undefined>(undefined);
+  const scenarioReview = useScenarioReviewState(reviewScenarioSlug, {
+    urlOverrides: urlInitOverridesRef.current,
+  });
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
@@ -236,7 +239,7 @@ export default function App() {
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
-  const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
+  const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
   const [commitMessage, setCommitMessage] = useState(
     () => localStorage.getItem("gct.commitMessage") ?? ""
@@ -292,12 +295,12 @@ export default function App() {
       setReviewScenarioSlug(state.reviewScenario);
     }
     if (state.reviewTab) {
-      setReviewTab(state.reviewTab);
+      scenarioReview.update({ activeTab: state.reviewTab });
     }
     if (state.agentRunId) {
-      setAgentRunId(state.agentRunId);
+      scenarioReview.update({ agentRunId: state.agentRunId });
     }
-  }, []);
+  }, [scenarioReview]);
 
   const { updateState: updateUrlState } = useUrlState({
     onStateChange: handleUrlStateChange
@@ -308,6 +311,13 @@ export default function App() {
     const initialState = parseUrlState(window.location.search);
     if (initialState.primary) {
       urlSetPrimaryRef.current = true;
+    }
+    // Capture URL overrides for the scenario review hook
+    if (initialState.reviewTab || initialState.agentRunId) {
+      urlInitOverridesRef.current = {
+        activeTab: initialState.reviewTab,
+        agentRunId: initialState.agentRunId ?? null,
+      };
     }
     if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId) {
       handleUrlStateChange(initialState);
@@ -349,18 +359,18 @@ export default function App() {
     if (reviewScenarioSlug) {
       urlState.reviewScenario = reviewScenarioSlug;
     }
-    if (reviewTab && reviewTab !== "overview") {
-      urlState.reviewTab = reviewTab;
+    if (scenarioReview.state.activeTab && scenarioReview.state.activeTab !== "overview") {
+      urlState.reviewTab = scenarioReview.state.activeTab;
     }
     if (isViewingAnyFile) {
       urlState.anyFile = true;
     }
-    if (agentRunId) {
-      urlState.agentRunId = agentRunId;
+    if (scenarioReview.state.agentRunId) {
+      urlState.agentRunId = scenarioReview.state.agentRunId;
     }
 
     updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, reviewTab, isViewingAnyFile, agentRunId, updateUrlState]);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
@@ -1974,7 +1984,7 @@ export default function App() {
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
-            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
+            onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2060,11 +2070,13 @@ export default function App() {
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
-            onChangeScenario={setReviewScenarioSlug}
-            activeTab={reviewTab}
-            onActiveTabChange={setReviewTab}
-            agentRunId={agentRunId}
-            onAgentRunIdChange={setAgentRunId}
+            onChangeScenario={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); }}
+            activeTab={scenarioReview.state.activeTab}
+            onActiveTabChange={(tab) => scenarioReview.update({ activeTab: tab })}
+            agentRunId={scenarioReview.state.agentRunId}
+            onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
+            scenarioState={scenarioReview.state}
+            onScenarioStateChange={scenarioReview.update}
           />
         );
       case "diff":
@@ -2359,11 +2371,13 @@ export default function App() {
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
-            onChangeScenario={setReviewScenarioSlug}
-            activeTab={reviewTab}
-            onActiveTabChange={setReviewTab}
-            agentRunId={agentRunId}
-            onAgentRunIdChange={setAgentRunId}
+            onChangeScenario={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); }}
+            activeTab={scenarioReview.state.activeTab}
+            onActiveTabChange={(tab) => scenarioReview.update({ activeTab: tab })}
+            agentRunId={scenarioReview.state.agentRunId}
+            onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
+            scenarioState={scenarioReview.state}
+            onScenarioStateChange={scenarioReview.update}
             isMobile
           />
         );

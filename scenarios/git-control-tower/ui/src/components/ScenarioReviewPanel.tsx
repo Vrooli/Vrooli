@@ -4,12 +4,13 @@ import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertT
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
 import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture, useScenarios, useStartAuditorCheck, useAuditorJobStatus } from "../lib/hooks";
-import { buildCaptureScreenshotUrl, buildCaptureVideoUrl, buildWorkflowVideoUrl, presetSuffix, presetLabel, presetKey, getCapturePresets, setCapturePresets as saveCapturePresets, SIZE_PRESETS, DEFAULT_PRESETS } from "../lib/api";
-import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, WorkflowExecutionResult, AuditorViolation, AuditorJobStatus } from "../lib/api";
+import { buildCaptureScreenshotUrl, buildWorkflowVideoUrl, presetSuffix, presetLabel, presetKey, getCapturePresets, setCapturePresets as saveCapturePresets, SIZE_PRESETS } from "../lib/api";
+import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
 import { AIProvenanceTab } from "./AIProvenanceTab";
+import type { ScenarioReviewState, DeepPartial } from "../hooks/useScenarioReviewState";
 import { testFailureContextItems, codeQualityContextItems, changeSummaryContextItem, scenarioQualityContextItem, ruleViolationContextItems, rulesSummaryContextItem, screenshotContextItem } from "../lib/agentContext";
 import { Popover } from "./ui/popover";
 import { ScenarioPickerModal } from "./ScenarioPickerModal";
@@ -26,10 +27,12 @@ interface ScenarioReviewPanelProps {
   onActiveTabChange?: (tab: Tab) => void;
   agentRunId?: string | null;
   onAgentRunIdChange?: (id: string | null) => void;
+  scenarioState?: ScenarioReviewState;
+  onScenarioStateChange?: (patch: DeepPartial<ScenarioReviewState>) => void;
   isMobile?: boolean;
 }
 
-export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, isMobile }: ScenarioReviewPanelProps) {
+export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeScenario, activeTab: controlledTab, onActiveTabChange, agentRunId, onAgentRunIdChange, scenarioState, onScenarioStateChange, isMobile }: ScenarioReviewPanelProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [internalTab, setInternalTab] = useState<Tab>("overview");
   const activeTab = controlledTab ?? internalTab;
@@ -154,6 +157,13 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
     }
   );
 
+  // Fall back to "overview" if the current tab is not available for this scenario
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
+      setActiveTab("overview");
+    }
+  }, [visibleTabs, activeTab, setActiveTab]);
+
   const captureBanner = isCapturing && (
     <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50 text-blue-300 text-xs">
       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -226,6 +236,10 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
             onDismissError={() => triggerCapture.reset()}
             agentManagerAvailable={agentManagerAvailable}
             onAttachToAgent={addAgentContext}
+            initialPresetIndex={scenarioState?.screenshots.activePresetIndex}
+            initialSelectedPage={scenarioState?.screenshots.selectedPage}
+            onPresetIndexChange={(idx) => onScenarioStateChange?.({ screenshots: { activePresetIndex: idx } })}
+            onSelectedPageChange={(page) => onScenarioStateChange?.({ screenshots: { selectedPage: page } })}
           />
         )
       ) : activeTab === "workflows" ? (
@@ -240,6 +254,10 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           onCapture={handleWorkflowCapture}
           mutationError={triggerWorkflow.error}
           onDismissError={() => triggerWorkflow.reset()}
+          initialSelectedModes={scenarioState?.workflows.selectedModes}
+          initialViewRole={scenarioState?.workflows.viewRole}
+          onSelectedModesChange={(modes) => onScenarioStateChange?.({ workflows: { selectedModes: modes } })}
+          onViewRoleChange={(role) => onScenarioStateChange?.({ workflows: { viewRole: role } })}
         />
       ) : activeTab === "tests" ? (
         <TestsTab
@@ -257,6 +275,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           fileStats={scenarioFileStats}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
+          initialView={scenarioState?.codeQuality.view}
+          onViewChange={(v) => onScenarioStateChange?.({ codeQuality: { view: v } })}
         />
       ) : activeTab === "rules" ? (
         <RulesTab
@@ -265,6 +285,8 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           auditorAvailable={auditorAvailable}
           agentManagerAvailable={agentManagerAvailable}
           onAttachToAgent={addAgentContext}
+          initialJobId={scenarioState?.rules.jobId}
+          onJobIdChange={(id) => onScenarioStateChange?.({ rules: { jobId: id } })}
         />
       ) : activeTab === "ai-provenance" ? (
         <AIProvenanceTab repoId={repoId} />
@@ -332,7 +354,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
           </button>
           {(capture || baseline) && (
             <span className="text-[11px] text-slate-500 hidden sm:inline shrink-0">
-              {capture ? `Captured ${new Date(capture.createdAt).toLocaleString()}` : `Baseline ${new Date(baseline!.createdAt).toLocaleString()}`}
+              {capture ? `Captured ${new Date(capture.createdAt).toLocaleString()}` : baseline ? `Baseline ${new Date(baseline.createdAt).toLocaleString()}` : ""}
               {captureStaleness?.isStale && <span className="ml-1 text-amber-500">(stale)</span>}
             </span>
           )}
@@ -938,6 +960,10 @@ function ScreenshotsTab({
   onDismissError,
   agentManagerAvailable,
   onAttachToAgent,
+  initialPresetIndex,
+  initialSelectedPage,
+  onPresetIndexChange,
+  onSelectedPageChange,
 }: {
   baseline?: SnapshotSetMeta;
   capture?: SnapshotSetMeta;
@@ -954,20 +980,42 @@ function ScreenshotsTab({
   onDismissError?: () => void;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  initialPresetIndex?: number;
+  initialSelectedPage?: number;
+  onPresetIndexChange?: (index: number) => void;
+  onSelectedPageChange?: (page: number) => void;
 }) {
-  const [selectedPage, setSelectedPage] = useState(0);
+  const [selectedPage, setSelectedPageInternal] = useState(initialSelectedPage ?? 0);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+
+  const setSelectedPage = useCallback((page: number) => {
+    setSelectedPageInternal(page);
+    onSelectedPageChange?.(page);
+  }, [onSelectedPageChange]);
 
   // Determine which presets were captured (from snapshot metadata)
   const primarySnapshot = capture ?? baseline;
   const capturedPresets: CapturePreset[] = primarySnapshot?.presets ?? [];
 
-  // Active preset for filtering — default to first captured preset, or first config preset
-  const [activePreset, setActivePreset] = useState<CapturePreset>(
-    () => capturedPresets[0] ?? presetConfig[0] ?? { name: "Desktop Light", width: 1440, height: 900, theme: "light" as CaptureTheme }
+  const defaultPreset = capturedPresets[0] ?? presetConfig[0] ?? { name: "Desktop Light", width: 1440, height: 900, theme: "light" as CaptureTheme };
+  // Active preset for filtering — restore from per-scenario state or use first available
+  const [activePreset, setActivePresetInternal] = useState<CapturePreset>(
+    () => {
+      if (initialPresetIndex !== undefined && initialPresetIndex >= 0) {
+        return capturedPresets[initialPresetIndex] ?? presetConfig[initialPresetIndex] ?? defaultPreset;
+      }
+      return defaultPreset;
+    }
   );
+  const setActivePreset = useCallback((preset: CapturePreset) => {
+    setActivePresetInternal(preset);
+    // Find the index and report upward
+    const allPresets = capturedPresets.length > 0 ? capturedPresets : presetConfig;
+    const idx = allPresets.findIndex(p => presetKey(p) === presetKey(preset));
+    if (idx >= 0) onPresetIndexChange?.(idx);
+  }, [capturedPresets, presetConfig, onPresetIndexChange]);
 
   // No snapshots at all
   if (!baseline && !capture) {
@@ -989,7 +1037,7 @@ function ScreenshotsTab({
     );
   }
 
-  const primaryPages = primarySnapshot!.pages ?? [];
+  const primaryPages = primarySnapshot?.pages ?? [];
   const currentPage = primaryPages[selectedPage] ?? "/";
 
   // Build filename for current preset
@@ -1145,7 +1193,7 @@ function ScreenshotsTab({
       )}
 
       {/* Fallback warning */}
-      {primarySnapshot!.pageDiscoveryMethod === "fallback" && (
+      {primarySnapshot?.pageDiscoveryMethod === "fallback" && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-950/30 border border-amber-900/40">
           <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-300">
@@ -1237,7 +1285,8 @@ function ScreenshotsTab({
             )}
             {agentManagerAvailable && onAttachToAgent && (
               <AttachToAgentButton onClick={() => {
-                const snapshot = primarySnapshot!;
+                if (!primarySnapshot) return;
+                const snapshot = primarySnapshot;
                 const filename = screenshotFilename(currentPage);
                 onAttachToAgent(screenshotContextItem(snapshot, {
                   filename,
@@ -1252,7 +1301,7 @@ function ScreenshotsTab({
             )}
           </div>
           <ScreenshotImage
-            captureId={primarySnapshot!.id}
+            captureId={primarySnapshot?.id ?? ""}
             scenarioSlug={scenarioSlug}
             pagePath={currentPage}
             preset={activePreset}
@@ -1474,6 +1523,10 @@ function WorkflowsTab({
   onCapture,
   mutationError,
   onDismissError,
+  initialSelectedModes,
+  initialViewRole,
+  onSelectedModesChange,
+  onViewRoleChange,
 }: {
   baseline?: WorkflowCaptureResult;
   capture?: WorkflowCaptureResult;
@@ -1485,13 +1538,30 @@ function WorkflowsTab({
   onCapture: (executionModes: ExecutionMode[]) => void;
   mutationError?: Error | null;
   onDismissError?: () => void;
+  initialSelectedModes?: ExecutionMode[];
+  initialViewRole?: "baseline" | "capture";
+  onSelectedModesChange?: (modes: ExecutionMode[]) => void;
+  onViewRoleChange?: (role: "baseline" | "capture") => void;
 }) {
-  const [selectedModes, setSelectedModes] = useState<Set<ExecutionMode>>(new Set(["observer"]));
+  const [selectedModes, setSelectedModesInternal] = useState<Set<ExecutionMode>>(() => new Set(initialSelectedModes ?? ["observer"]));
   const [lightboxIndex, setLightboxIndex] = useState(-1);
   // Which role's results to show in the table ("capture" by default, toggle to "baseline")
-  const [viewRole, setViewRole] = useState<"baseline" | "capture">("capture");
+  const [viewRole, setViewRoleInternal] = useState<"baseline" | "capture">(initialViewRole ?? "capture");
   // Which rows are expanded to show error details
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  const setSelectedModes = useCallback((updater: Set<ExecutionMode> | ((prev: Set<ExecutionMode>) => Set<ExecutionMode>)) => {
+    setSelectedModesInternal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      onSelectedModesChange?.(Array.from(next));
+      return next;
+    });
+  }, [onSelectedModesChange]);
+
+  const setViewRole = useCallback((role: "baseline" | "capture") => {
+    setViewRoleInternal(role);
+    onViewRoleChange?.(role);
+  }, [onViewRoleChange]);
 
   const toggleMode = useCallback((mode: ExecutionMode) => {
     setSelectedModes(prev => {
@@ -2052,6 +2122,8 @@ function CodeQualityTab({
   fileStats,
   agentManagerAvailable,
   onAttachToAgent,
+  initialView,
+  onViewChange,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
@@ -2059,9 +2131,15 @@ function CodeQualityTab({
   fileStats?: RepoFileStats;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  initialView?: "changed" | "scenario";
+  onViewChange?: (view: "changed" | "scenario") => void;
 }) {
-  const [view, setView] = useState<"changed" | "scenario">("changed");
+  const [view, setViewInternal] = useState<"changed" | "scenario">(initialView ?? "changed");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const setView = useCallback((v: "changed" | "scenario") => {
+    setViewInternal(v);
+    onViewChange?.(v);
+  }, [onViewChange]);
   const tidinessScore = useTidinessScore(scenarioSlug, tidinessAvailable, repoId);
   const tidinessIssues = useTidinessIssues(scenarioSlug, { enabled: tidinessAvailable, repoId });
   const tidinessStaleness = useTidinessStaleness(scenarioSlug, tidinessAvailable, repoId);
@@ -2262,15 +2340,23 @@ function RulesTab({
   auditorAvailable,
   agentManagerAvailable,
   onAttachToAgent,
+  initialJobId,
+  onJobIdChange,
 }: {
   scenarioSlug: string;
   repoId?: string | null;
   auditorAvailable: boolean;
   agentManagerAvailable?: boolean;
   onAttachToAgent?: (item: AgentContextItem) => void;
+  initialJobId?: string | null;
+  onJobIdChange?: (id: string | null) => void;
 }) {
   const startCheck = useStartAuditorCheck(repoId);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobIdInternal] = useState<string | null>(initialJobId ?? null);
+  const setJobId = useCallback((id: string | null) => {
+    setJobIdInternal(id);
+    onJobIdChange?.(id);
+  }, [onJobIdChange]);
   const jobStatus = useAuditorJobStatus(jobId, repoId);
   const [expandedViolation, setExpandedViolation] = useState<string | null>(null);
 
