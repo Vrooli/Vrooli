@@ -159,6 +159,36 @@ func (s *Server) handleTTSSynthesize(w http.ResponseWriter, r *http.Request) {
 	}
 	defer audioBody.Close()
 
+	// If an eventId is provided, read the full response so we can both
+	// stream it to the client and opportunistically cache it.
+	eventID := r.URL.Query().Get("eventId")
+	version := r.URL.Query().Get("version")
+	if eventID != "" && s.ttsCache != nil {
+		if version == "" {
+			version = "active"
+		}
+		data, readErr := io.ReadAll(audioBody)
+		if readErr != nil {
+			log.Printf("tts-synthesize: read for cache: %v", readErr)
+			writeCatalogError(w, "tts_synthesis_failed", "synthesis failed")
+			return
+		}
+		if len(data) > 0 {
+			s.ttsCache.Put(TTSCacheKey{
+				EventID: eventID,
+				Voice:   req.Voice,
+				Speed:   req.Speed,
+				Version: version,
+			}, data, contentType)
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		if _, writeErr := w.Write(data); writeErr != nil {
+			log.Printf("tts-synthesize: write cached response: %v", writeErr)
+		}
+		return
+	}
+
 	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	if _, err := io.Copy(w, audioBody); err != nil {

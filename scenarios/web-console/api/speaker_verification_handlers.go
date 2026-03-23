@@ -104,10 +104,7 @@ func (s *Server) handleGetSpeakerVerificationProfiles(w http.ResponseWriter, r *
 		writeCatalogError(w, "speaker_verification_failed", "Failed to list speaker profiles")
 		return
 	}
-	writeJSON(w, http.StatusOK, SpeakerVerificationProfilesResponse{
-		Profiles: profiles.Profiles,
-		Count:    profiles.Count,
-	})
+	writeJSON(w, http.StatusOK, SpeakerVerificationProfilesResponse(profiles))
 }
 
 func (s *Server) handleEnrollSpeakerProfile(w http.ResponseWriter, r *http.Request) {

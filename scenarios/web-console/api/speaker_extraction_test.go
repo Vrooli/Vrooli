@@ -20,13 +20,13 @@ func fakeWAVBytes(n int) []byte {
 	header := []byte("RIFF")
 	header = append(header, byte(36+n), byte((36+n)>>8), byte((36+n)>>16), byte((36+n)>>24))
 	header = append(header, []byte("WAVEfmt ")...)
-	header = append(header, 16, 0, 0, 0)         // fmt chunk size
-	header = append(header, 1, 0)                 // PCM format
-	header = append(header, 1, 0)                 // mono
-	header = append(header, 0x80, 0x3E, 0, 0)    // 16000 Hz
-	header = append(header, 0, 0x7D, 0, 0)       // byte rate (32000)
-	header = append(header, 2, 0)                 // block align
-	header = append(header, 16, 0)                // bits per sample
+	header = append(header, 16, 0, 0, 0)      // fmt chunk size
+	header = append(header, 1, 0)             // PCM format
+	header = append(header, 1, 0)             // mono
+	header = append(header, 0x80, 0x3E, 0, 0) // 16000 Hz
+	header = append(header, 0, 0x7D, 0, 0)    // byte rate (32000)
+	header = append(header, 2, 0)             // block align
+	header = append(header, 16, 0)            // bits per sample
 	header = append(header, []byte("data")...)
 	header = append(header, byte(n), byte(n>>8), byte(n>>16), byte(n>>24))
 	header = append(header, make([]byte, n)...)
@@ -58,7 +58,7 @@ func TestExtract_Success(t *testing.T) {
 		w.Header().Set("X-Speaker-Matched", "true")
 		w.Header().Set("X-Duration-Ms", "1234")
 		w.Header().Set("X-Audio-Seconds", "2.5")
-		w.Write(wavData)
+		_, _ = w.Write(wavData)
 	}))
 	defer resource.Close()
 
@@ -95,7 +95,7 @@ func TestExtract_Success(t *testing.T) {
 func TestExtract_ProfileNotFound(t *testing.T) {
 	resource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "Profile not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "Profile not found"})
 	}))
 	defer resource.Close()
 
@@ -159,7 +159,7 @@ func TestExtractTargetSpeaker_Enabled(t *testing.T) {
 		w.Header().Set("X-Duration-Ms", "500")
 		w.Header().Set("X-Audio-Seconds", "2.0")
 		w.Header().Set("Content-Type", "audio/wav")
-		w.Write(wavData)
+		_, _ = w.Write(wavData)
 	}))
 	defer resource.Close()
 
@@ -241,7 +241,7 @@ func TestExtractTargetSpeaker_ClientError(t *testing.T) {
 		// Verify endpoint for fallback
 		if r.URL.Path == "/v1/verify" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(SpeakerVerificationResult{
+			_ = json.NewEncoder(w).Encode(SpeakerVerificationResult{
 				ProfileID:  "default",
 				Matched:    true,
 				Score:      0.9,

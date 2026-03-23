@@ -183,7 +183,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     });
 
     expect(mockStop).toHaveBeenCalled();
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Hello world"]);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Hello world"], { eventId: "evt-1" });
     expect(ack).toHaveBeenCalledWith("received");
     expect(ack).toHaveBeenCalledWith("seen");
     expect(ack).toHaveBeenCalledWith("playback_started", undefined, "browser");
@@ -205,7 +205,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
       "First paragraph",
       "Second paragraph",
       "Third paragraph",
-    ]);
+    ], { eventId: "evt-2" });
   });
 
   it("does not speak when autoTtsEnabled is false", async () => {
@@ -229,7 +229,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
       await capturedCandidateHandler?.({ id: "evt-4", source: "claude_hook", role: "assistant", sequence: 4, text: "This text is nowhere in the visible terminal", speechParagraphs: ["This text is nowhere in the visible terminal"] }, ack);
     });
 
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["This text is nowhere in the visible terminal"]);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["This text is nowhere in the visible terminal"], { eventId: "evt-4" });
     expect(ack).not.toHaveBeenCalledWith("rejected", expect.anything());
   });
 
@@ -253,7 +253,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
       "Hi. What do you need help with in Vrooli?",
-    ]);
+    ], { eventId: "evt-codex-markdown" });
     expect(ack).toHaveBeenCalledWith("seen");
     terminalBufferLines[0] = original;
   });
@@ -273,7 +273,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
       }, ack);
     });
 
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Rendered a moment later"]);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Rendered a moment later"], { eventId: "evt-retry" });
     expect(ack).toHaveBeenCalledWith("seen");
   });
 
@@ -290,7 +290,7 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
       }, vi.fn());
     });
 
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB]);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB], { eventId: "evt-5" });
   });
 
   it("falls back to [text] when speechParagraphs is missing", async () => {
@@ -302,6 +302,6 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
 
     expect(mockSpeakParagraphs).toHaveBeenCalledWith([
       "Only real content",
-    ]);
+    ], { eventId: "evt-6" });
   });
 });

@@ -130,6 +130,37 @@ export class KokoroProvider implements TTSProvider {
     }
   }
 
+  /**
+   * Play a pre-fetched audio blob (from the TTS cache) without synthesis.
+   * Reuses the same HTMLAudioElement and blob lifecycle as speak().
+   */
+  async speakFromBlob(blob: Blob): Promise<void> {
+    this.stop();
+    this._isSpeaking = true;
+    this._isPaused = false;
+
+    if (blob.size === 0) {
+      this.cleanup();
+      return;
+    }
+
+    this.revokeBlobUrl();
+    this.blobUrl = URL.createObjectURL(blob);
+    this.audio.src = this.blobUrl;
+    this.audio.currentTime = 0;
+
+    return new Promise<void>((resolve, reject) => {
+      this.playbackResolve = resolve;
+      this.playbackReject = reject;
+      this.audio.play().catch((err) => {
+        this.playbackResolve = null;
+        this.playbackReject = null;
+        this.cleanup();
+        reject(err);
+      });
+    });
+  }
+
   stop(): void {
     this.abortController?.abort();
     this.abortController = null;

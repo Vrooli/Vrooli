@@ -752,6 +752,30 @@ export async function synthesizeTTS(
   return res.blob();
 }
 
+/**
+ * Fetch pre-cached TTS audio for an event. Returns the audio Blob on cache
+ * hit, or null on cache miss (404). Used by the cache-first playback path
+ * to eliminate synthesis latency on tab switch.
+ */
+export async function fetchCachedTTS(
+  eventId: string,
+  voice: string,
+  speed: number,
+  version: "active" | "original" = "active",
+  signal?: AbortSignal,
+): Promise<Blob | null> {
+  const params = new URLSearchParams({ voice, speed: String(speed), version });
+  const url = buildApiUrl(`/tts/cache/${eventId}?${params}`, { baseUrl: API_BASE });
+  try {
+    const resp = await fetch(url, { signal });
+    if (resp.status === 404) return null;
+    if (!resp.ok) return null;
+    return resp.blob();
+  } catch {
+    return null;
+  }
+}
+
 export interface TTSVoiceInfo {
   id: string;
   name: string;

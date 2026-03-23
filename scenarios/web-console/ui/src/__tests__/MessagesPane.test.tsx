@@ -74,7 +74,7 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world", ["Hello world"]);
+    expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world", ["Hello world"], { version: "original" });
     expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 // DOC: docs/internal/SEAMS.md#tts-provider-seam
 import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchCapabilitiesLivenessCached, getTTSVoices, reportTTSEvent, _resetCapabilitiesCache } from "../lib/api";
+import { fetchCachedTTS, fetchCapabilitiesLivenessCached, getTTSVoices, reportTTSEvent, _resetCapabilitiesCache } from "../lib/api";
 import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
@@ -435,7 +435,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   );
 
   const speakParagraphs = useCallback(
-    async (paragraphs: string[]) => {
+    async (paragraphs: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
       speakChainRef.current?.abort();
       const controller = new AbortController();
       speakChainRef.current = controller;
@@ -446,12 +446,34 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       emitEvent("attempt", backendRef.current);
 
       try {
+        // Cache-first path: if eventId is provided and backend is Kokoro,
+        // try fetching pre-cached audio before falling back to synthesis.
+        if (opts?.eventId && backendRef.current === "kokoro" && providerRef.current) {
+          const provider = providerRef.current as KokoroProvider;
+          const blob = await fetchCachedTTS(
+            opts.eventId,
+            settings.kokoroVoice,
+            settings.kokoroSpeed,
+            opts.version ?? "active",
+            controller.signal,
+          );
+          if (blob && !controller.signal.aborted) {
+            await provider.speakFromBlob(blob);
+            if (!controller.signal.aborted) {
+              emitEvent("success", "kokoro");
+              updateSuccess("kokoro");
+              return "kokoro" as TTSBackend;
+            }
+            if (speakChainRef.current === controller) {
+              setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
+            }
+            return;
+          }
+        }
+
+        // Fall through to standard synthesis path.
         const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
         if (controller.signal.aborted) {
-          // Only clear isSpeaking if no new chain has superseded us.
-          // A new speakParagraphs() call sets isSpeaking: true for the
-          // replacement chain; overwriting it here would make the UI think
-          // nothing is playing (toolbar disappears, mic button unaware).
           if (speakChainRef.current === controller) {
             setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           }
@@ -462,7 +484,6 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         return usedBackend;
       } catch (err: unknown) {
         if (controller.signal.aborted || isAbortLikeError(err)) {
-          // Same guard: don't clear isSpeaking if a new chain is active.
           if (speakChainRef.current === controller) {
             setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
           }
@@ -479,7 +500,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         }
       }
     },
-    [emitEvent, executeSpeak, updateSuccess],
+    [emitEvent, executeSpeak, settings.kokoroSpeed, settings.kokoroVoice, updateSuccess],
   );
 
   const stop = useCallback(() => {

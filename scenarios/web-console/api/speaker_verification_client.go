@@ -285,16 +285,16 @@ func (c *SpeakerVerificationResourceClient) Extract(
 	result := SpeakerExtractionResult{Audio: audioBytes}
 
 	if s := resp.Header.Get("X-Speaker-Score"); s != "" {
-		fmt.Sscanf(s, "%f", &result.Score)
+		_, _ = fmt.Sscanf(s, "%f", &result.Score)
 	}
 	if s := resp.Header.Get("X-Speaker-Matched"); s != "" {
 		result.Matched = strings.EqualFold(s, "true")
 	}
 	if s := resp.Header.Get("X-Duration-Ms"); s != "" {
-		fmt.Sscanf(s, "%f", &result.DurationMs)
+		_, _ = fmt.Sscanf(s, "%f", &result.DurationMs)
 	}
 	if s := resp.Header.Get("X-Audio-Seconds"); s != "" {
-		fmt.Sscanf(s, "%f", &result.AudioSeconds)
+		_, _ = fmt.Sscanf(s, "%f", &result.AudioSeconds)
 	}
 
 	return result, nil

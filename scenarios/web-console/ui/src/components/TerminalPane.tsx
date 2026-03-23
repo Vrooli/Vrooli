@@ -100,7 +100,7 @@ export interface TerminalPaneHandle {
   /** Stop TTS playback for this pane. */
   stopTts: () => void;
   /** Stop current TTS, then speak a single text (optionally pre-chunked). */
-  speakText: (text: string, paragraphs?: string[]) => void;
+  speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => void;
   /** Stop current TTS, then speak texts sequentially, calling onProgress(i) before each. */
   speakSequence: (texts: string[], onProgress: (index: number) => void) => Promise<void>;
   /** Pause TTS playback. */
@@ -233,7 +233,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
       sendAck("playback_started", undefined, backend);
       try {
-        const usedBackend = await speakParagraphs(paragraphs);
+        const usedBackend = await speakParagraphs(paragraphs, { eventId: event.id });
         sendAck("playback_succeeded", undefined, usedBackend ?? backend);
         await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
       } catch (err) {
@@ -268,7 +268,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           ttsStop();
           const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
           try {
-            await speakParagraphs(paragraphs);
+            await speakParagraphs(paragraphs, { eventId: event.id });
             await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
           } catch {
             return
@@ -309,9 +309,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendInput,
       focus: () => terminal?.focus(),
       stopTts: ttsStop,
-      speakText: (text: string, paragraphs?: string[]) => {
+      speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
         ttsStop();
-        void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]));
+        void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), opts);
       },
       speakSequence: async (texts: string[], onProgress: (index: number) => void) => {
         ttsStop();

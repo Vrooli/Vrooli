@@ -549,9 +549,9 @@ export default function Workspace() {
     });
   }, [speakSequenceOnPane]);
 
-  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string, paragraphs?: string[]) => {
+  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => {
     setActiveSpeakingEventId(eventId);
-    speakTextOnPane(sessionId, text, paragraphs);
+    speakTextOnPane(sessionId, text, paragraphs, { eventId, version: opts?.version });
   }, [speakTextOnPane]);
 
   // --- Mobile image upload ---
@@ -827,7 +827,7 @@ export default function Workspace() {
               <MessagesPane
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text, paragraphs) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs)}
+                        onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />
@@ -979,7 +979,7 @@ export default function Workspace() {
                       <MessagesPane
                         sessionId={paneMeta.sessionId}
                         onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text, paragraphs) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs)}
+                        onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
                       />
@@ -1062,7 +1062,7 @@ export default function Workspace() {
                 const paragraphs = useSummarized
                   ? activeEvent.speechParagraphs
                   : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
-                speakTextOnPane(activePaneId, activeEvent.text, paragraphs);
+                speakTextOnPane(activePaneId, activeEvent.text, paragraphs, { eventId: activeEvent.id, version: useSummarized ? "active" : "original" });
               } : undefined}
               onRequestSummarize={canRequestSummarize && activeEvent && store.activePane ? () => {
                 const sid = store.activePane;
@@ -1084,7 +1084,7 @@ export default function Workspace() {
                         sessions: { ...convState.sessions, [sid]: { ...session, events: updatedEvents } },
                       });
                       // Replay with summarized version
-                      speakTextOnPane(sid, activeEvent.text, res.speechParagraphs);
+                      speakTextOnPane(sid, activeEvent.text, res.speechParagraphs, { eventId: eid, version: "active" });
                     }
                   }
                 }).finally(() => setIsSummarizing(false));

@@ -14,7 +14,7 @@ interface MessagesPaneProps {
   /** Speak from this event through all subsequent events. */
   onSpeakFromHere: (eventId: string) => void;
   /** Speak only this event's text (with optional pre-computed paragraphs). */
-  onSpeakOne: (eventId: string, text: string, paragraphs?: string[]) => void;
+  onSpeakOne: (eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => void;
   /** Event ID currently being spoken, or null. */
   activeSpeakingEventId: string | null;
   /** Whether TTS is active on this pane. */
@@ -233,7 +233,7 @@ export default function MessagesPane({
     const paragraphs = useSummarized
       ? event.speechParagraphs
       : (event.originalSpeechParagraphs ?? event.speechParagraphs);
-    onSpeakOne(event.id, event.text, paragraphs);
+    onSpeakOne(event.id, event.text, paragraphs, { version: useSummarized ? "active" : "original" });
   }, [onSpeakOne, playbackModes]);
 
   const handleRequestSummarize = useCallback((eventId: string) => {

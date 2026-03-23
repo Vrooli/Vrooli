@@ -48,6 +48,7 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 	event, result := s.conversations.AppendAssistantEvent(targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
 		s.maybeSummarizeSpeechParagraphs(&event, targetSessionID)
+		go s.preSynthesizeTTS(event, targetSessionID)
 		sess.SendConversation(event)
 	}
 	s.recordLastTTSRouting(result)

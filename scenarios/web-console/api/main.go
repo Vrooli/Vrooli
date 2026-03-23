@@ -102,6 +102,7 @@ type Server struct {
 	ttsSummarizePath              string
 	hookAuthToken                 string
 	codexTailer                   *CodexTailer
+	ttsCache                      *TTSCache
 	ttsSynthesizer                TTSSynthesizer
 	ttsVoiceLister                TTSVoiceLister
 	conversations                 *ConversationStore
@@ -213,6 +214,7 @@ func NewServer(db *sql.DB) *Server {
 		ttsSummarizeConfig:            ttsSummarizeCfg,
 		ttsSummarizePath:              ttsSummarizePath,
 		hookAuthToken:                 hookToken,
+		ttsCache:                      NewTTSCache(100 * 1024 * 1024), // 100MB
 		conversations:                 NewConversationStore(),
 		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
@@ -396,8 +398,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleGetTTSSummarizeConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/tts/summarize/config", s.handleUpdateTTSSummarizeConfig).Methods("PUT")
 
-	// TTS synthesis and voices (Kokoro backend)
+	// TTS synthesis, cache, and voices (Kokoro backend)
 	s.router.HandleFunc("/api/v1/tts/synthesize", s.handleTTSSynthesize).Methods("POST")
+	s.router.HandleFunc("/api/v1/tts/cache/{eventId}", s.handleGetTTSCache).Methods("GET")
 	s.router.HandleFunc("/api/v1/tts/voices", s.handleTTSVoices).Methods("GET")
 }
 
