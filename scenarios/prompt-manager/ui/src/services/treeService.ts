@@ -217,96 +217,6 @@ export function getAllFolders(skills: Skill[]): string[] {
 }
 
 /**
- * Filter tree nodes by selected tags.
- * Returns a new tree with only items that have at least one of the selected tags.
- *
- * @param nodes - Tree nodes to filter
- * @param selectedTags - Tags to filter by (items must have at least one)
- * @param skills - All skills for tag lookup
- * @returns Filtered tree nodes
- */
-export function filterTreeByTags(
-  nodes: TreeNode[],
-  selectedTags: string[],
-  skills: Skill[]
-): TreeNode[] {
-  if (selectedTags.length === 0) return nodes
-
-  const tagSet = new Set(selectedTags)
-
-  // Find all matching skill IDs
-  const matchingIds = new Set(
-    skills
-      .filter((p) => p.tags.some((tag) => tagSet.has(tag)))
-      .map((p) => p.id)
-  )
-
-  // Recursively filter tree, keeping categories that have matching descendants
-  function filterNode(node: TreeNode): TreeNode | null {
-    if (!node.isCategory) {
-      // Leaf node - include if it matches
-      return node.itemId && matchingIds.has(node.itemId) ? node : null
-    }
-
-    // Category node - include if any children match
-    const filteredChildren = node.children
-      .map(filterNode)
-      .filter((n): n is TreeNode => n !== null)
-
-    if (filteredChildren.length === 0) return null
-
-    return { ...node, children: filteredChildren }
-  }
-
-  return nodes.map(filterNode).filter((n): n is TreeNode => n !== null)
-}
-
-/**
- * Filter tree nodes by selected folders (storage locations).
- * Returns a new tree with only items that are in one of the selected folders.
- *
- * @param nodes - Tree nodes to filter
- * @param selectedFolders - Folders to filter by (items must be in one)
- * @param skills - All skills for folder lookup
- * @returns Filtered tree nodes
- */
-export function filterTreeByFolders(
-  nodes: TreeNode[],
-  selectedFolders: string[],
-  skills: Skill[]
-): TreeNode[] {
-  if (selectedFolders.length === 0) return nodes
-
-  const folderSet = new Set(selectedFolders)
-
-  // Find all matching skill IDs
-  const matchingIds = new Set(
-    skills
-      .filter((p) => folderSet.has(p.folder))
-      .map((p) => p.id)
-  )
-
-  // Recursively filter tree, keeping categories that have matching descendants
-  function filterNode(node: TreeNode): TreeNode | null {
-    if (!node.isCategory) {
-      // Leaf node - include if it matches
-      return node.itemId && matchingIds.has(node.itemId) ? node : null
-    }
-
-    // Category node - include if any children match
-    const filteredChildren = node.children
-      .map(filterNode)
-      .filter((n): n is TreeNode => n !== null)
-
-    if (filteredChildren.length === 0) return null
-
-    return { ...node, children: filteredChildren }
-  }
-
-  return nodes.map(filterNode).filter((n): n is TreeNode => n !== null)
-}
-
-/**
  * Get the count of selected items in a subtree.
  *
  * @param node - Root node of subtree to count
@@ -416,6 +326,73 @@ export function getModesPathFromNode(node: TreeNode): string[] {
     return []
   }
   return node.id.split('/')
+}
+
+/**
+ * Filter tree nodes by a set of skill IDs.
+ * Returns a new tree keeping only leaf nodes whose itemId is in the set,
+ * plus any ancestor categories needed to reach them.
+ *
+ * This is the generic replacement for filterTreeByTags and filterTreeByFolders,
+ * which both followed the same pattern.
+ */
+export function filterTreeBySkillIds(
+  nodes: TreeNode[],
+  skillIds: Set<string>
+): TreeNode[] {
+  if (skillIds.size === 0) return []
+
+  function filterNode(node: TreeNode): TreeNode | null {
+    if (!node.isCategory) {
+      return node.itemId && skillIds.has(node.itemId) ? node : null
+    }
+
+    const filteredChildren = node.children
+      .map(filterNode)
+      .filter((n): n is TreeNode => n !== null)
+
+    if (filteredChildren.length === 0) return null
+    return { ...node, children: filteredChildren }
+  }
+
+  return nodes.map(filterNode).filter((n): n is TreeNode => n !== null)
+}
+
+/**
+ * Reorder leaf nodes within each category to match a provided sort order.
+ * Categories remain in their existing order; only leaf (skill) nodes are reordered.
+ *
+ * @param nodes - Tree nodes to reorder
+ * @param sortedSkillIds - Skill IDs in desired order (from sortSkills)
+ * @returns New tree with leaves reordered
+ */
+export function sortTreeLeaves(
+  nodes: TreeNode[],
+  sortedSkillIds: string[]
+): TreeNode[] {
+  const orderIndex = new Map(sortedSkillIds.map((id, i) => [id, i]))
+
+  function reorder(children: TreeNode[]): TreeNode[] {
+    const categories = children.filter((n) => n.isCategory)
+    const leaves = children.filter((n) => !n.isCategory)
+
+    // Sort leaves by their position in sortedSkillIds
+    leaves.sort((a, b) => {
+      const aIdx = a.itemId != null ? (orderIndex.get(a.itemId) ?? Infinity) : Infinity
+      const bIdx = b.itemId != null ? (orderIndex.get(b.itemId) ?? Infinity) : Infinity
+      return aIdx - bIdx
+    })
+
+    // Recurse into categories
+    const sortedCategories = categories.map((cat) => ({
+      ...cat,
+      children: reorder(cat.children),
+    }))
+
+    return [...sortedCategories, ...leaves]
+  }
+
+  return reorder(nodes)
 }
 
 /**

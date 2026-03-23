@@ -4,23 +4,24 @@
  * Handles:
  * - Expanded/collapsed node state
  * - Selected item tracking
- * - Search/filter state
- * - Tag filtering
+ * - Search/filter/sort/view state
  * - Auto-expand to selected item
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
+import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
 import {
   buildTree,
   filterTree,
-  filterTreeByTags,
-  filterTreeByFolders,
+  filterTreeBySkillIds,
   getPathsToItem,
   getAllTags,
   getAllFolders,
 } from '@/services/treeService'
+import { applyFilters, sortSkills } from '@/services/filterSortService'
 // AI_CHECK: TREE_EXPAND_STATE_CHURN=1 | LAST: 2026-02-17
 
 interface UseSkillTreeProps {
@@ -30,10 +31,12 @@ interface UseSkillTreeProps {
   initialIsCollapsed?: boolean
   /** Initial expanded nodes (for persistence) */
   initialExpandedNodes?: string[]
-  /** Initial selected tags (for persistence) */
-  initialSelectedTags?: string[]
-  /** Initial selected folders (for persistence) */
-  initialSelectedFolders?: string[]
+  /** Initial filter state (for persistence) */
+  initialFilterState?: FilterState
+  /** Initial sort config (for persistence) */
+  initialSortConfig?: SortConfig
+  /** Initial view mode (for persistence) */
+  initialViewMode?: ViewMode
   /** Initial search query (for persistence) */
   initialSearchQuery?: string
 }
@@ -42,6 +45,9 @@ interface UseSkillTreeReturn {
   // Tree data
   treeNodes: TreeNode[]
   filteredTreeNodes: TreeNode[]
+
+  // Flat data (for list/card views)
+  filteredSortedSkills: Skill[]
 
   // Selection state
   selectedItemId: string | null
@@ -58,15 +64,19 @@ interface UseSkillTreeReturn {
   searchQuery: string
   setSearchQuery: (query: string) => void
 
-  // Tag filter state
-  selectedTags: string[]
-  setSelectedTags: (tags: string[]) => void
+  // Filter state
+  filterState: FilterState
+  setFilterState: (state: FilterState) => void
   availableTags: string[]
-
-  // Folder filter state
-  selectedFolders: string[]
-  setSelectedFolders: (folders: string[]) => void
   availableFolders: string[]
+
+  // Sort state
+  sortConfig: SortConfig
+  setSortConfig: (config: SortConfig) => void
+
+  // View mode
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
 
   // Sidebar collapse
   isCollapsed: boolean
@@ -89,8 +99,9 @@ export function useSkillTree({
   initialSelectedId = null,
   initialIsCollapsed = false,
   initialExpandedNodes = [],
-  initialSelectedTags = [],
-  initialSelectedFolders = [],
+  initialFilterState = DEFAULT_FILTER_STATE,
+  initialSortConfig = DEFAULT_SORT_CONFIG,
+  initialViewMode = DEFAULT_VIEW_MODE,
   initialSearchQuery = '',
 }: UseSkillTreeProps): UseSkillTreeReturn {
   // Ref to hold skills for stable callbacks (avoids re-creating callbacks when skills load)
@@ -111,43 +122,57 @@ export function useSkillTree({
   // Search state (persisted)
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
 
-  // Tag filter state (initialized from persistence)
-  const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags)
-
-  // Folder filter state (initialized from persistence)
-  const [selectedFolders, setSelectedFolders] = useState<string[]>(initialSelectedFolders)
+  // Filter/sort/view state (initialized from persistence)
+  const [filterState, setFilterState] = useState<FilterState>(initialFilterState)
+  const [sortConfig, setSortConfig] = useState<SortConfig>(initialSortConfig)
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
 
   // Sidebar collapse state (initialized from persistence)
   const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
   const hasHydratedSearchExpansion = useRef(false)
 
-  // Get all available tags from skills
+  // Get all available tags from skills (unfiltered)
   const availableTags = useMemo(() => getAllTags(skills), [skills])
 
-  // Get all available folders from skills
+  // Get all available folders from skills (unfiltered)
   const availableFolders = useMemo(() => getAllFolders(skills), [skills])
 
-  // Filter tree based on search query, tags, and folders
+  // Step 1: Apply filters → flat Skill[]
+  // Step 2: Apply search query → flat Skill[]
+  // Step 3: Sort → flat Skill[]
+  const filteredSortedSkills = useMemo(() => {
+    let result = applyFilters(skills, filterState)
+
+    // Apply search query (same fields as filterTree uses for the tree view)
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      result = result.filter((s) =>
+        s.name.toLowerCase().includes(query) ||
+        s.description.toLowerCase().includes(query) ||
+        s.content.toLowerCase().includes(query) ||
+        s.tags.some((t) => t.toLowerCase().includes(query)) ||
+        s.modes.some((m) => m.toLowerCase().includes(query))
+      )
+    }
+
+    return sortSkills(result, sortConfig)
+  }, [skills, filterState, searchQuery, sortConfig])
+
+  // Step 3: For tree view — filter tree by matching skill IDs
+  // Sorting is not applied in tree view (sort dropdown is hidden for tree mode).
   const filteredTreeNodes = useMemo(() => {
-    let filtered = treeNodes
+    const matchingIds = new Set(filteredSortedSkills.map((s) => s.id))
+    let filtered = matchingIds.size === skills.length
+      ? treeNodes
+      : filterTreeBySkillIds(treeNodes, matchingIds)
 
-    // Apply folder filter
-    if (selectedFolders.length > 0) {
-      filtered = filterTreeByFolders(filtered, selectedFolders, skills)
-    }
-
-    // Apply tag filter
-    if (selectedTags.length > 0) {
-      filtered = filterTreeByTags(filtered, selectedTags, skills)
-    }
-
-    // Apply search filter
+    // Apply search filter on top
     if (searchQuery.trim()) {
       filtered = filterTree(filtered, searchQuery, skills)
     }
 
     return filtered
-  }, [treeNodes, searchQuery, selectedTags, selectedFolders, skills])
+  }, [treeNodes, filteredSortedSkills, searchQuery, skills])
 
   // Toggle a single node's expanded state
   const toggleNode = useCallback((nodeId: string) => {
@@ -255,6 +280,9 @@ export function useSkillTree({
     treeNodes,
     filteredTreeNodes,
 
+    // Flat data
+    filteredSortedSkills,
+
     // Selection state
     selectedItemId,
     setSelectedItemId,
@@ -270,15 +298,19 @@ export function useSkillTree({
     searchQuery,
     setSearchQuery,
 
-    // Tag filter state
-    selectedTags,
-    setSelectedTags,
+    // Filter state
+    filterState,
+    setFilterState,
     availableTags,
-
-    // Folder filter state
-    selectedFolders,
-    setSelectedFolders,
     availableFolders,
+
+    // Sort state
+    sortConfig,
+    setSortConfig,
+
+    // View mode
+    viewMode,
+    setViewMode,
 
     // Sidebar collapse
     isCollapsed,

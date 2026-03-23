@@ -16,6 +16,8 @@ import {
   getPathsToItem,
   filterTree,
   getModesAtLevel,
+  filterTreeBySkillIds,
+  sortTreeLeaves,
 } from './treeService'
 import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
@@ -411,5 +413,147 @@ describe('getModesAtLevel', () => {
     const modes = getModesAtLevel(skills, 0, [])
 
     expect(modes).toEqual(['development'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// filterTreeBySkillIds
+// ---------------------------------------------------------------------------
+
+describe('filterTreeBySkillIds', () => {
+  it('returns empty for empty skillIds set', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'A', modes: ['dev'] }),
+    ]
+    const tree = buildTree(skills)
+    expect(filterTreeBySkillIds(tree, new Set())).toEqual([])
+  })
+
+  it('keeps matching leaf nodes and their parent categories', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Alpha', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Beta', modes: ['dev'] }),
+      createTestSkill({ id: '3', name: 'Gamma', modes: ['test'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = filterTreeBySkillIds(tree, new Set(['1']))
+    expect(result).toHaveLength(1) // only 'dev' category
+    expect(result[0]?.label).toBe('dev')
+    expect(result[0]?.children).toHaveLength(1)
+    expect(result[0]?.children[0]?.itemId).toBe('1')
+  })
+
+  it('prunes empty categories', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'A', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'B', modes: ['test'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = filterTreeBySkillIds(tree, new Set(['1']))
+    expect(result).toHaveLength(1)
+    expect(result[0]?.label).toBe('dev')
+  })
+
+  it('preserves nested category structure', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Deep', modes: ['a', 'b', 'c'] }),
+      createTestSkill({ id: '2', name: 'Shallow', modes: ['a'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = filterTreeBySkillIds(tree, new Set(['1']))
+    expect(result).toHaveLength(1)
+    expect(result[0]?.label).toBe('a')
+    // Should have only 'b' category (not 'Shallow' leaf)
+    expect(result[0]?.children).toHaveLength(1)
+    expect(result[0]?.children[0]?.label).toBe('b')
+    expect(result[0]?.children[0]?.children[0]?.label).toBe('c')
+  })
+
+  it('handles skills in Other category', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'No Modes', modes: [] }),
+      createTestSkill({ id: '2', name: 'Has Modes', modes: ['dev'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = filterTreeBySkillIds(tree, new Set(['1']))
+    expect(result).toHaveLength(1)
+    expect(result[0]?.id).toBe('__other__')
+    expect(result[0]?.children).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// sortTreeLeaves
+// ---------------------------------------------------------------------------
+
+describe('sortTreeLeaves', () => {
+  it('reorders leaf nodes within a category', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Alpha', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Beta', modes: ['dev'] }),
+      createTestSkill({ id: '3', name: 'Charlie', modes: ['dev'] }),
+    ]
+    const tree = buildTree(skills)
+
+    // Reverse order
+    const result = sortTreeLeaves(tree, ['3', '2', '1'])
+    const leaves = result[0]?.children ?? []
+    expect(leaves.map((n) => n.itemId)).toEqual(['3', '2', '1'])
+  })
+
+  it('keeps categories before leaves', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Leaf', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Nested', modes: ['dev', 'sub'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = sortTreeLeaves(tree, ['1', '2'])
+    const devChildren = result[0]?.children ?? []
+    // Category 'sub' should come before leaf 'Leaf'
+    expect(devChildren[0]?.isCategory).toBe(true)
+    expect(devChildren[1]?.isCategory).toBe(false)
+  })
+
+  it('recursively sorts nested categories', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'A', modes: ['x', 'y'] }),
+      createTestSkill({ id: '2', name: 'B', modes: ['x', 'y'] }),
+    ]
+    const tree = buildTree(skills)
+
+    const result = sortTreeLeaves(tree, ['2', '1'])
+    const yChildren = result[0]?.children[0]?.children ?? []
+    expect(yChildren.map((n) => n.itemId)).toEqual(['2', '1'])
+  })
+
+  it('handles skills not in the sort order (sort to end)', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'A', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'B', modes: ['dev'] }),
+      createTestSkill({ id: '3', name: 'C', modes: ['dev'] }),
+    ]
+    const tree = buildTree(skills)
+
+    // Only specify order for skill 3 — others sort to end
+    const result = sortTreeLeaves(tree, ['3'])
+    const leaves = result[0]?.children ?? []
+    expect(leaves[0]?.itemId).toBe('3')
+  })
+
+  it('does not mutate the input tree', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'A', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'B', modes: ['dev'] }),
+    ]
+    const tree = buildTree(skills)
+    const originalOrder = tree[0]?.children.map((n) => n.itemId)
+
+    sortTreeLeaves(tree, ['2', '1'])
+    expect(tree[0]?.children.map((n) => n.itemId)).toEqual(originalOrder)
   })
 })

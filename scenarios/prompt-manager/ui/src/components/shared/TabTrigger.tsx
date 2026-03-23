@@ -53,6 +53,8 @@ interface TabTriggerProps {
   testId?: string
   /** Use smaller sizing (for nested sub-tabs) */
   compact?: boolean
+  /** Always show label regardless of screen width (for sidebars) */
+  alwaysShowLabel?: boolean
   className?: string
 }
 
@@ -60,7 +62,7 @@ interface TabTriggerProps {
  * Tab trigger with icon and label.
  * Label is hidden on small screens (< sm breakpoint) to save space.
  */
-export function TabTrigger({ value, icon, label, live, testId, compact, className }: TabTriggerProps) {
+export function TabTrigger({ value, icon, label, live, testId, compact, alwaysShowLabel, className }: TabTriggerProps) {
   return (
     <Tabs.Trigger
       value={value}
@@ -79,7 +81,7 @@ export function TabTrigger({ value, icon, label, live, testId, compact, classNam
       title={label}
     >
       {icon}
-      <span className="hidden sm:inline">{label}</span>
+      <span className={alwaysShowLabel ? undefined : 'hidden sm:inline'}>{label}</span>
       {live && (
         <span className="relative flex h-2 w-2 ml-1">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

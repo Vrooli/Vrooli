@@ -17,6 +17,7 @@ import {
   type SidebarPersistedState,
   type UseSidebarPersistenceOptions,
 } from './useSidebarPersistence'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
 
 const DEFAULT_CONTENT_SEARCH_OPTIONS = {
   caseSensitive: false,
@@ -35,8 +36,9 @@ const makeOptions = (
   return {
     isCollapsed: false,
     expandedNodes: new Set<string>(),
-    selectedTags: [],
-    selectedFolders: [],
+    filterState: DEFAULT_FILTER_STATE,
+    sortConfig: DEFAULT_SORT_CONFIG,
+    viewMode: DEFAULT_VIEW_MODE,
     activeTab: 'skills',
     searchQuery: '',
     searchMode: 'quick',
@@ -86,8 +88,9 @@ describe('useSidebarPersistence', () => {
       expect(state).toEqual({
         isCollapsed: false,
         expandedNodes: [],
-        selectedTags: [],
-        selectedFolders: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
         activeTab: 'skills',
         searchQuery: '',
         searchMode: 'quick',
@@ -103,8 +106,9 @@ describe('useSidebarPersistence', () => {
       const savedState: SidebarPersistedState = {
         isCollapsed: true,
         expandedNodes: ['folder-1', 'folder-2'],
-        selectedTags: ['tag-a', 'tag-b'],
-        selectedFolders: ['local', 'core'],
+        filterState: { storage: ['local', 'core'], tags: ['tag-a', 'tag-b'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'mostUsed', direction: 'desc' },
+        viewMode: 'list',
         activeTab: 'agents',
         searchQuery: 'test query',
         searchMode: 'content',
@@ -129,8 +133,9 @@ describe('useSidebarPersistence', () => {
       expect(state).toEqual({
         isCollapsed: false,
         expandedNodes: [],
-        selectedTags: [],
-        selectedFolders: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
         activeTab: 'skills',
         searchQuery: '',
         searchMode: 'quick',
@@ -150,8 +155,9 @@ describe('useSidebarPersistence', () => {
       expect(state).toEqual({
         isCollapsed: true,
         expandedNodes: [],
-        selectedTags: [],
-        selectedFolders: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
         activeTab: 'skills',
         searchQuery: '',
         searchMode: 'quick',
@@ -169,7 +175,7 @@ describe('useSidebarPersistence', () => {
         JSON.stringify({
           isCollapsed: 'not a boolean',
           expandedNodes: 'not an array',
-          selectedTags: 123,
+          filterState: 123,
         })
       )
 
@@ -178,8 +184,9 @@ describe('useSidebarPersistence', () => {
       expect(state).toEqual({
         isCollapsed: false,
         expandedNodes: [],
-        selectedTags: [],
-        selectedFolders: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
         activeTab: 'skills',
         searchQuery: '',
         searchMode: 'quick',
@@ -197,8 +204,9 @@ describe('useSidebarPersistence', () => {
       const state: SidebarPersistedState = {
         isCollapsed: true,
         expandedNodes: ['node-1'],
-        selectedTags: ['tag-1'],
-        selectedFolders: ['local'],
+        filterState: { storage: ['local'], tags: ['tag-1'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
         activeTab: 'teams',
         searchQuery: 'find me',
         searchMode: 'quick',
@@ -237,8 +245,9 @@ describe('useSidebarPersistence', () => {
       rerender(makeOptions({
         isCollapsed: true,
         expandedNodes: new Set(['folder-1']),
-        selectedTags: ['tag-1'],
-        selectedFolders: ['local'],
+        filterState: { storage: ['local'], tags: ['tag-1'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'mostUsed', direction: 'desc' },
+        viewMode: 'list',
         activeTab: 'agents',
         searchQuery: 'test',
         searchMode: 'content',
@@ -262,8 +271,9 @@ describe('useSidebarPersistence', () => {
       expect(saved).toEqual({
         isCollapsed: true,
         expandedNodes: ['folder-1'],
-        selectedTags: ['tag-1'],
-        selectedFolders: ['local'],
+        filterState: { storage: ['local'], tags: ['tag-1'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'mostUsed', direction: 'desc' },
+        viewMode: 'list',
         activeTab: 'agents',
         searchQuery: 'test',
         searchMode: 'content',
@@ -286,17 +296,6 @@ describe('useSidebarPersistence', () => {
       // Update state
       rerender(makeOptions({
         isCollapsed: true,
-        expandedNodes: new Set<string>(),
-        selectedTags: [],
-        selectedFolders: [],
-        activeTab: 'skills',
-        searchQuery: '',
-        searchMode: 'quick',
-        contentSearchOptions: {
-          caseSensitive: false,
-          wholeWord: false,
-          regex: false,
-        },
       }))
 
       // Unmount before debounce completes
@@ -322,17 +321,6 @@ describe('useSidebarPersistence', () => {
       // Rapidly change state multiple times
       rerender(makeOptions({
         isCollapsed: true,
-        expandedNodes: new Set<string>(),
-        selectedTags: [],
-        selectedFolders: [],
-        activeTab: 'skills',
-        searchQuery: '',
-        searchMode: 'quick',
-        contentSearchOptions: {
-          caseSensitive: false,
-          wholeWord: false,
-          regex: false,
-        },
       }))
 
       act(() => {
@@ -342,8 +330,7 @@ describe('useSidebarPersistence', () => {
       rerender(makeOptions({
         isCollapsed: true,
         expandedNodes: new Set(['a']),
-        selectedTags: [],
-        selectedFolders: ['local'],
+        filterState: { storage: ['local'], tags: [], usagePreset: null, minRating: null, status: 'all' },
         activeTab: 'agents',
         searchQuery: 'search',
         searchMode: 'content',
@@ -361,8 +348,9 @@ describe('useSidebarPersistence', () => {
       rerender(makeOptions({
         isCollapsed: true,
         expandedNodes: new Set(['a', 'b']),
-        selectedTags: ['tag'],
-        selectedFolders: ['local', 'core'],
+        filterState: { storage: ['local', 'core'], tags: ['tag'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'recentlyUpdated', direction: 'desc' },
+        viewMode: 'card',
         activeTab: 'teams',
         searchQuery: 'final',
         searchMode: 'content',
@@ -386,8 +374,9 @@ describe('useSidebarPersistence', () => {
       expect(saved).toEqual({
         isCollapsed: true,
         expandedNodes: ['a', 'b'],
-        selectedTags: ['tag'],
-        selectedFolders: ['local', 'core'],
+        filterState: { storage: ['local', 'core'], tags: ['tag'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'recentlyUpdated', direction: 'desc' },
+        viewMode: 'card',
         activeTab: 'teams',
         searchQuery: 'final',
         searchMode: 'content',
@@ -404,8 +393,9 @@ describe('useSidebarPersistence', () => {
       const savedState: SidebarPersistedState = {
         isCollapsed: true,
         expandedNodes: ['saved-folder'],
-        selectedTags: ['saved-tag'],
-        selectedFolders: ['local'],
+        filterState: { storage: ['local'], tags: ['saved-tag'], usagePreset: null, minRating: null, status: 'all' },
+        sortConfig: { field: 'mostUsed', direction: 'desc' },
+        viewMode: 'list',
         activeTab: 'agents',
         searchQuery: 'saved query',
         searchMode: 'content',

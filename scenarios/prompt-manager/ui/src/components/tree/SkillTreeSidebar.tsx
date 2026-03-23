@@ -24,10 +24,13 @@ import type { CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
+import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
 import { TreeNodeComponent } from './TreeNode'
-import { TagFilterChips } from './TagFilterChips'
-import { TagFilterPopover } from './TagFilterPopover'
-import { FolderFilterChips } from './FolderFilterChips'
+import { FilterSortToolbar } from '../sidebar/FilterSortToolbar'
+import { ActiveFilterChips } from '../sidebar/ActiveFilterChips'
+import { SkillListView } from '../sidebar/SkillListView'
+import { SkillCardView } from '../sidebar/SkillCardView'
+import { isFilterEmpty } from '@/services/filterSortService'
 import { AgentListPanel } from '../agent/AgentListPanel'
 import { TeamListPanel } from '../team/TeamListPanel'
 import { RunListPanel } from '../run/RunListPanel'
@@ -54,10 +57,10 @@ const CONTENT_SEARCH_MIN_CHARS = 2
  * Flip booleans to enable features as entity types reach search parity with Skills.
  */
 const TAB_SEARCH_FEATURES = {
-  skills:  { contentSearch: true, aiSearch: true, tagFilter: true, folderFilter: true },
-  agents:  { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
-  teams:   { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
-  runs:    { contentSearch: false, aiSearch: false, tagFilter: false, folderFilter: false },
+  skills:  { contentSearch: true, aiSearch: true, tagFilter: true },
+  agents:  { contentSearch: false, aiSearch: false, tagFilter: false },
+  teams:   { contentSearch: false, aiSearch: false, tagFilter: false },
+  runs:    { contentSearch: false, aiSearch: false, tagFilter: false },
 } as const
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
@@ -286,13 +289,15 @@ interface SkillTreeSidebarProps {
   searchInputRef?: RefObject<HTMLInputElement>
   /** Callback to open settings modal */
   onOpenSettings?: () => void
-  // Tag filter props
-  selectedTags: string[]
-  onSelectedTagsChange: (tags: string[]) => void
+  // Filter/sort/view props
+  filterState: FilterState
+  onFilterStateChange: (state: FilterState) => void
+  sortConfig: SortConfig
+  onSortConfigChange: (config: SortConfig) => void
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+  filteredSortedSkills: Skill[]
   availableTags: string[]
-  // Folder filter props
-  selectedFolders: string[]
-  onSelectedFoldersChange: (folders: string[]) => void
   availableFolders: string[]
   // Context menu callbacks
   onDeleteFolder: (skillIds: string[], folderLabel: string) => void
@@ -394,11 +399,14 @@ export function SkillTreeSidebar({
   onCreateNew,
   searchInputRef,
   onOpenSettings,
-  selectedTags,
-  onSelectedTagsChange,
+  filterState,
+  onFilterStateChange,
+  sortConfig,
+  onSortConfigChange,
+  viewMode,
+  onViewModeChange,
+  filteredSortedSkills,
   availableTags,
-  selectedFolders,
-  onSelectedFoldersChange,
   availableFolders,
   onDeleteFolder,
   onCopySkill,
@@ -443,9 +451,6 @@ export function SkillTreeSidebar({
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size
 
-  // Tag filter popover state
-  const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false)
-  const tagFilterRef = useRef<HTMLDivElement>(null)
   const tabsListRef = useRef<HTMLDivElement>(null)
 
   // Convert vertical mouse wheel to horizontal scroll on tab triggers
@@ -500,7 +505,7 @@ export function SkillTreeSidebar({
     else setTeamSearchQuery(query)
   }, [activeTab, onSearchChange])
 
-  const tabFeatures: { contentSearch: boolean; aiSearch: boolean; tagFilter: boolean; folderFilter: boolean } | undefined =
+  const tabFeatures: { contentSearch: boolean; aiSearch: boolean; tagFilter: boolean } | undefined =
     (activeTab in TAB_SEARCH_FEATURES) ? TAB_SEARCH_FEATURES[activeTab as SearchableTab] : undefined
 
   // Notify parent when tab changes (for persistence)
@@ -662,8 +667,8 @@ export function SkillTreeSidebar({
     setContentError(null)
 
     searchSkillContent(debouncedQuery, {
-      tags: selectedTags,
-      folders: selectedFolders,
+      tags: filterState.tags,
+      folders: filterState.storage,
       caseSensitive: contentSearchOptions.caseSensitive,
       wholeWord: contentSearchOptions.wholeWord,
       regex: contentSearchOptions.regex,
@@ -687,7 +692,7 @@ export function SkillTreeSidebar({
     return () => {
       cancelled = true
     }
-  }, [debouncedQuery, searchMode, selectedTags, selectedFolders, contentSearchOptions])
+  }, [debouncedQuery, searchMode, filterState.tags, filterState.storage, contentSearchOptions])
 
   useEffect(() => {
     if (searchMode !== 'content') return
@@ -932,7 +937,7 @@ export function SkillTreeSidebar({
               onKeyDown={activeTab === 'skills' ? handleSearchInputKeyDown : undefined}
               placeholder={(activeTab in TAB_SEARCH_PLACEHOLDERS ? TAB_SEARCH_PLACEHOLDERS[activeTab as SearchableTab] : undefined) ?? 'Search...'}
               className={cn(
-                'w-full pl-8 pr-3 py-1.5 text-xs',
+                'w-full pl-8 pr-3 py-1.5 text-base md:text-xs',
                 'bg-muted border border-border rounded-md',
                 'text-foreground placeholder:text-muted-foreground',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
@@ -1044,89 +1049,45 @@ export function SkillTreeSidebar({
             </div>
           )}
 
-          {/* Skills-only: tag + folder filters */}
+          {/* Skills-only: filter/sort/view toolbar */}
           {tabFeatures?.tagFilter && (
-            <div className="flex items-center justify-between mt-2 gap-2" ref={tagFilterRef}>
-              <div className="relative flex-1 min-w-0">
-                <TagFilterChips
-                  selectedTags={selectedTags}
-                  onRemoveTag={(tag) => onSelectedTagsChange(selectedTags.filter((t) => t !== tag))}
-                  onAddFilter={() => setIsTagPopoverOpen(true)}
-                  onClearAll={() => onSelectedTagsChange([])}
-                />
-                <TagFilterPopover
-                  availableTags={availableTags}
-                  selectedTags={selectedTags}
-                  isOpen={isTagPopoverOpen}
-                  onClose={() => setIsTagPopoverOpen(false)}
-                  onApply={onSelectedTagsChange}
-                  anchorRef={tagFilterRef}
-                />
-              </div>
-              {searchMode === 'quick' && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={onExpandAll}
-                    className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                    title="Expand all"
-                    data-testid={selectors.sidebar.expandAllButton}
-                  >
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onCollapseAll}
-                    className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                    title="Collapse all"
-                  >
-                    <ChevronUp className="h-3 w-3" />
-                  </button>
-                  {onEnterCombineMode && (
-                    <button
-                      type="button"
-                      onClick={combineMode ? onExitCombineMode : onEnterCombineMode}
-                      className={cn(
-                        'flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-colors',
-                        combineMode
-                          ? 'bg-primary/20 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                      )}
-                      title={combineMode ? 'Exit combine mode' : 'Combine skills'}
-                    >
-                      <Layers className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Skills-only: folder filter */}
-          {tabFeatures?.folderFilter && availableFolders.length > 1 && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] text-muted-foreground flex-shrink-0">Storage:</span>
-              <FolderFilterChips
-                selectedFolders={selectedFolders}
+            <>
+              <FilterSortToolbar
+                filterState={filterState}
+                onFilterStateChange={onFilterStateChange}
+                sortConfig={sortConfig}
+                onSortConfigChange={onSortConfigChange}
+                viewMode={viewMode}
+                onViewModeChange={onViewModeChange}
+                availableTags={availableTags}
                 availableFolders={availableFolders}
-                onToggleFolder={(folder) => {
-                  if (selectedFolders.includes(folder)) {
-                    onSelectedFoldersChange(selectedFolders.filter((f) => f !== folder))
+                combineMode={combineMode}
+                onCombineModeToggle={onEnterCombineMode ? () => {
+                  if (combineMode) {
+                    onExitCombineMode?.()
                   } else {
-                    onSelectedFoldersChange([...selectedFolders, folder])
+                    onEnterCombineMode()
                   }
-                }}
+                } : undefined}
+                className="mt-2"
               />
-            </div>
+              {!isFilterEmpty(filterState) && (
+                <ActiveFilterChips
+                  filterState={filterState}
+                  onFilterStateChange={onFilterStateChange}
+                  className="mt-1.5"
+                />
+              )}
+            </>
           )}
         </div>
 
         {/* Tab triggers — wheel converts vertical scroll to horizontal */}
         <TabList ref={tabsListRef}>
-          <TabTrigger compact value="skills" icon={<Search className="h-3.5 w-3.5" />} label="Skills" testId={selectors.sidebar.tabSkills} />
-          <TabTrigger compact value="agents" icon={<User className="h-3.5 w-3.5" />} label="Agents" testId={selectors.sidebar.tabAgents} />
-          <TabTrigger compact value="teams" icon={<Users className="h-3.5 w-3.5" />} label="Teams" />
-          <TabTrigger compact value="runs" icon={<Activity className="h-3.5 w-3.5" />} label="Runs" />
+          <TabTrigger value="skills" icon={<Search className="h-3.5 w-3.5" />} label="Skills" alwaysShowLabel testId={selectors.sidebar.tabSkills} />
+          <TabTrigger value="agents" icon={<User className="h-3.5 w-3.5" />} label="Agents" alwaysShowLabel testId={selectors.sidebar.tabAgents} />
+          <TabTrigger value="teams" icon={<Users className="h-3.5 w-3.5" />} label="Teams" alwaysShowLabel />
+          <TabTrigger value="runs" icon={<Activity className="h-3.5 w-3.5" />} label="Runs" alwaysShowLabel />
         </TabList>
 
         {/* Skills Tab */}
@@ -1219,13 +1180,13 @@ export function SkillTreeSidebar({
               </div>
             ) : (
               <>
-                {treeNodes.length === 0 ? (
+                {treeNodes.length === 0 && filteredSortedSkills.length === 0 ? (
                   <div
                     className="px-3 py-8 text-center"
                     data-testid={selectors.sidebar.emptyState}
                   >
                     <p className="text-xs text-muted-foreground">
-                      {searchQuery || selectedTags.length > 0 || selectedFolders.length > 0 ? 'No skills match your filters' : 'No skills yet'}
+                      {searchQuery || !isFilterEmpty(filterState) ? 'No skills match your filters' : 'No skills yet'}
                     </p>
                     {searchQuery && aiSearchAvailable && (
                       <button
@@ -1241,27 +1202,81 @@ export function SkillTreeSidebar({
                       </button>
                     )}
                   </div>
+                ) : viewMode === 'list' ? (
+                  <SkillListView
+                    skills={filteredSortedSkills}
+                    selectedItemId={selectedItemId}
+                    onSelectItem={onSelectItem}
+                    dirtyItemIds={dirtyItemIds}
+                    renderItemIcon={renderItemIcon}
+                    onSkillContextMenu={handleSkillContextMenu}
+                    combineMode={combineMode}
+                    combineSelectedIds={combineSelectedIds}
+                    onCombineToggleSkill={onCombineToggle ? (skillId) => {
+                      onCombineToggle({ id: `item-${skillId}`, label: '', isCategory: false, children: [], itemId: skillId, depth: 0 })
+                    } : undefined}
+                  />
+                ) : viewMode === 'card' ? (
+                  <SkillCardView
+                    skills={filteredSortedSkills}
+                    selectedItemId={selectedItemId}
+                    onSelectItem={onSelectItem}
+                    dirtyItemIds={dirtyItemIds}
+                    renderItemIcon={renderItemIcon}
+                    onSkillContextMenu={handleSkillContextMenu}
+                    combineMode={combineMode}
+                    combineSelectedIds={combineSelectedIds}
+                    onCombineToggleSkill={onCombineToggle ? (skillId) => {
+                      onCombineToggle({ id: `item-${skillId}`, label: '', isCategory: false, children: [], itemId: skillId, depth: 0 })
+                    } : undefined}
+                  />
                 ) : (
-                  treeNodes.map((node) => (
-                    <TreeNodeComponent
-                      key={node.id}
-                      node={node}
-                      skillsById={skillsById}
-                      editedNameById={editedNameById}
-                      selectedItemId={selectedItemId}
-                      onSelectItem={onSelectItem}
-                      dirtyItemIds={dirtyItemIds}
-                      dirtyCountByNodeId={dirtyCountByNodeId}
-                      expandedNodes={expandedNodes}
-                      onToggleNode={onToggleNode}
-                      renderItemIcon={renderItemIcon}
-                      showCheckbox={combineMode}
-                      onCheckboxChange={combineMode ? onCombineToggle : undefined}
-                      selectionStateByNodeId={selectionStateByNodeId}
-                      onCategoryContextMenu={handleCategoryContextMenu}
-                      onSkillContextMenu={handleSkillContextMenu}
-                    />
-                  ))
+                  <>
+                    {/* Tree expand/collapse controls */}
+                    {searchMode === 'quick' && (
+                      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/50">
+                        <button
+                          type="button"
+                          onClick={onExpandAll}
+                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                          title="Expand all"
+                          data-testid={selectors.sidebar.expandAllButton}
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                          <span>Expand</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onCollapseAll}
+                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                          title="Collapse all"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                          <span>Collapse</span>
+                        </button>
+                      </div>
+                    )}
+                    {treeNodes.map((node) => (
+                      <TreeNodeComponent
+                        key={node.id}
+                        node={node}
+                        skillsById={skillsById}
+                        editedNameById={editedNameById}
+                        selectedItemId={selectedItemId}
+                        onSelectItem={onSelectItem}
+                        dirtyItemIds={dirtyItemIds}
+                        dirtyCountByNodeId={dirtyCountByNodeId}
+                        expandedNodes={expandedNodes}
+                        onToggleNode={onToggleNode}
+                        renderItemIcon={renderItemIcon}
+                        showCheckbox={combineMode}
+                        onCheckboxChange={combineMode ? onCombineToggle : undefined}
+                        selectionStateByNodeId={selectionStateByNodeId}
+                        onCategoryContextMenu={handleCategoryContextMenu}
+                        onSkillContextMenu={handleSkillContextMenu}
+                      />
+                    ))}
+                  </>
                 )}
 
                 {/* Folder context menu */}

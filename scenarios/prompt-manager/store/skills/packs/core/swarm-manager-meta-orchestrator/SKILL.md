@@ -168,41 +168,41 @@ Ready to create these items? I'll batch-create [N] backlog items across [M] init
 
 ### Agent Behavior
 
-1. Create the initiative(s) first
-2. Batch-create all backlog items with initiative assignment and dependency wiring
+1. Batch-create all backlog items with initiative assignment (auto-creates initiative via `--initiative` flag)
+2. Optionally update initiative metadata (title, description) if the auto-created defaults aren't sufficient
 3. Trigger initialization for each item (spawns workshop round 1)
 4. Report creation summary to user
 
 ### CLI Sequence
 
 ```bash
-# Step 1: Create initiative(s)
-swarm-manager initiatives create --data '{
-  "name": "<initiative-name>",
-  "title": "<Initiative Title>",
-  "description": "<1-sentence description>",
-  "items": ["<kind>/<name>", ...]
-}'
-
-# Step 2: Batch-create all items
+# Step 1: Batch-create all items with initiative assignment.
+# The --initiative flag auto-creates the initiative if it doesn't exist.
+# Initiative is a request-level field, NOT per-item.
+cat > /tmp/meta-orch-items.json <<'EOF'
+{
+  "items": [
+    {
+      "name": "<name>",
+      "title": "<title>",
+      "description": "<description>",
+      "kind": "<kind>",
+      "priority": <N>,
+      "tags": ["<tag1>", "<tag2>"],
+      "depends_on": ["<kind>/<name>", ...]
+    },
+    ...
+  ]
+}
+EOF
 swarm-manager backlog batch-create --file /tmp/meta-orch-items.json --initiative <initiative-name>
 
-# The items JSON file format:
-# {
-#   "items": [
-#     {
-#       "name": "<name>",
-#       "title": "<title>",
-#       "description": "<description>",
-#       "kind": "<kind>",
-#       "priority": <N>,
-#       "tags": ["<tag1>", "<tag2>"],
-#       "depends_on": ["<kind>/<name>", ...],
-#       "initiative": "<initiative-name>"
-#     },
-#     ...
-#   ]
-# }
+# Step 2 (optional): Update initiative with descriptive title/description.
+# The --initiative flag above auto-creates with name as title; update if needed.
+swarm-manager initiatives update --name <initiative-name> --data '{
+  "title": "<Initiative Title>",
+  "description": "<1-sentence description>"
+}'
 
 # Step 3: Trigger initialization for each item
 swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"initialize"}'
@@ -217,9 +217,10 @@ swarm-manager backlog create --data '{
   "kind": "<kind>",
   "priority": <N>,
   "tags": ["<tag1>", "<tag2>"],
-  "depends_on": ["<kind>/<name>", ...],
-  "initiative": "<initiative-name>"
+  "depends_on": ["<kind>/<name>", ...]
 }'
+# Then assign to initiative separately:
+swarm-manager initiatives add-items --name <initiative-name> --items <kind>/<name>
 ```
 
 ### Generate Output Template

@@ -4,12 +4,16 @@
  * Persists:
  * - isCollapsed: Whether the sidebar is collapsed
  * - expandedNodes: Which tree nodes are expanded
- * - selectedTags: Active tag filters
+ * - filterState: Active filter configuration
+ * - sortConfig: Current sort field and direction
+ * - viewMode: Current view mode (tree/list/card)
  *
  * Sidebar width is persisted separately by useResizableSidebar.
  */
 
 import { useEffect, useCallback, useRef } from 'react'
+import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
 
 /** localStorage key for sidebar state */
 const STORAGE_KEY = 'pm.sidebarState'
@@ -22,10 +26,12 @@ export interface SidebarPersistedState {
   isCollapsed: boolean
   /** IDs of expanded tree nodes */
   expandedNodes: string[]
-  /** Selected tag filters */
-  selectedTags: string[]
-  /** Selected folder filters */
-  selectedFolders: string[]
+  /** Filter configuration */
+  filterState: FilterState
+  /** Sort configuration */
+  sortConfig: SortConfig
+  /** View mode */
+  viewMode: ViewMode
   /** Active sidebar tab (skills, agents, teams) */
   activeTab: string
   /** Search query for skills */
@@ -43,8 +49,9 @@ export interface SidebarPersistedState {
 const DEFAULT_STATE: SidebarPersistedState = {
   isCollapsed: false,
   expandedNodes: [],
-  selectedTags: [],
-  selectedFolders: [],
+  filterState: DEFAULT_FILTER_STATE,
+  sortConfig: DEFAULT_SORT_CONFIG,
+  viewMode: DEFAULT_VIEW_MODE,
   activeTab: 'skills',
   searchQuery: '',
   searchMode: 'quick',
@@ -58,6 +65,7 @@ const DEFAULT_STATE: SidebarPersistedState = {
 /**
  * Load sidebar state from localStorage.
  * Returns default state if not found or invalid.
+ * Gracefully ignores old format keys (selectedTags, selectedFolders).
  */
 export function loadSidebarState(): SidebarPersistedState {
   if (typeof window === 'undefined') return DEFAULT_STATE
@@ -66,32 +74,68 @@ export function loadSidebarState(): SidebarPersistedState {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (!stored) return DEFAULT_STATE
 
-    const parsed = JSON.parse(stored) as Partial<SidebarPersistedState>
+    const parsed = JSON.parse(stored) as Record<string, unknown>
 
-    // Validate and merge with defaults
     return {
       isCollapsed: typeof parsed.isCollapsed === 'boolean' ? parsed.isCollapsed : DEFAULT_STATE.isCollapsed,
       expandedNodes: Array.isArray(parsed.expandedNodes) ? parsed.expandedNodes : DEFAULT_STATE.expandedNodes,
-      selectedTags: Array.isArray(parsed.selectedTags) ? parsed.selectedTags : DEFAULT_STATE.selectedTags,
-      selectedFolders: Array.isArray(parsed.selectedFolders) ? parsed.selectedFolders : DEFAULT_STATE.selectedFolders,
+      filterState: validateFilterState(parsed.filterState),
+      sortConfig: validateSortConfig(parsed.sortConfig),
+      viewMode: validateViewMode(parsed.viewMode),
       activeTab: typeof parsed.activeTab === 'string' ? parsed.activeTab : DEFAULT_STATE.activeTab,
       searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : DEFAULT_STATE.searchQuery,
       searchMode: parsed.searchMode === 'content' ? 'content' : DEFAULT_STATE.searchMode,
-      contentSearchOptions: {
-        caseSensitive: typeof parsed.contentSearchOptions?.caseSensitive === 'boolean'
-          ? parsed.contentSearchOptions.caseSensitive
-          : DEFAULT_STATE.contentSearchOptions.caseSensitive,
-        wholeWord: typeof parsed.contentSearchOptions?.wholeWord === 'boolean'
-          ? parsed.contentSearchOptions.wholeWord
-          : DEFAULT_STATE.contentSearchOptions.wholeWord,
-        regex: typeof parsed.contentSearchOptions?.regex === 'boolean'
-          ? parsed.contentSearchOptions.regex
-          : DEFAULT_STATE.contentSearchOptions.regex,
-      },
+      contentSearchOptions: validateContentSearchOptions(parsed.contentSearchOptions),
     }
   } catch {
     return DEFAULT_STATE
   }
+}
+
+function validateContentSearchOptions(raw: unknown): SidebarPersistedState['contentSearchOptions'] {
+  const defaults = DEFAULT_STATE.contentSearchOptions
+  if (!raw || typeof raw !== 'object') return defaults
+  const obj = raw as Record<string, unknown>
+  return {
+    caseSensitive: typeof obj.caseSensitive === 'boolean' ? obj.caseSensitive : defaults.caseSensitive,
+    wholeWord: typeof obj.wholeWord === 'boolean' ? obj.wholeWord : defaults.wholeWord,
+    regex: typeof obj.regex === 'boolean' ? obj.regex : defaults.regex,
+  }
+}
+
+function validateFilterState(raw: unknown): FilterState {
+  if (!raw || typeof raw !== 'object') return DEFAULT_FILTER_STATE
+  const obj = raw as Record<string, unknown>
+  return {
+    storage: Array.isArray(obj.storage) ? obj.storage.filter((s): s is string => typeof s === 'string') : [],
+    tags: Array.isArray(obj.tags) ? obj.tags.filter((t): t is string => typeof t === 'string') : [],
+    usagePreset: ['usedThisWeek', 'neverUsed', 'top10'].includes(obj.usagePreset as string)
+      ? (obj.usagePreset as FilterState['usagePreset'])
+      : null,
+    minRating: typeof obj.minRating === 'number' && obj.minRating >= 1 && obj.minRating <= 5
+      ? obj.minRating
+      : null,
+    status: ['all', 'draft', 'published'].includes(obj.status as string)
+      ? (obj.status as FilterState['status'])
+      : 'all',
+  }
+}
+
+function validateSortConfig(raw: unknown): SortConfig {
+  if (!raw || typeof raw !== 'object') return DEFAULT_SORT_CONFIG
+  const obj = raw as Record<string, unknown>
+  const validFields = ['alphabetical', 'mostUsed', 'recentlyUsed', 'recentlyUpdated', 'rating']
+  return {
+    field: validFields.includes(obj.field as string)
+      ? (obj.field as SortConfig['field'])
+      : DEFAULT_SORT_CONFIG.field,
+    direction: obj.direction === 'desc' ? 'desc' : 'asc',
+  }
+}
+
+function validateViewMode(raw: unknown): ViewMode {
+  if (['tree', 'list', 'card'].includes(raw as string)) return raw as ViewMode
+  return DEFAULT_VIEW_MODE
 }
 
 /**
@@ -112,10 +156,12 @@ export interface UseSidebarPersistenceOptions {
   isCollapsed: boolean
   /** Current expanded nodes */
   expandedNodes: Set<string>
-  /** Current selected tags */
-  selectedTags: string[]
-  /** Current selected folders */
-  selectedFolders: string[]
+  /** Current filter state */
+  filterState: FilterState
+  /** Current sort config */
+  sortConfig: SortConfig
+  /** Current view mode */
+  viewMode: ViewMode
   /** Current active tab */
   activeTab: string
   /** Current search query */
@@ -146,8 +192,9 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
   const {
     isCollapsed,
     expandedNodes,
-    selectedTags,
-    selectedFolders,
+    filterState,
+    sortConfig,
+    viewMode,
     activeTab,
     searchQuery,
     searchMode,
@@ -169,8 +216,9 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
       saveSidebarState({
         isCollapsed,
         expandedNodes: Array.from(expandedNodes),
-        selectedTags,
-        selectedFolders,
+        filterState,
+        sortConfig,
+        viewMode,
         activeTab,
         searchQuery,
         searchMode,
@@ -183,7 +231,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         clearTimeout(timerRef.current)
       }
     }
-  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery, searchMode, contentSearchOptions])
+  }, [isCollapsed, expandedNodes, filterState, sortConfig, viewMode, activeTab, searchQuery, searchMode, contentSearchOptions])
 
   const getInitialState = useCallback((): SidebarPersistedState => {
     return loadSidebarState()

@@ -16,6 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
 import type { Skill } from '@/types'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
 import { getAISearchStatus } from '@/services/skillService'
 
 vi.mock('@/services/skillService', () => ({
@@ -89,13 +90,15 @@ describe('SkillTreeSidebar', () => {
     onExpandAll: vi.fn(),
     onCollapseAll: vi.fn(),
     onCreateNew: vi.fn(),
-    // Tag filter props
-    selectedTags: [] as string[],
-    onSelectedTagsChange: vi.fn(),
+    // Filter/sort/view props
+    filterState: DEFAULT_FILTER_STATE,
+    onFilterStateChange: vi.fn(),
+    sortConfig: DEFAULT_SORT_CONFIG,
+    onSortConfigChange: vi.fn(),
+    viewMode: DEFAULT_VIEW_MODE,
+    onViewModeChange: vi.fn(),
+    filteredSortedSkills: [] as Skill[],
     availableTags: [] as string[],
-    // Folder filter props
-    selectedFolders: [] as string[],
-    onSelectedFoldersChange: vi.fn(),
     availableFolders: ['core', 'local', 'drafts'] as string[],
     // Context menu callbacks
     onDeleteFolder: vi.fn(),
@@ -122,8 +125,9 @@ describe('SkillTreeSidebar', () => {
       expect(screen.getByPlaceholderText('Search skills... (Ctrl+K)')).toBeInTheDocument()
     })
 
-    it('should render expand/collapse buttons', () => {
-      render(<SkillTreeSidebar {...defaultProps} />)
+    it('should render expand/collapse buttons when tree has content', () => {
+      const nodes = [createCategoryNode('dev', 'Development', [createItemNode('item-1', 'Skill 1', '1', 1)])]
+      render(<SkillTreeSidebar {...defaultProps} treeNodes={nodes} />)
 
       expect(screen.getByTitle('Expand all')).toBeInTheDocument()
       expect(screen.getByTitle('Collapse all')).toBeInTheDocument()
@@ -278,7 +282,7 @@ describe('SkillTreeSidebar', () => {
         />
       )
 
-      const skillRowBefore = screen.getByRole('button', { name: 'Skill One' })
+      const skillRowBefore = screen.getByTestId('skill-sidebar-skill-row')
       expect(skillRowBefore.className).not.toContain('bg-primary/30')
 
       rerender(
@@ -291,7 +295,7 @@ describe('SkillTreeSidebar', () => {
         />
       )
 
-      const skillRowAfter = screen.getByRole('button', { name: 'Skill One' })
+      const skillRowAfter = screen.getByTestId('skill-sidebar-skill-row')
       expect(skillRowAfter.className).toContain('bg-primary/30')
     })
 
@@ -400,7 +404,8 @@ describe('SkillTreeSidebar', () => {
   describe('expand/collapse controls', () => {
     it('should call onExpandAll when expand button is clicked', () => {
       const onExpandAll = vi.fn()
-      render(<SkillTreeSidebar {...defaultProps} onExpandAll={onExpandAll} />)
+      const nodes = [createCategoryNode('dev', 'Development', [createItemNode('item-1', 'Skill 1', '1', 1)])]
+      render(<SkillTreeSidebar {...defaultProps} treeNodes={nodes} onExpandAll={onExpandAll} />)
 
       fireEvent.click(screen.getByTitle('Expand all'))
 
@@ -409,7 +414,8 @@ describe('SkillTreeSidebar', () => {
 
     it('should call onCollapseAll when collapse button is clicked', () => {
       const onCollapseAll = vi.fn()
-      render(<SkillTreeSidebar {...defaultProps} onCollapseAll={onCollapseAll} />)
+      const nodes = [createCategoryNode('dev', 'Development', [createItemNode('item-1', 'Skill 1', '1', 1)])]
+      render(<SkillTreeSidebar {...defaultProps} treeNodes={nodes} onCollapseAll={onCollapseAll} />)
 
       fireEvent.click(screen.getByTitle('Collapse all'))
 

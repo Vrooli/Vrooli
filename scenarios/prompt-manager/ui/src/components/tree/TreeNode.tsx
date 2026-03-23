@@ -10,11 +10,17 @@
 // AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=2 | LAST: 2026-02-18
 
 import { memo, type ReactNode } from 'react'
-import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
+import { ChevronRight, ChevronDown, FolderOpen, Check, Minus, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
 import { selectors } from '@/constants/selectors'
+
+const FOLDER_DOT_COLORS: Record<string, string> = {
+  core: 'bg-blue-400',
+  local: 'bg-green-400',
+  drafts: 'bg-amber-400',
+}
 
 type SelectionState = 'none' | 'partial' | 'all'
 
@@ -195,7 +201,7 @@ function TreeNodeComponentImpl({
       onClick={handleRowClick}
       onContextMenu={handleSkillContextMenu}
       className={cn(
-        'w-full flex items-center gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
+        'w-full flex items-start gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
         showCheckbox
           ? selectionState === 'all'
             ? 'bg-primary/10 text-foreground'
@@ -215,17 +221,38 @@ function TreeNodeComponentImpl({
         />
       )}
       {!showCheckbox && renderItemIcon && skill ? (
-        renderItemIcon(skill)
+        <span className="mt-0.5 flex-shrink-0">{renderItemIcon(skill)}</span>
       ) : !showCheckbox ? (
-        <div className="w-3.5 h-3.5 flex-shrink-0" /> // Spacer when no icon
+        <div className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
       ) : null}
-      <span className="truncate flex-1">{displayLabel}</span>
-      {isDirty && !showCheckbox && (
-        <span
-          className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
-          title="Unsaved changes"
-        />
-      )}
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          <span className="truncate flex-1">{displayLabel}</span>
+          {isDirty && !showCheckbox && (
+            <span
+              className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
+              title="Unsaved changes"
+            />
+          )}
+        </div>
+        {skill && !showCheckbox && (
+          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground mt-0.5">
+            <span className="flex items-center gap-0.5">
+              <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_DOT_COLORS[skill.folder] ?? 'bg-muted')} />
+              {skill.folder}
+            </span>
+            {skill.usageCount > 0 && (
+              <span>{skill.usageCount} use{skill.usageCount !== 1 ? 's' : ''}</span>
+            )}
+            {skill.effectivenessRating != null && (
+              <span className="flex items-center gap-0.5">
+                <Star className="h-2 w-2 fill-amber-400 text-amber-400" />
+                {skill.effectivenessRating.toFixed(1)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </button>
   )
 }

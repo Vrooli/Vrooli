@@ -196,18 +196,22 @@ export function SkillManagerLayout() {
     isCollapsed,
     toggleCollapse,
     expandToItem,
-    selectedTags,
-    setSelectedTags,
+    filterState,
+    setFilterState,
+    sortConfig,
+    setSortConfig,
+    viewMode,
+    setViewMode,
+    filteredSortedSkills,
     availableTags,
-    selectedFolders,
-    setSelectedFolders,
     availableFolders,
   } = useSkillTree({
     skills,
     initialIsCollapsed: initialSidebarState.isCollapsed,
     initialExpandedNodes: initialSidebarState.expandedNodes,
-    initialSelectedTags: initialSidebarState.selectedTags,
-    initialSelectedFolders: initialSidebarState.selectedFolders,
+    initialFilterState: initialSidebarState.filterState,
+    initialSortConfig: initialSidebarState.sortConfig,
+    initialViewMode: initialSidebarState.viewMode,
     initialSearchQuery: initialSidebarState.searchQuery,
   })
 
@@ -215,8 +219,9 @@ export function SkillManagerLayout() {
   useSidebarPersistence({
     isCollapsed,
     expandedNodes,
-    selectedTags,
-    selectedFolders,
+    filterState,
+    sortConfig,
+    viewMode,
     activeTab,
     searchQuery,
     searchMode,
@@ -1231,11 +1236,14 @@ export function SkillManagerLayout() {
         onCreateNew={(modes) => void handleCreateNew(modes)}
         searchInputRef={searchInputRef}
         onOpenSettings={() => setShowSettingsDialog(true)}
-        selectedTags={selectedTags}
-        onSelectedTagsChange={setSelectedTags}
+        filterState={filterState}
+        onFilterStateChange={setFilterState}
+        sortConfig={sortConfig}
+        onSortConfigChange={setSortConfig}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        filteredSortedSkills={filteredSortedSkills}
         availableTags={availableTags}
-        selectedFolders={selectedFolders}
-        onSelectedFoldersChange={setSelectedFolders}
         availableFolders={availableFolders}
         onDeleteFolder={handleDeleteFolderRequest}
         onCopySkill={(skillId) => void handleCopySkill(skillId)}
@@ -1455,7 +1463,7 @@ export function SkillManagerLayout() {
           />
 
           {/* Sidebar drawer */}
-          <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-card shadow-2xl animate-in slide-in-from-left duration-200">
+          <div className="absolute left-0 top-0 h-full w-full bg-card shadow-2xl animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between px-3 py-3 border-b border-border">
               <div className="flex items-center gap-2 min-w-0">
                 <button
@@ -1543,11 +1551,14 @@ export function SkillManagerLayout() {
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
                 onCreateNew={(modes) => void handleCreateNew(modes)}
-                selectedTags={selectedTags}
-                onSelectedTagsChange={setSelectedTags}
+                filterState={filterState}
+                onFilterStateChange={setFilterState}
+                sortConfig={sortConfig}
+                onSortConfigChange={setSortConfig}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                filteredSortedSkills={filteredSortedSkills}
                 availableTags={availableTags}
-                selectedFolders={selectedFolders}
-                onSelectedFoldersChange={setSelectedFolders}
                 availableFolders={availableFolders}
                 onDeleteFolder={handleDeleteFolderRequest}
                 onCopySkill={(skillId) => void handleCopySkill(skillId)}
