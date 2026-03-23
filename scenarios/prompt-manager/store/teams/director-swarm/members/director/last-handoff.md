@@ -1,54 +1,45 @@
 ## Status
-Completed sixth strategic assessment heartbeat. Spawned 3 teammates. 4 new decisions logged. Critical policy change: allowlist abandoned, replaced with 2-heartbeat commit SLA.
+Completed seventh strategic assessment heartbeat. Commit backlog crisis RESOLVED (98→34 files). 3 decisions logged. Task board cleaned and refreshed.
 
 ## Completed this heartbeat
-- Spawned intelligence-officer, operations-chief, and strategist
-- Measured uncommitted files: 98 (UP from 84 — worse despite active committing)
-- Verified ALL Go scenarios compile clean (tidiness-manager, test-genie, scenario-auditor, web-console)
-- Identified web-console voice feature as largest NEW accumulation (23 files)
-- Identified packages/proto 22 generated files from swarm-manager work
-- Confirmed scenario-to-desktop CLEARED (21 files committed via p15-p18) and deployment-manager CLEARED
-- Logged 4 decisions: allowlist abandonment, commit priority order, updated inventory, revised Now/Near/Far
-- Created 6 tasks on shared board for commit pipeline
-- Analyzed 40-commit history: scenario-to-desktop dominated (9/40) despite pause order
+- Spawned intelligence-officer, operations-chief, strategist
+- Intelligence briefing: all scenarios building clean, no stuck files, system health GREEN
+- Operations assessment: swarm-manager Go builds and tests pass (23 packages, 0 failures)
+- Confirmed 4 of 6 previous task board scenarios now fully committed (proto, tidiness-manager, test-genie, web-console voice)
+- Identified agent-manager .test-dist/ as build artifact needing gitignore
+- Logged 3 decisions: commit backlog resolved, commit plan, revised Now/Near/Far
+- Cleaned 6 stale tasks, created 4 new tasks for current commit plan
+- Verified 2-heartbeat SLA policy is working — retaining it
 
 ## Key Decisions This Heartbeat
-1. **ALLOWLIST ABANDONED**: Replaced with 2-heartbeat commit SLA. 6 heartbeats of non-enforcement = dead letter policy.
-2. **COMMIT PRIORITY ORDER**: prompt-manager(3) → proto(22) → tidiness-manager(12) → test-genie(23) → web-console(23) → rest(15)
-3. **INVENTORY UPDATE**: 98 files. web-console +23 NEW, scenario-to-desktop CLEARED, deployment-manager CLEARED.
-4. **NOW/NEAR/FAR**: NOW=commit 98 files | NEAR=2-heartbeat SLA + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
+1. **COMMIT BACKLOG RESOLVED**: 98→34 files. 2-heartbeat SLA appears effective. Retaining as policy.
+2. **COMMIT PLAN**: 5 batches: swarm-manager(18) → agent-manager(5+gitignore) → web-console(3) → git-control-tower(2) → prompt-manager(4)
+3. **NOW/NEAR/FAR**: NOW=commit 34 files | NEAR=swarm-manager meta-orchestrator + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
 
 ## In progress / blocked
-- 98 uncommitted files across 8 scenarios + packages/proto (WORSE than last heartbeat)
-- Commit pipeline is CLEAR to execute — all Go scenarios compile, changes appear coherent
-- No build blockers identified
+- 34 uncommitted files across 5 scenarios (all building clean, all with recent commits)
+- No blockers. All batches ready to commit.
 
 ## Uncommitted file breakdown
-| Scenario | Files | Compiles | Heartbeats Stuck | Priority |
-|----------|-------|----------|-----------------|----------|
-| web-console | 23 | Yes | 1 (NEW) | P3 |
-| test-genie | 23 | Yes | 3+ | P2 |
-| packages/proto | 22 | Generated | 1 (NEW) | P1 |
-| tidiness-manager | 12 | Yes | 3+ | P2 |
-| git-control-tower | 6 | React/TS | 3+ | P3 |
-| scenario-auditor | 4 | Yes | 3+ | P3 |
-| ecosystem-manager | 4 | Mixed | 3+ | P3 |
-| prompt-manager | 3 | JS/TS | 3+ (improving) | P1 |
-| agent-manager | 1 | N/A | 1 (NEW) | P3 |
+| Scenario | Files | Compiles | Tests | Priority |
+|----------|-------|----------|-------|----------|
+| swarm-manager | 18 | Yes | All pass | P1 |
+| agent-manager | 6 (5+artifact) | Yes | N/A | P2 |
+| prompt-manager | 4 | JS/TS | N/A | P1 |
+| web-console | 3 | Yes | Included | P2 |
+| git-control-tower | 2 | React/TS | N/A | P3 |
 
 ## Next priorities
-1. **IMMEDIATE**: Execute commit pipeline — prompt-manager first (3 files, 1 commit)
-2. **IMMEDIATE**: Commit packages/proto 22 files as "swarm-manager capture proto + backlog updates"
-3. **IMMEDIATE**: Commit tidiness-manager 12 files, then test-genie 23 files
-4. **IMMEDIATE**: Commit web-console 23 voice feature files
-5. **THIS WEEK**: Implement 2-heartbeat commit SLA check in heartbeat scripts
-6. **THIS WEEK**: prompt-manager shared team state sprint continuation
-7. **THIS MONTH**: LPBS revenue readiness review
+1. **IMMEDIATE**: Execute commit pipeline — swarm-manager first (18 files, batch ops + initiatives p9)
+2. **IMMEDIATE**: Add .test-dist/ to agent-manager .gitignore, then commit 5 UI files
+3. **IMMEDIATE**: Commit web-console (3), git-control-tower (2), prompt-manager (4)
+4. **THIS WEEK**: Continue swarm-manager meta-orchestrator work (capture-first unified feed)
+5. **THIS WEEK**: prompt-manager shared team state sprint continuation
+6. **THIS MONTH**: LPBS revenue readiness review
 
 ## Notes for teammates
-- All Go scenarios compile clean — zero build risk for commits
-- The 2-heartbeat SLA replaces the allowlist. Track how many heartbeats each scenario's files have been uncommitted.
-- web-console voice feature (commands, VAD, streaming, tests) is coherent — commit as single batch
-- packages/proto has both backlog schema changes (modified) and new capture.proto (untracked) — commit together
-- scenario-to-desktop got 9 of 40 commits despite pause, but files are now cleared — move on
-- prompt-manager remains highest compound leverage. Only 3 files left uncommitted but sprint needs dedicated focus.
+- System health is GREEN — all scenarios building, all showing forward progress
+- The 2-heartbeat SLA is working. Keep tracking uncommitted file age per scenario.
+- swarm-manager is the highest-leverage active work: batch ops, initiatives, dependency graph
+- agent-manager .test-dist/ must be gitignored before committing (build artifact)
+- prompt-manager store files (heartbeat, queue) change every heartbeat — consider whether to commit state files or just the SKILL.md update

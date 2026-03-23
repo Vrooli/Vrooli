@@ -253,26 +253,35 @@ EOF
 ### Batch create items
 ```bash
 # Create multiple items atomically (all-or-nothing). Validates dependencies exist and no cycles.
-swarm-manager backlog batch-create --stdin <<'EOF'
-[
-  {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "..."},
-  {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"]}
-]
+# Write item definitions to a JSON file, then pass via --file:
+cat > /tmp/batch-items.json <<'EOF'
+{
+  "items": [
+    {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "..."},
+    {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"]}
+  ]
+}
 EOF
+swarm-manager backlog batch-create --file /tmp/batch-items.json
+
+# Optionally assign all items to an initiative:
+swarm-manager backlog batch-create --file /tmp/batch-items.json --initiative my-initiative
 ```
 
 ### Batch queue items
 ```bash
 # Queue multiple items in dependency-safe topological order.
-swarm-manager backlog batch-queue --stdin <<'EOF'
-["fix/auth-bug", "idea/new-feature"]
-EOF
+# Default is preview mode (dry run); add --execute to commit.
+swarm-manager backlog batch-queue --items fix/auth-bug,idea/new-feature
+swarm-manager backlog batch-queue --items fix/auth-bug,idea/new-feature --execute
+swarm-manager backlog batch-queue --items fix/auth-bug,idea/new-feature --execute --force --mode yolo
 ```
 
 ### Captures commands
 ```bash
 swarm-manager captures list                              # List all captures
-swarm-manager captures create --title "..." --body "..." # Create a capture
+swarm-manager captures create --text "Quick thought..."  # Create a capture from text
+swarm-manager captures create --text "..." --file a.png  # Create with text and file attachment(s)
 swarm-manager captures get --id <id>                     # Get a specific capture
 swarm-manager captures delete --id <id>                  # Delete a capture
 swarm-manager captures classify --id <id>                # AI-classify a capture into a backlog item
@@ -282,9 +291,11 @@ swarm-manager captures classify --id <id>                # AI-classify a capture
 ```bash
 swarm-manager initiatives list                                    # List all initiatives with rollup status
 swarm-manager initiatives get --name <name>                       # Get initiative details and member items
-swarm-manager initiatives create --name <name> --description "..."  # Create an initiative
-swarm-manager initiatives update --name <name> --description "..."  # Update an initiative
+swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"..."}'
+swarm-manager initiatives update --name <name> --data '{"title":"Updated Title","status":"active"}'
 swarm-manager initiatives delete --name <name>                    # Delete an initiative
+swarm-manager initiatives add-items --name <name> --items kind/name,kind/name   # Add items to initiative
+swarm-manager initiatives remove-items --name <name> --items kind/name,kind/name # Remove items from initiative
 ```
 
 ### Overview command

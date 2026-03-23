@@ -8,57 +8,139 @@
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:29Z",
-      "updatedAt": "2026-03-22T22:19:29Z"
+      "updatedAt": "2026-03-23T22:19:02Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:02Z",
+          "by": "",
+          "text": "Still 4 prompt-manager files uncommitted (was 3, now 4)"
+        }
+      ]
     },
     {
       "id": "task-1774217970487579374",
       "title": "Commit packages/proto 22 generated files (swarm-manager)",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:30Z",
-      "updatedAt": "2026-03-22T22:19:30Z"
+      "updatedAt": "2026-03-23T22:19:02Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:02Z",
+          "by": "",
+          "text": "packages/proto committed since last heartbeat"
+        }
+      ]
     },
     {
       "id": "task-1774217971306089208",
       "title": "Commit tidiness-manager 12 files",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P2",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:31Z",
-      "updatedAt": "2026-03-22T22:19:31Z"
+      "updatedAt": "2026-03-23T22:19:02Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:02Z",
+          "by": "",
+          "text": "tidiness-manager committed since last heartbeat"
+        }
+      ]
     },
     {
       "id": "task-1774217972192382289",
       "title": "Commit test-genie 23 files (stuck 3+ heartbeats)",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P2",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:32Z",
-      "updatedAt": "2026-03-22T22:19:32Z"
+      "updatedAt": "2026-03-23T22:19:02Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:02Z",
+          "by": "",
+          "text": "test-genie committed since last heartbeat"
+        }
+      ]
     },
     {
       "id": "task-1774217973083804901",
       "title": "Commit web-console 23 voice feature files",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P3",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:33Z",
-      "updatedAt": "2026-03-22T22:19:33Z"
+      "updatedAt": "2026-03-23T22:19:02Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:02Z",
+          "by": "",
+          "text": "web-console voice files committed; current 3 files are appearance feature, not voice"
+        }
+      ]
     },
     {
       "id": "task-1774217974597995587",
       "title": "Commit remaining small batches (git-control-tower 6, scenario-auditor 4, ecosystem-manager 4, agent-manager 1)",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P3",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:34Z",
-      "updatedAt": "2026-03-22T22:19:34Z"
+      "updatedAt": "2026-03-23T22:19:10Z",
+      "notes": [
+        {
+          "at": "2026-03-23T22:19:10Z",
+          "by": "",
+          "text": "scenario-auditor and ecosystem-manager committed. Replaced with specific new tasks for remaining scenarios."
+        }
+      ]
+    },
+    {
+      "id": "task-1774304344695568032",
+      "title": "Commit swarm-manager 18 files: batch ops and initiatives p9",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-23T22:19:04Z",
+      "updatedAt": "2026-03-23T22:19:04Z"
+    },
+    {
+      "id": "task-1774304344753000361",
+      "title": "Commit agent-manager 5 files + add .test-dist/ to gitignore",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-23T22:19:04Z",
+      "updatedAt": "2026-03-23T22:19:04Z"
+    },
+    {
+      "id": "task-1774304344809727499",
+      "title": "Commit web-console 3 files: apply appearance to all sessions",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-23T22:19:04Z",
+      "updatedAt": "2026-03-23T22:19:04Z"
+    },
+    {
+      "id": "task-1774304344866502547",
+      "title": "Commit git-control-tower 2 files: diff viewer empty-state CTAs",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P3",
+      "createdBy": "director",
+      "createdAt": "2026-03-23T22:19:04Z",
+      "updatedAt": "2026-03-23T22:19:04Z"
     }
   ]
 }
