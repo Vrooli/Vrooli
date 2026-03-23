@@ -10,9 +10,9 @@
     "networkAccess": "localhost"
   },
   "healthDetection": {
-    "heartbeatIntervalSeconds": 15,
-    "staleThresholdSeconds": 300,
-    "maxRecoveryAgeSeconds": 600,
+    "heartbeatIntervalSeconds": 60,
+    "staleThresholdSeconds": 1000,
+    "maxRecoveryAgeSeconds": 1100,
     "reconcilerIntervalSeconds": 30
   },
   "processTermination": {

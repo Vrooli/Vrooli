@@ -232,7 +232,11 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Completed items are hidden by default — reveal them.
+    // Completed items are hidden by default — open filter dropdown, then toggle.
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-filter")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("backlog-filter"));
     await waitFor(() => {
       expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
     });
@@ -260,7 +264,11 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Archived items are hidden by default — reveal them.
+    // Archived items are hidden by default — open filter dropdown, then toggle.
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-filter")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("backlog-filter"));
     await waitFor(() => {
       expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
     });

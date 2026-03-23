@@ -104,25 +104,23 @@ describe("MainLayout", () => {
     expect(mobileSettingsTab).toHaveClass("text-cyan-400");
   });
 
-  // [REQ:REQ-P0-009] Test header displays app name
-  it("displays Swarm Manager header", () => {
+  // [REQ:REQ-P0-009] Test header displays app name (desktop only — mobile header removed)
+  it("displays Swarm Manager header on desktop", () => {
     renderWithRouter();
 
-    expect(screen.getAllByText("Swarm Manager").length).toBeGreaterThan(0);
+    expect(screen.getByText("Swarm Manager")).toBeInTheDocument();
   });
 
   it("hides mobile chrome on backlog details routes", () => {
     renderWithRouter("/backlog/idea/test-item");
 
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Swarm Manager")).toHaveLength(1);
   });
 
   it("hides mobile chrome on scenario details routes", () => {
     renderWithRouter("/scenarios/test-scenario");
 
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Swarm Manager")).toHaveLength(1);
   });
 
   it("renders agents running dropdown in desktop header", () => {

@@ -436,14 +436,13 @@ export function BacklogPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
               <SearchBar
-                placeholder={activeKind === "all" ? "Search all backlog items..." : `Search ${BACKLOG_KIND_LABELS[activeKind].toLowerCase()} backlog...`}
+                placeholder={activeKind === "all" ? `Search ${stats.total} item${stats.total !== 1 ? "s" : ""}...` : `Search ${BACKLOG_KIND_LABELS[activeKind].toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 data-testid={selectors.backlog.search}
-                widthClass="w-full sm:w-80"
+                widthClass="min-w-0 flex-1"
               />
               <div className="relative">
                 <Button
@@ -480,7 +479,7 @@ export function BacklogPage() {
                   aria-label="Filter backlog"
                   data-testid={selectors.backlog.filter}
                   onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}
-                  className={statusFilter ? "border-cyan-500/50" : ""}
+                  className={statusFilter || (!statusFilter && showFinished) ? "border-cyan-500/50" : ""}
                 >
                   <Filter className="h-4 w-4" />
                 </Button>
@@ -488,33 +487,47 @@ export function BacklogPage() {
                   <div className="absolute left-0 top-full z-10 mt-2 w-56 rounded-lg border border-white/10 bg-slate-800 p-3 shadow-xl">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-200">Filters</span>
-                      {statusFilter && (
+                      {(statusFilter || showFinished) && (
                         <button
-                          onClick={() => setStatusFilter("")}
+                          onClick={() => { setStatusFilter(""); setShowFinished(false); }}
                           className="text-xs text-slate-400 hover:text-slate-200"
                         >
-                          Clear
+                          Clear all
                         </button>
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <label htmlFor="backlog-status-filter" className="text-xs text-slate-400">
-                        Status
-                      </label>
-                      <Select
-                        id="backlog-status-filter"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
-                        variant="filter"
-                        withChevron
-                      >
-                        <option value="">All statuses</option>
-                        {STATUS_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {formatBacklogStatus(option)}
-                          </option>
-                        ))}
-                      </Select>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label htmlFor="backlog-status-filter" className="text-xs text-slate-400">
+                          Status
+                        </label>
+                        <Select
+                          id="backlog-status-filter"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value as BacklogStatus | "")}
+                          variant="filter"
+                          withChevron
+                        >
+                          <option value="">All statuses</option>
+                          {STATUS_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {formatBacklogStatus(option)}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      {!statusFilter && stats.finishedCount > 0 && (
+                        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showFinished}
+                            onChange={() => setShowFinished((prev) => !prev)}
+                            className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/30"
+                            data-testid={selectors.backlog.showFinishedToggle}
+                          />
+                          Show {stats.finishedCount} finished
+                        </label>
+                      )}
                     </div>
                   </div>
                 )}
@@ -536,34 +549,22 @@ export function BacklogPage() {
               >
                 <CheckSquare className="h-4 w-4" />
               </Button>
-            </div>
 
-            {kindItems.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
-                <span>{stats.total} item{stats.total !== 1 ? "s" : ""}</span>
-                {stats.ready > 0 && (
-                  <span className="text-cyan-400" data-testid={selectors.backlog.readyCount}>
-                    {stats.ready} ready to queue
-                  </span>
-                )}
-                {!statusFilter && stats.finishedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowFinished((prev) => !prev)}
-                    className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs text-slate-400 transition-colors hover:border-white/20 hover:text-slate-200"
-                    data-testid={selectors.backlog.showFinishedToggle}
-                  >
-                    {showFinished ? "Hide finished" : `Show ${stats.finishedCount} finished`}
-                  </button>
-                )}
-                <StatusLegend
-                  items={BACKLOG_STATUS_LEGEND_ITEMS}
-                  title="Status Guide"
-                  compact
-                  data-testid={selectors.backlog.statusLegend}
-                />
-              </div>
-            )}
+              {kindItems.length > 0 && (
+                <div className="hidden sm:flex items-center gap-2 ml-auto text-sm text-slate-400" data-testid={selectors.backlog.summaryStats}>
+                  {stats.ready > 0 && (
+                    <span className="text-cyan-400 whitespace-nowrap" data-testid={selectors.backlog.readyCount}>
+                      {stats.ready} ready
+                    </span>
+                  )}
+                  <StatusLegend
+                    items={BACKLOG_STATUS_LEGEND_ITEMS}
+                    title="Status Guide"
+                    compact
+                    data-testid={selectors.backlog.statusLegend}
+                  />
+                </div>
+              )}
           </div>
         </div>
       </div>

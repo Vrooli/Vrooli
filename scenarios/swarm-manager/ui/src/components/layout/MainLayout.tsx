@@ -249,16 +249,11 @@ export function MainLayout() {
         </div>
       </header>
 
-      {/* Mobile Header */}
-      {!isImmersiveMobileRoute && (
-        <header className="md:hidden flex h-14 items-center justify-center border-b border-slate-200/20 px-4">
-          <h1 className="text-lg font-semibold">Swarm Manager</h1>
-        </header>
-      )}
+      {/* Mobile header removed — bottom nav already shows current page */}
 
       {/* Main Content */}
       <main className={cn(
-        isImmersiveMobileRoute ? "p-0 md:p-6" : "p-6",
+        isImmersiveMobileRoute ? "p-0 md:p-6" : "pt-0 px-6 md:pt-6",
         isImmersiveMobileRoute ? "pb-0 md:pb-6" : "pb-20 md:pb-6"
       )}>
         <Outlet />

@@ -25,6 +25,7 @@ import { CodeBlock } from "./markdown/components/CodeBlock";
 import { MarkdownRenderer } from "./markdown";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { useAttachments } from "../hooks/useAttachments";
+import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { getPopoverPosition, type PopoverPlacement } from "../lib/popoverPosition";
 import {
@@ -99,7 +100,10 @@ export function RunTimeline({
   onContinue,
   onDeleteMessage,
 }: RunTimelineProps) {
-  const [inputMessage, setInputMessage] = useState("");
+  const [inputMessage, setInputMessage, clearInputStorage] = usePersistedFormState(
+    `agm.runDraft.${run.id}`,
+    "",
+  );
   const [sending, setSending] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, "idle" | "copied">>({});
   const [continueError, setContinueError] = useState<string | null>(null);
@@ -243,6 +247,7 @@ export function RunTimeline({
       const ids = getUploadedIds();
       await onContinue(inputMessage.trim(), ids.length > 0 ? ids : undefined);
       setInputMessage("");
+      clearInputStorage();
       clearAttachments();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to continue run";
