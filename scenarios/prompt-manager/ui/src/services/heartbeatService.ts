@@ -160,6 +160,12 @@ export interface UpdateTaskRequest {
   note?: string
 }
 
+export interface DecisionOption {
+  key: string
+  label: string
+  rationale: string
+}
+
 export interface DecisionEntry {
   id: string
   at: string
@@ -169,6 +175,11 @@ export interface DecisionEntry {
   context?: string
   supersedes?: string
   status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
+  topic?: string
+  options?: DecisionOption[]
+  selected?: string | null
+  freeform?: string | null
+  notes?: string | null
 }
 
 export interface UpdateDecisionRequest {
@@ -177,6 +188,11 @@ export interface UpdateDecisionRequest {
   context?: string
   status?: string
   supersedes?: string
+  topic?: string
+  options?: DecisionOption[]
+  selected?: string | null
+  freeform?: string | null
+  notes?: string | null
 }
 
 export interface DecisionListResponse {
@@ -197,9 +213,43 @@ export interface AllPendingDecisionsResponse {
 
 export interface AddDecisionRequest {
   by: string
-  decision: string
-  rationale: string
+  decision?: string
+  rationale?: string
   context?: string
+  supersedes?: string
+  topic?: string
+  options?: DecisionOption[]
+}
+
+// --- Knowledge types ---
+
+export interface KnowledgeEntry {
+  id: string
+  at: string
+  by: string
+  topic: string
+  content: string
+  source?: string
+  supersedes?: string
+}
+
+export interface KnowledgeListResponse {
+  teamId: string
+  entries: KnowledgeEntry[]
+}
+
+export interface AddKnowledgeRequest {
+  by: string
+  topic: string
+  content: string
+  source?: string
+  supersedes?: string
+}
+
+export interface UpdateKnowledgeRequest {
+  topic?: string
+  content?: string
+  source?: string
   supersedes?: string
 }
 
@@ -1102,6 +1152,48 @@ export async function updateDecision(
 
 export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
   await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ============================================================================
+// Knowledge Log
+// ============================================================================
+
+export async function getKnowledge(
+  teamId: string,
+  opts?: { topic?: string; last?: number }
+): Promise<KnowledgeListResponse> {
+  const params = new URLSearchParams()
+  if (opts?.topic) params.set('topic', opts.topic)
+  if (opts?.last) params.set('last', String(opts.last))
+  const qs = params.toString()
+  return apiRequest<KnowledgeListResponse>(`/teams/${encodeURIComponent(teamId)}/knowledge${qs ? `?${qs}` : ''}`)
+}
+
+export async function addKnowledge(
+  teamId: string,
+  request: AddKnowledgeRequest
+): Promise<KnowledgeEntry> {
+  return apiRequest<KnowledgeEntry>(`/teams/${encodeURIComponent(teamId)}/knowledge`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function updateKnowledge(
+  teamId: string,
+  knowledgeId: string,
+  request: UpdateKnowledgeRequest
+): Promise<KnowledgeEntry> {
+  return apiRequest<KnowledgeEntry>(`/teams/${encodeURIComponent(teamId)}/knowledge/${encodeURIComponent(knowledgeId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function deleteKnowledge(teamId: string, knowledgeId: string): Promise<void> {
+  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/knowledge/${encodeURIComponent(knowledgeId)}`, {
     method: 'DELETE',
   })
 }

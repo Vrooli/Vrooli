@@ -160,15 +160,28 @@ type UpdateTaskRequest struct {
 	Note     *string `json:"note,omitempty"`
 }
 
+// DecisionOption represents a lettered choice in a multi-option decision.
+type DecisionOption struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Rationale string `json:"rationale"`
+}
+
 // DecisionEntry represents a decision log entry.
 type DecisionEntry struct {
-	ID         string `json:"id"`
-	At         string `json:"at"`
-	By         string `json:"by"`
-	Decision   string `json:"decision"`
-	Rationale  string `json:"rationale"`
-	Context    string `json:"context,omitempty"`
-	Supersedes string `json:"supersedes,omitempty"`
+	ID         string           `json:"id"`
+	At         string           `json:"at"`
+	By         string           `json:"by"`
+	Decision   string           `json:"decision"`
+	Rationale  string           `json:"rationale"`
+	Context    string           `json:"context,omitempty"`
+	Supersedes string           `json:"supersedes,omitempty"`
+	Status     string           `json:"status,omitempty"`
+	Topic      string           `json:"topic,omitempty"`
+	Options    []DecisionOption `json:"options,omitempty"`
+	Selected   string           `json:"selected,omitempty"`
+	Freeform   string           `json:"freeform,omitempty"`
+	Notes      string           `json:"notes,omitempty"`
 }
 
 // DecisionListResponse represents the decision list API response.
@@ -179,10 +192,38 @@ type DecisionListResponse struct {
 
 // AddDecisionRequest is the request body for adding a decision.
 type AddDecisionRequest struct {
+	By         string           `json:"by"`
+	Decision   string           `json:"decision"`
+	Rationale  string           `json:"rationale"`
+	Context    string           `json:"context,omitempty"`
+	Supersedes string           `json:"supersedes,omitempty"`
+	Topic      string           `json:"topic,omitempty"`
+	Options    []DecisionOption `json:"options,omitempty"`
+}
+
+// KnowledgeEntry represents a knowledge log entry.
+type KnowledgeEntry struct {
+	ID         string `json:"id"`
+	At         string `json:"at"`
 	By         string `json:"by"`
-	Decision   string `json:"decision"`
-	Rationale  string `json:"rationale"`
-	Context    string `json:"context,omitempty"`
+	Topic      string `json:"topic"`
+	Content    string `json:"content"`
+	Source     string `json:"source,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
+}
+
+// KnowledgeListResponse represents the knowledge list API response.
+type KnowledgeListResponse struct {
+	TeamID  string           `json:"teamId"`
+	Entries []KnowledgeEntry `json:"entries"`
+}
+
+// AddKnowledgeRequest is the request body for adding a knowledge entry.
+type AddKnowledgeRequest struct {
+	By         string `json:"by"`
+	Topic      string `json:"topic"`
+	Content    string `json:"content"`
+	Source     string `json:"source,omitempty"`
 	Supersedes string `json:"supersedes,omitempty"`
 }
 
@@ -315,6 +356,14 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdDecisionAdd(ctx, subArgs)
 	case "decision-list":
 		return cmdDecisionList(ctx, subArgs)
+	case "knowledge-add":
+		return cmdKnowledgeAdd(ctx, subArgs)
+	case "knowledge-list":
+		return cmdKnowledgeList(ctx, subArgs)
+	case "knowledge-update":
+		return cmdKnowledgeUpdate(ctx, subArgs)
+	case "knowledge-delete":
+		return cmdKnowledgeDelete(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -372,8 +421,14 @@ Task Board Commands:
   task-delete <team-id> <task-id>       Delete a task
 
 Decision Log Commands:
-  decision-add <team-id>                Log a decision
+  decision-add <team-id>                Log a decision (supports --options for multi-option)
   decision-list <team-id>               List decisions
+
+Knowledge Log Commands:
+  knowledge-add <team-id>               Add a knowledge entry
+  knowledge-list <team-id>              List knowledge entries
+  knowledge-update <team-id> <id>       Update a knowledge entry
+  knowledge-delete <team-id> <id>       Delete a knowledge entry
 
 Claude Code Interop Commands:
   import-cc <team-name>                       Import a Claude Code team
@@ -2090,35 +2145,52 @@ func cmdTaskDelete(ctx appctx.Context, args []string) error {
 func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-add", flag.ContinueOnError)
 	by := fs.String("by", "", "Agent ID who made the decision (required)")
-	decision := fs.String("decision", "", "The decision (required)")
-	rationale := fs.String("rationale", "", "Why this decision was made (required)")
+	decision := fs.String("decision", "", "The decision (simple mode, required without --options)")
+	rationale := fs.String("rationale", "", "Why this decision was made")
 	contextTag := fs.String("context", "", "Context tag for grouping")
 	supersedes := fs.String("supersedes", "", "ID of decision this replaces")
+	topic := fs.String("topic", "", "What is being decided (multi-option mode, required with --options)")
+	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"Option A","rationale":"Why A"}]'`)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> --decision=\"...\" --rationale=\"...\" [--context=<tag>]")
+		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --options='[...]']")
 	}
 	teamID := fs.Arg(0)
 
 	if strings.TrimSpace(*by) == "" {
 		return fmt.Errorf("by is required")
 	}
-	if strings.TrimSpace(*decision) == "" {
-		return fmt.Errorf("decision is required")
-	}
-	if strings.TrimSpace(*rationale) == "" {
-		return fmt.Errorf("rationale is required")
-	}
 
 	req := AddDecisionRequest{
 		By:         *by,
-		Decision:   *decision,
-		Rationale:  *rationale,
 		Context:    *contextTag,
 		Supersedes: *supersedes,
+		Rationale:  *rationale,
+	}
+
+	if strings.TrimSpace(*options) != "" {
+		// Multi-option mode
+		if strings.TrimSpace(*topic) == "" {
+			return fmt.Errorf("topic is required when options are provided")
+		}
+		var opts []DecisionOption
+		if err := json.Unmarshal([]byte(*options), &opts); err != nil {
+			return fmt.Errorf("invalid options JSON: %w", err)
+		}
+		req.Topic = *topic
+		req.Options = opts
+	} else {
+		// Simple mode
+		if strings.TrimSpace(*decision) == "" {
+			return fmt.Errorf("decision is required (or use --topic + --options for multi-option)")
+		}
+		if strings.TrimSpace(*rationale) == "" {
+			return fmt.Errorf("rationale is required")
+		}
+		req.Decision = *decision
 	}
 
 	var resp DecisionEntry
@@ -2132,7 +2204,11 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Logged decision %s: %s\n", resp.ID, resp.Decision)
+	if resp.Topic != "" {
+		fmt.Printf("Logged decision %s: %s (%d options)\n", resp.ID, resp.Topic, len(resp.Options))
+	} else {
+		fmt.Printf("Logged decision %s: %s\n", resp.ID, resp.Decision)
+	}
 	return nil
 }
 
@@ -2179,9 +2255,212 @@ func cmdDecisionList(ctx appctx.Context, args []string) error {
 		if entry.Supersedes != "" {
 			supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
 		}
-		fmt.Printf("--- %s by %s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr)
-		fmt.Printf("Decision: %s\n", entry.Decision)
-		fmt.Printf("Rationale: %s\n\n", entry.Rationale)
+		statusStr := ""
+		if entry.Status != "" {
+			statusStr = fmt.Sprintf(" (%s)", entry.Status)
+		}
+		fmt.Printf("--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
+
+		if len(entry.Options) > 0 {
+			fmt.Printf("Topic: %s\n", entry.Topic)
+			if entry.Rationale != "" {
+				fmt.Printf("Rationale: %s\n", entry.Rationale)
+			}
+			for _, opt := range entry.Options {
+				marker := "  "
+				if entry.Selected == opt.Key {
+					marker = "→ "
+				}
+				fmt.Printf("  %s%s) %s — %s\n", marker, opt.Key, opt.Label, opt.Rationale)
+			}
+			if entry.Selected != "" {
+				if entry.Selected == "__other__" {
+					fmt.Printf("Selected: Other — %s\n", entry.Freeform)
+				} else {
+					fmt.Printf("Selected: %s\n", entry.Selected)
+				}
+			}
+			if entry.Notes != "" {
+				fmt.Printf("Notes: %s\n", entry.Notes)
+			}
+		} else {
+			fmt.Printf("Decision: %s\n", entry.Decision)
+			fmt.Printf("Rationale: %s\n", entry.Rationale)
+		}
+		fmt.Println()
 	}
 	return nil
+}
+
+// --- Knowledge Log commands ---
+
+func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-add", flag.ContinueOnError)
+	by := fs.String("by", "", "Agent ID (required)")
+	topic := fs.String("topic", "", "Topic/category tag (required)")
+	content := fs.String("content", "", "The knowledge content (required)")
+	source := fs.String("source", "", "Where this was learned from")
+	supersedes := fs.String("supersedes", "", "ID of knowledge entry this replaces")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team knowledge-add <team-id> --by=<id> --topic=\"...\" --content=\"...\"")
+	}
+	teamID := fs.Arg(0)
+
+	if strings.TrimSpace(*by) == "" {
+		return fmt.Errorf("by is required")
+	}
+	if strings.TrimSpace(*topic) == "" {
+		return fmt.Errorf("topic is required")
+	}
+	if strings.TrimSpace(*content) == "" {
+		return fmt.Errorf("content is required")
+	}
+
+	req := AddKnowledgeRequest{
+		By:         *by,
+		Topic:      *topic,
+		Content:    *content,
+		Source:     *source,
+		Supersedes: *supersedes,
+	}
+
+	var resp KnowledgeEntry
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/knowledge", teamID), req, &resp); err != nil {
+		return fmt.Errorf("failed to add knowledge: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Added knowledge %s [%s]: %s\n", resp.ID, resp.Topic, truncate(resp.Content, 80))
+	return nil
+}
+
+func cmdKnowledgeList(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-list", flag.ContinueOnError)
+	topic := fs.String("topic", "", "Filter by topic")
+	last := fs.Int("last", 20, "Number of entries to show")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team knowledge-list <team-id> [--topic=<tag>] [--last=N] [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	query := fmt.Sprintf("/teams/%s/knowledge?last=%d", teamID, *last)
+	if *topic != "" {
+		query += "&topic=" + url.QueryEscape(*topic)
+	}
+
+	var resp KnowledgeListResponse
+	if err := ctx.Get(query, &resp); err != nil {
+		return fmt.Errorf("failed to get knowledge: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Entries) == 0 {
+		fmt.Println("No knowledge entries found")
+		return nil
+	}
+
+	for _, entry := range resp.Entries {
+		supersededStr := ""
+		if entry.Supersedes != "" {
+			supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
+		}
+		sourceStr := ""
+		if entry.Source != "" {
+			sourceStr = fmt.Sprintf(" (source: %s)", entry.Source)
+		}
+		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.By, supersededStr, sourceStr)
+		fmt.Printf("%s\n\n", entry.Content)
+	}
+	return nil
+}
+
+func cmdKnowledgeUpdate(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-update", flag.ContinueOnError)
+	topic := fs.String("topic", "", "Update topic")
+	content := fs.String("content", "", "Update content")
+	source := fs.String("source", "", "Update source")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team knowledge-update <team-id> <knowledge-id> [--topic=...] [--content=...] [--source=...]")
+	}
+	teamID := fs.Arg(0)
+	knowledgeID := fs.Arg(1)
+
+	type updateReq struct {
+		Topic   *string `json:"topic,omitempty"`
+		Content *string `json:"content,omitempty"`
+		Source  *string `json:"source,omitempty"`
+	}
+	req := updateReq{}
+	if *topic != "" {
+		req.Topic = topic
+	}
+	if *content != "" {
+		req.Content = content
+	}
+	if *source != "" {
+		req.Source = source
+	}
+
+	var resp KnowledgeEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/knowledge/%s", teamID, knowledgeID), req, &resp); err != nil {
+		return fmt.Errorf("failed to update knowledge: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Updated knowledge %s [%s]\n", resp.ID, resp.Topic)
+	return nil
+}
+
+func cmdKnowledgeDelete(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-delete", flag.ContinueOnError)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team knowledge-delete <team-id> <knowledge-id>")
+	}
+	teamID := fs.Arg(0)
+	knowledgeID := fs.Arg(1)
+
+	if err := ctx.Delete(fmt.Sprintf("/teams/%s/knowledge/%s", teamID, knowledgeID)); err != nil {
+		return fmt.Errorf("failed to delete knowledge: %w", err)
+	}
+
+	fmt.Printf("Deleted knowledge %s\n", knowledgeID)
+	return nil
+}
+
+// truncate shortens a string to maxLen, appending "..." if truncated.
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

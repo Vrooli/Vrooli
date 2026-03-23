@@ -935,3 +935,133 @@ func (s *FileTeamStore) DeleteDecision(_ context.Context, teamID, decisionID str
 	}
 	return s.writeAllDecisions(path, filtered)
 }
+
+// --- Knowledge Log methods ---
+
+// AppendKnowledge appends a knowledge entry to the team's knowledge log.
+func (s *FileTeamStore) AppendKnowledge(_ context.Context, teamID string, entry *KnowledgeEntry) error {
+	sharedDir := filepath.Join(s.teamsDir(), teamID, "shared")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		return fmt.Errorf("creating shared directory: %w", err)
+	}
+	path := filepath.Join(sharedDir, "knowledge.jsonl")
+
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshaling knowledge entry: %w", err)
+	}
+	data = append(data, '\n')
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("opening knowledge log: %w", err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(data)
+	return err
+}
+
+// GetKnowledge reads knowledge entries, optionally filtered by topic and limited.
+func (s *FileTeamStore) GetKnowledge(_ context.Context, teamID, topicFilter string, last int) ([]KnowledgeEntry, error) {
+	entries, _, err := s.readAllKnowledge(teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	if topicFilter != "" {
+		filtered := make([]KnowledgeEntry, 0, len(entries))
+		for _, e := range entries {
+			if e.Topic == topicFilter {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+
+	if last > 0 && len(entries) > last {
+		entries = entries[len(entries)-last:]
+	}
+
+	return entries, nil
+}
+
+// readAllKnowledge reads all knowledge entries from the JSONL file.
+func (s *FileTeamStore) readAllKnowledge(teamID string) ([]KnowledgeEntry, string, error) {
+	path := filepath.Join(s.teamsDir(), teamID, "shared", "knowledge.jsonl")
+	if !FileExists(path) {
+		return nil, path, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, path, fmt.Errorf("reading knowledge log: %w", err)
+	}
+	var entries []KnowledgeEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry KnowledgeEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	return entries, path, nil
+}
+
+// writeAllKnowledge rewrites the full knowledge JSONL file.
+func (s *FileTeamStore) writeAllKnowledge(path string, entries []KnowledgeEntry) error {
+	var buf strings.Builder
+	for _, e := range entries {
+		data, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("marshaling knowledge entry: %w", err)
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+	return os.WriteFile(path, []byte(buf.String()), 0o644)
+}
+
+// UpdateKnowledge updates a knowledge entry by ID using the provided updater function.
+func (s *FileTeamStore) UpdateKnowledge(_ context.Context, teamID, knowledgeID string, updater func(*KnowledgeEntry)) error {
+	entries, path, err := s.readAllKnowledge(teamID)
+	if err != nil {
+		return err
+	}
+	found := false
+	for i := range entries {
+		if entries[i].ID == knowledgeID {
+			updater(&entries[i])
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
+	}
+	return s.writeAllKnowledge(path, entries)
+}
+
+// DeleteKnowledge removes a knowledge entry by ID.
+func (s *FileTeamStore) DeleteKnowledge(_ context.Context, teamID, knowledgeID string) error {
+	entries, path, err := s.readAllKnowledge(teamID)
+	if err != nil {
+		return err
+	}
+	filtered := make([]KnowledgeEntry, 0, len(entries))
+	found := false
+	for _, e := range entries {
+		if e.ID == knowledgeID {
+			found = true
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	if !found {
+		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
+	}
+	return s.writeAllKnowledge(path, filtered)
+}

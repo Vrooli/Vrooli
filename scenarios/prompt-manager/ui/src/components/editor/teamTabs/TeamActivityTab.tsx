@@ -1,10 +1,10 @@
 /**
- * TeamActivityTab - Container with sub-tabs for Handoffs, Tasks, and Decisions.
+ * TeamActivityTab - Container with sub-tabs for Handoffs, Tasks, Decisions, and Knowledge.
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Clock, ListTodo, Scale } from 'lucide-react'
+import { Clock, ListTodo, Scale, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -12,6 +12,7 @@ import { TabList, TabTrigger } from '@/components/shared/TabTrigger'
 import { HandoffTimeline } from './HandoffTimeline'
 import { TaskBoardView } from './TaskBoardView'
 import { DecisionLogView } from './DecisionLogView'
+import { KnowledgeLogView } from './KnowledgeLogView'
 
 interface TeamActivityTabProps {
   teamId: string
@@ -51,6 +52,7 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
           <TabTrigger compact value="handoffs" icon={<Clock className="h-3.5 w-3.5" />} label="Handoffs" />
           <TabTrigger compact value="tasks" icon={<ListTodo className="h-3.5 w-3.5" />} label="Tasks" />
           <TabTrigger compact value="decisions" icon={<Scale className="h-3.5 w-3.5" />} label="Decisions" />
+          <TabTrigger compact value="knowledge" icon={<BookOpen className="h-3.5 w-3.5" />} label="Knowledge" />
         </TabList>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
@@ -64,6 +66,10 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
 
           <Tabs.Content value="decisions" className="p-4 data-[state=inactive]:hidden">
             <DecisionLogView teamId={teamId} members={members} allAgents={allAgents} decisionMode={decisionMode} />
+          </Tabs.Content>
+
+          <Tabs.Content value="knowledge" className="p-4 data-[state=inactive]:hidden">
+            <KnowledgeLogView teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
         </div>
       </Tabs.Root>

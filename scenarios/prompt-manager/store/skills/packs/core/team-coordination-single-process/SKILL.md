@@ -2,7 +2,7 @@
 
 You are the team lead in a single-process spawn mode. All teammates run as subagents within your session.
 
-> **CLI vs built-in tools:** This skill references `prompt-manager` CLI commands. Always run them via the Bash tool. These commands persist state across heartbeats — they are your only way to create tasks, log decisions, and record handoffs. Do NOT search for tools with similar names (e.g. "TaskCreate", "ToolSearch") — those are unrelated built-in tools and will not interact with team shared state.
+> **CLI vs built-in tools:** This skill references `prompt-manager` CLI commands. Always run them via the Bash tool. These commands persist state across heartbeats — they are your only way to create tasks, log decisions, record knowledge, and record handoffs. Do NOT search for tools with similar names (e.g. "TaskCreate", "ToolSearch") — those are unrelated built-in tools and will not interact with team shared state.
 
 ## Context Bootstrapping
 
@@ -29,6 +29,16 @@ The prompt-manager org chart maps directly to your team structure:
 ## Dynamic vs. Static Context
 
 The `FormatSpawnPrompt()` function handles the **dynamic** team-specific structure: team name, member list, org chart, spawn commands, and working directory. This skill provides the **static** behavioral guidance layer — the patterns and practices that apply to all single-process teams regardless of structure.
+
+## Choosing the Right Storage
+
+| What you have | Where it goes | Why |
+|---|---|---|
+| Team needs to pick between options | Decision log (with `--options`) | Presents choices for human steering |
+| Recording a choice already made | Decision log (simple) | Documents the "why" behind decisions |
+| A fact, pattern, or convention learned | Knowledge log | Persists institutional memory across heartbeats |
+| Work to assign or track | Task board | Coordinates multi-heartbeat execution |
+| Context for the next run | Handoff | Provides continuity between your heartbeats |
 
 ## Final Handoff
 
@@ -88,10 +98,18 @@ prompt-manager team task-update <team-id> <task-id> --status=done --note="Tests 
 
 ## Decision Log
 
-Record important decisions so future heartbeats (yours and teammates') understand *why* things were done. Run these bash commands:
+Record important decisions so future heartbeats (yours and teammates') understand *why* things were done.
 
 ```bash
+# Simple decision — recording a choice already made
 prompt-manager team decision-add <team-id> --by=<your-id> --decision="..." --rationale="..." [--context=<tag>]
+
+# Multi-option decision — presenting choices for human/lead to pick
+prompt-manager team decision-add <team-id> --by=<your-id> --topic="Which database for user data?" \
+  --options='[{"key":"A","label":"PostgreSQL","rationale":"Already running locally"},{"key":"B","label":"SQLite","rationale":"Simpler deployment"}]' \
+  --rationale="Need persistent storage for the new feature"
+
+# List decisions
 prompt-manager team decision-list <team-id> [--context=<tag>] [--last=10]
 ```
 
@@ -99,7 +117,29 @@ prompt-manager team decision-list <team-id> [--context=<tag>] [--last=10]
 - Choosing between multiple valid approaches
 - Making a trade-off (performance vs simplicity, etc.)
 - Deciding NOT to do something (and why)
-- Changing a previous decision (use --supersedes=<decision-id>)
+- Changing a previous decision (use `--supersedes=<decision-id>`)
+
+Use `--options` when presenting distinct alternatives for the human or team lead to choose between. Use simple `--decision` when recording a choice that has already been made and you want to document the rationale.
+
+## Knowledge Log
+
+Capture facts, patterns, and conventions that future heartbeats (yours and teammates') will need. Unlike handoffs which focus on session continuity, knowledge entries persist as institutional memory.
+
+```bash
+prompt-manager team knowledge-add <team-id> --by=<your-id> --topic="api-patterns" \
+  --content="The API uses JSONL files for append-only logs" --source="codebase exploration"
+prompt-manager team knowledge-list <team-id> [--topic=<tag>] [--last=10]
+prompt-manager team knowledge-update <team-id> <knowledge-id> --content="Updated finding"
+prompt-manager team knowledge-delete <team-id> <knowledge-id>
+```
+
+**When to log knowledge:**
+- Discovering how something works in the codebase or environment
+- Establishing team conventions (shared folder structure, naming patterns)
+- Recording external facts (API limits, pricing, deadlines)
+- Updating outdated knowledge (use `--supersedes=<id>`)
+
+**Shared folder bootstrapping:** On first run, if the shared directory has no conventions established, create initial knowledge entries documenting how the team will organize shared files. Update these entries as conventions evolve.
 
 ## Best Practices
 
@@ -107,5 +147,5 @@ prompt-manager team decision-list <team-id> [--context=<tag>] [--last=10]
 2. **Delegate, don't micromanage.** Give teammates clear objectives with acceptance criteria, then let them execute. Check in for status updates as needed.
 3. **Centralize decisions.** As team lead, you are the decision-maker. Teammates should escalate ambiguity to you rather than guessing.
 4. **Monitor progress.** Periodically run `prompt-manager team task-list` via Bash to identify blocked or stalled work. Reassign or unblock as needed.
-5. **Persist everything.** Before finishing, ensure you have: (a) updated tasks via `prompt-manager team task-update`, (b) logged key decisions via `prompt-manager team decision-add`, and (c) written your handoff via `prompt-manager team handoff-set`. If state isn't persisted, the next heartbeat starts blind.
+5. **Persist everything.** Before finishing, ensure you have: (a) updated tasks via `prompt-manager team task-update`, (b) logged key decisions via `prompt-manager team decision-add`, (c) recorded learnings via `prompt-manager team knowledge-add`, and (d) written your handoff via `prompt-manager team handoff-set`. If state isn't persisted, the next heartbeat starts blind.
 6. **Summarize outcomes.** After all teammate work completes, synthesize results and report the overall outcome.

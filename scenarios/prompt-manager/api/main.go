@@ -497,6 +497,12 @@ func main() {
 	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")
 	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.DeleteDecisionHandler).Methods("DELETE")
 
+	// Knowledge log routes
+	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.AddKnowledge).Methods("POST")
+	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.GetKnowledge).Methods("GET")
+	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
+	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
+
 	// World scale routes
 	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
 	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")

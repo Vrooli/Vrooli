@@ -186,20 +186,52 @@ type TaskBoardResponse struct {
 
 // AddDecisionRequest is the request body for adding a decision.
 type AddDecisionRequest struct {
-	By         string `json:"by"`
-	Decision   string `json:"decision"`
-	Rationale  string `json:"rationale"`
-	Context    string `json:"context,omitempty"`
-	Supersedes string `json:"supersedes,omitempty"`
+	By         string                 `json:"by"`
+	Decision   string                 `json:"decision"`
+	Rationale  string                 `json:"rationale"`
+	Context    string                 `json:"context,omitempty"`
+	Supersedes string                 `json:"supersedes,omitempty"`
+	Topic      string                 `json:"topic,omitempty"`
+	Options    []store.DecisionOption `json:"options,omitempty"`
 }
 
 // UpdateDecisionRequest is the request body for updating a decision.
 type UpdateDecisionRequest struct {
-	Decision   *string `json:"decision,omitempty"`
-	Rationale  *string `json:"rationale,omitempty"`
-	Context    *string `json:"context,omitempty"`
-	Status     *string `json:"status,omitempty"` // "pending", "accepted", "rejected"
+	Decision   *string                 `json:"decision,omitempty"`
+	Rationale  *string                 `json:"rationale,omitempty"`
+	Context    *string                 `json:"context,omitempty"`
+	Status     *string                 `json:"status,omitempty"` // "pending", "accepted", "rejected"
+	Supersedes *string                 `json:"supersedes,omitempty"`
+	Topic      *string                 `json:"topic,omitempty"`
+	Options    *[]store.DecisionOption `json:"options,omitempty"`
+	Selected   *string                 `json:"selected,omitempty"`
+	Freeform   *string                 `json:"freeform,omitempty"`
+	Notes      *string                 `json:"notes,omitempty"`
+}
+
+// --- Knowledge API models ---
+
+// AddKnowledgeRequest is the request body for adding a knowledge entry.
+type AddKnowledgeRequest struct {
+	By         string `json:"by"`
+	Topic      string `json:"topic"`
+	Content    string `json:"content"`
+	Source     string `json:"source,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
+}
+
+// UpdateKnowledgeRequest is the request body for updating a knowledge entry.
+type UpdateKnowledgeRequest struct {
+	Topic      *string `json:"topic,omitempty"`
+	Content    *string `json:"content,omitempty"`
+	Source     *string `json:"source,omitempty"`
 	Supersedes *string `json:"supersedes,omitempty"`
+}
+
+// KnowledgeListResponse is the API response for listing knowledge entries.
+type KnowledgeListResponse struct {
+	TeamID  string                 `json:"teamId"`
+	Entries []store.KnowledgeEntry `json:"entries"`
 }
 
 // DecisionListResponse is the API response for listing decisions.

@@ -290,14 +290,39 @@ const (
 	DecisionStatusCompleted = "completed"
 )
 
+// DecisionOption represents a lettered choice in a multi-option decision.
+type DecisionOption struct {
+	Key       string `json:"key"`       // "A", "B", "C", etc.
+	Label     string `json:"label"`     // short description
+	Rationale string `json:"rationale"` // why this option
+}
+
 // DecisionEntry represents a recorded decision in the team's decision log.
 type DecisionEntry struct {
+	ID         string           `json:"id"`
+	At         string           `json:"at"`
+	By         string           `json:"by"` // agent ID
+	Decision   string           `json:"decision"`
+	Rationale  string           `json:"rationale"`
+	Context    string           `json:"context,omitempty"`    // tag/topic grouping
+	Supersedes string           `json:"supersedes,omitempty"` // ID of decision this replaces
+	Status     string           `json:"status,omitempty"`     // "pending", "accepted", "rejected"
+	Topic      string           `json:"topic,omitempty"`      // what is being decided (multi-option)
+	Options    []DecisionOption `json:"options,omitempty"`    // lettered choices
+	Selected   string           `json:"selected,omitempty"`   // chosen option key or "__other__"
+	Freeform   string           `json:"freeform,omitempty"`   // custom response text
+	Notes      string           `json:"notes,omitempty"`      // additional human context
+}
+
+// --- Knowledge Log ---
+
+// KnowledgeEntry represents a piece of team knowledge persisted across heartbeats.
+type KnowledgeEntry struct {
 	ID         string `json:"id"`
 	At         string `json:"at"`
-	By         string `json:"by"` // agent ID
-	Decision   string `json:"decision"`
-	Rationale  string `json:"rationale"`
-	Context    string `json:"context,omitempty"`    // tag/topic grouping
-	Supersedes string `json:"supersedes,omitempty"` // ID of decision this replaces
-	Status     string `json:"status,omitempty"`     // "pending", "accepted", "rejected"
+	By         string `json:"by"`
+	Topic      string `json:"topic"`
+	Content    string `json:"content"`
+	Source     string `json:"source,omitempty"`
+	Supersedes string `json:"supersedes,omitempty"`
 }

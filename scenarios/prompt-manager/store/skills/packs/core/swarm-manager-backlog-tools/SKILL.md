@@ -51,10 +51,23 @@ item-folder/
   "priority": 1,
   "status": "backlog | researching | ready | queued | in_progress | completed | archived",
   "tags": ["tag1", "tag2"],
+  "depends_on": ["kind/name", "fix/auth-bug"],
+  "initiative": "initiative-name",
   "created": "ISO-8601",
   "updated": "ISO-8601"
 }
 ```
+
+#### `depends_on` (optional)
+
+Array of `"kind/name"` strings referencing other backlog items this item depends on. Dependency validation rules:
+- All referenced items must exist at creation time
+- Circular dependencies are rejected (cycle detection via topological sort)
+- Dependencies are enforced during batch-queue: items are queued in topological order so prerequisites run first
+
+#### `initiative` (optional)
+
+String label grouping this item with other items under a shared initiative. Used by the initiatives API (`/api/v1/initiatives`) to compute rollup status across member items.
 
 ### `plan.md`
 
@@ -235,6 +248,56 @@ Use `--stdin` with a heredoc to avoid shell quoting issues (apostrophes in text 
 swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --stdin <<'EOF'
 <content>
 EOF
+```
+
+### Batch create items
+```bash
+# Create multiple items atomically (all-or-nothing). Validates dependencies exist and no cycles.
+swarm-manager backlog batch-create --stdin <<'EOF'
+[
+  {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "..."},
+  {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"]}
+]
+EOF
+```
+
+### Batch queue items
+```bash
+# Queue multiple items in dependency-safe topological order.
+swarm-manager backlog batch-queue --stdin <<'EOF'
+["fix/auth-bug", "idea/new-feature"]
+EOF
+```
+
+### Captures commands
+```bash
+swarm-manager captures list                              # List all captures
+swarm-manager captures create --title "..." --body "..." # Create a capture
+swarm-manager captures get --id <id>                     # Get a specific capture
+swarm-manager captures delete --id <id>                  # Delete a capture
+swarm-manager captures classify --id <id>                # AI-classify a capture into a backlog item
+```
+
+### Initiatives commands
+```bash
+swarm-manager initiatives list                                    # List all initiatives with rollup status
+swarm-manager initiatives get --name <name>                       # Get initiative details and member items
+swarm-manager initiatives create --name <name> --description "..."  # Create an initiative
+swarm-manager initiatives update --name <name> --description "..."  # Update an initiative
+swarm-manager initiatives delete --name <name>                    # Delete an initiative
+```
+
+### Overview command
+```bash
+swarm-manager overview                  # Aggregated view (backlog counts, initiatives, dep graph, stats)
+swarm-manager overview --format json    # JSON output
+swarm-manager overview --format markdown # Markdown output (default)
+```
+
+### Agent-manager run commands
+```bash
+swarm-manager agent-manager run-get --id <run-id>   # Get execution run status
+swarm-manager agent-manager run-stop --id <run-id>  # Stop a running execution
 ```
 
 ## Mutation Rules

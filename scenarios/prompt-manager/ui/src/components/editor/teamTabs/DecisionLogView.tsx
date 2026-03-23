@@ -69,6 +69,175 @@ function StatusBadge({ status }: { status?: DecisionEntry['status'] }) {
   )
 }
 
+const OTHER_KEY = '__other__'
+
+/** Multi-option decision card with lettered choices */
+function MultiOptionCard({
+  entry,
+  isSuperseded,
+  isThisStatusLoading,
+  getAgentAppearance,
+  getAgentName,
+  onSelectOption,
+  onDelete,
+}: {
+  entry: DecisionEntry
+  isSuperseded: boolean
+  isThisStatusLoading: boolean
+  getAgentAppearance: (id: string) => ReturnType<typeof Array.prototype.find>
+  getAgentName: (id: string) => string
+  onSelectOption: (entry: DecisionEntry, key: string, freeform?: string, notes?: string) => Promise<void>
+  onDelete: () => void
+}) {
+  const [localSelected, setLocalSelected] = useState<string | null>(entry.selected ?? null)
+  const [localFreeform, setLocalFreeform] = useState(entry.freeform ?? '')
+  const [localNotes, setLocalNotes] = useState(entry.notes ?? '')
+  const hasSelection = entry.selected != null && entry.selected !== ''
+  const isModified = localSelected !== (entry.selected ?? null)
+    || localFreeform !== (entry.freeform ?? '')
+    || localNotes !== (entry.notes ?? '')
+
+  return (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn(
+              'text-sm font-medium',
+              isSuperseded && 'line-through text-muted-foreground'
+            )}>
+              {entry.topic}
+            </span>
+            <StatusBadge status={entry.status} />
+            {!hasSelection && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
+                {entry.options!.length} options
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {entry.at ? formatRelativePastTime(new Date(entry.at)) : ''}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <AgentColorBadge appearance={getAgentAppearance(entry.by)} size="xs" />
+          <span className="text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
+        </div>
+      </div>
+
+      {entry.rationale && (
+        <div className="text-xs text-muted-foreground mt-1.5">
+          <span className="font-medium text-foreground/70">Context:</span> {entry.rationale}
+        </div>
+      )}
+
+      {entry.supersedes && (
+        <div className="text-xs text-amber-600 mt-0.5">
+          supersedes: {entry.supersedes}
+        </div>
+      )}
+
+      {/* Option buttons */}
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {entry.options!.map(opt => {
+          const isSelected = localSelected === opt.key
+          return (
+            <button
+              key={opt.key}
+              onClick={() => setLocalSelected(isSelected ? null : opt.key)}
+              disabled={isThisStatusLoading}
+              className={cn(
+                'text-left px-2.5 py-1.5 rounded-md border text-xs transition-colors',
+                isSelected
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                  : 'border-border hover:border-primary/30 hover:bg-muted text-foreground',
+                isThisStatusLoading && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <span className="font-bold mr-1">{opt.key})</span>
+              <span>{opt.label}</span>
+            </button>
+          )
+        })}
+        <button
+          onClick={() => setLocalSelected(localSelected === OTHER_KEY ? null : OTHER_KEY)}
+          disabled={isThisStatusLoading}
+          className={cn(
+            'px-2.5 py-1.5 rounded-md border text-xs transition-colors',
+            localSelected === OTHER_KEY
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+              : 'border-border hover:border-primary/30 hover:bg-muted text-muted-foreground',
+            isThisStatusLoading && 'opacity-50 cursor-not-allowed'
+          )}
+        >
+          Other...
+        </button>
+      </div>
+
+      {/* Show rationale for selected option */}
+      {localSelected && localSelected !== OTHER_KEY && (
+        <div className="text-xs text-muted-foreground mt-1.5 pl-2 border-l-2 border-emerald-500/30">
+          {entry.options!.find(o => o.key === localSelected)?.rationale}
+        </div>
+      )}
+
+      {/* Freeform textarea for "Other" */}
+      {localSelected === OTHER_KEY && (
+        <textarea
+          value={localFreeform}
+          onChange={e => setLocalFreeform(e.target.value)}
+          placeholder="Describe your alternative..."
+          rows={2}
+          className="w-full mt-2 text-xs border border-border rounded-md px-2.5 py-1.5 bg-background text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      )}
+
+      {/* Notes textarea (shown when any option selected) */}
+      {localSelected && (
+        <textarea
+          value={localNotes}
+          onChange={e => setLocalNotes(e.target.value)}
+          placeholder="Add notes (optional)..."
+          rows={1}
+          className="w-full mt-1.5 text-xs border border-blue-500/20 bg-blue-500/5 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      )}
+
+      {/* Actions: save selection + delete */}
+      <div className="flex items-center gap-1 mt-2">
+        {isModified && localSelected && (
+          <button
+            onClick={() => void onSelectOption(
+              entry,
+              localSelected,
+              localSelected === OTHER_KEY ? localFreeform : undefined,
+              localNotes || undefined
+            )}
+            disabled={isThisStatusLoading || (localSelected === OTHER_KEY && !localFreeform.trim())}
+            className={cn(
+              'text-xs px-3 py-1 rounded-md bg-emerald-600 text-white font-medium transition-colors',
+              (isThisStatusLoading || (localSelected === OTHER_KEY && !localFreeform.trim()))
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:bg-emerald-500'
+            )}
+          >
+            {isThisStatusLoading ? (
+              <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Saving...</span>
+            ) : 'Confirm Selection'}
+          </button>
+        )}
+        <button
+          onClick={onDelete}
+          title="Delete decision"
+          className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-red-500/10 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </>
+  )
+}
+
 export function DecisionLogView({ teamId, members, allAgents, decisionMode }: DecisionLogViewProps) {
   const [entries, setEntries] = useState<DecisionEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -176,6 +345,25 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     } catch (err) {
       console.error('[DecisionLogView] Failed to update decision status:', err)
       setMutationError(err instanceof Error ? err.message : 'Failed to update status')
+    } finally {
+      setStatusLoading(null)
+    }
+  }
+
+  const handleSelectOption = async (entry: DecisionEntry, key: string, freeform?: string, notes?: string) => {
+    setStatusLoading(entry.id)
+    clearMutationError()
+    try {
+      await heartbeatService.updateDecision(teamId, entry.id, {
+        selected: key,
+        freeform: freeform ?? null,
+        notes: notes ?? null,
+        status: 'accepted',
+      })
+      void loadEntries()
+    } catch (err) {
+      console.error('[DecisionLogView] Failed to select option:', err)
+      setMutationError(err instanceof Error ? err.message : 'Failed to select option')
     } finally {
       setStatusLoading(null)
     }
@@ -491,8 +679,19 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                               </button>
                             </div>
                           </div>
+                        ) : (entry.options && entry.options.length > 0) ? (
+                          /* ---- Multi-option display mode ---- */
+                          <MultiOptionCard
+                            entry={entry}
+                            isSuperseded={isSuperseded}
+                            isThisStatusLoading={isThisStatusLoading}
+                            getAgentAppearance={getAgentAppearance}
+                            getAgentName={getAgentName}
+                            onSelectOption={handleSelectOption}
+                            onDelete={() => setDeleteTarget(entry)}
+                          />
                         ) : (
-                          /* ---- Display mode ---- */
+                          /* ---- Simple display mode ---- */
                           <>
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
@@ -596,7 +795,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => void handleConfirmDelete()}
         title="Delete Decision"
-        message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.decision}"? This action cannot be undone.` : ''}
+        message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.topic || deleteTarget.decision}"? This action cannot be undone.` : ''}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"

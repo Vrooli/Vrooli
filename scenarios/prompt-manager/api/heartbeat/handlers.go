@@ -1921,13 +1921,21 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(req.Decision) == "" {
-		http.Error(w, "decision is required", http.StatusBadRequest)
-		return
-	}
-	if strings.TrimSpace(req.Rationale) == "" {
-		http.Error(w, "rationale is required", http.StatusBadRequest)
-		return
+	// Multi-option decisions use topic+options; simple decisions use decision+rationale.
+	if len(req.Options) > 0 {
+		if strings.TrimSpace(req.Topic) == "" {
+			http.Error(w, "topic is required when options are provided", http.StatusBadRequest)
+			return
+		}
+	} else {
+		if strings.TrimSpace(req.Decision) == "" {
+			http.Error(w, "decision is required", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.Rationale) == "" {
+			http.Error(w, "rationale is required", http.StatusBadRequest)
+			return
+		}
 	}
 
 	entry := &store.DecisionEntry{
@@ -1939,6 +1947,8 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 		Context:    req.Context,
 		Supersedes: req.Supersedes,
 		Status:     store.DecisionStatusPending,
+		Topic:      req.Topic,
+		Options:    req.Options,
 	}
 
 	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
@@ -1992,9 +2002,16 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Determine effective status: if selecting an option on a pending decision, implicitly accept.
+	effectiveStatus := req.Status
+	if req.Selected != nil && strings.TrimSpace(*req.Selected) != "" && req.Status == nil {
+		accepted := store.DecisionStatusAccepted
+		effectiveStatus = &accepted
+	}
+
 	// Approval enforcement: check if the team is in approval mode and restrict agent callers.
-	if req.Status != nil {
-		if blocked, msg := h.checkApprovalEnforcement(r, teamID, decisionID, *req.Status); blocked {
+	if effectiveStatus != nil {
+		if blocked, msg := h.checkApprovalEnforcement(r, teamID, decisionID, *effectiveStatus); blocked {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(msg)
@@ -2012,11 +2029,26 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		if req.Context != nil {
 			d.Context = *req.Context
 		}
-		if req.Status != nil {
-			d.Status = *req.Status
+		if effectiveStatus != nil {
+			d.Status = *effectiveStatus
 		}
 		if req.Supersedes != nil {
 			d.Supersedes = *req.Supersedes
+		}
+		if req.Topic != nil {
+			d.Topic = *req.Topic
+		}
+		if req.Options != nil {
+			d.Options = *req.Options
+		}
+		if req.Selected != nil {
+			d.Selected = *req.Selected
+		}
+		if req.Freeform != nil {
+			d.Freeform = *req.Freeform
+		}
+		if req.Notes != nil {
+			d.Notes = *req.Notes
 		}
 	})
 	if err != nil {
@@ -2145,6 +2177,148 @@ func (h *Handlers) DeleteDecisionHandler(w http.ResponseWriter, r *http.Request)
 	decisionID := vars["decisionId"]
 
 	err := h.teamStore.DeleteDecision(r.Context(), teamID, decisionID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Knowledge Log handlers ---
+
+// AddKnowledge handles POST /teams/{id}/knowledge
+func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+
+	var req AddKnowledgeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.By) == "" {
+		http.Error(w, "by is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Topic) == "" {
+		http.Error(w, "topic is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		http.Error(w, "content is required", http.StatusBadRequest)
+		return
+	}
+
+	entry := &store.KnowledgeEntry{
+		ID:         fmt.Sprintf("knw-%s", generateID()),
+		At:         time.Now().UTC().Format(time.RFC3339),
+		By:         req.By,
+		Topic:      req.Topic,
+		Content:    req.Content,
+		Source:     req.Source,
+		Supersedes: req.Supersedes,
+	}
+
+	if err := h.teamStore.AppendKnowledge(r.Context(), teamID, entry); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(entry)
+}
+
+// GetKnowledge handles GET /teams/{id}/knowledge
+func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	topicFilter := r.URL.Query().Get("topic")
+	last := 20
+	if v := r.URL.Query().Get("last"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			last = n
+		}
+	}
+
+	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, topicFilter, last)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if entries == nil {
+		entries = []store.KnowledgeEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(KnowledgeListResponse{
+		TeamID:  teamID,
+		Entries: entries,
+	})
+}
+
+// UpdateKnowledgeHandler handles PATCH /teams/{id}/knowledge/{knowledgeId}
+func (h *Handlers) UpdateKnowledgeHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	knowledgeID := vars["knowledgeId"]
+
+	var req UpdateKnowledgeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.teamStore.UpdateKnowledge(r.Context(), teamID, knowledgeID, func(k *store.KnowledgeEntry) {
+		if req.Topic != nil && strings.TrimSpace(*req.Topic) != "" {
+			k.Topic = *req.Topic
+		}
+		if req.Content != nil {
+			k.Content = *req.Content
+		}
+		if req.Source != nil {
+			k.Source = *req.Source
+		}
+		if req.Supersedes != nil {
+			k.Supersedes = *req.Supersedes
+		}
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch updated entry to return
+	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, "", 0)
+	if err != nil {
+		http.Error(w, "knowledge updated but fetch failed", http.StatusInternalServerError)
+		return
+	}
+	for _, e := range entries {
+		if e.ID == knowledgeID {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(e)
+			return
+		}
+	}
+	http.Error(w, "knowledge updated but not found in response", http.StatusInternalServerError)
+}
+
+// DeleteKnowledgeHandler handles DELETE /teams/{id}/knowledge/{knowledgeId}
+func (h *Handlers) DeleteKnowledgeHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	knowledgeID := vars["knowledgeId"]
+
+	err := h.teamStore.DeleteKnowledge(r.Context(), teamID, knowledgeID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)

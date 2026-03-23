@@ -17,6 +17,7 @@ export interface UsePendingDecisionsResult {
   isLoading: boolean
   acceptDecision: (teamId: string, decisionId: string) => Promise<void>
   rejectDecision: (teamId: string, decisionId: string) => Promise<void>
+  selectOption: (teamId: string, decisionId: string, selected: string, freeform?: string, notes?: string) => Promise<void>
   processingIds: Set<string>
 }
 
@@ -173,5 +174,34 @@ export function usePendingDecisions(): UsePendingDecisionsResult {
   const acceptDecision = useCallback((teamId: string, decisionId: string) => processDecision(teamId, decisionId, 'accepted'), [processDecision])
   const rejectDecision = useCallback((teamId: string, decisionId: string) => processDecision(teamId, decisionId, 'rejected'), [processDecision])
 
-  return { groupedByTeam: groups, count, isLoading, acceptDecision, rejectDecision, processingIds }
+  const selectOption = useCallback(async (teamId: string, decisionId: string, selected: string, freeform?: string, notes?: string) => {
+    setProcessingIds((prev) => new Set(prev).add(decisionId))
+    try {
+      await updateDecision(teamId, decisionId, {
+        selected,
+        freeform: freeform ?? null,
+        notes: notes ?? null,
+        status: 'accepted',
+      })
+      if (mountedRef.current) {
+        updateSharedGroups((prev) =>
+          prev
+            .map((g) => g.teamId === teamId ? { ...g, entries: g.entries.filter((e) => e.id !== decisionId) } : g)
+            .filter((g) => g.entries.length > 0),
+        )
+      }
+    } catch {
+      // Will be corrected on next poll
+    } finally {
+      if (mountedRef.current) {
+        setProcessingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(decisionId)
+          return next
+        })
+      }
+    }
+  }, [])
+
+  return { groupedByTeam: groups, count, isLoading, acceptDecision, rejectDecision, selectOption, processingIds }
 }
