@@ -78,6 +78,15 @@ function extractNumber(text: string): number | null {
 }
 
 /**
+ * Strip punctuation that Whisper commonly inserts between words (commas,
+ * periods, etc.) so that "Hey, do new tab." normalizes to "hey do new tab"
+ * and matches the prefix "hey do".
+ */
+function stripPunctuation(s: string): string {
+  return s.replace(/[.,;:!?'"]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/**
  * Parse a segment-final transcript for a voice command.
  *
  * @param text - The segment-final transcription text
@@ -87,8 +96,8 @@ function extractNumber(text: string): number | null {
 export function parseCommand(text: string, prefix: string): ParsedCommand | null {
   if (!text || !prefix) return null;
 
-  const normalizedText = text.toLowerCase().trim();
-  const normalizedPrefix = prefix.toLowerCase().trim();
+  const normalizedText = stripPunctuation(text.toLowerCase());
+  const normalizedPrefix = stripPunctuation(prefix.toLowerCase());
 
   // Check if text starts with the prefix
   if (!normalizedText.startsWith(normalizedPrefix)) return null;
@@ -173,5 +182,5 @@ function maxEditDistance(pattern: string): number {
  */
 export function partialContainsPrefix(partial: string, prefix: string): boolean {
   if (!partial || !prefix) return false;
-  return partial.toLowerCase().includes(prefix.toLowerCase());
+  return stripPunctuation(partial.toLowerCase()).includes(stripPunctuation(prefix.toLowerCase()));
 }

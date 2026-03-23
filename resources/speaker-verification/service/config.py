@@ -36,7 +36,22 @@ class Settings:
         os.getenv("SPEAKER_VERIFICATION_LOG_DIR", "/data/logs")
     )
 
-    VERSION: str = "1.0.0"
+    # Target Speaker Extraction (TSE) settings
+    TSE_ENABLED: bool = os.getenv("SPEAKER_VERIFICATION_TSE_ENABLED", "true").lower() in (
+        "true", "1", "yes",
+    )
+    TSE_MODEL: str = os.getenv(
+        "SPEAKER_VERIFICATION_TSE_MODEL",
+        "speechbrain/sepformer-wsj02mix",
+    )
+    TSE_MIN_OUTPUT_RMS: float = float(
+        os.getenv("SPEAKER_VERIFICATION_TSE_MIN_OUTPUT_RMS", "1e-4")
+    )
+    TSE_MIN_SPEAKER_SCORE: float = float(
+        os.getenv("SPEAKER_VERIFICATION_TSE_MIN_SPEAKER_SCORE", "0.25")
+    )
+
+    VERSION: str = "1.1.0"
     BACKEND: str = "nemo-titanet"
 
 

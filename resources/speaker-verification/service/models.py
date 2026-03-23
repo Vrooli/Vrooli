@@ -89,6 +89,7 @@ class ReadyResponse(BaseModel):
 
     status: str
     model_loaded: bool
+    tse_model_loaded: bool = False
     profile_store_ok: bool
     temp_dir_ok: bool
 

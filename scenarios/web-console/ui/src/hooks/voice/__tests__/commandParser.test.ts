@@ -188,6 +188,39 @@ describe("parseCommand", () => {
     expect(result?.command.id).toBe("stop-listening");
   });
 
+  // ── Whisper punctuation handling ──
+
+  it("detects command when Whisper inserts comma in prefix: 'Hey, do new tab'", () => {
+    const result = parseCommand("Hey, do new tab", PREFIX);
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("new-tab");
+  });
+
+  it("detects command when Whisper inserts period in prefix: 'Hey. Do new tab.'", () => {
+    const result = parseCommand("Hey. Do new tab.", PREFIX);
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("new-tab");
+  });
+
+  it("detects command with trailing punctuation: 'hey do clear screen!'", () => {
+    const result = parseCommand("hey do clear screen!", PREFIX);
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("clear");
+  });
+
+  it("detects 'stop listening' with Whisper punctuation", () => {
+    const result = parseCommand("Hey, do stop listening.", PREFIX);
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("stop-listening");
+  });
+
+  it("extracts tab number with Whisper punctuation: 'Hey, do tab 3.'", () => {
+    const result = parseCommand("Hey, do tab 3.", PREFIX);
+    expect(result).not.toBeNull();
+    expect(result?.command.id).toBe("switch-tab");
+    expect(result?.args.number).toBe(3);
+  });
+
   // ── Different prefix ──
 
   it("works with custom prefix", () => {
@@ -218,5 +251,9 @@ describe("partialContainsPrefix", () => {
 
   it("returns false for empty prefix", () => {
     expect(partialContainsPrefix("hey do something", "")).toBe(false);
+  });
+
+  it("matches when Whisper inserts comma in prefix", () => {
+    expect(partialContainsPrefix("Hey, do something", "hey do")).toBe(true);
   });
 });

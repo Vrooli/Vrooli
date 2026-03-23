@@ -18,6 +18,7 @@ type SpeakerVerificationConfig struct {
 	Mode                        string  `json:"mode"`
 	RejectBehavior              string  `json:"rejectBehavior"`
 	FallbackWithoutVerification bool    `json:"fallbackWithoutVerification"`
+	ExtractionEnabled           bool    `json:"extractionEnabled"`
 }
 
 func DefaultSpeakerVerificationConfig() SpeakerVerificationConfig {
@@ -57,6 +58,7 @@ type SpeakerVerificationConfigPatch struct {
 	Mode                        *string  `json:"mode,omitempty"`
 	RejectBehavior              *string  `json:"rejectBehavior,omitempty"`
 	FallbackWithoutVerification *bool    `json:"fallbackWithoutVerification,omitempty"`
+	ExtractionEnabled           *bool    `json:"extractionEnabled,omitempty"`
 }
 
 func (p SpeakerVerificationConfigPatch) Apply(base SpeakerVerificationConfig) SpeakerVerificationConfig {
@@ -77,6 +79,9 @@ func (p SpeakerVerificationConfigPatch) Apply(base SpeakerVerificationConfig) Sp
 	}
 	if p.FallbackWithoutVerification != nil {
 		base.FallbackWithoutVerification = *p.FallbackWithoutVerification
+	}
+	if p.ExtractionEnabled != nil {
+		base.ExtractionEnabled = *p.ExtractionEnabled
 	}
 	return base
 }

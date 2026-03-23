@@ -54,6 +54,8 @@ type VoiceStreamMessage struct {
 	Enabled           bool    `json:"enabled,omitempty"`
 	ProfileConfigured bool    `json:"profileConfigured,omitempty"`
 	ProfileID         string  `json:"profileId,omitempty"`
+	Extracted         bool    `json:"extracted,omitempty"`
+	ExtractionEnabled bool    `json:"extractionEnabled,omitempty"`
 }
 
 // findWebMInitEnd locates the end of the WebM initialization segment (EBML
@@ -127,6 +129,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 			ProfileConfigured: speakerCfg.ProfileID != "",
 			ProfileID:         speakerCfg.ProfileID,
 			Threshold:         speakerCfg.Threshold,
+			ExtractionEnabled: speakerCfg.ExtractionEnabled,
 		})
 	}
 
@@ -228,13 +231,18 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					// The final full-recording verification still gates the output.
 					const minSpeakerVerifyBytes = 12_000 // ~2s at 48kbps Opus
 					var decision speakerVerificationGateDecision
+					transcribeAudio := audio
 					if len(audio) >= minSpeakerVerifyBytes {
-						decision = s.evaluateSpeakerVerification(segCtx, audio)
+						if speakerCfg.ExtractionEnabled {
+							transcribeAudio, decision = s.extractTargetSpeaker(segCtx, audio)
+						} else {
+							decision = s.evaluateSpeakerVerification(segCtx, audio)
+						}
 					}
 					if decision.Enabled {
 						if decision.Applied {
 							log.Printf(
-								"voice-ws: speaker decision #%d matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+								"voice-ws: speaker decision #%d matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s extracted=%v",
 								idx,
 								decision.Matched,
 								decision.Allowed,
@@ -242,6 +250,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 								decision.Threshold,
 								decision.ProfileID,
 								decision.Mode,
+								decision.Extracted,
 							)
 						} else if decision.ErrorMessage != "" {
 							log.Printf("voice-ws: segment #%d %s", idx, formatSpeakerDecisionError(decision))
@@ -259,7 +268,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					}
 
 					t0 := time.Now()
-					text, err := transcribeBytes(segCtx, audio, language, true, "")
+					text, err := transcribeBytes(segCtx, transcribeAudio, language, true, "")
 					if err != nil {
 						log.Printf("voice-ws: segment-final #%d failed (%v): %v", idx, time.Since(t0), err)
 						return
@@ -277,6 +286,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 							Score:        decision.Score,
 							Threshold:    decision.Threshold,
 							ProfileID:    decision.ProfileID,
+							Extracted:    decision.Extracted,
 						})
 					}
 					_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgSegmentFinal, Text: text, SegmentIndex: idx})
@@ -532,17 +542,24 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	finalCtx, finalCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer finalCancel()
 
-	decision := s.evaluateSpeakerVerification(finalCtx, finalAudio)
+	var decision speakerVerificationGateDecision
+	transcribeAudio := finalAudio
+	if speakerCfg.ExtractionEnabled {
+		transcribeAudio, decision = s.extractTargetSpeaker(finalCtx, finalAudio)
+	} else {
+		decision = s.evaluateSpeakerVerification(finalCtx, finalAudio)
+	}
 	if decision.Enabled {
 		if decision.Applied {
 			log.Printf(
-				"voice-ws: final speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+				"voice-ws: final speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s extracted=%v",
 				decision.Matched,
 				decision.Allowed,
 				decision.Score,
 				decision.Threshold,
 				decision.ProfileID,
 				decision.Mode,
+				decision.Extracted,
 			)
 		} else if decision.ErrorMessage != "" {
 			log.Printf("voice-ws: final %s", formatSpeakerDecisionError(decision))
@@ -554,7 +571,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t0 := time.Now()
-	text, err := transcribeBytes(finalCtx, finalAudio, language, true, "")
+	text, err := transcribeBytes(finalCtx, transcribeAudio, language, true, "")
 	if err != nil {
 		log.Printf("voice-ws: final transcribe failed (%v): %v", time.Since(t0), err)
 		_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgError, Text: "Final transcription failed"})

@@ -40,6 +40,7 @@ type speakerVerificationGateDecision struct {
 	Threshold    float64
 	Mode         string
 	ErrorMessage string
+	Extracted    bool // True when TSE was used to isolate the speaker
 }
 
 func defaultSpeakerVerificationProfileID() string {
@@ -201,6 +202,65 @@ func (s *Server) handleClearSpeakerProfileBinding(w http.ResponseWriter, _ *http
 		log.Printf("speaker-verification-config: persist failed after clear binding: %v", err)
 	}
 	writeJSON(w, http.StatusOK, cfg)
+}
+
+// extractTargetSpeaker attempts to isolate the enrolled speaker's voice from
+// the audio mixture using Target Speaker Extraction (TSE). It returns the
+// cleaned audio and a gate decision.
+//
+// Fallback chain:
+//   - TSE enabled + resource available → extract + verify extracted audio
+//   - TSE enabled + resource error    → fall back to verify-only on original audio
+//   - TSE disabled                    → verify-only on original audio (current behavior)
+//
+// DOC: docs/internal/SEAMS.md#extract-target-speaker-seam
+func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte, speakerVerificationGateDecision) {
+	cfg := s.getSpeakerVerificationConfig()
+
+	// If TSE is not enabled or not configured, fall back to verification-only.
+	if !cfg.ExtractionEnabled || !cfg.Enabled || cfg.Mode == "off" {
+		decision := s.evaluateSpeakerVerification(ctx, audio)
+		return audio, decision
+	}
+	if cfg.ProfileID == "" {
+		decision := s.evaluateSpeakerVerification(ctx, audio)
+		return audio, decision
+	}
+	if s.speakerVerification == nil {
+		decision := s.evaluateSpeakerVerification(ctx, audio)
+		return audio, decision
+	}
+
+	// Call the extraction endpoint with a generous timeout.
+	extractCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	result, err := s.speakerVerification.Extract(extractCtx, audio, cfg.ProfileID, true)
+	if err != nil {
+		// TSE failed — fall back to verification-only on original audio.
+		log.Printf("speaker-extraction: failed, falling back to verify-only: %v", err)
+		decision := s.evaluateSpeakerVerification(ctx, audio)
+		return audio, decision
+	}
+
+	decision := speakerVerificationGateDecision{
+		Enabled:   true,
+		Applied:   true,
+		Matched:   result.Matched,
+		Score:     result.Score,
+		Threshold: cfg.Threshold,
+		ProfileID: cfg.ProfileID,
+		Mode:      cfg.Mode,
+		Extracted: true,
+	}
+
+	if result.Matched || cfg.Mode == "advisory" {
+		decision.Allowed = true
+		return result.Audio, decision
+	}
+
+	decision.Allowed = false
+	return nil, decision
 }
 
 func formatSpeakerDecisionError(decision speakerVerificationGateDecision) string {

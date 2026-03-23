@@ -273,7 +273,7 @@ Last updated: 2026-03-17
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `SpeakerVerificationResourceClient` | HTTP client calling the `speaker-verification` resource (`/v1/verify`, `/v1/profiles`, `/ready`, `/v1/info`) | `httptest.NewServer` with canned responses — match/mismatch/error |
+| `SpeakerVerificationResourceClient` | HTTP client calling the `speaker-verification` resource (`/v1/verify`, `/v1/extract`, `/v1/profiles`, `/ready`, `/v1/info`) | `httptest.NewServer` with canned responses — match/mismatch/error/extraction |
 | `evaluateSpeakerVerification(ctx, audio)` | Calls resource `Verify()`, applies mode (`filter`/`advisory`/`off`), returns `speakerVerificationGateDecision` | Tested by injecting fake resource server into `Server.speakerVerification`; covers accept, reject, advisory pass-through, fallback on error |
 | `SpeakerVerificationConfig` | Persistent JSON config: enabled, profileId, threshold, mode, rejectBehavior, fallbackWithoutVerification | Round-trip persistence, validation (threshold bounds, mode enum, required profileId), CRUD handler tests |
 | `SpeakerVerificationConfigPatch.Apply()` | Partial update semantics for PUT `/api/v1/voice/speaker/config` | Handler tests verify patch merging and validation |
@@ -296,11 +296,34 @@ Last updated: 2026-03-17
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `speakerVerificationGateDecision` struct | Captures: Enabled, Applied, Allowed, Matched, Score, Threshold, ProfileID, Mode, ErrorMessage | Assertions on individual fields in WebSocket and HTTP transcribe tests |
+| `speakerVerificationGateDecision` struct | Captures: Enabled, Applied, Allowed, Matched, Score, Threshold, ProfileID, Mode, ErrorMessage, Extracted | Assertions on individual fields in WebSocket and HTTP transcribe tests |
 | Mode routing | `filter` → reject on mismatch, `advisory` → allow + log, `off` → skip | Covered by `TestVoiceStreamWS_SpeakerVerification_RejectedFinal` (filter) and `_AdvisoryModeAllowsThrough` (advisory) |
 | Fallback policy | `FallbackWithoutVerification: false` → reject on resource error; `true` → allow through | `TestVoiceStreamWS_SpeakerVerification_FallbackPolicy` and `_FallbackAllowed` |
 
 **Benefits**: The gate decision struct decouples "what happened" (score, match, error) from "what to do" (allow/reject), keeping the WebSocket handler simple and the decision logic independently testable.
+
+### Target Speaker Extraction Seam (API)
+**File**: `api/speaker_verification_handlers.go`
+**Purpose**: Isolate the enrolled speaker's voice from audio mixtures before transcription. Encapsulates the TSE decision as a single function with a clean fallback chain.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `extractTargetSpeaker(ctx, audio)` | Calls resource `/v1/extract` to separate + identify target speaker, returns cleaned audio + `speakerVerificationGateDecision` with `Extracted=true` | `TestExtractTargetSpeaker_Enabled` — mock extract endpoint returns WAV, verify extracted flag set |
+| TSE disabled fallback | When `ExtractionEnabled=false`, delegates to `evaluateSpeakerVerification()` and returns original audio | `TestExtractTargetSpeaker_Disabled` — verify original audio returned, `Extracted=false` |
+| TSE error fallback | When extract endpoint errors (5xx, timeout), falls back to verify-only on original audio | `TestExtractTargetSpeaker_ClientError` — mock 500 response, verify fallback to verify-only |
+| `SpeakerExtractionResult` | Parsed from binary WAV response body + `X-Speaker-Score`, `X-Speaker-Matched`, `X-Duration-Ms`, `X-Audio-Seconds` headers | `TestExtract_Success` — mock server returns WAV + headers, verify parsing |
+| `ExtractionEnabled` config | Independent toggle: both `Enabled` and `ExtractionEnabled` must be true for TSE | Round-trip config persistence test, patch apply test |
+| WebSocket integration | Segment-final and session-final paths call `extractTargetSpeaker()` when enabled, sending cleaned audio to Whisper | `segment-accepted` message includes `extracted: true` |
+
+**Fallback chain**:
+```
+TSE enabled + resource available → extract + verify extracted audio
+TSE enabled + resource error    → fall back to verify-only on original audio
+TSE disabled                    → verify-only on original audio (current behavior)
+Verification disabled           → no gating at all (current behavior)
+```
+
+**Benefits**: TSE is independently toggleable via `extractionEnabled` config. The single `extractTargetSpeaker()` function is the only integration point, making it trivial to test the entire fallback chain. The resource `/v1/extract` endpoint returns binary WAV (not JSON-wrapped), avoiding serialization overhead when forwarding to Whisper.
 
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`

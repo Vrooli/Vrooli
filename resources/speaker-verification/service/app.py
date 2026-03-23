@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 import embeddings
-from api import health, profiles, verify
+import extraction
+from api import extract, health, profiles, verify
 from config import settings
 
 logging.basicConfig(
@@ -29,7 +30,7 @@ async def lifespan(app: FastAPI):
     settings.CACHE_DIR.mkdir(parents=True, exist_ok=True)
     settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Load the model
+    # Load the TitaNet embedding model
     try:
         embeddings.load_model()
         logger.info(
@@ -39,6 +40,16 @@ async def lifespan(app: FastAPI):
         )
     except Exception:
         logger.exception("Failed to load model - service will start but not be ready")
+
+    # Load TSE separation model (if enabled)
+    if settings.TSE_ENABLED:
+        try:
+            extraction.load_model()
+            logger.info("TSE model loaded: %s", settings.TSE_MODEL)
+        except Exception:
+            logger.exception("Failed to load TSE model - extraction will be unavailable")
+    else:
+        logger.info("TSE disabled via config — skipping separation model load")
 
     yield
 
@@ -56,3 +67,4 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(profiles.router)
 app.include_router(verify.router)
+app.include_router(extract.router)

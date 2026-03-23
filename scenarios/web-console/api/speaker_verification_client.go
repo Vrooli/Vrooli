@@ -219,6 +219,87 @@ func (c *SpeakerVerificationResourceClient) Verify(
 	return out, err
 }
 
+// SpeakerExtractionResult holds the response from the /v1/extract endpoint.
+type SpeakerExtractionResult struct {
+	Audio        []byte  // Extracted speaker audio as 16kHz mono 16-bit PCM WAV
+	Score        float64 // Speaker verification score (if verify=true)
+	Matched      bool    // Whether extracted audio matched the profile
+	DurationMs   float64 // Server-side processing time
+	AudioSeconds float64 // Duration of the extracted audio
+}
+
+// Extract calls the /v1/extract endpoint to isolate the target speaker's
+// voice from a mixture. The extracted audio is returned as WAV bytes suitable
+// for forwarding directly to Whisper.
+func (c *SpeakerVerificationResourceClient) Extract(
+	ctx context.Context,
+	audio []byte,
+	profileID string,
+	verify bool,
+) (SpeakerExtractionResult, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("profile_id", profileID); err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("write profile_id: %w", err)
+	}
+	verifyStr := "true"
+	if !verify {
+		verifyStr = "false"
+	}
+	if err := writer.WriteField("verify", verifyStr); err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("write verify: %w", err)
+	}
+	part, err := writer.CreateFormFile("audio", "segment.webm")
+	if err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := part.Write(audio); err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("write audio: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("close writer: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint("/v1/extract"), &body)
+	if err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return SpeakerExtractionResult{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return SpeakerExtractionResult{}, fmt.Errorf("extract: unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+
+	audioBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return SpeakerExtractionResult{}, fmt.Errorf("read response body: %w", err)
+	}
+
+	result := SpeakerExtractionResult{Audio: audioBytes}
+
+	if s := resp.Header.Get("X-Speaker-Score"); s != "" {
+		fmt.Sscanf(s, "%f", &result.Score)
+	}
+	if s := resp.Header.Get("X-Speaker-Matched"); s != "" {
+		result.Matched = strings.EqualFold(s, "true")
+	}
+	if s := resp.Header.Get("X-Duration-Ms"); s != "" {
+		fmt.Sscanf(s, "%f", &result.DurationMs)
+	}
+	if s := resp.Header.Get("X-Audio-Seconds"); s != "" {
+		fmt.Sscanf(s, "%f", &result.AudioSeconds)
+	}
+
+	return result, nil
+}
+
 func (c *SpeakerVerificationResourceClient) DeleteProfile(ctx context.Context, profileID string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.endpoint("/v1/profiles/"+profileID), nil)
 	if err != nil {
