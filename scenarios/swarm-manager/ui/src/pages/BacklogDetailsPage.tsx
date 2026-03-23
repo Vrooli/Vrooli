@@ -64,6 +64,7 @@ import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
+import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
 import { TargetFormDialog } from "../components/backlog/target-form-dialog";
 import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
@@ -102,6 +103,8 @@ import type {
   ExecutionStatus,
   ModuleFormValues,
   ResearchResponse,
+  ReviewAction,
+  ReviewUpdate,
 } from "../types";
 import type { WorkshopRound } from "../types/domain";
 import { selectLatestRunForBacklog, useAgentRunsStore, useBacklogStore } from "../stores";
@@ -304,6 +307,7 @@ export function BacklogDetailsPage() {
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
+  const [reviewMode, setReviewMode] = useState(false);
   const [reqDialogOpen, setReqDialogOpen] = useState(false);
   const [reqDialogMode, setReqDialogMode] = useState<"create" | "edit">("create");
   const [editingReq, setEditingReq] = useState<{ groupId: string; req?: ArchiveRequirementRecord } | null>(null);
@@ -610,6 +614,98 @@ export function BacklogDetailsPage() {
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
   });
+
+  const batchReviewMutation = useMutation({
+    mutationFn: (items: ReviewUpdate[]) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.batchReview(backlogKind, name, items);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey });
+    },
+  });
+
+  // Build module_id lookup for requirements (needed to resolve requirement → module mapping)
+  const reqModuleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!archiveTargets) return map;
+    const walk = (groups: typeof archiveTargets.requirements) => {
+      for (const g of groups) {
+        for (const r of g.requirements) {
+          map.set(r.id, g.id);
+        }
+        walk(g.children);
+      }
+    };
+    walk(archiveTargets.requirements);
+    return map;
+  }, [archiveTargets]);
+
+  const targetIdSet = useMemo(
+    () => new Set(archiveTargets?.targets.map((t) => t.id) ?? []),
+    [archiveTargets],
+  );
+
+  const handleReviewAction = useCallback((id: string, _type: "target" | "requirement", action: ReviewAction) => {
+    // Fire immediately — no local accumulation
+    let item: ReviewUpdate;
+    if (targetIdSet.has(id)) {
+      item = { id, type: "target", ...action };
+    } else {
+      const moduleId = reqModuleMap.get(id);
+      if (!moduleId) return;
+      item = { id, type: "requirement", module_id: moduleId, ...action };
+    }
+    batchReviewMutation.mutate([item]);
+  }, [targetIdSet, reqModuleMap, batchReviewMutation]);
+
+  const handleBulkApprove = useCallback(() => {
+    const items: ReviewUpdate[] = [];
+    for (const id of selectedTargetIds) {
+      items.push({ id, type: "target", review_status: "approved" });
+    }
+    for (const id of selectedRequirementIds) {
+      const moduleId = reqModuleMap.get(id);
+      if (moduleId) items.push({ id, type: "requirement", module_id: moduleId, review_status: "approved" });
+    }
+    if (items.length > 0) batchReviewMutation.mutate(items);
+  }, [selectedTargetIds, selectedRequirementIds, reqModuleMap, batchReviewMutation]);
+
+  const handleBulkFlag = useCallback(() => {
+    const items: ReviewUpdate[] = [];
+    for (const id of selectedTargetIds) {
+      items.push({ id, type: "target", review_status: "flagged" });
+    }
+    for (const id of selectedRequirementIds) {
+      const moduleId = reqModuleMap.get(id);
+      if (moduleId) items.push({ id, type: "requirement", module_id: moduleId, review_status: "flagged" });
+    }
+    if (items.length > 0) batchReviewMutation.mutate(items);
+  }, [selectedTargetIds, selectedRequirementIds, reqModuleMap, batchReviewMutation]);
+
+  // Merge flagged items from archive data into agent dialog selections
+  const agentDialogTargetIds = useMemo(() => {
+    const merged = new Set(selectedTargetIds);
+    for (const t of archiveTargets?.targets ?? []) {
+      if (t.review_status === "flagged") merged.add(t.id);
+    }
+    return merged;
+  }, [selectedTargetIds, archiveTargets]);
+
+  const agentDialogRequirementIds = useMemo(() => {
+    const merged = new Set(selectedRequirementIds);
+    if (!archiveTargets) return merged;
+    const walkReqs = (groups: typeof archiveTargets.requirements) => {
+      for (const g of groups) {
+        for (const r of g.requirements) {
+          if (r.review_status === "flagged") merged.add(r.id);
+        }
+        walkReqs(g.children);
+      }
+    };
+    walkReqs(archiveTargets.requirements);
+    return merged;
+  }, [selectedRequirementIds, archiveTargets]);
 
   const handleCreateTarget = useCallback(() => {
     setEditingTarget(null);
@@ -1777,25 +1873,44 @@ export function BacklogDetailsPage() {
       {detailsPanel}
       {notesPanel}
       {archiveTargets?.has_archive && (
-        <OperationalTargetsPanel
-          targets={archiveTargets.targets}
-          requirements={archiveTargets.requirements}
-          selectedTargetIds={selectedTargetIds}
-          selectedRequirementIds={selectedRequirementIds}
-          onTargetToggle={handleTargetToggle}
-          onRequirementToggle={handleRequirementToggle}
-          editable
-          onCreateRequirement={handleCreateRequirement}
-          onEditRequirement={handleEditRequirement}
-          onDeleteRequirement={handleDeleteRequirement}
-          onReorderRequirement={handleReorderRequirement}
-          onCreateModule={handleCreateModule}
-          onEditModule={handleEditModule}
-          onDeleteModule={handleDeleteModule}
-          onCreateTarget={handleCreateTarget}
-          onEditTarget={handleEditTarget}
-          onDeleteTarget={handleDeleteTarget}
-        />
+        <>
+          <OperationalTargetsPanel
+            targets={archiveTargets.targets}
+            requirements={archiveTargets.requirements}
+            selectedTargetIds={selectedTargetIds}
+            selectedRequirementIds={selectedRequirementIds}
+            onTargetToggle={reviewMode ? undefined : handleTargetToggle}
+            onRequirementToggle={reviewMode ? undefined : handleRequirementToggle}
+            editable
+            onCreateRequirement={handleCreateRequirement}
+            onEditRequirement={handleEditRequirement}
+            onDeleteRequirement={handleDeleteRequirement}
+            onReorderRequirement={handleReorderRequirement}
+            onCreateModule={handleCreateModule}
+            onEditModule={handleEditModule}
+            onDeleteModule={handleDeleteModule}
+            onCreateTarget={handleCreateTarget}
+            onEditTarget={handleEditTarget}
+            onDeleteTarget={handleDeleteTarget}
+            reviewMode={reviewMode}
+            onToggleReviewMode={() => setReviewMode((prev) => !prev)}
+            onReviewAction={handleReviewAction}
+            reviewSaving={batchReviewMutation.isPending}
+            reviewError={batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null}
+          />
+          {!reviewMode && (
+            <BulkActionToolbar
+              selectedCount={selectedTargetIds.size + selectedRequirementIds.size}
+              onApproveSelected={handleBulkApprove}
+              onFlagSelected={handleBulkFlag}
+              onSendToAgent={() => setShowAgentDialog(true)}
+              onClearSelection={() => {
+                setSelectedTargetIds(new Set());
+                setSelectedRequirementIds(new Set());
+              }}
+            />
+          )}
+        </>
       )}
       {executionHistorySection}
     </div>
@@ -2039,21 +2154,28 @@ export function BacklogDetailsPage() {
             {detailsPanel}
             {notesPanel}
             {archiveTargets?.has_archive && (
-              <OperationalTargetsPanel
-                targets={archiveTargets.targets}
-                requirements={archiveTargets.requirements}
-                editable
-                onCreateRequirement={handleCreateRequirement}
-                onEditRequirement={handleEditRequirement}
-                onDeleteRequirement={handleDeleteRequirement}
-                onReorderRequirement={handleReorderRequirement}
-                onCreateModule={handleCreateModule}
-                onEditModule={handleEditModule}
-                onDeleteModule={handleDeleteModule}
-                onCreateTarget={handleCreateTarget}
-                onEditTarget={handleEditTarget}
-                onDeleteTarget={handleDeleteTarget}
-              />
+              <>
+                <OperationalTargetsPanel
+                  targets={archiveTargets.targets}
+                  requirements={archiveTargets.requirements}
+                  editable
+                  onCreateRequirement={handleCreateRequirement}
+                  onEditRequirement={handleEditRequirement}
+                  onDeleteRequirement={handleDeleteRequirement}
+                  onReorderRequirement={handleReorderRequirement}
+                  onCreateModule={handleCreateModule}
+                  onEditModule={handleEditModule}
+                  onDeleteModule={handleDeleteModule}
+                  onCreateTarget={handleCreateTarget}
+                  onEditTarget={handleEditTarget}
+                  onDeleteTarget={handleDeleteTarget}
+                  reviewMode={reviewMode}
+                  onToggleReviewMode={() => setReviewMode((prev) => !prev)}
+                  onReviewAction={handleReviewAction}
+            reviewSaving={batchReviewMutation.isPending}
+            reviewError={batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null}
+                />
+              </>
             )}
             {executionHistorySection}
             {fileWorkspace}
@@ -2224,8 +2346,8 @@ export function BacklogDetailsPage() {
         errorMessage={agentError}
         files={files}
         archiveTargets={archiveTargets}
-        initialSelectedTargetIds={selectedTargetIds}
-        initialSelectedRequirementIds={selectedRequirementIds}
+        initialSelectedTargetIds={agentDialogTargetIds}
+        initialSelectedRequirementIds={agentDialogRequirementIds}
         onClose={() => {
           setShowAgentDialog(false);
           agentMutation.reset();

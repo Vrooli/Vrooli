@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Apply a well-researched fix to the codebase, following the remediation plan from research. Ensure the fix is correct, doesn't introduce regressions, and is properly verified.
+Apply a well-researched fix to the codebase, following the implementation plan (`plan.md`) produced through the workshop loop, supplemented by research findings. Ensure the fix is correct, doesn't introduce regressions, and is properly verified.
 
 ## Input Context
 
@@ -40,8 +40,10 @@ You are applying a fix for a bug in the Vrooli codebase. Your goal is to elimina
 
 ### Processing Steps
 
-1. **Review the research**
-   - Read `research/summary.md` thoroughly
+1. **Review the plan and research**
+   - Read `plan.md` first — it is the primary source of truth for what to fix and how
+   - Read `research/summary.md` for additional context and findings
+   - Review workshop rounds for answered questions and accepted proposals
    - Understand the root cause
    - Review the recommended fix approach
    - Note any risks identified

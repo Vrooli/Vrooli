@@ -311,6 +311,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}", h.UpdateModuleRequirementsHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}/meta", h.UpdateModuleMetaHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/requirements/{moduleId}", h.DeleteModuleHandler).Methods("DELETE")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/review", h.BatchReviewHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
 }
@@ -1879,13 +1880,42 @@ func (h *Handler) GetArchiveTargets(w http.ResponseWriter, r *http.Request) {
 		targets = []ArchiveTarget{}
 	}
 
+	// Merge review state into targets.
+	itemDir := h.itemDir(kind, name)
+	reviewState, _ := ReadReviewState(itemDir)
+	if len(reviewState) > 0 {
+		// Build target ID set for pruning.
+		targetIDs := make(map[string]bool, len(targets))
+		for i := range targets {
+			targetIDs[targets[i].ID] = true
+		}
+		PruneReviewState(reviewState, targetIDs)
+	}
+
+	// Build response targets with review fields merged in.
+	type targetWithReview struct {
+		ArchiveTarget
+		ReviewedAt    string `json:"reviewed_at,omitempty"`
+		ReviewComment string `json:"review_comment,omitempty"`
+		ReviewStatus  string `json:"review_status,omitempty"`
+	}
+	respTargets := make([]targetWithReview, len(targets))
+	for i, t := range targets {
+		respTargets[i] = targetWithReview{ArchiveTarget: t}
+		if rs, ok := reviewState[t.ID]; ok {
+			respTargets[i].ReviewedAt = rs.ReviewedAt
+			respTargets[i].ReviewComment = rs.ReviewComment
+			respTargets[i].ReviewStatus = rs.ReviewStatus
+		}
+	}
+
 	requirements, err := ParseArchiveRequirements(archiveDir)
 	if err != nil {
 		requirements = []ArchiveRequirementGroup{}
 	}
 
 	_ = httputil.JSON(w, map[string]any{
-		"targets":      targets,
+		"targets":      respTargets,
 		"requirements": requirements,
 		"has_archive":  true,
 	})
@@ -2088,6 +2118,108 @@ func (h *Handler) DeleteModuleHandler(w http.ResponseWriter, r *http.Request) {
 	if err := DeleteModule(dir, moduleID); err != nil {
 		httputil.InternalError(w, "[backlog] delete module", err.Error())
 		return
+	}
+
+	_ = httputil.JSON(w, map[string]any{"ok": true})
+}
+
+// BatchReviewHandler applies review status updates to targets and/or requirements in batch.
+func (h *Handler) BatchReviewHandler(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "batch review")
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Items []struct {
+			ID            string `json:"id"`
+			Type          string `json:"type"`            // "target" or "requirement"
+			ModuleID      string `json:"module_id"`       // required for requirements
+			ReviewStatus  string `json:"review_status"`   // "approved", "flagged", "unreviewed"
+			ReviewComment string `json:"review_comment"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.BadRequest(w, "[backlog] batch review", "invalid JSON body")
+		return
+	}
+	if len(body.Items) == 0 {
+		httputil.BadRequest(w, "[backlog] batch review", "items array is required")
+		return
+	}
+
+	dir := h.itemDir(kind, name)
+	now := r.URL.Query().Get("now") // allow test override
+	if now == "" {
+		now = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	}
+
+	// Separate target and requirement updates.
+	targetUpdates := map[string]ReviewState{}
+	reqUpdates := map[string]map[string]RequirementReviewUpdate{}
+
+	for _, item := range body.Items {
+		switch item.Type {
+		case "target":
+			rs := ReviewState{
+				ReviewStatus:  item.ReviewStatus,
+				ReviewComment: item.ReviewComment,
+			}
+			if item.ReviewStatus != "unreviewed" {
+				rs.ReviewedAt = now
+			}
+			targetUpdates[item.ID] = rs
+		case "requirement":
+			if item.ModuleID == "" {
+				httputil.BadRequest(w, "[backlog] batch review", "module_id is required for requirement items")
+				return
+			}
+			if reqUpdates[item.ModuleID] == nil {
+				reqUpdates[item.ModuleID] = map[string]RequirementReviewUpdate{}
+			}
+			reviewed := ""
+			if item.ReviewStatus != "unreviewed" {
+				reviewed = now
+			}
+			reqUpdates[item.ModuleID][item.ID] = RequirementReviewUpdate{
+				ReviewStatus:  item.ReviewStatus,
+				ReviewComment: item.ReviewComment,
+				ReviewedAt:    reviewed,
+			}
+		default:
+			httputil.BadRequest(w, "[backlog] batch review", "type must be 'target' or 'requirement'")
+			return
+		}
+	}
+
+	// Apply target review updates.
+	if len(targetUpdates) > 0 {
+		state, err := ReadReviewState(dir)
+		if err != nil {
+			httputil.InternalError(w, "[backlog] batch review", err.Error())
+			return
+		}
+		for id, rs := range targetUpdates {
+			if rs.ReviewStatus == "unreviewed" {
+				delete(state, id)
+			} else {
+				state[id] = rs
+			}
+		}
+		if err := WriteReviewState(dir, state); err != nil {
+			httputil.InternalError(w, "[backlog] batch review", err.Error())
+			return
+		}
+	}
+
+	// Apply requirement review updates by reading each module, patching, and writing back.
+	if len(reqUpdates) > 0 {
+		for moduleID, updates := range reqUpdates {
+			if err := PatchModuleReviewState(dir, moduleID, updates); err != nil {
+				httputil.InternalError(w, "[backlog] batch review", fmt.Sprintf("module %s: %s", moduleID, err.Error()))
+				return
+			}
+		}
 	}
 
 	_ = httputil.JSON(w, map[string]any{"ok": true})

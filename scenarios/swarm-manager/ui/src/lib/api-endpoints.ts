@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
   backlogArchiveRequirements: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/requirements`,
   backlogArchiveRequirementsModule: (kind: string, name: string, moduleId: string) => `/backlog/${kind}/${name}/archive/requirements/${moduleId}`,
   backlogArchiveRequirementsModuleMeta: (kind: string, name: string, moduleId: string) => `/backlog/${kind}/${name}/archive/requirements/${moduleId}/meta`,
+  backlogArchiveReview: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/review`,
   backlogPromptTrace: (kind: string, name: string) => `/backlog/${kind}/${name}/prompt-trace`,
   backlogExport: "/backlog/export",
   backlogImport: "/backlog/import",

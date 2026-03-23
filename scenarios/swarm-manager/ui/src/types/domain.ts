@@ -243,6 +243,25 @@ export interface FeedbackSummaryResponse {
 }
 
 // ============================================================================
+// Review Domain
+// ============================================================================
+
+export type ReviewStatus = "approved" | "flagged" | "unreviewed";
+
+export interface ReviewAction {
+  review_status: ReviewStatus;
+  review_comment?: string;
+}
+
+export interface ReviewUpdate {
+  id: string;
+  type: "target" | "requirement";
+  module_id?: string;
+  review_status: ReviewStatus;
+  review_comment?: string;
+}
+
+// ============================================================================
 // Archive / Operational Targets Domain
 // ============================================================================
 
@@ -253,6 +272,9 @@ export interface ArchiveTarget {
   notes: string;
   status: string;
   linked_requirement_ids: string[];
+  reviewed_at?: string;
+  review_comment?: string;
+  review_status?: ReviewStatus;
 }
 
 export interface ArchiveRequirement {
@@ -262,6 +284,9 @@ export interface ArchiveRequirement {
   status: string;
   category: string;
   prd_ref: string;
+  reviewed_at?: string;
+  review_comment?: string;
+  review_status?: ReviewStatus;
 }
 
 export interface ArchiveRequirementGroup {

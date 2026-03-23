@@ -257,3 +257,77 @@ func DeleteModule(itemDir, moduleID string) error {
 	idx.Imports = newImports
 	return writeIndex(reqDir, idx)
 }
+
+// RequirementReviewUpdate holds review field values for a single requirement.
+type RequirementReviewUpdate struct {
+	ReviewStatus  string
+	ReviewComment string
+	ReviewedAt    string
+}
+
+// PatchModuleReviewState reads a module's requirements, patches review fields,
+// and writes back using the json.RawMessage pass-through pattern.
+func PatchModuleReviewState(itemDir, moduleID string, updates map[string]RequirementReviewUpdate) error {
+	reqDir, err := resolveRequirementsDir(itemDir)
+	if err != nil {
+		return err
+	}
+
+	// The root index.json is parsed as group "index" but doesn't appear in
+	// its own imports list. Resolve it directly instead of via resolveModulePath.
+	var modPath string
+	if moduleID == "index" {
+		modPath = filepath.Join(reqDir, "index.json")
+	} else {
+		modPath, err = resolveModulePath(reqDir, moduleID)
+		if err != nil {
+			return err
+		}
+	}
+
+	raw, err := os.ReadFile(modPath)
+	if err != nil {
+		return fmt.Errorf("read module file: %w", err)
+	}
+
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return fmt.Errorf("parse module file: %w", err)
+	}
+
+	reqsRaw, ok := doc["requirements"]
+	if !ok {
+		return nil
+	}
+
+	reqs, ok := reqsRaw.([]any)
+	if !ok {
+		return nil
+	}
+
+	for i, reqAny := range reqs {
+		reqMap, ok := reqAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := reqMap["id"].(string)
+		upd, found := updates[id]
+		if !found {
+			continue
+		}
+
+		if upd.ReviewStatus == "unreviewed" {
+			delete(reqMap, "reviewed_at")
+			delete(reqMap, "review_comment")
+			delete(reqMap, "review_status")
+		} else {
+			reqMap["review_status"] = upd.ReviewStatus
+			reqMap["review_comment"] = upd.ReviewComment
+			reqMap["reviewed_at"] = upd.ReviewedAt
+		}
+		reqs[i] = reqMap
+	}
+
+	doc["requirements"] = reqs
+	return storage.WriteJSONAtomic(modPath, doc)
+}

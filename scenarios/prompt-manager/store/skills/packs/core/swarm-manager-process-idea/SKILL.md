@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-refined idea specification. For **new scenarios**, initialize the scenario scaffold, PRD, and requirements before delegating to ecosystem-manager. For **existing scenarios**, delegate improvement directly to ecosystem-manager's steered agent loops.
+Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-refined idea specification. The primary source of truth is `plan.md` (the implementation plan produced through the workshop loop). For **new scenarios**, initialize the scenario scaffold, PRD, and requirements before delegating to ecosystem-manager. For **existing scenarios**, delegate improvement directly to ecosystem-manager's steered agent loops.
 
 ## Input Context
 
@@ -12,7 +12,7 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 ## Scope
 
 **In scope:**
-- Reading and synthesizing idea context (enhance, clarify, suggest, research, archive artifacts)
+- Reading and synthesizing idea context (plan.md as primary source, workshop rounds, research, archive artifacts)
 - Determining operation type (new scenario vs improve existing)
 - For new scenarios: scaffolding, PRD generation, requirements registry, archive incorporation
 - For improvements: incorporating staging/archive materials into the existing scenario, selecting a steering strategy (profile, steer-mode, or steer-queue)
@@ -47,7 +47,7 @@ Orchestrate the creation or improvement of a Vrooli scenario by reading a fully-
 
 ## Success Criteria
 
-- [ ] All context read and understood (enhance, clarify, suggest, research, archive)
+- [ ] All context read and understood (plan.md, workshop rounds, research, archive)
 - [ ] Operation type determined (new vs improve)
 - [ ] **If new scenario:**
   - [ ] Template selected and scenario scaffolded

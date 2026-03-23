@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, ResearchResponse } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -136,6 +136,7 @@ export interface IBacklogService {
   createModule(kind: string, name: string, payload: ModuleFormValues & { position?: number }): Promise<void>;
   updateModuleMeta(kind: string, name: string, moduleId: string, payload: { title: string; description: string }): Promise<void>;
   deleteModule(kind: string, name: string, moduleId: string): Promise<void>;
+  batchReview(kind: string, name: string, items: ReviewUpdate[]): Promise<void>;
   exportItems(params?: {
     kinds?: string[];
     statuses?: string[];
@@ -416,6 +417,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async deleteModule(kind: string, name: string, moduleId: string): Promise<void> {
       await apiClient.delete<void>(API_ENDPOINTS.backlogArchiveRequirementsModule(kind, name, moduleId));
+    },
+
+    async batchReview(kind: string, name: string, items: ReviewUpdate[]): Promise<void> {
+      await apiClient.put<void>(API_ENDPOINTS.backlogArchiveReview(kind, name), { items });
     },
 
     async exportItems(params?: {

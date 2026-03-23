@@ -1,19 +1,8 @@
 {
   "_metadata": {
     "description": "Lifestyle Dashboard requirement registry - Parent-level requirements reference child modules declared under imports",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-03-09"
-  },
-  "meta": {
-    "scenario": "lifestyle-dashboard",
-    "version": "1.0.0",
-    "generated": "2026-03-09",
-    "owners": [
-      {
-        "platform": "lifestyle-dashboard",
-        "contact": "matt@vrooli.dev"
-      }
-    ]
+    "last_updated": "2026-03-09",
+    "schema_version": "1.0.0"
   },
   "imports": [
     "events/schema.json",
@@ -23,104 +12,118 @@
     "briefs/daily.json",
     "intelligence/correlation.json"
   ],
+  "meta": {
+    "generated": "2026-03-09",
+    "owners": [
+      {
+        "contact": "matt@vrooli.dev",
+        "platform": "lifestyle-dashboard"
+      }
+    ],
+    "scenario": "lifestyle-dashboard",
+    "version": "1.0.0"
+  },
   "requirements": [
     {
-      "id": "LD-FUNC-001",
       "category": "foundation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "title": "Shared event schema and time-series storage",
-      "description": "PostgreSQL time-series events table with JSONB payloads, common envelope (timestamp, domain, event_type, payload), indexed by domain+timestamp, extensible without migrations.",
-      "status": "not_started",
       "children": [
         "LD-EVENT-SCHEMA",
         "LD-EVENT-STORAGE",
         "LD-EVENT-INDEX"
       ],
+      "description": "PostgreSQL time-series events table with JSONB payloads, common envelope (timestamp, domain, event_type, payload), indexed by domain+timestamp, extensible without migrations.",
+      "id": "LD-FUNC-001",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "review_comment": "",
+      "review_status": "approved",
+      "reviewed_at": "2026-03-23T19:41:34Z",
+      "status": "not_started",
+      "title": "Shared event schema and time-series storage",
       "validation": []
     },
     {
-      "id": "LD-FUNC-002",
       "category": "foundation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "title": "Domain registration and discovery",
-      "description": "Dynamic domain scenario registration, capability exposure, health status tracking. Domains can start/stop independently.",
-      "status": "not_started",
       "children": [
         "LD-DOMAIN-REGISTER",
         "LD-DOMAIN-DISCOVER",
         "LD-DOMAIN-HEALTH"
       ],
+      "description": "Dynamic domain scenario registration, capability exposure, health status tracking. Domains can start/stop independently.",
+      "id": "LD-FUNC-002",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "status": "not_started",
+      "title": "Domain registration and discovery",
       "validation": []
     },
     {
-      "id": "LD-FUNC-003",
       "category": "foundation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "title": "Cross-domain query API",
-      "description": "API endpoints for querying events across domains with time-range filters, domain filters, basic aggregations, and correlation queries.",
-      "status": "not_started",
       "children": [
         "LD-QUERY-FILTER",
         "LD-QUERY-AGGREGATE",
         "LD-QUERY-CORRELATE"
       ],
+      "description": "API endpoints for querying events across domains with time-range filters, domain filters, basic aggregations, and correlation queries.",
+      "id": "LD-FUNC-003",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "status": "not_started",
+      "title": "Cross-domain query API",
       "validation": []
     },
     {
-      "id": "LD-FUNC-004",
       "category": "ui",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "title": "Unified dashboard UI",
-      "description": "Timeline view across all domains, per-domain sections with deep-dive links, trend charts, responsive design for mobile.",
-      "status": "not_started",
       "children": [
         "LD-UI-TIMELINE",
         "LD-UI-DOMAINS",
         "LD-UI-TRENDS",
         "LD-UI-RESPONSIVE"
       ],
+      "description": "Timeline view across all domains, per-domain sections with deep-dive links, trend charts, responsive design for mobile.",
+      "id": "LD-FUNC-004",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "status": "not_started",
+      "title": "Unified dashboard UI",
       "validation": []
     },
     {
-      "id": "LD-FUNC-005",
       "category": "automation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "title": "Daily brief system",
-      "description": "Morning brief (what to do today) and evening review (what happened, notable patterns) consolidated from all active domains.",
-      "status": "not_started",
       "children": [
         "LD-BRIEF-MORNING",
         "LD-BRIEF-EVENING",
         "LD-BRIEF-CONSOLIDATE"
       ],
+      "description": "Morning brief (what to do today) and evening review (what happened, notable patterns) consolidated from all active domains.",
+      "id": "LD-FUNC-005",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "status": "not_started",
+      "title": "Daily brief system",
       "validation": []
     },
     {
-      "id": "LD-FUNC-006",
       "category": "intelligence",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "title": "Correlation engine",
-      "description": "Automated statistical correlation analysis across domains with significance tracking and configurable minimum data threshold.",
-      "status": "not_started",
       "children": [
         "LD-CORR-ANALYZE",
         "LD-CORR-SIGNIFICANCE",
         "LD-CORR-THRESHOLD"
       ],
+      "description": "Automated statistical correlation analysis across domains with significance tracking and configurable minimum data threshold.",
+      "id": "LD-FUNC-006",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-001",
+      "status": "not_started",
+      "title": "Correlation engine",
       "validation": []
     },
     {
-      "id": "LD-FUNC-007",
       "category": "intelligence",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "title": "Experiment framework",
-      "description": "N=1 experiments with hypothesis, intervention, measurement, duration, compliance tracking, and outcome reports.",
-      "status": "not_started",
       "children": [
         "LD-EXP-DEFINE",
         "LD-EXP-TRACK",
         "LD-EXP-REPORT"
       ],
+      "description": "N=1 experiments with hypothesis, intervention, measurement, duration, compliance tracking, and outcome reports.",
+      "id": "LD-FUNC-007",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "status": "not_started",
+      "title": "Experiment framework",
       "validation": []
     }
   ]

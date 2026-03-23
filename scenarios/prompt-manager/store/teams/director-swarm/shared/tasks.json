@@ -1,3 +1,64 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "task-1774217969536112668",
+      "title": "Commit prompt-manager 3 files (highest leverage)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:29Z",
+      "updatedAt": "2026-03-22T22:19:29Z"
+    },
+    {
+      "id": "task-1774217970487579374",
+      "title": "Commit packages/proto 22 generated files (swarm-manager)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:30Z",
+      "updatedAt": "2026-03-22T22:19:30Z"
+    },
+    {
+      "id": "task-1774217971306089208",
+      "title": "Commit tidiness-manager 12 files",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:31Z",
+      "updatedAt": "2026-03-22T22:19:31Z"
+    },
+    {
+      "id": "task-1774217972192382289",
+      "title": "Commit test-genie 23 files (stuck 3+ heartbeats)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:32Z",
+      "updatedAt": "2026-03-22T22:19:32Z"
+    },
+    {
+      "id": "task-1774217973083804901",
+      "title": "Commit web-console 23 voice feature files",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P3",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:33Z",
+      "updatedAt": "2026-03-22T22:19:33Z"
+    },
+    {
+      "id": "task-1774217974597995587",
+      "title": "Commit remaining small batches (git-control-tower 6, scenario-auditor 4, ecosystem-manager 4, agent-manager 1)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P3",
+      "createdBy": "director",
+      "createdAt": "2026-03-22T22:19:34Z",
+      "updatedAt": "2026-03-22T22:19:34Z"
+    }
+  ]
 }

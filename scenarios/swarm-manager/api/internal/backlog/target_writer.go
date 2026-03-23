@@ -1,10 +1,13 @@
 package backlog
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"swarm-manager/internal/storage"
 )
 
 // serializeTargetsSection rebuilds the entire "## 🎯 Operational Targets"
@@ -219,6 +222,59 @@ func DeleteTarget(itemDir string, targetID string) error {
 	}
 
 	return WriteTargets(itemDir, filtered)
+}
+
+// ReviewState holds the review status for a single item (target or requirement).
+type ReviewState struct {
+	ReviewedAt    string `json:"reviewed_at,omitempty"`
+	ReviewComment string `json:"review_comment,omitempty"`
+	ReviewStatus  string `json:"review_status,omitempty"` // "approved", "flagged", "unreviewed"
+}
+
+// reviewStatePath returns the path to review-state.json inside the archive directory.
+func reviewStatePath(itemDir string) string {
+	return filepath.Join(itemDir, "archive", "review-state.json")
+}
+
+// ReadReviewState reads review-state.json and returns a map of item ID to ReviewState.
+// Returns an empty map if the file does not exist.
+func ReadReviewState(itemDir string) (map[string]ReviewState, error) {
+	path := reviewStatePath(itemDir)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]ReviewState{}, nil
+		}
+		return nil, fmt.Errorf("read review state: %w", err)
+	}
+
+	var state map[string]ReviewState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("parse review state: %w", err)
+	}
+	if state == nil {
+		state = map[string]ReviewState{}
+	}
+	return state, nil
+}
+
+// WriteReviewState writes the review state map to review-state.json atomically.
+func WriteReviewState(itemDir string, state map[string]ReviewState) error {
+	path := reviewStatePath(itemDir)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create archive dir: %w", err)
+	}
+	return storage.WriteJSONAtomic(path, state)
+}
+
+// PruneReviewState removes entries from review state that don't match any known target ID.
+func PruneReviewState(state map[string]ReviewState, targetIDs map[string]bool) {
+	for id := range state {
+		if !targetIDs[id] {
+			delete(state, id)
+		}
+	}
 }
 
 // writeFileAtomic writes content to a file atomically via temp+rename.

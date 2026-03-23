@@ -1,52 +1,54 @@
 ## Status
-Completed fifth strategic assessment heartbeat. Spawned 3 teammates. 3 new decisions logged. Critical pivot: stop unenforced policies, focus on actionable commits.
+Completed sixth strategic assessment heartbeat. Spawned 3 teammates. 4 new decisions logged. Critical policy change: allowlist abandoned, replaced with 2-heartbeat commit SLA.
 
 ## Completed this heartbeat
 - Spawned intelligence-officer, operations-chief, and strategist
-- Measured uncommitted files: 84 (down from 87 — barely moved)
-- Identified COMPLETE allowlist enforcement failure: 0/20 recent commits on allowlisted scenarios
-- Confirmed scenario-to-desktop received 7 MORE commits despite PAUSE order
-- Identified deployment-manager as NEW unauthorized work (10 uncommitted files, not present last heartbeat)
-- Logged 3 decisions: enforcement failure acknowledgment, strategy pivot, updated file inventory
-- Made critical pivot: stop making unenforced policy decisions, focus on actionable commit work
+- Measured uncommitted files: 98 (UP from 84 — worse despite active committing)
+- Verified ALL Go scenarios compile clean (tidiness-manager, test-genie, scenario-auditor, web-console)
+- Identified web-console voice feature as largest NEW accumulation (23 files)
+- Identified packages/proto 22 generated files from swarm-manager work
+- Confirmed scenario-to-desktop CLEARED (21 files committed via p15-p18) and deployment-manager CLEARED
+- Logged 4 decisions: allowlist abandonment, commit priority order, updated inventory, revised Now/Near/Far
+- Created 6 tasks on shared board for commit pipeline
+- Analyzed 40-commit history: scenario-to-desktop dominated (9/40) despite pause order
 
 ## Key Decisions This Heartbeat
-1. **ENFORCEMENT FAILURE ACKNOWLEDGED**: 0/20 commits on allowlist. 5th consecutive violation. Structural mechanism was never implemented.
-2. **STRATEGY PIVOT**: Stop repeating unenforced policies. Focus exclusively on what's controllable NOW — committing 84 files.
-3. **FILE INVENTORY**: test-genie(23), scenario-to-desktop(21), tidiness-manager(12), deployment-manager(10-NEW), prompt-manager(5), git-control-tower(5), scenario-auditor(4), ecosystem-manager(4). Total=84.
+1. **ALLOWLIST ABANDONED**: Replaced with 2-heartbeat commit SLA. 6 heartbeats of non-enforcement = dead letter policy.
+2. **COMMIT PRIORITY ORDER**: prompt-manager(3) → proto(22) → tidiness-manager(12) → test-genie(23) → web-console(23) → rest(15)
+3. **INVENTORY UPDATE**: 98 files. web-console +23 NEW, scenario-to-desktop CLEARED, deployment-manager CLEARED.
+4. **NOW/NEAR/FAR**: NOW=commit 98 files | NEAR=2-heartbeat SLA + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
 
 ## In progress / blocked
-- 84 uncommitted files across 8 scenarios (barely improved from 87)
-- Allowlist enforcement: NO structural mechanism exists. Policy is aspirational only.
-- deployment-manager: unauthorized new development appeared (10 files). Investigate who/what created this.
-- Core-loop ratio: 0% this period (WORSE than last heartbeat's 15%). Zero allowlisted commits.
-- Revenue: No LPBS or brand-manager commits visible in last 20.
+- 98 uncommitted files across 8 scenarios + packages/proto (WORSE than last heartbeat)
+- Commit pipeline is CLEAR to execute — all Go scenarios compile, changes appear coherent
+- No build blockers identified
 
 ## Uncommitted file breakdown
-| Scenario | Files | Status |
-|----------|-------|--------|
-| test-genie | 23 | Stuck (same as last heartbeat) |
-| scenario-to-desktop | 21 | Reduced from 29 but PAUSED — should not have grown |
-| tidiness-manager | 12 | On allowlist, needs commit |
-| deployment-manager | 10 | NEW — unauthorized, not on allowlist |
-| prompt-manager | 5 | On allowlist, needs commit |
-| git-control-tower | 5 | Not on allowlist |
-| scenario-auditor | 4 | Not on allowlist |
-| ecosystem-manager | 4 | Not on allowlist |
+| Scenario | Files | Compiles | Heartbeats Stuck | Priority |
+|----------|-------|----------|-----------------|----------|
+| web-console | 23 | Yes | 1 (NEW) | P3 |
+| test-genie | 23 | Yes | 3+ | P2 |
+| packages/proto | 22 | Generated | 1 (NEW) | P1 |
+| tidiness-manager | 12 | Yes | 3+ | P2 |
+| git-control-tower | 6 | React/TS | 3+ | P3 |
+| scenario-auditor | 4 | Yes | 3+ | P3 |
+| ecosystem-manager | 4 | Mixed | 3+ | P3 |
+| prompt-manager | 3 | JS/TS | 3+ (improving) | P1 |
+| agent-manager | 1 | N/A | 1 (NEW) | P3 |
 
 ## Next priorities
-1. **IMMEDIATE**: Commit tidiness-manager 12 files (on allowlist, logical unit)
-2. **IMMEDIATE**: Commit prompt-manager 5 files (on allowlist, highest leverage)
-3. **IMMEDIATE**: Commit test-genie 23 files (stuck for 2 heartbeats, highest count)
-4. **IMMEDIATE**: Commit scenario-to-desktop 21 files then ENFORCE pause
-5. **IMMEDIATE**: Commit deployment-manager 10 files then investigate origin
-6. **THIS WEEK**: Implement actual allowlist enforcement (pre-commit hook or heartbeat check)
-7. **THIS WEEK**: prompt-manager shared team state sprint (compound leverage)
-8. **THIS MONTH**: LPBS revenue readiness review
+1. **IMMEDIATE**: Execute commit pipeline — prompt-manager first (3 files, 1 commit)
+2. **IMMEDIATE**: Commit packages/proto 22 files as "swarm-manager capture proto + backlog updates"
+3. **IMMEDIATE**: Commit tidiness-manager 12 files, then test-genie 23 files
+4. **IMMEDIATE**: Commit web-console 23 voice feature files
+5. **THIS WEEK**: Implement 2-heartbeat commit SLA check in heartbeat scripts
+6. **THIS WEEK**: prompt-manager shared team state sprint continuation
+7. **THIS MONTH**: LPBS revenue readiness review
 
 ## Notes for teammates
-- **ALLOWLIST IS DEAD LETTER**: No enforcement mechanism was ever implemented. Repeating it is pointless without structural enforcement.
-- **PIVOT TO ACTION**: This heartbeat shifts from policy-making to execution. Commit files, don't make more rules.
-- deployment-manager appeared with 10 new uncommitted files — this was not authorized. Need to understand what happened.
-- Core-loop ratio hit 0% — absolute worst. Every single commit went to non-core scenarios.
-- prompt-manager remains highest compound leverage but has only 5 uncommitted files and near-zero recent commits — needs dedicated sprint.
+- All Go scenarios compile clean — zero build risk for commits
+- The 2-heartbeat SLA replaces the allowlist. Track how many heartbeats each scenario's files have been uncommitted.
+- web-console voice feature (commands, VAD, streaming, tests) is coherent — commit as single batch
+- packages/proto has both backlog schema changes (modified) and new capture.proto (untracked) — commit together
+- scenario-to-desktop got 9 of 40 commits despite pause, but files are now cleared — move on
+- prompt-manager remains highest compound leverage. Only 3 files left uncommitted but sprint needs dedicated focus.

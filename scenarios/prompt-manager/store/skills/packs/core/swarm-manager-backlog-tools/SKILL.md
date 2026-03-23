@@ -12,24 +12,20 @@ Canonical reference for the swarm-manager backlog item data model and interactio
 
 Every backlog item lives at `{{ITEM_FOLDER}}` and follows this layout.
 
-> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute}/{item-name}/`. The `{{ITEM_FOLDER}}` variable resolves to this absolute path at runtime when invoked through the swarm-manager workflow. Agents that know the item kind and name can read/write files directly on the filesystem as an alternative to the CLI commands below.
+> **Filesystem path:** Backlog items are plain directories stored at `scenarios/swarm-manager/{ideas|research|fix|execute|chore}/{item-name}/`. The `{{ITEM_FOLDER}}` variable resolves to this absolute path at runtime when invoked through the swarm-manager workflow. Agents that know the item kind and name can read/write files directly on the filesystem as an alternative to the CLI commands below.
 
 ```
 item-folder/
 ├── spec.json              # Item metadata (kind, title, description, status)
-├── clarify/
-│   └── questions.json     # Clarifying Q&A (if clarify workflow ran)
-├── suggest/
-│   └── suggestions.json   # Suggestions with accept/reject (if suggest ran)
-├── enhance/
-│   ├── summary.md             # Refined plan (if enhance ran)
-│   ├── prd-context.md         # PRD context brief for prd-control-tower (if enhance ran)
-│   ├── requirements-context.md # Requirements context (if relevant source material exists)
-│   └── doc-outlines.md        # Documentation outlines (if relevant source material exists)
+├── plan.md                # Implementation plan (primary artifact for execution)
+├── workshop/
+│   ├── round-001.json     # First workshop round (decisions, info, readiness)
+│   ├── round-002.json     # Second workshop round
+│   └── ...                # Additional rounds as refinement continues
 ├── research/
 │   └── summary.md         # Research findings (if deep research ran)
 ├── archive/
-│   └── ...                # Superseded artifacts from previous runs
+│   └── ...                # User-provided materials and superseded artifacts
 └── [user files]           # Any additional context added by user
 ```
 
@@ -37,12 +33,10 @@ item-folder/
 
 | Subfolder | Creator | Purpose |
 |-----------|---------|---------|
-| `clarify/` | clarify agent | Stores clarifying questions and user answers |
-| `suggest/` | suggest agent | Stores improvement suggestions and user decisions |
-| `enhance/` | enhance agent | Stores the refined plan (`summary.md`) and staging artifacts for the process step (`prd-context.md`, `requirements-context.md`, `doc-outlines.md`) |
+| `workshop/` | workshop agent | Stores workshop round files with decisions, info items, and readiness scores |
 | `research/` | research agent | Stores feasibility research and findings |
-| `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts from previous workflow runs. Agents should read but not modify. |
-| root | user / system | `spec.json` metadata, user-uploaded context files |
+| `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts. Agents should read but not modify. |
+| root | user / system | `spec.json` metadata, `plan.md` implementation plan, user-uploaded context files |
 
 ## Artifact Schemas
 
@@ -50,7 +44,7 @@ item-folder/
 
 ```json
 {
-  "kind": "idea | research | fix | execute",
+  "kind": "idea | research | fix | execute | chore",
   "name": "kebab-case-name",
   "title": "Human-readable title",
   "description": "Full description of the item",
@@ -62,76 +56,89 @@ item-folder/
 }
 ```
 
-### `clarify/questions.json`
+### `plan.md`
+
+Markdown implementation plan with 13 sections. This is the primary artifact that executing agents receive as context. Structure:
+
+1. **Purpose** — What is being built and why
+2. **Problem Statement** — Symptom, root cause, solution overview
+3. **Scope** — In scope / out of scope
+4. **Current Technical Context** — Key files, components, architecture
+5. **Target End State** — What the system looks like after
+6. **Implementation Strategy** — Phased steps with dependencies
+7. **Contract Decisions** — API/CLI/data model behavior
+8. **Testing Plan** — Test cases and verification
+9. **Rollout / Validation Checklist** — Step-by-step verification
+10. **Risks + Mitigations** — Risk table
+11. **Non-goals / Prohibited Patterns** — Anti-patterns
+12. **Definition of Done** — Objective completion criteria
+
+Sections may be `<!-- TBD -->` until populated through workshop rounds.
+
+### `workshop/round-NNN.json`
+
+Zero-padded 3-digit round numbers (`round-001.json`, `round-002.json`, etc.).
 
 ```json
 {
-  "questions": [
+  "round": 1,
+  "generated_at": "ISO-8601",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
     {
-      "id": "q1",
-      "question": "What authentication method should be used?",
-      "category": "technical",
-      "importance": "critical",
-      "options": ["OAuth 2.0", "JWT tokens", "Session-based"],
-      "answer": ""
+      "id": "d1",
+      "type": "decision",
+      "topic": "Authentication approach",
+      "context": "Why this matters and what was found",
+      "options": [
+        {"key": "A", "label": "OAuth with Google", "rationale": "Lowest effort, covers 90% of users"},
+        {"key": "B", "label": "JWT with custom auth", "rationale": "More control, offline support"},
+        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Important finding or observation"
     }
   ],
-  "generated_at": "ISO-8601",
-  "max_questions": 10
+  "plan_updates": "Description of plan sections created/updated this round"
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier (q1, q2, ...) |
-| `question` | Yes | Clear, specific question ending with ? |
-| `category` | Yes | One of: users, technical, scope, constraints, integration |
-| `importance` | Yes | One of: critical, important, nice-to-have |
-| `options` | No | Suggested answers (2-4 options, include "Other" if open-ended) |
-| `answer` | Yes | Empty string (filled by user later) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `round` | int | Round number (1-indexed) |
+| `generated_at` | string | ISO-8601 timestamp |
+| `readiness` | object | 5 dimension scores, each 0-3 |
+| `items` | array | Workshop items (decisions, info) |
+| `plan_updates` | string | What changed in plan.md this round |
 
-### `suggest/suggestions.json`
+**Workshop Item Types:**
 
-```json
-{
-  "suggestions": [
-    {
-      "id": "s1",
-      "suggestion": "Use WebSocket instead of polling for real-time updates",
-      "details": "WebSocket would reduce latency from seconds to milliseconds...",
-      "category": "architecture",
-      "impact": "high",
-      "status": "pending",
-      "rejection_reason": ""
-    }
-  ],
-  "generated_at": "ISO-8601",
-  "max_suggestions": 7
-}
-```
+| Type | Required Fields | User Action |
+|------|----------------|-------------|
+| `decision` | id, type, topic, context, options, selected | Select an option key (A, B, C...) or choose "Other" with freeform input |
+| `info` | id, type, text | Read-only |
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique identifier (s1, s2, ...) |
-| `suggestion` | Yes | One-line summary of the improvement |
-| `details` | Yes | Full explanation with rationale (2-4 sentences) |
-| `category` | Yes | One of: architecture, ux, scope, risk, opportunity |
-| `impact` | Yes | One of: high, medium, low |
-| `status` | Yes | "pending" for new; "accepted" or "rejected" after user review |
-| `rejection_reason` | Yes | Empty string (filled by user if rejected) |
+**Readiness Dimensions (all scored 0-3):**
 
-### `enhance/` folder
-
-The `enhance/` folder serves dual purposes: the refined plan and staging artifacts for the process step.
-
-| File | Purpose |
-|------|---------|
-| `summary.md` | Refined plan — the source of truth for what to implement. Sections: Overview, Clarifications Applied, Suggestions Integrated, Refined Scope, Implementation Notes, Success Criteria, Readiness Gate, Staging Artifacts Produced. |
-| `prd-context.md` | Synthesized PRD context brief ready for `prd-control-tower prd generate` consumption. Combines all backlog sources into the free-form brief format. |
-| `requirements-context.md` | Requirements context ready for `prd-control-tower requirements generate`. Present only when requirements-related source material exists. |
-| `doc-outlines.md` | Documentation outlines (README sections, RESEARCH findings, PROBLEMS entries). Present only when documentation-related source material exists. |
-
-See `swarm-manager-enhance-idea` for the full template and staging artifact guidelines.
+| Dimension | 0 | 1 | 2 | 3 |
+|-----------|---|---|---|---|
+| `problem_clarity` | No information | Vague idea | Clear, some unknowns | Fully understood |
+| `scope_defined` | No scope | Rough boundaries | Mostly defined | Crisp in/out scope |
+| `approach_solid` | No approach | General direction | Concrete strategy | Detailed phased plan |
+| `testable` | No test plan | Vague criteria | Test cases identified | Complete test plan |
+| `risk_awareness` | Not considered | Some risks noted | Key risks with mitigations | Comprehensive risk matrix |
 
 ### `research/summary.md`
 
@@ -139,73 +146,69 @@ Markdown document with sections: Executive Summary, Feasibility Assessment, Depe
 
 ## Source Authority Hierarchy
 
-The backlog folder represents a refinement pipeline. Each stage builds on the previous, producing progressively more refined and authoritative output. Understanding this hierarchy is essential for every agent that reads or writes backlog artifacts.
+The backlog folder represents a refinement pipeline. Each stage builds on the previous, producing progressively more refined and authoritative output.
 
 ### Refinement Levels
 
 ```
 Most refined / highest authority
   ┌─────────────────────────────────────────────────────┐
-  │  enhance/          Synthesized plan + staging        │
-  │                    artifacts. The "compiled" output   │
-  │                    of everything below it.            │
+  │  plan.md             The implementation plan.        │
+  │                      Primary source of truth for     │
+  │                      what to build/fix/research.     │
   ├─────────────────────────────────────────────────────┤
-  │  clarify/ + suggest/   User decisions — answered     │
-  │                    questions and accepted/rejected    │
-  │                    suggestions. Direct user intent.   │
+  │  workshop/           User answers and decisions      │
+  │                      from workshop rounds. Direct    │
+  │                      user intent.                    │
   ├─────────────────────────────────────────────────────┤
-  │  research/         Advisory findings — informs but   │
-  │                    does not override user decisions.  │
+  │  research/           Advisory findings — informs     │
+  │                      but does not override user      │
+  │                      decisions.                      │
   ├─────────────────────────────────────────────────────┤
-  │  spec.json         Original description and metadata.│
-  │                    Superseded by enhance/ when it     │
-  │                    exists.                            │
+  │  spec.json           Original description and        │
+  │                      metadata. Superseded by plan.md │
+  │                      when it exists.                 │
   ├─────────────────────────────────────────────────────┤
-  │  archive/          Raw materials from a prior or     │
-  │                    existing scenario. Least refined   │
-  │                    — used as source material, not     │
-  │                    as authoritative specification.    │
+  │  archive/            Raw materials from a prior or   │
+  │                      existing scenario. Least        │
+  │                      refined — source material only. │
   └─────────────────────────────────────────────────────┘
 Least refined / lowest authority
 ```
 
-**Key principle:** `enhance/` is the most up-to-date and authoritative source. It represents the fully synthesized output of all refinement stages. When `enhance/` exists, treat it as the primary source of truth. When it doesn't, reconstruct the specification from the lower-authority sources.
+**Key principle:** `plan.md` is the most up-to-date and authoritative source. It represents the fully synthesized output of all workshop rounds. When `plan.md` exists, treat it as the primary source of truth. When it doesn't, reconstruct the specification from lower-authority sources.
 
 ### How Refinement Accumulates
 
-The pipeline is iterative. Users may run clarify → suggest → enhance, then go back, add more questions or suggestions, and enhance again. Each pass builds on the previous:
+The workshop loop is iterative. Users run workshop rounds, answer questions, accept/reject proposals. Each round builds on all previous rounds:
 
-- **First enhance run**: Reads spec, clarify, suggest, research, archive → produces `enhance/summary.md` + staging artifacts
-- **Subsequent clarify/suggest runs**: Read the existing `enhance/` output as context, generating questions/suggestions that refine what's already been synthesized
-- **Subsequent enhance runs**: Read the prior `enhance/` output as a **foundation**, then layer on new clarify answers, new accepted suggestions, and any new research — producing an updated synthesis
+- **First workshop round**: Reads spec, archive, research → produces initial plan.md + round-001.json
+- **Subsequent rounds**: Reads plan.md + all prior rounds → identifies gaps → presents targeted decisions → updates plan.md
+- **User responses between rounds**: Selected options and freeform input from prior rounds are incorporated into the next plan.md update
 
-This means `enhance/` is never stale in the way `archive/` can be. Each enhance run incorporates everything that came before it. Agents re-running any pipeline step should always read `enhance/` (if it exists) as their starting context.
+This means `plan.md` is never stale in the way `archive/` can be. Each workshop round incorporates everything that came before it.
 
 ### Reading Order
 
 When processing a backlog item, read artifacts in this order:
 
-1. `enhance/summary.md` — if it exists, start here (it's the most refined source of truth)
-   - Also check for staging artifacts: `enhance/prd-context.md`, `enhance/requirements-context.md`, `enhance/doc-outlines.md`
-2. `spec.json` — item metadata; description is superseded by enhance/ when it exists
-3. `clarify/questions.json` — review answered questions (may contain new answers since last enhance run)
-4. `suggest/suggestions.json` — review accepted/rejected suggestions (may contain new decisions since last enhance run)
-5. `research/summary.md` — advisory feasibility findings
-6. `archive/` — raw materials; only use for content not already captured in enhance/
-7. User-uploaded files — additional context
+1. `plan.md` — if it exists, start here (it's the most refined source of truth)
+2. `spec.json` — item metadata; description is superseded by plan.md when it exists
+3. `workshop/` — review rounds for resolved decisions (may contain new selections since last plan update)
+4. `research/summary.md` — advisory feasibility findings
+5. `archive/` — raw materials; only use for content not already captured in plan.md
+6. User-uploaded files — additional context
 
 ### Decision Authority Rules
 
 When sources conflict, apply this precedence (highest to lowest):
 
-1. **Answered questions** in `clarify/questions.json` are **definitive** — always implement as answered, even if they contradict a prior enhance run
-2. **Accepted suggestions** in `suggest/suggestions.json` **must** be incorporated
-3. **Rejected suggestions** must **NOT** be implemented
-4. **`enhance/`** supersedes `spec.json` and `archive/` — it was synthesized later with more context
+1. **Resolved decisions** (with a `selected` value) in workshop rounds are **definitive** — always implement the selected option
+2. **Freeform responses** on "Other" selections represent direct user intent — implement as specified
+3. **Unresolved decisions** (`selected: null`) are open unknowns — do not assume an answer
+4. **`plan.md`** supersedes `spec.json` and `archive/` — it was synthesized with more context
 5. **Research findings** are advisory — they inform but do not override user decisions
-6. **`archive/`** is raw source material — use it only when `enhance/` doesn't cover the same content
-
-> **Why answered questions outrank enhance/:** A user may answer new questions *after* a prior enhance run. Those new answers represent the latest user intent and must take precedence, even if the current enhance/summary.md doesn't yet reflect them. The next enhance run will incorporate them.
+6. **`archive/`** is raw source material — use it only when `plan.md` doesn't cover the same content
 
 ## CLI Commands
 
@@ -222,7 +225,8 @@ swarm-manager backlog files --kind <kind> --name <name>
 ### Read a specific file
 ```bash
 swarm-manager backlog file-get --kind <kind> --name <name> --path <relative-path>
-# Example: swarm-manager backlog file-get --kind idea --name my-feature --path clarify/questions.json
+# Example: swarm-manager backlog file-get --kind idea --name my-feature --path plan.md
+# Example: swarm-manager backlog file-get --kind idea --name my-feature --path workshop/round-001.json
 ```
 
 ### Upload a file
@@ -231,20 +235,15 @@ Use `--stdin` with a heredoc to avoid shell quoting issues (apostrophes in text 
 swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-path> --stdin <<'EOF'
 <content>
 EOF
-# Example:
-swarm-manager backlog file-upload --kind idea --name my-feature --path clarify/questions.json --stdin <<'EOF'
-{"questions":[]}
-EOF
 ```
 
 ## Mutation Rules
 
 | Artifact | Who may write | Who may read |
 |----------|--------------|--------------|
-| `spec.json` | system, user, enhance agent | all agents |
-| `clarify/questions.json` | clarify agent (questions), user (answers) | all agents |
-| `suggest/suggestions.json` | suggest agent (suggestions), user (decisions) | all agents |
-| `enhance/*` | enhance agent | all agents |
+| `spec.json` | system, user | all agents |
+| `plan.md` | workshop agent, user | all agents |
+| `workshop/*.json` | workshop agent (items), user (answers/decisions) | all agents |
 | `research/summary.md` | research agent | all agents |
 | `archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
 | user files (root) | user | all agents |
@@ -257,11 +256,11 @@ The artifact hasn't been created yet. This is normal — not every workflow step
 ### Empty `archive/` folder
 No previous runs have been superseded. The archive folder is created on demand when an agent re-runs a workflow step.
 
-### Unanswered questions in `clarify/questions.json`
-Questions with an empty `answer` field have not been answered by the user. Do not assume answers — treat unanswered questions as open unknowns and flag them if they are critical.
+### Unresolved decisions in workshop rounds
+Decisions with a null `selected` field have not been resolved by the user. Do not assume selections — treat unresolved decisions as open unknowns and flag them if they are critical.
 
-### Missing `enhance/summary.md`
-The enhance workflow hasn't run. Fall back to `spec.json` description plus any answered questions, accepted suggestions, and raw `archive/` materials as the working specification. See the source authority hierarchy for full fallback rules.
+### Missing `plan.md`
+No workshop has run yet. Fall back to `spec.json` description plus any research and `archive/` materials as the working specification. See the source authority hierarchy for full fallback rules.
 
 ### Conflicting information
-Apply the source authority hierarchy: answered questions > accepted suggestions > enhance/ > spec.json > archive/. See the "Decision Authority Rules" section for details and the rationale for why new answered questions outrank a prior enhance run.
+Apply the source authority hierarchy: resolved decisions > plan.md > research > spec.json > archive. See the "Decision Authority Rules" section for details.

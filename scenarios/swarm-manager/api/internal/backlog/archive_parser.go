@@ -23,12 +23,15 @@ type ArchiveTarget struct {
 
 // ArchiveRequirement represents a single requirement within a group.
 type ArchiveRequirement struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	Category    string `json:"category"`
-	PRDRef      string `json:"prd_ref"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Status        string `json:"status"`
+	Category      string `json:"category"`
+	PRDRef        string `json:"prd_ref"`
+	ReviewedAt    string `json:"reviewed_at,omitempty"`
+	ReviewComment string `json:"review_comment,omitempty"`
+	ReviewStatus  string `json:"review_status,omitempty"`
 }
 
 // ArchiveRequirementGroup represents a hierarchical group of requirements.
@@ -51,12 +54,15 @@ type requirementsFile struct {
 }
 
 type requirementRecordInput struct {
-	ID          string `json:"id"`
-	Category    string `json:"category"`
-	PRDRef      string `json:"prd_ref"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
+	ID            string `json:"id"`
+	Category      string `json:"category"`
+	PRDRef        string `json:"prd_ref"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Status        string `json:"status"`
+	ReviewedAt    string `json:"reviewed_at,omitempty"`
+	ReviewComment string `json:"review_comment,omitempty"`
+	ReviewStatus  string `json:"review_status,omitempty"`
 }
 
 var (
@@ -394,12 +400,15 @@ func parseRequirementGroups(baseDir, relPath string, visited map[string]bool) ([
 	reqs := make([]ArchiveRequirement, 0, len(rf.Requirements))
 	for _, r := range rf.Requirements {
 		reqs = append(reqs, ArchiveRequirement{
-			ID:          r.ID,
-			Title:       r.Title,
-			Description: r.Description,
-			Status:      r.Status,
-			Category:    r.Category,
-			PRDRef:      r.PRDRef,
+			ID:            r.ID,
+			Title:         r.Title,
+			Description:   r.Description,
+			Status:        r.Status,
+			Category:      r.Category,
+			PRDRef:        r.PRDRef,
+			ReviewedAt:    r.ReviewedAt,
+			ReviewComment: r.ReviewComment,
+			ReviewStatus:  r.ReviewStatus,
 		})
 	}
 

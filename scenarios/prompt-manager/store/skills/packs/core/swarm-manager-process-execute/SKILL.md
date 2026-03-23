@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Carry out a general execution task that doesn't fit the idea or fix categories. Execute tasks include operations, maintenance, refactoring, documentation, and other actionable work.
+Carry out a general execution task that doesn't fit the idea or fix categories. The primary source of truth is `plan.md` (the implementation plan produced through the workshop loop). Execute tasks include operations, maintenance, refactoring, documentation, and other actionable work.
 
 ## Input Context
 
@@ -39,7 +39,9 @@ You are executing a task for the Swarm Manager. Your goal is to complete the req
 ### Processing Steps
 
 1. **Understand the task**
-   - Read `spec.json` carefully
+   - Read `plan.md` first — it is the primary source of truth for what to do and how
+   - Read `spec.json` for metadata context
+   - Review workshop rounds for answered questions and accepted proposals
    - Review `research/summary.md` if available
    - Check any reference files provided
    - Identify success criteria

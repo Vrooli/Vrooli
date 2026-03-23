@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bootstrap a new backlog item with a solid foundation in one agent pass: clarifying questions, suggestions, a refined summary, and (for idea/execute kinds) PRD + requirements generation via prd-control-tower.
+Bootstrap a new backlog item with a solid foundation in one agent pass: an implementation plan scaffold and a first workshop round with targeted decisions and informational items.
 
 ## Input Context
 
@@ -14,10 +14,8 @@ Bootstrap a new backlog item with a solid foundation in one agent pass: clarifyi
 
 **In scope:**
 - Reading all existing item context (spec, archive, any user-added files)
-- Generating clarifying questions (3–5, pre-answered where inferable from context)
-- Generating suggestions (2–3 high-impact improvements)
-- Producing a refined summary (`enhance/summary.md`)
-- For idea/execute kinds: generating PRD context and invoking prd-control-tower
+- Creating an initial `plan.md` scaffold with as much content as possible
+- Creating a first workshop round (`workshop/round-001.json`) with decisions, informational items, and readiness scores
 - Preserving any existing artifacts on re-run (fill gaps, don't overwrite)
 
 **Out of scope:**
@@ -36,31 +34,69 @@ EOF
 
 ### All Kinds
 
-1. **`clarify/questions.json`** — 3–5 targeted questions
-2. **`enhance/summary.md`** — refined plan/summary
+1. **`plan.md`** — implementation plan scaffold with 13 sections. Fill in as much as possible from existing context (spec.json, archive materials). Leave sections as `<!-- TBD -->` when information is insufficient.
+2. **`workshop/round-001.json`** — first workshop round with:
+   - 4-7 targeted decisions presenting researched alternatives for the most important unknowns
+   - 0-2 informational items sharing relevant findings from context
+   - Honest readiness scores across 5 dimensions
 
-### idea and execute Kinds (additionally)
+## Implementation Plan Scaffold
 
-3. **`suggest/suggestions.json`** — 2–3 high-impact suggestions
-4. **`enhance/prd-context.md`** — context brief for PRD generation
-5. **PRD + requirements** via prd-control-tower CLI:
-   ```bash
-   prd-control-tower prd generate --path <item-folder>/archive
-   ```
+The `plan.md` file follows a 13-section structure:
 
-### fix Kind (additionally)
+```markdown
+# Implementation Plan: {{ITEM_TITLE}}
 
-3. **`suggest/suggestions.json`** — 2–3 fix approach suggestions
-4. **`enhance/summary.md`** should focus on investigation plan and root cause analysis
+## Purpose
+## Problem Statement
+## Scope
+### In Scope
+### Out of Scope
+## Current Technical Context
+## Target End State
+## Implementation Strategy
+## Contract Decisions
+## Testing Plan
+## Rollout / Validation Checklist
+## Risks + Mitigations
+## Non-goals / Prohibited Patterns
+## Definition of Done
+```
 
-### research Kind
+### Kind-Specific Plan Focus
 
-3. **`enhance/summary.md`** should focus on research plan outline, methodology, and expected deliverables
-   - Skip suggestions and PRD for research items
+| Kind | Plan emphasis |
+|------|--------------|
+| idea | Vision, scope, architecture outline, key decisions, user value |
+| fix | Problem statement, reproduction steps, root cause analysis, proposed fix, verification plan |
+| research | Research question, methodology, data sources, expected deliverables, scope boundaries |
+| execute | Task decomposition, prerequisites, implementation steps, verification criteria |
+| chore | Scope boundaries, approach, completion checklist, acceptance criteria |
+
+## Workshop Round Schema
+
+See `swarm-manager-workshop` skill for the full schema. The round file includes:
+- `round`: 1
+- `generated_at`: ISO timestamp
+- `readiness`: 5 dimension scores (0-3)
+- `items`: array of decision/info items
+- `plan_updates`: description of what was written to plan.md
+
+### Readiness Dimensions
+
+| Dimension | What It Measures |
+|-----------|-----------------|
+| `problem_clarity` | Is the problem/goal well understood? |
+| `scope_defined` | Are boundaries and non-goals defined? |
+| `approach_solid` | Is there a clear implementation strategy? |
+| `testable` | Do we know how to verify success? |
+| `risk_awareness` | Are blockers and unknowns identified? |
+
+Score each 0 (not started) to 3 (solid). First rounds typically score 0-2 depending on how much context exists.
 
 ## Instructions
 
-You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it from an empty shell into a well-structured item ready for human review and refinement.
+You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it from an empty shell into a well-structured item with a draft plan and first workshop round ready for human review.
 
 **Context from spec.json:**
 - Kind: {{ITEM_KIND}}
@@ -82,114 +118,67 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - `spec.json` — the item description and metadata
    - `archive/` — user-provided materials (requirements docs, prior scenario artifacts, designs)
    - Any user-added files in the item root
-   - Existing `clarify/`, `suggest/`, `enhance/` artifacts from a prior run (preserve these)
+   - Existing `plan.md` and `workshop/` artifacts from a prior run (preserve these)
 
-2. **Generate clarifying questions** (`clarify/questions.json`)
+2. **Create plan.md scaffold**
 
-   Identify the 3–5 most important unknowns. For each question:
-   - If the answer can be inferred from context (description, archive materials), pre-fill the `answer` field
-   - Provide `options` where applicable
-   - Categorize as: users, technical, scope, constraints, or integration
-   - Classify importance as: critical, important, or nice-to-have
+   Based on available context, fill in as many plan sections as possible. The description and archive materials should provide enough for at least Purpose, Problem Statement, and partial Scope.
 
    ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path clarify/questions.json --stdin <<'EOF'
-   {
-     "questions": [
-       {
-         "id": "q1",
-         "question": "...",
-         "options": ["..."],
-         "answer": "...",
-         "category": "...",
-         "importance": "critical"
-       }
-     ],
-     "generatedAt": "<ISO timestamp>",
-     "updatedAt": "<ISO timestamp>"
-   }
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path plan.md --stdin <<'EOF'
+   <plan content>
    EOF
    ```
 
-3. **Generate suggestions** (skip for research kind)
+3. **Generate workshop round 1**
 
-   Produce 2–3 high-impact suggestions appropriate for the item kind:
-   - **idea/execute**: Feature improvements, architecture recommendations, UX enhancements
-   - **fix**: Investigation approaches, fix strategies, prevention measures
+   Identify the 4-7 most important unknowns and present them as decisions with researched alternatives:
+   - Each decision must have at least 2 options (A, B) and should usually include an "Other" option
+   - Each option needs a clear label and rationale explaining tradeoffs
+   - Indicate which option you recommend and why in the `context` field
+   - If the best option can be inferred from context, pre-select it (set `selected` to the key)
+   - For factual questions, present likely ranges as options
+   - Include info items for important findings from archive/context review
 
    ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path suggest/suggestions.json --stdin <<'EOF'
-   {
-     "suggestions": [
-       {
-         "id": "s1",
-         "suggestion": "...",
-         "details": "...",
-         "status": "pending"
-       }
-     ],
-     "generatedAt": "<ISO timestamp>",
-     "updatedAt": "<ISO timestamp>"
-   }
+   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path workshop/round-001.json --stdin <<'EOF'
+   <round JSON>
    EOF
    ```
 
-4. **Generate refined summary** (`enhance/summary.md`)
+4. **Score readiness**
 
-   Synthesize all context into a structured plan:
-   - **idea/execute**: Vision, scope, architecture outline, key decisions, next steps
-   - **fix**: Problem statement, reproduction steps, root cause analysis, proposed fix, verification plan
-   - **research**: Research question, methodology, data sources, expected deliverables, timeline
+   Evaluate each dimension honestly based on the plan scaffold you just created. First rounds typically range from 0-2 depending on context richness.
 
-   ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/summary.md --stdin <<'EOF'
-   <markdown content>
-   EOF
-   ```
-
-5. **Generate PRD** (idea/execute only)
-
-   First, create a PRD context brief:
-   ```bash
-   swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path enhance/prd-context.md --stdin <<'EOF'
-   <context brief for PRD generation>
-   EOF
-   ```
-
-   Then invoke prd-control-tower to generate PRD and requirements:
-   ```bash
-   prd-control-tower prd generate --path {{ITEM_FOLDER}}/archive
-   ```
-
-   If prd-control-tower is not available, skip this step and note it in the summary.
-
-6. **Verify all outputs**
+5. **Verify all outputs**
 
    ```bash
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
    ```
 
-   Confirm all expected artifacts were created.
+   Confirm `plan.md` and `workshop/round-001.json` were created.
 
 ### Re-run Handling
 
 ```
-Do any initialize artifacts already exist?
-  → No  → Generate everything fresh
-  → Yes → Read existing artifacts
+Do any workshop artifacts already exist?
+  -> No  -> Generate everything fresh
+  -> Yes -> Read existing plan.md and workshop rounds
           Preserve all existing answers and decisions
-          Only fill gaps (missing files or empty sections)
-          Update timestamps on modified files
+          Only fill gaps (missing plan sections, unanswered questions)
+          If plan.md exists but no rounds: create round-001.json
+          If rounds exist: create the next numbered round
 ```
 
 ## Anti-Patterns
 
 - **Don't** overwrite existing user answers or decisions on re-run
-- **Don't** generate more than 5 questions — focus on the most impactful unknowns
-- **Don't** generate more than 3 suggestions — quality over quantity
+- **Don't** generate more than 7 decisions — focus on the most impactful unknowns
+- **Don't** present decisions with fewer than 2 options
 - **Don't** modify files in `archive/` — these are user-provided
 - **Don't** write files directly to disk — always use the backlog CLI
 - **Don't** skip reading context before generating — existing materials may answer your questions
+- **Don't** inflate readiness scores — be honest about the plan's current state
 
 ## Troubleshooting
 
@@ -197,6 +186,5 @@ Do any initialize artifacts already exist?
 |---------|----------|
 | `file-get` returns 404 | Normal on first run — generate fresh content |
 | `file-upload` fails | Check kind and name match: `swarm-manager backlog get --kind <kind> --name <name>` |
-| prd-control-tower not available | Skip PRD generation, note in summary.md |
-| Archive already contains detailed PRD | Use it as context, don't regenerate — focus on gaps |
-| Item has rich description | Pre-answer questions where possible, generate fewer |
+| Archive already contains detailed plan | Use it as context for plan.md, generate fewer questions |
+| Item has rich description | Pre-answer questions where possible, focus questions on gaps |
