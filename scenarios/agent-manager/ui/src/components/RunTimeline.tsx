@@ -37,12 +37,15 @@ import {
   getTimelineEventLabel,
   getTimelineEventSummary,
   getTimelineModeLabel,
+  groupTimelineEntries,
   TIMELINE_CATEGORY_ORDER,
   type TimelineCategory,
   type TimelineDisplayMode,
   type TimelineEventEntry,
   type TimelineFilterState,
   type TimelineMessageEntry,
+  type TimelineToolGroup,
+  type VisibleTimelineItem,
 } from "../lib/runTimeline";
 import { cn } from "../lib/utils";
 import { formatRelativeTimeShort, formatStandardDateTime } from "../lib/dateTime";
@@ -115,7 +118,8 @@ export function RunTimeline({
   const { isDesktop } = useViewportSize();
 
   const timelineEntries = useMemo(() => buildTimelineEntries(events), [events]);
-  const visibleEntries = useMemo(() => filterTimelineEntries(timelineEntries, filters), [timelineEntries, filters]);
+  const filteredEntries = useMemo(() => filterTimelineEntries(timelineEntries, filters), [timelineEntries, filters]);
+  const visibleEntries = useMemo(() => groupTimelineEntries(filteredEntries), [filteredEntries]);
   const categoryCounts = useMemo(() => countTimelineEntriesByCategory(timelineEntries), [timelineEntries]);
 
   useEffect(() => {
@@ -356,7 +360,7 @@ export function RunTimeline({
             <div>
               {visibleEntries.map((entry, index) => {
                 const previousEntry = index > 0 ? visibleEntries[index - 1] : null;
-                const spacingClass = getTimelineEntrySpacing(previousEntry, entry);
+                const spacingClass = getVisibleItemSpacing(previousEntry, entry);
 
                 return (
                   <div key={entry.id} className={spacingClass}>
@@ -371,6 +375,8 @@ export function RunTimeline({
                           setRevealedMessages((prev) => ({ ...prev, [messageId]: !prev[messageId] }));
                         }}
                       />
+                    ) : entry.kind === "tool-group" ? (
+                      <ToolGroupRow group={entry} />
                     ) : (
                       <TimelineEventRow entry={entry} />
                     )}
@@ -849,11 +855,137 @@ function categoryDescription(category: TimelineCategory): string {
   }
 }
 
-function getTimelineEntrySpacing(
-  previousEntry: TimelineMessageEntry | TimelineEventEntry | null | undefined,
-  entry: TimelineMessageEntry | TimelineEventEntry
+function getVisibleItemSpacing(
+  previousEntry: VisibleTimelineItem | null | undefined,
+  entry: VisibleTimelineItem
 ): string {
   if (!previousEntry) return "";
-  if (previousEntry.kind === "event" && entry.kind === "event") return "";
+  const prevIsCompact = previousEntry.kind === "event" || previousEntry.kind === "tool-group";
+  const curIsCompact = entry.kind === "event" || entry.kind === "tool-group";
+  if (prevIsCompact && curIsCompact) return "";
   return "pt-3";
+}
+
+function ToolGroupRow({ group }: { group: TimelineToolGroup }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const allSucceeded = group.pairs.every((p) => {
+    if (!p.result) return false;
+    const payload = p.result.event.data.value as Record<string, unknown>;
+    return payload.success === true;
+  });
+  const anyFailed = group.pairs.some((p) => {
+    if (!p.result) return false;
+    const payload = p.result.event.data.value as Record<string, unknown>;
+    return payload.success === false;
+  });
+  const anyPending = group.pairs.some((p) => !p.result);
+
+  return (
+    <div className="overflow-hidden border-b border-border/60 border-l-2 border-l-amber-400 bg-transparent text-xs transition-colors">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left"
+        onClick={() => setExpanded((prev) => !prev)}
+      >
+        <span className="shrink-0 text-amber-600 dark:text-amber-300">
+          <Wrench className="h-3.5 w-3.5" />
+        </span>
+        <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Tools
+        </span>
+        <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+          {group.pairs.length}
+        </span>
+        <div className="min-w-0 flex-1 truncate text-sm text-foreground">
+          {group.summary}
+        </div>
+        <span className="shrink-0">
+          {anyPending ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : anyFailed ? (
+            <AlertCircle className="h-3 w-3 text-destructive" />
+          ) : allSucceeded ? (
+            <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+          ) : null}
+        </span>
+        <span className="shrink-0 text-[10px] text-muted-foreground">
+          {formatRelativeTimeShort(group.firstTimestamp)}
+        </span>
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        )}
+      </button>
+
+      {expanded ? (
+        <div className="border-t border-border/60 bg-muted/10">
+          {group.pairs.map((pair) => (
+            <ToolPairRow key={pair.call.id} pair={pair} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ToolPairRow({ pair }: { pair: import("../lib/runTimeline").ToolCallPair }) {
+  const [expanded, setExpanded] = useState(false);
+  const callPayload = pair.call.event.data.value as Record<string, unknown>;
+  const resultPayload = pair.result
+    ? (pair.result.event.data.value as Record<string, unknown>)
+    : null;
+
+  return (
+    <div className="ml-4 border-b border-border/40 last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted/30"
+        onClick={() => setExpanded((prev) => !prev)}
+      >
+        <span className="shrink-0 text-amber-600/60 dark:text-amber-300/60">
+          <Wrench className="h-3 w-3" />
+        </span>
+        <div className="min-w-0 flex-1 truncate text-sm text-foreground">
+          {pair.toolName}
+        </div>
+        {resultPayload ? (
+          resultPayload.success ? (
+            <Check className="h-3 w-3 shrink-0 text-green-600 dark:text-green-400" />
+          ) : (
+            <AlertCircle className="h-3 w-3 shrink-0 text-destructive" />
+          )
+        ) : (
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+        )}
+        <span className="shrink-0 text-[10px] text-muted-foreground">
+          {formatRelativeTimeShort(pair.call.event.timestamp)}
+        </span>
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        )}
+      </button>
+
+      {expanded ? (
+        <div className="border-t border-border/40 bg-muted/5 px-3 pb-2 pt-1.5 ml-5">
+          <div className="mb-1 text-[10px] font-medium text-muted-foreground">Input</div>
+          <CodeBlock code={JSON.stringify(callPayload.input ?? {}, null, 2)} language="json" />
+          {resultPayload ? (
+            <>
+              <div className="mt-2 mb-1 text-[10px] font-medium text-muted-foreground">
+                {resultPayload.success ? "Output" : "Error"}
+              </div>
+              <CodeBlock
+                code={String(resultPayload.success ? resultPayload.output : resultPayload.error) || "(empty)"}
+                language="text"
+              />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }

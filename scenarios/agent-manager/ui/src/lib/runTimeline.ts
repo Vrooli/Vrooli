@@ -39,6 +39,26 @@ export interface TimelineEventEntry {
 
 export type TimelineEntry = TimelineMessageEntry | TimelineEventEntry;
 
+/** A single tool call paired with its result (if available). */
+export interface ToolCallPair {
+  call: TimelineEventEntry;
+  result?: TimelineEventEntry;
+  toolName: string;
+}
+
+/** A group of 2+ consecutive tool call pairs collapsed into one row. */
+export interface TimelineToolGroup {
+  id: string;
+  kind: "tool-group";
+  category: "tools";
+  pairs: ToolCallPair[];
+  summary: string;
+  firstTimestamp: RunEvent["timestamp"];
+  lastTimestamp: RunEvent["timestamp"];
+}
+
+export type VisibleTimelineItem = TimelineMessageEntry | TimelineEventEntry | TimelineToolGroup;
+
 export const TIMELINE_CATEGORY_ORDER: TimelineCategory[] = [
   "messages",
   "reasoning",
@@ -319,4 +339,82 @@ export function getTimelineEventSummary(entry: TimelineEventEntry): string {
     default:
       return getTimelineEventLabel(entry);
   }
+}
+
+export function buildToolGroupSummary(pairs: ToolCallPair[]): string {
+  const counts = new Map<string, number>();
+  for (const pair of pairs) {
+    counts.set(pair.toolName, (counts.get(pair.toolName) ?? 0) + 1);
+  }
+  const parts: string[] = [];
+  for (const [name, count] of counts) {
+    parts.push(count > 1 ? `${name} ${count}` : name);
+  }
+  return parts.join(", ");
+}
+
+export function groupTimelineEntries(entries: TimelineEntry[]): VisibleTimelineItem[] {
+  // Index toolResult entries by toolCallId for pairing
+  const resultsByCallId = new Map<string, TimelineEventEntry>();
+  for (const entry of entries) {
+    if (entry.kind !== "event" || entry.event.data.case !== "toolResult") continue;
+    const payload = entry.event.data.value as Record<string, unknown>;
+    const callId = String(payload.toolCallId ?? "");
+    if (callId) resultsByCallId.set(callId, entry);
+  }
+
+  const result: VisibleTimelineItem[] = [];
+  let toolBuffer: ToolCallPair[] = [];
+  const consumedResultIds = new Set<string>();
+
+  function flushBuffer() {
+    if (toolBuffer.length === 0) return;
+    if (toolBuffer.length >= 2) {
+      const first = toolBuffer[0]!;
+      const last = toolBuffer[toolBuffer.length - 1]!;
+      const lastEntry = last.result ?? last.call;
+      result.push({
+        id: `tool-group-${first.call.id}`,
+        kind: "tool-group",
+        category: "tools",
+        pairs: toolBuffer,
+        summary: buildToolGroupSummary(toolBuffer),
+        firstTimestamp: first.call.event.timestamp,
+        lastTimestamp: lastEntry.event.timestamp,
+      });
+    } else {
+      // Single tool call - emit ungrouped
+      const pair = toolBuffer[0]!;
+      result.push(pair.call);
+      if (pair.result) result.push(pair.result);
+    }
+    toolBuffer = [];
+  }
+
+  for (const entry of entries) {
+    if (entry.kind === "event" && entry.event.data.case === "toolCall") {
+      const payload = entry.event.data.value as Record<string, unknown>;
+      const toolName = String(payload.toolName ?? "Unknown");
+      const callId = String(payload.toolCallId ?? "");
+      const matched = callId ? resultsByCallId.get(callId) : undefined;
+      if (matched) consumedResultIds.add(matched.id);
+      toolBuffer.push({ call: entry, result: matched, toolName });
+      continue;
+    }
+
+    if (entry.kind === "event" && entry.event.data.case === "toolResult") {
+      if (consumedResultIds.has(entry.id)) continue; // already paired
+      // Orphan result - flush buffer, emit standalone
+      flushBuffer();
+      result.push(entry);
+      continue;
+    }
+
+    // Non-tool entry - flush any accumulated tool buffer
+    flushBuffer();
+    result.push(entry);
+  }
+
+  flushBuffer();
+  return result;
 }
