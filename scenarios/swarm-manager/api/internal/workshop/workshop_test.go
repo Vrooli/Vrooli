@@ -305,11 +305,11 @@ func TestCountPendingDecisions_NilRound(t *testing.T) {
 func TestCountPendingDecisions_MixedItems(t *testing.T) {
 	round := &Round{
 		Items: []Item{
-			{Type: "decision", Topic: "Auth method", Options: []Option{{Key: "A", Label: "OAuth", Rationale: "Industry standard"}}, Selected: nil},                  // pending
-			{Type: "decision", Topic: "Platform", Options: []Option{{Key: "A", Label: "Web", Rationale: "Broad reach"}}, Selected: strPtr("A")},                      // answered
-			{Type: "decision", Topic: "Cache strategy", Options: []Option{{Key: "A", Label: "Redis", Rationale: "Fast"}}, Selected: strPtr("")},                       // empty = pending
-			{Type: "decision", Topic: "Deploy target", Options: []Option{{Key: "A", Label: "K8s", Rationale: "Scalable"}}, Selected: strPtr("  ")},                    // whitespace = pending
-			{Type: "info", Text: "Some background info"},                                                                                                              // ignored
+			{Type: "decision", Topic: "Auth method", Options: []Option{{Key: "A", Label: "OAuth", Rationale: "Industry standard"}}, Selected: nil}, // pending
+			{Type: "decision", Topic: "Platform", Options: []Option{{Key: "A", Label: "Web", Rationale: "Broad reach"}}, Selected: strPtr("A")},    // answered
+			{Type: "decision", Topic: "Cache strategy", Options: []Option{{Key: "A", Label: "Redis", Rationale: "Fast"}}, Selected: strPtr("")},    // empty = pending
+			{Type: "decision", Topic: "Deploy target", Options: []Option{{Key: "A", Label: "K8s", Rationale: "Scalable"}}, Selected: strPtr("  ")}, // whitespace = pending
+			{Type: "info", Text: "Some background info"}, // ignored
 		},
 	}
 	got := CountPendingDecisions(round)

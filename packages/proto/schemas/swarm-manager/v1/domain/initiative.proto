@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// INITIATIVE DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain initiative
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Initiatives group related backlog items into coherent work streams.
+// Each initiative tracks completion status through rollup of its items.
+//
+// USAGE CONTEXTS:
+//   - API responses for initiative CRUD endpoints
+//   - UI data models (initiative list and details)
+//
+// =============================================================================
+
+// Initiative represents a named grouping of backlog items.
+message Initiative {
+  // Unique identifier (folder-safe name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description of the initiative.
+  string description = 3;
+
+  // Lifecycle state for the initiative.
+  // @constraint one of: active, completed, archived
+  string status = 4 [(buf.validate.field).string = { in: ["active", "completed", "archived"] }];
+
+  // Backlog item references as "kind/name" strings.
+  repeated string items = 5;
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created = 6;
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated = 7;
+}
+
+// InitiativeRollup provides aggregated status counts for initiative items.
+message InitiativeRollup {
+  // Total number of referenced items.
+  int32 total = 1;
+
+  // Number of items with status "completed".
+  int32 completed = 2;
+
+  // Number of items with status "in_progress", "queued", or "researching".
+  int32 in_progress = 3;
+
+  // Number of items with status "failed".
+  int32 failed = 4;
+
+  // Number of items with status "backlog" or "ready".
+  int32 pending = 5;
+}

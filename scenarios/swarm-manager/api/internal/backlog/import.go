@@ -690,7 +690,7 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 	}
 
 	// Load existing item.
-	existing, err := h.loadItem(kind, parsed.name)
+	existing, err := h.store.LoadItem(kind, parsed.name)
 	if err != nil {
 		return importChange{}, []string{fmt.Sprintf("item %s: failed to load: %v", itemKey, err)}
 	}
@@ -735,7 +735,7 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 
 	// Check clarify changes.
 	if len(parsed.clarifyAnswers) > 0 || len(parsed.clarifyNotes) > 0 {
-		questionsPath := filepath.Join(h.itemDir(kind, parsed.name), "clarify", "questions.json")
+		questionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "clarify", "questions.json")
 		if _, err := os.Stat(questionsPath); err == nil {
 			questions, err := loadQuestions(questionsPath)
 			if err == nil {
@@ -759,7 +759,7 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 
 	// Check suggest changes.
 	if len(parsed.suggestAccepted) > 0 || len(parsed.suggestRejection) > 0 {
-		suggestionsPath := filepath.Join(h.itemDir(kind, parsed.name), "suggest", "suggestions.json")
+		suggestionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "suggest", "suggestions.json")
 		if _, err := os.Stat(suggestionsPath); err == nil {
 			suggestions, err := loadSuggestions(suggestionsPath)
 			if err == nil {
@@ -787,7 +787,7 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 
 	// Check notes changes.
 	if parsed.notes != "" {
-		notesPath := filepath.Join(h.itemDir(kind, parsed.name), "notes.md")
+		notesPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "notes.md")
 		existingNotes := ""
 		if data, err := os.ReadFile(notesPath); err == nil {
 			existingNotes = strings.TrimSpace(string(data))
@@ -822,7 +822,7 @@ func (h *Handler) applyCreate(change *importChange) error {
 		return fmt.Errorf("no create data")
 	}
 
-	itemDir := h.itemDir(cd.kind, cd.name)
+	itemDir := h.store.ItemDir(cd.kind, cd.name)
 	if _, err := os.Stat(itemDir); err == nil {
 		return fmt.Errorf("item already exists: %s/%s", cd.kind, cd.name)
 	}
@@ -849,7 +849,7 @@ func (h *Handler) applyCreate(change *importChange) error {
 		Kind:        cd.kind,
 	}
 
-	if err := h.saveItem(item); err != nil {
+	if err := h.store.SaveItem(item); err != nil {
 		_ = os.RemoveAll(itemDir)
 		return fmt.Errorf("failed to save item: %w", err)
 	}
@@ -890,14 +890,14 @@ func (h *Handler) applyUpdate(change *importChange) error {
 
 	if modified {
 		item.Updated = time.Now().UTC().Format(time.RFC3339)
-		if err := h.saveItem(item); err != nil {
+		if err := h.store.SaveItem(item); err != nil {
 			return fmt.Errorf("failed to save item: %w", err)
 		}
 	}
 
 	// Apply clarify changes.
 	if len(ud.clarifyAnswers) > 0 || len(ud.clarifyNotes) > 0 {
-		questionsPath := filepath.Join(h.itemDir(ud.kind, ud.name), "clarify", "questions.json")
+		questionsPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "clarify", "questions.json")
 		if err := h.applyClarifyChanges(questionsPath, ud.clarifyAnswers, ud.clarifyNotes); err != nil {
 			log.Printf("[backlog] import: failed to apply clarify changes for %s/%s: %v", ud.kind, ud.name, err)
 		}
@@ -905,7 +905,7 @@ func (h *Handler) applyUpdate(change *importChange) error {
 
 	// Apply suggest changes.
 	if len(ud.suggestAccepted) > 0 || len(ud.suggestRejection) > 0 {
-		suggestionsPath := filepath.Join(h.itemDir(ud.kind, ud.name), "suggest", "suggestions.json")
+		suggestionsPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "suggest", "suggestions.json")
 		if err := h.applySuggestChanges(suggestionsPath, ud.suggestAccepted, ud.suggestRejection); err != nil {
 			log.Printf("[backlog] import: failed to apply suggest changes for %s/%s: %v", ud.kind, ud.name, err)
 		}
@@ -913,7 +913,7 @@ func (h *Handler) applyUpdate(change *importChange) error {
 
 	// Apply notes changes.
 	if ud.notes != "" {
-		notesPath := filepath.Join(h.itemDir(ud.kind, ud.name), "notes.md")
+		notesPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "notes.md")
 		if err := os.WriteFile(notesPath, []byte(ud.notes+"\n"), 0o644); err != nil {
 			log.Printf("[backlog] import: failed to write notes for %s/%s: %v", ud.kind, ud.name, err)
 		}

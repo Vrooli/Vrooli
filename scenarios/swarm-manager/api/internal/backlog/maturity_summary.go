@@ -26,7 +26,7 @@ type MaturitySummaryResponse struct {
 
 // MaturitySummary returns workshop readiness data for all backlog items.
 func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
-	items, err := h.loadAllItems(nil) // all kinds
+	items, err := h.store.LoadAll(nil) // all kinds
 	if err != nil {
 		httputil.InternalError(w, "[backlog] maturity-summary", err.Error())
 		return
@@ -35,7 +35,7 @@ func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 	summaryItems := make([]MaturityItemSummary, 0, len(items))
 
 	for _, item := range items {
-		itemDir := h.itemDir(item.Kind, item.Name)
+		itemDir := h.store.ItemDir(item.Kind, item.Name)
 
 		latestRound, roundCount, err := LoadLatestRound(itemDir)
 		if err != nil {

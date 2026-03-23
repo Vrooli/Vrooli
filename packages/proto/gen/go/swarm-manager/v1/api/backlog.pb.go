@@ -40,8 +40,12 @@ type CreateBacklogItemRequest struct {
 	Kind string `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Optional research target for research items.
 	ResearchTarget *string `protobuf:"bytes,7,opt,name=research_target,json=researchTarget,proto3,oneof" json:"research_target,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Dependencies as "kind/name" references.
+	DependsOn []string `protobuf:"bytes,8,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Initiative this item belongs to.
+	Initiative    *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateBacklogItemRequest) Reset() {
@@ -123,6 +127,20 @@ func (x *CreateBacklogItemRequest) GetResearchTarget() string {
 	return ""
 }
 
+func (x *CreateBacklogItemRequest) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *CreateBacklogItemRequest) GetInitiative() string {
+	if x != nil && x.Initiative != nil {
+		return *x.Initiative
+	}
+	return ""
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 type UpdateBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -139,8 +157,12 @@ type UpdateBacklogItemRequest struct {
 	Tags []string `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
 	// Optional research target for research items.
 	ResearchTarget *string `protobuf:"bytes,6,opt,name=research_target,json=researchTarget,proto3,oneof" json:"research_target,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Dependencies as "kind/name" references.
+	DependsOn []string `protobuf:"bytes,7,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Initiative this item belongs to.
+	Initiative    *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateBacklogItemRequest) Reset() {
@@ -211,6 +233,20 @@ func (x *UpdateBacklogItemRequest) GetTags() []string {
 func (x *UpdateBacklogItemRequest) GetResearchTarget() string {
 	if x != nil && x.ResearchTarget != nil {
 		return *x.ResearchTarget
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *UpdateBacklogItemRequest) GetInitiative() string {
+	if x != nil && x.Initiative != nil {
+		return *x.Initiative
 	}
 	return ""
 }
@@ -1250,7 +1286,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\x95\x03\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xe8\x03\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1259,10 +1295,16 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"(\x01H\x01R\bpriority\x88\x01\x01\x12\x1c\n" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12>\n" +
 	"\x04kind\x18\x06 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12[\n" +
-	"\x0fresearch_target\x18\a \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x02R\x0eresearchTarget\x88\x01\x01B\x0e\n" +
+	"\x0fresearch_target\x18\a \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x02R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\b \x03(\tR\tdependsOn\x12#\n" +
+	"\n" +
+	"initiative\x18\t \x01(\tH\x03R\n" +
+	"initiative\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
-	"\x10_research_target\"\xff\x02\n" +
+	"\x10_research_targetB\r\n" +
+	"\v_initiative\"\xd2\x03\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1270,8 +1312,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12\x1c\n" +
 	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12[\n" +
-	"\x0fresearch_target\x18\x06 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01B\x12\n" +
-	"\x10_research_target\"O\n" +
+	"\x0fresearch_target\x18\x06 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\a \x03(\tR\tdependsOn\x12#\n" +
+	"\n" +
+	"initiative\x18\b \x01(\tH\x01R\n" +
+	"initiative\x88\x01\x01B\x12\n" +
+	"\x10_research_targetB\r\n" +
+	"\v_initiative\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +
 	"\x13BacklogItemResponse\x121\n" +

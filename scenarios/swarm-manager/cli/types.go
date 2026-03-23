@@ -26,6 +26,8 @@ type BacklogItem struct {
 	Updated        string   `json:"updated"`
 	Kind           string   `json:"kind"`
 	ResearchTarget string   `json:"research_target,omitempty"`
+	DependsOn      []string `json:"depends_on,omitempty"`
+	Initiative     string   `json:"initiative,omitempty"`
 }
 
 type BacklogItemResponse struct {
@@ -301,4 +303,98 @@ type AgentManagerStatusResponse struct {
 	Available bool    `json:"available"`
 	URL       *string `json:"url,omitempty"`
 	ProfileID *string `json:"profile_id,omitempty"`
+}
+
+// AgentManagerRunResponse represents the status of an agent-manager run.
+type AgentManagerRunResponse struct {
+	RunID           string  `json:"run_id"`
+	TaskID          string  `json:"task_id,omitempty"`
+	Status          string  `json:"status"`
+	StartedAt       string  `json:"started_at,omitempty"`
+	FinishedAt      string  `json:"finished_at,omitempty"`
+	ErrorMessage    string  `json:"error_message,omitempty"`
+	DurationSeconds float64 `json:"duration_seconds,omitempty"`
+	Active          bool    `json:"active"`
+}
+
+// AgentManagerStopResponse represents the result of stopping a run.
+type AgentManagerStopResponse struct {
+	RunID   string `json:"run_id"`
+	Stopped bool   `json:"stopped"`
+	Status  string `json:"status"`
+}
+
+// Initiative represents a named grouping of backlog items.
+type Initiative struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Items       []string `json:"items"`
+	Created     string   `json:"created"`
+	Updated     string   `json:"updated"`
+}
+
+// InitiativeRollup provides aggregated status counts for initiative items.
+type InitiativeRollup struct {
+	Total      int `json:"total"`
+	Completed  int `json:"completed"`
+	InProgress int `json:"in_progress"`
+	Failed     int `json:"failed"`
+	Pending    int `json:"pending"`
+}
+
+// InitiativeResponse wraps a single initiative with rollup status.
+type InitiativeResponse struct {
+	Initiative Initiative       `json:"initiative"`
+	Rollup     InitiativeRollup `json:"rollup"`
+}
+
+// ListInitiativesResponse wraps the initiative list endpoint response.
+type ListInitiativesResponse struct {
+	Items []InitiativeResponse `json:"items"`
+}
+
+// Capture represents a quick-capture entry.
+type Capture struct {
+	ID             string          `json:"id"`
+	Text           string          `json:"text"`
+	Attachments    []string        `json:"attachments,omitempty"`
+	Created        string          `json:"created"`
+	Status         string          `json:"status"`
+	Classification *Classification `json:"classification,omitempty"`
+}
+
+// Classification contains AI-generated backlog item suggestions.
+type Classification struct {
+	Items        []ClassificationItem `json:"items"`
+	ClassifiedAt string               `json:"classified_at"`
+}
+
+// ClassificationItem is a single suggested backlog item from classification.
+type ClassificationItem struct {
+	Kind        string   `json:"kind"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Priority    int      `json:"priority"`
+	Tags        []string `json:"tags"`
+	Confidence  float64  `json:"confidence"`
+}
+
+// ListCapturesResponse wraps the captures list endpoint response.
+type ListCapturesResponse struct {
+	Captures []Capture `json:"captures"`
+}
+
+// CaptureResponse wraps a single capture endpoint response.
+type CaptureResponse struct {
+	Capture Capture `json:"capture"`
+}
+
+// CaptureCreateResponse wraps the create capture endpoint response.
+type CaptureCreateResponse struct {
+	Capture Capture `json:"capture"`
+	TaskID  string  `json:"task_id,omitempty"`
+	RunID   string  `json:"run_id,omitempty"`
+	BaseURL string  `json:"base_url,omitempty"`
 }

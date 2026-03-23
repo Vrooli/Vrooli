@@ -26,7 +26,7 @@ type FeedbackSummaryResponse struct {
 // FeedbackSummary returns a summary of pending decisions across all backlog
 // items by reading the latest workshop round for each item.
 func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
-	items, err := h.loadAllItems(nil)
+	items, err := h.store.LoadAll(nil)
 	if err != nil {
 		httputil.InternalError(w, "[backlog] feedback-summary", err.Error())
 		return
@@ -36,7 +36,7 @@ func (h *Handler) FeedbackSummary(w http.ResponseWriter, r *http.Request) {
 	totalPending := 0
 
 	for _, item := range items {
-		itemDir := h.itemDir(item.Kind, item.Name)
+		itemDir := h.store.ItemDir(item.Kind, item.Name)
 
 		latestRound, _, err := LoadLatestRound(itemDir)
 		if err != nil || latestRound == nil {

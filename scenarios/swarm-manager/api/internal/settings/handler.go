@@ -41,9 +41,7 @@ type Store struct {
 	path string
 }
 
-var (
-	errInvalidTheme = errors.New("invalid theme")
-)
+var errInvalidTheme = errors.New("invalid theme")
 
 // NewStore creates a settings store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {

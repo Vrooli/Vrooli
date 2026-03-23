@@ -98,7 +98,6 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-
 // Initialize ensures the agent profile exists.
 // Call this at startup to create/update the swarm-manager profile.
 func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {

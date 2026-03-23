@@ -41,8 +41,22 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
 | **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
+| **Initiative** | Lightweight grouping of related backlog items by a shared label | Derived from member items (pending/active/completed/blocked) | [CODE: api/internal/initiatives/] |
+| **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/] |
 | **Execution Run** | Governed execution record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
+
+### Initiatives
+
+Initiatives are a lightweight grouping mechanism. Each backlog item may carry an `initiative` string field in its `spec.json`. Items sharing the same initiative value are considered members of that initiative. The initiatives package provides CRUD operations and computes rollup status from its member items (e.g., an initiative is "active" if any member is in progress, "blocked" if any member has unmet dependencies).
+
+### Dependencies
+
+Backlog items can declare dependencies on other items via the `depends_on` field in `spec.json`. Each entry is a `"kind/name"` reference (e.g., `"fix/auth-bug"`). The `depgraph` package builds a directed acyclic graph from these references and provides:
+
+- **Cycle detection** -- rejects writes that would introduce circular dependencies
+- **Topological sort** -- determines safe execution order for batch operations
+- **Validation** -- ensures all referenced items actually exist
 
 ## Key Flows
 
@@ -57,7 +71,13 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
    Scenario delete with archive=true -> scenario removed -> archived backlog idea created with preserved files
    ```
 
-3. **Execution lifecycle**
+3. **Batch operations**
+   ```
+   POST /api/v1/backlog/batch -> validate all items + dependency refs -> create atomically (all-or-nothing)
+   POST /api/v1/backlog/batch/queue -> topological sort via depgraph -> queue items in dependency order
+   ```
+
+4. **Execution lifecycle**
    ```
    Queue backlog item (manual/scheduled/yolo) -> execution run record -> agent-manager run -> status tracked in Execution page
    ```
@@ -78,7 +98,8 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 │ HTTP/proto endpoints, validation, response contracts         │
 ├─────────────────────────────────────────────────────────────┤
 │ DOMAIN LOGIC LAYER                                           │
-│ Backlog + scenarios + execution + settings orchestration     │
+│ Backlog + initiatives + depgraph + overview + scenarios +    │
+│ execution + skills + settings orchestration                  │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
 │ agent-manager + prompt-manager + ecosystem-manager + CLI     │
@@ -93,8 +114,8 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | Layer | Status | Notes |
 |-------|--------|-------|
 | Presentation | Functional | 5 primary tabs wired (`backlog`, `scenarios`, `execution`, `prompts`, `settings`) |
-| API Gateway | Implemented | Health, backlog, scenarios, settings, queue, execution, prompts, agent-manager status |
-| Domain Logic | Implemented | CRUD, archive, queue, research, execution scheduling and run control |
+| API Gateway | Implemented | Health, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
+| Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/settings/queue JSON persisted on disk |
 
@@ -126,16 +147,65 @@ Key implementation files:
 - Execution service: [CODE: ui/src/services/execution-service.ts]
 - CLI commands: [CODE: cli/app.go]
 
+### API Package Structure
+
+The backlog handler has been decomposed from a single large file into focused modules:
+
+```
+api/internal/
+├── backlog/           # Backlog domain (refactored)
+│   ├── types.go       # Domain types and interfaces
+│   ├── store.go       # Filesystem CRUD abstraction
+│   ├── handler.go     # HTTP route registration and core handlers
+│   ├── files.go       # File upload/download handlers
+│   ├── research.go    # Research spawn handlers
+│   ├── queue_ops.go   # Queue/dequeue handlers
+│   ├── archive_handlers.go  # Archive operations
+│   ├── convert.go     # Kind conversion handlers
+│   ├── batch_handler.go     # Batch create (all-or-nothing)
+│   └── batch_queue_handler.go # Batch queue (topological order)
+├── depgraph/          # Dependency graph (pure computation)
+│   └── graph.go       # Cycle detection, topological sort
+├── initiatives/       # Initiative CRUD + rollup status
+├── overview/          # Aggregation endpoint (backlog + initiatives + graph + stats)
+├── captures/          # Capture CRUD and classification
+├── skills/            # Centralized skill registry (skill name -> prompt-manager path)
+├── workshop/          # Readiness scoring, round I/O
+├── execution/         # Execution run lifecycle
+├── scenarios/         # Scenario CRUD and lifecycle
+├── queue/             # Queue state operations
+├── settings/          # Settings persistence
+├── prompts/           # Prompt skill CRUD
+└── integrations/      # agent-manager, prompt-manager, ecosystem-manager clients
+```
+
 ## API Boundaries
 
 - `/health`, `/api/v1/health` - health and readiness
 - `/api/v1/backlog/*` - backlog CRUD, queue, research, convert
+- `/api/v1/backlog/batch` - batch create (all-or-nothing with dependency validation)
+- `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
+- `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
+- `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
+- `/api/v1/captures/*` - capture CRUD and AI classification
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive
 - `/api/v1/settings/*` - settings persistence
 - `/api/v1/queue/*` - queue state operations
 - `/api/v1/execution/*` - execution runs and policy operations
 - `/api/v1/prompts/*` - prompt skill map, CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
+
+## Meta-Orchestrator Skill
+
+The `swarm-manager-meta-orchestrator` skill provides a vision-to-backlog pipeline. It takes a high-level objective (e.g., "build an invoicing system") and decomposes it into a set of backlog items with dependencies and initiative grouping. The pipeline:
+
+1. Analyzes the objective and breaks it into discrete work items
+2. Assigns kinds (idea/fix/execute/research/chore) and priorities
+3. Establishes dependency relationships between items
+4. Groups related items under initiatives
+5. Uses batch-create to atomically add all items to the backlog
+
+This skill is the primary entry point for turning large goals into structured, executable backlogs.
 
 ## Design Principles
 
@@ -144,3 +214,4 @@ Key implementation files:
 3. **Delegated implementation**: Swarm Manager governs work; agent-manager performs work.
 4. **File-based context**: backlog artifacts remain human-readable and git-trackable.
 5. **Prompt-manager team ownership**: research and recommendations are generated by teams and written into backlog items.
+6. **Dependency-aware ordering**: batch operations respect the dependency graph to ensure items are processed in safe topological order.

@@ -28,13 +28,17 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    expect(screen.getByText("3 selected")).toBeInTheDocument();
+    // Count badge shows the number
+    expect(screen.getByText("3")).toBeInTheDocument();
+    // Clear button and action buttons are present
+    expect(screen.getByTitle("Clear selection")).toBeInTheDocument();
+    // Labels are rendered (even if hidden via CSS on mobile)
     expect(screen.getByText("Approve")).toBeInTheDocument();
     expect(screen.getByText("Flag")).toBeInTheDocument();
-    expect(screen.getByText("Send to Agent")).toBeInTheDocument();
+    expect(screen.getByText("Agent")).toBeInTheDocument();
   });
 
-  it("calls onApproveSelected when Approve is clicked", () => {
+  it("calls onApproveSelected when Approve button is clicked", () => {
     const onApprove = vi.fn();
     render(
       <BulkActionToolbar
@@ -46,11 +50,11 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Approve"));
+    fireEvent.click(screen.getByText("Approve").closest("button")!);
     expect(onApprove).toHaveBeenCalledOnce();
   });
 
-  it("calls onFlagSelected when Flag is clicked", () => {
+  it("calls onFlagSelected when Flag button is clicked", () => {
     const onFlag = vi.fn();
     render(
       <BulkActionToolbar
@@ -62,11 +66,11 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Flag"));
+    fireEvent.click(screen.getByText("Flag").closest("button")!);
     expect(onFlag).toHaveBeenCalledOnce();
   });
 
-  it("calls onSendToAgent when Send to Agent is clicked", () => {
+  it("calls onSendToAgent when Agent button is clicked", () => {
     const onSend = vi.fn();
     render(
       <BulkActionToolbar
@@ -78,7 +82,7 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Send to Agent"));
+    fireEvent.click(screen.getByText("Agent").closest("button")!);
     expect(onSend).toHaveBeenCalledOnce();
   });
 

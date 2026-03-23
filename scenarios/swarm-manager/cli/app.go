@@ -19,8 +19,8 @@ var (
 )
 
 type App struct {
-	core       *cliapp.ScenarioApp
-	globalDry  bool // set by preflight from --dry-run global flag
+	core      *cliapp.ScenarioApp
+	globalDry bool // set by preflight from --dry-run global flag
 }
 
 func NewApp() (*App, error) {
@@ -66,6 +66,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Title: "Health",
 		Commands: []cliapp.Command{
 			{Name: "status", Aliases: []string{"health"}, NeedsAPI: true, Description: "Check API health and readiness", Run: a.cmdStatus},
+			{Name: "overview", NeedsAPI: true, Description: "Full backlog situational awareness [--format json|markdown]", Run: a.cmdOverview},
 		},
 	}
 
@@ -105,6 +106,8 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "research", NeedsAPI: true, Description: "Spawn research agent (--kind KIND --name NAME [--data JSON])", Run: a.cmdBacklogResearch},
 				{Name: "prompt-trace", NeedsAPI: true, Description: "Get latest backlog research prompt trace (--kind KIND --name NAME)", Run: a.cmdBacklogPromptTrace},
 				{Name: "convert", NeedsAPI: true, Description: "Convert backlog item kind (--kind KIND --name NAME --target-kind TARGET_KIND [--target-name TARGET_NAME])", Run: a.cmdBacklogConvert},
+				{Name: "batch-create", NeedsAPI: true, Description: "Batch create backlog items (--file items.json [--initiative NAME])", Run: a.cmdBacklogBatchCreate},
+				{Name: "batch-queue", NeedsAPI: true, Description: "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force])", Run: a.cmdBacklogBatchQueue},
 				{Name: "export", NeedsAPI: true, Description: "Export backlog items to markdown for offline editing", Run: a.cmdBacklogExport},
 				{Name: "import", NeedsAPI: true, Description: "Import edited markdown back into the backlog (--file FILE)", Run: a.cmdBacklogImport},
 			},
@@ -171,10 +174,34 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 			},
 		},
 		{
+			Name:        "initiatives",
+			Description: "Initiative management",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List initiatives [--json]", Run: a.cmdInitiativesList},
+				{Name: "get", NeedsAPI: true, Description: "Get initiative details (--name NAME) [--json]", Run: a.cmdInitiativesGet},
+				{Name: "create", NeedsAPI: true, Description: "Create initiative (--data JSON) [--json]", Run: a.cmdInitiativesCreate},
+				{Name: "update", NeedsAPI: true, Description: "Update initiative (--name NAME --data JSON) [--json]", Run: a.cmdInitiativesUpdate},
+				{Name: "delete", NeedsAPI: true, Description: "Delete initiative (--name NAME)", Run: a.cmdInitiativesDelete},
+			},
+		},
+		{
+			Name:        "captures",
+			Description: "Quick-capture management",
+			Subcommands: []cliapp.Command{
+				{Name: "list", NeedsAPI: true, Description: "List captures [--json]", Run: a.cmdCapturesList},
+				{Name: "create", NeedsAPI: true, Description: "Create a capture (--text TEXT [--file FILE]...) [--json]", Run: a.cmdCapturesCreate},
+				{Name: "get", NeedsAPI: true, Description: "Get capture details (--id ID) [--json]", Run: a.cmdCapturesGet},
+				{Name: "delete", NeedsAPI: true, Description: "Delete a capture (--id ID)", Run: a.cmdCapturesDelete},
+				{Name: "classify", NeedsAPI: true, Description: "Trigger classification for a capture (--id ID) [--json]", Run: a.cmdCapturesClassify},
+			},
+		},
+		{
 			Name:        "agent-manager",
-			Description: "Agent-manager integration status",
+			Description: "Agent-manager integration",
 			Subcommands: []cliapp.Command{
 				{Name: "status", NeedsAPI: true, Description: "Get agent-manager availability and profile status", Run: a.cmdAgentManagerStatus},
+				{Name: "run-get", NeedsAPI: true, Description: "Get run status (--id ID) [--json]", Run: a.cmdAgentManagerRunGet},
+				{Name: "run-stop", NeedsAPI: true, Description: "Stop a run (--id ID) [--json]", Run: a.cmdAgentManagerRunStop},
 			},
 		},
 	}

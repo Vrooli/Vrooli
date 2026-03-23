@@ -61,8 +61,8 @@ func TestWriteAndReadReviewState_RoundTrip(t *testing.T) {
 
 func TestPruneReviewState(t *testing.T) {
 	state := map[string]ReviewState{
-		"OT-P0-001": {ReviewStatus: "approved"},
-		"OT-P1-002": {ReviewStatus: "flagged"},
+		"OT-P0-001":  {ReviewStatus: "approved"},
+		"OT-P1-002":  {ReviewStatus: "flagged"},
 		"OT-REMOVED": {ReviewStatus: "approved"},
 	}
 
@@ -96,7 +96,9 @@ func TestPatchModuleReviewState(t *testing.T) {
 		"requirements": []any{},
 	}
 	b, _ := json.MarshalIndent(idx, "", "  ")
-	os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644)
+	if err := os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write module.json with requirements.
 	mod := map[string]any{
@@ -108,7 +110,9 @@ func TestPatchModuleReviewState(t *testing.T) {
 		},
 	}
 	b, _ = json.MarshalIndent(mod, "", "  ")
-	os.WriteFile(filepath.Join(modDir, "module.json"), b, 0o644)
+	if err := os.WriteFile(filepath.Join(modDir, "module.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Patch review state.
 	updates := map[string]RequirementReviewUpdate{
@@ -158,14 +162,18 @@ func TestPatchModuleReviewState_Unreviewed_RemovesFields(t *testing.T) {
 	itemDir := t.TempDir()
 	reqDir := filepath.Join(itemDir, "requirements")
 	modDir := filepath.Join(reqDir, "01-core")
-	os.MkdirAll(modDir, 0o755)
+	if err := os.MkdirAll(modDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	idx := map[string]any{
 		"imports":      []string{"01-core/module.json"},
 		"requirements": []any{},
 	}
 	b, _ := json.MarshalIndent(idx, "", "  ")
-	os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644)
+	if err := os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	mod := map[string]any{
 		"module": "core",
@@ -180,7 +188,9 @@ func TestPatchModuleReviewState_Unreviewed_RemovesFields(t *testing.T) {
 		},
 	}
 	b, _ = json.MarshalIndent(mod, "", "  ")
-	os.WriteFile(filepath.Join(modDir, "module.json"), b, 0o644)
+	if err := os.WriteFile(filepath.Join(modDir, "module.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	updates := map[string]RequirementReviewUpdate{
 		"REQ-001": {ReviewStatus: "unreviewed"},
@@ -190,9 +200,14 @@ func TestPatchModuleReviewState_Unreviewed_RemovesFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, _ := os.ReadFile(filepath.Join(modDir, "module.json"))
+	data, err := os.ReadFile(filepath.Join(modDir, "module.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	var result map[string]any
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
 
 	req := result["requirements"].([]any)[0].(map[string]any)
 	if _, ok := req["review_status"]; ok {
@@ -211,7 +226,9 @@ func TestPatchModuleReviewState_RootIndex(t *testing.T) {
 	// should be patched in the root file, not searched in imports.
 	itemDir := t.TempDir()
 	reqDir := filepath.Join(itemDir, "requirements")
-	os.MkdirAll(reqDir, 0o755)
+	if err := os.MkdirAll(reqDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	idx := map[string]any{
 		"imports": []string{},
@@ -221,7 +238,9 @@ func TestPatchModuleReviewState_RootIndex(t *testing.T) {
 		},
 	}
 	b, _ := json.MarshalIndent(idx, "", "  ")
-	os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644)
+	if err := os.WriteFile(filepath.Join(reqDir, "index.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	updates := map[string]RequirementReviewUpdate{
 		"LD-FUNC-001": {
@@ -234,9 +253,14 @@ func TestPatchModuleReviewState_RootIndex(t *testing.T) {
 		t.Fatalf("expected no error for root index module, got: %v", err)
 	}
 
-	data, _ := os.ReadFile(filepath.Join(reqDir, "index.json"))
+	data, err := os.ReadFile(filepath.Join(reqDir, "index.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	var result map[string]any
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
 
 	reqs := result["requirements"].([]any)
 	req1 := reqs[0].(map[string]any)

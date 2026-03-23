@@ -69,6 +69,12 @@ message BacklogItem {
 
   // Optional target kind for research items (idea, fix, execute, chore, unspecified).
   optional string research_target = 10 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+
+  // Dependencies as "kind/name" references. Item won't process until all deps complete.
+  repeated string depends_on = 11;
+
+  // Initiative this item belongs to.
+  optional string initiative = 12;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

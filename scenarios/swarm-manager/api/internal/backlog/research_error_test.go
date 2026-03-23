@@ -26,9 +26,11 @@ func (m *mockAgentErrorService) GetProfileID() string { return "" }
 func (m *mockAgentErrorService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, m.err
 }
+
 func (m *mockAgentErrorService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, nil
 }
+
 func (m *mockAgentErrorService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return agentmanager.RunState{}, nil
 }

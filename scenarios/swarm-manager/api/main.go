@@ -56,6 +56,10 @@
 //
 //	GET /api/v1/agent-manager/status - Agent-manager availability and profile status
 //
+// # Overview Endpoint
+//
+//	GET    /api/v1/overview      - Aggregated overview (items, initiatives, dep graph, summary)
+//
 // # Queue Endpoints (Local)
 //
 //	GET    /api/v1/queue          - List queue items
@@ -95,6 +99,8 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
@@ -135,7 +141,9 @@ func (s *Server) setupRoutes() {
 	scenarioRoot := pathutil.ResolveScenarioRoot("swarm-manager")
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.registerHealthRoutes()
-	s.registerBacklogRoutes(scenarioRoot)
+	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
+	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
+	s.registerOverviewRoutes(backlogHandler, initService)
 	s.registerCapturesRoutes(scenarioRoot)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerSettingsRoutes(scenarioRoot)
@@ -157,11 +165,53 @@ func (s *Server) registerHealthRoutes() {
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 }
 
-func (s *Server) registerBacklogRoutes(scenarioRoot string) {
+func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
 	backlogHandler.RegisterRoutes(s.router)
+	return backlogHandler
+}
+
+func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
+	// Initiative endpoints for grouping backlog items into work streams.
+	initStore := initiatives.NewStore(scenarioRoot)
+	initService := initiatives.NewService(initStore, backlogHandler.Store())
+	initHandler := initiatives.NewHandler(initService)
+	initHandler.RegisterRoutes(s.router)
+
+	// Wire initiative assigner into backlog handler for batch operations.
+	backlogHandler.SetInitiativeAssigner(&initiativeAssignerAdapter{service: initService})
+	return initService
+}
+
+// initiativeAssignerAdapter bridges the initiatives.Service to the
+// backlog.InitiativeAssigner interface, avoiding a direct import cycle.
+type initiativeAssignerAdapter struct {
+	service *initiatives.Service
+}
+
+func (a *initiativeAssignerAdapter) EnsureExists(name string) error {
+	_, err := a.service.Get(name)
+	if err == nil {
+		return nil // already exists
+	}
+	_, createErr := a.service.Create(initiatives.CreateRequest{
+		Name:  name,
+		Title: name,
+	})
+	return createErr
+}
+
+func (a *initiativeAssignerAdapter) AddItems(name string, items []string) error {
+	return a.service.AddItems(name, items)
+}
+
+func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
+	// Overview aggregation endpoint for situational awareness.
+	overviewSvc := overview.NewService(backlogHandler.Store(), initService)
+	overviewHandler := overview.NewHandler(overviewSvc)
+	overviewHandler.RegisterRoutes(s.router)
 }
 
 func (s *Server) registerCapturesRoutes(scenarioRoot string) {

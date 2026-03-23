@@ -928,7 +928,7 @@ func TestSaveItem_PreservesUnknownSpecFields(t *testing.T) {
 		Created:     "2026-01-28T00:00:00Z",
 		Updated:     "2026-01-29T00:00:00Z",
 	}
-	if err := h.saveItem(item); err != nil {
+	if err := h.store.SaveItem(item); err != nil {
 		t.Fatalf("saveItem error: %v", err)
 	}
 

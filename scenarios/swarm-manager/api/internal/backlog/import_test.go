@@ -200,7 +200,7 @@ New description that was edited offline
 	}
 
 	// Verify file on disk was NOT changed (dry run).
-	item, err := h.loadItem(KindIdea, "my-app")
+	item, err := h.store.LoadItem(KindIdea, "my-app")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ New description that was edited offline
 		t.Error("expected dry_run to be false")
 	}
 
-	item, err := h.loadItem(KindIdea, "my-app")
+	item, err := h.store.LoadItem(KindIdea, "my-app")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ items_count: 1
 		t.Fatalf("expected 1 change, got %d", len(resp.Changes))
 	}
 
-	item, err := h.loadItem(KindFix, "my-fix")
+	item, err := h.store.LoadItem(KindFix, "my-fix")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -510,7 +510,7 @@ An idea I had on the plane about offline-first mobile apps.
 		t.Errorf("expected action create, got %s", resp.Changes[0].Action)
 	}
 
-	item, err := h.loadItem(KindIdea, "flight-idea")
+	item, err := h.store.LoadItem(KindIdea, "flight-idea")
 	if err != nil {
 		t.Fatalf("expected item to be created: %v", err)
 	}
@@ -674,7 +674,7 @@ Add offline-first capabilities using service workers.
 	}
 
 	// Verify dry-run didn't modify disk.
-	origItem, _ := h.loadItem(KindIdea, "my-app")
+	origItem, _ := h.store.LoadItem(KindIdea, "my-app")
 	if origItem.Description != "Build a great app" {
 		t.Error("dry-run modified item on disk!")
 	}
@@ -693,7 +693,7 @@ Add offline-first capabilities using service workers.
 	}
 
 	// Verify my-app description was updated.
-	myApp, err := h.loadItem(KindIdea, "my-app")
+	myApp, err := h.store.LoadItem(KindIdea, "my-app")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -702,7 +702,7 @@ Add offline-first capabilities using service workers.
 	}
 
 	// Verify bug-fix priority was updated.
-	bugFix, err := h.loadItem(KindFix, "bug-fix")
+	bugFix, err := h.store.LoadItem(KindFix, "bug-fix")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +711,7 @@ Add offline-first capabilities using service workers.
 	}
 
 	// Verify new item was created.
-	newItemLoaded, err := h.loadItem(KindIdea, "offline-mode")
+	newItemLoaded, err := h.store.LoadItem(KindIdea, "offline-mode")
 	if err != nil {
 		t.Fatalf("expected new item to be created: %v", err)
 	}

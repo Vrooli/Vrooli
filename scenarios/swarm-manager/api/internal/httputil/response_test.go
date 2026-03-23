@@ -326,7 +326,6 @@ func TestJSONWithStatus_Various(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			err := JSONWithStatus(w, tt.status, tt.data)
-
 			if err != nil {
 				t.Fatalf("JSONWithStatus() error = %v", err)
 			}

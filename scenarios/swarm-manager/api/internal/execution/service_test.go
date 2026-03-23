@@ -475,7 +475,6 @@ func mustWritePolicy(t *testing.T, path string, payload map[string]any) {
 	}
 }
 
-
 func TestMapRunStatus_DirectMappings(t *testing.T) {
 	tests := []struct {
 		input    string

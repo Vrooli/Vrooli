@@ -67,6 +67,12 @@ func (a *App) cmdBacklogList(args []string) error {
 		if item.Kind == "research" && item.ResearchTarget != "" {
 			fmt.Printf("    Target: %s\n", item.ResearchTarget)
 		}
+		if len(item.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
+		}
+		if item.Initiative != "" {
+			fmt.Printf("    Initiative: %s\n", item.Initiative)
+		}
 		fmt.Println()
 	}
 
@@ -123,6 +129,12 @@ func (a *App) cmdBacklogGet(args []string) error {
 	}
 	if item.ResearchTarget != "" {
 		fmt.Printf("  Research Target: %s\n", item.ResearchTarget)
+	}
+	if len(item.DependsOn) > 0 {
+		fmt.Printf("  Depends On: %s\n", strings.Join(item.DependsOn, ", "))
+	}
+	if item.Initiative != "" {
+		fmt.Printf("  Initiative: %s\n", item.Initiative)
 	}
 	fmt.Printf("  Created: %s\n", item.Created)
 	fmt.Printf("  Updated: %s\n", item.Updated)

@@ -27,7 +27,6 @@ func (s *handlerStubService) ResolveURL(_ context.Context) (string, error) {
 	return "http://agent-manager", nil
 }
 
-
 func (s *handlerStubService) GetProfileID() string { return "" }
 
 func (s *handlerStubService) SpawnBacklog(_ context.Context, _ BacklogSpawnRequest) (RunResult, error) {

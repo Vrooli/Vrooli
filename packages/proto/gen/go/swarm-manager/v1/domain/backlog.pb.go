@@ -49,8 +49,12 @@ type BacklogItem struct {
 	Kind string `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Optional target kind for research items (idea, fix, execute, chore, unspecified).
 	ResearchTarget *string `protobuf:"bytes,10,opt,name=research_target,json=researchTarget,proto3,oneof" json:"research_target,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Dependencies as "kind/name" references. Item won't process until all deps complete.
+	DependsOn []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Initiative this item belongs to.
+	Initiative    *string `protobuf:"bytes,12,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -153,6 +157,20 @@ func (x *BacklogItem) GetResearchTarget() string {
 	return ""
 }
 
+func (x *BacklogItem) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *BacklogItem) GetInitiative() string {
+	if x != nil && x.Initiative != nil {
+		return *x.Initiative
+	}
+	return ""
+}
+
 // BacklogFile represents a file or directory within a backlog item folder.
 type BacklogFile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -240,7 +258,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x95\x04\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe8\x04\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -253,8 +271,14 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\aupdated\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aupdated\x12>\n" +
 	"\x04kind\x18\t \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12[\n" +
 	"\x0fresearch_target\x18\n" +
-	" \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01B\x12\n" +
-	"\x10_research_target\"\xd9\x01\n" +
+	" \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\v \x03(\tR\tdependsOn\x12#\n" +
+	"\n" +
+	"initiative\x18\f \x01(\tH\x01R\n" +
+	"initiative\x88\x01\x01B\x12\n" +
+	"\x10_research_targetB\r\n" +
+	"\v_initiative\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +

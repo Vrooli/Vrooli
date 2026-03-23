@@ -46,6 +46,12 @@ message CreateBacklogItemRequest {
 
   // Optional research target for research items.
   optional string research_target = 7 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+
+  // Dependencies as "kind/name" references.
+  repeated string depends_on = 8;
+
+  // Initiative this item belongs to.
+  optional string initiative = 9;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -77,6 +83,12 @@ message UpdateBacklogItemRequest {
 
   // Optional research target for research items.
   optional string research_target = 6 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+
+  // Dependencies as "kind/name" references.
+  repeated string depends_on = 7;
+
+  // Initiative this item belongs to.
+  optional string initiative = 8;
 }
 
 // ListBacklogItemsResponse returns all backlog items.

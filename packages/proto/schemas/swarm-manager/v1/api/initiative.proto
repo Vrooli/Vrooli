@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/initiative.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// INITIATIVE API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports initiative
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager initiative operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// CreateInitiativeRequest defines the payload for creating a new initiative.
+message CreateInitiativeRequest {
+  // Unique identifier (folder-safe name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Optional description.
+  optional string description = 3;
+
+  // Backlog item references as "kind/name" strings.
+  repeated string items = 4;
+}
+
+// UpdateInitiativeRequest defines the payload for updating an initiative.
+message UpdateInitiativeRequest {
+  // Human-readable title.
+  string title = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional description.
+  optional string description = 2;
+
+  // Lifecycle state.
+  // @constraint one of: active, completed, archived
+  string status = 3 [(buf.validate.field).string = { in: ["active", "completed", "archived"] }];
+
+  // Backlog item references as "kind/name" strings.
+  repeated string items = 4;
+}
+
+// InitiativeResponse returns a single initiative with its rollup status.
+message InitiativeResponse {
+  Initiative initiative = 1;
+  InitiativeRollup rollup = 2;
+}
+
+// ListInitiativesResponse returns all initiatives with rollup status.
+message ListInitiativesResponse {
+  repeated InitiativeResponse items = 1;
+}

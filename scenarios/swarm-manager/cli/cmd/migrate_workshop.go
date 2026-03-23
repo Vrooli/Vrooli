@@ -217,7 +217,7 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 			if err != nil {
 				return false, fmt.Errorf("read enhance/summary.md: %w", err)
 			}
-			if err := os.WriteFile(planDst, data, 0644); err != nil {
+			if err := os.WriteFile(planDst, data, 0o644); err != nil {
 				return false, fmt.Errorf("write plan.md: %w", err)
 			}
 		}
@@ -270,7 +270,7 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 	if !hasClarify && !hasSuggest && !workshopExists {
 		fmt.Printf("  %s create workshop/ (empty)\n", prefix)
 		if !dryRun {
-			if err := os.MkdirAll(filepath.Join(itemDir, "workshop"), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Join(itemDir, "workshop"), 0o755); err != nil {
 				return false, fmt.Errorf("mkdir workshop: %w", err)
 			}
 		}
@@ -286,7 +286,7 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 		dst := filepath.Join(backupBase, dir)
 		fmt.Printf("  %s backup %s/ → .swarm/pre-workshop-migration/%s/\n", prefix, dir, dir)
 		if !dryRun {
-			if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 				return false, fmt.Errorf("mkdir backup: %w", err)
 			}
 			if err := copyDir(src, dst); err != nil {
@@ -332,7 +332,7 @@ func migrateNonIdeaStub(itemDir string, dryRun bool) (bool, error) {
 
 	content := fmt.Sprintf("# %s\n\n%s\n", spec.Title, spec.Description)
 	if !dryRun {
-		if err := os.WriteFile(planPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(planPath, []byte(content), 0o644); err != nil {
 			return false, fmt.Errorf("write plan.md: %w", err)
 		}
 	}
@@ -353,7 +353,7 @@ func migrateEmptyWorkshop(itemDir string, dryRun bool) (bool, error) {
 	fmt.Printf("%s creating empty workshop/ for %s/%s\n", prefix, kindDir, itemName)
 
 	if !dryRun {
-		if err := os.MkdirAll(workshopDir, 0755); err != nil {
+		if err := os.MkdirAll(workshopDir, 0o755); err != nil {
 			return false, fmt.Errorf("mkdir workshop: %w", err)
 		}
 	}
@@ -563,7 +563,7 @@ func answerString(v any) string {
 
 func writeWorkshopRound(itemDir, filename string, round *workshopRound) error {
 	workshopDir := filepath.Join(itemDir, "workshop")
-	if err := os.MkdirAll(workshopDir, 0755); err != nil {
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir workshop: %w", err)
 	}
 	data, err := json.MarshalIndent(round, "", "  ")
@@ -571,7 +571,7 @@ func writeWorkshopRound(itemDir, filename string, round *workshopRound) error {
 		return fmt.Errorf("marshal round: %w", err)
 	}
 	data = append(data, '\n')
-	return os.WriteFile(filepath.Join(workshopDir, filename), data, 0644)
+	return os.WriteFile(filepath.Join(workshopDir, filename), data, 0o644)
 }
 
 func readSpec(itemDir string) (*oldSpec, error) {
@@ -597,13 +597,13 @@ func copyDir(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
+			return os.MkdirAll(target, 0o755)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(target, data, 0644)
+		return os.WriteFile(target, data, 0o644)
 	})
 }
 
@@ -623,4 +623,3 @@ func modePrefix(dryRun bool) string {
 	}
 	return "[migrate]"
 }
-

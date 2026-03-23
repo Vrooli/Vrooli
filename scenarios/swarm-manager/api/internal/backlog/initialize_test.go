@@ -206,4 +206,3 @@ func TestResearchSkillID_Initialize(t *testing.T) {
 		})
 	}
 }
-

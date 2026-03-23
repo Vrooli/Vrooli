@@ -49,4 +49,3 @@ func LoadPlanContent(itemDir string) string {
 func BuildWorkshopHistory(rounds []WorkshopRound) string {
 	return workshop.BuildHistory(rounds)
 }
-

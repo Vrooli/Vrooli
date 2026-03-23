@@ -29,6 +29,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/skills"
 )
 
 // Handler provides HTTP handlers for capture operations.
@@ -393,7 +394,7 @@ func (h *Handler) spawnClassifyAgent(r *http.Request, cap *capture) (*agentmanag
 		return nil, agentmanager.ErrNotAvailable
 	}
 
-	skillID := "swarm-manager-classify-capture"
+	skillID := skills.ClassifyCaptureSkillID()
 	variables := map[string]string{
 		"CAPTURE_TEXT": cap.Text,
 		"CAPTURE_ID":   cap.ID,

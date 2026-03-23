@@ -14,4 +14,3 @@ func TestNewStore_DefaultPath(t *testing.T) {
 		t.Fatalf("expected store path %q, got %q", expected, store.path)
 	}
 }
-

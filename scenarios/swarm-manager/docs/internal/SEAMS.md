@@ -153,6 +153,58 @@ execute/
 
 **Status**: Backlog, scenario metadata, settings, and queue storage implemented.
 
+### Dependency Graph Boundary
+
+`api/internal/depgraph/graph.go` is a pure computation boundary with zero I/O dependencies. It provides:
+
+- **Graph construction**: `New(items)` builds a directed graph from backlog items' `depends_on` fields
+- **Cycle detection**: `HasCycle()` returns true if the graph contains any circular dependency
+- **Topological sort**: `TopoSort()` returns items in dependency-safe execution order
+- **Validation**: `ValidateRefs(items)` ensures all `depends_on` references point to existing items
+
+This package is imported by `internal/backlog/` (batch create validation, batch queue ordering) and `internal/overview/` (graph visualization data).
+
+**Testing at the seam**: Unit tests exercise cycle detection (diamond graphs, self-loops), topological ordering guarantees, and invalid reference rejection without needing HTTP or filesystem mocks.
+
+### Initiatives Boundary
+
+`api/internal/initiatives/` provides initiative CRUD and rollup status computation.
+
+- **BacklogLoader interface**: Seam between initiatives and the backlog store -- initiatives need to list backlog items to compute rollup status, but do not depend on the backlog HTTP handlers
+- **Rollup status**: Derived from member item statuses (pending if all backlog, active if any in_progress, completed if all done, blocked if any has unmet deps)
+
+**Testing at the seam**: Mock `BacklogLoader` to test rollup computation without touching the filesystem.
+
+### Overview Service Boundary
+
+`api/internal/overview/` aggregates data from multiple domains into a single response.
+
+- **BacklogLister interface**: Lists backlog items (satisfied by backlog store)
+- **InitiativeLister interface**: Lists initiatives (satisfied by initiatives package)
+
+The overview endpoint composes these interfaces to produce a summary containing backlog counts by status/kind, initiative rollups, dependency graph edges, and summary statistics.
+
+**Testing at the seam**: Mock both lister interfaces to test aggregation logic in isolation.
+
+### Skills Registry Boundary
+
+`api/internal/skills/registry.go` provides a centralized mapping from skill names to prompt-manager paths.
+
+- **Resolve(skillName)**: Returns the prompt-manager skill path for a given skill name
+- Used by both backlog handlers (to resolve workshop/research skills) and captures handlers (to resolve classification skills)
+
+**Testing at the seam**: Pure lookup function, trivially unit testable.
+
+### Backlog Store Boundary
+
+`api/internal/backlog/store.go` abstracts filesystem operations for backlog item CRUD.
+
+- **Store struct**: Encapsulates base directory and provides Create/Read/Update/Delete/List operations
+- Handles spec.json serialization, directory creation, and file management
+- Decouples HTTP handlers from filesystem details
+
+**Testing at the seam**: Tests exercise CRUD operations against a temp directory without needing HTTP infrastructure.
+
 ### Workshop Computation Boundary
 
 `api/internal/workshop/workshop.go` is a pure computation boundary with no HTTP or integration dependencies. It provides:
@@ -294,41 +346,37 @@ Pages → Config → Services → API Client → HTTP/fetch
 ```
 api/
 ├── main.go              # Entry point, server wiring, health endpoints
-├── go.mod               # Go module dependencies
-├── go.sum               # Dependency checksums
-└── internal/            # Internal packages (not importable externally)
-    └── backlog/         # Backlog domain handlers
-        ├── handler.go   # HTTP handlers for /api/v1/backlog/*
-        └── handler_test.go
-```
-
-**Current State**: Backlog CRUD implemented in `internal/backlog/` package. The `internal/` pattern matches Go conventions for internal packages. Other domains (scenarios, recommendations, settings) follow the same pattern as `internal/<domain>/handler.go`.
-
-**Target Structure** (for reference when adding new domains):
-
-```
-api/
-├── main.go
-├── go.mod
+├── go.mod / go.sum      # Go module dependencies
 └── internal/
-    ├── backlog/         # ✅ Implemented
-    │   ├── handler.go
-    │   └── handler_test.go
+    ├── backlog/         # ✅ Refactored (was single handler.go, now decomposed)
+    │   ├── types.go              # Domain types and interfaces
+    │   ├── store.go              # Filesystem CRUD abstraction
+    │   ├── handler.go            # Route registration and core CRUD handlers
+    │   ├── files.go              # File upload/download handlers
+    │   ├── research.go           # Research spawn handlers
+    │   ├── queue_ops.go          # Queue/dequeue handlers
+    │   ├── archive_handlers.go   # Archive operations
+    │   ├── convert.go            # Kind conversion handlers
+    │   ├── batch_handler.go      # POST /batch (all-or-nothing create)
+    │   ├── batch_queue_handler.go # POST /batch/queue (topological order)
+    │   └── *_test.go             # Tests for each module
+    ├── depgraph/        # ✅ NEW — dependency graph (pure computation)
+    │   └── graph.go              # Cycle detection, topological sort
+    ├── initiatives/     # ✅ NEW — initiative CRUD + rollup status
+    ├── overview/        # ✅ NEW — aggregation endpoint
+    ├── captures/        # ✅ NEW — capture CRUD and classification
+    ├── skills/          # ✅ NEW — centralized skill registry
+    │   └── registry.go           # Skill name -> prompt-manager path
     ├── scenarios/       # ✅ Implemented
-    │   └── handler.go
-    ├── recommendations/ # ✅ Implemented
-    │   └── handler.go
     ├── settings/        # ✅ Implemented
-    │   └── handler.go
     ├── workshop/        # ✅ Implemented (readiness scoring, round I/O)
-    │   ├── workshop.go
-    │   └── workshop_test.go
     ├── queue/           # ✅ Implemented
-    │   └── handler.go
-    └── integrations/    # agent-manager, ecosystem-manager
-        ├── agent_manager.go
-        └── ecosystem_manager.go
+    ├── execution/       # ✅ Implemented
+    ├── prompts/         # ✅ Implemented
+    └── integrations/    # agent-manager, prompt-manager, ecosystem-manager
 ```
+
+**Current State**: The backlog package has been decomposed from ~2,286 lines in a single handler.go into ~450 lines per focused module. New domain packages (depgraph, initiatives, overview, captures, skills) follow the same `internal/<domain>/` convention.
 
 ## Cross-Cutting Concerns
 

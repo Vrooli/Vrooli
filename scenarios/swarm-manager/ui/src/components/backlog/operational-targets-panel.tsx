@@ -319,26 +319,55 @@ function RequirementGroupNode({
             }
 
             const effectiveStatus = getReviewStatus(req);
-            const Wrapper = onToggle ? "label" : "div";
-            return (
-              <Wrapper
-                key={req.id}
-                className={cn(
-                  "group/req flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30",
-                  onToggle && "cursor-pointer",
-                  effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
-                )}
-              >
-                {onToggle ? (
+
+            // When selectable, use a real <button> so mobile browsers fire
+            // the click on the first tap. <div role="button"> and <label>
+            // both suffer from double-tap issues on iOS/Android where the
+            // first tap activates :hover state instead of firing onClick.
+            if (onToggle) {
+              return (
+                <button
+                  key={req.id}
+                  type="button"
+                  onClick={() => onToggle(req.id)}
+                  className={cn(
+                    "group/req flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-800/30 select-none",
+                    effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
+                  )}
+                >
                   <input
                     type="checkbox"
                     checked={selectedIds?.has(req.id) ?? false}
-                    onChange={() => onToggle(req.id)}
-                    className="mt-0.5 h-4 w-4 accent-cyan-500"
+                    readOnly
+                    tabIndex={-1}
+                    className="mt-0.5 h-4 w-4 accent-cyan-500 pointer-events-none"
                   />
-                ) : (
-                  <StatusIcon status={req.status} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-slate-500">{req.id}</span>
+                      {req.category && (
+                        <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{req.category}</span>
+                      )}
+                      <ReviewStatusIndicator reviewStatus={effectiveStatus} />
+                    </div>
+                    <p className="text-slate-300">{req.title}</p>
+                    {req.description && (
+                      <p className="mt-0.5 text-xs text-slate-500">{req.description}</p>
+                    )}
+                  </div>
+                </button>
+              );
+            }
+
+            return (
+              <div
+                key={req.id}
+                className={cn(
+                  "group/req flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30",
+                  effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
                 )}
+              >
+                <StatusIcon status={req.status} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-slate-500">{req.id}</span>
@@ -357,7 +386,7 @@ function RequirementGroupNode({
                     <ActionsMenu items={reqActions} />
                   </div>
                 )}
-              </Wrapper>
+              </div>
             );
           })}
           {group.children.map((child) => (
@@ -567,26 +596,62 @@ export function OperationalTargetsPanel({
                           }
 
                           const effectiveStatus = getReviewStatus(target);
-                          const TargetWrapper = onTargetToggle ? "label" : "div";
-                          return (
-                            <TargetWrapper
-                              key={target.id}
-                              className={cn(
-                                "group/target flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30",
-                                onTargetToggle && "cursor-pointer",
-                                effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
-                              )}
-                            >
-                              {onTargetToggle ? (
+
+                          // Use real <button> when selectable — see requirement
+                          // row comment for rationale on mobile tap behavior.
+                          if (onTargetToggle) {
+                            return (
+                              <button
+                                key={target.id}
+                                type="button"
+                                onClick={() => onTargetToggle(target.id)}
+                                className={cn(
+                                  "group/target flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-800/30 select-none",
+                                  effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
+                                )}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={selectedTargetIds?.has(target.id) ?? false}
-                                  onChange={() => onTargetToggle(target.id)}
-                                  className="mt-0.5 h-4 w-4 accent-cyan-500"
+                                  readOnly
+                                  tabIndex={-1}
+                                  className="mt-0.5 h-4 w-4 accent-cyan-500 pointer-events-none"
                                 />
-                              ) : (
-                                <StatusIcon status={target.status} />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs text-slate-500">{target.id}</span>
+                                    <ReviewStatusIndicator reviewStatus={effectiveStatus} />
+                                  </div>
+                                  <p className="text-slate-300">{target.title}</p>
+                                  {target.notes && (
+                                    <p className="mt-0.5 text-xs text-slate-500">{target.notes}</p>
+                                  )}
+                                  {target.linked_requirement_ids.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {target.linked_requirement_ids.map((reqId) => (
+                                        <span
+                                          key={reqId}
+                                          className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] text-cyan-400"
+                                        >
+                                          {reqId}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={target.id}
+                              className={cn(
+                                "group/target flex items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-800/30",
+                                effectiveStatus === "flagged" && "border-l-2 border-l-amber-500/60",
                               )}
+                            >
+                              <StatusIcon status={target.status} />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono text-xs text-slate-500">{target.id}</span>
@@ -614,7 +679,7 @@ export function OperationalTargetsPanel({
                                   <ActionsMenu items={targetActions} />
                                 </div>
                               )}
-                            </TargetWrapper>
+                            </div>
                           );
                         })}
                       </div>

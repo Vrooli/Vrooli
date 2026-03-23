@@ -135,7 +135,6 @@ func parseJSONString(raw string) (json.RawMessage, error) {
 	return json.RawMessage(raw), nil
 }
 
-
 func printTree[T any](items []T, childFn func(T) []T, lineFn func(T) string, level int) {
 	for _, item := range items {
 		fmt.Printf("%s%s\n", strings.Repeat("  ", level), lineFn(item))
@@ -161,6 +160,16 @@ func cliCommand(parts ...string) string {
 
 func printSection(title string) {
 	fmt.Printf("%s:\n", title)
+}
+
+// stringSlice implements flag.Value for repeatable string flags.
+type stringSlice []string
+
+func (s *stringSlice) String() string { return strings.Join(*s, ", ") }
+
+func (s *stringSlice) Set(val string) error {
+	*s = append(*s, val)
+	return nil
 }
 
 func printCommandListSection(title string, commands []string) {

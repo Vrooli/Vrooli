@@ -86,7 +86,6 @@ func (c *HTTPClient) ResolveURL(ctx context.Context) (string, error) {
 	return c.baseURLResolver(ctx)
 }
 
-
 // Health checks agent-manager availability.
 func (c *HTTPClient) Health(ctx context.Context) (bool, error) {
 	resp, err := c.doRequest(ctx, http.MethodGet, "/health", nil)

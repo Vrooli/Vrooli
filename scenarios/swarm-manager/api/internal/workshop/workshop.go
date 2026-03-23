@@ -33,11 +33,11 @@ type Round struct {
 // Item is a single decision or info item within a workshop round.
 type Item struct {
 	ID       string   `json:"id"`
-	Type     string   `json:"type"`              // "decision" | "info"
-	Topic    string   `json:"topic,omitempty"`   // decision: what's being decided
-	Text     string   `json:"text,omitempty"`    // info: the informational text
-	Context  string   `json:"context,omitempty"` // background/rationale
-	Options  []Option `json:"options,omitempty"` // decision: lettered choices
+	Type     string   `json:"type"`               // "decision" | "info"
+	Topic    string   `json:"topic,omitempty"`    // decision: what's being decided
+	Text     string   `json:"text,omitempty"`     // info: the informational text
+	Context  string   `json:"context,omitempty"`  // background/rationale
+	Options  []Option `json:"options,omitempty"`  // decision: lettered choices
 	Selected *string  `json:"selected,omitempty"` // decision: chosen option key (e.g. "A")
 	Freeform *string  `json:"freeform,omitempty"` // decision: free-text if "Other" selected
 	Notes    *string  `json:"notes,omitempty"`    // decision: optional additional context

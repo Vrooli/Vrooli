@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/backlog.proto.
  */
 export const file_swarm_manager_v1_domain_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIrsDCgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRJLCg9yZXNlYXJjaF90YXJnZXQYCiABKAlCLbpIKnIoUgRpZGVhUgNmaXhSB2V4ZWN1dGVSBWNob3JlUgt1bnNwZWNpZmllZEgAiAEBQhIKEF9yZXNlYXJjaF90YXJnZXQitwEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARIvCghjaGlsZHJlbhgFIAMoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGVCBwoFX3NpemVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIvcDCgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRJLCg9yZXNlYXJjaF90YXJnZXQYCiABKAlCLbpIKnIoUgRpZGVhUgNmaXhSB2V4ZWN1dGVSBWNob3JlUgt1bnNwZWNpZmllZEgAiAEBEhIKCmRlcGVuZHNfb24YCyADKAkSFwoKaW5pdGlhdGl2ZRgMIAEoCUgBiAEBQhIKEF9yZXNlYXJjaF90YXJnZXRCDQoLX2luaXRpYXRpdmUitwEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARIvCghjaGlsZHJlbhgFIAMoCzIdLnN3YXJtX21hbmFnZXIudjEuQmFja2xvZ0ZpbGVCBwoFX3NpemVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * BacklogItem represents a tracked unit of work for the swarm.
@@ -92,6 +92,20 @@ export type BacklogItem = Message<"swarm_manager.v1.BacklogItem"> & {
    * @generated from field: optional string research_target = 10;
    */
   researchTarget?: string;
+
+  /**
+   * Dependencies as "kind/name" references. Item won't process until all deps complete.
+   *
+   * @generated from field: repeated string depends_on = 11;
+   */
+  dependsOn: string[];
+
+  /**
+   * Initiative this item belongs to.
+   *
+   * @generated from field: optional string initiative = 12;
+   */
+  initiative?: string;
 };
 
 /**

@@ -80,7 +80,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load all items matching kind filter.
-	items, err := h.loadAllItems(kinds)
+	items, err := h.store.LoadAll(kinds)
 	if err != nil {
 		httputil.InternalError(w, "[backlog] export", "failed to load backlog items")
 		return
@@ -256,7 +256,7 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 		b.WriteString("\n\n")
 	}
 
-	itemDir := h.itemDir(item.Kind, item.Name)
+	itemDir := h.store.ItemDir(item.Kind, item.Name)
 
 	// PRD content in <details> tag.
 	if includePRD {

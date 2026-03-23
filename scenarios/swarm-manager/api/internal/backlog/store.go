@@ -1,0 +1,232 @@
+// Store provides filesystem CRUD operations for backlog items.
+// It encapsulates all direct disk access (reading/writing spec.json files,
+// walking kind directories) behind a clean interface, keeping HTTP concerns
+// out of the data layer.
+package backlog
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// Store manages backlog items on the local filesystem.
+type Store struct {
+	rootDir string
+}
+
+// NewStore creates a Store rooted at the given directory.
+func NewStore(rootDir string) *Store {
+	return &Store{rootDir: rootDir}
+}
+
+// KindDir returns the absolute path for a given backlog kind directory.
+func (s *Store) KindDir(kind BacklogKind) string {
+	return filepath.Join(s.rootDir, backlogKindDirs[kind])
+}
+
+// ItemDir returns the absolute path for a specific backlog item.
+func (s *Store) ItemDir(kind BacklogKind, name string) string {
+	return filepath.Join(s.KindDir(kind), name)
+}
+
+// LoadAll reads all backlog items from the specified kinds. If kinds is empty,
+// all known kinds are loaded.
+func (s *Store) LoadAll(kinds []BacklogKind) ([]BacklogItem, error) {
+	var items []BacklogItem
+
+	if len(kinds) == 0 {
+		kinds = []BacklogKind{KindIdea, KindResearch, KindFix, KindExecute, KindChore}
+	}
+
+	for _, kind := range kinds {
+		kindDir := s.KindDir(kind)
+		err := filepath.WalkDir(kindDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				if os.IsNotExist(err) && path == kindDir {
+					return nil
+				}
+				return err
+			}
+
+			if d.IsDir() && path != kindDir {
+				specPath := filepath.Join(path, "spec.json")
+				if _, err := os.Stat(specPath); err == nil {
+					item, err := s.LoadItemFromPath(kind, specPath)
+					if err == nil {
+						items = append(items, item)
+					}
+				}
+				return fs.SkipDir
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if items == nil {
+		items = []BacklogItem{}
+	}
+	return items, nil
+}
+
+// LoadItem reads a single backlog item by kind and name.
+func (s *Store) LoadItem(kind BacklogKind, name string) (BacklogItem, error) {
+	specPath := filepath.Join(s.ItemDir(kind, name), "spec.json")
+	return s.LoadItemFromPath(kind, specPath)
+}
+
+// LoadItemFromPath reads a backlog item from the given spec.json path.
+// It normalizes legacy status values, backfills missing timestamps, and
+// clamps priority to the valid 1-10 range.
+func (s *Store) LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error) {
+	data, err := os.ReadFile(specPath)
+	if err != nil {
+		return BacklogItem{}, err
+	}
+
+	var item BacklogItem
+	if err := json.Unmarshal(data, &item); err != nil {
+		return BacklogItem{}, err
+	}
+
+	item.Name = filepath.Base(filepath.Dir(specPath))
+	item.Kind = kind
+	if item.Tags == nil {
+		item.Tags = []string{}
+	}
+	if item.ResearchTarget != "" && item.Kind != KindResearch {
+		item.ResearchTarget = ""
+	}
+	// Normalize status to valid proto values. On-disk data may contain
+	// legacy values (e.g. "done") that are not in the proto enum.
+	if !validateBacklogStatus(string(item.Status)) {
+		switch string(item.Status) {
+		case "done", "complete", "finished":
+			item.Status = StatusCompleted
+		default:
+			item.Status = StatusBacklog
+		}
+	}
+	// Backfill missing created timestamp from updated or file mtime.
+	if strings.TrimSpace(item.Created) == "" {
+		if strings.TrimSpace(item.Updated) != "" {
+			item.Created = item.Updated
+		} else if info, statErr := os.Stat(specPath); statErr == nil {
+			item.Created = info.ModTime().UTC().Format(time.RFC3339)
+		} else {
+			item.Created = time.Now().UTC().Format(time.RFC3339)
+		}
+	}
+	// Ensure priority is within valid range (1-10).
+	if item.Priority < 1 {
+		item.Priority = 5
+	} else if item.Priority > 10 {
+		item.Priority = 10
+	}
+	return item, nil
+}
+
+// SaveItem writes a backlog item's spec.json to disk. It performs a
+// read-modify-write to preserve unknown fields (such as archive metadata)
+// that are not part of the BacklogItem struct.
+func (s *Store) SaveItem(item BacklogItem) error {
+	if item.Kind == "" {
+		return fmt.Errorf("backlog kind is required")
+	}
+	specPath := filepath.Join(s.ItemDir(item.Kind, item.Name), "spec.json")
+
+	// Preserve archive and other unknown metadata fields when rewriting spec.json.
+	merged := map[string]any{}
+	if existing, err := os.ReadFile(specPath); err == nil {
+		_ = json.Unmarshal(existing, &merged)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	merged["name"] = item.Name
+	merged["title"] = item.Title
+	merged["description"] = item.Description
+	merged["status"] = item.Status
+	merged["priority"] = item.Priority
+	merged["tags"] = item.Tags
+	merged["created"] = item.Created
+	merged["updated"] = item.Updated
+	merged["kind"] = item.Kind
+	if item.Kind == KindResearch && strings.TrimSpace(item.ResearchTarget) != "" {
+		merged["research_target"] = item.ResearchTarget
+	} else {
+		delete(merged, "research_target")
+	}
+	if len(item.DependsOn) > 0 {
+		merged["depends_on"] = item.DependsOn
+	} else {
+		delete(merged, "depends_on")
+	}
+	if strings.TrimSpace(item.Initiative) != "" {
+		merged["initiative"] = item.Initiative
+	} else {
+		delete(merged, "initiative")
+	}
+
+	data, err := json.MarshalIndent(merged, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(specPath, data, 0o644)
+}
+
+// parseDependencyRef splits a "kind/name" dependency reference into its
+// components. Returns an error if the format is invalid.
+func parseDependencyRef(ref string) (BacklogKind, string, error) {
+	parts := strings.SplitN(ref, "/", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", fmt.Errorf("invalid dependency reference %q: expected format kind/name", ref)
+	}
+	kind, err := ParseBacklogKind(parts[0])
+	if err != nil {
+		return "", "", fmt.Errorf("invalid dependency reference %q: %w", ref, err)
+	}
+	return kind, parts[1], nil
+}
+
+// ValidateDependencies checks that all depends_on references exist on disk.
+func (s *Store) ValidateDependencies(dependsOn []string) error {
+	for _, ref := range dependsOn {
+		kind, name, err := parseDependencyRef(ref)
+		if err != nil {
+			return err
+		}
+		itemDir := s.ItemDir(kind, name)
+		if _, statErr := os.Stat(itemDir); os.IsNotExist(statErr) {
+			return fmt.Errorf("dependency %q does not exist", ref)
+		}
+	}
+	return nil
+}
+
+// CheckDependencies returns the subset of depends_on references that are not
+// yet completed (status != "completed").
+func (s *Store) CheckDependencies(dependsOn []string) ([]string, error) {
+	var unmet []string
+	for _, ref := range dependsOn {
+		kind, name, err := parseDependencyRef(ref)
+		if err != nil {
+			return nil, err
+		}
+		item, loadErr := s.LoadItem(kind, name)
+		if loadErr != nil {
+			return nil, fmt.Errorf("failed to load dependency %q: %w", ref, loadErr)
+		}
+		if item.Status != StatusCompleted {
+			unmet = append(unmet, ref)
+		}
+	}
+	return unmet, nil
+}
