@@ -58,6 +58,29 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("voice-http: received %d bytes, parse took %dms", len(raw), time.Since(reqStart).Milliseconds())
 
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, 10*time.Second)
+	decision := s.evaluateSpeakerVerification(verifyCtx, raw)
+	verifyCancel()
+	if decision.Enabled {
+		if decision.Applied {
+			log.Printf(
+				"voice-http: speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+				decision.Matched,
+				decision.Allowed,
+				decision.Score,
+				decision.Threshold,
+				decision.ProfileID,
+				decision.Mode,
+			)
+		} else if decision.ErrorMessage != "" {
+			log.Printf("voice-http: %s", formatSpeakerDecisionError(decision))
+		}
+		if !decision.Allowed {
+			writeJSON(w, http.StatusOK, map[string]string{"text": ""})
+			return
+		}
+	}
+
 	whisperStart := time.Now()
 	text, err := transcribeBytes(ctx, raw, language, true, "")
 	if err != nil {
@@ -66,6 +89,10 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if isWhisperHallucination(text) {
+		log.Printf("voice-http: filtered hallucination: %q", text)
+		text = ""
+	}
 	log.Printf("voice-http: transcribed %d bytes -> %d chars in %dms (total %dms)",
 		len(raw), len(text), time.Since(whisperStart).Milliseconds(), time.Since(reqStart).Milliseconds())
 	writeJSON(w, http.StatusOK, map[string]string{"text": text})

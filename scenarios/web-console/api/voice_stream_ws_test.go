@@ -1586,3 +1586,677 @@ func TestTruncateForLog_Runes(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Whisper hallucination filter
+// ---------------------------------------------------------------------------
+
+func TestIsWhisperHallucination(t *testing.T) {
+	positives := []string{
+		"Thank you", "thank you", "THANK YOU", "Thank you.",
+		"Thanks", "thanks.", "Thanks for watching.",
+		"Thank you for watching", "Subscribe", "Bye.", "goodbye",
+		"You", "The end.", "so", "...", "",
+		// Exclamation and mixed punctuation variants
+		"Thanks for watching!", "Thank you!", "Thank you for watching!",
+		"Thank you very much", "Thank you very much.", "Thank you very much!",
+		"Goodbye!", "Bye!",
+		"Please subscribe", "Please subscribe.",
+	}
+	for _, s := range positives {
+		if !isWhisperHallucination(s) {
+			t.Errorf("expected hallucination for %q", s)
+		}
+	}
+
+	negatives := []string{
+		"Hello world", "Thank you for the great presentation",
+		"Please subscribe to the newsletter and leave a comment",
+		"I said goodbye to them", "The meeting starts at 3pm",
+	}
+	for _, s := range negatives {
+		if isWhisperHallucination(s) {
+			t.Errorf("unexpected hallucination for %q", s)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// VAD gating: partials suppressed during silence
+// ---------------------------------------------------------------------------
+
+func TestVoiceStreamWS_VadGatingSuppressesPartialsOnSilence(t *testing.T) {
+	counter, handler := countingWhisperHandler("word")
+	ts, _ := setupVoiceWSServer(t, handler)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Opt into VAD gating by signaling speech-start then speech-end.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+
+	// Send audio while VAD says "silent" — should NOT produce partials.
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 8192))
+
+	// Wait long enough for 2 ticker ticks (default FlushIntervalMs = 500).
+	time.Sleep(1200 * time.Millisecond)
+
+	// Whisper should not have been called during silence.
+	if n := counter.Load(); n != 0 {
+		t.Errorf("Whisper called %d time(s) during VAD silence, want 0", n)
+	}
+
+	// Now signal speech-start — partials should resume.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 8192))
+
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	var gotPartial bool
+	for i := 0; i < 10; i++ {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgPartial {
+			gotPartial = true
+			break
+		}
+	}
+	if !gotPartial {
+		t.Error("expected partial after vad-speech-start, got none")
+	}
+
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+// ---------------------------------------------------------------------------
+// Hallucination filter: "Thank you" from silence is suppressed
+// ---------------------------------------------------------------------------
+
+func TestVoiceStreamWS_HallucinationFilteredFromFinal(t *testing.T) {
+	// Whisper returns "Thank you" (common hallucination on silence).
+	ts, _ := setupVoiceWSServer(t, echoWhisperHandler("Thank you"))
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "" {
+				t.Errorf("final text = %q, want empty (hallucination filtered)", msg.Text)
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// VAD speech-start trims leading silence from segment audio
+// ---------------------------------------------------------------------------
+
+func TestVoiceStreamWS_SpeechStartTrimsSilenceFromSegment(t *testing.T) {
+	// Track the size of audio Whisper receives for segment-final transcription.
+	tracker := &trackingWhisperHandler{response: "hello world"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// 1. Send 8KB of "silence" audio (before speech).
+	silenceAudio := make([]byte, 8192)
+	_ = conn.WriteMessage(websocket.BinaryMessage, silenceAudio)
+
+	// 2. Signal speech start — this should advance segmentStartOffset,
+	//    trimming the silence from the next segment.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+
+	// 3. Send 4KB of "speech" audio.
+	speechAudio := make([]byte, 4096)
+	for i := range speechAudio {
+		speechAudio[i] = byte(i % 256)
+	}
+	_ = conn.WriteMessage(websocket.BinaryMessage, speechAudio)
+
+	// 4. Signal speech end and segment boundary.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+
+	// Wait for segment-final processing.
+	time.Sleep(800 * time.Millisecond)
+
+	// 5. Close the session.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Read messages until final.
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgFinal {
+			break
+		}
+	}
+
+	// Verify the segment-final transcription received ONLY the speech audio,
+	// not the leading silence. The first Whisper call should be the segment-final
+	// with ~4096 bytes (speech only), NOT 8192+4096=12288 (silence + speech).
+	// The final retranscription (last call) gets the full buffer which is expected.
+	tracker.mu.Lock()
+	defer tracker.mu.Unlock()
+
+	if len(tracker.sizes) == 0 {
+		t.Fatal("expected at least one Whisper call")
+	}
+	// First call is the segment-final — it should contain only the speech audio.
+	segmentSize := tracker.sizes[0]
+	if segmentSize > 6000 {
+		t.Errorf("segment-final Whisper call received %d bytes (includes silence), expected ≤ speech size (~4096)", segmentSize)
+	}
+}
+
+// --- Speaker Verification WebSocket Tests ---
+
+// fakeSpeakerVerificationServer creates a test HTTP server that simulates the
+// speaker-verification resource. The matched parameter controls whether
+// verify requests return a match or mismatch.
+func fakeSpeakerVerificationServer(t *testing.T, matched bool, score float64) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/verify" {
+			// Consume multipart body
+			_ = r.ParseMultipartForm(10 << 20)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(SpeakerVerificationResult{
+				ProfileID: "default",
+				Matched:   matched,
+				Score:     score,
+				Threshold: 0.85,
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+}
+
+// setupVoiceWSServerWithSpeaker creates a test environment with speaker
+// verification enabled. Returns test server, Server instance, and the
+// fake speaker verification server.
+func setupVoiceWSServerWithSpeaker(
+	t *testing.T,
+	whisperHandler http.Handler,
+	matched bool,
+	score float64,
+	mode string,
+) (*httptest.Server, *Server) {
+	t.Helper()
+
+	ts, srv := setupVoiceWSServer(t, whisperHandler)
+
+	svSrv := fakeSpeakerVerificationServer(t, matched, score)
+	t.Cleanup(svSrv.Close)
+
+	srv.speakerVerification = &SpeakerVerificationResourceClient{
+		BaseURL: svSrv.URL,
+		Client:  svSrv.Client(),
+	}
+	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+		Enabled:                     true,
+		ProfileID:                   "default",
+		Threshold:                   0.85,
+		Mode:                        mode,
+		RejectBehavior:              "drop",
+		FallbackWithoutVerification: false,
+	}
+
+	return ts, srv
+}
+
+func TestVoiceStreamWS_SpeakerVerification_SendsStatusOnConnect(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("hello"), true, 0.95, "filter")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// First message should be speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var msg VoiceStreamMessage
+	if err := conn.ReadJSON(&msg); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if msg.Type != VoiceMsgSpeakerStatus {
+		t.Fatalf("expected speaker-status, got %s", msg.Type)
+	}
+	if !msg.Enabled {
+		t.Error("expected enabled=true")
+	}
+	if !msg.ProfileConfigured {
+		t.Error("expected profileConfigured=true")
+	}
+	if msg.ProfileID != "default" {
+		t.Errorf("profileId = %q, want %q", msg.ProfileID, "default")
+	}
+
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+func TestVoiceStreamWS_SpeakerVerification_AcceptedFinal(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("accepted text"), true, 0.95, "filter")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	// Send audio + done
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Read until final — should contain transcription text (verification passed)
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "accepted text" {
+				t.Errorf("final text = %q, want %q", msg.Text, "accepted text")
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+func TestVoiceStreamWS_SpeakerVerification_RejectedFinal(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("should not appear"), false, 0.3, "filter")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	// Send audio + done
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Read until final — should be empty (verification rejected)
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "" {
+				t.Errorf("expected empty final for rejected speaker, got %q", msg.Text)
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+func TestVoiceStreamWS_SpeakerVerification_AdvisoryModeAllowsThrough(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("advisory text"), false, 0.3, "advisory")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	// Send audio + done
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Advisory mode: mismatch should still allow text through
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "advisory text" {
+				t.Errorf("final text = %q, want %q", msg.Text, "advisory text")
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+func TestVoiceStreamWS_SpeakerVerification_SegmentRejected(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("segment text"), false, 0.3, "filter")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	// Send enough audio to exceed minSpeakerVerifyBytes, trigger segment boundary
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 16384))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+
+	// Wait for segment-rejected message
+	var gotSegmentRejected bool
+	deadline := time.Now().Add(10 * time.Second)
+	_ = conn.SetReadDeadline(deadline)
+	for time.Now().Before(deadline) {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgSegmentRejected {
+			gotSegmentRejected = true
+			if msg.SegmentIndex != 0 {
+				t.Errorf("segmentIndex = %d, want 0", msg.SegmentIndex)
+			}
+			break
+		}
+		if msg.Type == VoiceMsgSegmentFinal {
+			t.Fatal("unexpected segment-final for rejected segment")
+		}
+	}
+
+	if !gotSegmentRejected {
+		t.Error("expected segment-rejected message for non-matching speaker")
+	}
+
+	// Cleanup
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+func TestVoiceStreamWS_SpeakerVerification_SegmentAccepted(t *testing.T) {
+	ts, _ := setupVoiceWSServerWithSpeaker(t, echoWhisperHandler("accepted segment"), true, 0.95, "filter")
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Read speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	// Send enough audio to exceed minSpeakerVerifyBytes, trigger segment boundary
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 16384))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+
+	// Should get segment-accepted + segment-final
+	var gotAccepted, gotSegmentFinal bool
+	deadline := time.Now().Add(10 * time.Second)
+	_ = conn.SetReadDeadline(deadline)
+	for time.Now().Before(deadline) {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgSegmentAccepted {
+			gotAccepted = true
+			if msg.SegmentIndex != 0 {
+				t.Errorf("accepted segmentIndex = %d, want 0", msg.SegmentIndex)
+			}
+		}
+		if msg.Type == VoiceMsgSegmentFinal {
+			gotSegmentFinal = true
+			if msg.Text != "accepted segment" {
+				t.Errorf("segment-final text = %q, want %q", msg.Text, "accepted segment")
+			}
+		}
+		if gotAccepted && gotSegmentFinal {
+			break
+		}
+		if msg.Type == VoiceMsgSegmentRejected {
+			t.Fatal("unexpected segment-rejected for matching speaker")
+		}
+	}
+
+	if !gotAccepted {
+		t.Error("expected segment-accepted message for matching speaker")
+	}
+	if !gotSegmentFinal {
+		t.Error("expected segment-final after accepted segment")
+	}
+
+	// Cleanup
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+}
+
+func TestVoiceStreamWS_SpeakerVerification_DisabledNoStatusMessage(t *testing.T) {
+	ts, _ := setupVoiceWSServer(t, echoWhisperHandler("no verification"))
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	// Send audio + done
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Should get partial/final but no speaker-status
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgSpeakerStatus {
+			t.Fatal("unexpected speaker-status when verification is disabled")
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "no verification" {
+				t.Errorf("final text = %q, want %q", msg.Text, "no verification")
+			}
+			return
+		}
+	}
+}
+
+func TestVoiceStreamWS_SpeakerVerification_FallbackPolicy(t *testing.T) {
+	// Create a speaker verification server that always errors
+	svSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(svSrv.Close)
+
+	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("fallback text"))
+
+	srv.speakerVerification = &SpeakerVerificationResourceClient{
+		BaseURL: svSrv.URL,
+		Client:  svSrv.Client(),
+	}
+	// Fallback=false: should reject when verification errors
+	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+		Enabled:                     true,
+		ProfileID:                   "default",
+		Threshold:                   0.85,
+		Mode:                        "filter",
+		RejectBehavior:              "drop",
+		FallbackWithoutVerification: false,
+	}
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	// Read speaker-status
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "" {
+				t.Errorf("expected empty final when fallback=false and resource errors, got %q", msg.Text)
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+func TestVoiceStreamWS_SpeakerVerification_FallbackAllowed(t *testing.T) {
+	// Create a speaker verification server that always errors
+	svSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(svSrv.Close)
+
+	ts, srv := setupVoiceWSServer(t, echoWhisperHandler("fallback allowed"))
+
+	srv.speakerVerification = &SpeakerVerificationResourceClient{
+		BaseURL: svSrv.URL,
+		Client:  svSrv.Client(),
+	}
+	// Fallback=true: should allow through when verification errors
+	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+		Enabled:                     true,
+		ProfileID:                   "default",
+		Threshold:                   0.85,
+		Mode:                        "filter",
+		RejectBehavior:              "drop",
+		FallbackWithoutVerification: true,
+	}
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	// Read speaker-status
+	var statusMsg VoiceStreamMessage
+	_ = conn.ReadJSON(&statusMsg)
+
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "fallback allowed" {
+				t.Errorf("final text = %q, want %q", msg.Text, "fallback allowed")
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}
+
+func TestVoiceStreamWS_LegitTextNotFiltered(t *testing.T) {
+	ts, _ := setupVoiceWSServer(t, echoWhisperHandler("Thank you for the great presentation"))
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, 1024))
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		if msg.Type == VoiceMsgFinal {
+			if msg.Text != "Thank you for the great presentation" {
+				t.Errorf("final text = %q, want %q", msg.Text, "Thank you for the great presentation")
+			}
+			return
+		}
+		if msg.Type == VoiceMsgError {
+			t.Fatalf("unexpected error: %s", msg.Text)
+		}
+	}
+}

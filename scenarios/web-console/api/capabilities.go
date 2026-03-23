@@ -51,6 +51,14 @@ var knownCapabilities = []CapabilityDef{
 		Features:       []string{"voice-input", "voice-streaming"},
 	},
 	{
+		ID:             "speaker-verification",
+		Name:           "Speaker Verification",
+		Description:    "Local speaker verification for enrolled voice filtering",
+		DependencyKind: DependencyResource,
+		DependencySlug: "speaker-verification",
+		Features:       []string{"voice-speaker-verification", "voice-enrollment"},
+	},
+	{
 		ID:             "kokoro-tts",
 		Name:           "Kokoro TTS",
 		Description:    "Text-to-speech synthesis via Kokoro",

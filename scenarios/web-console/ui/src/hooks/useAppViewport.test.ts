@@ -5,6 +5,12 @@ import { useAppViewport } from "./useAppViewport";
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
 /** Minimal stub for the VisualViewport API used by the hook. */
+type MockVisualViewport = VisualViewport & {
+  height: number;
+  offsetTop: number;
+  _fire: (type: string) => void;
+};
+
 function createMockVisualViewport(overrides: Partial<VisualViewport> = {}) {
   const listeners = new Map<string, Set<EventListener>>();
   return {
@@ -16,8 +22,12 @@ function createMockVisualViewport(overrides: Partial<VisualViewport> = {}) {
     pageLeft: 0,
     scale: 1,
     addEventListener: vi.fn((type: string, cb: EventListener) => {
-      if (!listeners.has(type)) listeners.set(type, new Set());
-      listeners.get(type)!.add(cb);
+      let callbacks = listeners.get(type);
+      if (!callbacks) {
+        callbacks = new Set<EventListener>();
+        listeners.set(type, callbacks);
+      }
+      callbacks.add(cb);
     }),
     removeEventListener: vi.fn((type: string, cb: EventListener) => {
       listeners.get(type)?.delete(cb);
@@ -30,7 +40,7 @@ function createMockVisualViewport(overrides: Partial<VisualViewport> = {}) {
       for (const cb of listeners.get(type) ?? []) cb(new Event(type));
     },
     ...overrides,
-  } as unknown as VisualViewport & { _fire: (type: string) => void };
+  } as unknown as MockVisualViewport;
 }
 
 function getCssVar(name: string): string | undefined {
@@ -83,7 +93,7 @@ describe("useAppViewport", () => {
     // Simulate keyboard taking 300px: innerHeight stays 800, viewport shrinks to 500
     Object.defineProperty(window, "innerHeight", { value: 800, writable: true, configurable: true });
     mockVV.height = 500;
-    (mockVV as { offsetTop: number }).offsetTop = 0;
+    mockVV.offsetTop = 0;
 
     renderHook(() => useAppViewport());
 
@@ -96,7 +106,7 @@ describe("useAppViewport", () => {
   it("accounts for offsetTop in keyboard height calculation", () => {
     Object.defineProperty(window, "innerHeight", { value: 800, writable: true, configurable: true });
     mockVV.height = 500;
-    (mockVV as { offsetTop: number }).offsetTop = 50;
+    mockVV.offsetTop = 50;
 
     renderHook(() => useAppViewport());
 
@@ -121,7 +131,7 @@ describe("useAppViewport", () => {
     renderHook(() => useAppViewport());
 
     mockVV.height = 600;
-    (mockVV as { offsetTop: number }).offsetTop = 20;
+    mockVV.offsetTop = 20;
     mockVV._fire("scroll");
 
     expect(getCssVar("--wc-app-height")).toBe("600px");

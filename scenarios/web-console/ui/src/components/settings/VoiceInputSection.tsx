@@ -9,9 +9,23 @@ import {
   Mic,
   RefreshCw,
   RotateCcw,
+  Square,
+  UserRound,
 } from "lucide-react";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { fetchCapabilities, getVoiceStreamConfig, toErrorInfo, type CapabilityState, type VoiceStreamConfig, updateVoiceStreamConfig } from "../../lib/api";
+import {
+  clearSpeakerVerificationProfile,
+  enrollSpeakerVerificationProfile,
+  fetchCapabilities,
+  getSpeakerVerificationStatus,
+  getVoiceStreamConfig,
+  toErrorInfo,
+  type CapabilityState,
+  type SpeakerVerificationStatusResponse,
+  type VoiceStreamConfig,
+  updateSpeakerVerificationConfig,
+  updateVoiceStreamConfig,
+} from "../../lib/api";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
@@ -28,11 +42,8 @@ export default function VoiceInputSection() {
   const setVadSilenceTimeoutMs = useWorkspaceStore((state) => state.setVadSilenceTimeoutMs);
   const voiceLanguage = useWorkspaceStore((state) => state.voiceLanguage);
   const setVoiceLanguage = useWorkspaceStore((state) => state.setVoiceLanguage);
-  const storePersistentMode = useWorkspaceStore((state) => state.persistentMode);
   const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
-  const storeCommandPrefix = useWorkspaceStore((state) => state.commandPrefix);
   const setStoreCommandPrefix = useWorkspaceStore((state) => state.setCommandPrefix);
-  const storeSegmentSilenceMs = useWorkspaceStore((state) => state.segmentSilenceMs);
   const setStoreSegmentSilenceMs = useWorkspaceStore((state) => state.setSegmentSilenceMs);
 
   const [recordingShortcut, setRecordingShortcut] = useState(false);
@@ -44,8 +55,20 @@ export default function VoiceInputSection() {
   const [vsConfig, setVsConfig] = useState<VoiceStreamConfig | null>(null);
   const [vsConfigLoading, setVsConfigLoading] = useState(false);
   const [vsConfigError, setVsConfigError] = useState<string | null>(null);
+  const [speakerStatus, setSpeakerStatus] = useState<SpeakerVerificationStatusResponse | null>(null);
+  const [speakerLoading, setSpeakerLoading] = useState(false);
+  const [speakerError, setSpeakerError] = useState<string | null>(null);
+  const [enrollmentState, setEnrollmentState] = useState<"idle" | "recording" | "uploading" | "success" | "error">("idle");
+  const [enrollmentSeconds, setEnrollmentSeconds] = useState(0);
+  const [enrollmentMessage, setEnrollmentMessage] = useState<string | null>(null);
+  const [profileDisplayName, setProfileDisplayName] = useState("My Voice");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enrollmentChunksRef = useRef<Blob[]>([]);
+  const enrollmentRecorderRef = useRef<MediaRecorder | null>(null);
+  const enrollmentStreamRef = useRef<MediaStream | null>(null);
+  const enrollmentTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const enrollmentStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasWebSpeech = typeof window !== "undefined" &&
     Boolean("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
@@ -130,22 +153,47 @@ export default function VoiceInputSection() {
     }
   }, [setStorePersistentMode, setStoreCommandPrefix, setStoreSegmentSilenceMs]);
 
+  const loadSpeakerStatus = useCallback(async (signal?: { cancelled: boolean }) => {
+    setSpeakerLoading(true);
+    setSpeakerError(null);
+    try {
+      const status = await getSpeakerVerificationStatus();
+      if (!signal?.cancelled) {
+        setSpeakerStatus(status);
+        if (status.config.profileId && profileDisplayName === "My Voice") {
+          const activeProfile = status.profiles?.find((profile) => profile.id === status.config.profileId);
+          if (activeProfile?.display_name) setProfileDisplayName(activeProfile.display_name);
+        }
+      }
+    } catch (error) {
+      if (!signal?.cancelled) {
+        setSpeakerError(toErrorInfo(error).message);
+      }
+    } finally {
+      if (!signal?.cancelled) setSpeakerLoading(false);
+    }
+  }, [profileDisplayName]);
+
   // Load voice config when voice is enabled (needed for persistent mode settings
   // and advanced streaming section)
   useEffect(() => {
     if (!voiceEnabled) return;
     const signal = { cancelled: false };
     void loadVoiceStreamConfig(signal);
+    void loadSpeakerStatus(signal);
     return () => {
       signal.cancelled = true;
     };
-  }, [voiceEnabled, loadVoiceStreamConfig]);
+  }, [voiceEnabled, loadSpeakerStatus, loadVoiceStreamConfig]);
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
+      if (enrollmentTickerRef.current) clearInterval(enrollmentTickerRef.current);
+      if (enrollmentStopTimerRef.current) clearTimeout(enrollmentStopTimerRef.current);
+      enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -186,6 +234,116 @@ export default function VoiceInputSection() {
       setVsConfigError(toErrorInfo(error).message);
     }
   }, []);
+
+  const persistSpeakerConfig = useCallback(async (patch: {
+    enabled?: boolean;
+    profileId?: string;
+    threshold?: number;
+    mode?: "off" | "filter" | "advisory";
+    rejectBehavior?: "drop" | "show-muted";
+    fallbackWithoutVerification?: boolean;
+  }) => {
+    setSpeakerError(null);
+    try {
+      const updated = await updateSpeakerVerificationConfig(patch);
+      setSpeakerStatus((current) => current ? { ...current, config: updated } : current);
+      await loadSpeakerStatus();
+    } catch (error) {
+      setSpeakerError(toErrorInfo(error).message);
+    }
+  }, [loadSpeakerStatus]);
+
+  const stopEnrollmentRecording = useCallback(() => {
+    if (enrollmentTickerRef.current) {
+      clearInterval(enrollmentTickerRef.current);
+      enrollmentTickerRef.current = null;
+    }
+    if (enrollmentStopTimerRef.current) {
+      clearTimeout(enrollmentStopTimerRef.current);
+      enrollmentStopTimerRef.current = null;
+    }
+    if (enrollmentRecorderRef.current?.state === "recording") {
+      enrollmentRecorderRef.current.stop();
+    }
+  }, []);
+
+  const startEnrollmentRecording = useCallback(async () => {
+    setEnrollmentMessage(null);
+    setEnrollmentState("recording");
+    setEnrollmentSeconds(0);
+    enrollmentChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      enrollmentStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm",
+        // Match the streaming bitrate so enrollment and verification embeddings
+        // are extracted from audio with the same codec characteristics.
+        audioBitsPerSecond: 48_000,
+      });
+      enrollmentRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) enrollmentChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setEnrollmentState("error");
+        setEnrollmentMessage("Enrollment recording failed.");
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(enrollmentChunksRef.current, { type: "audio/webm" });
+        enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
+        enrollmentStreamRef.current = null;
+        if (blob.size === 0) {
+          setEnrollmentState("error");
+          setEnrollmentMessage("Enrollment recording was empty.");
+          return;
+        }
+        setEnrollmentState("uploading");
+        void enrollSpeakerVerificationProfile({
+          audioBlob: blob,
+          profileId: speakerStatus?.config.profileId || "default",
+          displayName: profileDisplayName.trim() || "My Voice",
+          setActive: true,
+          enable: true,
+        }).then(async (result) => {
+          setEnrollmentState("success");
+          setEnrollmentMessage(`Enrolled ${result.enrollment.display_name}.`);
+          await loadSpeakerStatus();
+        }).catch((error) => {
+          setEnrollmentState("error");
+          setEnrollmentMessage(toErrorInfo(error).message);
+        });
+      };
+      recorder.start(250);
+      enrollmentTickerRef.current = setInterval(() => {
+        setEnrollmentSeconds((value) => value + 1);
+      }, 1000);
+      enrollmentStopTimerRef.current = setTimeout(() => {
+        stopEnrollmentRecording();
+      }, 20000);
+    } catch (error) {
+      setEnrollmentState("error");
+      setEnrollmentMessage(toErrorInfo(error).message);
+    }
+  }, [loadSpeakerStatus, profileDisplayName, speakerStatus?.config.profileId, stopEnrollmentRecording]);
+
+  const clearSpeakerBinding = useCallback(async () => {
+    setSpeakerError(null);
+    try {
+      const updated = await clearSpeakerVerificationProfile();
+      setSpeakerStatus((current) => current ? {
+        ...current,
+        config: updated,
+        profileConfigured: false,
+        profileExists: false,
+      } : current);
+      await loadSpeakerStatus();
+    } catch (error) {
+      setSpeakerError(toErrorInfo(error).message);
+    }
+  }, [loadSpeakerStatus]);
 
   return (
     <div className="space-y-4">
@@ -360,6 +518,212 @@ export default function VoiceInputSection() {
               Voice config not available. Start the voice streaming backend to configure persistent mode.
             </div>
           )}
+        </SettingsCard>
+      )}
+
+      {voiceEnabled && (
+        <SettingsCard className="space-y-4">
+          <SettingsSectionIntro
+            eyebrow="Speaker Verification"
+            title="Enroll your voice"
+            description="Filter out background speakers by only accepting segments that match your enrolled voice."
+          />
+
+          {speakerError && (
+            <div className="flex items-center gap-2 text-xs text-wc-error-detail">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              {speakerError}
+            </div>
+          )}
+
+          <SettingsRow
+            label="Resource status"
+            hint={speakerLoading
+              ? "Checking speaker verification resource…"
+              : speakerStatus?.capability === "available"
+                ? (speakerStatus.resourceReady ? "Resource ready." : "Resource reachable but not ready.")
+                : "Install and start the speaker-verification resource to use voice filtering."}
+            control={(
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium ${
+                  speakerStatus?.capability === "available" && speakerStatus?.resourceReady
+                    ? "text-green-400"
+                    : "text-wc-text-faint"
+                }`}>
+                  {speakerStatus?.capability === "available" && speakerStatus?.resourceReady ? "ready" : "unavailable"}
+                </span>
+                <Button
+                  data-testid="speaker-refresh"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => void loadSpeakerStatus()}
+                  title="Refresh speaker verification status"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 text-wc-text-faint ${speakerLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            )}
+          />
+
+          <SettingsRow
+            label="Use speaker verification"
+            hint="Only accept dictation that matches your enrolled voice."
+            control={(
+              <SettingsToggle
+                testId="speaker-verification-toggle"
+                checked={speakerStatus?.config.enabled ?? false}
+                onClick={() => {
+                  const next = !(speakerStatus?.config.enabled ?? false);
+                  if (next && !(speakerStatus?.config.profileId || speakerStatus?.profiles?.[0]?.id)) {
+                    setSpeakerError("Enroll a voice profile before enabling speaker verification.");
+                    return;
+                  }
+                  void persistSpeakerConfig({
+                    enabled: next,
+                    profileId: speakerStatus?.config.profileId || speakerStatus?.profiles?.[0]?.id || "default",
+                  });
+                }}
+              />
+            )}
+          />
+
+          <SettingsRow
+            label="Active voice profile"
+            hint="Use a single enrolled voiceprint for transcript filtering."
+            control={(
+              <select
+                data-testid="speaker-profile-select"
+                className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                value={speakerStatus?.config.profileId ?? ""}
+                onChange={(event) => {
+                  const profileId = event.target.value;
+                  void persistSpeakerConfig({
+                    profileId,
+                    enabled: speakerStatus?.config.enabled ?? false,
+                  });
+                }}
+                disabled={!speakerStatus?.profiles?.length}
+              >
+                {!speakerStatus?.profiles?.length && <option value="">No enrolled profile</option>}
+                {speakerStatus?.profiles?.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.display_name}</option>
+                ))}
+              </select>
+            )}
+          />
+
+          <SettingsRow
+            label="Verification mode"
+            hint="Filter rejects by default. Advisory keeps transcripts but still reports mismatches."
+            control={(
+              <select
+                data-testid="speaker-mode-select"
+                className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                value={speakerStatus?.config.mode ?? "filter"}
+                onChange={(event) => {
+                  void persistSpeakerConfig({ mode: event.target.value as "off" | "filter" | "advisory" });
+                }}
+              >
+                <option value="filter">Filter</option>
+                <option value="advisory">Advisory</option>
+                <option value="off">Off</option>
+              </select>
+            )}
+          />
+
+          <SettingsRow
+            label="Match threshold"
+            hint="Higher values are stricter and reject more borderline segments."
+            control={(
+              <div className="flex items-center gap-2">
+                <input
+                  data-testid="speaker-threshold-slider"
+                  type="range"
+                  min={0.1}
+                  max={0.99}
+                  step={0.01}
+                  value={speakerStatus?.config.threshold ?? 0.35}
+                  onChange={(event) => {
+                    void persistSpeakerConfig({ threshold: Number(event.target.value) });
+                  }}
+                  className="w-24 accent-wc-accent"
+                />
+                <span className="w-10 text-right text-xs text-wc-text-muted">
+                  {(speakerStatus?.config.threshold ?? 0.35).toFixed(2)}
+                </span>
+              </div>
+            )}
+          />
+
+          <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
+              <UserRound className="h-4 w-4" />
+              Enrollment
+            </div>
+            <p className="mt-1 text-[11px] text-wc-text-muted">
+              Record 10-20 seconds in a quiet environment. Read the following in your normal voice:
+            </p>
+            <p className="mt-1.5 rounded-lg bg-wc-surface-base/80 px-2.5 py-1.5 text-xs italic text-wc-text-primary">
+              &ldquo;The quick brown fox jumps over the lazy dog while the sun sets behind the distant mountains.
+              She sells seashells by the seashore and watches the waves crash against the rocky cliffs.
+              Every morning I enjoy a warm cup of coffee before heading out to start my day.&rdquo;
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                data-testid="speaker-display-name"
+                type="text"
+                value={profileDisplayName}
+                onChange={(event) => setProfileDisplayName(event.target.value)}
+                className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+                placeholder="My Voice"
+              />
+              {enrollmentState === "recording" ? (
+                <Button
+                  data-testid="speaker-enrollment-stop"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={stopEnrollmentRecording}
+                >
+                  <Square className="mr-1 h-3.5 w-3.5" />
+                  Stop ({enrollmentSeconds}s)
+                </Button>
+              ) : (
+                <Button
+                  data-testid="speaker-enrollment-start"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => void startEnrollmentRecording()}
+                  disabled={speakerStatus?.capability !== "available" || !speakerStatus?.resourceReady || enrollmentState === "uploading"}
+                >
+                  <Mic className="mr-1 h-3.5 w-3.5" />
+                  {speakerStatus?.profileExists ? "Re-enroll voice" : "Enroll voice"}
+                </Button>
+              )}
+              <Button
+                data-testid="speaker-clear-profile"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs text-wc-text-faint"
+                onClick={() => void clearSpeakerBinding()}
+                disabled={!speakerStatus?.config.profileId}
+              >
+                Clear active profile
+              </Button>
+            </div>
+            {enrollmentMessage && (
+              <div className={`mt-2 text-xs ${enrollmentState === "error" ? "text-wc-error-detail" : "text-wc-text-muted"}`}>
+                {enrollmentMessage}
+              </div>
+            )}
+            {speakerStatus?.profiles?.length ? (
+              <div className="mt-2 text-[11px] text-wc-text-faint">
+                Enrolled profiles: {speakerStatus.profiles.map((profile) => profile.display_name).join(", ")}
+              </div>
+            ) : null}
+          </div>
         </SettingsCard>
       )}
 

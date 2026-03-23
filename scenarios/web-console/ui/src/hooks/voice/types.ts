@@ -53,6 +53,11 @@ export interface VoiceInputState {
   segments: VoiceSegment[];
   /** Current command suggestion awaiting user confirmation, or null. */
   commandSuggestion: CommandSuggestion | null;
+  /** Ephemeral speaker-verification notice shown during persistent mode. */
+  speakerNotice: string | null;
+  /** Whether speaker verification is enabled and configured for the current session. */
+  speakerVerificationEnabled: boolean;
+  speakerProfileConfigured: boolean;
 }
 
 /** A voice command detected from a segment-final transcript. */

@@ -1250,27 +1250,27 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\x87\x03\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\x95\x03\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12*\n" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01H\x01R\bpriority\x88\x01\x01\x12\x1c\n" +
-	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x127\n" +
-	"\x04kind\x18\x06 \x01(\tB#\xbaH r\x1eR\x04ideaR\bresearchR\x03fixR\aexecuteR\x04kind\x12T\n" +
-	"\x0fresearch_target\x18\a \x01(\tB&\xbaH#r!R\x04ideaR\x03fixR\aexecuteR\vunspecifiedH\x02R\x0eresearchTarget\x88\x01\x01B\x0e\n" +
+	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12>\n" +
+	"\x04kind\x18\x06 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12[\n" +
+	"\x0fresearch_target\x18\a \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x02R\x0eresearchTarget\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
-	"\x10_research_target\"\xf8\x02\n" +
+	"\x10_research_target\"\xff\x02\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
 	"\x06status\x18\x03 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12\x1c\n" +
-	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12T\n" +
-	"\x0fresearch_target\x18\x06 \x01(\tB&\xbaH#r!R\x04ideaR\x03fixR\aexecuteR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01B\x12\n" +
+	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12[\n" +
+	"\x0fresearch_target\x18\x06 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01B\x12\n" +
 	"\x10_research_target\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +
@@ -1319,15 +1319,15 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10blocking_reasons\x18\t \x03(\tR\x0fblockingReasons\x121\n" +
 	"\x14unanswered_questions\x18\n" +
 	" \x01(\x05R\x13unansweredQuestions\x12/\n" +
-	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\x85\x04\n" +
+	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\x8c\x04\n" +
 	"\x16BacklogResearchRequest\x12\x1b\n" +
 	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"scope_path\x18\x02 \x01(\tH\x01R\tscopePath\x88\x01\x01\x12&\n" +
 	"\fproject_root\x18\x03 \x01(\tH\x02R\vprojectRoot\x88\x01\x01\x12e\n" +
 	"\x04mode\x18\x04 \x01(\tBL\xbaHIrGR\aclarifyR\asuggestR\aenhanceR\bresearchR\aexploreR\vinvestigateR\n" +
-	"initializeH\x03R\x04mode\x88\x01\x01\x12L\n" +
-	"\vtarget_kind\x18\x05 \x01(\tB&\xbaH#r!R\x04ideaR\x03fixR\aexecuteR\vunspecifiedH\x04R\n" +
+	"initializeH\x03R\x04mode\x88\x01\x01\x12S\n" +
+	"\vtarget_kind\x18\x05 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x04R\n" +
 	"targetKind\x88\x01\x01\x12#\n" +
 	"\rcontext_paths\x18\x06 \x03(\tR\fcontextPaths\x12,\n" +
 	"\x12context_target_ids\x18\a \x03(\tR\x10contextTargetIds\x126\n" +
@@ -1341,9 +1341,9 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
 	"\x06run_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +
 	"\bbase_url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abaseUrl\x12!\n" +
-	"\acreated\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\"\x97\x01\n" +
-	"\x19ConvertBacklogItemRequest\x12D\n" +
-	"\vtarget_kind\x18\x01 \x01(\tB#\xbaH r\x1eR\x04ideaR\bresearchR\x03fixR\aexecuteR\n" +
+	"\acreated\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\"\x9e\x01\n" +
+	"\x19ConvertBacklogItemRequest\x12K\n" +
+	"\vtarget_kind\x18\x01 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\n" +
 	"targetKind\x12$\n" +
 	"\vtarget_name\x18\x02 \x01(\tH\x00R\n" +
 	"targetName\x88\x01\x01B\x0e\n" +

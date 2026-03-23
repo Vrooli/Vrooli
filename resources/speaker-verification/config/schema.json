@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "resource:speaker-verification",
+  "title": "Speaker Verification Resource Configuration",
+  "description": "Local speaker verification using NVIDIA NeMo TitaNet embeddings",
+  "type": "object",
+  "extends": "baseResource",
+  "properties": {
+    "threshold": {
+      "type": "number",
+      "description": "Cosine similarity threshold for verification (0.0-1.0)",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.7
+    },
+    "device": {
+      "type": "string",
+      "description": "Compute device: auto, cpu, or cuda",
+      "enum": ["auto", "cpu", "cuda"],
+      "default": "auto"
+    }
+  },
+  "examples": [
+    {
+      "title": "Minimal",
+      "config": {
+        "enabled": true
+      }
+    },
+    {
+      "title": "CPU-only",
+      "config": {
+        "enabled": true,
+        "device": "cpu",
+        "purpose": "Speaker verification on CPU"
+      }
+    },
+    {
+      "title": "Custom threshold",
+      "config": {
+        "enabled": true,
+        "threshold": 0.6,
+        "purpose": "Speaker verification with relaxed threshold"
+      }
+    }
+  ]
+}

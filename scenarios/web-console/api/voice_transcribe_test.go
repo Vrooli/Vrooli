@@ -233,3 +233,72 @@ func TestVoiceTranscribe_AutoDetectLanguage(t *testing.T) {
 		t.Errorf("Whisper URL %q should NOT contain language= for auto-detect", receivedURL)
 	}
 }
+
+func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
+	bypassTranscode(t)
+	var whisperCalls int
+	whisper := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		whisperCalls++
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": "should not be used"})
+	}))
+	defer whisper.Close()
+
+	speaker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/verify" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("parse verify form: %v", err)
+		}
+		writeJSON(w, http.StatusOK, SpeakerVerificationResult{
+			ProfileID:    "default",
+			Matched:      false,
+			Score:        0.42,
+			Threshold:    0.85,
+			DurationMs:   12.5,
+			Backend:      "nemo-titanet",
+			Model:        "titanet_large",
+			AudioSeconds: 1.8,
+		})
+	}))
+	defer speaker.Close()
+
+	origWhisperURL := whisperURL
+	whisperURL = whisper.URL + "/asr?output=json"
+	defer func() { whisperURL = origWhisperURL }()
+
+	srv := serverWithCapability(true)
+	srv.speakerVerificationConfig = SpeakerVerificationConfig{
+		Enabled:                     true,
+		ProfileID:                   "default",
+		Threshold:                   0.85,
+		Mode:                        "filter",
+		RejectBehavior:              "drop",
+		FallbackWithoutVerification: false,
+	}
+	srv.speakerVerification = &SpeakerVerificationResourceClient{
+		BaseURL: speaker.URL,
+		Client:  speaker.Client(),
+	}
+
+	req := buildMultipartRequest(t, "audio_file", "test.wav", []byte("fake audio data"))
+	rr := httptest.NewRecorder()
+	srv.handleVoiceTranscribe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["text"] != "" {
+		t.Fatalf("text = %q, want empty string", resp["text"])
+	}
+	if whisperCalls != 0 {
+		t.Fatalf("whisper calls = %d, want 0", whisperCalls)
+	}
+}

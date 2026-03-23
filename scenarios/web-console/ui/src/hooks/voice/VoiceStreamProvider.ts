@@ -41,6 +41,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   onPartial: ((text: string) => void) | null = null;
   /** Fired when a segment-final transcription arrives from the backend. */
   onSegmentFinal: ((text: string, segmentIndex: number) => void) | null = null;
+  onSegmentAccepted: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
+  onSegmentRejected: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
+  onSpeakerStatus: ((enabled: boolean, profileConfigured: boolean) => void) | null = null;
 
   getStream(): MediaStream | null {
     return this.stream;
@@ -54,12 +57,34 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
   }
 
+  /** Notify the backend of VAD speech state changes so it can skip
+   *  partial transcription during silence (prevents Whisper hallucinations). */
+  sendVadState(speaking: boolean): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: speaking ? "vad-speech-start" : "vad-speech-end" }));
+    }
+  }
+
   private setupWsHandlers(ws: WebSocket): void {
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data as string) as { type: string; text?: string; segmentIndex?: number };
+        const msg = JSON.parse(event.data as string) as {
+          type: string;
+          text?: string;
+          segmentIndex?: number;
+          score?: number;
+          threshold?: number;
+          enabled?: boolean;
+          profileConfigured?: boolean;
+        };
         if (msg.type === "segment-final" && msg.text !== undefined) {
           this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
+        } else if (msg.type === "segment-accepted") {
+          this.onSegmentAccepted?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
+        } else if (msg.type === "segment-rejected") {
+          this.onSegmentRejected?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
+        } else if (msg.type === "speaker-status") {
+          this.onSpeakerStatus?.(Boolean(msg.enabled), Boolean(msg.profileConfigured));
         } else if (msg.type === "partial" && msg.text) {
           if (!this.firstPartialLogged) {
             const latency = Date.now() - this.recordingStartTime;

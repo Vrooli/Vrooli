@@ -267,6 +267,41 @@ Last updated: 2026-03-17
 
 **Benefits**: Full WebSocket streaming lifecycle (connect, binary chunks, partials, done, final) is testable without a real Whisper server. Delta-based partial transcription provides real-time UI feedback during recording. Transcode skip for partials reduces latency ~100-200ms per tick. Audio overlap improves Whisper accuracy at chunk boundaries. Full retranscription always produces the final result for maximum accuracy. Partial cancellation on recording stop prevents Whisper contention and reduces finalization latency. All pipeline parameters are runtime-tunable via `VoiceStreamConfig` (GET/PUT `/api/v1/voice/config`) and exposed in the Settings modal as "Advanced Streaming" controls.
 
+### Speaker Verification Resource Seam (API)
+**Files**: `api/speaker_verification_client.go`, `api/speaker_verification_config.go`, `api/speaker_verification_handlers.go`
+**Purpose**: Decouple speaker identity verification from the `speaker-verification` resource for testable enrollment, verification gating, and config persistence.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `SpeakerVerificationResourceClient` | HTTP client calling the `speaker-verification` resource (`/v1/verify`, `/v1/profiles`, `/ready`, `/v1/info`) | `httptest.NewServer` with canned responses — match/mismatch/error |
+| `evaluateSpeakerVerification(ctx, audio)` | Calls resource `Verify()`, applies mode (`filter`/`advisory`/`off`), returns `speakerVerificationGateDecision` | Tested by injecting fake resource server into `Server.speakerVerification`; covers accept, reject, advisory pass-through, fallback on error |
+| `SpeakerVerificationConfig` | Persistent JSON config: enabled, profileId, threshold, mode, rejectBehavior, fallbackWithoutVerification | Round-trip persistence, validation (threshold bounds, mode enum, required profileId), CRUD handler tests |
+| `SpeakerVerificationConfigPatch.Apply()` | Partial update semantics for PUT `/api/v1/voice/speaker/config` | Handler tests verify patch merging and validation |
+| Speaker-gated WebSocket flow | On segment-boundary and final: `evaluateSpeakerVerification` decides accept/reject before transcript emission | `TestVoiceStreamWS_SpeakerVerification_*` — 8 tests covering status message, accepted/rejected finals, segment accept/reject, advisory mode, disabled state, fallback policy |
+| Capability detection | `speaker-verification` registered in `CapabilityRegistry` with features `voice-speaker-verification`, `voice-enrollment` | `fakeChecker` status injection in status handler test |
+
+**Endpoints**:
+- `GET /api/v1/voice/speaker/config` — current config
+- `PUT /api/v1/voice/speaker/config` — partial update with validation
+- `GET /api/v1/voice/speaker/status` — capability + resource health + profile state
+- `GET /api/v1/voice/speaker/profiles` — list enrolled profiles
+- `POST /api/v1/voice/speaker/enroll` — multipart enrollment audio → resource → config update
+- `DELETE /api/v1/voice/speaker/profile` — clear active profile binding
+
+**Benefits**: Speaker verification can be tested end-to-end through the WebSocket and HTTP layers without a running `speaker-verification` resource. The `evaluateSpeakerVerification` decision function is the single point where verification policy is applied, making it easy to test all mode/fallback combinations. Config persistence uses the same snapshot-per-session pattern as voice config.
+
+### Speaker Verification Acceptance Decision Seam (API)
+**File**: `api/speaker_verification_handlers.go`
+**Purpose**: Narrow decision layer between segment audio and transcript commit.
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `speakerVerificationGateDecision` struct | Captures: Enabled, Applied, Allowed, Matched, Score, Threshold, ProfileID, Mode, ErrorMessage | Assertions on individual fields in WebSocket and HTTP transcribe tests |
+| Mode routing | `filter` → reject on mismatch, `advisory` → allow + log, `off` → skip | Covered by `TestVoiceStreamWS_SpeakerVerification_RejectedFinal` (filter) and `_AdvisoryModeAllowsThrough` (advisory) |
+| Fallback policy | `FallbackWithoutVerification: false` → reject on resource error; `true` → allow through | `TestVoiceStreamWS_SpeakerVerification_FallbackPolicy` and `_FallbackAllowed` |
+
+**Benefits**: The gate decision struct decouples "what happened" (score, match, error) from "what to do" (allow/reject), keeping the WebSocket handler simple and the decision logic independently testable.
+
 ### LocalEcho Clock Seam (UI)
 **File**: `ui/src/lib/localEcho.ts`
 **Purpose**: Decouple time-dependent prediction aging from system clock for deterministic tests.

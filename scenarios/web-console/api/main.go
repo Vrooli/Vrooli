@@ -74,43 +74,47 @@ func isDuplicateColumnError(err error) bool {
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // Server wires the HTTP router, database connection, and session manager.
 type Server struct {
-	db                 *sql.DB
-	router             *mux.Router
-	sessions           *SessionManager
-	events             *EventLogger
-	metrics            *Metrics
-	aiChain            *AIProviderChain
-	shortcuts          ShortcutStore
-	aiConfig           AIConfigStore
-	sweeper            *ExpirationSweeper
-	idempotency        *idempotencyCache // replay-safe session creation
-	capabilities       *CapabilityRegistry
-	workspace          WorkspaceStore
-	voiceConfigMu      sync.RWMutex
-	voiceConfig        VoiceStreamConfig
-	voiceConfigPath    string
-	ttsConfigMu        sync.RWMutex
-	ttsConfig          TTSConfig
-	ttsConfigPath      string
-	ttsSummarizer      *TTSSummarizer
-	ttsSummarizeMu     sync.RWMutex
-	ttsSummarizeConfig TTSSummarizeConfig
-	ttsSummarizePath   string
-	hookAuthToken      string
-	codexTailer        *CodexTailer
-	ttsSynthesizer     TTSSynthesizer
-	ttsVoiceLister     TTSVoiceLister
-	conversations      *ConversationStore
-	ttsStatusMu        sync.RWMutex
-	lastTTSRouting     *ConversationAppendResult
-	lastTTSAt          time.Time
-	lastTTSBySource    map[string]conversationAppendSnapshot
-	lastTTSAck         *TTSClientAck
-	lastTTSAckAt       time.Time
-	lastTTSAckBySrc    map[string]ttsAckSnapshot
-	lastTTSPlayback    *TTSPlaybackEvent
-	lastTTSPlayAt      time.Time
-	systemContext      *SystemContext
+	db                            *sql.DB
+	router                        *mux.Router
+	sessions                      *SessionManager
+	events                        *EventLogger
+	metrics                       *Metrics
+	aiChain                       *AIProviderChain
+	shortcuts                     ShortcutStore
+	aiConfig                      AIConfigStore
+	sweeper                       *ExpirationSweeper
+	idempotency                   *idempotencyCache // replay-safe session creation
+	capabilities                  *CapabilityRegistry
+	workspace                     WorkspaceStore
+	voiceConfigMu                 sync.RWMutex
+	voiceConfig                   VoiceStreamConfig
+	voiceConfigPath               string
+	speakerVerificationConfigMu   sync.RWMutex
+	speakerVerificationConfig     SpeakerVerificationConfig
+	speakerVerificationConfigPath string
+	speakerVerification           *SpeakerVerificationResourceClient
+	ttsConfigMu                   sync.RWMutex
+	ttsConfig                     TTSConfig
+	ttsConfigPath                 string
+	ttsSummarizer                 *TTSSummarizer
+	ttsSummarizeMu                sync.RWMutex
+	ttsSummarizeConfig            TTSSummarizeConfig
+	ttsSummarizePath              string
+	hookAuthToken                 string
+	codexTailer                   *CodexTailer
+	ttsSynthesizer                TTSSynthesizer
+	ttsVoiceLister                TTSVoiceLister
+	conversations                 *ConversationStore
+	ttsStatusMu                   sync.RWMutex
+	lastTTSRouting                *ConversationAppendResult
+	lastTTSAt                     time.Time
+	lastTTSBySource               map[string]conversationAppendSnapshot
+	lastTTSAck                    *TTSClientAck
+	lastTTSAckAt                  time.Time
+	lastTTSAckBySrc               map[string]ttsAckSnapshot
+	lastTTSPlayback               *TTSPlaybackEvent
+	lastTTSPlayAt                 time.Time
+	systemContext                 *SystemContext
 }
 
 type conversationAppendSnapshot struct {
@@ -149,6 +153,20 @@ func NewServer(db *sql.DB) *Server {
 	log.Printf("voice-config: loaded: flush=%dms delta=%d overlap=%d",
 		vc.FlushIntervalMs, vc.MinDeltaBytes, vc.OverlapBytes)
 
+	speakerVerificationPath := resolveSpeakerVerificationConfigPath()
+	speakerVerificationCfg, err := loadSpeakerVerificationConfig(speakerVerificationPath)
+	if err != nil {
+		log.Printf("speaker-verification-config: using defaults: %v", err)
+		speakerVerificationCfg = DefaultSpeakerVerificationConfig()
+	}
+	log.Printf(
+		"speaker-verification-config: loaded: enabled=%v profile=%s threshold=%.2f mode=%s",
+		speakerVerificationCfg.Enabled,
+		speakerVerificationCfg.ProfileID,
+		speakerVerificationCfg.Threshold,
+		speakerVerificationCfg.Mode,
+	)
+
 	// Resolve TTS config path
 	ttsPath := resolveTTSConfigPath()
 	ttsCfg, err := loadTTSConfig(ttsPath)
@@ -175,27 +193,29 @@ func NewServer(db *sql.DB) *Server {
 	metrics := NewMetrics()
 	sessions := NewSessionManager()
 	srv := &Server{
-		db:                 db,
-		router:             mux.NewRouter(),
-		sessions:           sessions,
-		events:             events,
-		metrics:            metrics,
-		aiChain:            NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
-		shortcuts:          NewSQLShortcutStore(db),
-		aiConfig:           NewSQLAIConfigStore(db),
-		sweeper:            NewExpirationSweeper(sessions, events, metrics),
-		idempotency:        newIdempotencyCache(),
-		workspace:          NewSQLWorkspaceStore(db),
-		voiceConfig:        vc,
-		voiceConfigPath:    vcPath,
-		ttsConfig:          ttsCfg,
-		ttsConfigPath:      ttsPath,
-		ttsSummarizeConfig: ttsSummarizeCfg,
-		ttsSummarizePath:   ttsSummarizePath,
-		hookAuthToken:      hookToken,
-		conversations:      NewConversationStore(),
-		lastTTSBySource:    make(map[string]conversationAppendSnapshot),
-		lastTTSAckBySrc:    make(map[string]ttsAckSnapshot),
+		db:                            db,
+		router:                        mux.NewRouter(),
+		sessions:                      sessions,
+		events:                        events,
+		metrics:                       metrics,
+		aiChain:                       NewAIProviderChain(NewOllamaProvider(), NewOpenRouterProvider()),
+		shortcuts:                     NewSQLShortcutStore(db),
+		aiConfig:                      NewSQLAIConfigStore(db),
+		sweeper:                       NewExpirationSweeper(sessions, events, metrics),
+		idempotency:                   newIdempotencyCache(),
+		workspace:                     NewSQLWorkspaceStore(db),
+		voiceConfig:                   vc,
+		voiceConfigPath:               vcPath,
+		speakerVerificationConfig:     speakerVerificationCfg,
+		speakerVerificationConfigPath: speakerVerificationPath,
+		ttsConfig:                     ttsCfg,
+		ttsConfigPath:                 ttsPath,
+		ttsSummarizeConfig:            ttsSummarizeCfg,
+		ttsSummarizePath:              ttsSummarizePath,
+		hookAuthToken:                 hookToken,
+		conversations:                 NewConversationStore(),
+		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
+		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
 	}
 	srv.systemContext = DiscoverSystemContext(DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
@@ -205,14 +225,23 @@ func NewServer(db *sql.DB) *Server {
 	whisperURL := getEnvOrDefault("WHISPER_URL", "http://localhost:8090")
 	kokoroURL := getEnvOrDefault("KOKORO_URL", "http://localhost:8880")
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
+	speakerVerificationURL := getEnvOrDefault("SPEAKER_VERIFICATION_URL", "http://localhost:8891")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 
 	srv.ttsSummarizer = NewTTSSummarizer(ollamaURL)
+	srv.speakerVerification = &SpeakerVerificationResourceClient{
+		BaseURL: speakerVerificationURL,
+		Client:  &http.Client{Timeout: 5 * time.Second},
+	}
 
 	checkers := map[string]StatusChecker{
 		"whisper-stt": &WhisperChecker{
 			BaseURL: whisperURL,
 			Client:  &http.Client{Timeout: 10 * time.Second},
+		},
+		"speaker-verification": &ResourceChecker{
+			URL:    speakerVerificationURL + "/ready",
+			Client: &http.Client{Timeout: 5 * time.Second},
 		},
 		"kokoro-tts": &KokoroChecker{
 			BaseURL:       kokoroURL,
@@ -242,6 +271,10 @@ func NewServer(db *sql.DB) *Server {
 	srv.capabilities.SetLivenessCheckers(map[string]StatusChecker{
 		"whisper-stt": &ResourceChecker{
 			URL:    whisperURL + "/",
+			Client: &http.Client{Timeout: 5 * time.Second},
+		},
+		"speaker-verification": &ResourceChecker{
+			URL:    speakerVerificationURL + "/health",
 			Client: &http.Client{Timeout: 5 * time.Second},
 		},
 		"kokoro-tts": &ResourceChecker{
@@ -342,6 +375,12 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/voice/stream", s.handleVoiceStreamWS).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleGetVoiceConfig).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/config", s.handleUpdateVoiceConfig).Methods("PUT")
+	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleGetSpeakerVerificationConfig).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/speaker/config", s.handleUpdateSpeakerVerificationConfig).Methods("PUT")
+	s.router.HandleFunc("/api/v1/voice/speaker/status", s.handleGetSpeakerVerificationStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/speaker/profiles", s.handleGetSpeakerVerificationProfiles).Methods("GET")
+	s.router.HandleFunc("/api/v1/voice/speaker/enroll", s.handleEnrollSpeakerProfile).Methods("POST")
+	s.router.HandleFunc("/api/v1/voice/speaker/profile", s.handleClearSpeakerProfileBinding).Methods("DELETE")
 
 	// Hooks
 	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")
@@ -484,6 +523,38 @@ func resolveVoiceConfigPath() string {
 func fallbackVoiceConfigPath() string {
 	exe, _ := os.Executable()
 	return filepath.Join(filepath.Dir(exe), "..", "store", "voice-config.json")
+}
+
+// resolveSpeakerVerificationConfigPath returns the speaker verification config
+// path using api-core/storage. Falls back to a path relative to the binary if
+// storage resolution fails.
+func resolveSpeakerVerificationConfigPath() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("speaker-verification-config: storage resolver failed, using fallback: %v", err)
+		return fallbackSpeakerVerificationConfigPath()
+	}
+
+	opts := storage.Options{ScenarioID: "web-console"}
+	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
+		log.Printf("speaker-verification-config: ensure state dir failed, using fallback: %v", err)
+		return fallbackSpeakerVerificationConfigPath()
+	}
+
+	path, err := resolver.Path(opts, storage.ClassState, "speaker-verification-config.json")
+	if err != nil {
+		log.Printf("speaker-verification-config: resolve path failed, using fallback: %v", err)
+		return fallbackSpeakerVerificationConfigPath()
+	}
+	return path
+}
+
+func fallbackSpeakerVerificationConfigPath() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "..", "store", "speaker-verification-config.json")
 }
 
 // resolveTTSConfigPath returns the TTS config file path using api-core/storage.

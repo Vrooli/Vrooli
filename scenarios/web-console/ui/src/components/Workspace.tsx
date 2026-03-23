@@ -877,6 +877,11 @@ export default function Workspace() {
           {voiceInput.fallbackNotice}
         </div>
       )}
+      {voiceInput.speakerNotice && (
+        <div className="px-3 py-1.5 text-xs text-sky-200 bg-sky-500/10 border-b border-sky-500/30">
+          {voiceInput.speakerNotice}
+        </div>
+      )}
 
       {/* Error banner */}
       {createError && (
@@ -1052,13 +1057,16 @@ export default function Workspace() {
               onSetVolume={handleTtsSetVolume}
               onStop={handleTtsStop}
               onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
+                const activePaneId = store.activePane;
+                if (!activePaneId) return;
                 const paragraphs = useSummarized
                   ? activeEvent.speechParagraphs
                   : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
-                speakTextOnPane(store.activePane!, activeEvent.text, paragraphs);
+                speakTextOnPane(activePaneId, activeEvent.text, paragraphs);
               } : undefined}
               onRequestSummarize={canRequestSummarize && activeEvent && store.activePane ? () => {
-                const sid = store.activePane!;
+                const sid = store.activePane;
+                if (!sid) return;
                 const eid = activeEvent.id;
                 setIsSummarizing(true);
                 void summarizeEvent(sid, eid).then((res) => {
@@ -1069,7 +1077,7 @@ export default function Workspace() {
                     if (session) {
                       const updatedEvents = session.events.map((ev) =>
                         ev.id === eid
-                          ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs! }
+                          ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
                           : ev,
                       );
                       useConversationStore.setState({

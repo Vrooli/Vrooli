@@ -64,44 +64,44 @@ describe("parseCommand", () => {
   it("detects 'new tab' command with exact match", () => {
     const result = parseCommand("hey do new tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
-    expect(result!.confidence).toBe(1);
+    expect(result?.command.id).toBe("new-tab");
+    expect(result?.confidence).toBe(1);
   });
 
   it("detects 'close tab' command", () => {
     const result = parseCommand("hey do close tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("close-tab");
+    expect(result?.command.id).toBe("close-tab");
   });
 
   it("detects 'enter' command", () => {
     const result = parseCommand("hey do enter", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("send-enter");
+    expect(result?.command.id).toBe("send-enter");
   });
 
   it("detects 'cancel' command", () => {
     const result = parseCommand("hey do cancel", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("cancel");
+    expect(result?.command.id).toBe("cancel");
   });
 
   it("detects 'clear' command", () => {
     const result = parseCommand("hey do clear", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("clear");
+    expect(result?.command.id).toBe("clear");
   });
 
   it("detects 'scroll up' command", () => {
     const result = parseCommand("hey do scroll up", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("scroll-up");
+    expect(result?.command.id).toBe("scroll-up");
   });
 
   it("detects 'stop listening' command", () => {
     const result = parseCommand("hey do stop listening", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("stop-listening");
+    expect(result?.command.id).toBe("stop-listening");
   });
 
   // ── Case insensitivity ──
@@ -109,13 +109,13 @@ describe("parseCommand", () => {
   it("is case insensitive for prefix", () => {
     const result = parseCommand("Hey Do new tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
+    expect(result?.command.id).toBe("new-tab");
   });
 
   it("is case insensitive for command", () => {
     const result = parseCommand("hey do New Tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
+    expect(result?.command.id).toBe("new-tab");
   });
 
   // ── Fuzzy matching ──
@@ -123,15 +123,15 @@ describe("parseCommand", () => {
   it("matches Whisper misrecognition 'knew tab' as 'new tab'", () => {
     const result = parseCommand("hey do knew tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
-    expect(result!.confidence).toBeGreaterThan(0.5);
-    expect(result!.confidence).toBeLessThan(1);
+    expect(result?.command.id).toBe("new-tab");
+    expect(result?.confidence ?? 0).toBeGreaterThan(0.5);
+    expect(result?.confidence ?? 1).toBeLessThan(1);
   });
 
   it("matches 'cleer' as 'clear' (1 edit)", () => {
     const result = parseCommand("hey do cleer", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("clear");
+    expect(result?.command.id).toBe("clear");
   });
 
   it("rejects gibberish with too many edits", () => {
@@ -144,22 +144,22 @@ describe("parseCommand", () => {
   it("extracts numeric digit argument from 'tab 3'", () => {
     const result = parseCommand("hey do tab 3", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("switch-tab");
-    expect(result!.args.number).toBe(3);
+    expect(result?.command.id).toBe("switch-tab");
+    expect(result?.args.number).toBe(3);
   });
 
   it("extracts number word argument from 'tab three'", () => {
     const result = parseCommand("hey do tab three", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("switch-tab");
-    expect(result!.args.number).toBe(3);
+    expect(result?.command.id).toBe("switch-tab");
+    expect(result?.args.number).toBe(3);
   });
 
   it("extracts ordinal argument from 'switch tab second'", () => {
     const result = parseCommand("hey do switch tab second", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("switch-tab");
-    expect(result!.args.number).toBe(2);
+    expect(result?.command.id).toBe("switch-tab");
+    expect(result?.args.number).toBe(2);
   });
 
   // ── Alternative patterns ──
@@ -167,25 +167,25 @@ describe("parseCommand", () => {
   it("detects 'add tab' as new-tab", () => {
     const result = parseCommand("hey do add tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
+    expect(result?.command.id).toBe("new-tab");
   });
 
   it("detects 'open tab' as new-tab", () => {
     const result = parseCommand("hey do open tab", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("new-tab");
+    expect(result?.command.id).toBe("new-tab");
   });
 
   it("detects 'interrupt' as cancel", () => {
     const result = parseCommand("hey do interrupt", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("cancel");
+    expect(result?.command.id).toBe("cancel");
   });
 
   it("detects 'mic off' as stop-listening", () => {
     const result = parseCommand("hey do mic off", PREFIX);
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("stop-listening");
+    expect(result?.command.id).toBe("stop-listening");
   });
 
   // ── Different prefix ──
@@ -193,7 +193,7 @@ describe("parseCommand", () => {
   it("works with custom prefix", () => {
     const result = parseCommand("run clear", "run");
     expect(result).not.toBeNull();
-    expect(result!.command.id).toBe("clear");
+    expect(result?.command.id).toBe("clear");
   });
 });
 

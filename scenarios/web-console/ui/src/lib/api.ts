@@ -583,6 +583,143 @@ export async function updateVoiceStreamConfig(
   return (await res.json()) as VoiceStreamConfig;
 }
 
+export interface SpeakerVerificationConfig {
+  enabled: boolean;
+  profileId: string;
+  threshold: number;
+  mode: "off" | "filter" | "advisory";
+  rejectBehavior: "drop" | "show-muted";
+  fallbackWithoutVerification: boolean;
+}
+
+export interface SpeakerVerificationProfile {
+  id: string;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
+  model_name: string;
+  embedding_dim: number;
+  sample_rate: number;
+  enrollment_audio_seconds: number;
+  notes: string;
+}
+
+export interface SpeakerVerificationInfo {
+  backend: string;
+  model: string;
+  device: string;
+  sample_rate: number;
+  version: string;
+  embedding_dim: number;
+}
+
+export interface SpeakerVerificationStatusResponse {
+  config: SpeakerVerificationConfig;
+  capability: CapabilityStatus;
+  capabilityLabel?: string;
+  resourceReady: boolean;
+  profileConfigured: boolean;
+  profileExists: boolean;
+  profileCount: number;
+  profiles?: SpeakerVerificationProfile[];
+  info?: SpeakerVerificationInfo;
+  checkedAt: string;
+}
+
+export interface SpeakerVerificationEnrollmentResponse {
+  profile_id: string;
+  display_name: string;
+  embedding_dim: number;
+  sample_rate: number;
+  enrollment_audio_seconds: number;
+  model_name: string;
+  created_at: string;
+}
+
+export interface SpeakerVerificationEnrollResult {
+  enrollment: SpeakerVerificationEnrollmentResponse;
+  config: SpeakerVerificationConfig;
+}
+
+export async function getSpeakerVerificationConfig(): Promise<SpeakerVerificationConfig> {
+  const url = buildApiUrl("/voice/speaker/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get speaker verification config");
+  return (await res.json()) as SpeakerVerificationConfig;
+}
+
+export async function updateSpeakerVerificationConfig(
+  patch: Partial<SpeakerVerificationConfig>,
+): Promise<SpeakerVerificationConfig> {
+  const url = buildApiUrl("/voice/speaker/config", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to update speaker verification config");
+  return (await res.json()) as SpeakerVerificationConfig;
+}
+
+export async function getSpeakerVerificationStatus(): Promise<SpeakerVerificationStatusResponse> {
+  const url = buildApiUrl("/voice/speaker/status", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to get speaker verification status");
+  return (await res.json()) as SpeakerVerificationStatusResponse;
+}
+
+export async function listSpeakerVerificationProfiles(): Promise<SpeakerVerificationProfile[]> {
+  const url = buildApiUrl("/voice/speaker/profiles", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to list speaker verification profiles");
+  const data = (await res.json()) as { profiles: SpeakerVerificationProfile[] };
+  return data.profiles;
+}
+
+export async function enrollSpeakerVerificationProfile(args: {
+  audioBlob: Blob;
+  profileId?: string;
+  displayName?: string;
+  notes?: string;
+  setActive?: boolean;
+  enable?: boolean;
+}): Promise<SpeakerVerificationEnrollResult> {
+  const url = buildApiUrl("/voice/speaker/enroll", { baseUrl: API_BASE });
+  const formData = new FormData();
+  formData.append("audio_file", args.audioBlob, "speaker-enrollment.webm");
+  if (args.profileId) formData.append("profileId", args.profileId);
+  if (args.displayName) formData.append("displayName", args.displayName);
+  if (args.notes) formData.append("notes", args.notes);
+  if (args.setActive !== undefined) formData.append("setActive", String(args.setActive));
+  if (args.enable !== undefined) formData.append("enable", String(args.enable));
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to enroll speaker verification profile");
+  return (await res.json()) as SpeakerVerificationEnrollResult;
+}
+
+export async function clearSpeakerVerificationProfile(): Promise<SpeakerVerificationConfig> {
+  const url = buildApiUrl("/voice/speaker/profile", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to clear active speaker profile");
+  return (await res.json()) as SpeakerVerificationConfig;
+}
+
 /** Maximum time (ms) to wait for Kokoro to return synthesized audio.
  * Bumped from 15 s to 30 s: with chunked input the payload is smaller,
  * but Kokoro can still be slow on cold-start or under load. */

@@ -65,10 +65,10 @@ message BacklogItem {
   string updated = 8 [(buf.validate.field).string.min_len = 1];
 
   // Backlog kind: idea, research, fix, execute.
-  string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute"] }];
+  string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
 
-  // Optional target kind for research items (idea, fix, execute, unspecified).
-  optional string research_target = 10 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "unspecified"] }];
+  // Optional target kind for research items (idea, fix, execute, chore, unspecified).
+  optional string research_target = 10 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

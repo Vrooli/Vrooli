@@ -18,7 +18,7 @@ interface AiSuggestBarProps {
  * (same visual pattern as AudioPlayerBar). Watches the textarea input
  * and shows 1–3 tappable command suggestions after a debounce.
  */
-export default function AiSuggestBar({ inputText, onExecute, onClose }: AiSuggestBarProps) {
+export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }: AiSuggestBarProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [provider, setProvider] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);

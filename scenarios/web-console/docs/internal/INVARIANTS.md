@@ -65,6 +65,18 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
    provides ordered delivery within a single connection, and reconnection replays terminal
    output (via offline buffer) rather than replaying input.
 
+## Speaker Verification Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| Accepted text must never come from an unverified segment when filter mode is enabled | `evaluateSpeakerVerification` gates both segment-final and final transcript emission; `!allowed` suppresses transcription entirely | `voice_stream_ws.go`, `voice_transcribe.go` |
+| Speaker verification config requires `profileId` when enabled | `SpeakerVerificationConfig.Validate()` rejects `enabled=true` with empty `profileId` | `speaker_verification_config.go:47` |
+| Threshold must be in [0, 1] | `Validate()` range check | `speaker_verification_config.go:34` |
+| Mode must be one of: off, filter, advisory | `Validate()` enum check | `speaker_verification_config.go:37` |
+| Reject behavior must be one of: drop, show-muted | `Validate()` enum check | `speaker_verification_config.go:42` |
+| Fallback policy is explicit | `FallbackWithoutVerification` defaults to `false` — when the resource fails, transcripts are suppressed unless the user has opted in to fallback | `speaker_verification_config.go:29` |
+| Config snapshot per session | Speaker verification config is read once at WebSocket session start; mid-session config changes take effect on the next recording | `voice_stream_ws.go:77` |
+
 ## Event Emission Guards
 
 | Event | Guard | Location |

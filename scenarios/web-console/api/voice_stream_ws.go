@@ -22,17 +22,27 @@ import (
 const (
 	VoiceMsgDone            = "done"             // client → server: recording finished
 	VoiceMsgSegmentBoundary = "segment-boundary" // client → server: VAD detected silence gap
+	VoiceMsgVadSpeechStart  = "vad-speech-start" // client → server: VAD detected speech
+	VoiceMsgVadSpeechEnd    = "vad-speech-end"   // client → server: VAD detected silence
 	VoiceMsgPartial         = "partial"          // server → client: partial transcript
 	VoiceMsgFinal           = "final"            // server → client: definitive transcript
 	VoiceMsgSegmentFinal    = "segment-final"    // server → client: high-quality segment transcription
+	VoiceMsgSegmentAccepted = "segment-accepted" // server → client: speaker verification accepted a segment
+	VoiceMsgSegmentRejected = "segment-rejected" // server → client: speaker verification rejected a segment
+	VoiceMsgSpeakerStatus   = "speaker-status"   // server → client: speaker verification session status
 	VoiceMsgError           = "error"            // server → client: error
 )
 
 // VoiceStreamMessage is the JSON message format for voice streaming.
 type VoiceStreamMessage struct {
-	Type         string `json:"type"`
-	Text         string `json:"text,omitempty"`
-	SegmentIndex int    `json:"segmentIndex,omitempty"`
+	Type              string  `json:"type"`
+	Text              string  `json:"text,omitempty"`
+	SegmentIndex      int     `json:"segmentIndex,omitempty"`
+	Score             float64 `json:"score,omitempty"`
+	Threshold         float64 `json:"threshold,omitempty"`
+	Enabled           bool    `json:"enabled,omitempty"`
+	ProfileConfigured bool    `json:"profileConfigured,omitempty"`
+	ProfileID         string  `json:"profileId,omitempty"`
 }
 
 // findWebMInitEnd locates the end of the WebM initialization segment (EBML
@@ -63,6 +73,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Snapshot config for this session — changes via PUT take effect on the
 	// next recording, not the one in progress.
 	vcfg := s.getVoiceConfig()
+	speakerCfg := s.getSpeakerVerificationConfig()
 
 	language := r.URL.Query().Get("language")
 
@@ -98,6 +109,16 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return conn.WriteJSON(msg)
 	}
 
+	if speakerCfg.Enabled {
+		_ = writeJSON(VoiceStreamMessage{
+			Type:              VoiceMsgSpeakerStatus,
+			Enabled:           speakerCfg.Enabled && speakerCfg.Mode != "off",
+			ProfileConfigured: speakerCfg.ProfileID != "",
+			ProfileID:         speakerCfg.ProfileID,
+			Threshold:         speakerCfg.Threshold,
+		})
+	}
+
 	// Audio buffer protected by mutex. Binary frames append here.
 	var bufMu sync.Mutex
 	var audioBuffer bytes.Buffer
@@ -117,6 +138,15 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 	// Channel for segment-boundary requests from the input loop to the ticker goroutine.
 	segmentBoundaryCh := make(chan struct{}, 4)
+
+	// VAD speech state: the ticker skips partial transcription when the
+	// client-side VAD reports silence, preventing Whisper hallucinations
+	// (e.g. "Thank you" from ambient noise). VAD gating only activates
+	// once the client sends its first vad-speech-start; until then,
+	// partials flow freely (backward-compatible with non-VAD clients).
+	var vadSignaled bool  // true after first vad-speech-start received
+	var speechActive bool // current VAD speech state
+	var speechMu sync.Mutex
 
 	// WebM init segment: everything before the first Cluster element.
 	// Detected lazily once enough data has arrived. Prepended to each
@@ -168,6 +198,42 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					defer segmentFinalWg.Done()
 					segCtx, segCancel := context.WithTimeout(context.Background(), 30*time.Second)
 					defer segCancel()
+
+					// Skip segment-level speaker verification for short segments —
+					// TitaNet embeddings are unreliable under ~2 seconds of audio.
+					// The final full-recording verification still gates the output.
+					const minSpeakerVerifyBytes = 12_000 // ~2s at 48kbps Opus
+					var decision speakerVerificationGateDecision
+					if len(audio) >= minSpeakerVerifyBytes {
+						decision = s.evaluateSpeakerVerification(segCtx, audio)
+					}
+					if decision.Enabled {
+						if decision.Applied {
+							log.Printf(
+								"voice-ws: speaker decision #%d matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+								idx,
+								decision.Matched,
+								decision.Allowed,
+								decision.Score,
+								decision.Threshold,
+								decision.ProfileID,
+								decision.Mode,
+							)
+						} else if decision.ErrorMessage != "" {
+							log.Printf("voice-ws: segment #%d %s", idx, formatSpeakerDecisionError(decision))
+						}
+						if !decision.Allowed {
+							_ = writeJSON(VoiceStreamMessage{
+								Type:         VoiceMsgSegmentRejected,
+								SegmentIndex: idx,
+								Score:        decision.Score,
+								Threshold:    decision.Threshold,
+								ProfileID:    decision.ProfileID,
+							})
+							return
+						}
+					}
+
 					t0 := time.Now()
 					text, err := transcribeBytes(segCtx, audio, language, true, "")
 					if err != nil {
@@ -176,6 +242,19 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 					}
 					text = strings.TrimSpace(text)
 					log.Printf("voice-ws: segment-final #%d took %v, text=%q", idx, time.Since(t0), truncateForLog(text, 200))
+					if isWhisperHallucination(text) {
+						log.Printf("voice-ws: segment-final #%d filtered hallucination: %q", idx, text)
+						return
+					}
+					if decision.Enabled && decision.Applied {
+						_ = writeJSON(VoiceStreamMessage{
+							Type:         VoiceMsgSegmentAccepted,
+							SegmentIndex: idx,
+							Score:        decision.Score,
+							Threshold:    decision.Threshold,
+							ProfileID:    decision.ProfileID,
+						})
+					}
 					_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgSegmentFinal, Text: text, SegmentIndex: idx})
 				}(segAudio, thisSegIdx)
 
@@ -185,6 +264,16 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				firstTick = true
 
 			case <-ticker.C:
+				// Skip partial transcription when VAD reports silence —
+				// Whisper hallucinates on silent audio (e.g. "Thank you").
+				// Only gate when client has opted in via vad-speech-start.
+				speechMu.Lock()
+				gated := vadSignaled && !speechActive
+				speechMu.Unlock()
+				if gated {
+					continue
+				}
+
 				bufMu.Lock()
 				currentLen := audioBuffer.Len()
 				deltaSize := currentLen - lastPartialOffset
@@ -258,7 +347,10 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				log.Printf("voice-ws: partial #%d: delta=%d overlap=%d sent=%d bytes, took=%v, first=%t, text=%q",
 					partialCount, deltaSize, actualOverlap, len(sendData), elapsed, isFirst, truncateForLog(text, 200))
 
-				if text == "" {
+				if text == "" || isWhisperHallucination(text) {
+					if text != "" {
+						log.Printf("voice-ws: partial filtered hallucination: %q", text)
+					}
 					continue
 				}
 
@@ -312,6 +404,27 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 			if msg.Type == VoiceMsgDone {
 				break
 			}
+			if msg.Type == VoiceMsgVadSpeechStart {
+				speechMu.Lock()
+				vadSignaled = true
+				speechActive = true
+				speechMu.Unlock()
+				// Advance both partial and segment offsets past accumulated
+				// silence so the next transcription only covers speech onset,
+				// not the preceding silence that Whisper would hallucinate on.
+				bufMu.Lock()
+				pos := audioBuffer.Len()
+				lastPartialOffset = pos
+				segmentStartOffset = pos
+				bufMu.Unlock()
+				continue
+			}
+			if msg.Type == VoiceMsgVadSpeechEnd {
+				speechMu.Lock()
+				speechActive = false
+				speechMu.Unlock()
+				continue
+			}
 			if msg.Type == VoiceMsgSegmentBoundary {
 				// Non-blocking send to avoid deadlock if channel is full
 				select {
@@ -352,6 +465,27 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	finalCtx, finalCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer finalCancel()
 
+	decision := s.evaluateSpeakerVerification(finalCtx, finalAudio)
+	if decision.Enabled {
+		if decision.Applied {
+			log.Printf(
+				"voice-ws: final speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+				decision.Matched,
+				decision.Allowed,
+				decision.Score,
+				decision.Threshold,
+				decision.ProfileID,
+				decision.Mode,
+			)
+		} else if decision.ErrorMessage != "" {
+			log.Printf("voice-ws: final %s", formatSpeakerDecisionError(decision))
+		}
+		if !decision.Allowed {
+			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: ""})
+			return
+		}
+	}
+
 	t0 := time.Now()
 	text, err := transcribeBytes(finalCtx, finalAudio, language, true, "")
 	if err != nil {
@@ -360,9 +494,14 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), strings.TrimSpace(text))
+	finalText := strings.TrimSpace(text)
+	if isWhisperHallucination(finalText) {
+		log.Printf("voice-ws: final filtered hallucination: %q", finalText)
+		finalText = ""
+	}
+	log.Printf("voice-ws: full retranscribe took %v, text=%q", time.Since(t0), finalText)
 	log.Printf("voice-ws: session closed, duration=%v, audioBytes=%d, partials=%d, segments=%d", time.Since(sessionStart), len(finalAudio), partialCount, segmentIndex)
-	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: strings.TrimSpace(text)})
+	_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: finalText})
 }
 
 // lastNWords returns the last n whitespace-delimited words of s.
@@ -434,6 +573,41 @@ func deduplicateOverlap(accumulated, newText string) string {
 		return accumulated
 	}
 	return accumulated + " " + newText
+}
+
+// whisperHallucinations contains phrases Whisper commonly produces when
+// transcribing silent or near-silent audio. These are filtered as a safety
+// net in addition to the primary VAD-gated partial suppression. Entries are
+// stored WITHOUT trailing punctuation — isWhisperHallucination strips
+// trailing punctuation before lookup so "Thanks for watching!" matches
+// "thanks for watching".
+var whisperHallucinations = map[string]struct{}{
+	"":                        {},
+	"...":                     {},
+	"bye":                     {},
+	"goodbye":                 {},
+	"like and subscribe":      {},
+	"please subscribe":        {},
+	"so":                      {},
+	"subscribe":               {},
+	"the end":                 {},
+	"thank you":               {},
+	"thank you for watching":  {},
+	"thank you very much":     {},
+	"thanks":                  {},
+	"thanks for watching":     {},
+	"you":                     {},
+}
+
+// isWhisperHallucination returns true if the text matches a known Whisper
+// hallucination pattern — short, generic phrases it produces from silence.
+// Trailing punctuation (.,;:!?) is stripped before lookup so variants like
+// "Thanks for watching!" are caught.
+func isWhisperHallucination(text string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(text))
+	normalized = strings.TrimRight(normalized, ".,;:!?")
+	_, found := whisperHallucinations[normalized]
+	return found
 }
 
 // transcribeBytes sends audio bytes to the Whisper /asr endpoint and returns

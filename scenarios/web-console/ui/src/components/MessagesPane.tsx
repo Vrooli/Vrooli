@@ -204,14 +204,18 @@ export default function MessagesPane({
   const handleNavUp = useCallback(() => {
     if (navIds.length === 0) return;
     const prev = focusedNavIndex <= 0 ? navIds.length - 1 : focusedNavIndex - 1;
-    focusAndScroll(navIds[prev]);
+    const targetId = navIds[prev];
+    if (!targetId) return;
+    focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
   // Navigate to the next item in the navigable list
   const handleNavDown = useCallback(() => {
     if (navIds.length === 0) return;
     const next = focusedNavIndex < 0 ? 0 : (focusedNavIndex + 1) % navIds.length;
-    focusAndScroll(navIds[next]);
+    const targetId = navIds[next];
+    if (!targetId) return;
+    focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
   const handleCloseSearch = useCallback(() => {
@@ -241,7 +245,7 @@ export default function MessagesPane({
         if (session) {
           const updatedEvents = session.events.map((ev) =>
             ev.id === eventId
-              ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs! }
+              ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
               : ev,
           );
           useConversationStore.setState({

@@ -19,7 +19,7 @@ import { fetchCapabilities, fetchCapabilitiesLiveness, getVoiceStreamConfig } fr
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
-import { createVadRefs, vadTick, VAD_DEFAULT_SEGMENT_SILENCE_MS } from "./voice/vad";
+import { createVadRefs, vadTick } from "./voice/vad";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
 import { WebSpeechProvider } from "./voice/WebSpeechProvider";
@@ -59,6 +59,9 @@ const INITIAL_STATE: VoiceInputState = {
   voiceMode: "one-shot",
   segments: [],
   commandSuggestion: null,
+  speakerNotice: null,
+  speakerVerificationEnabled: false,
+  speakerProfileConfigured: false,
 };
 
 export interface UseVoiceInputCallbacks {
@@ -245,6 +248,17 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           if (vadRef.current.state !== prevState) {
             console.debug("[voice] VAD:", prevState, "\u2192", vadRef.current.state,
               "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
+            // Notify backend of speech state changes so it can skip
+            // partial transcription during silence (prevents Whisper hallucinations).
+            const provider = providerRef.current;
+            if (provider && "sendVadState" in provider) {
+              const sp = provider as VoiceStreamProvider;
+              if (vadRef.current.state === "speechDetected") {
+                sp.sendVadState(true);
+              } else if (vadRef.current.state === "watchingSilence" || vadRef.current.state === "waitingForSpeech") {
+                sp.sendVadState(false);
+              }
+            }
           }
           if (result === "segment-boundary") {
             // In persistent mode: trigger segment-final transcription
@@ -254,18 +268,22 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
               console.info("[voice] Segment boundary sent to backend");
             }
           } else if (result === "stop") {
-            // In persistent mode, VAD stop is suppressed — only segment boundaries fire.
             // In one-shot mode, stop recording as usual.
             if (!persistentModeRef.current) {
               stopRecordingRef.current?.();
             }
             // In persistent mode, this fires after segmentSilenceMs + remaining silence.
-            // We treat it as another segment boundary.
+            // We treat it as one final segment boundary, then reset to waitingForSpeech
+            // so "stop" doesn't fire again on every subsequent tick.
             if (persistentModeRef.current) {
               const provider = providerRef.current;
               if (provider && "sendSegmentBoundary" in provider) {
                 (provider as VoiceStreamProvider).sendSegmentBoundary();
               }
+              // Reset VAD to wait for new speech — prevents repeated "stop" cascade
+              vadRef.current.state = "waitingForSpeech";
+              vadRef.current.recordingStart = Date.now();
+              vadRef.current.segmentBoundaryEmitted = false;
             }
           } else if (result === "no-speech") {
             vadActiveRef.current = false;
@@ -273,14 +291,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             stopRecordingRef.current?.();
             setState((s) => ({ ...s, error: "No speech detected" }));
           }
-        }
-
-        // Adaptive silence threshold: when a command prefix is detected in
-        // the partial transcript, temporarily reduce the segment silence
-        // threshold so commands feel snappy.
-        if (persistentModeRef.current && vadRef.current.segmentSilenceMs > 0) {
-          const partial = audioLevelRef.current > 0 ? "" : ""; // partials are tracked in state
-          // We read the latest partial from state via a separate check
         }
 
         rafRef.current = requestAnimationFrame(tick);
@@ -307,6 +317,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const lastCapCheckRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capCheckFailCountRef = useRef(0);
+  const speakerNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Optimistic mount: show the mic button immediately and check Whisper in
   // the background. The user can start speaking before the check resolves.
@@ -364,6 +375,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       if (noAudioTimerRef.current) {
         clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = null;
+      }
+      if (speakerNoticeTimerRef.current) {
+        clearTimeout(speakerNoticeTimerRef.current);
+        speakerNoticeTimerRef.current = null;
       }
       startingRef.current = false;
     };
@@ -481,6 +496,36 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // Wire up segment-final handler for persistent mode
       if (provider instanceof VoiceStreamProvider) {
         provider.onSegmentFinal = handleSegmentFinal;
+        provider.onSegmentAccepted = (_segmentIndex, score, threshold) => {
+          setState((s) => ({
+            ...s,
+            speakerVerificationEnabled: true,
+            speakerProfileConfigured: true,
+            speakerNotice: score < threshold ? "Speaker verification advisory: transcript kept." : s.speakerNotice,
+          }));
+        };
+        provider.onSegmentRejected = (_segmentIndex, score, threshold) => {
+          if (speakerNoticeTimerRef.current) clearTimeout(speakerNoticeTimerRef.current);
+          setState((s) => ({
+            ...s,
+            speakerVerificationEnabled: true,
+            speakerProfileConfigured: true,
+            speakerNotice: score > 0
+              ? `Ignored speech that did not match your voice (${score.toFixed(2)} < ${threshold.toFixed(2)})`
+              : "Ignored speech that did not match your voice",
+            partialTranscript: "",
+          }));
+          speakerNoticeTimerRef.current = setTimeout(() => {
+            setState((s) => (s.speakerNotice ? { ...s, speakerNotice: null } : s));
+          }, 3000);
+        };
+        provider.onSpeakerStatus = (enabled, profileConfigured) => {
+          setState((s) => ({
+            ...s,
+            speakerVerificationEnabled: enabled,
+            speakerProfileConfigured: profileConfigured,
+          }));
+        };
       }
 
       provider.onResult = (text) => {
@@ -497,6 +542,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           partialTranscript: "",
           segments: [],
         }));
+        if (persistentModeRef.current && provider instanceof VoiceStreamProvider) {
+          return;
+        }
         onTranscriptRef.current(text);
       };
       provider.onError = (error) => {
@@ -606,8 +654,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             voiceState: "idle",
             audioLevel: 0,
             partialTranscript: "",
-            segments: [],
-          }));
+          segments: [],
+          speakerNotice: null,
+        }));
           provider.dispose();
           providerRef.current = null;
           return;
@@ -665,11 +714,17 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
-    if (provider instanceof VoiceStreamProvider) provider.onSegmentFinal = null;
+    if (provider instanceof VoiceStreamProvider) {
+      provider.onSegmentFinal = null;
+      provider.onSegmentAccepted = null;
+      provider.onSegmentRejected = null;
+      provider.onSpeakerStatus = null;
+    }
     provider.dispose();
     providerRef.current = null;
 
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+    if (speakerNoticeTimerRef.current) { clearTimeout(speakerNoticeTimerRef.current); speakerNoticeTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
@@ -682,6 +737,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       partialTranscript: "",
       segments: [],
       commandSuggestion: null,
+      speakerNotice: null,
     }));
   }, [isTranscribing, stopLevelMonitor]);
 

@@ -104,6 +104,32 @@
 | **Adaptive silence threshold** | `useVoiceInput.ts` | Partial transcript contains command prefix | VoiceStreamProvider partials | Temporarily reduces VAD segmentSilenceMs | Segment final resolves |
 | **Command suggestion lifecycle** | `VoiceCommandSuggestion.tsx` | Segment-final parsed as command | `parseCommand()` result | Shows suggestion UI above toolbar | User confirms, dismisses, or 5s auto-dismiss |
 
+### Speaker Verification Gate
+
+| Flow | File | Trigger | Depends On | Updates | Completion |
+|------|------|---------|------------|---------|------------|
+| **Segment speaker verification** | `voice_stream_ws.go` | Segment-boundary goroutine start | Segment audio snapshot, speaker-verification resource | Sends `segment-accepted` or `segment-rejected` to client; gates `segment-final` emission | Resource verify response or timeout (30s) |
+| **Final speaker verification** | `voice_stream_ws.go` | Recording done, before full retranscribe | Full audio buffer, speaker-verification resource | Allows or suppresses final transcription | Resource verify response or timeout (30s) |
+| **HTTP transcribe verification** | `voice_transcribe.go` | `POST /api/v1/voice/transcribe` | Audio payload, speaker-verification resource | Returns empty text on rejection | Resource verify response or timeout |
+
+**Pipeline ordering** (when speaker verification is enabled in `filter` mode):
+
+```
+segment-boundary received
+  → snapshot segment audio
+  → evaluateSpeakerVerification(ctx, segmentAudio)
+    → if !allowed: send segment-rejected, skip transcription
+    → if  allowed: transcribeBytes → send segment-accepted + segment-final
+
+recording done
+  → wait for in-flight segment-finals (segmentFinalWg)
+  → evaluateSpeakerVerification(ctx, fullAudio)
+    → if !allowed: send final with empty text
+    → if  allowed: transcribeBytes → send final with text
+```
+
+**Fallback behavior**: When the speaker-verification resource is unreachable or errors, `FallbackWithoutVerification` controls whether the transcript is allowed through (`true`) or suppressed (`false`, default).
+
 ### Two-Tier Transcription Timing
 
 In persistent voice mode, transcription operates at two quality tiers:
