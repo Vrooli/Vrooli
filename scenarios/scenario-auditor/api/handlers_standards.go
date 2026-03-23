@@ -132,8 +132,8 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool) (StandardsScanStatus, error) {
-	targets, err := buildStandardsScanTargets(scenarioName)
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, scenarioPath string) (StandardsScanStatus, error) {
+	targets, err := buildStandardsScanTargets(scenarioName, scenarioPath)
 	if err != nil {
 		return StandardsScanStatus{}, err
 	}
@@ -488,7 +488,13 @@ func getScenariosRoot() string {
 	return filepath.Join(vrooliRoot, "scenarios")
 }
 
-func buildStandardsScanTargets(scenarioName string) ([]standardsScanTarget, error) {
+// buildStandardsScanTargets resolves the scenario(s) to scan.
+// When scenarioPathOverride is non-empty (set by a CLI running inside a
+// sandboxed agent), it is used as the scan path for the target scenario
+// instead of resolving via VROOLI_ROOT. This allows the auditor to check
+// files within the sandbox overlay.
+// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
 	root := getScenariosRoot()
 
 	if scenarioName == "" {
@@ -516,7 +522,11 @@ func buildStandardsScanTargets(scenarioName string) ([]standardsScanTarget, erro
 		return targets, nil
 	}
 
-	scenarioPath := filepath.Join(root, scenarioName)
+	// Use the sandbox-provided path if available, otherwise resolve from root.
+	scenarioPath := scenarioPathOverride
+	if scenarioPath == "" {
+		scenarioPath = filepath.Join(root, scenarioName)
+	}
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -600,6 +610,12 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		Type          string   `json:"type"`
 		Standards     []string `json:"standards"`
 		ForceDisabled bool     `json:"force_disabled"`
+		// ScenarioPath overrides the scenario directory path. Set by the CLI
+		// when running inside a sandboxed agent, pointing to the overlay's
+		// merged directory for the target scenario. When empty, the API
+		// resolves the path using VROOLI_ROOT + scenario name.
+		// See packages/cli-core/cliutil/sandbox.go.
+		ScenarioPath string `json:"scenario_path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -621,7 +637,7 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled)
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, strings.TrimSpace(checkRequest.ScenarioPath))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)

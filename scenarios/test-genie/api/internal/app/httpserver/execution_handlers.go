@@ -26,6 +26,10 @@ type suiteExecutionPayload struct {
 	UIURL          string   `json:"uiUrl"`
 	APIURL         string   `json:"apiUrl"`
 	BrowserlessURL string   `json:"browserlessUrl"`
+	// ScenarioPath overrides scenario directory resolution. Set by the CLI
+	// when running inside a sandboxed agent. When empty, the API resolves
+	// the path from ScenarioName using VROOLI_ROOT.
+	ScenarioPath string `json:"scenarioPath"`
 }
 
 func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +55,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		UIURL:          strings.TrimSpace(payload.UIURL),
 		APIURL:         strings.TrimSpace(payload.APIURL),
 		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
+		ScenarioPath:   strings.TrimSpace(payload.ScenarioPath),
 	}
 
 	var suiteRequestID *uuid.UUID

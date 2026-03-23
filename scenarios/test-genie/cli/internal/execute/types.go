@@ -20,6 +20,15 @@ type Request struct {
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+
+	// ScenarioPath is the absolute path to the scenario directory. When set
+	// (typically by the CLI running inside a sandboxed agent), the API uses
+	// this path directly instead of resolving via VROOLI_ROOT + scenario name.
+	// This allows sandboxed agents to run tests against their modified files
+	// in the overlay filesystem. When empty, the API resolves the path from
+	// ScenarioName using VROOLI_ROOT.
+	// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
 // Response represents the execution response.

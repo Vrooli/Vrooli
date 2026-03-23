@@ -185,7 +185,7 @@ func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
 		}
 		return &TestingRunnerResult{Command: []string{"./coverage/run-tests.sh"}}, nil
 	}
-	cmd, result, err := svc.RunScenarioTests(context.Background(), "demo", "", nil)
+	cmd, result, err := svc.RunScenarioTests(context.Background(), "demo", "", nil, "")
 	if err != nil {
 		t.Fatalf("RunScenarioTests returned error: %v", err)
 	}
@@ -203,14 +203,14 @@ func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
 func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
 	root := t.TempDir()
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
-	if _, _, err := svc.RunScenarioTests(context.Background(), "missing", "", nil); err == nil {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "missing", "", nil, ""); err == nil {
 		t.Fatalf("expected error for missing scenario")
 	}
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("mkdir scenario dir: %v", err)
 	}
-	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil); err == nil {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil, ""); err == nil {
 		t.Fatalf("expected validation error when no tests defined")
 	}
 }
@@ -228,7 +228,7 @@ func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
 	svc.runTests = func(ctx context.Context, caps TestingCapabilities, opts RunScenarioTestOptions) (*TestingRunnerResult, error) {
 		return nil, errors.New("runner failed")
 	}
-	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil); err == nil || err.Error() != "runner failed" {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil, ""); err == nil || err.Error() != "runner failed" {
 		t.Fatalf("expected runner error, got %v", err)
 	}
 }

@@ -13,6 +13,11 @@ type Request struct {
 	NoRecovery     bool   `json:"no_recovery,omitempty"`
 	SharedMode     bool   `json:"shared_mode,omitempty"`
 	AutoStart      bool   `json:"auto_start,omitempty"`
+
+	// ScenarioPath overrides the scenario directory path. Set by the CLI
+	// when running inside a sandboxed agent.
+	// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
 // Response represents the UI smoke test result.

@@ -207,7 +207,17 @@ func BuildPrompt(cfg PromptConfig) string {
 }
 
 // GetScenarioPath returns the full path to a scenario directory.
-func GetScenarioPath(scenarioName string) string {
+//
+// When scenarioPathOverride is non-empty, it is returned directly. This allows
+// CLI clients running inside sandboxed agents to pass the resolved sandbox
+// path, ensuring the API operates on the agent's modified files rather than
+// the real repository. The CLI resolves the path using
+// packages/cli-core/cliutil.ResolveScenarioPath(), which handles sandbox scope
+// checking and merged-path computation.
+func GetScenarioPath(scenarioName string, scenarioPathOverride string) string {
+	if scenarioPathOverride != "" {
+		return scenarioPathOverride
+	}
 	repoRoot := os.Getenv("VROOLI_ROOT")
 	if repoRoot == "" {
 		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")

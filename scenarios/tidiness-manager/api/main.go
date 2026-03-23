@@ -67,6 +67,7 @@ func NewServer() (*Server, error) {
 		srv.persistDetailedFileMetrics,
 		srv.persistFileMetrics,
 		store.StoreLintTypeIssues,
+		store.ResolveStaleMetricIssues,
 		srv.storeAIIssue,
 		srv.recordScanHistory,
 	)
@@ -247,6 +248,7 @@ func (s *Server) ensureScanCoordinator() error {
 		s.persistDetailedFileMetrics,
 		s.persistFileMetrics,
 		s.store.StoreLintTypeIssues,
+		s.store.ResolveStaleMetricIssues,
 		s.storeAIIssue,
 		s.recordScanHistory,
 	)

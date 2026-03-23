@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // ErrDuplicateIssue indicates an insert attempted to create a duplicate issue.
@@ -315,6 +317,68 @@ func (ts *TidinessStore) UpdateIssueStatus(ctx context.Context, id int, status, 
 		Scan(&result.ID, &result.Status, &result.UpdatedAt)
 
 	return result, err
+}
+
+// metricCategories lists categories generated from file metrics (not lint/type tools).
+var metricCategories = []string{"length", "complexity", "duplication", "technical_debt", "coupling", "type_safety"}
+
+// ResolveStaleMetricIssues marks open metric-based issues as resolved when they
+// are no longer present in the freshly-generated issue set.
+func (ts *TidinessStore) ResolveStaleMetricIssues(ctx context.Context, scenario string, freshIssues []Issue) (int, error) {
+	// Build parallel arrays of file_path and category from freshIssues (only for metric categories)
+	metricCatSet := make(map[string]bool, len(metricCategories))
+	for _, c := range metricCategories {
+		metricCatSet[c] = true
+	}
+
+	var filePaths []string
+	var categories []string
+	for _, issue := range freshIssues {
+		if metricCatSet[issue.Category] {
+			filePaths = append(filePaths, issue.File)
+			categories = append(categories, issue.Category)
+		}
+	}
+
+	var result sql.Result
+	var err error
+
+	if len(filePaths) == 0 {
+		// No fresh metric issues — resolve ALL open metric issues for the scenario
+		result, err = ts.db.ExecContext(ctx, `
+			UPDATE issues
+			SET status = 'resolved',
+				resolution_notes = 'auto-resolved: no longer exceeds threshold',
+				updated_at = CURRENT_TIMESTAMP
+			WHERE scenario = $1
+				AND category = ANY($2::text[])
+				AND status = 'open'
+		`, scenario, pq.Array(metricCategories))
+	} else {
+		result, err = ts.db.ExecContext(ctx, `
+			UPDATE issues
+			SET status = 'resolved',
+				resolution_notes = 'auto-resolved: no longer exceeds threshold',
+				updated_at = CURRENT_TIMESTAMP
+			WHERE scenario = $1
+				AND category = ANY($2::text[])
+				AND status = 'open'
+				AND (file_path, category) NOT IN (
+					SELECT unnest($3::text[]), unnest($4::text[])
+				)
+		`, scenario, pq.Array(metricCategories), pq.Array(filePaths), pq.Array(categories))
+	}
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to resolve stale metric issues: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return int(rows), nil
 }
 
 func (ts *TidinessStore) FetchIssueCounts(ctx context.Context) (map[string]IssueCounts, error) {

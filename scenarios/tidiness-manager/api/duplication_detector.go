@@ -92,12 +92,12 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 		absPaths[i] = filepath.Join(dd.scenarioPath, relPath)
 	}
 
-	// Run dupl with threshold (15 tokens minimum for significant duplication)
+	// Run dupl with threshold (25 tokens minimum for significant duplication)
 	cmdCtx, cancel := context.WithTimeout(ctx, dd.timeout)
 	defer cancel()
 
-	// dupl -t 15 <files...>
-	args := append([]string{"-t", "15"}, absPaths...)
+	// dupl -t 25 <files...>
+	args := append([]string{"-t", "25"}, absPaths...)
 	cmd := exec.CommandContext(cmdCtx, "dupl", args...)
 
 	var stdout, stderr bytes.Buffer

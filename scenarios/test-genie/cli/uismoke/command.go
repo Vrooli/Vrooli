@@ -18,6 +18,10 @@ func Run(client *Client, args []string) error {
 		return err
 	}
 
+	// Resolve the scenario path using sandbox-aware resolution.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+
 	req := Request{
 		URL:            parsed.URL,
 		BrowserlessURL: parsed.BrowserlessURL,
@@ -25,6 +29,7 @@ func Run(client *Client, args []string) error {
 		NoRecovery:     parsed.NoRecovery,
 		SharedMode:     parsed.SharedMode,
 		AutoStart:      parsed.AutoStart,
+		ScenarioPath:   scenarioPath,
 	}
 
 	resp, raw, err := client.Run(parsed.Scenario, req)

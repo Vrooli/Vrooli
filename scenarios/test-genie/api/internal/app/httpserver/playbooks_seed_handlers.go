@@ -38,7 +38,8 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 	}
 
 	var payload struct {
-		Retain bool `json:"retain"`
+		Retain       bool   `json:"retain"`
+		ScenarioPath string `json:"scenarioPath"`
 	}
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -65,8 +66,11 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 	}
 	s.seedSessionsMu.Unlock()
 
+	scenarioDir := strings.TrimSpace(payload.ScenarioPath)
 	scenariosRoot := strings.TrimSpace(s.scenarios.ScenarioRoot())
-	scenarioDir := filepath.Join(scenariosRoot, name)
+	if scenarioDir == "" {
+		scenarioDir = filepath.Join(scenariosRoot, name)
+	}
 	ws, err := workspace.New(scenariosRoot, name)
 	if err != nil {
 		s.writeError(w, http.StatusBadRequest, err.Error())

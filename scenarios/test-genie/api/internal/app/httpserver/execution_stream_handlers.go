@@ -96,6 +96,7 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		UIURL:          strings.TrimSpace(payload.UIURL),
 		APIURL:         strings.TrimSpace(payload.APIURL),
 		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
+		ScenarioPath:   strings.TrimSpace(payload.ScenarioPath),
 	}
 
 	var suiteRequestID *uuid.UUID

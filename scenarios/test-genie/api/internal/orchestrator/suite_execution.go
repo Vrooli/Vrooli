@@ -174,6 +174,12 @@ type SuiteExecutionRequest struct {
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+
+	// ScenarioPath overrides the scenario directory path. When set (by a CLI
+	// running inside a sandboxed agent), GetScenarioPath() uses this path
+	// directly instead of resolving via VROOLI_ROOT. This allows sandboxed
+	// agents to run tests against their modified files in the overlay.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.

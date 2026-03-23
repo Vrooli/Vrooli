@@ -610,7 +610,7 @@ func (s *stubScenarioDirectory) GetSummary(ctx context.Context, name string) (*s
 	return s.getResp, nil
 }
 
-func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
+func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
 	s.runName = name
 	s.runPreferred = preferred
 	if len(extraArgs) > 0 {
@@ -630,7 +630,7 @@ func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name stri
 	return scenarios.FileListResult{}, nil
 }
 
-func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error) {
+func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error) {
 	s.uiSmokeName = name
 	s.uiSmokeUIURL = uiURL
 	s.uiSmokeBrowserlessURL = browserlessURL

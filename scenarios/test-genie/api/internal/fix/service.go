@@ -97,7 +97,7 @@ func (s *Service) runFix(record *Record) {
 	s.store.Update(record)
 
 	// Build the prompt
-	scenarioPath := GetScenarioPath(record.ScenarioName)
+	scenarioPath := GetScenarioPath(record.ScenarioName, "")
 	prompt := BuildPrompt(PromptConfig{
 		ScenarioName: record.ScenarioName,
 		ScenarioPath: scenarioPath,

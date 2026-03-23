@@ -490,11 +490,21 @@ func (s *Server) handleGenerateIssuesFromMetrics(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Resolve stale metric issues that are no longer present in the fresh set
+	resolved, resolveErr := s.store.ResolveStaleMetricIssues(r.Context(), req.Scenario, issues)
+	if resolveErr != nil {
+		s.log("failed to resolve stale metric issues", map[string]interface{}{
+			"error": resolveErr.Error(), "scenario": req.Scenario,
+		})
+		// Don't fail the request - generation succeeded
+	}
+
 	s.log("generated issues from metrics", map[string]interface{}{
 		"scenario":      req.Scenario,
 		"metrics_count": len(metrics),
 		"generated":     len(issues),
 		"inserted":      inserted,
+		"resolved":      resolved,
 	})
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
@@ -502,5 +512,6 @@ func (s *Server) handleGenerateIssuesFromMetrics(w http.ResponseWriter, r *http.
 		"metrics_count": len(metrics),
 		"generated":     len(issues),
 		"inserted":      inserted,
+		"resolved":      resolved,
 	})
 }

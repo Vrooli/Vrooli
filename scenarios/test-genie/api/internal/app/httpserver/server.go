@@ -75,8 +75,8 @@ type suiteExecutor interface {
 type scenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
-	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error)
+	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
+	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
 	RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)

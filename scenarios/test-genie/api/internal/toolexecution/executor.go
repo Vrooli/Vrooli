@@ -33,8 +33,8 @@ type SuiteExecutor interface {
 type ScenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
-	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error)
+	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
+	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ScenarioRoot() string
 }
@@ -204,7 +204,7 @@ func (e *ServerExecutor) runScenarioTests(ctx context.Context, args map[string]i
 	preferredRunner := getStringArg(args, "preferred_runner", "")
 	extraArgs := getStringSliceArg(args, "extra_args")
 
-	cmd, result, err := e.scenarioDirectory.RunScenarioTests(ctx, scenario, preferredRunner, extraArgs)
+	cmd, result, err := e.scenarioDirectory.RunScenarioTests(ctx, scenario, preferredRunner, extraArgs, "")
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("failed to run scenario tests: %v", err), CodeInternalError), nil
 	}
@@ -226,7 +226,7 @@ func (e *ServerExecutor) runUISmoke(ctx context.Context, args map[string]interfa
 	browserlessURL := getStringArg(args, "browserless_url", "")
 	timeoutMs := int64(getIntArg(args, "timeout_ms", 30000))
 
-	result, err := e.scenarioDirectory.RunUISmoke(ctx, scenario, uiURL, browserlessURL, timeoutMs)
+	result, err := e.scenarioDirectory.RunUISmoke(ctx, scenario, uiURL, browserlessURL, timeoutMs, "")
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("failed to run UI smoke test: %v", err), CodeInternalError), nil
 	}
@@ -451,10 +451,10 @@ func (e *ServerExecutor) listFixes(ctx context.Context, args map[string]interfac
 	fixes := make([]map[string]interface{}, 0, len(records))
 	for _, r := range records {
 		fixes = append(fixes, map[string]interface{}{
-			"fix_id":     r.ID,
-			"scenario":   r.ScenarioName,
-			"status":     string(r.Status),
-			"started_at": r.StartedAt,
+			"fix_id":       r.ID,
+			"scenario":     r.ScenarioName,
+			"status":       string(r.Status),
+			"started_at":   r.StartedAt,
 			"completed_at": r.CompletedAt,
 		})
 	}
@@ -545,11 +545,11 @@ func (e *ServerExecutor) getRequirementsImprove(ctx context.Context, args map[st
 	}
 
 	return SuccessResult(map[string]interface{}{
-		"improve_id": record.ID,
-		"scenario":   record.ScenarioName,
-		"status":     string(record.Status),
-		"run_id":     record.RunID,
-		"started_at": record.StartedAt,
+		"improve_id":   record.ID,
+		"scenario":     record.ScenarioName,
+		"status":       string(record.Status),
+		"run_id":       record.RunID,
+		"started_at":   record.StartedAt,
 		"completed_at": record.CompletedAt,
 		"error":        record.Error,
 	}), nil
@@ -568,10 +568,10 @@ func (e *ServerExecutor) listRequirementsImproves(ctx context.Context, args map[
 	improves := make([]map[string]interface{}, 0, len(records))
 	for _, r := range records {
 		improves = append(improves, map[string]interface{}{
-			"improve_id": r.ID,
-			"scenario":   r.ScenarioName,
-			"status":     string(r.Status),
-			"started_at": r.StartedAt,
+			"improve_id":   r.ID,
+			"scenario":     r.ScenarioName,
+			"status":       string(r.Status),
+			"started_at":   r.StartedAt,
 			"completed_at": r.CompletedAt,
 		})
 	}

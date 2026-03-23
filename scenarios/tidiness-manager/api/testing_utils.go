@@ -138,6 +138,7 @@ func setupTestServerNoData(t *testing.T) *Server {
 		srv.persistDetailedFileMetrics,
 		srv.persistFileMetrics,
 		srv.store.StoreLintTypeIssues,
+		srv.store.ResolveStaleMetricIssues,
 		srv.storeAIIssue,
 		srv.recordScanHistory,
 	)

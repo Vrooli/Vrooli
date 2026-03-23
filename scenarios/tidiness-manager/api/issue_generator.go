@@ -1,12 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // IssueGeneratorConfig defines thresholds for issue generation
 type IssueGeneratorConfig struct {
 	LongFileThreshold             int     // Files with more lines than this generate issues (default: 500)
 	HighComplexityMax             int     // Max complexity above this generates issues (default: 15)
 	HighDuplicationPct            float64 // Duplication percentage above this generates issues (default: 10.0)
+	HighDuplicationPctTest        float64 // Duplication percentage threshold for test files (default: 30.0)
 	HighTechDebtThreshold         int     // Total TODOs + FIXMEs + HACKs above this generates issues (default: 10)
 	HighImportThreshold           int     // Import count above this generates coupling issues (default: 20)
 	HighDangerousPatternThreshold int     // Total as-any + as-type + ts-ignore + non-null above this generates issues (default: 3)
@@ -18,6 +22,7 @@ func DefaultIssueGeneratorConfig() IssueGeneratorConfig {
 		LongFileThreshold:             500,
 		HighComplexityMax:             15,
 		HighDuplicationPct:            10.0,
+		HighDuplicationPctTest:        30.0,
 		HighTechDebtThreshold:         10,
 		HighImportThreshold:           20,
 		HighDangerousPatternThreshold: 3,
@@ -58,18 +63,29 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 			})
 		}
 
-		// Duplication issues
-		if m.DuplicationPct != nil && *m.DuplicationPct > config.HighDuplicationPct {
-			issues = append(issues, Issue{
-				Scenario: scenario,
-				File:     m.FilePath,
-				Line:     1,
-				Column:   1,
-				Message:  fmt.Sprintf("File has %.1f%% duplicated code, exceeds threshold of %.1f%%", *m.DuplicationPct, config.HighDuplicationPct),
-				Severity: severityForDuplication(*m.DuplicationPct, config.HighDuplicationPct),
-				Tool:     "dupl",
-				Category: "duplication",
-			})
+		// Duplication issues - use higher threshold for test files
+		if m.DuplicationPct != nil {
+			isTestFile := strings.HasSuffix(m.FilePath, "_test.go") ||
+				strings.HasSuffix(m.FilePath, ".test.ts") ||
+				strings.HasSuffix(m.FilePath, ".test.tsx") ||
+				strings.HasSuffix(m.FilePath, ".spec.ts") ||
+				strings.HasSuffix(m.FilePath, ".spec.tsx")
+			dupThreshold := config.HighDuplicationPct
+			if isTestFile && config.HighDuplicationPctTest > 0 {
+				dupThreshold = config.HighDuplicationPctTest
+			}
+			if *m.DuplicationPct > dupThreshold {
+				issues = append(issues, Issue{
+					Scenario: scenario,
+					File:     m.FilePath,
+					Line:     1,
+					Column:   1,
+					Message:  fmt.Sprintf("File has %.1f%% duplicated code, exceeds threshold of %.1f%%", *m.DuplicationPct, dupThreshold),
+					Severity: severityForDuplication(*m.DuplicationPct, dupThreshold),
+					Tool:     "dupl",
+					Category: "duplication",
+				})
+			}
 		}
 
 		// Technical debt issues (TODOs, FIXMEs, HACKs)

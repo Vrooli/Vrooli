@@ -62,9 +62,18 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 	// Maps file path -> (avgComplexity, maxComplexity) for functions in that file
 	fileComplexity := buildFileComplexityMap(langMetrics)
 
+	// Build per-file line counts for accurate duplication percentage calculation
+	fileLineCounts := make(map[string]int, len(files))
+	for _, relPath := range files {
+		absPath := filepath.Join(scenarioPath, relPath)
+		if lc, err := countLines(absPath); err == nil {
+			fileLineCounts[relPath] = lc
+		}
+	}
+
 	// Build per-file duplication map from language metrics
 	// Maps file path -> percentage of lines that are duplicated
-	fileDuplication := buildFileDuplicationMap(langMetrics, languages)
+	fileDuplication := buildFileDuplicationMap(langMetrics, languages, fileLineCounts)
 
 	// Collect metrics per file
 	results := make([]DetailedFileMetrics, 0, len(files))
@@ -199,8 +208,9 @@ func buildFileComplexityMap(langMetrics map[Language]*LanguageMetrics) map[strin
 }
 
 // buildFileDuplicationMap calculates per-file duplication percentage
-// by analyzing duplicate blocks that involve each file
-func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, languages map[Language]*LanguageInfo) map[string]float64 {
+// by analyzing duplicate blocks that involve each file.
+// fileLineCounts provides actual line counts for accurate percentage calculation.
+func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, languages map[Language]*LanguageInfo, fileLineCounts map[string]int) map[string]float64 {
 	result := make(map[string]float64)
 
 	if langMetrics == nil {
@@ -211,13 +221,10 @@ func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, language
 	fileDupLines := make(map[string]int)
 
 	// Get file line counts for percentage calculation
+	// Use actual line counts when available
 	fileLines := make(map[string]int)
-	for _, langInfo := range languages {
-		for _, file := range langInfo.Files {
-			// We don't have per-file line counts in LanguageInfo, so we'll estimate
-			// from the duplicate block data or skip percentage calculation
-			fileLines[file] = 0
-		}
+	for path, count := range fileLineCounts {
+		fileLines[path] = count
 	}
 
 	for _, lm := range langMetrics {
@@ -230,9 +237,11 @@ func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, language
 			for _, loc := range block.Files {
 				lines := loc.EndLine - loc.StartLine + 1
 				fileDupLines[loc.Path] += lines
-				// Track total lines seen in this file from duplication info
-				if fileLines[loc.Path] < loc.EndLine {
-					fileLines[loc.Path] = loc.EndLine
+				// Only use EndLine as fallback if the file isn't in fileLineCounts
+				if _, hasActual := fileLineCounts[loc.Path]; !hasActual {
+					if fileLines[loc.Path] < loc.EndLine {
+						fileLines[loc.Path] = loc.EndLine
+					}
 				}
 			}
 		}

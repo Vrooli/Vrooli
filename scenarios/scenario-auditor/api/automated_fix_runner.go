@@ -991,7 +991,7 @@ func (job *automatedFixJob) waitForSecurityScan(jobID string) (*SecurityScanStat
 }
 
 func (job *automatedFixJob) runStandardsRescan() (automationRescanResult, error) {
-	status, err := standardsScanManager.StartScan(job.scenario, "full", nil, false)
+	status, err := standardsScanManager.StartScan(job.scenario, "full", nil, false, "" /* no sandbox path override */)
 	if err != nil {
 		return automationRescanResult{}, err
 	}

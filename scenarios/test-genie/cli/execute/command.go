@@ -22,6 +22,14 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		return err
 	}
 
+	// Resolve the scenario path using sandbox-aware resolution. When running
+	// inside a sandboxed agent (VROOLI_SANDBOX_* env vars present), this
+	// returns the path within the sandbox overlay so the API operates on the
+	// agent's modified files. Outside a sandbox, this falls back to the
+	// standard VROOLI_ROOT-based path.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+
 	req := Request{
 		ScenarioName:   parsed.Scenario,
 		Preset:         parsed.Preset,
@@ -31,6 +39,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		SuiteRequestID: parsed.RequestID,
 		UIURL:          parsed.UIURL,
 		BrowserlessURL: parsed.BrowserlessURL,
+		ScenarioPath:   scenarioPath,
 	}
 
 	var phaseDescriptors []phases.Descriptor

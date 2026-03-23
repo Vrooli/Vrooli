@@ -19,6 +19,30 @@ readonly BLUE='\033[0;34m'
 readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
+# resolve_scenario_dir <scenario_name>
+#
+# Returns the absolute path to a scenario directory, accounting for sandbox
+# isolation when active. When invoked by a sandboxed agent (VROOLI_SANDBOX_*
+# env vars present), delegates to sandbox-resolve to redirect to the overlay's
+# merged directory. Falls back to VROOLI_ROOT-based resolution.
+#
+# See packages/cli-core/cliutil/sandbox.go for the Go implementation and
+# packages/cli-core/cmd/sandbox-resolve for the binary wrapper.
+resolve_scenario_dir() {
+    local scenario_name="$1"
+    if command -v sandbox-resolve &>/dev/null; then
+        local resolved
+        resolved=$(sandbox-resolve scenario "$scenario_name" 2>/dev/null) || resolved=""
+        if [[ -n "$resolved" ]]; then
+            echo "$resolved"
+            return
+        fi
+    fi
+    # Fallback: no sandbox-resolve or it failed.
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    echo "$vrooli_root/scenarios/$scenario_name"
+}
+
 init_config() {
     if [[ ! -d "$CONFIG_DIR" ]]; then
         mkdir -p "$CONFIG_DIR"
@@ -209,10 +233,11 @@ cmd_scan() {
         abs_path=$(cd "$scenario_path" && pwd 2>/dev/null) || abs_path=""
     fi
 
-    # If not a valid path, try resolving as a scenario name
+    # If not a valid path, try resolving as a scenario name using sandbox-aware
+    # resolution (see resolve_scenario_dir at top of file).
     if [[ -z "$abs_path" ]]; then
-        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-        local scenario_dir="$vrooli_root/scenarios/$scenario_path"
+        local scenario_dir
+        scenario_dir=$(resolve_scenario_dir "$scenario_path")
         if [[ -d "$scenario_dir" ]]; then
             abs_path=$(cd "$scenario_dir" && pwd 2>/dev/null)
             echo -e "${BLUE}Resolved scenario '$scenario_path' to $abs_path${NC}"
@@ -336,8 +361,8 @@ cmd_issues() {
         echo -e "${GREEN}✓${NC} Issues retrieved"
 
         # Check if the scenario exists/has been scanned
-        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-        local scenario_dir="$vrooli_root/scenarios/$scenario"
+        local scenario_dir
+        scenario_dir=$(resolve_scenario_dir "$scenario")
 
         if [[ ! -d "$scenario_dir" ]]; then
             echo -e "${YELLOW}⚠${NC} No issues found for '$scenario'"
@@ -741,9 +766,9 @@ cmd_visit() {
         return 1
     fi
 
-    # Resolve absolute path to scenario location using VROOLI_ROOT
-    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-    local location="$vrooli_root/scenarios/$scenario"
+    # Resolve absolute path to scenario location (sandbox-aware).
+    local location
+    location=$(resolve_scenario_dir "$scenario")
 
     if [[ ! -d "$location" ]]; then
         echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
@@ -803,9 +828,9 @@ cmd_exclude() {
         return 1
     fi
 
-    # Resolve absolute path to scenario location using VROOLI_ROOT
-    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-    local location="$vrooli_root/scenarios/$scenario"
+    # Resolve absolute path to scenario location (sandbox-aware).
+    local location
+    location=$(resolve_scenario_dir "$scenario")
 
     if [[ ! -d "$location" ]]; then
         echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
@@ -867,9 +892,9 @@ cmd_campaign_note() {
         return 1
     fi
 
-    # Resolve absolute path to scenario location using VROOLI_ROOT
-    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-    local location="$vrooli_root/scenarios/$scenario"
+    # Resolve absolute path to scenario location (sandbox-aware).
+    local location
+    location=$(resolve_scenario_dir "$scenario")
 
     if [[ ! -d "$location" ]]; then
         echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
