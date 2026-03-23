@@ -1714,7 +1714,7 @@ func TestVoiceStreamWS_HallucinationFilteredFromFinal(t *testing.T) {
 // VAD speech-start trims leading silence from segment audio
 // ---------------------------------------------------------------------------
 
-func TestVoiceStreamWS_SpeechStartTrimsSilenceFromSegment(t *testing.T) {
+func TestVoiceStreamWS_SpeechStartTrimsSilenceWithLookback(t *testing.T) {
 	// Track the size of audio Whisper receives for segment-final transcription.
 	tracker := &trackingWhisperHandler{response: "hello world"}
 	ts, _ := setupVoiceWSServer(t, tracker)
@@ -1726,12 +1726,15 @@ func TestVoiceStreamWS_SpeechStartTrimsSilenceFromSegment(t *testing.T) {
 	}
 	defer conn.Close()
 
+	// lookbackBytes = audioBitrateBps/8 * vadLookbackMs/1000 = 48000/8 * 600/1000 = 3600
+	expectedLookback := audioBitrateBps / 8 * vadLookbackMs / 1000
+
 	// 1. Send 8KB of "silence" audio (before speech).
 	silenceAudio := make([]byte, 8192)
 	_ = conn.WriteMessage(websocket.BinaryMessage, silenceAudio)
 
-	// 2. Signal speech start — this should advance segmentStartOffset,
-	//    trimming the silence from the next segment.
+	// 2. Signal speech start — this should advance segmentStartOffset
+	//    but keep a lookback margin to preserve speech onset.
 	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
 
 	// 3. Send 4KB of "speech" audio.
@@ -1763,20 +1766,169 @@ func TestVoiceStreamWS_SpeechStartTrimsSilenceFromSegment(t *testing.T) {
 		}
 	}
 
-	// Verify the segment-final transcription received ONLY the speech audio,
-	// not the leading silence. The first Whisper call should be the segment-final
-	// with ~4096 bytes (speech only), NOT 8192+4096=12288 (silence + speech).
-	// The final retranscription (last call) gets the full buffer which is expected.
+	// Verify: segment-final should include speech audio (4096) + lookback (3600)
+	// = ~7696 bytes, NOT the full 12288 (all silence + speech). The lookback
+	// ensures the beginning of speech isn't clipped while still trimming most
+	// of the leading silence.
 	tracker.mu.Lock()
 	defer tracker.mu.Unlock()
 
 	if len(tracker.sizes) == 0 {
 		t.Fatal("expected at least one Whisper call")
 	}
-	// First call is the segment-final — it should contain only the speech audio.
 	segmentSize := tracker.sizes[0]
-	if segmentSize > 6000 {
-		t.Errorf("segment-final Whisper call received %d bytes (includes silence), expected ≤ speech size (~4096)", segmentSize)
+	expectedMax := 4096 + expectedLookback + 500 // small margin for framing
+	expectedMin := 4096                          // at minimum, all speech audio
+	if segmentSize < expectedMin {
+		t.Errorf("segment-final too small: %d bytes < %d (speech audio lost)", segmentSize, expectedMin)
+	}
+	if segmentSize > expectedMax {
+		t.Errorf("segment-final too large: %d bytes > %d (silence not trimmed)", segmentSize, expectedMax)
+	}
+	if segmentSize >= 8192+4096 {
+		t.Errorf("segment-final received full buffer (%d bytes) — lookback trim is not working", segmentSize)
+	}
+}
+
+func TestVoiceStreamWS_InterWordSilenceBouncesPreserveAudio(t *testing.T) {
+	// Simulates counting "1 2 3 4 5" where each word has a brief silence gap.
+	// Multiple vad-speech-start signals should NOT discard prior speech audio
+	// within the same segment.
+	tracker := &trackingWhisperHandler{response: "one two three four five"}
+	ts, _ := setupVoiceWSServer(t, tracker)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	chunk := make([]byte, 2048)
+	for i := range chunk {
+		chunk[i] = byte(i % 256)
+	}
+
+	// Simulate 5 words with silence bounces between them:
+	// speech → silence → speech → silence → ... → segment-boundary
+	for word := 0; word < 5; word++ {
+		_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+		_ = conn.WriteMessage(websocket.BinaryMessage, chunk) // "word" audio
+		_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+		_ = conn.WriteMessage(websocket.BinaryMessage, chunk[:512]) // brief silence
+	}
+
+	// Trigger segment-final
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	time.Sleep(800 * time.Millisecond)
+
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgFinal {
+			break
+		}
+	}
+
+	tracker.mu.Lock()
+	defer tracker.mu.Unlock()
+
+	if len(tracker.sizes) == 0 {
+		t.Fatal("expected at least one Whisper call")
+	}
+
+	// Total audio sent: 5 words × 2048 bytes + 5 silences × 512 bytes = 12800 bytes.
+	// The first speech-start trims leading silence (none here, since we start with speech).
+	// All subsequent speech-starts should NOT discard prior audio.
+	// The segment-final should contain ALL the audio (≥ 12800 bytes).
+	segmentSize := tracker.sizes[0]
+	totalAudio := 5*2048 + 5*512 // 12800
+	if segmentSize < totalAudio {
+		t.Errorf("segment-final only has %d bytes, expected ≥ %d — inter-word speech-start signals are discarding audio", segmentSize, totalAudio)
+	}
+}
+
+func TestVoiceStreamWS_StopMidSpeechInPersistentMode(t *testing.T) {
+	// Simulates persistent mode where:
+	// 1. First segment is delivered via segment-boundary
+	// 2. User speaks more, then presses stop (done) without waiting for silence
+	// The "done" handler should transcribe only the un-segmented tail audio
+	// and return it as the final message.
+	callIdx := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		callIdx++
+		var text string
+		switch callIdx {
+		case 1:
+			text = "segment one" // segment-final #0
+		default:
+			text = "tail speech" // final retranscription of un-segmented tail
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"text": text})
+	})
+	ts, _ := setupVoiceWSServer(t, handler)
+
+	dialer := websocket.Dialer{}
+	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/voice/stream"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	chunk := make([]byte, 4096)
+	for i := range chunk {
+		chunk[i] = byte(i % 256)
+	}
+
+	// Phase 1: First segment — speech, silence, segment-boundary.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteMessage(websocket.BinaryMessage, chunk)
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechEnd})
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgSegmentBoundary})
+	time.Sleep(500 * time.Millisecond)
+
+	// Phase 2: More speech, then immediate stop (no silence/segment-boundary).
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgVadSpeechStart})
+	_ = conn.WriteMessage(websocket.BinaryMessage, chunk)
+	// User presses stop immediately — no vad-speech-end, no segment-boundary.
+	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
+
+	// Collect all server messages.
+	var segmentFinals []string
+	var finalText string
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var msg VoiceStreamMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		if msg.Type == VoiceMsgSegmentFinal {
+			segmentFinals = append(segmentFinals, msg.Text)
+		}
+		if msg.Type == VoiceMsgFinal {
+			finalText = msg.Text
+			break
+		}
+	}
+
+	// Verify: segment-final delivered the first segment.
+	if len(segmentFinals) == 0 {
+		t.Error("expected at least one segment-final message")
+	}
+
+	// Verify: final message contains the tail speech (not empty, not the full recording).
+	if finalText == "" {
+		t.Error("final message is empty — un-segmented tail speech was lost")
+	}
+	if finalText == "segment one" {
+		t.Error("final message duplicates segment content instead of tail")
 	}
 }
 

@@ -265,7 +265,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
             const provider = providerRef.current;
             if (provider && "sendSegmentBoundary" in provider) {
               (provider as VoiceStreamProvider).sendSegmentBoundary();
-              console.info("[voice] Segment boundary sent to backend");
+              const silenceDuration = Date.now() - vadRef.current.silenceStart;
+              console.info("[voice] Segment boundary sent to backend, silenceDuration=%dms, segmentSilenceMs=%d",
+                silenceDuration, vadRef.current.segmentSilenceMs);
             }
           } else if (result === "stop") {
             // In one-shot mode, stop recording as usual.
@@ -542,10 +544,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           partialTranscript: "",
           segments: [],
         }));
-        if (persistentModeRef.current && provider instanceof VoiceStreamProvider) {
-          return;
+        // In persistent mode, segment-finals deliver text incrementally.
+        // The final message contains only the un-segmented tail (speech
+        // after the last segment boundary). Deliver it if non-empty.
+        if (text) {
+          onTranscriptRef.current(text);
         }
-        onTranscriptRef.current(text);
       };
       provider.onError = (error) => {
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }

@@ -18,6 +18,17 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// vadLookbackMs is the audio lookback margin applied when the client signals
+// speech onset. The client-side VAD runs at ~15 Hz with a ~250ms MediaRecorder
+// chunk interval, so speech-start messages arrive ~300-500ms after the actual
+// onset. We rewind the segment/partial offsets by this amount to avoid clipping
+// the beginning of speech.
+const vadLookbackMs = 600
+
+// audioBitrateBps is the expected audio bitrate in bits per second (matches
+// the frontend AUDIO_BITRATE constant of 48 kbps Opus).
+const audioBitrateBps = 48_000
+
 // Voice streaming WebSocket message types.
 const (
 	VoiceMsgDone            = "done"             // client → server: recording finished
@@ -132,6 +143,11 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// audio from segmentStartOffset..currentLen for high-quality retranscription.
 	var segmentStartOffset int
 	var segmentIndex int
+	// segmentOffsetSet tracks whether segmentStartOffset has been trimmed for
+	// the current segment. Only the FIRST vad-speech-start per segment should
+	// advance the offset — subsequent speech-start signals (from inter-word
+	// silence bounces) must NOT discard prior speech audio.
+	var segmentOffsetSet bool
 	// segmentFinalWg tracks in-flight segment-final goroutines so we can wait
 	// for them before closing the WebSocket.
 	var segmentFinalWg sync.WaitGroup
@@ -147,6 +163,13 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	var vadSignaled bool  // true after first vad-speech-start received
 	var speechActive bool // current VAD speech state
 	var speechMu sync.Mutex
+
+	// Session diagnostics — logged at close for debugging accuracy issues.
+	var vadSpeechStartCount int
+	var vadSpeechEndCount int
+	var partialsGatedBySilence int
+	var hallucinationsFiltered int
+	var totalLookbackBytes int
 
 	// WebM init segment: everything before the first Cluster element.
 	// Detected lazily once enough data has arrived. Prepended to each
@@ -190,6 +213,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				segmentIndex++
 				segmentStartOffset = currentLen
 				lastPartialOffset = currentLen
+				segmentOffsetSet = false // allow next segment's first speech-start to trim silence
 				bufMu.Unlock()
 
 				log.Printf("voice-ws: segment-boundary #%d: audioBytes=%d", thisSegIdx, segAudioLen)
@@ -271,6 +295,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				gated := vadSignaled && !speechActive
 				speechMu.Unlock()
 				if gated {
+					partialsGatedBySilence++
 					continue
 				}
 
@@ -349,6 +374,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 
 				if text == "" || isWhisperHallucination(text) {
 					if text != "" {
+						hallucinationsFiltered++
 						log.Printf("voice-ws: partial filtered hallucination: %q", text)
 					}
 					continue
@@ -405,21 +431,41 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			if msg.Type == VoiceMsgVadSpeechStart {
+				vadSpeechStartCount++
 				speechMu.Lock()
 				vadSignaled = true
 				speechActive = true
 				speechMu.Unlock()
-				// Advance both partial and segment offsets past accumulated
-				// silence so the next transcription only covers speech onset,
-				// not the preceding silence that Whisper would hallucinate on.
+				// Only trim silence on the FIRST speech-start per segment.
+				// Subsequent speech-starts (from inter-word silence bounces like
+				// "one [pause] two [pause] three") must NOT discard prior speech.
 				bufMu.Lock()
-				pos := audioBuffer.Len()
-				lastPartialOffset = pos
-				segmentStartOffset = pos
+				if !segmentOffsetSet {
+					segmentOffsetSet = true
+					lookbackBytes := audioBitrateBps / 8 * vadLookbackMs / 1000
+					pos := audioBuffer.Len()
+					rewindPos := pos - lookbackBytes
+					if rewindPos < segmentStartOffset {
+						rewindPos = segmentStartOffset
+					}
+					if rewindPos < 0 {
+						rewindPos = 0
+					}
+					actualLookback := pos - rewindPos
+					totalLookbackBytes += actualLookback
+					lastPartialOffset = rewindPos
+					segmentStartOffset = rewindPos
+					log.Printf("voice-ws: vad-speech-start (first in segment): bufLen=%d rewindTo=%d lookback=%d bytes",
+						pos, rewindPos, actualLookback)
+				} else {
+					log.Printf("voice-ws: vad-speech-start (resuming in segment): bufLen=%d segStart=%d",
+						audioBuffer.Len(), segmentStartOffset)
+				}
 				bufMu.Unlock()
 				continue
 			}
 			if msg.Type == VoiceMsgVadSpeechEnd {
+				vadSpeechEndCount++
 				speechMu.Lock()
 				speechActive = false
 				speechMu.Unlock()
@@ -443,15 +489,36 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 	// Wait for any in-flight segment-final transcriptions to complete
 	segmentFinalWg.Wait()
 
-	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d, segments=%d", audioBuffer.Len(), partialCount, segmentIndex)
+	log.Printf("voice-ws: recording done, audioBytes=%d, partials=%d, segments=%d, vadStarts=%d, vadEnds=%d, gatedPartials=%d, hallucinations=%d, lookbackTotal=%d bytes",
+		audioBuffer.Len(), partialCount, segmentIndex, vadSpeechStartCount, vadSpeechEndCount, partialsGatedBySilence, hallucinationsFiltered, totalLookbackBytes)
 
-	// Full retranscription of entire audio buffer. Partials above are for
-	// real-time UI feedback only; the final result always comes from a single
-	// Whisper pass over the complete audio with transcode=true (ffmpeg WAV)
-	// for maximum accuracy.
+	// Final transcription strategy:
+	// - No segments delivered: retranscribe the entire audio buffer (one-shot behavior).
+	// - Segments delivered: retranscribe only the un-segmented tail (segmentStartOffset..end).
+	//   Prior segments were already delivered via segment-final messages, so retranscribing
+	//   the full buffer would duplicate them.
 	bufMu.Lock()
-	finalAudio := make([]byte, audioBuffer.Len())
-	copy(finalAudio, audioBuffer.Bytes())
+	var finalAudio []byte
+	if segmentIndex > 0 && segmentStartOffset < audioBuffer.Len() {
+		// Tail audio from the last segment boundary to end of buffer.
+		tailLen := audioBuffer.Len() - segmentStartOffset
+		finalAudio = make([]byte, tailLen)
+		copy(finalAudio, audioBuffer.Bytes()[segmentStartOffset:])
+		// Prepend WebM init segment for a valid container.
+		if len(webmInitSegment) > 0 && segmentStartOffset > 0 {
+			finalAudio = append(webmInitSegment, finalAudio...)
+		}
+		log.Printf("voice-ws: final strategy=tail, tailOffset=%d, tailBytes=%d", segmentStartOffset, tailLen)
+	} else if segmentIndex > 0 {
+		// All audio was covered by segments — nothing left to transcribe.
+		log.Printf("voice-ws: final strategy=empty-tail, all audio covered by %d segment(s)", segmentIndex)
+		finalAudio = nil
+	} else {
+		// No segments — retranscribe everything (one-shot / non-persistent).
+		finalAudio = make([]byte, audioBuffer.Len())
+		copy(finalAudio, audioBuffer.Bytes())
+		log.Printf("voice-ws: final strategy=full, audioBytes=%d", len(finalAudio))
+	}
 	bufMu.Unlock()
 
 	if len(finalAudio) == 0 {
@@ -582,21 +649,21 @@ func deduplicateOverlap(accumulated, newText string) string {
 // trailing punctuation before lookup so "Thanks for watching!" matches
 // "thanks for watching".
 var whisperHallucinations = map[string]struct{}{
-	"":                        {},
-	"...":                     {},
-	"bye":                     {},
-	"goodbye":                 {},
-	"like and subscribe":      {},
-	"please subscribe":        {},
-	"so":                      {},
-	"subscribe":               {},
-	"the end":                 {},
-	"thank you":               {},
-	"thank you for watching":  {},
-	"thank you very much":     {},
-	"thanks":                  {},
-	"thanks for watching":     {},
-	"you":                     {},
+	"":                       {},
+	"...":                    {},
+	"bye":                    {},
+	"goodbye":                {},
+	"like and subscribe":     {},
+	"please subscribe":       {},
+	"so":                     {},
+	"subscribe":              {},
+	"the end":                {},
+	"thank you":              {},
+	"thank you for watching": {},
+	"thank you very much":    {},
+	"thanks":                 {},
+	"thanks for watching":    {},
+	"you":                    {},
 }
 
 // isWhisperHallucination returns true if the text matches a known Whisper

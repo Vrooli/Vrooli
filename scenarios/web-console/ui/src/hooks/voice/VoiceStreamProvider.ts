@@ -61,7 +61,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
    *  partial transcription during silence (prevents Whisper hallucinations). */
   sendVadState(speaking: boolean): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: speaking ? "vad-speech-start" : "vad-speech-end" }));
+      const msgType = speaking ? "vad-speech-start" : "vad-speech-end";
+      this.ws.send(JSON.stringify({ type: msgType }));
+      const elapsed = Date.now() - this.recordingStartTime;
+      console.debug("[voice] VAD %s sent at +%dms, chunks=%d, bytes=%d",
+        msgType, elapsed, this.chunkCount, this.totalBytesSent);
     }
   }
 
