@@ -565,6 +565,14 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 			log.Printf("voice-ws: final %s", formatSpeakerDecisionError(decision))
 		}
 		if !decision.Allowed {
+			// Notify the client why the transcript was rejected so the UI can
+			// show a helpful message instead of silently returning nothing.
+			_ = writeJSON(VoiceStreamMessage{
+				Type:      VoiceMsgSegmentRejected,
+				Score:     decision.Score,
+				Threshold: decision.Threshold,
+				ProfileID: decision.ProfileID,
+			})
 			_ = writeJSON(VoiceStreamMessage{Type: VoiceMsgFinal, Text: ""})
 			return
 		}

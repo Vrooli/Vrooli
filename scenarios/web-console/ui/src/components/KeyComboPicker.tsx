@@ -107,7 +107,7 @@ export default function KeyComboPicker({ onInput, onFocusTerminal }: KeyComboPic
             {/* Panel */}
             <div
               data-testid="combo-picker-panel"
-              className="absolute bottom-0 left-0 right-0 z-50 flex max-h-[60dvh] flex-col rounded-t-xl border-t border-wc-default bg-wc-surface-raised shadow-2xl"
+              className="absolute bottom-0 left-0 right-0 z-50 flex max-h-[60dvh] flex-col rounded-t-xl border-t border-wc-default bg-wc-surface-raised pb-[var(--wc-safe-bottom)] shadow-2xl"
             >
               {/* Drag handle */}
               <div className="flex justify-center py-2">

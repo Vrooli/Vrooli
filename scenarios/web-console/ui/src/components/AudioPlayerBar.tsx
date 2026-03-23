@@ -269,8 +269,8 @@ export default function AudioPlayerBar({
         <Square className="h-4 w-4" />
       </button>
 
-      {/* Scrub bar */}
-      {showScrub && (
+      {/* Scrub bar — always rendered to prevent layout shift; disabled while loading */}
+      {showScrub ? (
         <input
           data-testid="tts-scrub"
           type="range"
@@ -284,7 +284,19 @@ export default function AudioPlayerBar({
             isSummarized ? "accent-amber-400" : "accent-wc-accent",
           )}
         />
-      )}
+      ) : capabilities.canSeek ? (
+        <div
+          data-testid="tts-scrub-loading"
+          className="mx-1 flex h-1 flex-1 overflow-hidden rounded-full bg-wc-surface-input"
+        >
+          <div
+            className={cn(
+              "h-full w-1/3 animate-pulse rounded-full",
+              isSummarized ? "bg-amber-500/30" : "bg-wc-accent/30",
+            )}
+          />
+        </div>
+      ) : null}
 
       {/* Time display */}
       <span data-testid="tts-time" className="min-w-[5rem] text-center text-xs tabular-nums text-wc-text-muted">
@@ -333,7 +345,7 @@ export default function AudioPlayerBar({
             />
             <div
               data-testid="audio-popover"
-              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 shadow-2xl"
+              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
             >
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />

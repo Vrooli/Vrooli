@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../lib/api";
+
+vi.mock("../lib/api", async () => {
+  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+  return {
+    ...actual,
+    summarizeEvent: vi.fn(),
+  };
+});
+
+import { summarizeEvent } from "../lib/api";
+const mockSummarizeEvent = vi.mocked(summarizeEvent);
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
   return {
@@ -381,5 +392,62 @@ describe("MessagesPane", () => {
     const btn = screen.getByTestId("msg-copy-e1");
     const svg = btn.querySelector("svg");
     expect(svg?.classList.toString()).toContain("text-green-400");
+  });
+
+  // --- On-demand summarize error visibility ---
+
+  it("shows error when on-demand summarize returns an error", async () => {
+    mockSummarizeEvent.mockResolvedValue({
+      summarized: false,
+      error: "Summarization failed: ollama returned 404: model not found",
+    });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Open audio popover
+    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
+
+    // Click "Summarize for playback"
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+
+    // Error should be visible in the popover
+    await waitFor(() => {
+      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
+      expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
+    });
+  });
+
+  it("clears summarize error when retrying successfully", async () => {
+    // First call fails
+    mockSummarizeEvent.mockResolvedValueOnce({
+      summarized: false,
+      error: "Summarization failed: connection refused",
+    });
+    // Second call succeeds
+    mockSummarizeEvent.mockResolvedValueOnce({
+      summarized: true,
+      speechParagraphs: ["Short summary"],
+    });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Open popover and trigger first (failing) summarize
+    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
+    });
+
+    // Popover stays open after error — retry directly
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+
+    // Error should clear on retry
+    await waitFor(() => {
+      expect(screen.queryByTestId("msg-summarize-error-e1")).toBeNull();
+    });
   });
 });

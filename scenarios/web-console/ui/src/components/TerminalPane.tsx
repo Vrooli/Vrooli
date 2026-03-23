@@ -89,6 +89,8 @@ interface TerminalPaneProps {
   onVoiceStop?: () => void;
   /** Called when TTS speaking state changes for this pane. */
   onTtsSpeakingChange?: (speaking: boolean) => void;
+  /** Called when the currently-speaking conversation event changes (for summarize controls). */
+  onSpeakingEventChange?: (eventId: string | null) => void;
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
@@ -119,7 +121,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const serializeRef = useRef<SerializeAddon | null>(null);
@@ -229,6 +231,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         return;
       }
       livePlaybackEventRef.current = event.id;
+      onSpeakingEventChange?.(event.id);
       ttsStop();
       const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
       sendAck("playback_started", undefined, backend);
@@ -242,9 +245,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       } finally {
         if (livePlaybackEventRef.current === event.id) {
           livePlaybackEventRef.current = null;
+          onSpeakingEventChange?.(null);
         }
       }
-    }, [activePane, appendConversationEvent, autoTtsEnabled, backend, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
+    }, [activePane, appendConversationEvent, autoTtsEnabled, backend, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
 
     useEffect(() => {
       if (activePane !== sessionId) return;
@@ -265,13 +269,20 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       const playPending = async () => {
         for (const event of pending) {
           if (cancelled) return;
+          livePlaybackEventRef.current = event.id;
+          onSpeakingEventChange?.(event.id);
           ttsStop();
           const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
           try {
             await speakParagraphs(paragraphs, { eventId: event.id });
             await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
           } catch {
-            return
+            return;
+          } finally {
+            if (livePlaybackEventRef.current === event.id) {
+              livePlaybackEventRef.current = null;
+              onSpeakingEventChange?.(null);
+            }
           }
         }
       };
@@ -279,7 +290,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       return () => {
         cancelled = true;
       };
-    }, [activePane, autoTtsEnabled, backend, conversationCursor.lastListenedSequence, conversationEvents, persistCursor, sessionId, speakParagraphs, ttsSpeaking, ttsStop, ttsSupported]);
+    }, [activePane, autoTtsEnabled, backend, conversationCursor.lastListenedSequence, conversationEvents, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsSpeaking, ttsStop, ttsSupported]);
 
     // Delegate all WebSocket protocol handling to the socket hook
     const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({

@@ -78,5 +78,24 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 		return "", fmt.Errorf("decode response: %w", err)
 	}
 
-	return strings.TrimSpace(result.Message.Content), nil
+	return stripThinkTags(strings.TrimSpace(result.Message.Content)), nil
+}
+
+// stripThinkTags removes <think>...</think> blocks that reasoning models
+// (e.g. qwen3) emit before their actual answer.
+func stripThinkTags(s string) string {
+	for {
+		start := strings.Index(s, "<think>")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(s, "</think>")
+		if end < 0 {
+			// Unclosed tag — strip from <think> to end
+			s = s[:start]
+			break
+		}
+		s = s[:start] + s[end+len("</think>"):]
+	}
+	return strings.TrimSpace(s)
 }

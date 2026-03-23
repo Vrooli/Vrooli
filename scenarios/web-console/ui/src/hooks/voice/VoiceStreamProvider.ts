@@ -108,9 +108,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           const totalDuration = Date.now() - this.recordingStartTime;
           console.info("[voice] Final received: %d chars, stopToFinal=%dms, total=%dms, chunks=%d, bytes=%d",
             text.length, stopToFinal, totalDuration, this.chunkCount, this.totalBytesSent);
-          if (text) {
-            this.onResult?.(text);
-          }
+          // Always call onResult — even with empty text — so the UI resets
+          // from "transcribing" back to "idle". Empty finals happen when
+          // speaker verification rejects the audio.
+          this.onResult?.(text);
         } else if (msg.type === "error") {
           this.onError?.(msg.text ?? "Streaming transcription failed");
         }

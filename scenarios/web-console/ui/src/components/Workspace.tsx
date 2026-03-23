@@ -817,6 +817,7 @@ export default function Workspace() {
               onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
               onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
               onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
+              onSpeakingEventChange={(eventId) => { if (paneMeta.sessionId === store.activePane) setActiveSpeakingEventId(eventId); }}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -969,6 +970,7 @@ export default function Workspace() {
                       onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
                       onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
                       onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
+                      onSpeakingEventChange={(eventId) => { if (paneMeta.sessionId === store.activePane) setActiveSpeakingEventId(eventId); }}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }

@@ -27,6 +27,7 @@ interface AudioPopoverContentProps {
   summarized: boolean;
   hasSummary: boolean;
   isSummarizing: boolean;
+  summarizeError: string | null;
   onVolumeChange: (level: number) => void;
   onToggleSummarized: (useSummarized: boolean) => void;
   onRequestSummarize: () => void;
@@ -39,6 +40,7 @@ function AudioPopoverContent({
   summarized,
   hasSummary,
   isSummarizing,
+  summarizeError,
   onVolumeChange,
   onToggleSummarized,
   onRequestSummarize,
@@ -123,6 +125,14 @@ function AudioPopoverContent({
           >
             {isSummarizing ? "Summarizing…" : "Summarize for playback"}
           </button>
+          {summarizeError && (
+            <div
+              data-testid={`msg-summarize-error-${eventId}`}
+              className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
+            >
+              {summarizeError}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -146,6 +156,7 @@ export default function MessagesPane({
   const [volume, setVolume] = useState(1);
   const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(new Set());
+  const [summarizeErrors, setSummarizeErrors] = useState<Record<string, string>>({});
   const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // --- Copy-to-clipboard state ---
@@ -238,6 +249,11 @@ export default function MessagesPane({
 
   const handleRequestSummarize = useCallback((eventId: string) => {
     setSummarizingIds((prev) => new Set(prev).add(eventId));
+    setSummarizeErrors((prev) => {
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
     void summarizeEvent(sessionId, eventId).then((res) => {
       if (res.summarized && res.speechParagraphs) {
         const convState = useConversationStore.getState();
@@ -252,14 +268,18 @@ export default function MessagesPane({
             sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
           });
         }
+      } else if (res.error) {
+        setSummarizeErrors((prev) => ({ ...prev, [eventId]: res.error! }));
       }
+    }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : "Summarization failed";
+      setSummarizeErrors((prev) => ({ ...prev, [eventId]: message }));
     }).finally(() => {
       setSummarizingIds((prev) => {
         const next = new Set(prev);
         next.delete(eventId);
         return next;
       });
-      setOpenPopoverId(null);
     });
   }, [sessionId]);
 
@@ -439,7 +459,7 @@ export default function MessagesPane({
                             />
                             <div
                               data-testid={`audio-popover-${event.id}`}
-                              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 shadow-2xl"
+                              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
                             >
                               <div className="mb-3 flex justify-center">
                                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -451,6 +471,7 @@ export default function MessagesPane({
                                 summarized={useSummarized}
                                 hasSummary={hasSummary}
                                 isSummarizing={summarizingIds.has(event.id)}
+                                summarizeError={summarizeErrors[event.id] ?? null}
                                 onVolumeChange={setVolume}
                                 onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
                                 onRequestSummarize={() => handleRequestSummarize(event.id)}
@@ -475,6 +496,7 @@ export default function MessagesPane({
                                 summarized={useSummarized}
                                 hasSummary={hasSummary}
                                 isSummarizing={summarizingIds.has(event.id)}
+                                summarizeError={summarizeErrors[event.id] ?? null}
                                 onVolumeChange={setVolume}
                                 onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
                                 onRequestSummarize={() => handleRequestSummarize(event.id)}

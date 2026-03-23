@@ -107,6 +107,46 @@ func TestTTSSummarizer_ServerError(t *testing.T) {
 	}
 }
 
+func TestStripThinkTags(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{"no tags", "hello world", "hello world"},
+		{"with think block", "<think>\nreasoning here\n</think>\nactual answer", "actual answer"},
+		{"unclosed tag", "<think>partial reasoning", ""},
+		{"multiple blocks", "<think>a</think>first<think>b</think>second", "firstsecond"},
+		{"empty think", "<think></think>answer", "answer"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := stripThinkTags(tt.input)
+			if got != tt.want {
+				t.Errorf("stripThinkTags(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTTSSummarizer_StripsThinkTags(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{
+				"content": "<think>\nlong reasoning\n</think>\nThe quick summary.",
+			},
+		})
+	}))
+	defer ts.Close()
+
+	s := NewTTSSummarizer(ts.URL)
+	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "The quick summary." {
+		t.Errorf("expected think tags stripped, got %q", result)
+	}
+}
+
 func TestTTSSummarizer_Timeout(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
