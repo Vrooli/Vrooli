@@ -10,14 +10,14 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
-// setupTestStore creates a Store with a temp root and all kind directories.
-func setupTestStore(t *testing.T) (*Store, string) {
+// setupTestStore creates a FileStore with a temp root and all kind directories.
+func setupTestStore(t *testing.T) (*FileStore, string) {
 	t.Helper()
 	rootDir := t.TempDir()
 	for _, dir := range backlogKindDirs {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
-	return NewStore(rootDir), rootDir
+	return NewFileStore(rootDir), rootDir
 }
 
 // writeSpecJSON writes a spec.json file for a given kind/name.
@@ -27,9 +27,9 @@ func writeSpecJSON(t *testing.T, rootDir string, kind BacklogKind, name string, 
 	testutil.WriteJSONFile(t, filepath.Join(dir, "spec.json"), data)
 }
 
-func TestStore_NewStore(t *testing.T) {
+func TestStore_NewFileStore(t *testing.T) {
 	t.Run("creates store with rootDir", func(t *testing.T) {
-		s := NewStore("/some/path")
+		s := NewFileStore("/some/path")
 		if s == nil {
 			t.Fatal("expected non-nil store")
 		}
@@ -40,7 +40,7 @@ func TestStore_NewStore(t *testing.T) {
 }
 
 func TestStore_KindDir(t *testing.T) {
-	s := NewStore("/root")
+	s := NewFileStore("/root")
 	tests := []struct {
 		kind BacklogKind
 		want string
@@ -62,7 +62,7 @@ func TestStore_KindDir(t *testing.T) {
 }
 
 func TestStore_ItemDir(t *testing.T) {
-	s := NewStore("/root")
+	s := NewFileStore("/root")
 	tests := []struct {
 		kind BacklogKind
 		name string
@@ -484,7 +484,7 @@ func TestStore_LoadAll(t *testing.T) {
 		rootDir := t.TempDir()
 		// Only create the ideas directory, not others
 		testutil.MakeDir(t, filepath.Join(rootDir, "ideas"))
-		store := NewStore(rootDir)
+		store := NewFileStore(rootDir)
 
 		items, err := store.LoadAll([]BacklogKind{KindIdea, KindFix})
 		if err != nil {

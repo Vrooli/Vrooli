@@ -168,8 +168,15 @@ func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
 	return rollup, nil
 }
 
-// AddItems appends items to an initiative, deduplicating.
+// AddItems appends items to an initiative, deduplicating. Each item must be
+// in "kind/name" format (e.g., "idea/my-feature").
 func (s *Service) AddItems(name string, items []string) error {
+	for _, item := range items {
+		parts := strings.SplitN(item, "/", 2)
+		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+			return fmt.Errorf("invalid item reference %q: expected format kind/name", item)
+		}
+	}
 	init, err := s.store.Load(name)
 	if err != nil {
 		return err

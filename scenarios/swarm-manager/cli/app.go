@@ -107,7 +107,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "prompt-trace", NeedsAPI: true, Description: "Get latest backlog research prompt trace (--kind KIND --name NAME)", Run: a.cmdBacklogPromptTrace},
 				{Name: "convert", NeedsAPI: true, Description: "Convert backlog item kind (--kind KIND --name NAME --target-kind TARGET_KIND [--target-name TARGET_NAME])", Run: a.cmdBacklogConvert},
 				{Name: "batch-create", NeedsAPI: true, Description: "Batch create backlog items (--file items.json [--initiative NAME])", Run: a.cmdBacklogBatchCreate},
-				{Name: "batch-queue", NeedsAPI: true, Description: "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force])", Run: a.cmdBacklogBatchQueue},
+				{Name: "batch-queue", NeedsAPI: true, Description: "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])", Run: a.cmdBacklogBatchQueue},
 				{Name: "export", NeedsAPI: true, Description: "Export backlog items to markdown for offline editing", Run: a.cmdBacklogExport},
 				{Name: "import", NeedsAPI: true, Description: "Import edited markdown back into the backlog (--file FILE)", Run: a.cmdBacklogImport},
 			},
@@ -182,6 +182,8 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 				{Name: "create", NeedsAPI: true, Description: "Create initiative (--data JSON) [--json]", Run: a.cmdInitiativesCreate},
 				{Name: "update", NeedsAPI: true, Description: "Update initiative (--name NAME --data JSON) [--json]", Run: a.cmdInitiativesUpdate},
 				{Name: "delete", NeedsAPI: true, Description: "Delete initiative (--name NAME)", Run: a.cmdInitiativesDelete},
+				{Name: "add-items", NeedsAPI: true, Description: "Add items to initiative (--name NAME --items kind/name,...) [--json]", Run: a.cmdInitiativesAddItems},
+				{Name: "remove-items", NeedsAPI: true, Description: "Remove items from initiative (--name NAME --items kind/name,...) [--json]", Run: a.cmdInitiativesRemoveItems},
 			},
 		},
 		{

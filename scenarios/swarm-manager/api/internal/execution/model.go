@@ -29,6 +29,16 @@ const (
 	ModeYOLO      Mode = "yolo"
 )
 
+// ValidateMode returns true if m is a known execution mode.
+func ValidateMode(m Mode) bool {
+	switch m {
+	case ModeManual, ModeScheduled, ModeYOLO:
+		return true
+	default:
+		return false
+	}
+}
+
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
 type ArchiveContext struct {
 	ScenarioName   string   `json:"scenario_name"`

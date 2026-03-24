@@ -4,6 +4,7 @@ package backlog
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -53,6 +54,7 @@ type batchCreateResponse struct {
 	Items      []BacklogItem `json:"items"`
 	Initiative string        `json:"initiative,omitempty"`
 	Count      int           `json:"count"`
+	Warnings   []string      `json:"warnings,omitempty"`
 }
 
 // BatchCreate creates multiple backlog items atomically.
@@ -61,12 +63,19 @@ type batchCreateResponse struct {
 func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	var req batchCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httputil.BadRequest(w, "[backlog] batch-create", "invalid request body: "+err.Error())
+		httputil.BadRequest(w, "[backlog] batch-create", "invalid request body: "+httputil.TruncateErrorMessage(err, 240))
 		return
 	}
 
 	if len(req.Items) == 0 {
 		httputil.BadRequest(w, "[backlog] batch-create", "at least one item is required")
+		return
+	}
+
+	const maxBatchSize = 100
+	if len(req.Items) > maxBatchSize {
+		httputil.BadRequest(w, "[backlog] batch-create",
+			fmt.Sprintf("batch size %d exceeds maximum of %d", len(req.Items), maxBatchSize))
 		return
 	}
 
@@ -186,8 +195,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
 				return
 			}
-			depDir := h.store.ItemDir(depKind, depName)
-			if _, statErr := os.Stat(depDir); os.IsNotExist(statErr) {
+			if _, loadErr := h.store.LoadItem(depKind, depName); errors.Is(loadErr, ErrNotFound) {
 				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: dependency %q does not exist", i, ref))
 				return
 			}
@@ -261,6 +269,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Phase 6: If initiative specified, add all items to it.
+	var warnings []string
 	if initiativeName != "" && h.initiativeAssigner != nil {
 		itemRefs := make([]string, 0, len(createdItems))
 		for _, item := range createdItems {
@@ -268,8 +277,8 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if addErr := h.initiativeAssigner.AddItems(initiativeName, itemRefs); addErr != nil {
 			log.Printf("[backlog] batch-create: failed to add items to initiative %q: %v", initiativeName, addErr)
-			// Items are created but initiative assignment failed — log but don't
-			// roll back items since they're valid on their own.
+			warnings = append(warnings, fmt.Sprintf("items created but initiative assignment failed: %s",
+				httputil.TruncateErrorMessage(addErr, 240)))
 		}
 	}
 
@@ -279,6 +288,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		Items:      createdItems,
 		Initiative: initiativeName,
 		Count:      len(createdItems),
+		Warnings:   warnings,
 	}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] batch-create", "failed to encode response")

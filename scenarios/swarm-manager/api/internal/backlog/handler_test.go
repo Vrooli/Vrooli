@@ -1179,3 +1179,77 @@ func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
 
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
 }
+
+func TestUpdate_ChangeDependsOn(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	// Create items A and B.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "alpha", Title: "Alpha", Status: StatusBacklog, Priority: 5,
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "beta", Title: "Beta", Status: StatusBacklog, Priority: 5,
+	})
+
+	// Update B to depend on A.
+	payload := map[string]any{
+		"title":       "Beta",
+		"description": "",
+		"status":      "backlog",
+		"priority":    5,
+		"tags":        []string{},
+		"depends_on":  []string{"idea/alpha"},
+	}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "beta"})
+	w := httptest.NewRecorder()
+	h.Update(w, req)
+	testutil.AssertStatus(t, w, http.StatusOK)
+
+	// Verify dependency stored.
+	item, err := h.store.LoadItem(KindIdea, "beta")
+	if err != nil {
+		t.Fatalf("LoadItem: %v", err)
+	}
+	if len(item.DependsOn) != 1 || item.DependsOn[0] != "idea/alpha" {
+		t.Errorf("expected depends_on=['idea/alpha'], got %v", item.DependsOn)
+	}
+
+	// Update with different dependencies.
+	payload["depends_on"] = []string{"idea/alpha"}
+	body, _ = json.Marshal(payload)
+	req = httptest.NewRequest("PUT", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "beta"})
+	w = httptest.NewRecorder()
+	h.Update(w, req)
+	testutil.AssertStatus(t, w, http.StatusOK)
+
+	item, err = h.store.LoadItem(KindIdea, "beta")
+	if err != nil {
+		t.Fatalf("LoadItem after update: %v", err)
+	}
+	if len(item.DependsOn) != 1 || item.DependsOn[0] != "idea/alpha" {
+		t.Errorf("expected depends_on=['idea/alpha'] preserved, got %v", item.DependsOn)
+	}
+}
+
+func TestQueue_InvalidMode(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "qmode-test", Title: "Queue Mode Test", Status: StatusReady, Priority: 5,
+	})
+
+	// Proto validation rejects invalid modes via buf.validate constraint.
+	payload := map[string]any{"mode": "invalid_mode"}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest("POST", "/api/v1/backlog/idea/qmode-test/queue", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "qmode-test"})
+	w := httptest.NewRecorder()
+	h.Queue(w, req)
+
+	testutil.AssertStatus(t, w, http.StatusBadRequest)
+}

@@ -69,7 +69,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, researchTarget, tags } = values;
+  const { name, title, description, status, priority, kind, researchTarget, tags, initiative, dependsOn } = values;
 
   const isEditMode = mode === "edit";
 
@@ -107,6 +107,8 @@ export function BacklogFormDialog({
       tags,
       kind,
       researchTarget: kind === "research" ? researchTarget : undefined,
+      dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
+      initiative: initiative?.trim() || undefined,
     });
   };
 
@@ -320,6 +322,46 @@ export function BacklogFormDialog({
             disabled={isSubmitting}
           />
           <p className="mt-1 text-xs text-slate-500">Separate tags with commas.</p>
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-initiative" className="text-sm font-medium text-slate-300">
+            Initiative
+          </label>
+          <Input
+            id="backlog-form-initiative"
+            value={initiative ?? ""}
+            onChange={(e) => {
+              setField("initiative", e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="e.g. core-billing"
+            className="mt-2"
+            disabled={isSubmitting}
+          />
+          <p className="mt-1 text-xs text-slate-500">Optional initiative grouping.</p>
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-depends-on" className="text-sm font-medium text-slate-300">
+            Dependencies
+          </label>
+          <Input
+            id="backlog-form-depends-on"
+            value={(dependsOn ?? []).join(", ")}
+            onChange={(e) => {
+              const deps = e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+              setField("dependsOn", deps);
+              if (error) setError(null);
+            }}
+            placeholder="e.g. fix/auth-bug, idea/dashboard"
+            className="mt-2"
+            disabled={isSubmitting}
+          />
+          <p className="mt-1 text-xs text-slate-500">Comma-separated kind/name references.</p>
         </div>
 
         {displayError && (

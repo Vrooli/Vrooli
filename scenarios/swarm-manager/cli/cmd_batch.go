@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -32,6 +33,7 @@ type BatchCreateResponse struct {
 	Items      []BacklogItem `json:"items"`
 	Initiative string        `json:"initiative,omitempty"`
 	Count      int           `json:"count"`
+	Warnings   []string      `json:"warnings,omitempty"`
 }
 
 // BatchQueueRequest is the request body for the batch queue endpoint.
@@ -112,6 +114,13 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 	response, err := decodeResponse[BatchCreateResponse](body)
 	if err != nil {
 		return err
+	}
+
+	if len(response.Warnings) > 0 {
+		fmt.Fprintf(os.Stderr, "Warnings:\n")
+		for _, w := range response.Warnings {
+			fmt.Fprintf(os.Stderr, "  - %s\n", w)
+		}
 	}
 
 	printSection("Result")

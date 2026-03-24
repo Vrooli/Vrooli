@@ -2,6 +2,7 @@ package initiatives
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/backlog"
@@ -256,6 +257,41 @@ func TestService_AddItems(t *testing.T) {
 	}
 }
 
+func TestService_AddItems_InvalidFormat(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	_, err := svc.Create(CreateRequest{
+		Name:  "validate-test",
+		Title: "Validate Test",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		items []string
+	}{
+		{"no-slash", []string{"bad-ref"}},
+		{"empty-kind", []string{"/name"}},
+		{"empty-name", []string{"kind/"}},
+		{"spaces-only-kind", []string{" /name"}},
+		{"spaces-only-name", []string{"kind/ "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.AddItems("validate-test", tt.items)
+			if err == nil {
+				t.Error("expected error for invalid item reference")
+			}
+			if !strings.Contains(err.Error(), "invalid item reference") {
+				t.Errorf("expected 'invalid item reference' in error, got: %v", err)
+			}
+		})
+	}
+}
+
 func TestService_RemoveItems(t *testing.T) {
 	svc := newTestService(t, nil)
 
@@ -278,5 +314,37 @@ func TestService_RemoveItems(t *testing.T) {
 	}
 	if len(result.Initiative.Items) != 2 {
 		t.Errorf("expected 2 items after removal, got %d", len(result.Initiative.Items))
+	}
+}
+
+func TestService_ComputeRollup_ItemDeletedFromDisk(t *testing.T) {
+	// Simulate an item that was in the initiative but has been deleted from backlog.
+	// Only "idea/exists" is in the loader; "fix/deleted" returns an error.
+	loader := map[string]backlog.BacklogItem{
+		"idea/exists": {Status: backlog.StatusInProgress},
+	}
+	svc := newTestService(t, loader)
+
+	init := &Initiative{
+		Items: []string{
+			"idea/exists",
+			"fix/deleted", // not in loader — simulates deleted item
+		},
+	}
+
+	rollup, err := svc.ComputeRollup(init)
+	if err != nil {
+		t.Fatalf("ComputeRollup should not fail for deleted items: %v", err)
+	}
+
+	if rollup.Total != 2 {
+		t.Errorf("expected total 2, got %d", rollup.Total)
+	}
+	if rollup.InProgress != 1 {
+		t.Errorf("expected in_progress 1, got %d", rollup.InProgress)
+	}
+	// Deleted item should be counted as pending (graceful degradation).
+	if rollup.Pending != 1 {
+		t.Errorf("expected pending 1 (deleted item counted as pending), got %d", rollup.Pending)
 	}
 }

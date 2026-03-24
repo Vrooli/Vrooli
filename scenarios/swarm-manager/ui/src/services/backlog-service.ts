@@ -225,6 +225,8 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
         tags: item.tags,
         kind: item.kind,
         researchTarget: item.researchTarget || undefined,
+        dependsOn: item.dependsOn ?? [],
+        initiative: item.initiative || undefined,
       });
       const payload = toProtoJson(CreateBacklogItemRequestSchema, message);
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlog, payload);

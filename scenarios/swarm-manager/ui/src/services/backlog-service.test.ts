@@ -100,6 +100,7 @@ describe("Backlog Service", () => {
         priority: 1,
         tags: ["new"],
         kind: "idea",
+        depends_on: [],
       });
       expect(result).toEqual(createdItem);
     });

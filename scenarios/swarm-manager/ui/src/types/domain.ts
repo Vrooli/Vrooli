@@ -14,6 +14,10 @@ import type {
   BacklogItem as ProtoBacklogItem,
   BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type {
+  Initiative as ProtoInitiative,
+  InitiativeRollup as ProtoInitiativeRollup,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/initiative_pb";
 import type { Scenario as ProtoScenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
 import type { Settings as ProtoSettings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import type {
@@ -62,13 +66,17 @@ export type BacklogResearchTarget = "idea" | "fix" | "execute" | "chore" | "unsp
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget" | "dependsOn" | "initiative"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** Backlog category */
   kind: BacklogKind;
   /** Research target (research items only) */
   researchTarget?: BacklogResearchTarget;
+  /** Items this depends on, as "kind/name" refs. Empty array from API, optional in client code. */
+  dependsOn?: string[];
+  /** Initiative this item belongs to. */
+  initiative?: string;
 };
 
 /**
@@ -83,6 +91,8 @@ export interface BacklogFormValues {
   tags: string[];
   kind: BacklogKind;
   researchTarget?: BacklogResearchTarget;
+  dependsOn?: string[];
+  initiative?: string;
 }
 
 /**
@@ -101,6 +111,28 @@ export type BacklogFile = Omit<ProtoMessage<ProtoBacklogFile>, "type" | "size" |
   /** Child files (only for directories) */
   children?: BacklogFile[];
 };
+
+// ============================================================================
+// Initiative Domain
+// ============================================================================
+
+/**
+ * A named grouping of related backlog items.
+ */
+export type Initiative = ProtoMessage<ProtoInitiative>;
+
+/**
+ * Aggregated status counts for an initiative's member items.
+ */
+export type InitiativeRollup = ProtoMessage<ProtoInitiativeRollup>;
+
+/**
+ * Initiative with computed rollup from member items.
+ */
+export interface InitiativeWithRollup {
+  initiative: Initiative;
+  rollup: InitiativeRollup;
+}
 
 // ============================================================================
 // Capture Domain

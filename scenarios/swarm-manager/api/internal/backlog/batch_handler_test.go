@@ -3,6 +3,7 @@ package backlog
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -293,31 +294,69 @@ func TestBatchCreate_PriorityValidation(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, w)
 }
 
+// failingSaveStore wraps a FileStore but returns an error on the Nth SaveItem call.
+// This allows testing the rollback path in batch-create.
+type failingSaveStore struct {
+	*FileStore
+	failOnCall int // 1-based: fail on the Nth SaveItem call
+	callCount  int
+}
+
+func (f *failingSaveStore) SaveItem(item BacklogItem) error {
+	f.callCount++
+	if f.callCount >= f.failOnCall {
+		return fmt.Errorf("simulated disk write failure")
+	}
+	return f.FileStore.SaveItem(item)
+}
+
 func TestBatchCreate_SaveFailure_RollsBack(t *testing.T) {
 	h, rootDir, _ := setupBatchTestHandler(t)
 
-	// Make the ideas directory read-only so SaveItem fails after mkdir.
-	ideasDir := filepath.Join(rootDir, "ideas")
-	// Create one valid item first.
+	// Inject a store that fails on the 2nd SaveItem call.
+	// The first item creates successfully, the second triggers rollback.
+	h.store = &failingSaveStore{
+		FileStore:  NewFileStore(rootDir),
+		failOnCall: 2,
+	}
+
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "will-fail", Title: "Will Fail", Kind: "idea"},
+			{Name: "item-ok", Title: "Item OK", Kind: "idea"},
+			{Name: "item-fail", Title: "Item Fail", Kind: "idea"},
 		},
 	}
 
-	// Create the item directory but make it so the spec.json write fails.
-	itemDir := filepath.Join(ideasDir, "will-fail")
-	if err := os.MkdirAll(itemDir, 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+
+	// Verify rollback: both item directories should be cleaned up.
+	okDir := filepath.Join(rootDir, "ideas", "item-ok")
+	failDir := filepath.Join(rootDir, "ideas", "item-fail")
+
+	if _, err := os.Stat(okDir); !os.IsNotExist(err) {
+		t.Errorf("expected %q to be removed during rollback, but it still exists", okDir)
 	}
-	// Make spec.json a directory so WriteFile fails.
-	if err := os.MkdirAll(filepath.Join(itemDir, "spec.json"), 0o755); err != nil {
-		t.Fatalf("setup: %v", err)
+	if _, err := os.Stat(failDir); !os.IsNotExist(err) {
+		t.Errorf("expected %q to be removed during rollback, but it still exists", failDir)
+	}
+}
+
+func TestBatchCreate_ExceedsMaxBatchSize(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+
+	items := make([]batchCreateItem, 101)
+	for i := range items {
+		items[i] = batchCreateItem{
+			Name:  fmt.Sprintf("item-%03d", i),
+			Title: fmt.Sprintf("Item %d", i),
+			Kind:  "idea",
+		}
 	}
 
-	// Now the item already exists, so we expect a conflict.
+	payload := batchCreateRequest{Items: items}
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusConflict)
+	testutil.AssertStatusBadRequest(t, w)
 }
 
 func contains(s, substr string) bool {
@@ -331,4 +370,107 @@ func containsSubstr(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestBatchCreate_InitiativeAddItemsFails_ReturnsWarning(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	ia.addErr = fmt.Errorf("disk full")
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "widget-a", Title: "Widget A", Kind: "idea"},
+			{Name: "widget-b", Title: "Widget B", Kind: "fix"},
+		},
+		Initiative: "my-init",
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	var resp batchCreateResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Items should still be created on disk.
+	if resp.Count != 2 {
+		t.Errorf("expected count 2, got %d", resp.Count)
+	}
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
+
+	// Response should contain a warning about initiative assignment failure.
+	if len(resp.Warnings) == 0 {
+		t.Fatal("expected warnings in response, got none")
+	}
+	found := false
+	for _, w := range resp.Warnings {
+		if contains(w, "initiative assignment failed") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning containing 'initiative assignment failed', got: %v", resp.Warnings)
+	}
+}
+
+func TestBatchCreate_InitiativeEnsureExistsFails_Returns500(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	ia.ensureErr = fmt.Errorf("store corrupt")
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "orphan-item", Title: "Orphan", Kind: "idea"},
+		},
+		Initiative: "broken-init",
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+
+	// Item should NOT be on disk — EnsureExists fails before item creation.
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "orphan-item", "spec.json"))
+}
+
+func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
+	h, rootDir, _ := setupBatchTestHandler(t)
+
+	// Create item-a on disk so it can be referenced.
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:   "item-a",
+		Title:  "Item A",
+		Status: StatusBacklog,
+		Tags:   []string{},
+	})
+
+	// Batch-create: item-b depends on existing item-a, item-c depends on batch item-b.
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "item-b", Title: "Item B", Kind: "idea", DependsOn: []string{"idea/item-a"}},
+			{Name: "item-c", Title: "Item C", Kind: "idea", DependsOn: []string{"idea/item-b"}},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	// Verify both items exist with correct dependencies.
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "item-b", "spec.json"))
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "item-c", "spec.json"))
+
+	// Now try to batch-create an item with a nonexistent dependency.
+	payload2 := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "item-d", Title: "Item D", Kind: "idea", DependsOn: []string{"idea/nonexistent"}},
+		},
+	}
+
+	w2 := doBatchCreate(t, h, payload2)
+	testutil.AssertStatusBadRequest(t, w2)
+
+	body := w2.Body.String()
+	if !contains(body, "does not exist") {
+		t.Errorf("expected 'does not exist' error for nonexistent dep, got: %s", body)
+	}
 }

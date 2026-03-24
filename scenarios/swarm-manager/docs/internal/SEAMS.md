@@ -197,13 +197,25 @@ The overview endpoint composes these interfaces to produce a summary containing 
 
 ### Backlog Store Boundary
 
-`api/internal/backlog/store.go` abstracts filesystem operations for backlog item CRUD.
+`api/internal/backlog/store.go` defines the `Store` interface and `FileStore` concrete implementation for backlog item persistence.
 
-- **Store struct**: Encapsulates base directory and provides Create/Read/Update/Delete/List operations
-- Handles spec.json serialization, directory creation, and file management
-- Decouples HTTP handlers from filesystem details
+- **Store interface**: Abstracts filesystem CRUD (LoadAll, LoadItem, SaveItem, ValidateDependencies, CheckDependencies, KindDir, ItemDir)
+- **FileStore struct**: Filesystem-backed implementation; encapsulates base directory, spec.json serialization, directory creation
+- **Sentinel errors**: `ErrNotFound`, `ErrAlreadyExists`, `ErrInvalidKind` in `errors.go` enable `errors.Is` in handlers
+- Handlers hold `Store` (interface), enabling mock injection for fault testing (e.g., `failingSaveStore` in batch rollback tests)
 
-**Testing at the seam**: Tests exercise CRUD operations against a temp directory without needing HTTP infrastructure.
+**Testing at the seam**: Tests exercise CRUD operations against a temp directory. Mock stores can be injected for fault injection (SaveItem failures, simulated disk errors).
+
+### Execution Queuer Boundary
+
+`api/internal/backlog/batch_queue_handler.go` defines the `ExecutionQueuer` interface for decoupling batch queue from the execution service.
+
+- **ExecutionQueuer interface**: `ProcessPreflight(ctx, kind, name)` and `QueueBacklog(ctx, req)` — the two operations batch-queue needs
+- **Setter**: `Handler.SetExecutionQueuer(eq)` follows the same DI pattern as `InitiativeAssigner`
+- **Default fallback**: If no queuer is injected, `BatchQueue` constructs `execution.NewService(...)` inline (zero behavior change for production)
+- `*execution.Service` satisfies the interface implicitly — no adapter needed
+
+**Testing at the seam**: `mockExecutionQueuer` in test files enables testing the confirm:true path (preflight blocking, queue failures, partial success) without a real agent-manager or execution store.
 
 ### Workshop Computation Boundary
 
@@ -350,7 +362,8 @@ api/
 └── internal/
     ├── backlog/         # ✅ Refactored (was single handler.go, now decomposed)
     │   ├── types.go              # Domain types and interfaces
-    │   ├── store.go              # Filesystem CRUD abstraction
+    │   ├── errors.go             # Sentinel errors (ErrNotFound, ErrAlreadyExists, ErrInvalidKind)
+    │   ├── store.go              # Store interface + FileStore implementation
     │   ├── handler.go            # Route registration and core CRUD handlers
     │   ├── files.go              # File upload/download handlers
     │   ├── research.go           # Research spawn handlers
@@ -1427,3 +1440,17 @@ The following areas could benefit from additional seams but are acceptable as-is
 3. **Logging**: Direct `log.Printf()` calls. Could inject a logger interface, but current structured logging is sufficient.
 
 These are documented here for future consideration when test complexity demands better isolation.
+
+### Validation Boundaries (added 2026-03-23)
+
+| Boundary | Location | Behavior | Test |
+|----------|----------|----------|------|
+| Execution mode validation | `queue_ops.go`, `batch_queue_handler.go` | Handler-layer validation returns 400 for invalid modes. Proto also validates via `buf.validate` for single-item queue. Batch queue uses raw JSON so handler validation is essential. | `TestBatchQueue_InvalidMode`, `TestQueue_InvalidMode` |
+| Initiative item ref format | `initiatives/service.go:AddItems()` | Service validates `kind/name` format before accepting. Handler translates to 400. | `TestService_AddItems_InvalidFormat`, `TestHandler_AddItems_InvalidFormat` |
+| Research context path validation | `backlog/research.go` | Validates context paths exist via `os.Stat()` before adding to prompt. Missing paths skipped with log warning, not hard failure. | Research proceeds without invalid paths |
+| Create atomicity | `backlog/handler.go:Create` | Uses `os.Mkdir` (not `MkdirAll`) for atomic conflict detection — eliminates TOCTOU race between stat and create. Falls back to parent creation + retry if parent dir doesn't exist. | Existing create/conflict tests |
+| Spec.json merge safety | `backlog/store.go:SaveItem` | Logs warning on malformed existing spec.json instead of silently discarding. Prevents silent metadata loss during batch operations. | Observable via log output |
+| Batch-create warnings | `backlog/batch_handler.go` | Response includes optional `warnings []string` for non-fatal failures (e.g., initiative assignment fails but items created). Clients should check `warnings` even on 201. | `TestBatchCreate_InitiativeAddItemsFails_ReturnsWarning` |
+| Cycle detection contract | `backlog/batch_handler.go`, `batch_queue_handler.go` | Both batch-create and batch-queue use `depgraph.DetectCycle()` for informative error messages (cycle path included) before `TopologicalSort()`. | `TestBatchQueue_CycleDetection_ShowsPath` |
+| Error truncation boundary | `batch_handler.go`, `batch_queue_handler.go` | All handler-layer system error messages use `httputil.TruncateErrorMessage(err, 240)` to prevent information leakage. Validation errors (kind/name/title) are not truncated. | Consistent with `queue_ops.go` pattern |
+| Dependency helper locality | `backlog/queue_ops.go` | `appendDependencyBlockingReasons` consolidated into `queue_ops.go` (its only caller). Batch-queue uses separate `computeUnmetDependencies` for batch-context-aware dependency checking (tracks items queued within the batch). | `TestBatchQueue_PartialSuccess_DependencyChain` |

@@ -33,6 +33,8 @@ const buildFormValues = (
     tags: initialValues?.tags ?? [],
     kind: nextKind,
     researchTarget: initialValues?.researchTarget ?? "idea",
+    dependsOn: initialValues?.dependsOn ?? [],
+    initiative: initialValues?.initiative ?? "",
   };
 };
 

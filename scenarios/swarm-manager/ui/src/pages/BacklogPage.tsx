@@ -52,6 +52,8 @@ import { CaptureCard } from "../components/backlog/capture-card";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
 import { ReadinessBar } from "../components/backlog/readiness-bar";
 import { PendingDecisionBadge } from "../components/backlog/pending-decision-badge";
+import { InitiativeBadge } from "../components/backlog/initiative-badge";
+import { DependencyIndicator } from "../components/backlog/dependency-indicator";
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
@@ -706,6 +708,12 @@ export function BacklogPage() {
                       <PendingDecisionBadge reasons={reasons} />
                     </div>
                   )}
+                  {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <InitiativeBadge initiative={item.initiative} />
+                      <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
+                    </div>
+                  )}
                   <TagList
                     tags={item.tags}
                     maxTags={displayLimitsConfig.backlogCardMaxTags}
@@ -834,6 +842,12 @@ export function BacklogPage() {
                   </div>
                   <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
+                  {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <InitiativeBadge initiative={item.initiative} />
+                      <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
+                    </div>
+                  )}
                   <TagList
                     tags={item.tags}
                     maxTags={displayLimitsConfig.backlogCardMaxTags}

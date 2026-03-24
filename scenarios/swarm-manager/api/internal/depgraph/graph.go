@@ -94,25 +94,8 @@ func (g *Graph) DetectCycle() ([]string, bool) {
 // TopologicalSort returns nodes in dependency-first order using Kahn's
 // algorithm. Returns an error if the graph contains a cycle.
 func (g *Graph) TopologicalSort() ([]string, error) {
-	// Compute in-degree (number of dependencies within the graph).
-	inDegree := make(map[string]int, len(g.nodes))
-	for key := range g.nodes {
-		if _, ok := inDegree[key]; !ok {
-			inDegree[key] = 0
-		}
-		for _, dep := range g.nodes[key] {
-			if _, exists := g.nodes[dep]; exists {
-				inDegree[dep]++ // dep has an extra dependent
-			}
-		}
-	}
-
-	// Note: in Kahn's algorithm for dependency ordering, we process nodes
-	// whose dependencies are all satisfied. Here "in-degree" actually tracks
-	// how many times a node appears as a dependency. We want nodes with all
-	// their dependencies resolved first.
-
-	// Recompute: for each node, count how many of its deps are in the graph.
+	// For each node, count how many of its dependencies are in the graph.
+	// Nodes with zero unresolved deps are ready to process first.
 	depCount := make(map[string]int, len(g.nodes))
 	for key, deps := range g.nodes {
 		count := 0

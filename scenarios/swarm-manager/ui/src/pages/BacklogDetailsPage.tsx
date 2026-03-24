@@ -302,7 +302,10 @@ export function BacklogDetailsPage() {
   const [showAgentDialog, setShowAgentDialog] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
-  const [detailsExpanded, setDetailsExpanded] = useState(true);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descOverflows, setDescOverflows] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
+
   const [execSectionOpen, setExecSectionOpen] = useState(false);
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
@@ -332,6 +335,12 @@ export function BacklogDetailsPage() {
     enabled: !!backlogKind && !!name,
     ...defaultQueryOptions,
   });
+
+  useEffect(() => {
+    const el = descRef.current;
+    if (!el) return;
+    setDescOverflows(el.scrollHeight > el.clientHeight);
+  }, [item?.description]);
 
   const {
     data: files,
@@ -1404,52 +1413,51 @@ export function BacklogDetailsPage() {
   const detailsPanel = item ? (
     <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
       <div className="space-y-4">
-        <button
-          type="button"
-          onClick={() => setDetailsExpanded(!detailsExpanded)}
-          className="flex w-full items-center gap-2 border-b border-slate-800 pb-2 text-left"
-        >
-          {detailsExpanded ? (
-            <ChevronDown className="h-4 w-4 text-slate-400" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-slate-400" />
-          )}
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
           <Info className="h-4 w-4 text-slate-400" />
           <h2 className="text-base font-semibold text-slate-100">Details</h2>
-        </button>
-        {detailsExpanded && (
-          <>
-            <p
-              className="text-sm leading-relaxed text-slate-300"
-              data-testid={selectors.backlogDetails.description}
+        </div>
+        <div className="relative">
+          <p
+            ref={descRef}
+            className={`text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
+            data-testid={selectors.backlogDetails.description}
+          >
+            {item.description || "No description provided"}
+          </p>
+          {(descOverflows || descExpanded) && (
+            <button
+              type="button"
+              onClick={() => setDescExpanded(!descExpanded)}
+              className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
             >
-              {item.description || "No description provided"}
-            </p>
-            {item.tags.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  <Tags className="h-3.5 w-3.5" />
-                  Tags
-                </div>
-                <TagList tags={item.tags} maxTags={10} />
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
-              <div className="space-y-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
-                <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>
-                  {formatRelativeTime(item.created)}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Updated</p>
-                <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
-                  {formatRelativeTime(item.updated)}
-                </p>
-              </div>
+              {descExpanded ? "Show less" : "Show more\u2026"}
+            </button>
+          )}
+        </div>
+        {item.tags.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <Tags className="h-3.5 w-3.5" />
+              Tags
             </div>
-          </>
+            <TagList tags={item.tags} maxTags={10} />
+          </div>
         )}
+        <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
+            <p className="text-sm text-slate-300" title={new Date(item.created).toLocaleString()}>
+              {formatRelativeTime(item.created)}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Updated</p>
+            <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
+              {formatRelativeTime(item.updated)}
+            </p>
+          </div>
+        </div>
       </div>
     </Card>
   ) : null;

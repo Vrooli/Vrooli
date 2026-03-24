@@ -71,6 +71,22 @@ func isForceableQueueReason(reason string) bool {
 		strings.Contains(normalized, "pending decision")
 }
 
+// appendDependencyBlockingReasons checks an item's dependencies and appends
+// a blocking reason if any are unmet. Used by the single-item Queue handler.
+func appendDependencyBlockingReasons(item BacklogItem, store Store, reasons []string) ([]string, error) {
+	if len(item.DependsOn) == 0 {
+		return reasons, nil
+	}
+	unmet, err := store.CheckDependencies(item.DependsOn)
+	if err != nil {
+		return reasons, err
+	}
+	if len(unmet) > 0 {
+		reasons = append(reasons, fmt.Sprintf("unmet dependencies: %s", strings.Join(unmet, ", ")))
+	}
+	return reasons, nil
+}
+
 // Queue queues a backlog item for processing via agent-manager.
 func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "queue")
@@ -116,6 +132,10 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	mode := execution.ModeYOLO
 	if pbReq.GetMode() != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
+		if !execution.ValidateMode(mode) {
+			httputil.BadRequest(w, "[backlog] queue", fmt.Sprintf("invalid execution mode %q: must be manual, scheduled, or yolo", mode))
+			return
+		}
 	}
 	startedBy := strings.TrimSpace(pbReq.GetStartedBy())
 	if startedBy == "" {

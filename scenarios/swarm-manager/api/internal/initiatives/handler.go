@@ -28,6 +28,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/initiatives/{name}/items", h.AddItems).Methods("POST")
+	r.HandleFunc("/api/v1/initiatives/{name}/items", h.RemoveItems).Methods("DELETE")
 }
 
 // List returns all initiatives with rollup status.
@@ -168,4 +170,93 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// itemsRequest is the JSON body for AddItems and RemoveItems.
+type itemsRequest struct {
+	Items []string `json:"items"`
+}
+
+// AddItems adds item references to an existing initiative.
+func (h *Handler) AddItems(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if strings.TrimSpace(name) == "" {
+		httputil.BadRequest(w, "[initiatives] add-items", "name is required")
+		return
+	}
+
+	var req itemsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.BadRequest(w, "[initiatives] add-items", "invalid request body")
+		return
+	}
+	if len(req.Items) == 0 {
+		httputil.BadRequest(w, "[initiatives] add-items", "at least one item is required")
+		return
+	}
+
+	if err := h.service.AddItems(name, req.Items); err != nil {
+		if strings.Contains(err.Error(), "invalid item reference") {
+			httputil.BadRequest(w, "[initiatives] add-items", err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			httputil.NotFound(w, "[initiatives] add-items", "initiative not found")
+			return
+		}
+		log.Printf("[initiatives] add-items: %v", err)
+		httputil.InternalError(w, "[initiatives] add-items", "failed to add items")
+		return
+	}
+
+	result, err := h.service.Get(name)
+	if err != nil {
+		log.Printf("[initiatives] add-items: failed to reload: %v", err)
+		httputil.InternalError(w, "[initiatives] add-items", "items added but failed to reload initiative")
+		return
+	}
+
+	if err := httputil.JSON(w, result); err != nil {
+		httputil.InternalError(w, "[initiatives] add-items", "failed to encode response")
+	}
+}
+
+// RemoveItems removes item references from an existing initiative.
+func (h *Handler) RemoveItems(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if strings.TrimSpace(name) == "" {
+		httputil.BadRequest(w, "[initiatives] remove-items", "name is required")
+		return
+	}
+
+	var req itemsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.BadRequest(w, "[initiatives] remove-items", "invalid request body")
+		return
+	}
+	if len(req.Items) == 0 {
+		httputil.BadRequest(w, "[initiatives] remove-items", "at least one item is required")
+		return
+	}
+
+	if err := h.service.RemoveItems(name, req.Items); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httputil.NotFound(w, "[initiatives] remove-items", "initiative not found")
+			return
+		}
+		log.Printf("[initiatives] remove-items: %v", err)
+		httputil.InternalError(w, "[initiatives] remove-items", "failed to remove items")
+		return
+	}
+
+	result, err := h.service.Get(name)
+	if err != nil {
+		log.Printf("[initiatives] remove-items: failed to reload: %v", err)
+		httputil.InternalError(w, "[initiatives] remove-items", "items removed but failed to reload initiative")
+		return
+	}
+
+	if err := httputil.JSON(w, result); err != nil {
+		httputil.InternalError(w, "[initiatives] remove-items", "failed to encode response")
+	}
 }

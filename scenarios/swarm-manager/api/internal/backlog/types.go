@@ -96,7 +96,7 @@ func ParseBacklogKind(raw string) (BacklogKind, error) {
 	if _, ok := backlogKindDirs[candidate]; ok {
 		return candidate, nil
 	}
-	return "", fmt.Errorf("invalid backlog kind: %s", raw)
+	return "", fmt.Errorf("%w: %s", ErrInvalidKind, raw)
 }
 
 // validateBacklogStatus returns true if the given status string is a known

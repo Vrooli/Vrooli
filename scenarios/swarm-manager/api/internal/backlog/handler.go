@@ -12,10 +12,12 @@
 package backlog
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -34,10 +36,11 @@ import (
 // Handler provides HTTP handlers for backlog operations.
 type Handler struct {
 	rootDir            string
-	store              *Store
+	store              Store
 	agentService       agentmanager.Service
 	promptClient       promptmanager.Client
 	initiativeAssigner InitiativeAssigner
+	executionQueuer    ExecutionQueuer
 }
 
 // NewHandler creates a new backlog handler.
@@ -48,7 +51,7 @@ func NewHandler(rootDir string) *Handler {
 	}
 	return &Handler{
 		rootDir:      rootDir,
-		store:        NewStore(rootDir),
+		store:        NewFileStore(rootDir),
 		agentService: nil, // Uses default discovery-backed service
 		promptClient: promptmanager.NewHTTPClient(),
 	}
@@ -61,7 +64,7 @@ func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, pr
 	}
 	h := &Handler{
 		rootDir:      rootDir,
-		store:        NewStore(rootDir),
+		store:        NewFileStore(rootDir),
 		agentService: agentService,
 		promptClient: promptClient,
 	}
@@ -73,7 +76,7 @@ func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, pr
 
 // Store returns the underlying backlog store for cross-package use (e.g.,
 // initiative rollup computation).
-func (h *Handler) Store() *Store {
+func (h *Handler) Store() Store {
 	return h.store
 }
 
@@ -199,7 +202,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, ErrNotFound) {
 			httputil.NotFound(w, "", "backlog item not found")
 			return
 		}
@@ -247,15 +250,26 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	itemDir := h.store.ItemDir(kind, name)
-	if _, err := os.Stat(itemDir); err == nil {
-		httputil.Conflict(w, "[backlog] create", "backlog item already exists")
-		return
-	}
-
-	if err := os.MkdirAll(itemDir, 0o755); err != nil {
-		log.Printf("[backlog] create: failed to create directory for %q: %v", name, err)
-		httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
-		return
+	if err := os.Mkdir(itemDir, 0o755); err != nil {
+		if os.IsExist(err) {
+			httputil.Conflict(w, "[backlog] create", "backlog item already exists")
+			return
+		}
+		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
+		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
+			log.Printf("[backlog] create: failed to create parent directory for %q: %v", name, mkErr)
+			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
+			return
+		}
+		if retryErr := os.Mkdir(itemDir, 0o755); retryErr != nil {
+			if os.IsExist(retryErr) {
+				httputil.Conflict(w, "[backlog] create", "backlog item already exists")
+				return
+			}
+			log.Printf("[backlog] create: failed to create directory for %q: %v", name, retryErr)
+			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
+			return
+		}
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -346,7 +360,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.store.LoadItem(kind, name)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, ErrNotFound) {
 			httputil.NotFound(w, "[backlog] update", "backlog item not found")
 			return
 		}
@@ -432,8 +446,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Idempotent delete: if the item doesn't exist, return 204 immediately.
 	itemDir := h.store.ItemDir(kind, name)
-	if _, err := os.Stat(itemDir); os.IsNotExist(err) {
+	if _, err := h.store.LoadItem(kind, name); errors.Is(err, ErrNotFound) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

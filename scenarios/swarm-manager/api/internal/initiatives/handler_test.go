@@ -243,3 +243,126 @@ func TestHandler_Create_Duplicate(t *testing.T) {
 		t.Errorf("duplicate create: expected 409, got %d", rec.Code)
 	}
 }
+
+func TestHandler_AddItems_Success(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Create an initiative first.
+	createReq := CreateRequest{Name: "add-test", Title: "Add Test", Items: []string{"idea/foo"}}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Add items.
+	rec = httptest.NewRecorder()
+	h.AddItems(rec, requestWithVars("POST", "/api/v1/initiatives/add-test/items",
+		itemsRequest{Items: []string{"fix/bar"}},
+		map[string]string{"name": "add-test"}))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("add-items: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result InitiativeWithRollup
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result.Initiative.Items) != 2 {
+		t.Errorf("expected 2 items after add, got %d", len(result.Initiative.Items))
+	}
+}
+
+func TestHandler_AddItems_NotFound(t *testing.T) {
+	h := setupTestHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.AddItems(rec, requestWithVars("POST", "/api/v1/initiatives/nonexistent/items",
+		itemsRequest{Items: []string{"idea/foo"}},
+		map[string]string{"name": "nonexistent"}))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rec.Code)
+	}
+}
+
+func TestHandler_AddItems_EmptyItems(t *testing.T) {
+	h := setupTestHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.AddItems(rec, requestWithVars("POST", "/api/v1/initiatives/test/items",
+		itemsRequest{Items: []string{}},
+		map[string]string{"name": "test"}))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandler_RemoveItems_Success(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Create an initiative with 2 items.
+	createReq := CreateRequest{Name: "rm-test", Title: "Remove Test", Items: []string{"idea/foo", "fix/bar"}}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Remove one item.
+	rec = httptest.NewRecorder()
+	h.RemoveItems(rec, requestWithVars("DELETE", "/api/v1/initiatives/rm-test/items",
+		itemsRequest{Items: []string{"idea/foo"}},
+		map[string]string{"name": "rm-test"}))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("remove-items: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result InitiativeWithRollup
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result.Initiative.Items) != 1 {
+		t.Errorf("expected 1 item after remove, got %d", len(result.Initiative.Items))
+	}
+	if result.Initiative.Items[0] != "fix/bar" {
+		t.Errorf("expected remaining item 'fix/bar', got %q", result.Initiative.Items[0])
+	}
+}
+
+func TestHandler_AddItems_InvalidFormat(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Create an initiative first.
+	createReq := CreateRequest{Name: "validate-test", Title: "Validate Test"}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	tests := []struct {
+		name  string
+		items []string
+	}{
+		{"no-slash", []string{"bad-ref"}},
+		{"empty-kind", []string{"/name"}},
+		{"empty-name", []string{"kind/"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			h.AddItems(rec, requestWithVars("POST", "/api/v1/initiatives/validate-test/items",
+				itemsRequest{Items: tt.items},
+				map[string]string{"name": "validate-test"}))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}

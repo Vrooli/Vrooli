@@ -241,3 +241,36 @@ func assertNotContains(t *testing.T, slice []string, value, label string) {
 		}
 	}
 }
+
+func TestGetOverview_MissingInitiativeGraceful(t *testing.T) {
+	// Items reference an initiative that doesn't appear in the initiative list.
+	items := []backlog.BacklogItem{
+		{Name: "orphan-a", Kind: backlog.KindIdea, Status: backlog.StatusBacklog, Priority: 3, Tags: []string{}, Initiative: "deleted-init"},
+		{Name: "orphan-b", Kind: backlog.KindFix, Status: backlog.StatusReady, Priority: 2, Tags: []string{}, Initiative: "deleted-init"},
+	}
+
+	svc := NewService(
+		&mockBacklogLister{items: items},
+		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}}, // no initiatives returned
+	)
+
+	resp, err := svc.GetOverview()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Items should still be present.
+	if len(resp.Items) != 2 {
+		t.Errorf("expected 2 items, got %d", len(resp.Items))
+	}
+
+	// Initiatives section should be empty (deleted initiative not returned).
+	if len(resp.Initiatives) != 0 {
+		t.Errorf("expected 0 initiatives, got %d", len(resp.Initiatives))
+	}
+
+	// Summary should still count items correctly.
+	if resp.Summary.TotalItems != 2 {
+		t.Errorf("expected total_items=2, got %d", resp.Summary.TotalItems)
+	}
+}

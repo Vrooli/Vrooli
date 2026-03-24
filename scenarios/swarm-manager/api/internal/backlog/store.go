@@ -8,35 +8,51 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-// Store manages backlog items on the local filesystem.
-type Store struct {
+// Store abstracts persistence for backlog items. The primary implementation
+// is FileStore (filesystem-backed); tests may inject alternatives for fault
+// injection or isolation.
+type Store interface {
+	KindDir(kind BacklogKind) string
+	ItemDir(kind BacklogKind, name string) string
+	LoadAll(kinds []BacklogKind) ([]BacklogItem, error)
+	LoadItem(kind BacklogKind, name string) (BacklogItem, error)
+	LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error)
+	SaveItem(item BacklogItem) error
+	ValidateDependencies(dependsOn []string) error
+	CheckDependencies(dependsOn []string) ([]string, error)
+}
+
+// FileStore is the filesystem-backed Store implementation. It reads and writes
+// backlog items as spec.json files in kind-specific directories.
+type FileStore struct {
 	rootDir string
 }
 
-// NewStore creates a Store rooted at the given directory.
-func NewStore(rootDir string) *Store {
-	return &Store{rootDir: rootDir}
+// NewFileStore creates a FileStore rooted at the given directory.
+func NewFileStore(rootDir string) *FileStore {
+	return &FileStore{rootDir: rootDir}
 }
 
 // KindDir returns the absolute path for a given backlog kind directory.
-func (s *Store) KindDir(kind BacklogKind) string {
+func (s *FileStore) KindDir(kind BacklogKind) string {
 	return filepath.Join(s.rootDir, backlogKindDirs[kind])
 }
 
 // ItemDir returns the absolute path for a specific backlog item.
-func (s *Store) ItemDir(kind BacklogKind, name string) string {
+func (s *FileStore) ItemDir(kind BacklogKind, name string) string {
 	return filepath.Join(s.KindDir(kind), name)
 }
 
 // LoadAll reads all backlog items from the specified kinds. If kinds is empty,
 // all known kinds are loaded.
-func (s *Store) LoadAll(kinds []BacklogKind) ([]BacklogItem, error) {
+func (s *FileStore) LoadAll(kinds []BacklogKind) ([]BacklogItem, error) {
 	var items []BacklogItem
 
 	if len(kinds) == 0 {
@@ -77,7 +93,8 @@ func (s *Store) LoadAll(kinds []BacklogKind) ([]BacklogItem, error) {
 }
 
 // LoadItem reads a single backlog item by kind and name.
-func (s *Store) LoadItem(kind BacklogKind, name string) (BacklogItem, error) {
+// Returns ErrNotFound if the item does not exist.
+func (s *FileStore) LoadItem(kind BacklogKind, name string) (BacklogItem, error) {
 	specPath := filepath.Join(s.ItemDir(kind, name), "spec.json")
 	return s.LoadItemFromPath(kind, specPath)
 }
@@ -85,9 +102,13 @@ func (s *Store) LoadItem(kind BacklogKind, name string) (BacklogItem, error) {
 // LoadItemFromPath reads a backlog item from the given spec.json path.
 // It normalizes legacy status values, backfills missing timestamps, and
 // clamps priority to the valid 1-10 range.
-func (s *Store) LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error) {
+// Returns ErrNotFound if the spec.json file does not exist.
+func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error) {
 	data, err := os.ReadFile(specPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return BacklogItem{}, fmt.Errorf("%w: %s", ErrNotFound, specPath)
+		}
 		return BacklogItem{}, err
 	}
 
@@ -136,7 +157,7 @@ func (s *Store) LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem
 // SaveItem writes a backlog item's spec.json to disk. It performs a
 // read-modify-write to preserve unknown fields (such as archive metadata)
 // that are not part of the BacklogItem struct.
-func (s *Store) SaveItem(item BacklogItem) error {
+func (s *FileStore) SaveItem(item BacklogItem) error {
 	if item.Kind == "" {
 		return fmt.Errorf("backlog kind is required")
 	}
@@ -145,7 +166,9 @@ func (s *Store) SaveItem(item BacklogItem) error {
 	// Preserve archive and other unknown metadata fields when rewriting spec.json.
 	merged := map[string]any{}
 	if existing, err := os.ReadFile(specPath); err == nil {
-		_ = json.Unmarshal(existing, &merged)
+		if unmarshalErr := json.Unmarshal(existing, &merged); unmarshalErr != nil {
+			log.Printf("[backlog] SaveItem: warning: existing spec.json for %s/%s has malformed JSON, metadata may be lost: %v", item.Kind, item.Name, unmarshalErr)
+		}
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -197,7 +220,7 @@ func parseDependencyRef(ref string) (BacklogKind, string, error) {
 }
 
 // ValidateDependencies checks that all depends_on references exist on disk.
-func (s *Store) ValidateDependencies(dependsOn []string) error {
+func (s *FileStore) ValidateDependencies(dependsOn []string) error {
 	for _, ref := range dependsOn {
 		kind, name, err := parseDependencyRef(ref)
 		if err != nil {
@@ -213,7 +236,7 @@ func (s *Store) ValidateDependencies(dependsOn []string) error {
 
 // CheckDependencies returns the subset of depends_on references that are not
 // yet completed (status != "completed").
-func (s *Store) CheckDependencies(dependsOn []string) ([]string, error) {
+func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 	var unmet []string
 	for _, ref := range dependsOn {
 		kind, name, err := parseDependencyRef(ref)

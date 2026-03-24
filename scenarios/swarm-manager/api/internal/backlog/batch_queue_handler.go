@@ -3,11 +3,12 @@
 package backlog
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -15,6 +16,19 @@ import (
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 )
+
+// ExecutionQueuer abstracts execution operations needed by batch queue,
+// allowing tests to inject a mock without constructing a real execution service.
+type ExecutionQueuer interface {
+	ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error)
+	QueueBacklog(ctx context.Context, req execution.CreateRequest) (execution.Record, error)
+}
+
+// SetExecutionQueuer injects a custom execution queuer for batch queue operations.
+// If not set, BatchQueue constructs a default execution.Service inline.
+func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
+	h.executionQueuer = eq
+}
 
 // batchQueueRequest is the JSON request body for batch-queuing backlog items.
 type batchQueueRequest struct {
@@ -54,9 +68,24 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Deduplicate items, preserving first-seen order.
+	seen := make(map[string]bool, len(req.Items))
+	unique := make([]string, 0, len(req.Items))
+	for _, ref := range req.Items {
+		if !seen[ref] {
+			seen[ref] = true
+			unique = append(unique, ref)
+		}
+	}
+	req.Items = unique
+
 	mode := execution.ModeYOLO
 	if strings.TrimSpace(req.Mode) != "" {
 		mode = execution.Mode(strings.ToLower(strings.TrimSpace(req.Mode)))
+		if !execution.ValidateMode(mode) {
+			httputil.BadRequest(w, "[backlog] batch-queue", fmt.Sprintf("invalid execution mode %q: must be manual, scheduled, or yolo", mode))
+			return
+		}
 	}
 
 	// Phase 1: Load all referenced items and validate they exist.
@@ -75,7 +104,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		}
 		item, loadErr := h.store.LoadItem(kind, name)
 		if loadErr != nil {
-			if os.IsNotExist(loadErr) {
+			if errors.Is(loadErr, ErrNotFound) {
 				httputil.NotFound(w, "[backlog] batch-queue", fmt.Sprintf("item %q not found", ref))
 				return
 			}
@@ -92,19 +121,25 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		g.AddNode(li.ref, li.item.DependsOn)
 	}
 
-	sortedOrder, sortErr := g.TopologicalSort()
-	if sortErr != nil {
-		httputil.BadRequest(w, "[backlog] batch-queue", "dependency cycle detected among requested items")
+	if cycle, found := g.DetectCycle(); found {
+		httputil.BadRequest(w, "[backlog] batch-queue",
+			fmt.Sprintf("dependency cycle detected: %s", strings.Join(cycle, " -> ")))
 		return
 	}
+	sortedOrder, _ := g.TopologicalSort()
 
 	// Phase 3: Process each item in topological order.
-	executionService := execution.NewService(execution.ServiceConfig{
-		RootDir:      h.rootDir,
-		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
-		AgentService: h.agentService,
-	})
+	var eq ExecutionQueuer
+	if h.executionQueuer != nil {
+		eq = h.executionQueuer
+	} else {
+		eq = execution.NewService(execution.ServiceConfig{
+			RootDir:      h.rootDir,
+			StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+			PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
+			AgentService: h.agentService,
+		})
+	}
 
 	results := make([]batchQueueItemResult, 0, len(loaded))
 
@@ -152,10 +187,10 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Run preflight check.
-		preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(item.Kind), item.Name)
+		preflight, preflightErr := eq.ProcessPreflight(r.Context(), string(item.Kind), item.Name)
 		if preflightErr != nil {
 			log.Printf("[backlog] batch-queue: preflight failed for %s: %v", ref, preflightErr)
-			result.Message = "Preflight check failed"
+			result.Message = "Preflight check failed: " + httputil.TruncateErrorMessage(preflightErr, 240)
 			results = append(results, result)
 			continue
 		}
@@ -179,7 +214,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Queue the item.
-		record, queueErr := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
+		record, queueErr := eq.QueueBacklog(r.Context(), execution.CreateRequest{
 			BacklogKind: string(item.Kind),
 			BacklogName: item.Name,
 			Mode:        mode,
@@ -189,7 +224,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		})
 		if queueErr != nil {
 			log.Printf("[backlog] batch-queue: failed to queue %s: %v", ref, queueErr)
-			result.Message = "Queue failed: " + queueErr.Error()
+			result.Message = "Queue failed: " + httputil.TruncateErrorMessage(queueErr, 240)
 			results = append(results, result)
 			continue
 		}
@@ -214,7 +249,7 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 
 // computeUnmetDependencies returns dependencies that are neither completed on
 // disk nor queued in the current batch.
-func computeUnmetDependencies(dependsOn []string, store *Store, queuedInBatch map[string]bool) []string {
+func computeUnmetDependencies(dependsOn []string, store Store, queuedInBatch map[string]bool) []string {
 	if len(dependsOn) == 0 {
 		return nil
 	}
@@ -238,36 +273,4 @@ func computeUnmetDependencies(dependsOn []string, store *Store, queuedInBatch ma
 		}
 	}
 	return unmet
-}
-
-// checkDependencyReadiness verifies that all of an item's dependencies are
-// completed. Returns unmet dependency references and an error if deps can't
-// be loaded.
-func checkDependencyReadiness(dependsOn []string, store *Store) ([]string, error) {
-	return store.CheckDependencies(dependsOn)
-}
-
-// formatDependencyBlockingReason returns a human-readable blocking reason for
-// unmet dependencies.
-func formatDependencyBlockingReason(unmet []string) string {
-	if len(unmet) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("unmet dependencies: %s", strings.Join(unmet, ", "))
-}
-
-// appendDependencyBlockingReasons checks an item's dependencies and appends
-// a blocking reason if any are unmet. Used by the single-item Queue handler.
-func appendDependencyBlockingReasons(item BacklogItem, store *Store, reasons []string) ([]string, error) {
-	if len(item.DependsOn) == 0 {
-		return reasons, nil
-	}
-	unmet, err := checkDependencyReadiness(item.DependsOn, store)
-	if err != nil {
-		return reasons, err
-	}
-	if msg := formatDependencyBlockingReason(unmet); msg != "" {
-		reasons = append(reasons, msg)
-	}
-	return reasons, nil
 }

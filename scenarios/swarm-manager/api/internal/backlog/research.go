@@ -230,6 +230,10 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	if len(req.ContextPaths) > 0 {
 		prompt += "\n\nAttached files for reference:\n"
 		for _, p := range req.ContextPaths {
+			if _, statErr := os.Stat(p); statErr != nil {
+				log.Printf("[backlog] research: warning: context path %q does not exist, skipping", p)
+				continue
+			}
 			prompt += "- " + p + "\n"
 		}
 		trace.Prompt = prompt
