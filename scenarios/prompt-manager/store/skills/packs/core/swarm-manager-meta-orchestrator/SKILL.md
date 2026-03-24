@@ -168,8 +168,8 @@ Ready to create these items? I'll batch-create [N] backlog items across [M] init
 
 ### Agent Behavior
 
-1. Batch-create all backlog items with initiative assignment (auto-creates initiative via `--initiative` flag)
-2. Optionally update initiative metadata (title, description) if the auto-created defaults aren't sufficient
+1. Batch-create all backlog items with `--initiative` flag (auto-creates initiative if needed)
+2. Optionally update initiative metadata (title, description) via `initiatives update`
 3. Trigger initialization for each item (spawns workshop round 1)
 4. Report creation summary to user
 
@@ -197,14 +197,13 @@ cat > /tmp/meta-orch-items.json <<'EOF'
 EOF
 swarm-manager backlog batch-create --file /tmp/meta-orch-items.json --initiative <initiative-name>
 
-# Step 2 (optional): Update initiative with descriptive title/description.
-# The --initiative flag above auto-creates with name as title; update if needed.
+# Step 2 (optional): Update initiative with descriptive title and description.
 swarm-manager initiatives update --name <initiative-name> --data '{
   "title": "<Initiative Title>",
   "description": "<1-sentence description>"
 }'
 
-# Step 3: Trigger initialization for each item
+# Step 3: Trigger initialization for each item.
 swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"initialize"}'
 ```
 

@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react'
-import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
-import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
+import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_DETAIL_MODE } from '@/types/filterSort'
 
 /** localStorage key for sidebar state */
 const STORAGE_KEY = 'pm.sidebarState'
@@ -32,6 +32,8 @@ export interface SidebarPersistedState {
   sortConfig: SortConfig
   /** View mode */
   viewMode: ViewMode
+  /** Detail mode */
+  detailMode: DetailMode
   /** Active sidebar tab (skills, agents, teams) */
   activeTab: string
   /** Search query for skills */
@@ -52,6 +54,7 @@ const DEFAULT_STATE: SidebarPersistedState = {
   filterState: DEFAULT_FILTER_STATE,
   sortConfig: DEFAULT_SORT_CONFIG,
   viewMode: DEFAULT_VIEW_MODE,
+  detailMode: DEFAULT_DETAIL_MODE,
   activeTab: 'skills',
   searchQuery: '',
   searchMode: 'quick',
@@ -78,10 +81,13 @@ export function loadSidebarState(): SidebarPersistedState {
 
     return {
       isCollapsed: typeof parsed.isCollapsed === 'boolean' ? parsed.isCollapsed : DEFAULT_STATE.isCollapsed,
-      expandedNodes: Array.isArray(parsed.expandedNodes) ? parsed.expandedNodes : DEFAULT_STATE.expandedNodes,
+      expandedNodes: Array.isArray(parsed.expandedNodes)
+        ? (parsed.expandedNodes as unknown[]).filter((n): n is string => typeof n === 'string')
+        : DEFAULT_STATE.expandedNodes,
       filterState: validateFilterState(parsed.filterState),
       sortConfig: validateSortConfig(parsed.sortConfig),
       viewMode: validateViewMode(parsed.viewMode),
+      detailMode: validateDetailMode(parsed.detailMode),
       activeTab: typeof parsed.activeTab === 'string' ? parsed.activeTab : DEFAULT_STATE.activeTab,
       searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : DEFAULT_STATE.searchQuery,
       searchMode: parsed.searchMode === 'content' ? 'content' : DEFAULT_STATE.searchMode,
@@ -138,6 +144,11 @@ function validateViewMode(raw: unknown): ViewMode {
   return DEFAULT_VIEW_MODE
 }
 
+function validateDetailMode(raw: unknown): DetailMode {
+  if (['compact', 'full'].includes(raw as string)) return raw as DetailMode
+  return DEFAULT_DETAIL_MODE
+}
+
 /**
  * Save sidebar state to localStorage.
  */
@@ -162,6 +173,8 @@ export interface UseSidebarPersistenceOptions {
   sortConfig: SortConfig
   /** Current view mode */
   viewMode: ViewMode
+  /** Current detail mode */
+  detailMode: DetailMode
   /** Current active tab */
   activeTab: string
   /** Current search query */
@@ -195,6 +208,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
     filterState,
     sortConfig,
     viewMode,
+    detailMode,
     activeTab,
     searchQuery,
     searchMode,
@@ -219,6 +233,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         filterState,
         sortConfig,
         viewMode,
+        detailMode,
         activeTab,
         searchQuery,
         searchMode,
@@ -231,7 +246,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         clearTimeout(timerRef.current)
       }
     }
-  }, [isCollapsed, expandedNodes, filterState, sortConfig, viewMode, activeTab, searchQuery, searchMode, contentSearchOptions])
+  }, [isCollapsed, expandedNodes, filterState, sortConfig, viewMode, detailMode, activeTab, searchQuery, searchMode, contentSearchOptions])
 
   const getInitialState = useCallback((): SidebarPersistedState => {
     return loadSidebarState()

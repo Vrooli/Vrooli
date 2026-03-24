@@ -6,6 +6,7 @@ import { type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
+import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
 
 interface SkillCardViewProps {
@@ -13,6 +14,8 @@ interface SkillCardViewProps {
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
+  detailMode: DetailMode
+  healthScoreMap?: Map<string, number>
   renderItemIcon?: (skill: Skill) => ReactNode
   onSkillContextMenu?: (
     skillId: string,
@@ -20,11 +23,8 @@ interface SkillCardViewProps {
     x: number,
     y: number
   ) => void
-  /** Whether combine (multi-select) mode is active */
   combineMode?: boolean
-  /** Set of selected skill IDs in combine mode */
   combineSelectedIds?: Set<string>
-  /** Toggle a skill's selection in combine mode */
   onCombineToggleSkill?: (skillId: string) => void
 }
 
@@ -33,6 +33,8 @@ export function SkillCardView({
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
+  detailMode,
+  healthScoreMap,
   renderItemIcon,
   onSkillContextMenu,
   combineMode = false,
@@ -46,6 +48,8 @@ export function SkillCardView({
       </div>
     )
   }
+
+  const showDetails = detailMode === 'full'
 
   return (
     <div
@@ -112,39 +116,46 @@ export function SkillCardView({
               <span className="text-xs font-medium truncate flex-1 text-foreground">
                 {skill.name}
               </span>
-              {isDirty && !combineMode && (
+              {isDirty && (
                 <span className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0 mt-1" />
               )}
             </div>
 
-            {/* Description preview */}
-            {skill.description && (
-              <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
-                {skill.description}
-              </p>
-            )}
-
-            {/* Tags */}
-            {skill.tags.length > 0 && (
-              <div className="flex items-center gap-0.5 flex-wrap">
-                {skill.tags.slice(0, 2).map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-1 py-0.5 text-[8px] bg-muted rounded text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {skill.tags.length > 2 && (
-                  <span className="text-[8px] text-muted-foreground">
-                    +{skill.tags.length - 2}
-                  </span>
+            {showDetails && (
+              <>
+                {/* Description preview */}
+                {skill.description && (
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
+                    {skill.description}
+                  </p>
                 )}
-              </div>
-            )}
 
-            {/* Metadata */}
-            <SkillMetadataBadges skill={skill} />
+                {/* Tags */}
+                {skill.tags.length > 0 && (
+                  <div className="flex items-center gap-0.5 flex-wrap">
+                    {skill.tags.slice(0, 2).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-1 py-0.5 text-[8px] bg-muted rounded text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {skill.tags.length > 2 && (
+                      <span className="text-[8px] text-muted-foreground">
+                        +{skill.tags.length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Metadata */}
+                <SkillMetadataBadges
+                  skill={skill}
+                  healthScore={healthScoreMap?.get(skill.id) ?? null}
+                />
+              </>
+            )}
           </button>
         )
       })}

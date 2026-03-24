@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { ViewModeToggle } from './ViewModeToggle'
 import { SortDropdown } from './SortDropdown'
 import { FilterPopover } from './FilterPopover'
-import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
+import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
 import { countActiveFilters } from '@/services/filterSortService'
 
 interface FilterSortToolbarProps {
@@ -18,6 +18,8 @@ interface FilterSortToolbarProps {
   onSortConfigChange: (config: SortConfig) => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  detailMode: DetailMode
+  onDetailModeChange: (mode: DetailMode) => void
   availableTags: string[]
   availableFolders: string[]
   /** Whether combine (multi-select) mode is active */
@@ -34,6 +36,8 @@ export function FilterSortToolbar({
   onSortConfigChange,
   viewMode,
   onViewModeChange,
+  detailMode,
+  onDetailModeChange,
   availableTags,
   availableFolders,
   combineMode = false,
@@ -115,6 +119,8 @@ export function FilterSortToolbar({
       <ViewModeToggle
         viewMode={viewMode}
         onViewModeChange={onViewModeChange}
+        detailMode={detailMode}
+        onDetailModeChange={onDetailModeChange}
       />
     </div>
   )

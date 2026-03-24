@@ -24,7 +24,7 @@ import type { CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
-import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
+import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
 import { TreeNodeComponent } from './TreeNode'
 import { FilterSortToolbar } from '../sidebar/FilterSortToolbar'
 import { ActiveFilterChips } from '../sidebar/ActiveFilterChips'
@@ -296,6 +296,9 @@ interface SkillTreeSidebarProps {
   onSortConfigChange: (config: SortConfig) => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  detailMode: DetailMode
+  onDetailModeChange: (mode: DetailMode) => void
+  healthScoreMap?: Map<string, number>
   filteredSortedSkills: Skill[]
   availableTags: string[]
   availableFolders: string[]
@@ -405,6 +408,9 @@ export function SkillTreeSidebar({
   onSortConfigChange,
   viewMode,
   onViewModeChange,
+  detailMode,
+  onDetailModeChange,
+  healthScoreMap,
   filteredSortedSkills,
   availableTags,
   availableFolders,
@@ -1059,6 +1065,8 @@ export function SkillTreeSidebar({
                 onSortConfigChange={onSortConfigChange}
                 viewMode={viewMode}
                 onViewModeChange={onViewModeChange}
+                detailMode={detailMode}
+                onDetailModeChange={onDetailModeChange}
                 availableTags={availableTags}
                 availableFolders={availableFolders}
                 combineMode={combineMode}
@@ -1208,6 +1216,8 @@ export function SkillTreeSidebar({
                     selectedItemId={selectedItemId}
                     onSelectItem={onSelectItem}
                     dirtyItemIds={dirtyItemIds}
+                    detailMode={detailMode}
+                    healthScoreMap={healthScoreMap}
                     renderItemIcon={renderItemIcon}
                     onSkillContextMenu={handleSkillContextMenu}
                     combineMode={combineMode}
@@ -1222,6 +1232,8 @@ export function SkillTreeSidebar({
                     selectedItemId={selectedItemId}
                     onSelectItem={onSelectItem}
                     dirtyItemIds={dirtyItemIds}
+                    detailMode={detailMode}
+                    healthScoreMap={healthScoreMap}
                     renderItemIcon={renderItemIcon}
                     onSkillContextMenu={handleSkillContextMenu}
                     combineMode={combineMode}
@@ -1233,29 +1245,27 @@ export function SkillTreeSidebar({
                 ) : (
                   <>
                     {/* Tree expand/collapse controls */}
-                    {searchMode === 'quick' && (
-                      <div className="flex items-center gap-1 px-3 py-1 border-b border-border/50">
-                        <button
-                          type="button"
-                          onClick={onExpandAll}
-                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                          title="Expand all"
-                          data-testid={selectors.sidebar.expandAllButton}
-                        >
-                          <ChevronDown className="h-3 w-3" />
-                          <span>Expand</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onCollapseAll}
-                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                          title="Collapse all"
-                        >
-                          <ChevronUp className="h-3 w-3" />
-                          <span>Collapse</span>
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 px-3 py-1 border-b border-border/50">
+                      <button
+                        type="button"
+                        onClick={onExpandAll}
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                        title="Expand all"
+                        data-testid={selectors.sidebar.expandAllButton}
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                        <span>Expand</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onCollapseAll}
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                        title="Collapse all"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                        <span>Collapse</span>
+                      </button>
+                    </div>
                     {treeNodes.map((node) => (
                       <TreeNodeComponent
                         key={node.id}
@@ -1272,6 +1282,8 @@ export function SkillTreeSidebar({
                         showCheckbox={combineMode}
                         onCheckboxChange={combineMode ? onCombineToggle : undefined}
                         selectionStateByNodeId={selectionStateByNodeId}
+                        detailMode={detailMode}
+                        healthScoreMap={healthScoreMap}
                         onCategoryContextMenu={handleCategoryContextMenu}
                         onSkillContextMenu={handleSkillContextMenu}
                       />

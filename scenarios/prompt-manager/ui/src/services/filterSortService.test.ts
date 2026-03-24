@@ -165,7 +165,7 @@ describe('filterByUsagePreset', () => {
     )
     const result = filterByUsagePreset(many, 'top10')
     expect(result).toHaveLength(10)
-    expect(result[0]!.usageCount).toBe(14)
+    expect(result[0]?.usageCount).toBe(14)
   })
 
   it('handles empty skills array', () => {

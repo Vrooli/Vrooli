@@ -26,6 +26,7 @@ item-folder/
 │   └── summary.md         # Research findings (if deep research ran)
 ├── archive/
 │   └── ...                # User-provided materials and superseded artifacts
+├── orchestration-summary.md  # (optional) Meta-orchestrator session summary
 └── [user files]           # Any additional context added by user
 ```
 
@@ -225,6 +226,31 @@ When sources conflict, apply this precedence (highest to lowest):
 
 ## CLI Commands
 
+### List backlog items
+```bash
+swarm-manager backlog list [--kind <kind>] [--status <status>]
+```
+
+### Create a backlog item
+```bash
+swarm-manager backlog create --data '{"kind":"idea","name":"my-feature","title":"My Feature","description":"..."}'
+```
+
+### Update a backlog item
+```bash
+swarm-manager backlog update --kind <kind> --name <name> --data '{"title":"Updated Title","priority":3}'
+```
+
+### Delete a backlog item
+```bash
+swarm-manager backlog delete --kind <kind> --name <name>
+```
+
+### Queue a single item
+```bash
+swarm-manager backlog queue --kind <kind> --name <name> [--execute] [--force] [--mode manual|scheduled|yolo]
+```
+
 ### Read item metadata
 ```bash
 swarm-manager backlog get --kind <kind> --name <name>
@@ -249,6 +275,34 @@ swarm-manager backlog file-upload --kind <kind> --name <name> --path <relative-p
 <content>
 EOF
 ```
+
+### Research / Initialize / Workshop
+
+Trigger agent-driven research, initialization, or workshop on a backlog item.
+
+```bash
+swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"<mode>"}'
+```
+
+**Modes:**
+
+| Mode | Purpose |
+|------|---------|
+| `initialize` | Spawn initialization agent — creates first workshop round |
+| `workshop` | Spawn workshop agent — advances to next workshop round |
+| `research` / `explore` / `investigate` | Spawn research agent (aliases, all equivalent) |
+
+**Optional `--data` JSON fields:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `mode` | string | Research mode (see above) |
+| `prompt` | string | Additional user context appended to the skill prompt |
+| `scope_path` | string | Override scope directory (default: item folder) |
+| `project_root` | string | Override project root (default: ".") |
+| `context_paths` | string[] | File paths to include as reference material |
+| `context_target_ids` | string[] | Operational target IDs from archive |
+| `context_requirement_ids` | string[] | Requirement IDs from archive |
 
 ### Batch create items
 ```bash
@@ -309,6 +363,22 @@ swarm-manager overview --format markdown # Markdown output (default)
 ```bash
 swarm-manager agent-manager run-get --id <run-id>   # Get execution run status
 swarm-manager agent-manager run-stop --id <run-id>  # Stop a running execution
+```
+
+### Convert item kind
+```bash
+swarm-manager backlog convert --kind <kind> --name <name> --target-kind <new-kind>
+```
+
+### Export / Import backlog
+```bash
+swarm-manager backlog export [--kind <kind>] [--name <name>]
+swarm-manager backlog import --file <file>
+```
+
+### Prompt trace
+```bash
+swarm-manager backlog prompt-trace --kind <kind> --name <name>
 ```
 
 ## Mutation Rules

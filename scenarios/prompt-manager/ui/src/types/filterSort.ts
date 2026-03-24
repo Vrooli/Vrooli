@@ -50,6 +50,9 @@ export interface FilterState {
 
 export type ViewMode = 'tree' | 'list' | 'card'
 
+/** Whether to show full metadata on each item or just the name. */
+export type DetailMode = 'compact' | 'full'
+
 // ---------------------------------------------------------------------------
 // Active filter chip (for display below toolbar)
 // ---------------------------------------------------------------------------
@@ -81,3 +84,4 @@ export const DEFAULT_SORT_CONFIG: SortConfig = {
 }
 
 export const DEFAULT_VIEW_MODE: ViewMode = 'tree'
+export const DEFAULT_DETAIL_MODE: DetailMode = 'full'

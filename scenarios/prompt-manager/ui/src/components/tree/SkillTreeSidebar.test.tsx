@@ -16,7 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
 import type { Skill } from '@/types'
-import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_DETAIL_MODE } from '@/types/filterSort'
 import { getAISearchStatus } from '@/services/skillService'
 
 vi.mock('@/services/skillService', () => ({
@@ -97,6 +97,8 @@ describe('SkillTreeSidebar', () => {
     onSortConfigChange: vi.fn(),
     viewMode: DEFAULT_VIEW_MODE,
     onViewModeChange: vi.fn(),
+    detailMode: DEFAULT_DETAIL_MODE,
+    onDetailModeChange: vi.fn(),
     filteredSortedSkills: [] as Skill[],
     availableTags: [] as string[],
     availableFolders: ['core', 'local', 'drafts'] as string[],

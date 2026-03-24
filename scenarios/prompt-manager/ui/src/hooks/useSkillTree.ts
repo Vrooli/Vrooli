@@ -11,8 +11,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
-import type { FilterState, SortConfig, ViewMode } from '@/types/filterSort'
-import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
+import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_DETAIL_MODE } from '@/types/filterSort'
 import {
   buildTree,
   filterTree,
@@ -37,6 +37,8 @@ interface UseSkillTreeProps {
   initialSortConfig?: SortConfig
   /** Initial view mode (for persistence) */
   initialViewMode?: ViewMode
+  /** Initial detail mode (for persistence) */
+  initialDetailMode?: DetailMode
   /** Initial search query (for persistence) */
   initialSearchQuery?: string
 }
@@ -77,6 +79,8 @@ interface UseSkillTreeReturn {
   // View mode
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
+  detailMode: DetailMode
+  setDetailMode: (mode: DetailMode) => void
 
   // Sidebar collapse
   isCollapsed: boolean
@@ -102,6 +106,7 @@ export function useSkillTree({
   initialFilterState = DEFAULT_FILTER_STATE,
   initialSortConfig = DEFAULT_SORT_CONFIG,
   initialViewMode = DEFAULT_VIEW_MODE,
+  initialDetailMode = DEFAULT_DETAIL_MODE,
   initialSearchQuery = '',
 }: UseSkillTreeProps): UseSkillTreeReturn {
   // Ref to hold skills for stable callbacks (avoids re-creating callbacks when skills load)
@@ -126,6 +131,7 @@ export function useSkillTree({
   const [filterState, setFilterState] = useState<FilterState>(initialFilterState)
   const [sortConfig, setSortConfig] = useState<SortConfig>(initialSortConfig)
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
+  const [detailMode, setDetailMode] = useState<DetailMode>(initialDetailMode)
 
   // Sidebar collapse state (initialized from persistence)
   const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
@@ -311,6 +317,8 @@ export function useSkillTree({
     // View mode
     viewMode,
     setViewMode,
+    detailMode,
+    setDetailMode,
 
     // Sidebar collapse
     isCollapsed,

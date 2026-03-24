@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { FilterSortToolbar } from './FilterSortToolbar'
-import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE } from '@/types/filterSort'
+import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_DETAIL_MODE } from '@/types/filterSort'
 
 describe('FilterSortToolbar', () => {
   const defaultProps = {
@@ -11,6 +11,8 @@ describe('FilterSortToolbar', () => {
     onSortConfigChange: vi.fn(),
     viewMode: DEFAULT_VIEW_MODE,
     onViewModeChange: vi.fn(),
+    detailMode: DEFAULT_DETAIL_MODE,
+    onDetailModeChange: vi.fn(),
     availableTags: ['a', 'b'],
     availableFolders: ['core', 'local'],
   }

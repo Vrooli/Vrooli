@@ -13,8 +13,10 @@ interface SortDropdownProps {
   onSortConfigChange: (config: SortConfig) => void
 }
 
+const DEFAULT_SORT_OPTION = { field: 'alphabetical' as SortField, label: 'A–Z', defaultDir: 'asc' as SortDirection }
+
 const SORT_OPTIONS: { field: SortField; label: string; defaultDir: SortDirection }[] = [
-  { field: 'alphabetical', label: 'A–Z', defaultDir: 'asc' },
+  DEFAULT_SORT_OPTION,
   { field: 'mostUsed', label: 'Most used', defaultDir: 'desc' },
   { field: 'recentlyUsed', label: 'Recently used', defaultDir: 'desc' },
   { field: 'recentlyUpdated', label: 'Recently updated', defaultDir: 'desc' },
@@ -25,7 +27,7 @@ export function SortDropdown({ sortConfig, onSortConfigChange }: SortDropdownPro
   const [isOpen, setIsOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  const current = SORT_OPTIONS.find((o) => o.field === sortConfig.field) ?? SORT_OPTIONS[0]!
+  const current = SORT_OPTIONS.find((o) => o.field === sortConfig.field) ?? DEFAULT_SORT_OPTION
 
   const handleFieldSelect = (field: SortField, defaultDir: SortDirection) => {
     onSortConfigChange({

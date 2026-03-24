@@ -44,6 +44,7 @@ import { usePendingDecisionSync } from '@/hooks/usePendingDecisionSync'
 import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
 import { PendingDecisionsPopover } from '@/components/tree/PendingDecisionsPopover'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
@@ -150,6 +151,10 @@ export function SkillManagerLayout() {
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
 
+  // Health scores from graph store (populated when user visits graph view).
+  // Use useShallow to avoid infinite re-renders from new [] references when graph is null.
+  const graphStoreHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
+
   // Load initial sidebar state from localStorage (only once on mount)
   const initialSidebarState = useMemo(() => loadSidebarState(), [])
 
@@ -202,6 +207,8 @@ export function SkillManagerLayout() {
     setSortConfig,
     viewMode,
     setViewMode,
+    detailMode,
+    setDetailMode,
     filteredSortedSkills,
     availableTags,
     availableFolders,
@@ -212,8 +219,19 @@ export function SkillManagerLayout() {
     initialFilterState: initialSidebarState.filterState,
     initialSortConfig: initialSidebarState.sortConfig,
     initialViewMode: initialSidebarState.viewMode,
+    initialDetailMode: initialSidebarState.detailMode,
     initialSearchQuery: initialSidebarState.searchQuery,
   })
+
+  // Read health scores from graph store (populated when user visits graph view)
+  const healthScoreMap = useMemo(() => {
+    if (graphStoreHealthScores.length === 0) return undefined
+    const map = new Map<string, number>()
+    for (const hs of graphStoreHealthScores) {
+      map.set(hs.nodeId, hs.score)
+    }
+    return map
+  }, [graphStoreHealthScores])
 
   // Persist sidebar state to localStorage
   useSidebarPersistence({
@@ -222,6 +240,7 @@ export function SkillManagerLayout() {
     filterState,
     sortConfig,
     viewMode,
+    detailMode,
     activeTab,
     searchQuery,
     searchMode,
@@ -293,7 +312,7 @@ export function SkillManagerLayout() {
         })
         setTimeout(() => setCombineCopySuccess(false), 2000)
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('Failed to copy combined skills:', error)
         toast({
           title: 'Copy failed',
@@ -1242,6 +1261,9 @@ export function SkillManagerLayout() {
         onSortConfigChange={setSortConfig}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        detailMode={detailMode}
+        onDetailModeChange={setDetailMode}
+        healthScoreMap={healthScoreMap}
         filteredSortedSkills={filteredSortedSkills}
         availableTags={availableTags}
         availableFolders={availableFolders}
@@ -1257,7 +1279,7 @@ export function SkillManagerLayout() {
         onCombineToggle={handleCombineCheckboxChange}
         onEnterCombineMode={enterCombineMode}
         onExitCombineMode={exitCombineMode}
-        onCombineCopy={() => void handleCombineCopy()}
+        onCombineCopy={() => { handleCombineCopy() }}
         isCombineCopying={isCombineCopying}
         combineCopySuccess={combineCopySuccess}
         initialActiveTab={activeTab}
@@ -1444,8 +1466,8 @@ export function SkillManagerLayout() {
                 onNavigateToXRef={handleNavigateToXRef}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onOpenMobileSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
-                pendingDecisionCount={pendingDecisionsData?.count}
-                runningAgentCount={runningAgentsData?.count}
+                pendingDecisionCount={pendingDecisionsData.count}
+                runningAgentCount={runningAgentsData.count}
                 className="h-full"
               />
             )}
@@ -1480,29 +1502,29 @@ export function SkillManagerLayout() {
                 <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
               </div>
               <div className="flex items-center gap-1">
-                {(runningAgentsData?.count ?? 0) > 0 && (
+                {runningAgentsData.count > 0 && (
                   <RunningAgentsPopover
                     onNavigateToMember={(teamId, agentId) => {
                       handleNavigateToRunningAgent(teamId, agentId)
                       setIsMobileSidebarOpen(false)
                     }}
-                    groupedByTeam={runningAgentsData?.groupedByTeam}
-                    count={runningAgentsData?.count}
-                    stopAgent={runningAgentsData?.stopAgent}
-                    stoppingIds={runningAgentsData?.stoppingIds}
+                    groupedByTeam={runningAgentsData.groupedByTeam}
+                    count={runningAgentsData.count}
+                    stopAgent={runningAgentsData.stopAgent}
+                    stoppingIds={runningAgentsData.stoppingIds}
                   />
                 )}
-                {(pendingDecisionsData?.count ?? 0) > 0 && (
+                {pendingDecisionsData.count > 0 && (
                   <PendingDecisionsPopover
                     onNavigateToDecision={(teamId) => {
                       handleNavigateToDecision(teamId)
                       setIsMobileSidebarOpen(false)
                     }}
-                    groupedByTeam={pendingDecisionsData?.groupedByTeam}
-                    count={pendingDecisionsData?.count}
-                    acceptDecision={pendingDecisionsData?.acceptDecision}
-                    rejectDecision={pendingDecisionsData?.rejectDecision}
-                    processingIds={pendingDecisionsData?.processingIds}
+                    groupedByTeam={pendingDecisionsData.groupedByTeam}
+                    count={pendingDecisionsData.count}
+                    acceptDecision={pendingDecisionsData.acceptDecision}
+                    rejectDecision={pendingDecisionsData.rejectDecision}
+                    processingIds={pendingDecisionsData.processingIds}
                   />
                 )}
                 <button
@@ -1557,6 +1579,9 @@ export function SkillManagerLayout() {
                 onSortConfigChange={setSortConfig}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
+        detailMode={detailMode}
+        onDetailModeChange={setDetailMode}
+        healthScoreMap={healthScoreMap}
                 filteredSortedSkills={filteredSortedSkills}
                 availableTags={availableTags}
                 availableFolders={availableFolders}
@@ -1572,7 +1597,7 @@ export function SkillManagerLayout() {
                 onCombineToggle={handleCombineCheckboxChange}
                 onEnterCombineMode={enterCombineMode}
                 onExitCombineMode={exitCombineMode}
-                onCombineCopy={() => void handleCombineCopy()}
+                onCombineCopy={() => { handleCombineCopy() }}
                 isCombineCopying={isCombineCopying}
                 combineCopySuccess={combineCopySuccess}
                 initialActiveTab={activeTab}

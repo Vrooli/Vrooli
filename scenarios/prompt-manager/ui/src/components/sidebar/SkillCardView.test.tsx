@@ -26,6 +26,7 @@ describe('SkillCardView', () => {
     selectedItemId: null,
     onSelectItem: vi.fn(),
     dirtyItemIds: new Set<string>(),
+    detailMode: 'full' as const,
   }
 
   it('renders empty state when no skills', () => {

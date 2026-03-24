@@ -10,16 +10,23 @@
 // AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=2 | LAST: 2026-02-18
 
 import { memo, type ReactNode } from 'react'
-import { ChevronRight, ChevronDown, FolderOpen, Check, Minus, Star } from 'lucide-react'
+import { ChevronRight, ChevronDown, FolderOpen, Check, Minus, Star, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
+import type { DetailMode } from '@/types/filterSort'
 import { selectors } from '@/constants/selectors'
 
 const FOLDER_DOT_COLORS: Record<string, string> = {
   core: 'bg-blue-400',
   local: 'bg-green-400',
   drafts: 'bg-amber-400',
+}
+
+function getHealthTextColor(score: number): string {
+  if (score < 0.3) return 'text-red-400'
+  if (score < 0.6) return 'text-yellow-400'
+  return 'text-emerald-400'
 }
 
 type SelectionState = 'none' | 'partial' | 'all'
@@ -40,6 +47,9 @@ interface TreeNodeProps {
   selectionState?: SelectionState
   onCheckboxChange?: (node: TreeNodeType) => void
   selectionStateByNodeId?: Map<string, SelectionState>
+  // Display mode
+  detailMode?: DetailMode
+  healthScoreMap?: Map<string, number>
   // Context menu props
   onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
   onSkillContextMenu?: (skillId: string, skillName: string, x: number, y: number) => void
@@ -94,6 +104,8 @@ function TreeNodeComponentImpl({
   showCheckbox = false,
   onCheckboxChange,
   selectionStateByNodeId,
+  detailMode = 'full',
+  healthScoreMap,
   onCategoryContextMenu,
   onSkillContextMenu,
 }: TreeNodeProps) {
@@ -163,6 +175,8 @@ function TreeNodeComponentImpl({
                 showCheckbox={showCheckbox}
                 onCheckboxChange={onCheckboxChange}
                 selectionStateByNodeId={selectionStateByNodeId}
+                detailMode={detailMode}
+                healthScoreMap={healthScoreMap}
                 onCategoryContextMenu={onCategoryContextMenu}
                 onSkillContextMenu={onSkillContextMenu}
               />
@@ -220,27 +234,39 @@ function TreeNodeComponentImpl({
           onClick={handleCheckboxClick}
         />
       )}
-      {!showCheckbox && renderItemIcon && skill ? (
-        <span className="mt-0.5 flex-shrink-0">{renderItemIcon(skill)}</span>
+      {renderItemIcon && skill ? (
+        <span className={cn('flex-shrink-0', detailMode === 'full' ? 'mt-0.5' : '')}>{renderItemIcon(skill)}</span>
       ) : !showCheckbox ? (
-        <div className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+        <div className="w-3.5 h-3.5 flex-shrink-0" />
       ) : null}
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <span className="truncate flex-1">{displayLabel}</span>
-          {isDirty && !showCheckbox && (
+          {isDirty && (
             <span
               className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
               title="Unsaved changes"
             />
           )}
         </div>
-        {skill && !showCheckbox && (
+        {skill && detailMode === 'full' && (
           <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground mt-0.5">
+            {(() => {
+              const hs = healthScoreMap?.get(skill.id)
+              return hs != null ? (
+                <span className={cn('flex items-center gap-0.5', getHealthTextColor(hs))}>
+                  <Activity className="h-2 w-2" />
+                  {Math.round(hs * 100)}%
+                </span>
+              ) : null
+            })()}
             <span className="flex items-center gap-0.5">
               <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_DOT_COLORS[skill.folder] ?? 'bg-muted')} />
               {skill.folder}
             </span>
+            {skill.draft && (
+              <span className="text-amber-400">draft</span>
+            )}
             {skill.usageCount > 0 && (
               <span>{skill.usageCount} use{skill.usageCount !== 1 ? 's' : ''}</span>
             )}
@@ -260,6 +286,8 @@ function TreeNodeComponentImpl({
 function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
   if (prev.node !== next.node) return false
   if (prev.showCheckbox !== next.showCheckbox) return false
+  if (prev.detailMode !== next.detailMode) return false
+  if (prev.healthScoreMap !== next.healthScoreMap) return false
   if (prev.renderItemIcon !== next.renderItemIcon) return false
   if (prev.onSelectItem !== next.onSelectItem) return false
   if (prev.onToggleNode !== next.onToggleNode) return false

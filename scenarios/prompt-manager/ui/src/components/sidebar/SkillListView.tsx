@@ -6,6 +6,7 @@ import { type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
+import type { DetailMode } from '@/types/filterSort'
 import { SkillMetadataBadges } from './SkillMetadataBadges'
 
 interface SkillListViewProps {
@@ -13,6 +14,8 @@ interface SkillListViewProps {
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
+  detailMode: DetailMode
+  healthScoreMap?: Map<string, number>
   renderItemIcon?: (skill: Skill) => ReactNode
   onSkillContextMenu?: (
     skillId: string,
@@ -20,11 +23,8 @@ interface SkillListViewProps {
     x: number,
     y: number
   ) => void
-  /** Whether combine (multi-select) mode is active */
   combineMode?: boolean
-  /** Set of selected skill IDs in combine mode */
   combineSelectedIds?: Set<string>
-  /** Toggle a skill's selection in combine mode */
   onCombineToggleSkill?: (skillId: string) => void
 }
 
@@ -33,6 +33,8 @@ export function SkillListView({
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
+  detailMode,
+  healthScoreMap,
   renderItemIcon,
   onSkillContextMenu,
   combineMode = false,
@@ -46,6 +48,8 @@ export function SkillListView({
       </div>
     )
   }
+
+  const showDetails = detailMode === 'full'
 
   return (
     <div className="flex flex-col" role="listbox" data-testid="skill-list-view">
@@ -76,7 +80,8 @@ export function SkillListView({
               }
             }}
             className={cn(
-              'flex flex-col gap-0.5 px-3 py-2 text-left transition-colors border-b border-border/50',
+              'flex flex-col gap-0.5 px-3 text-left transition-colors border-b border-border/50',
+              showDetails ? 'py-2' : 'py-1.5',
               combineMode
                 ? isCombineSelected
                   ? 'bg-primary/10 text-foreground'
@@ -105,32 +110,46 @@ export function SkillListView({
               <span className="text-xs font-medium truncate flex-1">
                 {skill.name}
               </span>
-              {isDirty && !combineMode && (
+              {isDirty && (
                 <span className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0" />
               )}
             </div>
 
-            {/* Tags */}
-            {skill.tags.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {skill.tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-1.5 py-0.5 text-[9px] bg-muted rounded-full text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {skill.tags.length > 3 && (
-                  <span className="text-[9px] text-muted-foreground">
-                    +{skill.tags.length - 3}
-                  </span>
+            {showDetails && (
+              <>
+                {/* Description preview */}
+                {skill.description && (
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {skill.description}
+                  </p>
                 )}
-              </div>
-            )}
 
-            {/* Metadata badges */}
-            <SkillMetadataBadges skill={skill} />
+                {/* Tags */}
+                {skill.tags.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {skill.tags.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-1.5 py-0.5 text-[9px] bg-muted rounded-full text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {skill.tags.length > 3 && (
+                      <span className="text-[9px] text-muted-foreground">
+                        +{skill.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Metadata badges */}
+                <SkillMetadataBadges
+                  skill={skill}
+                  healthScore={healthScoreMap?.get(skill.id) ?? null}
+                />
+              </>
+            )}
           </button>
         )
       })}
