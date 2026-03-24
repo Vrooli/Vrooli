@@ -275,6 +275,64 @@ export interface FeedbackSummaryResponse {
 }
 
 // ============================================================================
+// Pending Questions Domain (inline question stepper)
+// ============================================================================
+
+/**
+ * Source of a pending question — either a workshop decision or a target/requirement review.
+ */
+export type PendingQuestionSource = "workshop" | "review";
+
+/**
+ * Type of review item within a pending question.
+ */
+export type PendingReviewItemType = "target" | "requirement";
+
+/**
+ * A single pending question from the pending-questions endpoint.
+ * Unifies workshop decisions and unreviewed targets/requirements.
+ */
+export interface PendingQuestion {
+  id: string;
+  source: PendingQuestionSource;
+  item_kind: BacklogKind;
+  item_name: string;
+  // Workshop decision fields
+  topic?: string;
+  text?: string;
+  context?: string;
+  options?: DecisionOption[];
+  selected?: string | null;
+  freeform?: string | null;
+  notes?: string | null;
+  round_number?: number;
+  // Review fields
+  title?: string;
+  description?: string;
+  criticality?: string;
+  review_status?: ReviewStatus;
+  review_comment?: string;
+  review_type?: PendingReviewItemType;
+  module_id?: string;
+}
+
+/**
+ * Pending questions grouped by backlog item.
+ */
+export interface PendingQuestionsItem {
+  kind: BacklogKind;
+  name: string;
+  questions: PendingQuestion[];
+}
+
+/**
+ * Response from the pending-questions endpoint.
+ */
+export interface PendingQuestionsResponse {
+  items: PendingQuestionsItem[];
+}
+
+// ============================================================================
 // Review Domain
 // ============================================================================
 

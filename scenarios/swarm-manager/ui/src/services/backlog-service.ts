@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, ResearchResponse, ReviewUpdate } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -153,6 +153,7 @@ export interface IBacklogService {
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
   getFeedbackSummary(): Promise<FeedbackSummaryResponse>;
   getMaturitySummary(): Promise<MaturitySummaryResponse>;
+  getPendingQuestions(): Promise<PendingQuestionsResponse>;
 }
 
 export interface ImportBacklogResponse {
@@ -461,6 +462,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async getMaturitySummary(): Promise<MaturitySummaryResponse> {
       return apiClient.get<MaturitySummaryResponse>(API_ENDPOINTS.backlogMaturitySummary);
+    },
+
+    async getPendingQuestions(): Promise<PendingQuestionsResponse> {
+      return apiClient.get<PendingQuestionsResponse>(API_ENDPOINTS.backlogPendingQuestions);
     },
   };
 }

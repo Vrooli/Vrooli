@@ -135,6 +135,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/batch/queue", h.BatchQueue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/feedback-summary", h.FeedbackSummary).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/maturity-summary", h.MaturitySummary).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/pending-questions", h.PendingQuestions).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Delete).Methods("DELETE")

@@ -136,6 +136,17 @@ export const literalSelectors = {
     itemEditButton: "capture-item-edit-button",
     itemDismissButton: "capture-item-dismiss-button",
   },
+  // Inline question stepper selectors
+  questionStepper: {
+    container: "question-stepper",
+    prevButton: "question-stepper-prev",
+    nextButton: "question-stepper-next",
+    skipButton: "question-stepper-skip",
+    progress: "question-stepper-progress",
+    workshopOption: "question-stepper-workshop-option",
+    reviewApprove: "question-stepper-review-approve",
+    reviewFlag: "question-stepper-review-flag",
+  },
   // Backlog details page selectors
   backlogDetails: {
     page: "backlog-details-page",

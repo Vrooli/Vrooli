@@ -18,7 +18,7 @@
  */
 
 import { useMemo, useState, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -57,9 +57,10 @@ import { DependencyIndicator } from "../components/backlog/dependency-indicator"
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
+import { InlineQuestionStepper } from "../components/backlog/inline-question-stepper";
 import { buildFeed, countActionableItems, type FeedbackItem, type MaturityItem } from "../lib/feed";
 import { useBacklogStore, useCaptureStore } from "../stores";
-import type { BacklogFormValues } from "../types";
+import type { BacklogFormValues, PendingQuestion } from "../types";
 
 type SortField = "priority" | "updated" | "status" | "title";
 
@@ -169,6 +170,8 @@ export function BacklogPage() {
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | null>(null);
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(() => new Set());
+  const queryClient = useQueryClient();
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -220,6 +223,21 @@ export function BacklogPage() {
     }
     return map;
   }, [maturityQuery.data]);
+
+  // Pending questions for inline stepper on All tab
+  const pendingQuestionsQuery = useQuery({
+    queryKey: ["backlog-pending-questions"],
+    queryFn: () => backlogService.getPendingQuestions(),
+    staleTime: 60_000,
+  });
+  const pendingQuestionsMap = useMemo(() => {
+    const map = new Map<string, PendingQuestion[]>();
+    if (!pendingQuestionsQuery.data?.items) return map;
+    for (const pqi of pendingQuestionsQuery.data.items) {
+      map.set(`${pqi.kind}/${pqi.name}`, pqi.questions);
+    }
+    return map;
+  }, [pendingQuestionsQuery.data]);
 
   // Build unified feed for the "All" tab
   const feedItems = useMemo(() => {
@@ -679,15 +697,19 @@ export function BacklogPage() {
               if (entry.type === "capture") return null;
               const item = entry.type === "attention" ? entry.item : entry.item;
               const reasons = entry.type === "attention" ? entry.reasons : [];
+              const itemKey = `${item.kind}/${item.name}`;
+              const pendingQuestions = pendingQuestionsMap.get(itemKey);
+              const hasActiveStepper = (pendingQuestions?.length ?? 0) > 0 && !completedSteppers.has(itemKey);
               return (
                 <ResponsiveListItem
                   as={Link}
                   key={`${item.kind}-${item.name}`}
                   to={`/backlog/${item.kind}/${item.name}`}
                   interactive
-                  className="group block"
+                  className="group relative block overflow-hidden"
                   data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
                 >
+                  {/* Header: status + priority (always shown) */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <span
@@ -701,46 +723,69 @@ export function BacklogPage() {
                       P{item.priority}
                     </span>
                   </div>
+                  {/* Title + description (always shown) */}
                   <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
-                  {reasons.length > 0 && (
-                    <div className="mt-2">
-                      <PendingDecisionBadge reasons={reasons} />
-                    </div>
-                  )}
-                  {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      <InitiativeBadge initiative={item.initiative} />
-                      <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
-                    </div>
-                  )}
-                  <TagList
-                    tags={item.tags}
-                    maxTags={displayLimitsConfig.backlogCardMaxTags}
-                    className="mt-3"
-                  />
-                  {(() => {
-                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
-                    return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
-                  })()}
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                    <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
-                    <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
-                  </div>
-                  {isBacklogQueueable(item) && (
-                    <div className="mt-3" onClick={(event) => event.preventDefault()}>
-                      <Button
-                        size="sm"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
-                        }}
-                      >
-                        <Play className="mr-1 h-3 w-3" />
-                        Run
-                      </Button>
-                    </div>
+
+                  {hasActiveStepper ? (
+                    /* Inline question stepper — replaces badges, tags, readiness, run button */
+                    <InlineQuestionStepper
+                      questions={pendingQuestions!}
+                      backlogKind={item.kind as BacklogKind}
+                      backlogName={item.name}
+                      onAllAnswered={() => {
+                        setCompletedSteppers((prev) => {
+                          const next = new Set(prev);
+                          next.add(itemKey);
+                          return next;
+                        });
+                        void queryClient.invalidateQueries({ queryKey: ["backlog-pending-questions"] });
+                        void queryClient.invalidateQueries({ queryKey: ["backlog-feedback-summary"] });
+                      }}
+                    />
+                  ) : (
+                    /* Normal card content */
+                    <>
+                      {reasons.length > 0 && (
+                        <div className="mt-2">
+                          <PendingDecisionBadge reasons={reasons} />
+                        </div>
+                      )}
+                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <InitiativeBadge initiative={item.initiative} />
+                          <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
+                        </div>
+                      )}
+                      <TagList
+                        tags={item.tags}
+                        maxTags={displayLimitsConfig.backlogCardMaxTags}
+                        className="mt-3"
+                      />
+                      {(() => {
+                        const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
+                        return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
+                      })()}
+                      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                        <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
+                        <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
+                      </div>
+                      {isBacklogQueueable(item) && (
+                        <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                          <Button
+                            size="sm"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                            }}
+                          >
+                            <Play className="mr-1 h-3 w-3" />
+                            Run
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </ResponsiveListItem>
               );
