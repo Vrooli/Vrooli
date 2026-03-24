@@ -1154,6 +1154,10 @@ func (e *RunExecutor) emitFailureEvent(ctx context.Context, err domain.DomainErr
 
 	evt := domain.NewErrorEventFromDomainError(e.run.ID, err)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // emitGenericFailureEvent captures a non-domain error as an event.
@@ -1165,6 +1169,10 @@ func (e *RunExecutor) emitGenericFailureEvent(ctx context.Context, err error) {
 
 	evt := domain.NewErrorEvent(e.run.ID, string(domain.ErrCodeInternal), err.Error(), false)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // emitSystemEvent captures a system-level event (log, status change).
@@ -1176,6 +1184,10 @@ func (e *RunExecutor) emitSystemEvent(ctx context.Context, level, message string
 
 	evt := domain.NewLogEvent(e.run.ID, level, message)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // =============================================================================

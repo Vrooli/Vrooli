@@ -56,6 +56,12 @@ func (b *testBroadcaster) getStatusBroadcasts() []*domain.Run {
 	return append([]*domain.Run{}, b.statusBroadcasts...)
 }
 
+func (b *testBroadcaster) getEventBroadcasts() []*domain.RunEvent {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]*domain.RunEvent{}, b.eventBroadcasts...)
+}
+
 // =============================================================================
 // TEST FIXTURES
 // =============================================================================
@@ -1745,5 +1751,99 @@ func TestRunExecutor_InPlace_EmitsSkipApprovalEvent(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected system event explaining in-place approval skip, but none found")
+	}
+}
+
+func TestRunExecutor_BroadcastsPostRunnerEvents(t *testing.T) {
+	// Verify that system events emitted after the runner finishes
+	// (phase changes, completion messages) are broadcast via WebSocket,
+	// not just stored to the database. This ensures real-time UI updates
+	// for post-execution events.
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config).WithBroadcaster(broadcaster)
+
+	executor.Execute(context.Background())
+
+	eventBroadcasts := broadcaster.getEventBroadcasts()
+	if len(eventBroadcasts) == 0 {
+		t.Fatal("expected post-runner events to be broadcast via WebSocket")
+	}
+
+	// Verify that at least one log event (system event) was broadcast.
+	// These are the events emitted by emitSystemEvent (phase changes, etc.)
+	foundLogBroadcast := false
+	for _, evt := range eventBroadcasts {
+		if evt.EventType == domain.EventTypeLog {
+			foundLogBroadcast = true
+			break
+		}
+	}
+	if !foundLogBroadcast {
+		t.Error("expected at least one log event to be broadcast, but none found")
+	}
+}
+
+func TestRunExecutor_BroadcastsErrorEventsOnFailure(t *testing.T) {
+	// Verify that error events emitted when a runner fails are broadcast
+	// via WebSocket so the UI can show failure details in real-time.
+	f := newInPlaceFixtures()
+	repos, eventStore := setupExecutorRepos(t, f)
+	mustCreateRun(t, repos.Runs, f.run)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "ready")
+	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		return nil, fmt.Errorf("agent crashed unexpectedly")
+	}
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+
+	config := orchestration.ExecutorConfig{
+		Timeout:           5 * time.Second,
+		HeartbeatInterval: 100 * time.Millisecond,
+	}
+
+	executor := orchestration.NewRunExecutor(
+		repos.Runs, registry, nil, eventStore,
+		f.run, f.task, f.profile, "test prompt", "",
+	).WithConfig(config).WithBroadcaster(broadcaster)
+
+	executor.Execute(context.Background())
+
+	eventBroadcasts := broadcaster.getEventBroadcasts()
+
+	// Verify that an error event was broadcast
+	foundErrorBroadcast := false
+	for _, evt := range eventBroadcasts {
+		if evt.EventType == domain.EventTypeError {
+			foundErrorBroadcast = true
+			break
+		}
+	}
+	if !foundErrorBroadcast {
+		t.Error("expected error event to be broadcast on runner failure, but none found")
 	}
 }

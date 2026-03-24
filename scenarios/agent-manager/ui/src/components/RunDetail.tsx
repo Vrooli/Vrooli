@@ -73,7 +73,7 @@ interface RunDetailProps {
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
   onStop: (run: Run) => Promise<void>;
-  onDelete: (run: Run) => Promise<void>;
+  onDelete: (run: Run) => void;
   onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
   deleteLoading: boolean;
@@ -295,8 +295,7 @@ export function RunDetail({
     );
 
     return () => onMobileHeaderRight(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDesktop, run.actions, actionsMenuOpen, onMobileHeaderRight]);
+  }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, canApplyFixes, canDeleteRun, deleteLoading]);
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
@@ -413,7 +412,7 @@ export function RunDetail({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(run)}
+                    onClick={() => { console.log("[DELETE] Desktop header delete clicked", { runId: run.id }); onDelete(run); }}
                     className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
                     disabled={deleteLoading}
                     title="Delete run"
@@ -476,7 +475,7 @@ export function RunDetail({
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
                         disabled={deleteLoading}
-                        onClick={() => { onDelete(run); setActionsMenuOpen(false); }}
+                        onClick={() => { console.log("[DELETE] Desktop menu delete clicked", { runId: run.id }); onDelete(run); setActionsMenuOpen(false); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </button>
@@ -1436,7 +1435,7 @@ function MobileHeaderActions({
                 type="button"
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
                 disabled={deleteLoading}
-                onClick={() => { onDelete(); setActionsMenuOpen(() => false); }}
+                onClick={() => { console.log("[DELETE] Mobile menu delete clicked"); onDelete(); setActionsMenuOpen(() => false); }}
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>

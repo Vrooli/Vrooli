@@ -19,6 +19,14 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
@@ -123,6 +131,8 @@ export function RunsPage({
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
   const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
   const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
   const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
@@ -217,9 +227,46 @@ export function RunsPage({
     };
   }, [applyInvestigationRunId, applyModalOpen, wsSubscribe, wsUnsubscribe]);
 
+  // Track whether WS has connected at least once, so we can distinguish
+  // reconnections (which need an event refetch) from the initial connection.
+  const wsHasConnectedRef = useRef(false);
+
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
     const handleMessage: MessageHandler = (message: WebSocketMessage) => {
+      // On WS reconnect, refetch events for the selected run to catch any
+      // events missed during the disconnect (e.g. user switched browser tabs
+      // and the WS timed out). Skip on initial connection since loadRunDetails
+      // already fetches events.
+      if (message.type === "connected") {
+        if (wsHasConnectedRef.current && selectedRunId) {
+          const runIdToReconcile = selectedRunId;
+          (async () => {
+            try {
+              // Refetch the run itself (status may have changed during disconnect)
+              const latestRun = await onGetRun(runIdToReconcile);
+              setSelectedRun((prev) => (prev && prev.id === runIdToReconcile ? { ...prev, ...latestRun } : prev));
+              setRunOverrides((prev) => ({ ...prev, [runIdToReconcile]: latestRun }));
+
+              // Refetch all events to fill any gaps
+              const freshEvents = await onGetEvents(runIdToReconcile);
+              if (freshEvents?.length) {
+                setEvents((prev) => {
+                  const knownIds = new Set(freshEvents.map((e) => e.id));
+                  const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
+                  const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
+                  return [...freshEvents, ...extras];
+                });
+              }
+            } catch (err) {
+              console.error("Failed to reconcile events after WS reconnect:", err);
+            }
+          })();
+        }
+        wsHasConnectedRef.current = true;
+        return;
+      }
+
       // Handle messages for selectedRun
       if (selectedRunId && message.runId === selectedRunId) {
         switch (message.type) {
@@ -291,7 +338,7 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe, onGetEvents]);
+  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe, onGetEvents, onGetRun]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
@@ -369,15 +416,27 @@ export function RunsPage({
     }
   };
 
-  const handleDelete = async (run: Run) => {
-    if (!confirm("Delete this run? This removes its history and events.")) return;
+  const handleDeleteRequest = (run: Run) => {
+    console.log("[DELETE] handleDeleteRequest called", { runId: run?.id, run });
+    setDeleteError(null);
+    setDeleteConfirmRun(run);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmRun) return;
+    const run = deleteConfirmRun;
     setDeleteLoading(true);
+    setDeleteError(null);
     try {
       await onDeleteRun(run.id);
+      setDeleteConfirmRun(null);
       if (selectedRun?.id === run.id) {
         setSelectedRun(null);
         navigate("/runs");
       }
+    } catch (err) {
+      console.error("Failed to delete run:", err);
+      setDeleteError((err as Error).message || "Failed to delete run");
     } finally {
       setDeleteLoading(false);
     }
@@ -640,7 +699,8 @@ export function RunsPage({
                   aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(run);
+                    console.log("[DELETE] List trash icon clicked", { runId: run.id });
+                    handleDeleteRequest(run);
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -696,7 +756,7 @@ export function RunsPage({
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
             onStop={async (r) => handleStop(r.id)}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
             onContinue={async (message, attachmentIds) => {
               await onContinueRun(selectedRun.id, message, attachmentIds);
               // Reload events to show the new messages
@@ -798,6 +858,50 @@ export function RunsPage({
         loading={applyLoading}
         error={applyError}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!deleteConfirmRun}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmRun(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Run</DialogTitle>
+            <DialogDescription>
+              Delete this run? This removes its history and events. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <div className="mx-4 sm:mx-6 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteConfirmRun(null);
+                setDeleteError(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
