@@ -1,17 +1,19 @@
 /**
  * Capture Card
  *
- * Compact inline display for a raw capture with classification triage.
+ * Displays a raw capture with classification triage inside a unified feed card.
  *
- * Design: Slim rows instead of full cards. Suggested items show as a single
- * line (kind badge + title) with icon-only action buttons. Detail (description,
- * tags) is hidden by default and revealed on expand.
+ * Design: Matches backlog card aesthetic via ResponsiveListItem card shell.
+ * Header mirrors backlog cards (status dot + "Capture" badge left, timestamp + dismiss right).
+ * Original text renders as card title. Suggestions show as compact rows with
+ * icon-only action buttons. Detail (description, tags) is hidden by default
+ * and revealed on expand.
  *
  * States:
- * 1. Classifying: spinner + original text on one line
- * 2. Classified: original text + compact suggested items with accept/edit/dismiss
- * 3. Classified (no-op): single line with auto-fade dismiss
- * 4. Failed: error with retry
+ * 1. Classifying: spinner + "Classifying..." below title
+ * 2. Classified: title + compact suggested items with accept/edit/dismiss
+ * 3. Classified (no-op): title + "Nothing actionable detected" + dismiss
+ * 4. Failed: title + error with retry
  */
 
 import { useState } from "react";
@@ -31,6 +33,7 @@ import type { BacklogFormValues } from "../../types";
 interface CaptureCardProps {
   capture: Capture;
   onEditItem?: (prefill: BacklogFormValues) => void;
+  className?: string;
 }
 
 function toSlug(title: string) {
@@ -132,7 +135,7 @@ function SuggestionRow({
   );
 }
 
-export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
+export function CaptureCard({ capture, onEditItem, className }: CaptureCardProps) {
   const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
   const [acceptedIndices, setAcceptedIndices] = useState<Set<number>>(new Set());
   const [dismissedIndices, setDismissedIndices] = useState<Set<number>>(new Set());
@@ -235,32 +238,39 @@ export function CaptureCard({ capture, onEditItem }: CaptureCardProps) {
     }
   };
 
-  const accentColor =
-    capture.status === "classified" && items.length > 0 ? "border-l-emerald-500" :
-    capture.status === "failed" ? "border-l-red-500" :
-    capture.status === "classifying" ? "border-l-cyan-500" :
-    "border-l-slate-600";
+  const statusDotColor =
+    capture.status === "classifying" ? "bg-cyan-400" :
+    capture.status === "failed" ? "bg-red-400" :
+    capture.status === "classified" && items.length > 0 ? "bg-emerald-400" :
+    "bg-slate-500";
 
   return (
     <div
-      className={`relative border-l-2 ${accentColor} rounded-r-lg bg-slate-800/40 px-3 py-2`}
+      className={className}
       data-testid={selectors.captures.card}
     >
-      {/* Header: original text + timestamp + dismiss */}
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-300">{capture.text}</p>
+      {/* Header: status dot + capture badge (left), timestamp + dismiss (right) */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`inline-block h-2 w-2 rounded-full ${statusDotColor}`} />
+          <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] font-medium text-violet-300">
+            Capture
+          </span>
         </div>
-        <span className="shrink-0 pt-0.5 text-[11px] text-slate-600">{formatRelativeTime(capture.created)}</span>
-        <button
-          onClick={handleDismissCapture}
-          className="shrink-0 rounded p-0.5 text-slate-600 transition-colors hover:bg-slate-700 hover:text-slate-400"
-          title="Dismiss capture"
-          data-testid={selectors.captures.dismissButton}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-slate-600">{formatRelativeTime(capture.created)}</span>
+          <button
+            onClick={handleDismissCapture}
+            className="shrink-0 rounded p-0.5 text-slate-600 transition-colors hover:bg-slate-700 hover:text-slate-400"
+            title="Dismiss capture"
+            data-testid={selectors.captures.dismissButton}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
+      {/* Title: original capture text */}
+      <h3 className="mt-3 font-medium text-slate-100">{capture.text}</h3>
 
       {/* Classifying */}
       {capture.status === "classifying" && (

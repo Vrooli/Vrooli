@@ -674,27 +674,26 @@ export function BacklogPage() {
           </Card>
         )}
 
-        {/* Capture triage strip — compact rows above the backlog grid */}
-        {activeKind === "all" && captures.length > 0 && (
-          <div className="space-y-1.5">
-            {captures.map((cap) => (
-              <CaptureCard
-                key={cap.id}
-                capture={cap}
-                onEditItem={(prefill: BacklogFormValues) => {
-                  setCreatePrefill(prefill);
-                  setShowCreate(true);
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Unified feed rendering for "All" tab (backlog items only) */}
+        {/* Unified feed rendering for "All" tab (captures + backlog items interleaved) */}
         {activeKind === "all" && feedItems.length > 0 && !searchTerm && !statusFilter && (
           <ResponsiveList data-testid={selectors.backlog.grid}>
             {feedItems.map((entry) => {
-              if (entry.type === "capture") return null;
+              if (entry.type === "capture") {
+                return (
+                  <ResponsiveListItem
+                    key={`capture-${entry.capture.id}`}
+                    className="group relative block overflow-hidden"
+                  >
+                    <CaptureCard
+                      capture={entry.capture}
+                      onEditItem={(prefill: BacklogFormValues) => {
+                        setCreatePrefill(prefill);
+                        setShowCreate(true);
+                      }}
+                    />
+                  </ResponsiveListItem>
+                );
+              }
               const item = entry.type === "attention" ? entry.item : entry.item;
               const reasons = entry.type === "attention" ? entry.reasons : [];
               const itemKey = `${item.kind}/${item.name}`;
