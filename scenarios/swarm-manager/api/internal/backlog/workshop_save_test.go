@@ -189,7 +189,9 @@ func TestWorkshopSave_Ready_NoAutoAdvance(t *testing.T) {
 	}
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT to be triggered when ready")
 	}
@@ -240,7 +242,9 @@ func TestWorkshopSave_MaxRounds_NoAutoAdvance(t *testing.T) {
 	}
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT triggered at max rounds")
 	}
@@ -276,7 +280,9 @@ func TestWorkshopSave_PendingDecisions_NoAutoAdvance(t *testing.T) {
 	}
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT triggered with pending decisions")
 	}
@@ -312,7 +318,9 @@ func TestWorkshopSave_OptOut_NoAutoAdvance(t *testing.T) {
 	}
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT triggered with opt-out")
 	}
@@ -355,7 +363,9 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 	testutil.AssertFileExists(t, roundPath)
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT triggered when agent is down")
 	}
@@ -396,7 +406,9 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 	}
 
 	var resp workshopSaveResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 	// Auto-advance should fail due to lock → reported as error.
 	if resp.AutoAdvance.Triggered {
 		t.Error("expected auto-advance NOT triggered when lock is held")

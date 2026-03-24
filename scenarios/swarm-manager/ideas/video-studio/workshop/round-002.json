@@ -26,8 +26,8 @@
           "rationale": "Do not implement this suggestion"
         }
       ],
-      "selected": null,
-      "freeform": null,
+      "selected": "__other__",
+      "freeform": "I think adopting the same standard is okay for now, but I wouldn’t go as far as extracting and reusing code between them just yet",
       "notes": null
     },
     {

@@ -171,11 +171,19 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	statusFilter, err := parseStatusesQuery(r)
+	if err != nil {
+		httputil.BadRequest(w, "[backlog] list", err.Error())
+		return
+	}
+
 	items, err := h.store.LoadAll(kinds)
 	if err != nil {
 		httputil.InternalError(w, "[backlog] list", err.Error())
 		return
 	}
+
+	items = filterByStatus(items, statusFilter)
 
 	// Sort by priority (ascending) then by updated (descending)
 	sort.Slice(items, func(i, j int) bool {
@@ -538,4 +546,63 @@ func parseKindsQuery(r *http.Request) ([]BacklogKind, error) {
 		kinds = append(kinds, kind)
 	}
 	return kinds, nil
+}
+
+// parseStatusesQuery reads the "statuses" (or "status") query parameter.
+// Returns nil when no filter is specified (caller should apply default).
+// The special value "all" returns an empty slice signaling no filtering.
+func parseStatusesQuery(r *http.Request) ([]BacklogStatus, error) {
+	query := r.URL.Query()
+	raw := strings.TrimSpace(query.Get("statuses"))
+	if raw == "" {
+		raw = strings.TrimSpace(query.Get("status"))
+	}
+	if raw == "" {
+		return nil, nil
+	}
+	if strings.EqualFold(raw, "all") {
+		return []BacklogStatus{}, nil
+	}
+
+	parts := strings.Split(raw, ",")
+	statuses := make([]BacklogStatus, 0, len(parts))
+	for _, part := range parts {
+		s := BacklogStatus(strings.TrimSpace(part))
+		if s == "" {
+			continue
+		}
+		statuses = append(statuses, s)
+	}
+	return statuses, nil
+}
+
+// filterByStatus applies status filtering to a list of backlog items.
+//   - nil (no query param): exclude archived items (default)
+//   - empty slice (status=all): no filtering, return everything
+//   - non-empty slice: include only items matching one of the given statuses
+func filterByStatus(items []BacklogItem, statuses []BacklogStatus) []BacklogItem {
+	if statuses != nil && len(statuses) == 0 {
+		return items
+	}
+
+	filtered := make([]BacklogItem, 0, len(items))
+	if statuses == nil {
+		for _, item := range items {
+			if item.Status != StatusArchived {
+				filtered = append(filtered, item)
+			}
+		}
+		return filtered
+	}
+
+	allow := make(map[BacklogStatus]bool, len(statuses))
+	for _, s := range statuses {
+		allow[s] = true
+	}
+	for _, item := range items {
+		if allow[item.Status] {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }

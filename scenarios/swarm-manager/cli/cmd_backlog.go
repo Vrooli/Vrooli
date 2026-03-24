@@ -19,6 +19,7 @@ import (
 func (a *App) cmdBacklogList(args []string) error {
 	fs := flag.NewFlagSet("backlog list", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Comma-separated kinds to filter by")
+	statusFlag := fs.String("status", "", "Comma-separated statuses to include, or \"all\" (default: non-archived)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -27,6 +28,9 @@ func (a *App) cmdBacklogList(args []string) error {
 	query := url.Values{}
 	if strings.TrimSpace(*kindFlag) != "" {
 		query.Set("kinds", strings.TrimSpace(*kindFlag))
+	}
+	if strings.TrimSpace(*statusFlag) != "" {
+		query.Set("statuses", strings.TrimSpace(*statusFlag))
 	}
 
 	body, err := a.getV1("/backlog", query)
@@ -55,6 +59,9 @@ func (a *App) cmdBacklogList(args []string) error {
 	fmt.Printf("  Found %d backlog item(s)\n", len(response.Items))
 	if kinds := strings.TrimSpace(query.Get("kinds")); kinds != "" {
 		fmt.Printf("  Filtered kinds: %s\n", kinds)
+	}
+	if statuses := strings.TrimSpace(query.Get("statuses")); statuses != "" {
+		fmt.Printf("  Filtered statuses: %s\n", statuses)
 	}
 
 	printSection("Results")

@@ -149,6 +149,69 @@ func TestList_WithItems(t *testing.T) {
 	}
 }
 
+func TestList_ExcludesArchivedByDefault(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	active := BacklogItem{
+		Name:        "active-item",
+		Title:       "Active Item",
+		Description: "An active item",
+		Status:      StatusBacklog,
+		Priority:    1,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	archived := BacklogItem{
+		Name:        "archived-item",
+		Title:       "Archived Item",
+		Description: "An archived item",
+		Status:      StatusArchived,
+		Priority:    2,
+		Tags:        []string{},
+		Created:     "2026-01-27T00:00:00Z",
+		Updated:     "2026-01-27T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, active)
+	createTestItem(t, rootDir, KindIdea, archived)
+
+	// Default: no status param → archived excluded
+	req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
+	w := httptest.NewRecorder()
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 non-archived item, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "active-item" {
+		t.Errorf("expected active-item, got %s", resp.Items[0].Name)
+	}
+
+	// status=all → everything returned
+	req = httptest.NewRequest("GET", "/api/v1/backlog?status=all", nil)
+	w = httptest.NewRecorder()
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+	resp = testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items with status=all, got %d", len(resp.Items))
+	}
+
+	// status=archived → only archived
+	req = httptest.NewRequest("GET", "/api/v1/backlog?status=archived", nil)
+	w = httptest.NewRecorder()
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+	resp = testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 archived item, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "archived-item" {
+		t.Errorf("expected archived-item, got %s", resp.Items[0].Name)
+	}
+}
+
 func TestGet_Found(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
