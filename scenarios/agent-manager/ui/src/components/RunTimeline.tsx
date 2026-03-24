@@ -609,7 +609,7 @@ function MessageBubble({
   return (
     <div
       className={cn(
-        "flex min-w-0",
+        "group/msg flex min-w-0",
         entry.role === "user"
           ? "flex-row-reverse"
           : entry.role === "system"
@@ -619,86 +619,64 @@ function MessageBubble({
     >
       <div
         className={cn(
-          "flex min-w-0 flex-col gap-1",
+          "relative overflow-hidden rounded-lg px-3 py-2",
           entry.role === "user"
-            ? "items-end"
+            ? "max-w-[85%] bg-primary text-primary-foreground"
             : entry.role === "system"
-              ? "items-center"
-              : "items-start"
+              ? "max-w-[85%] border border-primary/25 bg-primary/5"
+              : "max-w-[95%] border border-border/40 bg-muted"
         )}
+        title={formatStandardDateTime(entry.event.timestamp)}
       >
-        <div
-          className={cn(
-            "max-w-[95%] overflow-hidden rounded-lg px-4 py-3",
-            entry.role === "user"
-              ? "bg-primary text-primary-foreground"
-              : entry.role === "system"
-                ? "border border-primary/25 bg-primary/5"
-                : "bg-muted"
-          )}
-        >
-          <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-            <span className={cn(entry.role === "user" ? "text-primary-foreground/70" : "")}>
-              {entry.role === "user" ? "You" : entry.role === "assistant" ? "Assistant" : "System"}
-            </span>
-            <span className={cn(entry.role === "user" ? "text-primary-foreground/70" : "")}>
-              {formatRelativeTimeShort(entry.event.timestamp)}
-            </span>
-          </div>
-
-          {showContent ? (
-            <div className="text-sm break-words overflow-x-auto">
-              {entry.attachments.length > 0 ? (
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {entry.attachments.map((attachment) => (
-                    <a
-                      key={attachment.id}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
-                      <img
-                        src={attachment.url}
-                        alt={attachment.fileName}
-                        className="max-h-[200px] max-w-[200px] rounded border border-border object-cover"
-                      />
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-
-              {entry.content ? <MarkdownRenderer content={entry.content} /> : null}
-            </div>
-          ) : (
-            <div className="text-sm italic text-muted-foreground">Message deleted</div>
-          )}
-
-          <div
-            className={cn(
-              "mt-2 text-[10px]",
-              entry.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
-            )}
-          >
-            {formatStandardDateTime(entry.event.timestamp)}
-          </div>
+        <div className="mb-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className={cn("font-medium", entry.role === "user" ? "text-primary-foreground/70" : "")}>
+            {entry.role === "user" ? "You" : entry.role === "assistant" ? "Assistant" : "System"}
+          </span>
+          <span className={cn("opacity-70", entry.role === "user" ? "text-primary-foreground/60" : "")}>
+            {formatRelativeTimeShort(entry.event.timestamp)}
+          </span>
         </div>
 
+        {showContent ? (
+          <div className="text-sm break-words overflow-x-auto">
+            {entry.attachments.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {entry.attachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={attachment.url}
+                      alt={attachment.fileName}
+                      className="max-h-[200px] max-w-[200px] rounded border border-border object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            ) : null}
+
+            {entry.content ? <MarkdownRenderer content={entry.content} /> : null}
+          </div>
+        ) : (
+          <div className="text-sm italic text-muted-foreground">Message deleted</div>
+        )}
+
         <div
           className={cn(
-            "flex items-center gap-1",
-            entry.role === "user"
-              ? "justify-end"
-              : entry.role === "system"
-                ? "justify-center"
-                : "justify-start"
+            "pointer-events-none absolute right-1 top-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:pointer-events-auto group-hover/msg:opacity-100",
+            entry.role === "user" ? "bg-primary/90" : entry.role === "system" ? "bg-background/90" : "bg-muted/90",
+            "rounded px-0.5"
           )}
         >
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-6 w-6"
             onClick={() => onCopy(entry.id, entry.content)}
             disabled={!showContent}
             title="Copy message"
@@ -707,15 +685,15 @@ function MessageBubble({
           </Button>
 
           {entry.deleted ? (
-            <Button type="button" variant="link" size="sm" className="px-2" onClick={() => onToggleReveal(entry.id)}>
-              {isRevealed ? "Hide message" : "Show message"}
+            <Button type="button" variant="link" size="sm" className="px-1 text-[10px]" onClick={() => onToggleReveal(entry.id)}>
+              {isRevealed ? "Hide" : "Show"}
             </Button>
           ) : (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-destructive"
+              className="h-6 w-6 text-destructive"
               onClick={() => void onDelete(entry.id)}
               title="Delete message"
             >
@@ -868,6 +846,14 @@ function getVisibleItemSpacing(
   const prevIsCompact = previousEntry.kind === "event" || previousEntry.kind === "tool-group";
   const curIsCompact = entry.kind === "event" || entry.kind === "tool-group";
   if (prevIsCompact && curIsCompact) return "";
+  // Tighter spacing between consecutive messages from the same role
+  if (
+    previousEntry.kind === "message" &&
+    entry.kind === "message" &&
+    previousEntry.role === entry.role
+  ) {
+    return "pt-1.5";
+  }
   return "pt-3";
 }
 
@@ -897,10 +883,10 @@ function ToolGroupRow({ group }: { group: TimelineToolGroup }) {
           <Wrench className="h-3.5 w-3.5" />
         </span>
         <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Tools
+          Activity
         </span>
         <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
-          {group.pairs.length}
+          {group.items.length}
         </span>
         <div className="min-w-0 flex-1 truncate text-sm text-foreground">
           {group.summary}
@@ -926,9 +912,49 @@ function ToolGroupRow({ group }: { group: TimelineToolGroup }) {
 
       {expanded ? (
         <div className="border-t border-border/60 bg-muted/10">
-          {group.pairs.map((pair) => (
-            <ToolPairRow key={pair.call.id} pair={pair} />
-          ))}
+          {group.items.map((item) =>
+            item.kind === "tool-pair" ? (
+              <ToolPairRow key={item.pair.call.id} pair={item.pair} />
+            ) : (
+              <ReasoningItemRow key={item.entry.id} entry={item.entry} />
+            )
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ReasoningItemRow({ entry }: { entry: TimelineEventEntry }) {
+  const [expanded, setExpanded] = useState(false);
+  const summary = getTimelineEventSummary(entry);
+
+  return (
+    <div className="ml-4 border-b border-border/40 last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted/30"
+        onClick={() => setExpanded((prev) => !prev)}
+      >
+        <span className="shrink-0 text-sky-600/60 dark:text-sky-300/60">
+          <Brain className="h-3 w-3" />
+        </span>
+        <div className="min-w-0 flex-1 truncate text-sm text-foreground">
+          {summary}
+        </div>
+        <span className="shrink-0 text-[10px] text-muted-foreground">
+          {formatRelativeTimeShort(entry.event.timestamp)}
+        </span>
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+        )}
+      </button>
+
+      {expanded ? (
+        <div className="border-t border-border/40 bg-muted/5 px-3 pb-2 pt-1.5 ml-5">
+          <MarkdownRenderer content={summary} />
         </div>
       ) : null}
     </div>

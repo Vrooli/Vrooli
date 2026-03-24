@@ -46,12 +46,19 @@ export interface ToolCallPair {
   toolName: string;
 }
 
-/** A group of 2+ consecutive tool call pairs collapsed into one row. */
+/** An item inside an activity group — either a tool call pair or a reasoning event. */
+export type ActivityGroupItem =
+  | { kind: "tool-pair"; pair: ToolCallPair }
+  | { kind: "reasoning"; entry: TimelineEventEntry };
+
+/** A group of 2+ consecutive tool call pairs (optionally interleaved with reasoning) collapsed into one row. */
 export interface TimelineToolGroup {
   id: string;
   kind: "tool-group";
   category: "tools";
   pairs: ToolCallPair[];
+  /** All items in order, including interleaved reasoning entries. */
+  items: ActivityGroupItem[];
   summary: string;
   firstTimestamp: RunEvent["timestamp"];
   lastTimestamp: RunEvent["timestamp"];
@@ -354,7 +361,7 @@ export function buildToolGroupSummary(pairs: ToolCallPair[]): string {
 }
 
 export function groupTimelineEntries(entries: TimelineEntry[]): VisibleTimelineItem[] {
-  // Index toolResult entries by toolCallId for pairing
+  // Index toolResult entries by toolCallId for pairing (when IDs are available)
   const resultsByCallId = new Map<string, TimelineEventEntry>();
   for (const entry of entries) {
     if (entry.kind !== "event" || entry.event.data.case !== "toolResult") continue;
@@ -365,52 +372,101 @@ export function groupTimelineEntries(entries: TimelineEntry[]): VisibleTimelineI
 
   const result: VisibleTimelineItem[] = [];
   let toolBuffer: ToolCallPair[] = [];
+  let activityBuffer: ActivityGroupItem[] = [];
+  /** Reasoning entries buffered while waiting to see if more tool calls follow. */
+  let pendingReasoning: TimelineEventEntry[] = [];
   const consumedResultIds = new Set<string>();
 
   function flushBuffer() {
-    if (toolBuffer.length === 0) return;
+    // First, flush any pending reasoning that wasn't followed by a tool call
+    if (toolBuffer.length === 0) {
+      for (const r of pendingReasoning) result.push(r);
+      pendingReasoning = [];
+      activityBuffer = [];
+      return;
+    }
     if (toolBuffer.length >= 2) {
-      const first = toolBuffer[0]!;
-      const last = toolBuffer[toolBuffer.length - 1]!;
-      const lastEntry = last.result ?? last.call;
+      const first = toolBuffer[0];
+      const lastPair = toolBuffer[toolBuffer.length - 1];
+      if (!first || !lastPair) return;
+      const lastEntry = lastPair.result ?? lastPair.call;
+      // If there's trailing pending reasoning, include it in the group
+      for (const r of pendingReasoning) {
+        activityBuffer.push({ kind: "reasoning", entry: r });
+      }
       result.push({
         id: `tool-group-${first.call.id}`,
         kind: "tool-group",
         category: "tools",
         pairs: toolBuffer,
+        items: activityBuffer,
         summary: buildToolGroupSummary(toolBuffer),
         firstTimestamp: first.call.event.timestamp,
         lastTimestamp: lastEntry.event.timestamp,
       });
     } else {
-      // Single tool call - emit ungrouped
-      const pair = toolBuffer[0]!;
+      // Single tool call - emit ungrouped, plus any pending reasoning as standalone
+      const pair = toolBuffer[0];
+      if (!pair) return;
       result.push(pair.call);
       if (pair.result) result.push(pair.result);
+      for (const r of pendingReasoning) result.push(r);
     }
     toolBuffer = [];
+    activityBuffer = [];
+    pendingReasoning = [];
   }
 
   for (const entry of entries) {
     if (entry.kind === "event" && entry.event.data.case === "toolCall") {
+      // Absorb any pending reasoning into the activity buffer before this tool call
+      for (const r of pendingReasoning) {
+        activityBuffer.push({ kind: "reasoning", entry: r });
+      }
+      pendingReasoning = [];
+
       const payload = entry.event.data.value as Record<string, unknown>;
       const toolName = String(payload.toolName ?? "Unknown");
       const callId = String(payload.toolCallId ?? "");
       const matched = callId ? resultsByCallId.get(callId) : undefined;
       if (matched) consumedResultIds.add(matched.id);
-      toolBuffer.push({ call: entry, result: matched, toolName });
+      const pair: ToolCallPair = { call: entry, result: matched, toolName };
+      toolBuffer.push(pair);
+      activityBuffer.push({ kind: "tool-pair", pair });
       continue;
     }
 
     if (entry.kind === "event" && entry.event.data.case === "toolResult") {
-      if (consumedResultIds.has(entry.id)) continue; // already paired
-      // Orphan result - flush buffer, emit standalone
+      if (consumedResultIds.has(entry.id)) continue; // already paired by callId
+
+      // Positional pairing: attach this result to the last unpaired tool call
+      let lastUnpaired: ToolCallPair | undefined;
+      for (let i = toolBuffer.length - 1; i >= 0; i--) {
+        if (!toolBuffer[i]?.result) { lastUnpaired = toolBuffer[i]; break; }
+      }
+      if (lastUnpaired) {
+        lastUnpaired.result = entry;
+        consumedResultIds.add(entry.id);
+        continue;
+      }
+
+      // Truly orphan result (no pending call at all) - flush buffer, emit standalone
       flushBuffer();
       result.push(entry);
       continue;
     }
 
-    // Non-tool entry - flush any accumulated tool buffer
+    // Reasoning and log events between tool calls get absorbed into the group
+    if (
+      entry.kind === "event" &&
+      (entry.category === "reasoning" || entry.category === "logs") &&
+      toolBuffer.length > 0
+    ) {
+      pendingReasoning.push(entry);
+      continue;
+    }
+
+    // Non-tool, non-reasoning entry - flush any accumulated buffer
     flushBuffer();
     result.push(entry);
   }

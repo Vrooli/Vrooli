@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: env.VITE_PREVIEW_PORT ? Number(env.VITE_PREVIEW_PORT) : 4173,
       host: true
+    },
+    test: {
+      // tests/ directory uses node:test runner — exclude from vitest
+      exclude: ["tests/**", "node_modules/**"]
     }
   };
 });
