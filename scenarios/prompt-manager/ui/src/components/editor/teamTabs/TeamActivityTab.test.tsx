@@ -15,8 +15,8 @@ import { TeamActivityTab } from './TeamActivityTab'
 vi.mock('./HandoffTimeline', () => ({
   HandoffTimeline: () => <div data-testid="handoff-timeline">Handoffs Content</div>,
 }))
-vi.mock('./TaskBoardView', () => ({
-  TaskBoardView: () => <div data-testid="task-board">Tasks Content</div>,
+vi.mock('./kanban', () => ({
+  TaskKanbanBoard: () => <div data-testid="task-board">Tasks Content</div>,
 }))
 vi.mock('./DecisionLogView', () => ({
   DecisionLogView: () => <div data-testid="decision-log">Decisions Content</div>,

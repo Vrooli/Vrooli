@@ -61,7 +61,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
         topic: topicFilter || undefined,
         last: 50,
       })
-      const respEntries = resp.entries ?? []
+      const respEntries = resp.entries
       setEntries(respEntries)
       const superseded = new Set<string>()
       for (const e of respEntries) {
@@ -184,8 +184,12 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const grouped = new Map<string, KnowledgeEntry[]>()
   for (const entry of entries) {
     const t = entry.topic || '(untagged)'
-    if (!grouped.has(t)) grouped.set(t, [])
-    grouped.get(t)!.push(entry)
+    const existing = grouped.get(t)
+    if (existing) {
+      existing.push(entry)
+    } else {
+      grouped.set(t, [entry])
+    }
   }
 
   const topicTags = Array.from(new Set(entries.map(e => e.topic).filter(Boolean)))
@@ -266,7 +270,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                 >
                   <option value="">Select agent</option>
                   {members.map(m => (
-                    <option key={m.agentId} value={m.agentId}>{m.displayName ?? m.agentId}</option>
+                    <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
                   ))}
                 </select>
               </div>

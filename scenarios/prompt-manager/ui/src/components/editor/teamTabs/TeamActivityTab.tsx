@@ -10,7 +10,7 @@ import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { TabList, TabTrigger } from '@/components/shared/TabTrigger'
 import { HandoffTimeline } from './HandoffTimeline'
-import { TaskBoardView } from './TaskBoardView'
+import { TaskKanbanBoard } from './kanban'
 import { DecisionLogView } from './DecisionLogView'
 import { KnowledgeLogView } from './KnowledgeLogView'
 
@@ -55,20 +55,20 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
           <TabTrigger compact value="knowledge" icon={<BookOpen className="h-3.5 w-3.5" />} label="Knowledge" />
         </TabList>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <Tabs.Content value="handoffs" className="p-4 data-[state=inactive]:hidden">
+        <div className="flex-1 min-h-0 flex flex-col">
+          <Tabs.Content value="handoffs" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
             <HandoffTimeline teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
 
-          <Tabs.Content value="tasks" className="p-4 data-[state=inactive]:hidden">
-            <TaskBoardView teamId={teamId} members={members} allAgents={allAgents} />
+          <Tabs.Content value="tasks" className="data-[state=inactive]:hidden flex-1 min-h-0 flex flex-col overflow-hidden">
+            <TaskKanbanBoard teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
 
-          <Tabs.Content value="decisions" className="p-4 data-[state=inactive]:hidden">
+          <Tabs.Content value="decisions" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
             <DecisionLogView teamId={teamId} members={members} allAgents={allAgents} decisionMode={decisionMode} />
           </Tabs.Content>
 
-          <Tabs.Content value="knowledge" className="p-4 data-[state=inactive]:hidden">
+          <Tabs.Content value="knowledge" className="p-4 data-[state=inactive]:hidden overflow-y-auto">
             <KnowledgeLogView teamId={teamId} members={members} allAgents={allAgents} />
           </Tabs.Content>
         </div>

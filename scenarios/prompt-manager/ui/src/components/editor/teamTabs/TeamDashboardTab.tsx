@@ -392,7 +392,7 @@ export function TeamDashboardTab({
         <div className="space-y-3">
           <div className="flex gap-2">
             {(['yolo', 'approval'] as const).map((mode) => {
-              const selected = team.decisionMode === mode || (!team.decisionMode && mode === 'yolo')
+              const selected = team.decisionMode === mode
               return (
                 <button
                   key={mode}

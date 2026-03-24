@@ -219,6 +219,7 @@ function MemberRow({
       map.set(section.kind, existing)
     }
     return map
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only entry.sections matters, not the full entry object
   }, [entry.sections])
 
   // Find expanded sections

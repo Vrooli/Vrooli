@@ -77,7 +77,7 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
         agent: agentFilter || undefined,
         last: pageSize,
       })
-      setEntries(resp.entries ?? [])
+      setEntries(resp.entries)
     } catch (err) {
       console.error('[HandoffTimeline] Failed to load handoffs:', err)
       setError(err instanceof Error ? err.message : 'Failed to load handoffs')
@@ -156,7 +156,7 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
         >
           <option value="">All members</option>
           {members.map(m => (
-            <option key={m.agentId} value={m.agentId}>{m.displayName ?? m.agentId}</option>
+            <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
           ))}
         </select>
       </div>

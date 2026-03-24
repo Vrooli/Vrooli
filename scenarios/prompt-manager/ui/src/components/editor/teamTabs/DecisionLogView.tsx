@@ -84,7 +84,7 @@ function MultiOptionCard({
   entry: DecisionEntry
   isSuperseded: boolean
   isThisStatusLoading: boolean
-  getAgentAppearance: (id: string) => ReturnType<typeof Array.prototype.find>
+  getAgentAppearance: (id: string) => Agent['appearance'] | null
   getAgentName: (id: string) => string
   onSelectOption: (entry: DecisionEntry, key: string, freeform?: string, notes?: string) => Promise<void>
   onDelete: () => void
@@ -111,7 +111,7 @@ function MultiOptionCard({
             <StatusBadge status={entry.status} />
             {!hasSelection && (
               <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400">
-                {entry.options!.length} options
+                {entry.options?.length} options
               </span>
             )}
           </div>
@@ -139,7 +139,7 @@ function MultiOptionCard({
 
       {/* Option buttons */}
       <div className="flex flex-wrap gap-1.5 mt-2">
-        {entry.options!.map(opt => {
+        {entry.options?.map(opt => {
           const isSelected = localSelected === opt.key
           return (
             <button
@@ -177,7 +177,7 @@ function MultiOptionCard({
       {/* Show rationale for selected option */}
       {localSelected && localSelected !== OTHER_KEY && (
         <div className="text-xs text-muted-foreground mt-1.5 pl-2 border-l-2 border-emerald-500/30">
-          {entry.options!.find(o => o.key === localSelected)?.rationale}
+          {entry.options?.find(o => o.key === localSelected)?.rationale}
         </div>
       )}
 
@@ -277,7 +277,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
         context: contextFilter || undefined,
         last: 50,
       })
-      const respEntries = resp.entries ?? []
+      const respEntries = resp.entries
       setEntries(respEntries)
       const superseded = new Set<string>()
       for (const e of respEntries) {
@@ -433,8 +433,12 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
   const grouped = new Map<string, DecisionEntry[]>()
   for (const entry of entries) {
     const ctx = entry.context || '(untagged)'
-    if (!grouped.has(ctx)) grouped.set(ctx, [])
-    grouped.get(ctx)!.push(entry)
+    const existing = grouped.get(ctx)
+    if (existing) {
+      existing.push(entry)
+    } else {
+      grouped.set(ctx, [entry])
+    }
   }
 
   // Get unique context tags for filter
@@ -535,7 +539,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                 >
                   <option value="">Select agent</option>
                   {members.map(m => (
-                    <option key={m.agentId} value={m.agentId}>{m.displayName ?? m.agentId}</option>
+                    <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
                   ))}
                 </select>
               </div>
