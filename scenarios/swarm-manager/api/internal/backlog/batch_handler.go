@@ -39,15 +39,18 @@ type batchCreateRequest struct {
 
 // batchCreateItem mirrors the fields of a single backlog item creation request.
 type batchCreateItem struct {
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description,omitempty"`
-	Kind           string   `json:"kind"`
-	Priority       *int32   `json:"priority,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
-	ResearchTarget *string  `json:"research_target,omitempty"`
-	DependsOn      []string `json:"depends_on,omitempty"`
-	Effort         *string  `json:"effort,omitempty"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Kind            string   `json:"kind"`
+	Priority        *int32   `json:"priority,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	ResearchTarget  *string  `json:"research_target,omitempty"`
+	DependsOn       []string `json:"depends_on,omitempty"`
+	Effort          *string  `json:"effort,omitempty"`
+	Scope           *string  `json:"scope,omitempty"`
+	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
 // batchCreateResponse is the JSON response for a successful batch create.
@@ -175,20 +178,40 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			effort = normalized
 		}
 
+		scope := ""
+		if raw.Scope != nil {
+			scope = strings.TrimSpace(*raw.Scope)
+			if err := validateScope(scope); err != nil {
+				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
+				return
+			}
+		}
+		if err := validateGlobs(raw.AcceptanceAllow); err != nil {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: acceptance_allow: %s", i, err.Error()))
+			return
+		}
+		if err := validateGlobs(raw.AcceptanceDeny); err != nil {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: acceptance_deny: %s", i, err.Error()))
+			return
+		}
+
 		item := BacklogItem{
-			Name:           name,
-			Title:          raw.Title,
-			Description:    strings.TrimSpace(raw.Description),
-			Status:         StatusBacklog,
-			Priority:       priority,
-			Tags:           tags,
-			Created:        now,
-			Updated:        now,
-			Kind:           kind,
-			ResearchTarget: researchTarget,
-			DependsOn:      dependsOn,
-			Initiative:     initiativeName,
-			Effort:         effort,
+			Name:            name,
+			Title:           raw.Title,
+			Description:     strings.TrimSpace(raw.Description),
+			Status:          StatusBacklog,
+			Priority:        priority,
+			Tags:            tags,
+			Created:         now,
+			Updated:         now,
+			Kind:            kind,
+			ResearchTarget:  researchTarget,
+			DependsOn:       dependsOn,
+			Initiative:      initiativeName,
+			Effort:          effort,
+			Scope:           scope,
+			AcceptanceAllow: raw.AcceptanceAllow,
+			AcceptanceDeny:  raw.AcceptanceDeny,
 		}
 
 		validated = append(validated, validatedItem{item: item, kind: kind})

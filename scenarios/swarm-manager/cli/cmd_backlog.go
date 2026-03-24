@@ -83,6 +83,9 @@ func (a *App) cmdBacklogList(args []string) error {
 		if item.Effort != "" {
 			fmt.Printf("    Effort: %s\n", item.Effort)
 		}
+		if item.Scope != "" {
+			fmt.Printf("    Scope: %s\n", item.Scope)
+		}
 		fmt.Println()
 	}
 

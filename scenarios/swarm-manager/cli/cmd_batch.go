@@ -18,15 +18,18 @@ type BatchCreateRequest struct {
 
 // BatchCreateItem represents a single item in a batch create request.
 type BatchCreateItem struct {
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description,omitempty"`
-	Kind           string   `json:"kind"`
-	Priority       *int32   `json:"priority,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
-	ResearchTarget *string  `json:"research_target,omitempty"`
-	DependsOn      []string `json:"depends_on,omitempty"`
-	Effort         *string  `json:"effort,omitempty"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Kind            string   `json:"kind"`
+	Priority        *int32   `json:"priority,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	ResearchTarget  *string  `json:"research_target,omitempty"`
+	DependsOn       []string `json:"depends_on,omitempty"`
+	Effort          *string  `json:"effort,omitempty"`
+	Scope           *string  `json:"scope,omitempty"`
+	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
 // BatchCreateResponse is the response from the batch create endpoint.

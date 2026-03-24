@@ -21,6 +21,8 @@ func defaultPolicy() Policy {
 	return Policy{
 		DefaultMode:         ModeManual,
 		DefaultDelaySeconds: 300,
+		MaxFixupAttempts:    2,
+		AutoFixup:           false,
 	}
 }
 
@@ -56,8 +58,17 @@ func normalizePolicy(policy Policy) Policy {
 	if delay < 0 {
 		delay = 0
 	}
+	maxFixup := policy.MaxFixupAttempts
+	if maxFixup < 0 {
+		maxFixup = 0
+	}
+	if maxFixup > 5 {
+		maxFixup = 5
+	}
 	return Policy{
 		DefaultMode:         mode,
 		DefaultDelaySeconds: delay,
+		MaxFixupAttempts:    maxFixup,
+		AutoFixup:           policy.AutoFixup,
 	}
 }

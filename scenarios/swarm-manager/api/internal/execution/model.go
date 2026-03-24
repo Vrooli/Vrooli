@@ -15,6 +15,8 @@ const (
 	StatusStarting    Status = "starting"
 	StatusRunning     Status = "running"
 	StatusNeedsReview Status = "needs_review"
+	StatusValidating  Status = "validating"
+	StatusNeedsFixup  Status = "needs_fixup"
 	StatusCompleted   Status = "completed"
 	StatusFailed      Status = "failed"
 	StatusCanceled    Status = "canceled"
@@ -50,25 +52,29 @@ type ArchiveContext struct {
 
 // Record is a persisted execution run record.
 type Record struct {
-	ExecutionID    string          `json:"execution_id"`
-	BacklogKind    string          `json:"backlog_kind"`
-	BacklogName    string          `json:"backlog_name"`
-	PreviousStatus string          `json:"previous_status,omitempty"`
-	TaskID         string          `json:"task_id,omitempty"`
-	RunID          string          `json:"run_id,omitempty"`
-	Status         Status          `json:"status"`
-	Mode           Mode            `json:"mode"`
-	ScheduledAt    string          `json:"scheduled_at,omitempty"`
-	StartedAt      string          `json:"started_at,omitempty"`
-	FinishedAt     string          `json:"finished_at,omitempty"`
-	FailureReason  string          `json:"failure_reason,omitempty"`
-	StartedBy      string          `json:"started_by,omitempty"`
-	Operation      string          `json:"operation,omitempty"`
-	Force          bool            `json:"force,omitempty"`
-	PromptTrace    *PromptTrace    `json:"prompt_trace,omitempty"`
-	ArchiveContext *ArchiveContext `json:"archive_context,omitempty"`
-	CreatedAt      string          `json:"created_at"`
-	UpdatedAt      string          `json:"updated_at"`
+	ExecutionID       string          `json:"execution_id"`
+	BacklogKind       string          `json:"backlog_kind"`
+	BacklogName       string          `json:"backlog_name"`
+	PreviousStatus    string          `json:"previous_status,omitempty"`
+	TaskID            string          `json:"task_id,omitempty"`
+	RunID             string          `json:"run_id,omitempty"`
+	Status            Status          `json:"status"`
+	Mode              Mode            `json:"mode"`
+	ScheduledAt       string          `json:"scheduled_at,omitempty"`
+	StartedAt         string          `json:"started_at,omitempty"`
+	FinishedAt        string          `json:"finished_at,omitempty"`
+	FailureReason     string          `json:"failure_reason,omitempty"`
+	StartedBy         string          `json:"started_by,omitempty"`
+	Operation         string          `json:"operation,omitempty"`
+	Force             bool            `json:"force,omitempty"`
+	PromptTrace       *PromptTrace    `json:"prompt_trace,omitempty"`
+	ArchiveContext    *ArchiveContext `json:"archive_context,omitempty"`
+	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
+	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
+	ReviewResult      *ReviewResult   `json:"review_result,omitempty"`
+	ReviewJobID       string          `json:"review_job_id,omitempty"`
+	CreatedAt         string          `json:"created_at"`
+	UpdatedAt         string          `json:"updated_at"`
 }
 
 // PromptTrace captures prompt details used to launch the execution.
@@ -80,6 +86,22 @@ type PromptTrace struct {
 	PromptRevision string            `json:"prompt_revision,omitempty"`
 	UsedFallback   bool              `json:"used_fallback"`
 	CapturedAt     string            `json:"captured_at"`
+}
+
+// ReviewResult captures the outcome of a post-execution readiness review.
+type ReviewResult struct {
+	JobID          string            `json:"job_id"`
+	Classification string            `json:"classification"` // ready, ready_with_notes, needs_work, not_assessable
+	Dimensions     []ReviewDimension `json:"dimensions,omitempty"`
+	Summary        string            `json:"summary"`
+	ReviewedAt     string            `json:"reviewed_at"`
+}
+
+// ReviewDimension captures a single review dimension result.
+type ReviewDimension struct {
+	Name    string `json:"name"`
+	Status  string `json:"status"` // green, yellow, red, skipped
+	Details string `json:"details,omitempty"`
 }
 
 // ProcessPreflight summarizes whether a backlog item can be processed safely.
@@ -118,6 +140,8 @@ type CreateRequest struct {
 type Policy struct {
 	DefaultMode         Mode  `json:"default_mode"`
 	DefaultDelaySeconds int64 `json:"default_delay_seconds"`
+	MaxFixupAttempts    int   `json:"max_fixup_attempts"`
+	AutoFixup           bool  `json:"auto_fixup"`
 }
 
 // ListFilters defines list query filters.

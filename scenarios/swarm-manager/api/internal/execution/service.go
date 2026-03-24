@@ -55,6 +55,7 @@ type ServiceConfig struct {
 	AgentService agentSpawner
 	PromptClient promptmanager.Client
 	Archiver     Archiver
+	ReviewClient ReviewClient
 }
 
 // Service owns execution lifecycle logic.
@@ -65,6 +66,7 @@ type Service struct {
 	agentService agentSpawner
 	promptClient promptmanager.Client
 	archiver     Archiver
+	reviewClient ReviewClient
 	inspector    runInspector
 	stopper      runStopper
 	mu           sync.Mutex
@@ -94,6 +96,7 @@ func NewService(cfg ServiceConfig) *Service {
 		agentService: cfg.AgentService,
 		promptClient: pc,
 		archiver:     cfg.Archiver,
+		reviewClient: cfg.ReviewClient,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
@@ -370,16 +373,26 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		CapturedAt:     nowRFC3339(),
 	}
 
+	scopePath := s.itemDir(item.Kind, item.Name)
+	if item.Scope != "" {
+		scopePath = item.Scope
+		if !filepath.IsAbs(scopePath) {
+			scopePath = filepath.Join(s.rootDir, scopePath)
+		}
+	}
+
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind:        item.Kind,
-		Name:        item.Name,
-		Title:       buildProcessingTitle(item),
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   s.itemDir(item.Kind, item.Name),
-		ProjectRoot: ".",
-		CreatedBy:   record.StartedBy,
-		Purpose:     "process",
+		Kind:            item.Kind,
+		Name:            item.Name,
+		Title:           buildProcessingTitle(item),
+		Description:     prompt,
+		Prompt:          prompt,
+		ScopePath:       scopePath,
+		ProjectRoot:     ".",
+		CreatedBy:       record.StartedBy,
+		Purpose:         "process",
+		AcceptanceAllow: item.AcceptanceAllow,
+		AcceptanceDeny:  item.AcceptanceDeny,
 	})
 	if err != nil {
 		return Record{}, err
@@ -445,8 +458,20 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			return Record{}, err
 		}
 		return record, nil
+	case StatusValidating, StatusNeedsFixup:
+		record.Status = StatusCanceled
+		record.UpdatedAt = nowRFC3339()
+		record.FinishedAt = nowRFC3339()
+		records[idx] = record
+		if err := s.store.Save(records); err != nil {
+			return Record{}, err
+		}
+		if err := s.restoreBacklogStatusForRecord(record); err != nil {
+			return Record{}, err
+		}
+		return record, nil
 	default:
-		return Record{}, fmt.Errorf("only pending/scheduled/starting/running/needs_review executions can be canceled")
+		return Record{}, fmt.Errorf("only pending/scheduled/starting/running/needs_review/validating/needs_fixup executions can be canceled")
 	}
 }
 
@@ -459,6 +484,33 @@ func (s *Service) restoreBacklogStatusForRecord(record Record) error {
 		return fmt.Errorf("failed to restore backlog status after cancel: %w", err)
 	}
 	return nil
+}
+
+// shouldTriggerReview returns true if the completed execution should undergo review.
+func (s *Service) shouldTriggerReview(item backlogItem, record Record) bool {
+	if s.reviewClient == nil {
+		return false
+	}
+	if strings.TrimSpace(item.Scope) == "" {
+		return false
+	}
+	if !strings.HasPrefix(item.Scope, "scenarios/") {
+		return false
+	}
+	if record.ArchiveContext != nil {
+		return false
+	}
+	return true
+}
+
+func scenarioNameFromScope(scope string) string {
+	// "scenarios/web-console" -> "web-console"
+	// "scenarios/web-console/api" -> "web-console"
+	parts := strings.SplitN(strings.TrimPrefix(scope, "scenarios/"), "/", 2)
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
 }
 
 // Retry retries a failed run immediately.
@@ -548,15 +600,64 @@ func (s *Service) ProcessScheduledStarts(ctx context.Context) error {
 }
 
 func (s *Service) refreshRunningLocked(ctx context.Context) error {
-	if s.inspector == nil {
-		return nil
-	}
 	records, err := s.store.Load()
 	if err != nil {
 		return err
 	}
 
 	changed := false
+
+	// Handle validating records (poll review jobs).
+	for i := range records {
+		record := &records[i]
+		if record.Status != StatusValidating || strings.TrimSpace(record.ReviewJobID) == "" {
+			continue
+		}
+		if s.reviewClient == nil {
+			continue
+		}
+		result, done, pollErr := s.reviewClient.PollReview(ctx, record.ReviewJobID)
+		if pollErr != nil {
+			log.Printf("[execution] review poll error for %s: %v", record.ExecutionID, pollErr)
+			continue
+		}
+		if !done {
+			continue
+		}
+		record.ReviewResult = result
+		record.UpdatedAt = nowRFC3339()
+
+		if result.Classification == "ready" || result.Classification == "ready_with_notes" {
+			record.Status = StatusCompleted
+			record.FinishedAt = nowRFC3339()
+			if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+				_ = s.updateBacklogStatus(item, "completed")
+			}
+		} else {
+			policy, _ := s.policyStore.Load()
+			if policy.AutoFixup && record.FixupAttempt < policy.MaxFixupAttempts {
+				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+					s.spawnFixupRun(ctx, record, item)
+				}
+			} else {
+				record.Status = StatusNeedsFixup
+				record.FinishedAt = nowRFC3339()
+				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+					_ = s.updateBacklogStatus(item, "failed")
+				}
+			}
+		}
+		changed = true
+	}
+
+	// Handle running/starting/needs_review records.
+	if s.inspector == nil {
+		if changed {
+			return s.store.Save(records)
+		}
+		return nil
+	}
+
 	for i := range records {
 		record := &records[i]
 		if (record.Status != StatusStarting && record.Status != StatusRunning && record.Status != StatusNeedsReview) || strings.TrimSpace(record.RunID) == "" {
@@ -588,7 +689,26 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 				// For spec-sync failures, leave status as failed for UI recovery
 			} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
 				if nextStatus == StatusCompleted {
-					_ = s.updateBacklogStatus(item, "completed")
+					// Check if this execution should trigger a review
+					if s.shouldTriggerReview(item, *record) {
+						scenarioName := scenarioNameFromScope(item.Scope)
+						jobID, triggerErr := s.reviewClient.TriggerReview(ctx, ReviewRequest{
+							ScenarioName:  scenarioName,
+							ExpectedPaths: item.AcceptanceAllow,
+						})
+						if triggerErr != nil {
+							log.Printf("[execution] review trigger failed for %s: %v", record.ExecutionID, triggerErr)
+							// Fall through to normal completion
+							_ = s.updateBacklogStatus(item, "completed")
+						} else {
+							record.Status = StatusValidating
+							record.ReviewJobID = jobID
+							record.FinishedAt = ""
+							// Don't update backlog — not terminal yet
+						}
+					} else {
+						_ = s.updateBacklogStatus(item, "completed")
+					}
 				} else if nextStatus == StatusFailed {
 					_ = s.updateBacklogStatus(item, "failed")
 				} else if nextStatus == StatusCanceled {
@@ -638,6 +758,104 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 	}
 
 	log.Printf("[execution] spec-sync-archive completed for %s", ac.ScenarioName)
+}
+
+func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
+	now := nowRFC3339()
+
+	// Build fixup prompt from review result
+	var reviewSummary string
+	if record.ReviewResult != nil {
+		reviewSummary = record.ReviewResult.Summary
+		for _, dim := range record.ReviewResult.Dimensions {
+			if dim.Status != "green" {
+				reviewSummary += fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details)
+			}
+		}
+	}
+
+	prompt := fmt.Sprintf(
+		"Post-execution review found issues. Fix the following problems:\n\n%s\n\n"+
+			"The original plan is in plan.md. Focus only on fixing the identified issues.",
+		reviewSummary,
+	)
+
+	fixupRecord := Record{
+		ExecutionID:       idgen.Generate(),
+		BacklogKind:       record.BacklogKind,
+		BacklogName:       record.BacklogName,
+		PreviousStatus:    "queued",
+		Status:            StatusPending,
+		Mode:              ModeYOLO,
+		StartedBy:         "swarm-manager:fixup",
+		Operation:         "fixup",
+		ParentExecutionID: record.ExecutionID,
+		FixupAttempt:      record.FixupAttempt + 1,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+
+	records, loadErr := s.store.Load()
+	if loadErr != nil {
+		log.Printf("[execution] failed to load records for fixup: %v", loadErr)
+		return
+	}
+	records = append(records, fixupRecord)
+
+	scopePath := item.Scope
+	if scopePath != "" && !filepath.IsAbs(scopePath) {
+		scopePath = filepath.Join(s.rootDir, scopePath)
+	}
+	if scopePath == "" {
+		scopePath = s.itemDir(item.Kind, item.Name)
+	}
+
+	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+		Kind:            item.Kind,
+		Name:            item.Name,
+		Title:           fmt.Sprintf("Fix-up: %s/%s (attempt %d)", item.Kind, item.Name, fixupRecord.FixupAttempt),
+		Description:     prompt,
+		Prompt:          prompt,
+		ScopePath:       scopePath,
+		ProjectRoot:     ".",
+		CreatedBy:       "swarm-manager:fixup",
+		Purpose:         "fixup",
+		AcceptanceAllow: item.AcceptanceAllow,
+		AcceptanceDeny:  item.AcceptanceDeny,
+	})
+	if err != nil {
+		log.Printf("[execution] failed to spawn fixup run: %v", err)
+		// Update fixup record to failed
+		for i := range records {
+			if records[i].ExecutionID == fixupRecord.ExecutionID {
+				records[i].Status = StatusFailed
+				records[i].FailureReason = fmt.Sprintf("spawn failed: %v", err)
+				records[i].FinishedAt = now
+				break
+			}
+		}
+		_ = s.store.Save(records)
+		return
+	}
+
+	// Update fixup record with run info
+	for i := range records {
+		if records[i].ExecutionID == fixupRecord.ExecutionID {
+			records[i].TaskID = runResult.TaskID
+			records[i].RunID = runResult.RunID
+			records[i].Status = StatusStarting
+			records[i].StartedAt = now
+			break
+		}
+	}
+
+	// Mark original record as failed with reference to fixup
+	record.Status = StatusFailed
+	record.FailureReason = fmt.Sprintf("fix-up spawned: %s", fixupRecord.ExecutionID)
+	record.FinishedAt = now
+	record.UpdatedAt = now
+
+	_ = s.store.Save(records)
 }
 
 func (s *Service) loadRecordLocked(executionID string) ([]Record, int, error) {
@@ -802,6 +1020,9 @@ type backlogItem struct {
 	Kind               string   `json:"kind"`
 	ResearchTarget     string   `json:"research_target,omitempty"`
 	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
+	Scope              string   `json:"scope,omitempty"`
+	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {

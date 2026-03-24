@@ -15,20 +15,20 @@ import (
 // PendingQuestion represents a single question from either a workshop decision
 // or a target/requirement review.
 type PendingQuestion struct {
-	ID      string `json:"id"`
-	Source  string `json:"source"` // "workshop" | "review"
+	ID       string `json:"id"`
+	Source   string `json:"source"` // "workshop" | "review"
 	ItemKind string `json:"item_kind"`
 	ItemName string `json:"item_name"`
 
 	// Workshop decision fields
-	Topic   string           `json:"topic,omitempty"`
-	Text    string           `json:"text,omitempty"`
-	Context string           `json:"context,omitempty"`
-	Options []WorkshopOption `json:"options,omitempty"`
-	Selected *string         `json:"selected,omitempty"`
-	Freeform *string         `json:"freeform,omitempty"`
-	Notes    *string         `json:"notes,omitempty"`
-	RoundNumber int          `json:"round_number,omitempty"`
+	Topic       string           `json:"topic,omitempty"`
+	Text        string           `json:"text,omitempty"`
+	Context     string           `json:"context,omitempty"`
+	Options     []WorkshopOption `json:"options,omitempty"`
+	Selected    *string          `json:"selected,omitempty"`
+	Freeform    *string          `json:"freeform,omitempty"`
+	Notes       *string          `json:"notes,omitempty"`
+	RoundNumber int              `json:"round_number,omitempty"`
 
 	// Review fields
 	Title         string `json:"title,omitempty"`

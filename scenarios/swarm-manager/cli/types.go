@@ -16,19 +16,22 @@ type healthResponse struct {
 
 // BacklogItem represents a tracked unit of work for the swarm.
 type BacklogItem struct {
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description"`
-	Status         string   `json:"status"`
-	Priority       int      `json:"priority"`
-	Tags           []string `json:"tags"`
-	Created        string   `json:"created"`
-	Updated        string   `json:"updated"`
-	Kind           string   `json:"kind"`
-	ResearchTarget string   `json:"research_target,omitempty"`
-	DependsOn      []string `json:"depends_on,omitempty"`
-	Initiative     string   `json:"initiative,omitempty"`
-	Effort         string   `json:"effort,omitempty"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	Status          string   `json:"status"`
+	Priority        int      `json:"priority"`
+	Tags            []string `json:"tags"`
+	Created         string   `json:"created"`
+	Updated         string   `json:"updated"`
+	Kind            string   `json:"kind"`
+	ResearchTarget  string   `json:"research_target,omitempty"`
+	DependsOn       []string `json:"depends_on,omitempty"`
+	Initiative      string   `json:"initiative,omitempty"`
+	Effort          string   `json:"effort,omitempty"`
+	Scope           string   `json:"scope,omitempty"`
+	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
 type BacklogItemResponse struct {

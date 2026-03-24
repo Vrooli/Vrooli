@@ -776,6 +776,70 @@ func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
 	}
 }
 
+func TestShouldTriggerReview_WithScope(t *testing.T) {
+	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
+	item := backlogItem{Scope: "scenarios/web-console"}
+	record := Record{}
+	if !service.shouldTriggerReview(item, record) {
+		t.Fatal("expected true when scope is set and review client configured")
+	}
+}
+
+func TestShouldTriggerReview_NoScope(t *testing.T) {
+	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
+	item := backlogItem{Scope: ""}
+	record := Record{}
+	if service.shouldTriggerReview(item, record) {
+		t.Fatal("expected false when scope is empty")
+	}
+}
+
+func TestShouldTriggerReview_NoReviewClient(t *testing.T) {
+	service := &Service{}
+	item := backlogItem{Scope: "scenarios/web-console"}
+	record := Record{}
+	if service.shouldTriggerReview(item, record) {
+		t.Fatal("expected false when review client is nil")
+	}
+}
+
+func TestShouldTriggerReview_NonScenarioScope(t *testing.T) {
+	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
+	item := backlogItem{Scope: "resources/postgres"}
+	record := Record{}
+	if service.shouldTriggerReview(item, record) {
+		t.Fatal("expected false when scope does not start with scenarios/")
+	}
+}
+
+func TestShouldTriggerReview_ArchiveContext(t *testing.T) {
+	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
+	item := backlogItem{Scope: "scenarios/web-console"}
+	record := Record{ArchiveContext: &ArchiveContext{ScenarioName: "web-console"}}
+	if service.shouldTriggerReview(item, record) {
+		t.Fatal("expected false when archive context is set")
+	}
+}
+
+func TestScenarioNameFromScope(t *testing.T) {
+	tests := []struct {
+		scope string
+		want  string
+	}{
+		{"scenarios/web-console", "web-console"},
+		{"scenarios/web-console/api", "web-console"},
+		{"scenarios/foo/api/internal", "foo"},
+		{"scenarios/", ""},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		got := scenarioNameFromScope(tc.scope)
+		if got != tc.want {
+			t.Errorf("scenarioNameFromScope(%q): got %q, want %q", tc.scope, got, tc.want)
+		}
+	}
+}
+
 func mustLoadRecords(t *testing.T, path string) []map[string]any {
 	t.Helper()
 	bytes, err := os.ReadFile(path)

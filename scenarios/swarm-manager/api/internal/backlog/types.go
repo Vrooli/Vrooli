@@ -5,6 +5,7 @@ package backlog
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
@@ -46,19 +47,22 @@ var backlogKindDirs = map[BacklogKind]string{
 
 // BacklogItem represents a unit of work stored on disk.
 type BacklogItem struct {
-	Name           string        `json:"name"`
-	Title          string        `json:"title"`
-	Description    string        `json:"description"`
-	Status         BacklogStatus `json:"status"`
-	Priority       int           `json:"priority"`
-	Tags           []string      `json:"tags"`
-	Created        string        `json:"created"`
-	Updated        string        `json:"updated"`
-	Kind           BacklogKind   `json:"kind"`
-	ResearchTarget string        `json:"research_target,omitempty"`
-	DependsOn      []string      `json:"depends_on,omitempty"`
-	Initiative     string        `json:"initiative,omitempty"`
-	Effort         string        `json:"effort,omitempty"`
+	Name            string        `json:"name"`
+	Title           string        `json:"title"`
+	Description     string        `json:"description"`
+	Status          BacklogStatus `json:"status"`
+	Priority        int           `json:"priority"`
+	Tags            []string      `json:"tags"`
+	Created         string        `json:"created"`
+	Updated         string        `json:"updated"`
+	Kind            BacklogKind   `json:"kind"`
+	ResearchTarget  string        `json:"research_target,omitempty"`
+	DependsOn       []string      `json:"depends_on,omitempty"`
+	Initiative      string        `json:"initiative,omitempty"`
+	Effort          string        `json:"effort,omitempty"`
+	Scope           string        `json:"scope,omitempty"`
+	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -140,6 +144,47 @@ func validateEffort(raw string) (string, error) {
 	}
 }
 
+// validateScope checks that a scope path is safe (relative, no "..").
+func validateScope(scope string) error {
+	scope = strings.TrimSpace(scope)
+	if scope == "" {
+		return nil
+	}
+	if filepath.IsAbs(scope) {
+		return fmt.Errorf("scope must be a relative path, got absolute: %s", scope)
+	}
+	// Check for ".." components in both raw and cleaned forms.
+	for _, part := range strings.Split(scope, "/") {
+		if part == ".." {
+			return fmt.Errorf("scope must not contain '..': %s", scope)
+		}
+	}
+	cleaned := filepath.Clean(scope)
+	for _, part := range strings.Split(cleaned, string(filepath.Separator)) {
+		if part == ".." {
+			return fmt.Errorf("scope must not contain '..': %s", scope)
+		}
+	}
+	return nil
+}
+
+// validateGlobs checks that each glob pattern is non-empty, relative, and
+// syntactically valid.
+func validateGlobs(globs []string) error {
+	for i, g := range globs {
+		if strings.TrimSpace(g) == "" {
+			return fmt.Errorf("glob[%d]: empty string not allowed", i)
+		}
+		if filepath.IsAbs(g) {
+			return fmt.Errorf("glob[%d]: absolute paths not allowed: %s", i, g)
+		}
+		if _, err := filepath.Match(g, ""); err != nil {
+			return fmt.Errorf("glob[%d]: invalid pattern %q: %w", i, g, err)
+		}
+	}
+	return nil
+}
+
 // sanitizeName converts a name to a folder-safe format.
 func sanitizeName(name string) string {
 	name = strings.ToLower(name)
@@ -177,6 +222,15 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.Effort) != "" {
 		result.Effort = &item.Effort
+	}
+	if strings.TrimSpace(item.Scope) != "" {
+		result.Scope = &item.Scope
+	}
+	if len(item.AcceptanceAllow) > 0 {
+		result.AcceptanceAllow = item.AcceptanceAllow
+	}
+	if len(item.AcceptanceDeny) > 0 {
+		result.AcceptanceDeny = item.AcceptanceDeny
 	}
 	return result
 }

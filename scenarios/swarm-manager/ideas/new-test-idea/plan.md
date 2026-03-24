@@ -3,6 +3,11 @@
 ## Purpose
 <!-- TBD — Pending clarification of what "new test idea" refers to. Could be a testing framework, a test automation scenario, a QA tool, or something else entirely. -->
 
+## Required Reading
+```bash
+prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
+```
+
 ## Problem Statement
 <!-- TBD — The description "A new test idea" does not yet specify what problem is being solved, who experiences it, or what the desired outcome is. -->
 

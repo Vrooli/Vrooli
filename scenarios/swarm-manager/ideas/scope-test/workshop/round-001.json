@@ -1,0 +1,82 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-24T20:45:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What is this item about?",
+      "context": "The spec.json has an empty description. We need to understand the problem or goal before any planning can proceed. Please describe what 'Scope Test' should accomplish.",
+      "options": [
+        {"key": "A", "label": "Testing/validating the backlog scope field behavior", "rationale": "The name 'scope-test' suggests this may be about testing how the scope, acceptance_allow, and acceptance_deny fields work in the swarm-manager backlog system."},
+        {"key": "B", "label": "A sandbox for experimenting with backlog item workflows", "rationale": "This could be a test item created to exercise the initialize/workshop/process pipeline end-to-end."},
+        {"key": "C", "label": "Other", "rationale": "Provide your own description of what this item should accomplish."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Which scenario does this work target?",
+      "context": "No scope field is set on spec.json. Identifying the target scenario is required before implementation planning can proceed. Based on the item name and available scenarios, here are likely candidates.",
+      "options": [
+        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Most likely if this is about testing/improving the backlog scope field functionality within swarm-manager itself."},
+        {"key": "B", "label": "scenarios/agent-manager", "rationale": "If the scope test relates to agent sandbox scoping and acceptance boundaries."},
+        {"key": "C", "label": "No specific scenario (infrastructure/cross-cutting)", "rationale": "If this is a platform-level concern that spans multiple scenarios."},
+        {"key": "D", "label": "Other", "rationale": "Specify a different target scenario."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "What file paths are expected to change?",
+      "context": "Both acceptance_allow and acceptance_deny are missing from spec.json. Once the target scenario is known, we need to define the expected change boundaries for sandbox scoping and post-execution review.",
+      "options": [
+        {"key": "A", "label": "Broad: scenarios/<target>/**", "rationale": "Allow changes anywhere in the target scenario. Appropriate for large features or new scenarios."},
+        {"key": "B", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories (e.g., api/internal/backlog/**). Appropriate for focused changes."},
+        {"key": "C", "label": "Defer until scope is decided", "rationale": "Wait for d1 and d2 answers before defining acceptance boundaries."},
+        {"key": "D", "label": "Other", "rationale": "Specify custom acceptance_allow and acceptance_deny patterns."}
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": "Pre-selected C since this depends on decisions d1 and d2."
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Priority level",
+      "context": "Currently set to priority 5 (mid-range). Should this be adjusted based on the actual scope of work?",
+      "options": [
+        {"key": "A", "label": "Keep priority 5", "rationale": "Default mid-priority is appropriate for a non-urgent item."},
+        {"key": "B", "label": "Raise to priority 3 or higher", "rationale": "If this blocks other work or is time-sensitive."},
+        {"key": "C", "label": "Lower to priority 7+", "rationale": "If this is purely exploratory or low-impact."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing plan.md contains all 13 mandatory sections but every section is marked <!-- TBD -->. No archive materials were provided. The plan cannot be meaningfully populated until the purpose and scope are defined through this workshop round."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The backlog system supports scope, acceptance_allow, and acceptance_deny fields on spec.json. These are used for sandbox overlay mounts, post-execution review targeting, and change boundary validation. Setting these after d2 is answered will improve execution safety."
+    }
+  ],
+  "plan_updates": "Preserved existing plan.md scaffold (all sections TBD). No updates possible without item description or scope — awaiting workshop answers."
+}

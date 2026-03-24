@@ -1,0 +1,68 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-24T21:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Pending: What is this item about? (follows up on d1)",
+      "context": "Round 1 decision d1 remains unanswered. The spec has no description, title is 'Scope Test', and no archive materials exist. Without knowing the purpose, no plan sections can be populated. Reframing with more specific options based on codebase analysis.",
+      "options": [
+        {"key": "A", "label": "Validate backlog scope/acceptance fields end-to-end", "rationale": "Test that scope, acceptance_allow, and acceptance_deny in spec.json correctly control sandbox overlay mounts and post-execution review. This would target scenarios/swarm-manager and scenarios/workspace-sandbox."},
+        {"key": "B", "label": "Add scope-aware glob validation to the backlog system", "rationale": "Implement validation that acceptance_allow/deny globs are syntactically valid and resolve to real paths within the scope directory. New feature for scenarios/swarm-manager/api."},
+        {"key": "C", "label": "End-to-end test of the initialize-workshop-process pipeline", "rationale": "Use this item as a dry-run to validate the full backlog lifecycle. No code changes — the test IS the item processing itself."},
+        {"key": "D", "label": "Delete this item (it was just a test)", "rationale": "If this was created solely to test item creation, it can be cleaned up."},
+        {"key": "E", "label": "Other", "rationale": "Provide a description of what this item should accomplish."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Desired outcome format",
+      "context": "Depending on d5, the deliverable could be code changes, test cases, documentation, or nothing (if this is just a pipeline test). Clarifying the expected output type helps shape the plan.",
+      "options": [
+        {"key": "A", "label": "Code changes (new feature or bug fix)", "rationale": "Produces a PR with implementation changes to one or more scenarios."},
+        {"key": "B", "label": "Test suite (automated tests validating existing behavior)", "rationale": "Produces test files that verify scope/acceptance field handling."},
+        {"key": "C", "label": "No deliverable (pipeline validation only)", "rationale": "The item exists solely to exercise the backlog workflow. Success = completing the lifecycle."},
+        {"key": "D", "label": "Other", "rationale": "Describe the expected deliverable."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d7",
+      "type": "decision",
+      "topic": "Should a description be added to spec.json?",
+      "context": "The current spec.json has an empty description field. Adding a description would allow future workshop/processing agents to generate meaningful plan content without manual intervention.",
+      "options": [
+        {"key": "A", "label": "Yes — I will provide a description now", "rationale": "Use the freeform field to write a description. It will be incorporated into spec.json and plan.md."},
+        {"key": "B", "label": "No — proceed with what exists", "rationale": "Continue with the empty description. Plan sections will remain TBD until more context surfaces."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Round 1 decisions d1 (purpose), d2 (target scenario), and d4 (priority) remain unanswered. Decision d3 (file paths) was pre-selected as 'C: Defer until scope is decided'. No archive materials have been added since round 1. The plan.md remains fully TBD across all 13 sections."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Available scenarios that relate to scope/sandbox functionality: swarm-manager (backlog scope fields, acceptance globs), workspace-sandbox (sandbox overlay mounts, filesystem isolation), agent-manager (agent execution with scope constraints). These are the most likely targets if this item involves scope-related work."
+    }
+  ],
+  "plan_updates": "No plan.md updates — all sections remain TBD pending answers to foundational questions from rounds 1 and 2."
+}

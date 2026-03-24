@@ -206,6 +206,21 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "effort")
 	}
+	if strings.TrimSpace(item.Scope) != "" {
+		merged["scope"] = item.Scope
+	} else {
+		delete(merged, "scope")
+	}
+	if len(item.AcceptanceAllow) > 0 {
+		merged["acceptance_allow"] = item.AcceptanceAllow
+	} else {
+		delete(merged, "acceptance_allow")
+	}
+	if len(item.AcceptanceDeny) > 0 {
+		merged["acceptance_deny"] = item.AcceptanceDeny
+	} else {
+		delete(merged, "acceptance_deny")
+	}
 
 	data, err := json.MarshalIndent(merged, "", "  ")
 	if err != nil {

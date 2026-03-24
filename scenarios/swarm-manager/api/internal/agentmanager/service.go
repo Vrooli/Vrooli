@@ -216,15 +216,17 @@ type ResearchSpawnRequest struct {
 
 // BacklogSpawnRequest describes a request to spawn a backlog agent.
 type BacklogSpawnRequest struct {
-	Kind        string
-	Name        string
-	Title       string
-	Description string
-	Prompt      string
-	ScopePath   string
-	ProjectRoot string
-	CreatedBy   string
-	Purpose     string
+	Kind            string
+	Name            string
+	Title           string
+	Description     string
+	Prompt          string
+	ScopePath       string
+	ProjectRoot     string
+	CreatedBy       string
+	Purpose         string
+	AcceptanceAllow []string
+	AcceptanceDeny  []string
 }
 
 // RunResult returns agent-manager identifiers.
@@ -358,6 +360,22 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt
+	}
+	if len(req.AcceptanceAllow) > 0 || len(req.AcceptanceDeny) > 0 {
+		acceptance := &domainpb.SandboxAcceptanceConfig{
+			Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
+		}
+		if len(req.AcceptanceAllow) > 0 {
+			acceptance.Allow = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceAllow}
+		}
+		if len(req.AcceptanceDeny) > 0 {
+			acceptance.Deny = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceDeny}
+		}
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{
+			SandboxConfig: &domainpb.SandboxConfig{
+				Acceptance: acceptance,
+			},
+		}
 	}
 
 	run, err := s.client.CreateRun(ctx, runReq)

@@ -1,0 +1,278 @@
+package execution
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/vrooli/api-core/discovery"
+)
+
+// ReviewClient calls git-control-tower's unified review API.
+type ReviewClient interface {
+	// TriggerReview starts a review run and returns the job ID.
+	TriggerReview(ctx context.Context, req ReviewRequest) (string, error)
+	// PollReview checks review job status. Returns result, done flag, and error.
+	PollReview(ctx context.Context, jobID string) (*ReviewResult, bool, error)
+}
+
+// ReviewRequest describes what to review.
+type ReviewRequest struct {
+	ScenarioName  string   `json:"scenarioName"`
+	ExpectedPaths []string `json:"expectedPaths,omitempty"`
+	SandboxID     string   `json:"sandboxId,omitempty"`
+}
+
+// HTTPReviewClient implements ReviewClient using git-control-tower's HTTP API.
+type HTTPReviewClient struct {
+	httpClient *http.Client
+}
+
+// NewHTTPReviewClient creates a review client. If httpClient is nil, a default
+// client with 30s timeout is used.
+func NewHTTPReviewClient(httpClient *http.Client) *HTTPReviewClient {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	return &HTTPReviewClient{httpClient: httpClient}
+}
+
+func resolveGitControlTowerBaseURL(ctx context.Context) (string, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "git-control-tower")
+	if err != nil {
+		return "", fmt.Errorf("resolve git-control-tower: %w", err)
+	}
+	return strings.TrimRight(baseURL, "/"), nil
+}
+
+// reviewRunResponse mirrors git-control-tower's ReviewRunResponse.
+type reviewRunResponse struct {
+	JobID string `json:"jobId"`
+}
+
+// reviewJobStatus mirrors git-control-tower's ReviewJobStatus.
+type reviewJobStatus struct {
+	JobID     string                 `json:"jobId"`
+	Status    string                 `json:"status"`
+	Checks    map[string]string      `json:"checks"`
+	Summary   *reviewSummaryResponse `json:"summary,omitempty"`
+	StartedAt string                 `json:"startedAt,omitempty"`
+	Error     string                 `json:"error,omitempty"`
+}
+
+// reviewSummaryResponse mirrors git-control-tower's ReviewSummaryResponse.
+type reviewSummaryResponse struct {
+	ScenarioName string          `json:"scenarioName"`
+	Readiness    string          `json:"readiness"`
+	Dimensions   json.RawMessage `json:"dimensions"`
+	Capabilities map[string]bool `json:"capabilities"`
+	Timestamp    string          `json:"timestamp"`
+}
+
+// TriggerReview starts a review run and returns the job ID.
+func (c *HTTPReviewClient) TriggerReview(ctx context.Context, req ReviewRequest) (string, error) {
+	baseURL, err := resolveGitControlTowerBaseURL(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("marshal review request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/review/run", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create review request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("review request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read review response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("review run returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result reviewRunResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("unmarshal review response: %w", err)
+	}
+	if strings.TrimSpace(result.JobID) == "" {
+		return "", fmt.Errorf("review response missing jobId")
+	}
+	return result.JobID, nil
+}
+
+// PollReview checks review job status. Returns result, done flag, and error.
+func (c *HTTPReviewClient) PollReview(ctx context.Context, jobID string) (*ReviewResult, bool, error) {
+	baseURL, err := resolveGitControlTowerBaseURL(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/review/run/"+jobID, nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("create poll request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, false, fmt.Errorf("poll request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("read poll response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("poll returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var job reviewJobStatus
+	if err := json.Unmarshal(respBody, &job); err != nil {
+		return nil, false, fmt.Errorf("unmarshal poll response: %w", err)
+	}
+
+	return mapJobToResult(job)
+}
+
+// mapJobToResult converts a git-control-tower job status to an execution ReviewResult.
+func mapJobToResult(job reviewJobStatus) (*ReviewResult, bool, error) {
+	status := strings.ToLower(strings.TrimSpace(job.Status))
+
+	switch status {
+	case "completed":
+		result := &ReviewResult{
+			JobID:      job.JobID,
+			ReviewedAt: nowRFC3339(),
+		}
+		if job.Summary != nil {
+			result.Classification = mapReadinessToClassification(job.Summary.Readiness)
+			result.Summary = fmt.Sprintf("Scenario %s readiness: %s", job.Summary.ScenarioName, job.Summary.Readiness)
+			result.Dimensions = parseDimensions(job.Summary.Dimensions)
+		} else {
+			result.Classification = "not_assessable"
+			result.Summary = "review completed without summary"
+		}
+		return result, true, nil
+
+	case "failed":
+		result := &ReviewResult{
+			JobID:          job.JobID,
+			Classification: "not_assessable",
+			Summary:        "review failed: " + job.Error,
+			ReviewedAt:     nowRFC3339(),
+		}
+		return result, true, nil
+
+	default:
+		// Still running (pending, running, etc.)
+		return nil, false, nil
+	}
+}
+
+func mapReadinessToClassification(readiness string) string {
+	switch strings.ToLower(strings.TrimSpace(readiness)) {
+	case "green":
+		return "ready"
+	case "yellow":
+		return "ready_with_notes"
+	case "red":
+		return "needs_work"
+	default:
+		return "not_assessable"
+	}
+}
+
+// dimensionEntry is used for parsing the raw dimensions JSON.
+type dimensionEntry struct {
+	Available          bool    `json:"available"`
+	Score              float64 `json:"score"`
+	Violations         int     `json:"violations"`
+	BlockingViolations int     `json:"blockingViolations"`
+	Passed             bool    `json:"passed"`
+	Total              int     `json:"total"`
+	PassedCount        int     `json:"passedCount"`
+	FailedCount        int     `json:"failedCount"`
+	Warnings           int     `json:"warnings"`
+	Stale              bool    `json:"stale"`
+	ScreenshotCount    int     `json:"screenshotCount"`
+	TracedFiles        int     `json:"tracedFiles"`
+	TotalFiles         int     `json:"totalFiles"`
+}
+
+func parseDimensions(raw json.RawMessage) []ReviewDimension {
+	if len(raw) == 0 {
+		return nil
+	}
+	var dims map[string]dimensionEntry
+	if err := json.Unmarshal(raw, &dims); err != nil {
+		return nil
+	}
+	var result []ReviewDimension
+	for name, dim := range dims {
+		if !dim.Available {
+			result = append(result, ReviewDimension{
+				Name:   name,
+				Status: "skipped",
+			})
+			continue
+		}
+		status := "green"
+		var details string
+		switch name {
+		case "codeQuality":
+			if dim.Violations > 0 {
+				status = "yellow"
+				details = fmt.Sprintf("%.1f score, %d violations", dim.Score, dim.Violations)
+			}
+			if dim.Score < 0.5 {
+				status = "red"
+			}
+		case "tests":
+			if !dim.Passed {
+				status = "red"
+				details = fmt.Sprintf("%d/%d passed", dim.PassedCount, dim.Total)
+			} else if dim.FailedCount > 0 {
+				status = "yellow"
+				details = fmt.Sprintf("%d/%d passed", dim.PassedCount, dim.Total)
+			}
+		case "standards":
+			if dim.BlockingViolations > 0 {
+				status = "red"
+				details = fmt.Sprintf("%d blocking violations", dim.BlockingViolations)
+			} else if dim.Warnings > 0 {
+				status = "yellow"
+				details = fmt.Sprintf("%d warnings", dim.Warnings)
+			}
+		}
+		if dim.Stale {
+			status = "yellow"
+			if details != "" {
+				details += " (stale)"
+			} else {
+				details = "stale data"
+			}
+		}
+		result = append(result, ReviewDimension{
+			Name:    name,
+			Status:  status,
+			Details: details,
+		})
+	}
+	return result
+}
