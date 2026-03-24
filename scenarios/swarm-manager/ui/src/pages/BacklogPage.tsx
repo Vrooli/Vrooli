@@ -171,6 +171,7 @@ export function BacklogPage() {
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(() => new Set());
+  const [searchFocused, setSearchFocused] = useState(false);
   const queryClient = useQueryClient();
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
@@ -444,13 +445,28 @@ export function BacklogPage() {
             </div>
           </div>
 
+          {/* Quick capture input — only on "All" tab, hidden when searching */}
+          {activeKind === "all" && !searchTerm && !searchFocused && (
+            <QuickCaptureInput
+              onOpenForm={(draftText) => {
+                if (draftText) {
+                  setCreatePrefill({ description: draftText } as BacklogFormValues);
+                }
+                setShowCreate(true);
+              }}
+            />
+          )}
+
           <div className="flex items-center gap-2">
               <SearchBar
                 placeholder={activeKind === "all" ? `Search ${stats.total} item${stats.total !== 1 ? "s" : ""}...` : `Search ${BACKLOG_KIND_LABELS[activeKind].toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 data-testid={selectors.backlog.search}
                 widthClass="min-w-0 flex-1"
+                className="!text-base"
               />
               <div className="relative">
                 <Button
@@ -595,18 +611,6 @@ export function BacklogPage() {
         <InlineLoadingIndicator
           label="Refreshing backlog..."
           testId="backlog-refreshing-indicator"
-        />
-      )}
-
-      {/* Quick capture input — only on "All" tab */}
-      {activeKind === "all" && (
-        <QuickCaptureInput
-          onOpenForm={(draftText) => {
-            if (draftText) {
-              setCreatePrefill({ description: draftText } as BacklogFormValues);
-            }
-            setShowCreate(true);
-          }}
         />
       )}
 

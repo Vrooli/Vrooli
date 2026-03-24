@@ -148,7 +148,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="What's on your mind?"
           disabled={isSubmitting}
-          className="w-full resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none disabled:opacity-50"
+          className="w-full resize-none bg-transparent text-base text-slate-200 placeholder-slate-500 outline-none disabled:opacity-50"
           data-testid={selectors.captures.quickInputSubmit}
         />
 
