@@ -110,6 +110,14 @@ func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
 			req.ResearchTarget = &normalized
 		}
 	}
+	if req.Effort != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
+		if normalized == "" {
+			req.Effort = nil
+		} else {
+			req.Effort = &normalized
+		}
+	}
 }
 
 func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest) string {
@@ -319,6 +327,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		initiative = strings.TrimSpace(*req.Initiative)
 	}
 
+	effort := ""
+	if req.Effort != nil {
+		normalized, err := validateEffort(*req.Effort)
+		if err != nil {
+			httputil.BadRequest(w, "[backlog] create", err.Error())
+			return
+		}
+		effort = normalized
+	}
+
 	item := BacklogItem{
 		Name:           name,
 		Title:          req.Title,
@@ -332,6 +350,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		ResearchTarget: researchTarget,
 		DependsOn:      dependsOn,
 		Initiative:     initiative,
+		Effort:         effort,
 	}
 
 	// Validate dependencies exist and check for cycles.
@@ -395,6 +414,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[backlog] update", "invalid request body")
 		return
 	}
+	// Normalize effort before proto validation (proto expects uppercase).
+	if update.Effort != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*update.Effort))
+		if normalized == "" {
+			update.Effort = nil
+		} else {
+			update.Effort = &normalized
+		}
+	}
 	if !httputil.ValidateProtoRequest(w, "[backlog] update", "invalid request body", &update) {
 		return
 	}
@@ -428,6 +456,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if existing.Kind != KindResearch {
 		existing.ResearchTarget = ""
+	}
+	if update.Effort != nil {
+		normalized, err := validateEffort(*update.Effort)
+		if err != nil {
+			httputil.BadRequest(w, "[backlog] update", err.Error())
+			return
+		}
+		existing.Effort = normalized
 	}
 
 	// Validate dependencies if changed.

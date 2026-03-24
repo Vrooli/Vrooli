@@ -474,3 +474,67 @@ func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
 		t.Errorf("expected 'does not exist' error for nonexistent dep, got: %s", body)
 	}
 }
+
+func TestBatchCreate_WithEffort(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	effortS := "S"
+	effortXL := "xl" // lowercase to test normalization
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "item-with-effort", Title: "Item With Effort", Kind: "idea", Effort: &effortS},
+			{Name: "item-with-xl", Title: "Item XL", Kind: "fix", Effort: &effortXL},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Effort != "S" {
+		t.Errorf("expected effort 'S', got %q", resp.Items[0].Effort)
+	}
+	if resp.Items[1].Effort != "XL" {
+		t.Errorf("expected effort 'XL', got %q", resp.Items[1].Effort)
+	}
+}
+
+func TestBatchCreate_InvalidEffort(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	badEffort := "HUGE"
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "bad-effort-item", Title: "Bad Effort", Kind: "idea", Effort: &badEffort},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusBadRequest(t, w)
+
+	body := w.Body.String()
+	if !contains(body, "effort must be") {
+		t.Errorf("expected effort validation error, got: %s", body)
+	}
+}
+
+func TestBatchCreate_EffortOptional(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "no-effort-item", Title: "No Effort", Kind: "idea"},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	if resp.Items[0].Effort != "" {
+		t.Errorf("expected empty effort, got %q", resp.Items[0].Effort)
+	}
+}

@@ -26,7 +26,7 @@
 
 ### P1 Requirements (Should Have)
 - [ ] **Workflow Automation**: Integration with N8n for detection-triggered pipelines
-- [ ] **Hybrid Workflows**: Combine with VOCR, Agent-S2, Browserless for UI validation loops
+- [ ] **Hybrid Workflows**: Combine with Agent-S2, Browserless for UI validation loops
 - [ ] **Performance Optimization**: GPU/CPU selection, confidence thresholds, batch inference
 
 ### P2 Requirements (Nice to Have)

@@ -47,6 +47,7 @@ type batchCreateItem struct {
 	Tags           []string `json:"tags,omitempty"`
 	ResearchTarget *string  `json:"research_target,omitempty"`
 	DependsOn      []string `json:"depends_on,omitempty"`
+	Effort         *string  `json:"effort,omitempty"`
 }
 
 // batchCreateResponse is the JSON response for a successful batch create.
@@ -164,6 +165,16 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			dependsOn = []string{}
 		}
 
+		effort := ""
+		if raw.Effort != nil {
+			normalized, err := validateEffort(*raw.Effort)
+			if err != nil {
+				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
+				return
+			}
+			effort = normalized
+		}
+
 		item := BacklogItem{
 			Name:           name,
 			Title:          raw.Title,
@@ -177,6 +188,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			ResearchTarget: researchTarget,
 			DependsOn:      dependsOn,
 			Initiative:     initiativeName,
+			Effort:         effort,
 		}
 
 		validated = append(validated, validatedItem{item: item, kind: kind})

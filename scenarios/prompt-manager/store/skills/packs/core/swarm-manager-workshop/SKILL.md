@@ -8,6 +8,8 @@ Run one workshop round for a backlog item of any kind. Analyze gaps in the curre
 
 **Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
+**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for `plan.md`.
+
 ## Scope
 
 **In scope:**
@@ -112,52 +114,12 @@ Score each dimension honestly from 0-3 based on the CURRENT state of the plan:
 
 ## Implementation Plan Format
 
-The `plan.md` file follows a structured format. On the first round, create a scaffold with these sections. On subsequent rounds, fill in and refine sections based on accumulated context:
+The `plan.md` file structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating or updating `plan.md`.
 
-```markdown
-# Implementation Plan: {{ITEM_TITLE}}
-
-## Purpose
-What is being built/fixed/researched and why it matters.
-
-## Problem Statement
-Symptom, root cause (if known), and solution overview.
-
-## Scope
-### In Scope
-- ...
-### Out of Scope
-- ...
-
-## Current Technical Context
-Key files, components, architecture, and data models relevant to this work.
-
-## Target End State
-What the system looks like after implementation.
-
-## Implementation Strategy
-Ordered phases with dependencies and concrete steps.
-
-## Contract Decisions
-API/CLI/data model behavior decisions.
-
-## Testing Plan
-Unit, integration, and validation test cases.
-
-## Rollout / Validation Checklist
-Step-by-step verification checkpoints.
-
-## Risks + Mitigations
-Risk table with likelihood, impact, and mitigation strategies.
-
-## Non-goals / Prohibited Patterns
-Explicit anti-patterns and constraints.
-
-## Definition of Done
-Objective criteria that determine completion.
-```
-
-Not every section needs content from round 1. Fill what you can and leave sections as `<!-- TBD -->` when information is insufficient. Each subsequent round should fill more sections.
+**Workshop-specific notes:**
+- Not every section needs content from round 1. Fill what you can and leave sections as `<!-- TBD -->` when information is insufficient. Each subsequent round should fill more sections.
+- On the first round, create a scaffold with as much content as possible from existing context.
+- On subsequent rounds, refine existing sections and fill gaps based on accumulated user responses.
 
 ## Instructions
 

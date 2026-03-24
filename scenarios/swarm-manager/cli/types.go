@@ -28,6 +28,7 @@ type BacklogItem struct {
 	ResearchTarget string   `json:"research_target,omitempty"`
 	DependsOn      []string `json:"depends_on,omitempty"`
 	Initiative     string   `json:"initiative,omitempty"`
+	Effort         string   `json:"effort,omitempty"`
 }
 
 type BacklogItemResponse struct {

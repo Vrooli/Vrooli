@@ -56,6 +56,9 @@ message CreateBacklogItemRequest {
   // When true (default), auto-initialize workshop for the new item.
   // Set to false to skip auto-initialization.
   optional bool auto_workshop = 10;
+
+  // Effort estimate: XS, S, M, L, XL.
+  optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -93,6 +96,9 @@ message UpdateBacklogItemRequest {
 
   // Initiative this item belongs to.
   optional string initiative = 8;
+
+  // Effort estimate: XS, S, M, L, XL.
+  optional string effort = 9 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
 }
 
 // ListBacklogItemsResponse returns all backlog items.

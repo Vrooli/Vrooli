@@ -26,6 +26,7 @@ type BatchCreateItem struct {
 	Tags           []string `json:"tags,omitempty"`
 	ResearchTarget *string  `json:"research_target,omitempty"`
 	DependsOn      []string `json:"depends_on,omitempty"`
+	Effort         *string  `json:"effort,omitempty"`
 }
 
 // BatchCreateResponse is the response from the batch create endpoint.
@@ -131,7 +132,11 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 
 	printSection("Items")
 	for _, item := range response.Items {
-		fmt.Printf("  [%s] %s (priority: %d, status: %s)\n", item.Kind, item.Name, item.Priority, item.Status)
+		effortStr := ""
+		if item.Effort != "" {
+			effortStr = fmt.Sprintf(", effort: %s", item.Effort)
+		}
+		fmt.Printf("  [%s] %s (priority: %d, status: %s%s)\n", item.Kind, item.Name, item.Priority, item.Status, effortStr)
 		if len(item.DependsOn) > 0 {
 			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
 		}

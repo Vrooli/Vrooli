@@ -72,22 +72,7 @@ String label grouping this item with other items under a shared initiative. Used
 
 ### `plan.md`
 
-Markdown implementation plan with 13 sections. This is the primary artifact that executing agents receive as context. Structure:
-
-1. **Purpose** — What is being built and why
-2. **Problem Statement** — Symptom, root cause, solution overview
-3. **Scope** — In scope / out of scope
-4. **Current Technical Context** — Key files, components, architecture
-5. **Target End State** — What the system looks like after
-6. **Implementation Strategy** — Phased steps with dependencies
-7. **Contract Decisions** — API/CLI/data model behavior
-8. **Testing Plan** — Test cases and verification
-9. **Rollout / Validation Checklist** — Step-by-step verification
-10. **Risks + Mitigations** — Risk table
-11. **Non-goals / Prohibited Patterns** — Anti-patterns
-12. **Definition of Done** — Objective completion criteria
-
-Sections may be `<!-- TBD -->` until populated through workshop rounds.
+Markdown implementation plan. This is the primary artifact that executing agents receive as context. The mandatory section structure, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Sections may be `<!-- TBD -->` until populated through workshop rounds.
 
 ### `workshop/round-NNN.json`
 

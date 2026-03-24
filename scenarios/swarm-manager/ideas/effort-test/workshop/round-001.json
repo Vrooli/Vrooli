@@ -1,0 +1,99 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-24T18:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What is 'Effort Test'?",
+      "context": "The item has no description. The title could mean several things: a scenario that estimates development effort for tasks, a test harness that measures how much agent effort (tokens, time, steps) tasks consume, or a placeholder/test item. Clarifying intent is the single most important unknown.",
+      "options": [
+        {"key": "A", "label": "Effort estimation scenario", "rationale": "A tool/service that predicts how much work (time, complexity, story points) a task will take — useful for planning and prioritization in swarm-manager."},
+        {"key": "B", "label": "Agent effort measurement harness", "rationale": "A test framework that measures agent resource consumption (tokens, wall time, tool calls) per task — useful for optimizing agent performance and cost."},
+        {"key": "C", "label": "Placeholder / test item", "rationale": "This item was created to test backlog workflows and is not intended to become a real scenario. Can be archived."},
+        {"key": "D", "label": "Other", "rationale": "Describe your intended purpose in the freeform field."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Target users",
+      "context": "If this becomes a real scenario, understanding who benefits is key to scoping. Vrooli agents building other scenarios? Human developers planning sprints? The swarm-manager itself for scheduling decisions?",
+      "options": [
+        {"key": "A", "label": "Vrooli agents (automated)", "rationale": "Agents use effort estimates to prioritize and schedule work autonomously via swarm-manager."},
+        {"key": "B", "label": "Human developers", "rationale": "Developers use effort estimates for sprint planning, capacity management, and stakeholder communication."},
+        {"key": "C", "label": "Both agents and humans", "rationale": "Dual interface — API for agents, UI/CLI for humans. More scope but more value."},
+        {"key": "D", "label": "Other", "rationale": "Describe the target audience in the freeform field."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Scenario components",
+      "context": "What delivery surfaces does this need? An API is the minimum for agent consumption. A CLI enables developer workflows. A UI enables richer interaction and visualization.",
+      "options": [
+        {"key": "A", "label": "API only", "rationale": "Minimal surface area. Other scenarios and agents consume via HTTP. Fastest to build."},
+        {"key": "B", "label": "API + CLI", "rationale": "API for programmatic access, CLI for developer convenience. Moderate scope."},
+        {"key": "C", "label": "API + CLI + UI", "rationale": "Full scenario with all surfaces. Most useful but largest scope."},
+        {"key": "D", "label": "Other", "rationale": "Describe your preferred components."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Estimation methodology",
+      "context": "If this is an effort estimation tool, the approach matters significantly. Historical data from completed backlog items could train a model. Alternatively, LLM-based analysis of task descriptions could provide estimates without historical data.",
+      "options": [
+        {"key": "A", "label": "Historical data analysis", "rationale": "Mine completed backlog items for actual effort data (time, commits, tokens). Requires sufficient history. Most accurate long-term."},
+        {"key": "B", "label": "LLM-based estimation", "rationale": "Use an LLM to analyze task descriptions and produce estimates. Works immediately but less calibrated. Could use Ollama."},
+        {"key": "C", "label": "Hybrid approach", "rationale": "Start with LLM estimates, calibrate against historical data as it accumulates. Best of both worlds but more complex."},
+        {"key": "D", "label": "Not applicable", "rationale": "Select if this isn't an estimation tool."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Resource dependencies",
+      "context": "Which shared Vrooli resources would this scenario need? PostgreSQL for storing estimates and history. Ollama if using LLM-based estimation. Redis for caching.",
+      "options": [
+        {"key": "A", "label": "PostgreSQL only", "rationale": "Minimal — store estimates and historical data. Sufficient for data-driven approaches."},
+        {"key": "B", "label": "PostgreSQL + Ollama", "rationale": "Storage plus local LLM for analysis. Enables AI-powered estimation without external API costs."},
+        {"key": "C", "label": "PostgreSQL + Ollama + Redis", "rationale": "Full stack — storage, AI, and caching. Best performance but more operational overhead."},
+        {"key": "D", "label": "None / minimal", "rationale": "If this is a test item or lightweight tool, it may not need persistent resources."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The swarm-manager already tracks backlog items with metadata (kind, priority, status, timestamps). If this becomes an effort estimation tool, it could integrate directly with swarm-manager's backlog API to pull task descriptions and push estimates back as metadata."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "No archive materials, description, or tags were provided for this item. All plan sections are currently TBD. The workshop round 1 decisions above are essential to make any progress on the plan."
+    }
+  ],
+  "plan_updates": "Updated plan.md Purpose and Problem Statement sections with contextual notes about possible interpretations. All 13 sections remain TBD pending workshop decisions."
+}

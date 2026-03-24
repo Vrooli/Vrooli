@@ -46,7 +46,9 @@ type CreateBacklogItemRequest struct {
 	Initiative *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
 	// When true (default), auto-initialize workshop for the new item.
 	// Set to false to skip auto-initialization.
-	AutoWorkshop  *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
+	AutoWorkshop *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
+	// Effort estimate: XS, S, M, L, XL.
+	Effort        *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -151,6 +153,13 @@ func (x *CreateBacklogItemRequest) GetAutoWorkshop() bool {
 	return false
 }
 
+func (x *CreateBacklogItemRequest) GetEffort() string {
+	if x != nil && x.Effort != nil {
+		return *x.Effort
+	}
+	return ""
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 type UpdateBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -170,7 +179,9 @@ type UpdateBacklogItemRequest struct {
 	// Dependencies as "kind/name" references.
 	DependsOn []string `protobuf:"bytes,7,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	// Initiative this item belongs to.
-	Initiative    *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	Initiative *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// Effort estimate: XS, S, M, L, XL.
+	Effort        *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -257,6 +268,13 @@ func (x *UpdateBacklogItemRequest) GetDependsOn() []string {
 func (x *UpdateBacklogItemRequest) GetInitiative() string {
 	if x != nil && x.Initiative != nil {
 		return *x.Initiative
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetEffort() string {
+	if x != nil && x.Effort != nil {
+		return *x.Effort
 	}
 	return ""
 }
@@ -1491,7 +1509,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xa4\x04\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xe4\x04\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1507,12 +1525,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"initiative\x18\t \x01(\tH\x03R\n" +
 	"initiative\x88\x01\x01\x12(\n" +
 	"\rauto_workshop\x18\n" +
-	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01B\x0e\n" +
+	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01\x123\n" +
+	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\x10\n" +
-	"\x0e_auto_workshop\"\xd2\x03\n" +
+	"\x0e_auto_workshopB\t\n" +
+	"\a_effort\"\x92\x04\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1525,9 +1545,11 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"depends_on\x18\a \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
 	"initiative\x18\b \x01(\tH\x01R\n" +
-	"initiative\x88\x01\x01B\x12\n" +
+	"initiative\x88\x01\x01\x123\n" +
+	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01B\x12\n" +
 	"\x10_research_targetB\r\n" +
-	"\v_initiative\"O\n" +
+	"\v_initiativeB\t\n" +
+	"\a_effort\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +
 	"\x13BacklogItemResponse\x121\n" +

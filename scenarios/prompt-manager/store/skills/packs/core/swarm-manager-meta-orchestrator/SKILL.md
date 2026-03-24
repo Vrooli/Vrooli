@@ -2,11 +2,10 @@
 
 ## Purpose
 
-Translate a high-level vision (whiteboard photo, stream-of-consciousness text, meeting notes, strategic brief) into a complete set of backlog items with classifications, priorities, dependencies, and initiative groupings. This skill operates ABOVE the individual-item pipeline (classify → initialize → workshop → plan → execute) and orchestrates many items at once through conversational back-and-forth.
+Translate a high-level vision (whiteboard photo, stream-of-consciousness text, meeting notes, strategic brief) into a complete set of backlog items with classifications, priorities, dependencies, and initiative groupings. This skill is an **import and planning tool** — it takes messy ideas and structures them into Swarm Manager's backlog. It does NOT manage ongoing workshopping or execution; those happen through the Swarm Manager UI and other skills after items are created.
 
 **Required reading:**
 - `prompt-manager skill read swarm-manager-backlog-tools` — data model, folder structure, CLI commands
-- `prompt-manager skill read swarm-manager-workshop` — workshop round schema (this skill aggregates workshop decisions across items)
 
 ## Input Context
 
@@ -28,14 +27,13 @@ You are given a high-level vision from a user (human or director-swarm agent). I
 - Parsing vision input into discrete candidate work items
 - Conversational clarification of priorities, dependencies, and sequencing
 - Grouping items into initiatives (logical bundles of related work)
-- Batch-creating backlog items via CLI
+- Batch-creating backlog items via CLI (creation auto-triggers workshop round 1)
 - Setting cross-item dependencies
-- Triggering batch initialization (workshop round 1 for each item)
-- Monitoring initiative progress and surfacing aggregated workshop decisions
+- Updating existing backlog items when new context emerges (not duplicating them)
 - Re-prioritizing items as new information emerges during the session
 
 **Out of scope:**
-- Running individual workshop rounds (delegates to `swarm-manager-workshop`)
+- Managing or monitoring workshop rounds (handled via Swarm Manager UI)
 - Executing plans (delegates to `swarm-manager-process-*`)
 - Deep research (delegates to `swarm-manager-research-*`)
 - Modifying `archive/` folders on existing items
@@ -57,6 +55,7 @@ You are given a high-level vision from a user (human or director-swarm agent). I
    - **Title** (imperative form, concise)
    - **Description** (one sentence)
    - **Priority** (1-10, where 1 = highest)
+   - **Effort** (XS / S / M / L / XL — see effort estimation guidelines below)
    - **Tags** (relevant categorization)
    - **Confidence** (0.0-1.0) in the classification
 5. Present a structured summary table to the user
@@ -71,21 +70,61 @@ You are given a high-level vision from a user (human or director-swarm agent). I
 | **Short input** (< 3 items likely) | Still go through intake. Offer: "This seems focused on [topic]. Should I also consider [related area]?" |
 | **Large input** (> 15 items likely) | Group into themes first, present themes for confirmation, then expand into individual items. |
 
+### Mapping Messy Input to Swarm Manager's Model
+
+Real-world input (whiteboards, brain dumps) often has structure that doesn't map cleanly to Swarm Manager's flat initiative → items model. Use your best judgment to bridge the gap:
+
+- **Nested sub-groups** (e.g., "Monetization" containing "bundle-manager" and "brand-manager" sub-lists): Flatten into individual items with descriptive titles and use tags or name prefixes to preserve the grouping (e.g., `monetization-bundle-manager-cleanup`). Use `depends_on` to preserve any implied ordering.
+- **Numbered lists**: Don't assume numbers mean priority. They might indicate phases, logical grouping, or just the order someone thought of things. Ask once: "Your items are numbered 1-3 — does this represent execution order, priority, or just grouping?"
+- **Color-coding / spatial clusters**: Treat visual grouping boundaries (colors, boxes, whiteboard regions) as initiative boundaries unless the user indicates otherwise.
+- **Items that don't fit a single kind**: Pick the closest kind and note the ambiguity. Don't force-fit — the workshopping phase will refine it later.
+
+### Handling Duplicates
+
+Duplicate detection happens at two levels:
+
+1. **Within the current session**: If the same concept appears in multiple groups (e.g., "approval gating" under both Deployment and Swarms), treat it as **one item with multiple dependents**, not two items. Ask: "I see [item] mentioned in [group A] and [group B]. I'll create it once and mark both groups as depending on it — sound right?"
+2. **Against existing backlog**: Check `swarm-manager backlog list` before creating. If a match exists, **update the existing item** with any new context from this session rather than creating a duplicate. Use `backlog update` to add new information, tags, or dependencies.
+
+### Effort Estimation
+
+Assign an effort estimate (XS/S/M/L/XL) to each item for consistent sizing across sessions:
+
+| Size | Criteria | Examples |
+|------|----------|----------|
+| **XL** | New application/scenario from scratch; major architectural overhaul | "Build dedicated emulator app", "Create new SaaS product" |
+| **L** | Major feature for existing app; significant multi-component refactor | "Add live desktop subscription", "Interop with other clients/apps" |
+| **M** | Moderate feature with clear scope; multi-file changes | "Add NFC option to web-console", "Expand swarm-manager UX" |
+| **S** | Small feature, bug fix, or targeted cleanup | "Fix sandbox edge case", "Clean up brand-manager" |
+| **XS** | Trivial change, config tweak, documentation | "Update marketplace listing", "Fix typo in prompt" |
+
+**Bump up one level** if the item: involves unfamiliar technology, crosses multiple scenarios, requires new infrastructure, or has unclear requirements even after clarification.
+
+### Handling Vague Items
+
+When items are too vague to classify confidently (e.g., "clean up", "various fixes"):
+
+1. Present them grouped as "needs expansion" in the intake output
+2. Offer your best-guess classification with low confidence
+3. Let the user choose: **clarify now** (produces a better item) or **defer** (keep it vague; the auto-triggered workshop round will ask for clarification later)
+
+Don't guess silently — flag the ambiguity and let the user decide when to resolve it.
+
 ### Intake Output Template
 
 ```
 I've parsed your vision into [N] candidate work items:
 
-| # | Kind    | Title                        | Priority | Confidence |
-|---|---------|------------------------------|----------|------------|
-| 1 | idea    | Build real-time dashboard     | 3        | 0.9        |
-| 2 | fix     | Fix auth timeout on refresh   | 1        | 0.95       |
-| 3 | research| Evaluate vector DB options    | 5        | 0.7        |
-| ...                                                                 |
+| # | Kind    | Title                        | Priority | Effort | Confidence |
+|---|---------|------------------------------|----------|--------|------------|
+| 1 | idea    | Build real-time dashboard     | 3        | L      | 0.9        |
+| 2 | fix     | Fix auth timeout on refresh   | 1        | S      | 0.95       |
+| 3 | research| Evaluate vector DB options    | 5        | M      | 0.7        |
+| ...                                                                          |
 
 Items I'm less sure about:
 - "[ambiguous text]" — Could be [kind A] or [kind B]. Which fits better?
-- "[vague reference]" — Couldn't extract a clear action. Drop or clarify?
+- "[vague reference]" — Couldn't extract a clear action. Clarify now, or keep vague and let workshopping sort it out?
 
 Potential duplicates with existing backlog:
 - "[item title]" looks similar to existing [kind]/[name]. Skip or create separate?
@@ -164,14 +203,13 @@ Ready to create these items? I'll batch-create [N] backlog items across [M] init
 
 ## Phase 3: GENERATE — Create Items and Initiatives
 
-**Goal:** Batch-create all backlog items, set up initiatives, and trigger initialization.
+**Goal:** Batch-create all backlog items and set up initiatives. Workshop round 1 is auto-triggered on item creation — do NOT manually trigger it.
 
 ### Agent Behavior
 
 1. Batch-create all backlog items with `--initiative` flag (auto-creates initiative if needed)
 2. Optionally update initiative metadata (title, description) via `initiatives update`
-3. Trigger initialization for each item (spawns workshop round 1)
-4. Report creation summary to user
+3. Report creation summary to user
 
 ### CLI Sequence
 
@@ -188,6 +226,7 @@ cat > /tmp/meta-orch-items.json <<'EOF'
       "description": "<description>",
       "kind": "<kind>",
       "priority": <N>,
+      "effort": "<XS|S|M|L|XL>",
       "tags": ["<tag1>", "<tag2>"],
       "depends_on": ["<kind>/<name>", ...]
     },
@@ -202,9 +241,7 @@ swarm-manager initiatives update --name <initiative-name> --data '{
   "title": "<Initiative Title>",
   "description": "<1-sentence description>"
 }'
-
-# Step 3: Trigger initialization for each item.
-swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"initialize"}'
+# NOTE: Workshop round 1 is auto-triggered on item creation. Do NOT manually trigger it.
 ```
 
 For items without batch-create available (fallback), create individually:
@@ -215,6 +252,7 @@ swarm-manager backlog create --data '{
   "description": "<description>",
   "kind": "<kind>",
   "priority": <N>,
+  "effort": "<XS|S|M|L|XL>",
   "tags": ["<tag1>", "<tag2>"],
   "depends_on": ["<kind>/<name>", ...]
 }'
@@ -228,110 +266,14 @@ swarm-manager initiatives add-items --name <initiative-name> --items <kind>/<nam
 Created [N] backlog items across [M] initiatives:
 
 ## Initiative: [Name] ([X] items)
-- [x] created: [kind]/[name] — [title]
-- [x] created: [kind]/[name] — [title]
-- [x] initialized: workshop round 1 spawned for all items
+- [x] created: [kind]/[name] — [title] (effort: [size])
+- [x] created: [kind]/[name] — [title] (effort: [size])
 
 ## Standalone Items ([Y] items)
-- [x] created: [kind]/[name] — [title]
+- [x] created: [kind]/[name] — [title] (effort: [size])
 
-All items have been queued for initialization (workshop round 1).
-I'll monitor their progress and surface decisions when ready.
-```
-
----
-
-## Phase 4: ORCHESTRATE — Monitor and Aggregate Decisions
-
-**Goal:** Monitor workshop progress across all items and present decisions in batches rather than per-item.
-
-### Agent Behavior
-
-1. Poll item status: `swarm-manager overview` (or list items by initiative tag)
-2. Read workshop rounds from all items: `swarm-manager backlog file-get --kind <kind> --name <name> --path workshop/round-001.json`
-3. Aggregate pending decisions across items
-4. Group similar decisions (e.g., "auth approach" decisions across 3 related items)
-5. Present consolidated decision batches to the user (max 10 per message)
-6. Apply user answers back to the appropriate items via file-upload
-7. Trigger next workshop round for items that received responses
-
-### Aggregated Decision Template
-
-```
-## Workshop Decisions — Round 1 Aggregate
-
-### Cross-Cutting Decision: Authentication Approach
-Affects: real-time-dashboard, user-management, api-gateway
-- A: OAuth with Google (recommended for 2 of 3 items)
-- B: JWT with custom auth
-- C: Other
-
-### Item-Specific Decisions
-
-**real-time-dashboard** (readiness: 1.4/3.0)
-- D1: Data refresh strategy — A: WebSocket streaming | B: Polling | C: Other
-- D2: Chart library — A: Recharts | B: D3 direct | C: Other
-
-**fix-auth-timeout** (readiness: 2.1/3.0)
-- D1: Root cause — A: Token expiry race | B: Network timeout | C: Other
-
-### Informational Items
-- [i1] Found existing WebSocket infrastructure in app-monitor that could be reused
-- [i2] The auth timeout has been reported 3 times in the last week
-
-Your answers (format: "D1:A, D2:B" or answer naturally):
-```
-
-### Answer Routing
-
-When the user answers:
-1. Parse responses and map to the correct item's workshop round
-2. For cross-cutting decisions, apply the answer to all affected items
-3. Update each item's workshop round file with `selected` values:
-   ```bash
-   swarm-manager backlog file-upload --kind <kind> --name <name> --path workshop/round-001.json --stdin <<'EOF'
-   <updated round JSON with selected values filled in>
-   EOF
-   ```
-4. Trigger next workshop round: `swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"workshop"}'`
-
----
-
-## Phase 5: EXECUTE COORDINATION — Queue Respecting Dependencies
-
-**Goal:** Queue items for execution in the correct order based on dependencies and readiness.
-
-### Agent Behavior
-
-1. Monitor readiness scores across all items (from latest workshop round)
-2. An item is "ready" when average readiness >= 2.0 across all 5 dimensions
-3. Before queuing, check dependency chain — only queue items whose dependencies are completed
-4. Queue ready items: `swarm-manager backlog batch-queue --items <kind/name>,<kind/name> --execute`
-5. Track initiative completion percentage
-6. Surface blocking items that need attention
-
-### Execute Coordination Template
-
-```
-## Initiative: [Name] — Progress Report
-
-| Item | Readiness | Status | Blocked By |
-|------|-----------|--------|------------|
-| fix-auth-timeout | 2.6/3.0 | ready to queue | — |
-| real-time-dashboard | 1.8/3.0 | needs workshop | — |
-| user-management | 1.2/3.0 | needs workshop | fix-auth-timeout |
-
-Actions available:
-1. Queue "fix-auth-timeout" for execution (no blockers, readiness sufficient)
-2. Run another workshop round for "real-time-dashboard" (2 open decisions)
-3. Wait for "fix-auth-timeout" to complete before workshopping "user-management"
-
-Which actions should I take?
-```
-
-For single-item queue (fallback if batch-queue unavailable):
-```bash
-swarm-manager backlog queue --kind <kind> --name <name> --execute
+Workshop round 1 has been auto-triggered for all new items.
+You can monitor progress and answer workshop decisions through the Swarm Manager UI.
 ```
 
 ---
@@ -368,12 +310,10 @@ cat scenarios/prompt-manager/store/teams/director-swarm/members/director/last-ha
 | Intake | Full structured table | Same, but summary presented to director agent |
 | Clarify | 2-3 question rounds | Skip Round 2/3 if strategic context provides clear priorities |
 | Generate | Same | Same |
-| Orchestrate | All decisions surfaced | Auto-resolve decisions matching strategic context; escalate judgment calls |
-| Execute | User chooses actions | Queue NOW items first; flag items outside active scenario allowlist |
 
 ### Reporting Back
 
-After completing phases 3-5, write a summary:
+After completing Phase 3, write a summary:
 ```bash
 swarm-manager backlog file-upload --kind <first-item-kind> --name <first-item-name> --path orchestration-summary.md --stdin <<'EOF'
 # Meta-Orchestrator Summary
@@ -394,12 +334,8 @@ swarm-manager backlog file-upload --kind <first-item-kind> --name <first-item-na
 - FAR items: [list]
 - Conflicts with current strategy: [list or "none"]
 
-## Decisions Made
-- Auto-resolved: [N] (based on strategic context)
-- Pending review: [N]
-
 ## Next Steps
-[what needs to happen next]
+[what needs to happen next — workshop decisions will surface through Swarm Manager UI]
 EOF
 ```
 
@@ -410,9 +346,9 @@ EOF
 | Skill | Relationship | Details |
 |-------|-------------|---------|
 | `swarm-manager-classify-capture` | **Subsumes for multi-item** | Meta-orchestrator performs classification inline during Phase 1. For single captures (one sentence, one action), the normal classify-capture pipeline remains better. |
-| `swarm-manager-initialize-backlog` | **Delegates to** | After Phase 3, triggers initialization for each created item via `research --data '{"mode":"initialize"}'`. |
-| `swarm-manager-workshop` | **Aggregates output of** | During Phase 4, reads workshop rounds from multiple items and presents decisions in consolidated view. Individual rounds still run via the workshop skill. |
-| `swarm-manager-process-*` | **Feeds into** | After Phase 5, queued items flow into the normal process pipeline. |
+| `swarm-manager-initialize-backlog` | **Auto-triggered** | Workshop round 1 is auto-triggered on item creation. This skill does NOT manually trigger initialization. |
+| `swarm-manager-workshop` | **Downstream** | After items are created, workshop rounds are managed through the Swarm Manager UI, not this skill. |
+| `swarm-manager-process-*` | **Downstream** | After workshopping completes, items flow into the normal process pipeline. Not managed by this skill. |
 | `swarm-manager-backlog-tools` | **Reads from** | All CLI commands and data model references follow the backlog-tools canonical spec. |
 | `swarm-manager-recommendations` | **Reads from** | When items originate from team recommendations, respects the team-to-backlog contract. |
 
@@ -421,27 +357,29 @@ EOF
 ## Anti-Patterns
 
 - **Don't** create items without user confirmation — always present the plan first
-- **Don't** run workshop rounds directly — delegate to `swarm-manager-workshop` via research command
+- **Don't** manually trigger workshop round 1 — it's auto-triggered on item creation
+- **Don't** try to manage ongoing workshop rounds — that's done through the Swarm Manager UI
 - **Don't** ask one question at a time — batch related questions together
 - **Don't** skip Phase 2 for large visions (>5 items) — dependencies matter
-- **Don't** auto-queue items without checking dependencies
+- **Don't** create duplicate items — check within the session AND against the existing backlog; update existing items instead
 - **Don't** ignore strategic context when running in director-swarm mode
-- **Don't** present more than 10 decisions in a single aggregated view — paginate
 - **Don't** modify items created by other skills without user approval
 - **Don't** assume the user wants all extracted items — some may be noise
 - **Don't** inflate confidence scores on ambiguous extractions — flag them for clarification
+- **Don't** silently guess on vague items — flag them and let the user choose to clarify now or defer to workshopping
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | Vision input produces 0 items | Ask user to elaborate. If truly empty, explain that no actionable items were found. |
-| Duplicate of existing backlog item | Check `swarm-manager backlog list` before creating. Present potential duplicates for confirmation. |
+| Duplicate of existing backlog item | Check `swarm-manager backlog list` before creating. Present potential duplicates — update existing items rather than creating new ones. |
+| Same concept in multiple groups | Treat as one item with multiple dependents, not duplicate items. Ask user to confirm. |
 | Initiative has circular dependencies | Detect during Phase 2 and present to user. At least one dependency must be dropped. |
-| Workshop initialization fails for an item | Retry once. If still failing, create the item but skip initialization and note the failure. |
 | User wants to change items after Phase 3 | Items can be updated via `backlog update`. Re-run clarify phase for the changed items. |
 | Director provides conflicting strategic signals | Flag the conflict explicitly. Do not auto-resolve — escalate for clarification. |
 | Too many items (>20) for a single session | Suggest splitting into 2-3 focused sessions by initiative. Process one initiative at a time. |
-| Image with no text | Describe what you see, extract any text/structure, present interpretation for confirmation before proceeding. |
+| Image with ambiguous text | Present your best reading and flag uncertain words. Ask user to confirm/correct before classifying. |
+| Nested structure doesn't fit flat model | Flatten with descriptive titles, use tags/name-prefixes to preserve grouping, and `depends_on` for ordering. |
 | Batch-create not available | Fall back to individual `backlog create` calls in a loop. Same result, just slower. |
-| Overview endpoint not available | Fall back to `backlog list` + manual aggregation. |
+| Vague item user won't clarify | Keep it vague — create with low confidence rating. Auto-triggered workshop round will ask for clarification. |

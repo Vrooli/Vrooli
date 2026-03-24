@@ -145,6 +145,10 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 			item.Created = time.Now().UTC().Format(time.RFC3339)
 		}
 	}
+	// Normalize effort to uppercase if present.
+	if item.Effort != "" {
+		item.Effort = strings.ToUpper(strings.TrimSpace(item.Effort))
+	}
 	// Ensure priority is within valid range (1-10).
 	if item.Priority < 1 {
 		item.Priority = 5
@@ -196,6 +200,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 		merged["initiative"] = item.Initiative
 	} else {
 		delete(merged, "initiative")
+	}
+	if strings.TrimSpace(item.Effort) != "" {
+		merged["effort"] = item.Effort
+	} else {
+		delete(merged, "effort")
 	}
 
 	data, err := json.MarshalIndent(merged, "", "  ")

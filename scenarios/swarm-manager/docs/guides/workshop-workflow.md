@@ -209,13 +209,7 @@ Operators can queue items before they reach `ready` status if they judge the pla
 
 The workshop loop's main output is `plan.md`, a structured implementation plan that serves as the specification handed to the execution agent (Generator/Improver). The agent updates `plan.md` with each round, incorporating answers to questions and accepted proposals.
 
-A typical `plan.md` includes:
-- Problem statement
-- Scope boundaries (included/excluded)
-- Technical approach
-- Implementation steps
-- Success criteria / test plan
-- Risk mitigations
+The mandatory section structure, convergence patterns, quality gates, and guardrails for `plan.md` are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Workshop agents load this skill as required reading and follow it when creating or updating plans.
 
 The execution agent reads `plan.md` as its primary input. Workshop rounds are supporting evidence, not the execution spec.
 

@@ -80,6 +80,9 @@ func (a *App) cmdBacklogList(args []string) error {
 		if item.Initiative != "" {
 			fmt.Printf("    Initiative: %s\n", item.Initiative)
 		}
+		if item.Effort != "" {
+			fmt.Printf("    Effort: %s\n", item.Effort)
+		}
 		fmt.Println()
 	}
 
@@ -142,6 +145,9 @@ func (a *App) cmdBacklogGet(args []string) error {
 	}
 	if item.Initiative != "" {
 		fmt.Printf("  Initiative: %s\n", item.Initiative)
+	}
+	if item.Effort != "" {
+		fmt.Printf("  Effort: %s\n", item.Effort)
 	}
 	fmt.Printf("  Created: %s\n", item.Created)
 	fmt.Printf("  Updated: %s\n", item.Updated)

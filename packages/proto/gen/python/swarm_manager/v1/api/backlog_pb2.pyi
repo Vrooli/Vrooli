@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "auto_workshop")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "auto_workshop", "effort")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,7 @@ class CreateBacklogItemRequest(_message.Message):
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
     AUTO_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -30,10 +31,11 @@ class CreateBacklogItemRequest(_message.Message):
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
     auto_workshop: bool
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., auto_workshop: _Optional[bool] = ...) -> None: ...
+    effort: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., auto_workshop: _Optional[bool] = ..., effort: _Optional[str] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "research_target", "depends_on", "initiative")
+    __slots__ = ("title", "description", "status", "priority", "tags", "research_target", "depends_on", "initiative", "effort")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -42,6 +44,7 @@ class UpdateBacklogItemRequest(_message.Message):
     RESEARCH_TARGET_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -50,7 +53,8 @@ class UpdateBacklogItemRequest(_message.Message):
     research_target: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ...) -> None: ...
+    effort: str
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ...) -> None: ...
 
 class ListBacklogItemsResponse(_message.Message):
     __slots__ = ("items",)

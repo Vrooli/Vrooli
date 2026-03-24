@@ -58,6 +58,7 @@ type BacklogItem struct {
 	ResearchTarget string        `json:"research_target,omitempty"`
 	DependsOn      []string      `json:"depends_on,omitempty"`
 	Initiative     string        `json:"initiative,omitempty"`
+	Effort         string        `json:"effort,omitempty"`
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -124,6 +125,21 @@ func normalizeResearchTarget(raw string) (string, error) {
 	}
 }
 
+// validateEffort checks that an effort value is one of the valid t-shirt sizes.
+// Returns the normalized (uppercased) value, or an error if invalid.
+func validateEffort(raw string) (string, error) {
+	value := strings.ToUpper(strings.TrimSpace(raw))
+	if value == "" {
+		return "", nil
+	}
+	switch value {
+	case "XS", "S", "M", "L", "XL":
+		return value, nil
+	default:
+		return "", fmt.Errorf("effort must be XS, S, M, L, or XL")
+	}
+}
+
 // sanitizeName converts a name to a folder-safe format.
 func sanitizeName(name string) string {
 	name = strings.ToLower(name)
@@ -158,6 +174,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.Initiative) != "" {
 		result.Initiative = &item.Initiative
+	}
+	if strings.TrimSpace(item.Effort) != "" {
+		result.Effort = &item.Effort
 	}
 	return result
 }

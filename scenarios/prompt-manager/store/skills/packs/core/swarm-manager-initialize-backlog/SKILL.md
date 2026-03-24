@@ -8,6 +8,8 @@ Bootstrap a new backlog item with a solid foundation in one agent pass: an imple
 
 **Required reading:** `prompt-manager skill read swarm-manager-backlog-tools` — folder structure, artifact schemas, and CLI commands for reading/writing backlog files.
 
+**Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for `plan.md`.
+
 **Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — processing patterns and quality standards.
 
 ## Scope
@@ -34,7 +36,7 @@ EOF
 
 ### All Kinds
 
-1. **`plan.md`** — implementation plan scaffold with 13 sections. Fill in as much as possible from existing context (spec.json, archive materials). Leave sections as `<!-- TBD -->` when information is insufficient.
+1. **`plan.md`** — implementation plan following the structure defined by the `implementation-plan-authoring` skill (loaded via required reading above). Fill in as much as possible from existing context (spec.json, archive materials). Leave sections as `<!-- TBD -->` when information is insufficient.
 2. **`workshop/round-001.json`** — first workshop round with:
    - 4-7 targeted decisions presenting researched alternatives for the most important unknowns
    - 0-2 informational items sharing relevant findings from context
@@ -42,28 +44,11 @@ EOF
 
 ## Implementation Plan Scaffold
 
-The `plan.md` file follows a 13-section structure:
-
-```markdown
-# Implementation Plan: {{ITEM_TITLE}}
-
-## Purpose
-## Problem Statement
-## Scope
-### In Scope
-### Out of Scope
-## Current Technical Context
-## Target End State
-## Implementation Strategy
-## Contract Decisions
-## Testing Plan
-## Rollout / Validation Checklist
-## Risks + Mitigations
-## Non-goals / Prohibited Patterns
-## Definition of Done
-```
+The `plan.md` structure, mandatory sections, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (loaded via required reading above). Follow that skill exactly when creating the initial scaffold.
 
 ### Kind-Specific Plan Focus
+
+While the section structure is universal, emphasize different areas depending on the backlog kind:
 
 | Kind | Plan emphasis |
 |------|--------------|

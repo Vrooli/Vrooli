@@ -1430,3 +1430,175 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 		t.Fatal("timed out waiting for auto-init attempt")
 	}
 }
+
+func TestCreate_WithEffort(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":     "effort-test",
+		"title":    "Effort Test",
+		"kind":     "idea",
+		"effort":   "L",
+		"priority": 3,
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Effort != "L" {
+		t.Errorf("expected effort 'L', got %q", resp.Item.Effort)
+	}
+
+	// Verify persisted to disk.
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "effort-test", "spec.json"))
+	if saved.Effort != "L" {
+		t.Errorf("expected saved effort 'L', got %q", saved.Effort)
+	}
+}
+
+func TestCreate_EffortNormalizesCase(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":          "effort-case-test",
+		"title":         "Effort Case Test",
+		"kind":          "fix",
+		"effort":        "xl",
+		"auto_workshop": false,
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Effort != "XL" {
+		t.Errorf("expected effort 'XL', got %q", resp.Item.Effort)
+	}
+}
+
+func TestCreate_InvalidEffort(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":   "bad-effort",
+		"title":  "Bad Effort",
+		"kind":   "idea",
+		"effort": "HUGE",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	testutil.AssertStatusBadRequest(t, w)
+}
+
+func TestCreate_EffortOptional(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	payload := map[string]any{
+		"name":  "no-effort",
+		"title": "No Effort",
+		"kind":  "idea",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+	testutil.AssertStatusCreated(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Effort != "" {
+		t.Errorf("expected empty effort, got %q", resp.Item.Effort)
+	}
+}
+
+func TestUpdate_WithEffort(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "update-effort-test",
+		Title:    "Update Effort Test",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Tags:     []string{},
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{
+		"title":    "Update Effort Test",
+		"status":   "backlog",
+		"priority": 5,
+		"tags":     []string{},
+		"effort":   "M",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-effort-test", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-effort-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Effort != "M" {
+		t.Errorf("expected effort 'M', got %q", resp.Item.Effort)
+	}
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-effort-test", "spec.json"))
+	if saved.Effort != "M" {
+		t.Errorf("expected saved effort 'M', got %q", saved.Effort)
+	}
+}
+
+func TestUpdate_InvalidEffort(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name:     "update-bad-effort",
+		Title:    "Update Bad Effort",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Tags:     []string{},
+		Created:  "2026-01-28T00:00:00Z",
+		Updated:  "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	payload := map[string]any{
+		"title":    "Update Bad Effort",
+		"status":   "backlog",
+		"priority": 5,
+		"tags":     []string{},
+		"effort":   "XXXL",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-bad-effort", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-bad-effort"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusBadRequest(t, w)
+}

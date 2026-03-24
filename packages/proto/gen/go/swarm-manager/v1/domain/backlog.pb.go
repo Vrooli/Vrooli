@@ -52,7 +52,9 @@ type BacklogItem struct {
 	// Dependencies as "kind/name" references. Item won't process until all deps complete.
 	DependsOn []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	// Initiative this item belongs to.
-	Initiative    *string `protobuf:"bytes,12,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	Initiative *string `protobuf:"bytes,12,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// Effort estimate: XS, S, M, L, XL.
+	Effort        *string `protobuf:"bytes,13,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -171,6 +173,13 @@ func (x *BacklogItem) GetInitiative() string {
 	return ""
 }
 
+func (x *BacklogItem) GetEffort() string {
+	if x != nil && x.Effort != nil {
+		return *x.Effort
+	}
+	return ""
+}
+
 // BacklogFile represents a file or directory within a backlog item folder.
 type BacklogFile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -258,7 +267,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xe8\x04\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa8\x05\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -276,9 +285,11 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"depends_on\x18\v \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
 	"initiative\x18\f \x01(\tH\x01R\n" +
-	"initiative\x88\x01\x01B\x12\n" +
+	"initiative\x88\x01\x01\x123\n" +
+	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01B\x12\n" +
 	"\x10_research_targetB\r\n" +
-	"\v_initiative\"\xd9\x01\n" +
+	"\v_initiativeB\t\n" +
+	"\a_effort\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
