@@ -57,6 +57,7 @@ import { DependencyIndicator } from "../components/backlog/dependency-indicator"
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
+import { AgentRunningBadge } from "../components/backlog/agent-running-badge";
 import { InlineQuestionStepper } from "../components/backlog/inline-question-stepper";
 import { buildFeed, countActionableItems, type FeedbackItem, type MaturityItem } from "../lib/feed";
 import { useBacklogStore, useCaptureStore } from "../stores";
@@ -254,8 +255,8 @@ export function BacklogPage() {
       ready: item.ready ?? false,
       pendingItems: item.pending_items ?? 0,
     }));
-    return buildFeed(captures, items, feedbackItems, maturityItems);
-  }, [activeKind, captures, items, feedbackSummary, maturityQuery.data]);
+    return buildFeed(captures, items, feedbackItems, maturityItems, { showFinished });
+  }, [activeKind, captures, items, feedbackSummary, maturityQuery.data, showFinished]);
 
   const actionableCount = useMemo(() => countActionableItems(feedItems), [feedItems]);
 
@@ -721,6 +722,7 @@ export function BacklogPage() {
                       <span className="text-xs uppercase tracking-wider text-slate-400">
                         {formatBacklogStatus(item.status)}
                       </span>
+                      <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
                     </div>
                     <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
                       P{item.priority}
@@ -883,6 +885,7 @@ export function BacklogPage() {
                       <span className="text-xs uppercase tracking-wider text-slate-400">
                         {formatBacklogStatus(item.status)}
                       </span>
+                      <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
                     </div>
                     <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
                       P{item.priority}

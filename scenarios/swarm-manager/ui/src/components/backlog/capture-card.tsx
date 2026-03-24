@@ -161,15 +161,7 @@ export function CaptureCard({ capture, onEditItem, className }: CaptureCardProps
         tags: item.tags,
       });
       upsertBacklogItem(created);
-
-      // Auto-initialize newly accepted backlog items with a plan scaffold and first
-      // workshop round. This ensures items don't sit empty waiting for manual
-      // initialization. Fire-and-forget: don't block the accept flow on this.
-      // TODO: Make configurable via settings (autoInitializeOnCapture) once the
-      // settings schema supports boolean flags beyond theme.
-      backlogService.research(item.kind, created.name, { mode: "initialize" }).catch((err) => {
-        console.error("[capture-card] auto-initialize failed for %s/%s:", item.kind, created.name, err);
-      });
+      // Auto-initialize now happens server-side in the Create endpoint.
 
       const next = new Set(acceptedIndices);
       next.add(index);

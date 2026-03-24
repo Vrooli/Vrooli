@@ -538,18 +538,29 @@ export function BacklogDetailsPage() {
   });
 
   // Workshop save mutation — saves user answers/decisions back to a round file
+  // and auto-triggers the next round if the item isn't ready yet.
   const workshopSaveMutation = useMutation({
     mutationFn: async ({ roundNumber, content }: { roundNumber: number; content: string }) => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      const filePath = `workshop/round-${roundNumber}.json`;
-      await backlogService.saveFileContent(backlogKind, name, filePath, content, "application/json");
+      return backlogService.workshopSave(backlogKind, name, roundNumber, content);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       if (!backlogKind || !name) return;
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
       void refetchFiles();
       void refetchWorkshopRounds();
+
+      // Track auto-advanced agent run so UI shows "generating next round..." state.
+      if (result.autoAdvance.triggered && result.autoAdvance.runId) {
+        upsertSpawnedRun({
+          runId: result.autoAdvance.runId,
+          taskId: result.autoAdvance.taskId ?? "",
+          backlogKind: backlogKind,
+          backlogName: name,
+          createdAt: new Date().toISOString(),
+        });
+      }
     },
   });
 
@@ -1476,7 +1487,7 @@ export function BacklogDetailsPage() {
         backlogName={name ?? ""}
         disabled={isLocked}
         isSaving={workshopSaveMutation.isPending}
-        isRunningWorkshop={agentMutation.isPending}
+        isRunningWorkshop={agentMutation.isPending || agentRunIsActive}
         onSaveRound={handleSaveRound}
         onRunWorkshop={handleRunWorkshop}
       />

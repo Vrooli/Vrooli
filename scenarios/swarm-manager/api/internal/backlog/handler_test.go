@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
@@ -980,9 +982,10 @@ func TestConvert_MovesFolder(t *testing.T) {
 }
 
 type mockAgentService struct {
-	lastReq *agentmanager.BacklogSpawnRequest
-	result  agentmanager.RunResult
-	err     error
+	lastReq  *agentmanager.BacklogSpawnRequest
+	result   agentmanager.RunResult
+	err      error
+	spawnedC chan struct{} // closed on SpawnBacklog call (optional)
 }
 
 func (m *mockAgentService) IsEnabled() bool                    { return true }
@@ -993,6 +996,13 @@ func (m *mockAgentService) ResolveURL(_ context.Context) (string, error) {
 func (m *mockAgentService) GetProfileID() string { return "" }
 func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
 	m.lastReq = &req
+	if m.spawnedC != nil {
+		select {
+		case <-m.spawnedC:
+		default:
+			close(m.spawnedC)
+		}
+	}
 	return m.result, m.err
 }
 
@@ -1252,4 +1262,108 @@ func TestQueue_InvalidMode(t *testing.T) {
 	h.Queue(w, req)
 
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
+}
+
+// ---------------------------------------------------------------------------
+// Auto-initialize workshop on Create
+// ---------------------------------------------------------------------------
+
+func TestCreate_AutoInitializesWorkshop(t *testing.T) {
+	spawned := make(chan struct{})
+	agent := &mockAgentService{
+		result:   agentmanager.RunResult{RunID: "run-auto", TaskID: "task-auto"},
+		spawnedC: spawned,
+	}
+	h, _ := setupTestHandlerWithAgent(t, agent)
+
+	payload := map[string]any{
+		"name":  "auto-init-test",
+		"title": "Auto Init Test",
+		"kind":  "idea",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+
+	// Wait for the background goroutine to call SpawnBacklog.
+	select {
+	case <-spawned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for auto-init spawn")
+	}
+
+	if agent.lastReq == nil {
+		t.Fatal("expected agent spawn to be called")
+	}
+	if agent.lastReq.Name != "auto-init-test" {
+		t.Errorf("expected spawn for 'auto-init-test', got %q", agent.lastReq.Name)
+	}
+}
+
+func TestCreate_AutoWorkshopOptOut(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
+	}
+	h, _ := setupTestHandlerWithAgent(t, agent)
+
+	payload := map[string]any{
+		"name":          "no-auto-test",
+		"title":         "No Auto Test",
+		"kind":          "idea",
+		"auto_workshop": false,
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+
+	// Give a brief window for any goroutine to fire (it shouldn't).
+	time.Sleep(100 * time.Millisecond)
+
+	if agent.lastReq != nil {
+		t.Error("expected NO agent spawn when auto_workshop is false")
+	}
+}
+
+func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
+	spawned := make(chan struct{})
+	agent := &mockAgentService{
+		err:      fmt.Errorf("agent down"),
+		spawnedC: spawned,
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	payload := map[string]any{
+		"name":  "agent-down-test",
+		"title": "Agent Down Test",
+		"kind":  "fix",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+
+	// Item should be created successfully regardless of agent error.
+	testutil.AssertStatusCreated(t, w)
+
+	specPath := filepath.Join(rootDir, "fix", "agent-down-test", "spec.json")
+	testutil.AssertFileExists(t, specPath)
+
+	// Wait for the goroutine to attempt spawn (and fail).
+	select {
+	case <-spawned:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for auto-init attempt")
+	}
 }

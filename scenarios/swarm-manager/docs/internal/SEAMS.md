@@ -243,6 +243,21 @@ The truncation recovery algorithm (ported from the former `idea-agent-files.ts`)
 
 **Testing at the seam**: Tests exercise valid JSON, truncated JSON recovery, empty/null input, and malformed content.
 
+### Workshop Auto-Trigger Boundary
+
+`api/internal/workshop/autotrigger.go` contains pure decision functions for auto-advancing workshop rounds:
+
+- **`ShouldAutoAdvance(latestRound, roundCount, kind)`**: Decides whether to auto-trigger the next round after saving responses. Returns false when: item is ready (all dimensions >= 3), round cap reached (10), pending decisions exist, or no rounds exist. Returns a reason string for API consumers.
+- **`ShouldAutoInitialize(autoWorkshop *bool)`**: Decides whether a newly-created item should get auto-initialized. Default true, opt-out via explicit false.
+
+`api/internal/backlog/workshop_save.go` is the integration boundary that wires auto-trigger decisions to agent spawning:
+
+- **`WorkshopSave` handler**: Dedicated endpoint (`POST /api/v1/backlog/{kind}/{name}/workshop/save`) that saves round JSON and auto-advances when appropriate. Replaces the generic `UploadFile` for workshop rounds.
+- **`spawnWorkshopAsync` helper**: Shared by both auto-advance (WorkshopSave) and auto-initialize (Create). Acquires an idempotency lock, fetches prompt from prompt-manager, and spawns via agent-manager. Fire-and-forget with background context.
+- **Idempotency lock**: `.workshop-lock` file in item dir prevents concurrent spawns. 30-minute TTL auto-cleans stale locks.
+
+**Testing at the seam**: Pure decision functions are unit tested in `autotrigger_test.go`. Integration tests in `workshop_save_test.go` use `mockAgentService` to verify spawn/no-spawn decisions, lock behavior, and error resilience. Create auto-init tests in `handler_test.go` use channel-based synchronization for goroutine testing.
+
 ## Architectural Decisions
 
 ### ADR-001: File-Based Backlog

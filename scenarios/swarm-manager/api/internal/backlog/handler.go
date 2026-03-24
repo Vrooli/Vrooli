@@ -31,6 +31,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/workshop"
 )
 
 // Handler provides HTTP handlers for backlog operations.
@@ -146,6 +147,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
@@ -343,6 +345,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[backlog] create: failed to save %q: %v", name, err)
 		httputil.InternalError(w, "[backlog] create", "failed to save backlog item")
 		return
+	}
+
+	// Auto-initialize workshop for new items (unless opted out).
+	if workshop.ShouldAutoInitialize(req.AutoWorkshop) {
+		go func() {
+			_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
+			if spawnErr != nil {
+				log.Printf("[backlog] auto-init: failed for %s/%s: %v", kind, name, spawnErr)
+			}
+		}()
 	}
 
 	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)

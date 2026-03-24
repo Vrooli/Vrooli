@@ -69,6 +69,20 @@ export interface BacklogFileOperationResult {
   deletedPath?: string;
 }
 
+/** Result of auto-advance decision from the workshop save endpoint. */
+export interface WorkshopAutoAdvance {
+  triggered: boolean;
+  runId?: string;
+  taskId?: string;
+  reason: string;
+}
+
+/** Response from saving a workshop round via the dedicated endpoint. */
+export interface WorkshopSaveResponse {
+  file: BacklogFile;
+  autoAdvance: WorkshopAutoAdvance;
+}
+
 /**
  * Interface for the backlog service.
  * This is the seam - implementations can be swapped for testing.
@@ -154,6 +168,13 @@ export interface IBacklogService {
   getFeedbackSummary(): Promise<FeedbackSummaryResponse>;
   getMaturitySummary(): Promise<MaturitySummaryResponse>;
   getPendingQuestions(): Promise<PendingQuestionsResponse>;
+  workshopSave(
+    kind: BacklogKind,
+    name: string,
+    roundNumber: number,
+    content: string,
+    autoWorkshop?: boolean
+  ): Promise<WorkshopSaveResponse>;
 }
 
 export interface ImportBacklogResponse {
@@ -466,6 +487,40 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
 
     async getPendingQuestions(): Promise<PendingQuestionsResponse> {
       return apiClient.get<PendingQuestionsResponse>(API_ENDPOINTS.backlogPendingQuestions);
+    },
+
+    async workshopSave(
+      kind: BacklogKind,
+      name: string,
+      roundNumber: number,
+      content: string,
+      autoWorkshop?: boolean
+    ): Promise<WorkshopSaveResponse> {
+      const body: Record<string, unknown> = {
+        round_number: roundNumber,
+        content,
+      };
+      if (autoWorkshop !== undefined) {
+        body.auto_workshop = autoWorkshop;
+      }
+      const data = await apiClient.post<{
+        file: Record<string, unknown>;
+        auto_advance: { triggered: boolean; run_id?: string; task_id?: string; reason: string };
+      }>(API_ENDPOINTS.backlogWorkshopSave(kind, name), body);
+      return {
+        file: {
+          name: String(data.file?.name ?? ""),
+          path: String(data.file?.path ?? ""),
+          type: String(data.file?.type ?? "file") as "file" | "directory",
+          size: Number(data.file?.size ?? 0),
+        },
+        autoAdvance: {
+          triggered: data.auto_advance?.triggered ?? false,
+          runId: data.auto_advance?.run_id,
+          taskId: data.auto_advance?.task_id,
+          reason: data.auto_advance?.reason ?? "",
+        },
+      };
     },
   };
 }

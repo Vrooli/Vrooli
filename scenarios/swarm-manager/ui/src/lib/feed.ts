@@ -94,11 +94,15 @@ function getSortTimestamp(entry: FeedItem): number {
 /**
  * Build the unified action feed from captures and backlog items.
  */
+/** Statuses excluded from the feed by default (hidden unless showFinished is true). */
+const FINISHED_STATUSES = new Set(["completed", "failed", "archived"]);
+
 export function buildFeed(
   captures: Capture[],
   backlogItems: BacklogItem[],
   feedbackItems: FeedbackItem[],
   maturityItems: MaturityItem[],
+  options?: { showFinished?: boolean },
 ): FeedItem[] {
   const feedbackMap = new Map<string, FeedbackItem>();
   for (const item of feedbackItems) {
@@ -118,7 +122,10 @@ export function buildFeed(
   }
 
   // Add backlog items, classifying as attention or normal.
+  // Exclude finished items (completed/failed/archived) unless explicitly requested.
+  const includeFinished = options?.showFinished ?? false;
   for (const item of backlogItems) {
+    if (!includeFinished && FINISHED_STATUSES.has(item.status)) continue;
     const reasons = getAttentionReasons(item, feedbackMap, maturityMap);
     if (reasons.length > 0) {
       feed.push({ type: "attention", item, reasons });

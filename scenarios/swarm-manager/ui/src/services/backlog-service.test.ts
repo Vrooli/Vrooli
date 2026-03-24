@@ -196,4 +196,51 @@ describe("Backlog Service", () => {
       expect(result.deletedPath).toBe("notes.md");
     });
   });
+
+  describe("workshopSave", () => {
+    it("calls the correct endpoint with round data", async () => {
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 200 },
+        auto_advance: { triggered: false, reason: "ready" },
+      });
+
+      const result = await service.workshopSave("idea", "my-idea", 1, '{"round":1}');
+
+      expect(mockApiClient.post).toHaveBeenCalledWith(
+        "/backlog/idea/my-idea/workshop/save",
+        { round_number: 1, content: '{"round":1}' }
+      );
+      expect(result.file.name).toBe("round-001.json");
+      expect(result.autoAdvance.triggered).toBe(false);
+      expect(result.autoAdvance.reason).toBe("ready");
+    });
+
+    it("returns auto-advance data when triggered", async () => {
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        file: { name: "round-002.json", path: "workshop/round-002.json", type: "file", size: 300 },
+        auto_advance: { triggered: true, run_id: "run-123", task_id: "task-456", reason: "not_ready" },
+      });
+
+      const result = await service.workshopSave("idea", "my-idea", 2, '{"round":2}');
+
+      expect(result.autoAdvance.triggered).toBe(true);
+      expect(result.autoAdvance.runId).toBe("run-123");
+      expect(result.autoAdvance.taskId).toBe("task-456");
+      expect(result.autoAdvance.reason).toBe("not_ready");
+    });
+
+    it("passes auto_workshop flag when specified", async () => {
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 200 },
+        auto_advance: { triggered: false, reason: "opt_out" },
+      });
+
+      await service.workshopSave("idea", "my-idea", 1, '{"round":1}', false);
+
+      expect(mockApiClient.post).toHaveBeenCalledWith(
+        "/backlog/idea/my-idea/workshop/save",
+        { round_number: 1, content: '{"round":1}', auto_workshop: false }
+      );
+    });
+  });
 });

@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
     `/backlog/${kind}/${name}/files/${filePath}`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
   backlogResearch: (kind: string, name: string) => `/backlog/${kind}/${name}/research`,
+  backlogWorkshopSave: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/save`,
   backlogConvert: (kind: string, name: string) => `/backlog/${kind}/${name}/convert`,
   backlogArchiveTargets: (kind: string, name: string) => `/backlog/${kind}/${name}/archive/targets`,
   backlogArchiveTarget: (kind: string, name: string, targetId: string) => `/backlog/${kind}/${name}/archive/targets/${targetId}`,
