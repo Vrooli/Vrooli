@@ -9,6 +9,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as agentService from '@/services/agentService'
+import { useGraphStore } from '@/stores/graphStore'
 import type { Agent, CreateAgentRequest, UpdateAgentRequest } from '@/types/agent'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
@@ -86,6 +87,7 @@ export function useAgentData(): UseAgentDataReturn {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -96,6 +98,7 @@ export function useAgentData(): UseAgentDataReturn {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -104,6 +107,7 @@ export function useAgentData(): UseAgentDataReturn {
     mutationFn: (id: string) => agentService.deleteAgent(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 

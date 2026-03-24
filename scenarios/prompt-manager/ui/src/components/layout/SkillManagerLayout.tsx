@@ -151,9 +151,15 @@ export function SkillManagerLayout() {
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
 
-  // Health scores from graph store (populated when user visits graph view).
+  // Health scores from graph store.
   // Use useShallow to avoid infinite re-renders from new [] references when graph is null.
   const graphStoreHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
+
+  // Eagerly fetch lightweight health scores so sidebar badges appear without visiting graph view.
+  const fetchHealthScores = useGraphStore((s) => s.fetchHealthScores)
+  useEffect(() => {
+    void fetchHealthScores()
+  }, [fetchHealthScores])
 
   // Load initial sidebar state from localStorage (only once on mount)
   const initialSidebarState = useMemo(() => loadSidebarState(), [])

@@ -14,7 +14,7 @@
 
 import { create } from 'zustand'
 import type { GraphResponse, GraphNode, HealthScore } from '@/lib/schemas'
-import { getGraph, regenerateGraph as regenerateGraphService } from '@/services/graphService'
+import { getGraph, getGraphHealth, regenerateGraph as regenerateGraphService } from '@/services/graphService'
 
 const GRAPH_VIEWPORT_STORAGE_KEY = 'pm.graphViewport'
 const GRAPH_VIEW_SETTINGS_STORAGE_KEY = 'pm.graphViewSettings.v1'
@@ -167,6 +167,7 @@ export type HighlightSource = 'query' | 'focus' | null
 
 interface GraphStore {
   graph: GraphResponse | null
+  standaloneHealthScores: HealthScore[] | null
   healthScoreOverride: HealthScore[] | null
   loading: boolean
   error: string | null
@@ -180,6 +181,7 @@ interface GraphStore {
   viewport: GraphViewport | null
 
   fetchGraph: (forceRefresh?: boolean) => Promise<void>
+  fetchHealthScores: () => Promise<void>
   regenerateGraph: () => Promise<void>
   setFilter: <K extends keyof GraphFilters>(key: K, value: GraphFilters[K]) => void
   highlightNodes: (ids: string[]) => void
@@ -197,6 +199,7 @@ interface GraphStore {
 export const useGraphStore = create<GraphStore>((set, get) => ({
   ...loadGraphViewSettings(),
   graph: null,
+  standaloneHealthScores: null,
   healthScoreOverride: null,
   loading: false,
   error: null,
@@ -216,6 +219,17 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to load graph',
         loading: false,
       })
+    }
+  },
+
+  fetchHealthScores: async () => {
+    try {
+      const scores = await getGraphHealth()
+      if (scores) {
+        set({ standaloneHealthScores: scores })
+      }
+    } catch {
+      // Non-critical — sidebar will just show no health badges
     }
   },
 
@@ -344,6 +358,8 @@ export function selectFilteredNodes(state: GraphStore): GraphNode[] {
 }
 
 export function selectEffectiveHealthScores(state: GraphStore): HealthScore[] {
-  if (!state.graph) return []
-  return state.healthScoreOverride ?? state.graph.graph.healthScores
+  return state.healthScoreOverride
+    ?? state.graph?.graph.healthScores
+    ?? state.standaloneHealthScores
+    ?? []
 }

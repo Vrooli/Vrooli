@@ -12,6 +12,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as teamService from '@/services/teamService'
+import { useGraphStore } from '@/stores/graphStore'
 import type {
   Team,
   TeamDetails,
@@ -91,6 +92,7 @@ export function useTeamData(): UseTeamDataReturn {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teams })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -102,6 +104,7 @@ export function useTeamData(): UseTeamDataReturn {
     onSuccess: (_, { id }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teams })
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamDetails(id) })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -110,6 +113,7 @@ export function useTeamData(): UseTeamDataReturn {
     mutationFn: (id: string) => teamService.deleteTeam(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teams })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -121,6 +125,7 @@ export function useTeamData(): UseTeamDataReturn {
     onSuccess: (_, { teamId }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teams })
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamDetails(teamId) })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -139,6 +144,7 @@ export function useTeamData(): UseTeamDataReturn {
     },
     onSuccess: (_, { teamId }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamDetails(teamId) })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -150,6 +156,7 @@ export function useTeamData(): UseTeamDataReturn {
     onSuccess: (_, { teamId }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teams })
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamDetails(teamId) })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -160,6 +167,7 @@ export function useTeamData(): UseTeamDataReturn {
     },
     onSuccess: (_, { teamId }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamDetails(teamId) })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 

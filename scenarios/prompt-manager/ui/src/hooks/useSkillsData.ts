@@ -9,6 +9,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as skillService from '@/services/skillService'
+import { useGraphStore } from '@/stores/graphStore'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
 // Query key constants
@@ -67,6 +68,7 @@ export function useSkillsData(): UseSkillsDataReturn {
     mutationFn: (request: CreateSkillRequest) => skillService.createSkill(request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -76,6 +78,7 @@ export function useSkillsData(): UseSkillsDataReturn {
       skillService.updateSkill(id, updates),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -84,6 +87,7 @@ export function useSkillsData(): UseSkillsDataReturn {
     mutationFn: (updates: Map<string, UpdateSkillRequest>) => skillService.updateSkills(updates),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
@@ -92,6 +96,7 @@ export function useSkillsData(): UseSkillsDataReturn {
     mutationFn: (id: string) => skillService.deleteSkill(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
+      void useGraphStore.getState().fetchHealthScores()
     },
   })
 
