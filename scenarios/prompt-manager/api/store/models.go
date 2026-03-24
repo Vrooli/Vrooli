@@ -1,5 +1,7 @@
 package store
 
+import "time"
+
 // Skill represents a skill entity from skill.json
 type Skill struct {
 	BaseEntity
@@ -79,14 +81,15 @@ type AgentRuntime struct {
 // Team represents a team entity from team.json
 type Team struct {
 	BaseEntity
-	ID           string      `json:"id"`
-	DisplayName  string      `json:"displayName"`
-	Mission      string      `json:"mission,omitempty"`
-	Enabled      bool        `json:"enabled"`
-	EnabledSet   bool        `json:"-"`
-	SpawnMode    string      `json:"spawnMode,omitempty"`    // "multi-process" or "single-process"
-	DecisionMode string      `json:"decisionMode,omitempty"` // "yolo" (default) or "approval"
-	Shared       *TeamShared `json:"shared,omitempty"`
+	ID           string           `json:"id"`
+	DisplayName  string           `json:"displayName"`
+	Mission      string           `json:"mission,omitempty"`
+	Enabled      bool             `json:"enabled"`
+	EnabledSet   bool             `json:"-"`
+	SpawnMode    string           `json:"spawnMode,omitempty"`    // "multi-process" or "single-process"
+	DecisionMode string           `json:"decisionMode,omitempty"` // "yolo" (default) or "approval"
+	Shared       *TeamShared      `json:"shared,omitempty"`
+	Retention    *RetentionConfig `json:"retention,omitempty"`
 	Timestamps
 }
 
@@ -94,6 +97,53 @@ type Team struct {
 type TeamShared struct {
 	Path      string `json:"path"`
 	MountHint string `json:"mountHint,omitempty"` // readOnly or readWrite
+}
+
+// RetentionConfig controls automatic cleanup of completed tasks, decisions, and knowledge.
+type RetentionConfig struct {
+	Tasks     *TaskRetention  `json:"tasks,omitempty"`
+	Decisions *EntryRetention `json:"decisions,omitempty"`
+	Knowledge *EntryRetention `json:"knowledge,omitempty"`
+}
+
+// TaskRetention controls how completed tasks are pruned.
+type TaskRetention struct {
+	MaxCompleted int `json:"maxCompleted"` // keep N newest completed tasks (0 = unlimited)
+	MaxAgeDays   int `json:"maxAgeDays"`   // remove completed tasks older than N days (0 = unlimited)
+}
+
+// EntryRetention controls how decision/knowledge entries are pruned.
+type EntryRetention struct {
+	MaxEntries int `json:"maxEntries"` // keep N newest entries (0 = unlimited)
+	MaxAgeDays int `json:"maxAgeDays"` // remove entries older than N days (0 = unlimited)
+}
+
+// DefaultRetentionConfig returns the default retention policy.
+func DefaultRetentionConfig() RetentionConfig {
+	return RetentionConfig{
+		Tasks:     &TaskRetention{MaxCompleted: 20, MaxAgeDays: 30},
+		Decisions: &EntryRetention{MaxEntries: 50, MaxAgeDays: 90},
+		Knowledge: &EntryRetention{MaxEntries: 100, MaxAgeDays: 180},
+	}
+}
+
+// EffectiveRetention returns the team's retention config with defaults for nil sub-fields.
+func (t *Team) EffectiveRetention() RetentionConfig {
+	d := DefaultRetentionConfig()
+	if t.Retention == nil {
+		return d
+	}
+	r := *t.Retention
+	if r.Tasks == nil {
+		r.Tasks = d.Tasks
+	}
+	if r.Decisions == nil {
+		r.Decisions = d.Decisions
+	}
+	if r.Knowledge == nil {
+		r.Knowledge = d.Knowledge
+	}
+	return r
 }
 
 // TeamRoles represents role definitions for a team
@@ -213,12 +263,13 @@ type TeamsIndexEntry struct {
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
 	BaseEntity
-	TeamID        string               `json:"teamId"`
-	AgentID       string               `json:"agentId"`
-	Enabled       bool                 `json:"enabled"`
-	Schedule      string               `json:"schedule"`             // Cron expression
-	ProfileKey    string               `json:"profileKey,omitempty"` // agent-manager profile key
-	LastExecution *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	TeamID         string               `json:"teamId"`
+	AgentID        string               `json:"agentId"`
+	Enabled        bool                 `json:"enabled"`
+	Schedule       string               `json:"schedule"`                 // Cron expression
+	ProfileKey     string               `json:"profileKey,omitempty"`     // agent-manager profile key
+	TimeoutSeconds int                  `json:"timeoutSeconds,omitempty"` // 0 = use default
+	LastExecution  *HeartbeatExecResult `json:"lastExecution,omitempty"`
 	Timestamps
 }
 
@@ -240,7 +291,27 @@ const (
 	HeartbeatStatusCompleted = "completed"
 	HeartbeatStatusFailed    = "failed"
 	HeartbeatStatusCancelled = "cancelled"
+
+	DefaultHeartbeatTimeoutSeconds = 2700 // 45 minutes
+	MinHeartbeatTimeoutSeconds     = 60   // 1 minute
+	MaxHeartbeatTimeoutSeconds     = 7200 // 120 minutes
 )
+
+// EffectiveTimeout returns the timeout duration for this config,
+// clamped to [Min, Max] and defaulting to 45 minutes when unset.
+func (c *HeartbeatConfig) EffectiveTimeout() time.Duration {
+	s := c.TimeoutSeconds
+	if s <= 0 {
+		s = DefaultHeartbeatTimeoutSeconds
+	}
+	if s < MinHeartbeatTimeoutSeconds {
+		s = MinHeartbeatTimeoutSeconds
+	}
+	if s > MaxHeartbeatTimeoutSeconds {
+		s = MaxHeartbeatTimeoutSeconds
+	}
+	return time.Duration(s) * time.Second
+}
 
 // --- Handoff ---
 

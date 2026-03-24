@@ -56,6 +56,7 @@ You are given a high-level vision from a user (human or director-swarm agent). I
    - **Description** (one sentence)
    - **Priority** (1-10, where 1 = highest)
    - **Effort** (XS / S / M / L / XL — see effort estimation guidelines below)
+   - **Scope** — the target scenario or directory (e.g., `scenarios/web-console`). Identify which part of the codebase each item targets. If an item spans multiple scenarios, note it for splitting in Phase 2.
    - **Tags** (relevant categorization)
    - **Confidence** (0.0-1.0) in the classification
 5. Present a structured summary table to the user
@@ -115,12 +116,12 @@ Don't guess silently — flag the ambiguity and let the user decide when to reso
 ```
 I've parsed your vision into [N] candidate work items:
 
-| # | Kind    | Title                        | Priority | Effort | Confidence |
-|---|---------|------------------------------|----------|--------|------------|
-| 1 | idea    | Build real-time dashboard     | 3        | L      | 0.9        |
-| 2 | fix     | Fix auth timeout on refresh   | 1        | S      | 0.95       |
-| 3 | research| Evaluate vector DB options    | 5        | M      | 0.7        |
-| ...                                                                          |
+| # | Kind    | Title                        | Scope                    | Priority | Effort | Confidence |
+|---|---------|------------------------------|--------------------------|----------|--------|------------|
+| 1 | idea    | Build real-time dashboard     | scenarios/web-console    | 3        | L      | 0.9        |
+| 2 | fix     | Fix auth timeout on refresh   | scenarios/swarm-manager  | 1        | S      | 0.95       |
+| 3 | research| Evaluate vector DB options    | scenarios/agent-manager  | 5        | M      | 0.7        |
+| ...                                                                                                   |
 
 Items I'm less sure about:
 - "[ambiguous text]" — Could be [kind A] or [kind B]. Which fits better?
@@ -154,6 +155,8 @@ Before I proceed:
 - Dependencies: "I see [item A] likely needs to be done before [item B, C]. Is that right? Any other ordering constraints?"
 - Grouping: "These items seem to form [N] natural groups: [group names]. Does this grouping make sense?"
 - Missing items: "To complete [initiative X], you might also need [suggested item]. Should I add it?"
+- Cross-scenario items: If any item spans multiple scenarios, suggest splitting: "Item [X] touches both [scenario A] and [scenario B]. I'd recommend splitting it into two items with `depends_on` links so each has a clear `scope`. Should I split it?"
+- Ambiguous scope: If a candidate item's target scenario is unclear, ask: "Item [X] — which scenario does this target? (e.g., `scenarios/web-console`, `scenarios/swarm-manager`, or something else?)"
 
 **Round 2 — Priority (ask if priorities are ambiguous):**
 - Timeline: "Which of these are NOW (this week), NEAR (this month), or FAR (this quarter)?"
@@ -227,6 +230,7 @@ cat > /tmp/meta-orch-items.json <<'EOF'
       "kind": "<kind>",
       "priority": <N>,
       "effort": "<XS|S|M|L|XL>",
+      "scope": "<scenarios/target-scenario>",
       "tags": ["<tag1>", "<tag2>"],
       "depends_on": ["<kind>/<name>", ...]
     },
@@ -253,6 +257,7 @@ swarm-manager backlog create --data '{
   "kind": "<kind>",
   "priority": <N>,
   "effort": "<XS|S|M|L|XL>",
+  "scope": "<scenarios/target-scenario>",
   "tags": ["<tag1>", "<tag2>"],
   "depends_on": ["<kind>/<name>", ...]
 }'

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // FileTeamStore implements TeamStore using the file system
@@ -817,10 +818,11 @@ func (s *FileTeamStore) AppendDecision(_ context.Context, teamID string, entry *
 }
 
 // GetDecisions reads decision entries, optionally filtered by context tag, status, and limited.
-func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag, statusFilter string, last int) ([]DecisionEntry, error) {
+// Returns the sliced entries, the total count after filtering (before slicing), and any error.
+func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag, statusFilter string, last int) ([]DecisionEntry, int, error) {
 	entries, _, err := s.readAllDecisions(teamID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if contextTag != "" {
@@ -849,11 +851,13 @@ func (s *FileTeamStore) GetDecisions(_ context.Context, teamID, contextTag, stat
 		entries = filtered
 	}
 
+	total := len(entries)
+
 	if last > 0 && len(entries) > last {
 		entries = entries[len(entries)-last:]
 	}
 
-	return entries, nil
+	return entries, total, nil
 }
 
 // readAllDecisions reads all decision entries from the JSONL file.
@@ -1064,4 +1068,173 @@ func (s *FileTeamStore) DeleteKnowledge(_ context.Context, teamID, knowledgeID s
 		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
 	}
 	return s.writeAllKnowledge(path, filtered)
+}
+
+// --- Retention / Prune ---
+
+// PruneResult reports how many items were removed during pruning.
+type PruneResult struct {
+	TasksRemoved     int `json:"tasksRemoved"`
+	DecisionsRemoved int `json:"decisionsRemoved"`
+	KnowledgeRemoved int `json:"knowledgeRemoved"`
+}
+
+// PruneSharedState removes stale completed tasks, decisions, and knowledge
+// entries according to the team's retention policy.
+func (s *FileTeamStore) PruneSharedState(ctx context.Context, teamID string) (*PruneResult, error) {
+	team, err := s.Get(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	retention := team.EffectiveRetention()
+	result := &PruneResult{}
+	now := time.Now().UTC()
+
+	// 1. Prune completed tasks
+	if err := s.pruneCompletedTasks(ctx, teamID, retention.Tasks, now, result); err != nil {
+		return result, fmt.Errorf("pruning tasks: %w", err)
+	}
+
+	// 2. Prune decisions
+	if err := s.pruneDecisions(teamID, retention.Decisions, now, result); err != nil {
+		return result, fmt.Errorf("pruning decisions: %w", err)
+	}
+
+	// 3. Prune knowledge
+	if err := s.pruneKnowledge(teamID, retention.Knowledge, now, result); err != nil {
+		return result, fmt.Errorf("pruning knowledge: %w", err)
+	}
+
+	return result, nil
+}
+
+func (s *FileTeamStore) pruneCompletedTasks(ctx context.Context, teamID string, cfg *TaskRetention, now time.Time, result *PruneResult) error {
+	if cfg == nil {
+		return nil
+	}
+
+	board, err := s.GetTaskBoard(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	var active, completed []TeamTask
+	for _, t := range board.Tasks {
+		if t.Status == "done" {
+			completed = append(completed, t)
+		} else {
+			active = append(active, t)
+		}
+	}
+
+	if len(completed) == 0 {
+		return nil
+	}
+
+	// Sort completed by UpdatedAt desc (newest first)
+	sort.Slice(completed, func(i, j int) bool {
+		return completed[i].UpdatedAt > completed[j].UpdatedAt
+	})
+
+	kept := make([]TeamTask, 0, len(completed))
+	for i, t := range completed {
+		// Apply maxCompleted: keep only N newest
+		if cfg.MaxCompleted > 0 && i >= cfg.MaxCompleted {
+			continue
+		}
+		// Apply maxAgeDays: remove completed tasks older than cutoff
+		if cfg.MaxAgeDays > 0 {
+			parsed, parseErr := time.Parse(time.RFC3339, t.UpdatedAt)
+			if parseErr == nil && now.Sub(parsed) > time.Duration(cfg.MaxAgeDays)*24*time.Hour {
+				continue
+			}
+		}
+		kept = append(kept, t)
+	}
+
+	removed := len(completed) - len(kept)
+	if removed == 0 {
+		return nil
+	}
+
+	result.TasksRemoved = removed
+	board.Tasks = append(active, kept...)
+	return s.SaveTaskBoard(ctx, teamID, board)
+}
+
+func (s *FileTeamStore) pruneDecisions(teamID string, cfg *EntryRetention, now time.Time, result *PruneResult) error {
+	if cfg == nil {
+		return nil
+	}
+
+	entries, path, err := s.readAllDecisions(teamID)
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	kept := pruneEntries(entries, cfg, now, func(e DecisionEntry) string { return e.At })
+	removed := len(entries) - len(kept)
+	if removed == 0 {
+		return nil
+	}
+
+	result.DecisionsRemoved = removed
+	return s.writeAllDecisions(path, kept)
+}
+
+func (s *FileTeamStore) pruneKnowledge(teamID string, cfg *EntryRetention, now time.Time, result *PruneResult) error {
+	if cfg == nil {
+		return nil
+	}
+
+	entries, path, err := s.readAllKnowledge(teamID)
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	kept := pruneEntries(entries, cfg, now, func(e KnowledgeEntry) string { return e.At })
+	removed := len(entries) - len(kept)
+	if removed == 0 {
+		return nil
+	}
+
+	result.KnowledgeRemoved = removed
+	return s.writeAllKnowledge(path, kept)
+}
+
+// pruneEntries is a generic helper that applies maxEntries and maxAgeDays to a slice.
+// The getAt function extracts the timestamp string from each entry.
+// Entries are assumed to be in chronological order (oldest first), which is the
+// natural order for append-only JSONL files.
+func pruneEntries[T any](entries []T, cfg *EntryRetention, now time.Time, getAt func(T) string) []T {
+	// Apply maxEntries: keep N newest (from the end)
+	if cfg.MaxEntries > 0 && len(entries) > cfg.MaxEntries {
+		entries = entries[len(entries)-cfg.MaxEntries:]
+	}
+
+	// Apply maxAgeDays: remove entries older than cutoff
+	if cfg.MaxAgeDays > 0 {
+		cutoff := now.Add(-time.Duration(cfg.MaxAgeDays) * 24 * time.Hour)
+		kept := make([]T, 0, len(entries))
+		for _, e := range entries {
+			parsed, parseErr := time.Parse(time.RFC3339, getAt(e))
+			if parseErr != nil {
+				// Keep entries with unparseable timestamps
+				kept = append(kept, e)
+				continue
+			}
+			if !parsed.Before(cutoff) {
+				kept = append(kept, e)
+			}
+		}
+		entries = kept
+	}
+
+	return entries
 }

@@ -8,12 +8,17 @@
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:29Z",
-      "updatedAt": "2026-03-23T22:19:02Z",
+      "updatedAt": "2026-03-24T22:18:55Z",
       "notes": [
         {
           "at": "2026-03-23T22:19:02Z",
           "by": "",
           "text": "Still 4 prompt-manager files uncommitted (was 3, now 4)"
+        },
+        {
+          "at": "2026-03-24T22:18:55Z",
+          "by": "",
+          "text": "Now 22 files (was 4). Major expansion from sprint work."
         }
       ]
     },
@@ -110,17 +115,31 @@
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-23T22:19:04Z"
+      "updatedAt": "2026-03-24T22:18:55Z",
+      "notes": [
+        {
+          "at": "2026-03-24T22:18:55Z",
+          "by": "",
+          "text": "Now 21 files (was 18). Active development ongoing."
+        }
+      ]
     },
     {
       "id": "task-1774304344753000361",
       "title": "Commit agent-manager 5 files + add .test-dist/ to gitignore",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P2",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-23T22:19:04Z"
+      "updatedAt": "2026-03-24T22:18:48Z",
+      "notes": [
+        {
+          "at": "2026-03-24T22:18:48Z",
+          "by": "",
+          "text": "Committed: agent-manager run fixes p10"
+        }
+      ]
     },
     {
       "id": "task-1774304344809727499",
@@ -130,17 +149,41 @@
       "priority": "P2",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-23T22:19:04Z"
+      "updatedAt": "2026-03-24T22:18:55Z",
+      "notes": [
+        {
+          "at": "2026-03-24T22:18:55Z",
+          "by": "",
+          "text": "Now 2 files (was 3). One file committed."
+        }
+      ]
     },
     {
       "id": "task-1774304344866502547",
       "title": "Commit git-control-tower 2 files: diff viewer empty-state CTAs",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P3",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-23T22:19:04Z"
+      "updatedAt": "2026-03-24T22:18:48Z",
+      "notes": [
+        {
+          "at": "2026-03-24T22:18:48Z",
+          "by": "",
+          "text": "Committed: git-control-tower reviews p33+p34"
+        }
+      ]
+    },
+    {
+      "id": "task-1774390739698314289",
+      "title": "Commit packages/proto 12 generated files (swarm-manager proto changes)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P1",
+      "createdBy": "director",
+      "createdAt": "2026-03-24T22:18:59Z",
+      "updatedAt": "2026-03-24T22:18:59Z"
     }
   ]
 }

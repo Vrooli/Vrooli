@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -353,7 +354,7 @@ func TestDeleteDecisionHandler_Success(t *testing.T) {
 	}
 
 	// Verify deletion
-	all, err := teamStore.GetDecisions(ctx, "team-1", "", "", 0)
+	all, _, err := teamStore.GetDecisions(ctx, "team-1", "", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -820,5 +821,93 @@ func TestUpdateDecision_YoloMode_AgentCanSetAnyStatus(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 for yolo mode, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- Pagination / total count tests ---
+
+func TestGetDecisions_TotalCount(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	for i := 0; i < 15; i++ {
+		e := store.DecisionEntry{
+			ID:        fmt.Sprintf("dec-%d", i+1),
+			At:        fmt.Sprintf("2025-01-01T%02d:00:00Z", i),
+			By:        "agent-1",
+			Decision:  fmt.Sprintf("Decision %d", i+1),
+			Rationale: "Because",
+		}
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	// Request last=5, total should be 15
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions?last=5", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 5 {
+		t.Fatalf("expected 5 entries, got %d", len(resp.Entries))
+	}
+	if resp.Total != 15 {
+		t.Errorf("expected total=15, got %d", resp.Total)
+	}
+	if resp.Last != 5 {
+		t.Errorf("expected last=5, got %d", resp.Last)
+	}
+}
+
+func TestGetDecisions_DefaultLast10(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	for i := 0; i < 20; i++ {
+		e := store.DecisionEntry{
+			ID:        fmt.Sprintf("dec-%d", i+1),
+			At:        fmt.Sprintf("2025-01-01T%02d:00:00Z", i),
+			By:        "agent-1",
+			Decision:  fmt.Sprintf("Decision %d", i+1),
+			Rationale: "Because",
+		}
+		if err := teamStore.AppendDecision(ctx, "team-1", &e); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	// No last= param, default should be 10
+	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/decisions", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.GetDecisions(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp DecisionListResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Entries) != 10 {
+		t.Fatalf("expected 10 entries (default last=10), got %d", len(resp.Entries))
+	}
+	if resp.Total != 20 {
+		t.Errorf("expected total=20, got %d", resp.Total)
+	}
+	if resp.Last != 10 {
+		t.Errorf("expected last=10, got %d", resp.Last)
 	}
 }

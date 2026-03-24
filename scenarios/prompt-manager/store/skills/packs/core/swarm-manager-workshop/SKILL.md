@@ -101,7 +101,7 @@ Score each dimension honestly from 0-3 based on the CURRENT state of the plan:
 | Dimension | What It Measures | 0 | 1 | 2 | 3 |
 |-----------|-----------------|---|---|---|---|
 | `problem_clarity` | Is the problem/goal well understood? | No information | Vague idea | Clear problem, some unknowns | Fully understood, well-articulated |
-| `scope_defined` | Are boundaries and non-goals defined? | No scope | Rough boundaries | Mostly defined, minor gaps | Crisp in/out scope with non-goals |
+| `scope_defined` | Are boundaries and non-goals defined? | No scope field set, no acceptance criteria | Scope identified (scenario known) but no acceptance globs | Scope set, acceptance_allow partially defined | Scope set, both acceptance_allow and acceptance_deny defined, plan changes align with globs |
 | `approach_solid` | Is there a clear implementation strategy? | No approach | General direction | Concrete strategy, some details TBD | Detailed phased plan with dependencies |
 | `testable` | Do we know how to verify success? | No test plan | Vague success criteria | Specific test cases identified | Complete test plan with acceptance criteria |
 | `risk_awareness` | Are blockers and unknowns identified? | Not considered | Some risks noted | Key risks with mitigations | Comprehensive risk matrix |
@@ -156,7 +156,15 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Note decisions with `selected: null` — still pending, do not re-ask unless context has materially changed
    - Note any freeform responses on "Other" selections — incorporate these as user intent
 
-3. **Identify plan gaps**
+3. **Check scope and acceptance fields**
+
+   Read `scope`, `acceptance_allow`, and `acceptance_deny` from `spec.json`:
+   - If `scope` is **empty**, include a decision asking about the target scenario (e.g., "Which scenario does this work target?") with options listing likely candidates based on the item description.
+   - If `scope` is **set**, validate that the plan's described changes align with the scope path. Flag any planned changes that fall outside the scope directory.
+   - When the `approach_solid` readiness dimension reaches >= 2, propose `acceptance_allow` globs as a decision based on the planned file changes identified in the plan. Present options like: A) broad globs covering the whole scope directory, B) targeted globs for specific subdirectories/files, C) Other.
+   - If `acceptance_allow` is set but `acceptance_deny` is not, consider whether any paths within scope should be protected (e.g., secrets, config, generated files) and include a decision for `acceptance_deny` globs.
+
+4. **Identify plan gaps**
 
    Compare the current plan against the 5 readiness dimensions:
    - What's missing or weak in problem clarity?
@@ -165,7 +173,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - What test/verification strategy is missing?
    - What risks haven't been identified?
 
-4. **Generate workshop items**
+5. **Generate workshop items**
 
    Based on the gaps identified, produce a focused set of items:
 
@@ -189,11 +197,11 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Pre-select options when inferable from existing context (set `selected` to the key)
    - Use IDs like `d1`, `d2`... for decisions, `i1`, `i2`... for info items (unique within the round)
 
-5. **Score readiness**
+6. **Score readiness**
 
    Evaluate each dimension honestly based on the current state of the plan AFTER incorporating answers from prior rounds. Use the scoring rubric above.
 
-6. **Update plan.md**
+7. **Update plan.md**
 
    Incorporate all settled information into the plan:
    - Resolved decisions (with a `selected` value) become facts/commitments in relevant sections
@@ -208,7 +216,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    EOF
    ```
 
-7. **Write the round file**
+8. **Write the round file**
 
    ```bash
    swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path workshop/round-{{ROUND_NUMBER}}.json --stdin <<'EOF'
@@ -218,7 +226,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    Use zero-padded 3-digit round numbers: `round-001.json`, `round-002.json`, etc.
 
-8. **Verify outputs**
+9. **Verify outputs**
 
    ```bash
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}

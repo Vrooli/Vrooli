@@ -1,45 +1,41 @@
 ## Status
-Completed seventh strategic assessment heartbeat. Commit backlog crisis RESOLVED (98→34 files). 3 decisions logged. Task board cleaned and refreshed.
+Completed eighth strategic assessment heartbeat. Uncommitted files grew 34→57 despite 2 scenarios clearing. All builds GREEN.
 
 ## Completed this heartbeat
 - Spawned intelligence-officer, operations-chief, strategist
-- Intelligence briefing: all scenarios building clean, no stuck files, system health GREEN
-- Operations assessment: swarm-manager Go builds and tests pass (23 packages, 0 failures)
-- Confirmed 4 of 6 previous task board scenarios now fully committed (proto, tidiness-manager, test-genie, web-console voice)
-- Identified agent-manager .test-dist/ as build artifact needing gitignore
-- Logged 3 decisions: commit backlog resolved, commit plan, revised Now/Near/Far
-- Cleaned 6 stale tasks, created 4 new tasks for current commit plan
-- Verified 2-heartbeat SLA policy is working — retaining it
+- Intelligence briefing: 57 files across 4 areas, all builds green
+- Operations assessment: 3 commit batches identified, all READY
+- Confirmed agent-manager (6 files) and git-control-tower (2 files) now fully committed
+- Logged 2 decisions: inventory update, revised NOW/NEAR/FAR
+- Updated task board: marked 2 tasks done, updated 3 with new file counts, added proto task
 
 ## Key Decisions This Heartbeat
-1. **COMMIT BACKLOG RESOLVED**: 98→34 files. 2-heartbeat SLA appears effective. Retaining as policy.
-2. **COMMIT PLAN**: 5 batches: swarm-manager(18) → agent-manager(5+gitignore) → web-console(3) → git-control-tower(2) → prompt-manager(4)
-3. **NOW/NEAR/FAR**: NOW=commit 34 files | NEAR=swarm-manager meta-orchestrator + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
+1. **INVENTORY**: 57 files (was 34). +23 net despite clearing 8. prompt-manager sprint expanded from 4→22 files. swarm-manager 18→21. New proto batch of 12.
+2. **NOW/NEAR/FAR**: NOW=commit 57 files in 3 batches | NEAR=swarm-manager meta-orchestrator + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
 
 ## In progress / blocked
-- 34 uncommitted files across 5 scenarios (all building clean, all with recent commits)
+- 57 uncommitted files across 4 areas (all building clean)
 - No blockers. All batches ready to commit.
 
 ## Uncommitted file breakdown
-| Scenario | Files | Compiles | Tests | Priority |
-|----------|-------|----------|-------|----------|
-| swarm-manager | 18 | Yes | All pass | P1 |
-| agent-manager | 6 (5+artifact) | Yes | N/A | P2 |
-| prompt-manager | 4 | JS/TS | N/A | P1 |
-| web-console | 3 | Yes | Included | P2 |
-| git-control-tower | 2 | React/TS | N/A | P3 |
+| Scenario | Files | Delta | Compiles | Priority |
+|----------|-------|-------|----------|----------|
+| prompt-manager | 22 | +18 | Yes | P1 |
+| swarm-manager | 21 | +3 | Yes | P1 |
+| packages/proto | 12 | +12 | Generated | P1 |
+| web-console | 2 | -1 | Yes | P2 |
 
 ## Next priorities
-1. **IMMEDIATE**: Execute commit pipeline — swarm-manager first (18 files, batch ops + initiatives p9)
-2. **IMMEDIATE**: Add .test-dist/ to agent-manager .gitignore, then commit 5 UI files
-3. **IMMEDIATE**: Commit web-console (3), git-control-tower (2), prompt-manager (4)
-4. **THIS WEEK**: Continue swarm-manager meta-orchestrator work (capture-first unified feed)
-5. **THIS WEEK**: prompt-manager shared team state sprint continuation
+1. **IMMEDIATE**: Commit swarm-manager (21) + packages/proto (12) together — related schema changes
+2. **IMMEDIATE**: Commit prompt-manager (22) — sprint producing substantial output
+3. **IMMEDIATE**: Commit web-console (2) — small, stable
+4. **THIS WEEK**: Continue swarm-manager meta-orchestrator work
+5. **THIS WEEK**: Continue prompt-manager shared team state sprint
 6. **THIS MONTH**: LPBS revenue readiness review
 
 ## Notes for teammates
-- System health is GREEN — all scenarios building, all showing forward progress
-- The 2-heartbeat SLA is working. Keep tracking uncommitted file age per scenario.
-- swarm-manager is the highest-leverage active work: batch ops, initiatives, dependency graph
-- agent-manager .test-dist/ must be gitignored before committing (build artifact)
-- prompt-manager store files (heartbeat, queue) change every heartbeat — consider whether to commit state files or just the SKILL.md update
+- System health GREEN — all scenarios building, active forward progress everywhere
+- 2-heartbeat SLA clears old debt but new work outpaces commit cadence — consider more frequent commits
+- prompt-manager sprint is the biggest growth area (4→22 files) — monitor for scope creep
+- swarm-manager and proto must commit together (proto is generated from swarm-manager schemas)
+- agent-manager and git-control-tower fully cleared — good progress on those fronts

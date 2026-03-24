@@ -81,6 +81,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		return result, result.Error
 	}
 
+	// Auto-prune stale shared state before building the prompt.
+	if _, pruneErr := e.teamStore.PruneSharedState(ctx, teamID); pruneErr != nil {
+		log.Printf("Warning: prune shared state for %s: %v", teamID, pruneErr)
+	}
+
 	// Resolve default profile key based on spawn mode when not explicitly set.
 	if profileKey == "" {
 		profileKey = DefaultProfileKeyForSpawnMode(team.SpawnMode)
@@ -193,7 +198,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	}
 	go func() {
 		defer waitCancel()
-		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath)
+		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, startedAt, logPath, config.EffectiveTimeout())
 	}()
 
 	result.Status = store.HeartbeatStatusRunning
@@ -231,13 +236,13 @@ func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID st
 }
 
 // waitForCompletion polls for run completion and updates config
-func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID string, startedAt time.Time, logPath string) {
+func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID string, startedAt time.Time, logPath string, timeout time.Duration) {
 	if e.runRegistry != nil {
 		defer e.runRegistry.Unregister(teamID, agentID)
 	}
 
 	// Create timeout context
-	timeoutCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	run, err := e.agentClient.WaitForRun(timeoutCtx, runID, 5*time.Second)

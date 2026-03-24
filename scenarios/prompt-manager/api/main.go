@@ -503,6 +503,10 @@ func main() {
 	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
 	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
 
+	// Retention / prune routes
+	v1.HandleFunc("/teams/{id}/retention", heartbeatHandlers.GetRetention).Methods("GET")
+	v1.HandleFunc("/teams/{id}/prune", heartbeatHandlers.PruneSharedState).Methods("POST")
+
 	// World scale routes
 	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
 	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")

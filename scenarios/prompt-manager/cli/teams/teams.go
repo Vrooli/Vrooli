@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -142,6 +143,9 @@ type TeamTask struct {
 type TaskBoardResponse struct {
 	TeamID string     `json:"teamId"`
 	Tasks  []TeamTask `json:"tasks"`
+	Total  int        `json:"total"`
+	Limit  int        `json:"limit"`
+	Offset int        `json:"offset"`
 }
 
 // AddTaskRequest is the request body for adding a task.
@@ -188,6 +192,8 @@ type DecisionEntry struct {
 type DecisionListResponse struct {
 	TeamID  string          `json:"teamId"`
 	Entries []DecisionEntry `json:"entries"`
+	Total   int             `json:"total"`
+	Last    int             `json:"last"`
 }
 
 // AddDecisionRequest is the request body for adding a decision.
@@ -263,7 +269,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "team",
 				Aliases:     []string{"teams", "t"},
 				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|import-cc|export-cc|trigger)",
+				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|retention|prune|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -364,6 +370,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdKnowledgeUpdate(ctx, subArgs)
 	case "knowledge-delete":
 		return cmdKnowledgeDelete(ctx, subArgs)
+	case "retention":
+		return cmdRetention(ctx, subArgs)
+	case "prune":
+		return cmdPrune(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -429,6 +439,10 @@ Knowledge Log Commands:
   knowledge-list <team-id>              List knowledge entries
   knowledge-update <team-id> <id>       Update a knowledge entry
   knowledge-delete <team-id> <id>       Delete a knowledge entry
+
+Retention Commands:
+  retention <team-id>                         Show effective retention config
+  prune <team-id>                             Prune stale shared state
 
 Claude Code Interop Commands:
   import-cc <team-name>                       Import a Claude Code team
@@ -1057,15 +1071,16 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
-	TeamID        string               `json:"teamId"`
-	AgentID       string               `json:"agentId"`
-	Enabled       bool                 `json:"enabled"`
-	Schedule      string               `json:"schedule"`
-	ProfileKey    string               `json:"profileKey,omitempty"`
-	LastExecution *HeartbeatExecResult `json:"lastExecution,omitempty"`
-	NextExecution string               `json:"nextExecution,omitempty"`
-	CreatedAt     string               `json:"createdAt"`
-	UpdatedAt     string               `json:"updatedAt"`
+	TeamID         string               `json:"teamId"`
+	AgentID        string               `json:"agentId"`
+	Enabled        bool                 `json:"enabled"`
+	Schedule       string               `json:"schedule"`
+	ProfileKey     string               `json:"profileKey,omitempty"`
+	TimeoutSeconds int                  `json:"timeoutSeconds,omitempty"`
+	LastExecution  *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	NextExecution  string               `json:"nextExecution,omitempty"`
+	CreatedAt      string               `json:"createdAt"`
+	UpdatedAt      string               `json:"updatedAt"`
 }
 
 // HeartbeatExecResult represents execution result
@@ -1080,16 +1095,18 @@ type HeartbeatExecResult struct {
 
 // CreateHeartbeatRequest is the request for creating a heartbeat
 type CreateHeartbeatRequest struct {
-	Schedule   string `json:"schedule"`
-	ProfileKey string `json:"profileKey,omitempty"`
-	Enabled    *bool  `json:"enabled,omitempty"`
+	Schedule       string `json:"schedule"`
+	ProfileKey     string `json:"profileKey,omitempty"`
+	Enabled        *bool  `json:"enabled,omitempty"`
+	TimeoutSeconds int    `json:"timeoutSeconds,omitempty"`
 }
 
 // UpdateHeartbeatRequest is the request for updating a heartbeat
 type UpdateHeartbeatRequest struct {
-	Schedule   *string `json:"schedule,omitempty"`
-	ProfileKey *string `json:"profileKey,omitempty"`
-	Enabled    *bool   `json:"enabled,omitempty"`
+	Schedule       *string `json:"schedule,omitempty"`
+	ProfileKey     *string `json:"profileKey,omitempty"`
+	Enabled        *bool   `json:"enabled,omitempty"`
+	TimeoutSeconds *int    `json:"timeoutSeconds,omitempty"`
 }
 
 // TriggerResponse is the response from triggering a heartbeat
@@ -1201,6 +1218,11 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 	if config.ProfileKey != "" {
 		fmt.Printf("Profile Key: %s\n", config.ProfileKey)
 	}
+	if config.TimeoutSeconds > 0 {
+		fmt.Printf("Timeout: %s\n", (time.Duration(config.TimeoutSeconds) * time.Second).String())
+	} else {
+		fmt.Printf("Timeout: 45m0s (default)\n")
+	}
 	if config.NextExecution != "" {
 		fmt.Printf("Next Execution: %s\n", config.NextExecution)
 	}
@@ -1225,13 +1247,23 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-enable", flag.ContinueOnError)
 	schedule := fs.String("schedule", "0 */6 * * *", "Cron schedule expression")
 	profileKey := fs.String("profile", "", "Agent-manager profile key")
+	timeout := fs.String("timeout", "", "Execution timeout (e.g., 45m, 1h)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team heartbeat-enable <team-id> <agent-id> [--schedule='0 */6 * * *'] [--profile=key]")
+		return fmt.Errorf("usage: team heartbeat-enable <team-id> <agent-id> [--schedule='0 */6 * * *'] [--profile=key] [--timeout=45m]")
+	}
+
+	var timeoutSeconds int
+	if *timeout != "" {
+		d, err := time.ParseDuration(*timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout duration %q: %w", *timeout, err)
+		}
+		timeoutSeconds = int(d.Seconds())
 	}
 	teamID := fs.Arg(0)
 	agentID := fs.Arg(1)
@@ -1244,9 +1276,10 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	if existsErr != nil {
 		// Create new config
 		req := CreateHeartbeatRequest{
-			Schedule:   *schedule,
-			ProfileKey: *profileKey,
-			Enabled:    &enabled,
+			Schedule:       *schedule,
+			ProfileKey:     *profileKey,
+			Enabled:        &enabled,
+			TimeoutSeconds: timeoutSeconds,
 		}
 		var config HeartbeatConfig
 		if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
@@ -1268,6 +1301,9 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 		}
 		if *profileKey != "" {
 			req.ProfileKey = profileKey
+		}
+		if timeoutSeconds > 0 {
+			req.TimeoutSeconds = &timeoutSeconds
 		}
 		var config HeartbeatConfig
 		if err := ctx.Put(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
@@ -1977,6 +2013,8 @@ func cmdHandoffHistory(ctx appctx.Context, args []string) error {
 
 func cmdTaskList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("task-list", flag.ContinueOnError)
+	limit := fs.Int("limit", 25, "Maximum number of tasks to return")
+	offset := fs.Int("offset", 0, "Number of tasks to skip")
 	status := fs.String("status", "", "Filter by status (todo|in-progress|blocked|done)")
 	assignee := fs.String("assignee", "", "Filter by assignee agent ID")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
@@ -1984,40 +2022,36 @@ func cmdTaskList(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team task-list <team-id> [--status=X] [--assignee=X] [--json]")
+		return fmt.Errorf("usage: team task-list <team-id> [--limit=N] [--offset=N] [--status=X] [--assignee=X] [--json]")
 	}
 	teamID := fs.Arg(0)
 
-	var resp TaskBoardResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/tasks", teamID), &resp); err != nil {
-		return fmt.Errorf("failed to get task board: %w", err)
+	query := fmt.Sprintf("/teams/%s/tasks?limit=%d&offset=%d", teamID, *limit, *offset)
+	if *status != "" {
+		query += "&status=" + url.QueryEscape(*status)
+	}
+	if *assignee != "" {
+		query += "&assignee=" + url.QueryEscape(*assignee)
 	}
 
-	// Client-side filtering
-	var filtered []TeamTask
-	for _, task := range resp.Tasks {
-		if *status != "" && task.Status != *status {
-			continue
-		}
-		if *assignee != "" && task.Assignee != *assignee {
-			continue
-		}
-		filtered = append(filtered, task)
+	var resp TaskBoardResponse
+	if err := ctx.Get(query, &resp); err != nil {
+		return fmt.Errorf("failed to get task board: %w", err)
 	}
 
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(filtered)
+		return enc.Encode(resp)
 	}
 
-	if len(filtered) == 0 {
+	if len(resp.Tasks) == 0 {
 		fmt.Println("No tasks found")
 		return nil
 	}
 
 	fmt.Printf("%-8s %-30s %-12s %-20s %-5s %-5s\n", "PRIO", "TITLE", "STATUS", "ASSIGNEE", "NOTES", "UPDATED")
-	for _, task := range filtered {
+	for _, task := range resp.Tasks {
 		title := task.Title
 		if len(title) > 28 {
 			title = title[:28] + ".."
@@ -2028,6 +2062,13 @@ func cmdTaskList(ctx appctx.Context, args []string) error {
 		}
 		fmt.Printf("%-8s %-30s %-12s %-20s %-5d %s\n",
 			task.Priority, title, task.Status, assigneeStr, len(task.Notes), task.UpdatedAt)
+	}
+
+	// Pagination hint
+	remaining := resp.Total - resp.Offset - len(resp.Tasks)
+	if remaining > 0 {
+		nextOffset := resp.Offset + resp.Limit
+		fmt.Printf("\n+%d more items. Run `prompt-manager team task-list %s --offset=%d` to see next batch\n", remaining, teamID, nextOffset)
 	}
 	return nil
 }
@@ -2215,7 +2256,7 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 func cmdDecisionList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-list", flag.ContinueOnError)
 	contextTag := fs.String("context", "", "Filter by context tag")
-	last := fs.Int("last", 20, "Number of entries to show")
+	last := fs.Int("last", 10, "Number of entries to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -2288,6 +2329,12 @@ func cmdDecisionList(ctx appctx.Context, args []string) error {
 			fmt.Printf("Rationale: %s\n", entry.Rationale)
 		}
 		fmt.Println()
+	}
+
+	// Pagination hint
+	remaining := resp.Total - len(resp.Entries)
+	if remaining > 0 {
+		fmt.Printf("+%d more entries. Run `prompt-manager team decision-list %s --last=%d` to see more\n", remaining, teamID, resp.Total)
 	}
 	return nil
 }
@@ -2455,6 +2502,123 @@ func cmdKnowledgeDelete(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Deleted knowledge %s\n", knowledgeID)
 	return nil
+}
+
+// --- Retention / Prune CLI ---
+
+// RetentionConfig mirrors the API response for retention settings.
+type RetentionConfig struct {
+	Tasks     *TaskRetention  `json:"tasks,omitempty"`
+	Decisions *EntryRetention `json:"decisions,omitempty"`
+	Knowledge *EntryRetention `json:"knowledge,omitempty"`
+}
+
+// TaskRetention mirrors the API task retention settings.
+type TaskRetention struct {
+	MaxCompleted int `json:"maxCompleted"`
+	MaxAgeDays   int `json:"maxAgeDays"`
+}
+
+// EntryRetention mirrors the API entry retention settings.
+type EntryRetention struct {
+	MaxEntries int `json:"maxEntries"`
+	MaxAgeDays int `json:"maxAgeDays"`
+}
+
+// PruneResult mirrors the API prune result.
+type PruneResult struct {
+	TasksRemoved     int `json:"tasksRemoved"`
+	DecisionsRemoved int `json:"decisionsRemoved"`
+	KnowledgeRemoved int `json:"knowledgeRemoved"`
+}
+
+func cmdRetention(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("retention", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team retention <team-id> [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	var cfg RetentionConfig
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/retention", teamID), &cfg); err != nil {
+		return fmt.Errorf("failed to get retention config: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(cfg)
+	}
+
+	fmt.Printf("Retention Config for %s\n\n", teamID)
+	if cfg.Tasks != nil {
+		fmt.Printf("  Tasks:\n")
+		fmt.Printf("    Max completed:  %s\n", fmtLimit(cfg.Tasks.MaxCompleted))
+		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Tasks.MaxAgeDays))
+	}
+	if cfg.Decisions != nil {
+		fmt.Printf("  Decisions:\n")
+		fmt.Printf("    Max entries:    %s\n", fmtLimit(cfg.Decisions.MaxEntries))
+		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Decisions.MaxAgeDays))
+	}
+	if cfg.Knowledge != nil {
+		fmt.Printf("  Knowledge:\n")
+		fmt.Printf("    Max entries:    %s\n", fmtLimit(cfg.Knowledge.MaxEntries))
+		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Knowledge.MaxAgeDays))
+	}
+	return nil
+}
+
+func cmdPrune(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("prune", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team prune <team-id> [--json]")
+	}
+	teamID := fs.Arg(0)
+
+	var result PruneResult
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/prune", teamID), nil, &result); err != nil {
+		return fmt.Errorf("failed to prune: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+
+	total := result.TasksRemoved + result.DecisionsRemoved + result.KnowledgeRemoved
+	if total == 0 {
+		fmt.Println("Nothing to prune.")
+		return nil
+	}
+
+	fmt.Printf("Pruned %d items:\n", total)
+	if result.TasksRemoved > 0 {
+		fmt.Printf("  Tasks removed:     %d\n", result.TasksRemoved)
+	}
+	if result.DecisionsRemoved > 0 {
+		fmt.Printf("  Decisions removed: %d\n", result.DecisionsRemoved)
+	}
+	if result.KnowledgeRemoved > 0 {
+		fmt.Printf("  Knowledge removed: %d\n", result.KnowledgeRemoved)
+	}
+	return nil
+}
+
+func fmtLimit(v int) string {
+	if v == 0 {
+		return "unlimited"
+	}
+	return fmt.Sprintf("%d", v)
 }
 
 // truncate shortens a string to maxLen, appending "..." if truncated.

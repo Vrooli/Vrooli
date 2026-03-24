@@ -73,7 +73,27 @@ Step 7: Synthesize assessment  → Ready or not?
 Step 8: Act on classification  → Recommend commit or delegate remediation
 ```
 
-#### Step 1: Check integration health
+#### Step 1: Check integration health and try unified review
+
+First, attempt the unified review endpoint which runs all checks in a single request:
+
+```
+POST /api/v1/review/run   (body: {"scenarioName": "{{SCENARIO}}"})
+```
+
+If the endpoint returns a job ID, poll for completion:
+```
+GET /api/v1/review/run/{jobId}
+```
+
+Poll until `status` is `"completed"` or `"failed"`. When completed, read the aggregated results:
+```
+GET /api/v1/review/summary?scenarioName={{SCENARIO}}
+```
+
+If the unified endpoint is available and succeeds, skip directly to Step 7 (Synthesize) using the aggregated results.
+
+**Fallback:** If the unified endpoint returns 404 (not available), fall back to the individual endpoint workflow below.
 
 ```
 GET /capabilities

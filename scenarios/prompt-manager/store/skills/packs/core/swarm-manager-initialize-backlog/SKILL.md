@@ -105,7 +105,14 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - Any user-added files in the item root
    - Existing `plan.md` and `workshop/` artifacts from a prior run (preserve these)
 
-2. **Create plan.md scaffold**
+2. **Check scope and acceptance fields**
+
+   Read `scope`, `acceptance_allow`, and `acceptance_deny` from `spec.json`:
+   - If `scope` is **set**, use it to contextualize the plan scaffold. Read the target scenario's directory structure (e.g., `ls scenarios/<scope-target>/`) to inform the plan's technical context, file layout, and approach sections.
+   - If `scope` is **NOT set**, include a scope decision in round-001.json asking: "Which scenario does this work target?" with options listing likely candidates based on the item description.
+   - If `scope` is set but `acceptance_allow` and `acceptance_deny` are both missing, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options based on the target scenario's structure (e.g., A: broad `scenarios/<name>/**`, B: targeted subdirectories, C: Other).
+
+3. **Create plan.md scaffold**
 
    Based on available context, fill in as many plan sections as possible. The description and archive materials should provide enough for at least Purpose, Problem Statement, and partial Scope.
 
@@ -115,7 +122,7 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    EOF
    ```
 
-3. **Generate workshop round 1**
+4. **Generate workshop round 1**
 
    Identify the 4-7 most important unknowns and present them as decisions with researched alternatives:
    - Each decision must have at least 2 options (A, B) and should usually include an "Other" option
@@ -131,11 +138,11 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    EOF
    ```
 
-4. **Score readiness**
+5. **Score readiness**
 
    Evaluate each dimension honestly based on the plan scaffold you just created. First rounds typically range from 0-2 depending on context richness.
 
-5. **Verify all outputs**
+6. **Verify all outputs**
 
    ```bash
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}

@@ -54,6 +54,9 @@ item-folder/
   "tags": ["tag1", "tag2"],
   "depends_on": ["kind/name", "fix/auth-bug"],
   "initiative": "initiative-name",
+  "scope": "scenarios/web-console",
+  "acceptance_allow": ["scenarios/web-console/**"],
+  "acceptance_deny": ["scenarios/web-console/secrets/**"],
   "created": "ISO-8601",
   "updated": "ISO-8601"
 }
@@ -65,6 +68,25 @@ Array of `"kind/name"` strings referencing other backlog items this item depends
 - All referenced items must exist at creation time
 - Circular dependencies are rejected (cycle detection via topological sort)
 - Dependencies are enforced during batch-queue: items are queued in topological order so prerequisites run first
+
+#### `scope` (optional)
+
+Relative path from project root identifying where this work targets. Typically a scenario directory (e.g., `scenarios/web-console`). Used for post-execution review and sandbox scoping.
+
+#### `acceptance_allow` (optional)
+
+Array of glob patterns for file paths expected to be modified (e.g., `["scenarios/web-console/**", "packages/proto/**"]`). Used as sandbox acceptance allowlist and post-execution review targeting.
+
+#### `acceptance_deny` (optional)
+
+Array of glob patterns for file paths that must NOT be modified (e.g., `["scenarios/web-console/secrets/**"]`). Used as sandbox acceptance denylist.
+
+#### Scope and Acceptance: How They Work Together
+
+- **`scope`** identifies the scenario/directory the work targets — determines the sandbox overlay mount and provides context for agents about where the work lives.
+- **`acceptance_allow`** defines the expected change boundaries within that scope — files matching these globs are expected to be modified during execution.
+- **`acceptance_deny`** defines forbidden change boundaries — files matching these globs must NOT be modified, even if they fall within the scope.
+- **Post-execution review** uses these fields to validate that agent work stayed within expected bounds: modifications outside `acceptance_allow` are flagged as deviations, and modifications matching `acceptance_deny` are flagged as violations.
 
 #### `initiative` (optional)
 
@@ -134,7 +156,7 @@ Zero-padded 3-digit round numbers (`round-001.json`, `round-002.json`, etc.).
 | Dimension | 0 | 1 | 2 | 3 |
 |-----------|---|---|---|---|
 | `problem_clarity` | No information | Vague idea | Clear, some unknowns | Fully understood |
-| `scope_defined` | No scope | Rough boundaries | Mostly defined | Crisp in/out scope |
+| `scope_defined` | No scope field set, no acceptance criteria | Scope identified (scenario known) but no acceptance globs | Scope set, acceptance_allow partially defined | Scope set, both acceptance_allow and acceptance_deny defined, plan changes align with globs |
 | `approach_solid` | No approach | General direction | Concrete strategy | Detailed phased plan |
 | `testable` | No test plan | Vague criteria | Test cases identified | Complete test plan |
 | `risk_awareness` | Not considered | Some risks noted | Key risks with mitigations | Comprehensive risk matrix |
@@ -218,12 +240,12 @@ swarm-manager backlog list [--kind <kind>] [--status <status>]
 
 ### Create a backlog item
 ```bash
-swarm-manager backlog create --data '{"kind":"idea","name":"my-feature","title":"My Feature","description":"..."}'
+swarm-manager backlog create --data '{"kind":"idea","name":"my-feature","title":"My Feature","description":"...","scope":"scenarios/web-console","acceptance_allow":["scenarios/web-console/ui/**","scenarios/web-console/api/**"],"acceptance_deny":["scenarios/web-console/secrets/**"]}'
 ```
 
 ### Update a backlog item
 ```bash
-swarm-manager backlog update --kind <kind> --name <name> --data '{"title":"Updated Title","priority":3}'
+swarm-manager backlog update --kind <kind> --name <name> --data '{"title":"Updated Title","priority":3,"scope":"scenarios/web-console","acceptance_allow":["scenarios/web-console/**"]}'
 ```
 
 ### Delete a backlog item
@@ -296,8 +318,8 @@ swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"<mod
 cat > /tmp/batch-items.json <<'EOF'
 {
   "items": [
-    {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "..."},
-    {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"]}
+    {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "...", "scope": "scenarios/swarm-manager", "acceptance_allow": ["scenarios/swarm-manager/api/**"]},
+    {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"], "scope": "scenarios/web-console"}
   ]
 }
 EOF

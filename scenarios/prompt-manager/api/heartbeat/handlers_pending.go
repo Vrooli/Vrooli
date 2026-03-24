@@ -22,7 +22,7 @@ func (h *Handlers) GetAllPendingDecisions(w http.ResponseWriter, r *http.Request
 	totalCount := 0
 
 	for _, team := range teams {
-		entries, err := h.teamStore.GetDecisions(ctx, team.ID, "", store.DecisionStatusPending, 0)
+		entries, _, err := h.teamStore.GetDecisions(ctx, team.ID, "", store.DecisionStatusPending, 0)
 		if err != nil {
 			continue // skip teams with read errors
 		}

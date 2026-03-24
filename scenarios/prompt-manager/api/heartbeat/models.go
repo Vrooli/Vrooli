@@ -13,6 +13,7 @@ type HeartbeatConfigResponse struct {
 	Enabled        bool                    `json:"enabled"`
 	Schedule       string                  `json:"schedule"`
 	ProfileKey     string                  `json:"profileKey,omitempty"`
+	TimeoutSeconds int                     `json:"timeoutSeconds,omitempty"`
 	LastExecution  *HeartbeatExecResultDTO `json:"lastExecution,omitempty"`
 	NextExecution  string                  `json:"nextExecution,omitempty"`
 	NextExecutions []string                `json:"nextExecutions,omitempty"`
@@ -32,16 +33,18 @@ type HeartbeatExecResultDTO struct {
 
 // CreateHeartbeatRequest is the request body for creating a heartbeat config
 type CreateHeartbeatRequest struct {
-	Schedule   string `json:"schedule"`             // Cron expression (required)
-	ProfileKey string `json:"profileKey,omitempty"` // Optional profile key override
-	Enabled    *bool  `json:"enabled,omitempty"`    // Defaults to false
+	Schedule       string `json:"schedule"`                 // Cron expression (required)
+	ProfileKey     string `json:"profileKey,omitempty"`     // Optional profile key override
+	Enabled        *bool  `json:"enabled,omitempty"`        // Defaults to false
+	TimeoutSeconds int    `json:"timeoutSeconds,omitempty"` // 0 = use default (45 min)
 }
 
 // UpdateHeartbeatRequest is the request body for updating a heartbeat config
 type UpdateHeartbeatRequest struct {
-	Schedule   *string `json:"schedule,omitempty"`
-	ProfileKey *string `json:"profileKey,omitempty"`
-	Enabled    *bool   `json:"enabled,omitempty"`
+	Schedule       *string `json:"schedule,omitempty"`
+	ProfileKey     *string `json:"profileKey,omitempty"`
+	Enabled        *bool   `json:"enabled,omitempty"`
+	TimeoutSeconds *int    `json:"timeoutSeconds,omitempty"`
 }
 
 // TriggerHeartbeatRequest is the request body for manually triggering a heartbeat
@@ -180,6 +183,9 @@ type UpdateTaskRequest struct {
 type TaskBoardResponse struct {
 	TeamID string           `json:"teamId"`
 	Tasks  []store.TeamTask `json:"tasks"`
+	Total  int              `json:"total"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
 }
 
 // --- Decision API models ---
@@ -238,6 +244,8 @@ type KnowledgeListResponse struct {
 type DecisionListResponse struct {
 	TeamID  string                `json:"teamId"`
 	Entries []store.DecisionEntry `json:"entries"`
+	Total   int                   `json:"total"`
+	Last    int                   `json:"last"`
 }
 
 // PendingDecisionTeamGroup groups pending decisions by team.

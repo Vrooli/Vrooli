@@ -329,6 +329,17 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		config.Enabled = *req.Enabled
 	}
 
+	if req.TimeoutSeconds > 0 {
+		v := req.TimeoutSeconds
+		if v < store.MinHeartbeatTimeoutSeconds {
+			v = store.MinHeartbeatTimeoutSeconds
+		}
+		if v > store.MaxHeartbeatTimeoutSeconds {
+			v = store.MaxHeartbeatTimeoutSeconds
+		}
+		config.TimeoutSeconds = v
+	}
+
 	if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Team not found", http.StatusNotFound)
@@ -406,6 +417,16 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.ProfileKey != nil {
 		config.ProfileKey = *req.ProfileKey
+	}
+	if req.TimeoutSeconds != nil {
+		v := *req.TimeoutSeconds
+		if v < store.MinHeartbeatTimeoutSeconds {
+			v = store.MinHeartbeatTimeoutSeconds
+		}
+		if v > store.MaxHeartbeatTimeoutSeconds {
+			v = store.MaxHeartbeatTimeoutSeconds
+		}
+		config.TimeoutSeconds = v
 	}
 	wasEnabled := config.Enabled
 	if req.Enabled != nil {
@@ -1680,13 +1701,14 @@ func formatDuration(d time.Duration) string {
 // toResponse converts a HeartbeatConfig to API response
 func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResponse {
 	resp := HeartbeatConfigResponse{
-		TeamID:     config.TeamID,
-		AgentID:    config.AgentID,
-		Enabled:    config.Enabled,
-		Schedule:   config.Schedule,
-		ProfileKey: config.ProfileKey,
-		CreatedAt:  config.CreatedAt,
-		UpdatedAt:  config.UpdatedAt,
+		TeamID:         config.TeamID,
+		AgentID:        config.AgentID,
+		Enabled:        config.Enabled,
+		Schedule:       config.Schedule,
+		ProfileKey:     config.ProfileKey,
+		TimeoutSeconds: config.TimeoutSeconds,
+		CreatedAt:      config.CreatedAt,
+		UpdatedAt:      config.UpdatedAt,
 	}
 
 	if config.LastExecution != nil {
@@ -1777,16 +1799,67 @@ func (h *Handlers) GetTaskBoard(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 
+	// Parse pagination params
+	limit := 25
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+	statusFilter := r.URL.Query().Get("status")
+	assigneeFilter := r.URL.Query().Get("assignee")
+
 	board, err := h.teamStore.GetTaskBoard(r.Context(), teamID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Apply filters
+	tasks := board.Tasks
+	if statusFilter != "" || assigneeFilter != "" {
+		filtered := make([]store.TeamTask, 0, len(tasks))
+		for _, t := range tasks {
+			if statusFilter != "" && t.Status != statusFilter {
+				continue
+			}
+			if assigneeFilter != "" && t.Assignee != assigneeFilter {
+				continue
+			}
+			filtered = append(filtered, t)
+		}
+		tasks = filtered
+	}
+
+	total := len(tasks)
+
+	// Apply offset/limit
+	if offset >= len(tasks) {
+		tasks = nil
+	} else {
+		end := offset + limit
+		if end > len(tasks) {
+			end = len(tasks)
+		}
+		tasks = tasks[offset:end]
+	}
+	if tasks == nil {
+		tasks = []store.TeamTask{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(TaskBoardResponse{
 		TeamID: teamID,
-		Tasks:  board.Tasks,
+		Tasks:  tasks,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
 	})
 }
 
@@ -1967,14 +2040,14 @@ func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	contextFilter := r.URL.Query().Get("context")
 	statusFilter := r.URL.Query().Get("status")
-	last := 20
+	last := 10
 	if v := r.URL.Query().Get("last"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			last = n
 		}
 	}
 
-	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, statusFilter, last)
+	entries, total, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, statusFilter, last)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1987,6 +2060,8 @@ func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(DecisionListResponse{
 		TeamID:  teamID,
 		Entries: entries,
+		Total:   total,
+		Last:    last,
 	})
 }
 
@@ -2061,7 +2136,7 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Fetch updated entry to return
-	entries, err := h.teamStore.GetDecisions(r.Context(), teamID, "", "", 0)
+	entries, _, err := h.teamStore.GetDecisions(r.Context(), teamID, "", "", 0)
 	if err != nil {
 		http.Error(w, "decision updated but fetch failed", http.StatusInternalServerError)
 		return
@@ -2158,7 +2233,7 @@ func (h *Handlers) checkApprovalEnforcement(r *http.Request, teamID, decisionID,
 
 // getDecisionStatus returns the current status of a decision, or empty string if not found.
 func (h *Handlers) getDecisionStatus(ctx context.Context, teamID, decisionID string) string {
-	entries, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
+	entries, _, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
 	if err != nil {
 		return ""
 	}
@@ -2328,6 +2403,39 @@ func (h *Handlers) DeleteKnowledgeHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetRetention returns the effective retention config for a team.
+func (h *Handlers) GetRetention(w http.ResponseWriter, r *http.Request) {
+	teamID := mux.Vars(r)["id"]
+
+	team, err := h.teamStore.Get(r.Context(), teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	retention := team.EffectiveRetention()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(retention)
+}
+
+// PruneSharedState triggers pruning of stale shared state for a team.
+func (h *Handlers) PruneSharedState(w http.ResponseWriter, r *http.Request) {
+	teamID := mux.Vars(r)["id"]
+
+	result, err := h.teamStore.PruneSharedState(r.Context(), teamID)
+	if err != nil {
+		if strings.Contains(err.Error(), "no such file") {
+			http.Error(w, fmt.Sprintf("team not found: %s", teamID), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 // generateID creates a short unique identifier.
