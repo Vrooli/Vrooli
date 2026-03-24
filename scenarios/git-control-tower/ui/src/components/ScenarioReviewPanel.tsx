@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { ClipboardCheck, RefreshCw, Loader2, Play, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, Plus, Minus, X, Anchor, Camera, ExternalLink, AlertCircle, Settings, Copy, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle } from "./ui/card";
-import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture, useScenarios, useStartAuditorCheck, useAuditorJobStatus } from "../lib/hooks";
+import { useVisualCaptures, useTriggerVisualCapture, useCapabilities, useTestExecutions, useTriggerTestExecution, useTidinessScore, useTidinessIssues, useTidinessStaleness, useTriggerTidinessScan, useWorkflowCaptures, useTriggerWorkflowCapture, useScenarios, useStartAuditorCheck, useAuditorJobStatus, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
 import { buildCaptureScreenshotUrl, buildWorkflowVideoUrl, presetSuffix, presetLabel, presetKey, getCapturePresets, setCapturePresets as saveCapturePresets, SIZE_PRESETS } from "../lib/api";
-import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult } from "../lib/api";
+import type { CapturePreset, CaptureTheme, SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, TestPhaseResult, RepoFileStats, TidinessIssue, TidinessLightScanResult, TidinessStalenessInfo, AgentContextItem, ExecutionMode, WorkflowCaptureResult, Readiness, ReviewCheckStatus } from "../lib/api";
 import { AggregateMetricsContent } from "./ChangeMetricsModal";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AgentTab, AttachToAgentButton } from "./AgentTab";
@@ -639,6 +639,12 @@ function OverviewTab({
   const scenarioInfo = scenarios.data?.find(s => s.name === scenarioSlug);
   const [proxyUrl, setProxyUrl] = useState(`/embedded/${encodeURIComponent(scenarioSlug)}/`);
 
+  // Unified review summary from server
+  const reviewSummary = useReviewSummary(scenarioSlug, repoId);
+  const triggerReview = useTriggerReviewRun(repoId);
+  const [reviewJobId, setReviewJobId] = useState<string | null>(null);
+  const reviewJob = useReviewJobStatus(reviewJobId, repoId);
+
   useEffect(() => {
     let cancelled = false;
     fetch(`/embedded/${encodeURIComponent(scenarioSlug)}/external-url`)
@@ -652,22 +658,24 @@ function OverviewTab({
     return () => { cancelled = true; };
   }, [scenarioSlug]);
 
-  // Readiness logic — either a baseline or capture counts as "has screenshots"
+  // Used by both readiness fallback and visual status card
   const latestSnapshot = capture ?? baseline;
-  const hasScreenshots = latestSnapshot && latestSnapshot.screenshotCount > 0;
-  const hasTests = Boolean(latestTest);
-  const testsPass = latestTest?.success ?? false;
-  const qualityScore = tidinessScore.data?.score ?? null;
+
+  // Use server-side readiness when available, fall back to client-side calculation
   const hasBeenScanned = Boolean(tidinessStaleness.data?.last_scan_at) ||
     (tidinessStaleness.data ? !tidinessStaleness.data.stale_reason?.includes("no scans") : false);
-  const qualityOk = hasBeenScanned && qualityScore !== null && qualityScore >= 60;
 
-  let readiness: "green" | "yellow" | "red" = "red";
-  if (hasScreenshots && hasTests && testsPass && qualityOk) {
-    readiness = "green";
-  } else if (hasScreenshots || hasTests || qualityOk) {
-    readiness = "yellow";
-  }
+  const readiness: Readiness = reviewSummary.data?.readiness ?? (() => {
+    const latestSnapshot = capture ?? baseline;
+    const hasScreenshots = latestSnapshot && latestSnapshot.screenshotCount > 0;
+    const hasTests = Boolean(latestTest);
+    const testsPass = latestTest?.success ?? false;
+    const qualityScore = tidinessScore.data?.score ?? null;
+    const qualityOk = hasBeenScanned && qualityScore !== null && qualityScore >= 60;
+    if (hasScreenshots && hasTests && testsPass && qualityOk) return "green" as Readiness;
+    if (hasScreenshots || hasTests || qualityOk) return "yellow" as Readiness;
+    return "red" as Readiness;
+  })();
 
   const readinessColors = {
     green: "bg-emerald-500",
@@ -679,6 +687,14 @@ function OverviewTab({
     yellow: "Incomplete",
     red: "No data",
   };
+
+  const handleRerunAll = useCallback(() => {
+    triggerReview.mutate({ scenarioName: scenarioSlug }, {
+      onSuccess: (data) => setReviewJobId(data.jobId),
+    });
+  }, [triggerReview, scenarioSlug]);
+
+  const isRerunning = triggerReview.isPending || (reviewJob.data?.status === "running");
 
   return (
     <div className="space-y-4">
@@ -722,10 +738,40 @@ function OverviewTab({
       </div>
 
       {/* Readiness indicator */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className={`h-3 w-3 rounded-full ${readinessColors[readiness]}`} />
-        <span className="text-sm font-medium text-slate-200">{readinessLabels[readiness]}</span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className={`h-3 w-3 rounded-full ${readinessColors[readiness]}`} />
+          <span className="text-sm font-medium text-slate-200">{readinessLabels[readiness]}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRerunAll}
+          disabled={isRerunning}
+          className="h-7 text-xs gap-1"
+        >
+          {isRerunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Rerun All Checks
+        </Button>
       </div>
+      {isRerunning && reviewJob.data && (
+        <div className="mb-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+          <p className="text-xs text-slate-400 mb-2">Review run in progress...</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(reviewJob.data.checks).map(([check, status]) => (
+              <span key={check} className={`text-[11px] px-2 py-0.5 rounded-full ${
+                status === "completed" ? "bg-emerald-900/50 text-emerald-400" :
+                status === "running" ? "bg-blue-900/50 text-blue-400" :
+                status === "failed" ? "bg-red-900/50 text-red-400" :
+                status === "skipped" ? "bg-slate-800 text-slate-500" :
+                "bg-slate-800 text-slate-400"
+              }`}>
+                {check}: {status}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Change Summary Card */}
       {fileStats && (() => {

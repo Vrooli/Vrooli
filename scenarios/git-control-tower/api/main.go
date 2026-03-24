@@ -53,6 +53,7 @@ type Server struct {
 	auditorClient        *AuditorClient
 	scenarioLocator      *ScenarioLocator
 	envelopeCache        *EnvelopeCache
+	reviewJobStore       *ReviewJobStore
 }
 
 // NewServer initializes configuration, database, and routes
@@ -167,6 +168,7 @@ func NewServer() (*Server, error) {
 		}
 	}()
 
+	srv.reviewJobStore = NewReviewJobStore()
 	srv.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	srv.envelopeCache = NewEnvelopeCache(60 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})
@@ -286,6 +288,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/rules", s.handleAuditorRules).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/rules-fix", s.handleAuditorFix).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/rules-violations", s.handleAuditorViolations).Methods("GET")
+
+	// Review endpoints
+	s.router.HandleFunc("/api/v1/review/summary", s.handleReviewSummary).Methods("GET")
+	s.router.HandleFunc("/api/v1/review/run", s.handleReviewRun).Methods("POST")
+	s.router.HandleFunc("/api/v1/review/run/{jobId}", s.handleReviewJobStatus).Methods("GET")
 
 	// SSH key management endpoints
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")

@@ -80,6 +80,9 @@ import {
   fetchAuditorRules,
   applyAuditorFix,
   fetchAuditorViolations,
+  fetchReviewSummary,
+  triggerReviewRun,
+  fetchReviewJobStatus,
   type AuditorCheckJobResponse,
   type AuditorJobStatus,
   type AuditorRulesListResponse,
@@ -154,6 +157,8 @@ import {
   type AgentStopResponse,
   type ScenarioInfo,
   type ScenarioEnvelopeData,
+  type ReviewSummaryResponse,
+  type ReviewJobStatus,
   fetchScenarioEnvelope,
   ACTIVE_STATUSES,
   RUN_STATUS,
@@ -232,6 +237,10 @@ export const queryKeys = {
     ["repo", "rules-list", repoId ?? "default"] as const,
   rulesViolations: (scenarioName: string, repoId?: string | null) =>
     ["repo", "rules-violations", repoId ?? "default", scenarioName] as const,
+  reviewSummary: (scenarioName: string, repoId?: string | null) =>
+    ["review", "summary", repoId ?? "default", scenarioName] as const,
+  reviewJob: (jobId: string, repoId?: string | null) =>
+    ["review", "job", repoId ?? "default", jobId] as const,
 };
 
 const REPO_STORAGE_KEY = "gct.activeRepoId";
@@ -1159,5 +1168,43 @@ export function useAuditorViolations(scenarioName: string, enabled = true, repoI
     queryFn: () => fetchAuditorViolations(scenarioName, repoId ?? undefined),
     enabled: enabled && Boolean(scenarioName),
     staleTime: 30_000,
+  });
+}
+
+// ============================================================================
+// Review Hooks
+// ============================================================================
+
+export function useReviewSummary(scenarioName: string, repoId?: string | null) {
+  return useQuery<ReviewSummaryResponse, Error>({
+    queryKey: queryKeys.reviewSummary(scenarioName, repoId),
+    queryFn: () => fetchReviewSummary(scenarioName, repoId ?? undefined),
+    enabled: Boolean(scenarioName),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useTriggerReviewRun(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation<{ jobId: string }, Error, { scenarioName: string; checks?: string[] }>({
+    mutationFn: (req) => triggerReviewRun(req, repoId ?? undefined),
+    onSuccess: (_data, req) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.reviewSummary(req.scenarioName, repoId),
+      });
+    },
+  });
+}
+
+export function useReviewJobStatus(jobId: string | null, repoId?: string | null) {
+  return useQuery<ReviewJobStatus, Error>({
+    queryKey: queryKeys.reviewJob(jobId ?? "", repoId),
+    queryFn: () => fetchReviewJobStatus(jobId!, repoId ?? undefined),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (!status || status === "completed" || status === "failed") return false;
+      return 2_000;
+    },
   });
 }
