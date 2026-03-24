@@ -46,42 +46,77 @@ type ReviewDimensions struct {
 
 // CodeQualityDimension summarizes tidiness-manager results.
 type CodeQualityDimension struct {
-	Available  bool    `json:"available"`
-	Score      float64 `json:"score"`
-	Violations int     `json:"violations"`
-	Stale      bool    `json:"stale"`
-	LastScan   string  `json:"lastScan,omitempty"`
+	Available  bool               `json:"available"`
+	Score      float64            `json:"score"`
+	Violations int                `json:"violations"`
+	Stale      bool               `json:"stale"`
+	LastScan   string             `json:"lastScan,omitempty"`
+	TopIssues  []CodeQualityIssue `json:"topIssues,omitempty"`
+}
+
+// CodeQualityIssue is a category-level issue summary from the tidiness breakdown.
+type CodeQualityIssue struct {
+	Category string `json:"category"`
+	Count    int    `json:"count"`
 }
 
 // TestsDimension summarizes test-genie results.
 type TestsDimension struct {
-	Available   bool   `json:"available"`
-	Passed      bool   `json:"passed"`
-	Total       int    `json:"total"`
-	PassedCount int    `json:"passedCount"`
-	FailedCount int    `json:"failedCount"`
-	LastRun     string `json:"lastRun,omitempty"`
+	Available   bool          `json:"available"`
+	Passed      bool          `json:"passed"`
+	Total       int           `json:"total"`
+	PassedCount int           `json:"passedCount"`
+	FailedCount int           `json:"failedCount"`
+	LastRun     string        `json:"lastRun,omitempty"`
+	Failures    []TestFailure `json:"failures,omitempty"`
+}
+
+// TestFailure describes a single failed test phase.
+type TestFailure struct {
+	Phase          string `json:"phase"`
+	Error          string `json:"error,omitempty"`
+	Classification string `json:"classification,omitempty"`
+	Remediation    string `json:"remediation,omitempty"`
 }
 
 // StandardsDimension summarizes scenario-auditor results.
 type StandardsDimension struct {
-	Available          bool `json:"available"`
-	BlockingViolations int  `json:"blockingViolations"`
-	Warnings           int  `json:"warnings"`
-	TotalViolations    int  `json:"totalViolations"`
+	Available          bool                       `json:"available"`
+	BlockingViolations int                        `json:"blockingViolations"`
+	Warnings           int                        `json:"warnings"`
+	TotalViolations    int                        `json:"totalViolations"`
+	TopViolations      []StandardsViolationDetail `json:"topViolations,omitempty"`
+}
+
+// StandardsViolationDetail is a single standards violation for top-K display.
+type StandardsViolationDetail struct {
+	FilePath       string `json:"filePath"`
+	LineNumber     int    `json:"lineNumber"`
+	Title          string `json:"title"`
+	Severity       string `json:"severity"`
+	Recommendation string `json:"recommendation,omitempty"`
 }
 
 // VisualDimension summarizes visual capture data.
 type VisualDimension struct {
-	Available       bool `json:"available"`
-	ScreenshotCount int  `json:"screenshotCount"`
-	Stale           bool `json:"stale"`
+	Available       bool               `json:"available"`
+	ScreenshotCount int                `json:"screenshotCount"`
+	Stale           bool               `json:"stale"`
+	LatestCapture   *VisualCaptureMeta `json:"latestCapture,omitempty"`
+}
+
+// VisualCaptureMeta describes the most recent complete visual capture set.
+type VisualCaptureMeta struct {
+	CapturedAt      string `json:"capturedAt"`
+	CommitHash      string `json:"commitHash,omitempty"`
+	ScreenshotCount int    `json:"screenshotCount"`
 }
 
 // ProvenanceDimension summarizes AI provenance data.
 type ProvenanceDimension struct {
-	Available   bool `json:"available"`
-	TracedFiles int  `json:"tracedFiles"`
+	Available     bool     `json:"available"`
+	TracedFiles   int      `json:"tracedFiles"`
+	UntracedFiles []string `json:"untracedFiles,omitempty"`
 }
 
 // CheckStatus represents the status of an individual review check.
@@ -101,6 +136,7 @@ type ReviewRunRequest struct {
 	Checks        []string `json:"checks,omitempty"`
 	ExpectedPaths []string `json:"expectedPaths,omitempty"`
 	SandboxID     string   `json:"sandboxId,omitempty"`
+	Details       int      `json:"details,omitempty"`
 }
 
 // ReviewRunResponse is the immediate response from starting a review run.

@@ -82,6 +82,15 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	review := cliapp.CommandGroup{
+		Title: "Review",
+		Commands: []cliapp.Command{
+			{Name: "review-summary", NeedsAPI: true, Description: "Show readiness review for a scenario", Run: a.cmdReviewSummary},
+			{Name: "review-run", NeedsAPI: true, Description: "Run readiness checks and show results", Run: a.cmdReviewRun},
+			{Name: "review-status", NeedsAPI: true, Description: "Check status of a review run job", Run: a.cmdReviewStatus},
+		},
+	}
+
 	audit := cliapp.CommandGroup{
 		Title: "Audit",
 		Commands: []cliapp.Command{
@@ -96,7 +105,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, repo, audit, config}
+	return []cliapp.CommandGroup{health, repo, review, audit, config}
 }
 
 func (a *App) apiPath(v1Path string) string {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +32,12 @@ func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName)
+	detailCount, _ := strconv.Atoi(r.URL.Query().Get("details"))
+	if detailCount < 0 {
+		detailCount = 0
+	}
+
+	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName, detailCount)
 	hctx.Resp.OK(summary)
 }
 
@@ -76,8 +83,13 @@ func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	detailCount := req.Details
+	if detailCount < 0 {
+		detailCount = 0
+	}
+
 	jobID := uuid.New().String()
-	s.reviewJobStore.Create(jobID, checks, scenarioName)
+	s.reviewJobStore.Create(jobID, checks, scenarioName, detailCount)
 
 	repoID := hctx.RepoID
 	repoDir := hctx.RepoDir
@@ -111,8 +123,9 @@ func (s *Server) handleReviewJobStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // buildReviewSummary fans out concurrently to available downstream services and
-// assembles a ReviewSummaryResponse.
-func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string) *ReviewSummaryResponse {
+// assembles a ReviewSummaryResponse. When detailCount > 0, each dimension
+// includes top-K detail items extracted from the already-fetched service data.
+func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string, detailCount int) *ReviewSummaryResponse {
 	var dims ReviewDimensions
 	caps := make(map[string]bool)
 	var mu sync.Mutex
@@ -137,6 +150,9 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 			dim.Violations = score.Violations
 			if score.LastScan != nil {
 				dim.LastScan = score.LastScan.Format(time.RFC3339)
+			}
+			if detailCount > 0 && score.Breakdown != nil {
+				dim.TopIssues = buildCodeQualityIssues(score.Breakdown, detailCount)
 			}
 		}
 		staleness, err := s.tidinessClient.GetStaleness(ctx, scenarioName)
@@ -171,6 +187,9 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 			if latest.CompletedAt != "" {
 				dim.LastRun = latest.CompletedAt
 			}
+			if detailCount > 0 {
+				dim.Failures = buildTestFailures(latest.Phases, detailCount)
+			}
 		}
 		mu.Lock()
 		dims.Tests = dim
@@ -203,6 +222,9 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 					dim.Warnings++
 				}
 			}
+			if detailCount > 0 {
+				dim.TopViolations = buildTopViolations(violations.Violations, detailCount)
+			}
 		}
 		mu.Lock()
 		dims.Standards = dim
@@ -224,9 +246,18 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 		dim := &VisualDimension{Available: true}
 		snapshots, err := s.visualCaptureStorage.ListSnapshotSets(repoID, scenarioName)
 		if err == nil {
+			var latestTime time.Time
 			for _, snap := range snapshots {
 				if snap.Status == "complete" {
 					dim.ScreenshotCount += snap.ScreenshotCount
+					if detailCount > 0 && snap.CreatedAt.After(latestTime) {
+						latestTime = snap.CreatedAt
+						dim.LatestCapture = &VisualCaptureMeta{
+							CapturedAt:      snap.CreatedAt.UTC().Format(time.RFC3339),
+							CommitHash:      snap.CommitHash,
+							ScreenshotCount: snap.ScreenshotCount,
+						}
+					}
 				}
 			}
 		}
@@ -249,15 +280,20 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 
 		dim := &ProvenanceDimension{Available: true}
 		prov, err := s.sandbox.GetProvenanceByRun(ctx, repoDir)
+		tracedSet := make(map[string]struct{})
 		if err == nil && prov != nil {
-			fileSet := make(map[string]struct{})
 			for _, g := range prov.RunGroups {
 				for _, f := range g.Files {
-					fileSet[f.FilePath] = struct{}{}
+					tracedSet[f.FilePath] = struct{}{}
 				}
 			}
-			dim.TracedFiles = len(fileSet)
+			dim.TracedFiles = len(tracedSet)
 		}
+
+		if detailCount > 0 && repoDir != "" {
+			dim.UntracedFiles = buildUntracedFiles(ctx, s.git, repoDir, tracedSet, detailCount)
+		}
+
 		mu.Lock()
 		dims.Provenance = dim
 		mu.Unlock()
@@ -274,6 +310,132 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 		Capabilities: caps,
 		Timestamp:    time.Now().UTC().Format(time.RFC3339),
 	}
+}
+
+// buildCodeQualityIssues converts a TidinessBreakdown into a sorted slice of
+// non-zero category issues, capped at limit.
+func buildCodeQualityIssues(bd *TidinessBreakdown, limit int) []CodeQualityIssue {
+	candidates := []CodeQualityIssue{
+		{Category: "lint_issues", Count: bd.LintIssues},
+		{Category: "type_issues", Count: bd.TypeIssues},
+		{Category: "long_files", Count: bd.LongFiles},
+		{Category: "complex_functions", Count: bd.ComplexFunctions},
+		{Category: "tech_debt_markers", Count: bd.TechDebtMarkers},
+		{Category: "duplication_issues", Count: bd.DuplicationIssues},
+	}
+
+	// Filter to non-zero and sort by count descending.
+	var issues []CodeQualityIssue
+	for _, c := range candidates {
+		if c.Count > 0 {
+			issues = append(issues, c)
+		}
+	}
+	sort.Slice(issues, func(i, j int) bool {
+		return issues[i].Count > issues[j].Count
+	})
+	if len(issues) > limit {
+		issues = issues[:limit]
+	}
+	return issues
+}
+
+// buildTestFailures extracts failed phases from a test execution, capped at limit.
+func buildTestFailures(phases []TestPhaseResult, limit int) []TestFailure {
+	var failures []TestFailure
+	for _, p := range phases {
+		if p.Status != "failed" {
+			continue
+		}
+		failures = append(failures, TestFailure{
+			Phase:          p.Name,
+			Error:          p.Error,
+			Classification: p.Classification,
+			Remediation:    p.Remediation,
+		})
+		if len(failures) >= limit {
+			break
+		}
+	}
+	return failures
+}
+
+// severityOrder maps severity strings to sort priority (lower = more severe).
+var severityOrder = map[string]int{
+	"critical": 0,
+	"error":    1,
+	"warning":  2,
+}
+
+// buildTopViolations sorts violations by severity (blocking first) and returns
+// the top limit entries.
+func buildTopViolations(violations []AuditorViolation, limit int) []StandardsViolationDetail {
+	sorted := make([]AuditorViolation, len(violations))
+	copy(sorted, violations)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		oi, oki := severityOrder[sorted[i].Severity]
+		oj, okj := severityOrder[sorted[j].Severity]
+		if !oki {
+			oi = 3
+		}
+		if !okj {
+			oj = 3
+		}
+		return oi < oj
+	})
+
+	n := limit
+	if n > len(sorted) {
+		n = len(sorted)
+	}
+	details := make([]StandardsViolationDetail, n)
+	for i := 0; i < n; i++ {
+		v := sorted[i]
+		details[i] = StandardsViolationDetail{
+			FilePath:       v.FilePath,
+			LineNumber:     v.LineNumber,
+			Title:          v.Title,
+			Severity:       v.Severity,
+			Recommendation: v.Recommendation,
+		}
+	}
+	return details
+}
+
+// buildUntracedFiles computes files in git status that are not in the provenance
+// traced set. Returns up to limit file paths.
+func buildUntracedFiles(ctx context.Context, git GitRunner, repoDir string, tracedSet map[string]struct{}, limit int) []string {
+	raw, err := git.StatusPorcelainV2(ctx, repoDir)
+	if err != nil {
+		return nil
+	}
+	status, err := ParsePorcelainV2Status(raw)
+	if err != nil {
+		return nil
+	}
+
+	// Collect all changed file paths.
+	var allFiles []string
+	allFiles = append(allFiles, status.Files.Staged...)
+	allFiles = append(allFiles, status.Files.Unstaged...)
+	allFiles = append(allFiles, status.Files.Untracked...)
+
+	// Deduplicate and find files not in traced set.
+	seen := make(map[string]struct{})
+	var untraced []string
+	for _, f := range allFiles {
+		if _, dup := seen[f]; dup {
+			continue
+		}
+		seen[f] = struct{}{}
+		if _, traced := tracedSet[f]; !traced {
+			untraced = append(untraced, f)
+			if len(untraced) >= limit {
+				break
+			}
+		}
+	}
+	return untraced
 }
 
 // executeReviewRun runs checks in the background and updates the job store.
@@ -354,6 +516,7 @@ func (s *Server) executeReviewRun(jobID, scenarioName string, checks []string, r
 	}
 
 	// Build final summary after at least one check succeeded.
-	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName)
+	dc := s.reviewJobStore.DetailCount(jobID)
+	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName, dc)
 	s.reviewJobStore.Complete(jobID, summary)
 }

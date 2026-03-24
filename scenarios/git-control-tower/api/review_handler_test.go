@@ -292,7 +292,7 @@ func TestReviewJobStore_Lifecycle(t *testing.T) {
 	store := NewReviewJobStore()
 
 	// Create
-	job := store.Create("job-1", []string{"tidiness", "tests"}, "test-scenario")
+	job := store.Create("job-1", []string{"tidiness", "tests"}, "test-scenario", 0)
 	if job.Status != "running" {
 		t.Errorf("expected running, got %s", job.Status)
 	}
@@ -328,7 +328,7 @@ func TestReviewJobStore_Lifecycle(t *testing.T) {
 	}
 
 	// Fail a different job
-	store.Create("job-2", []string{"rules"}, "test-scenario-2")
+	store.Create("job-2", []string{"rules"}, "test-scenario-2", 0)
 	store.Fail("job-2", "something went wrong")
 	got, _ = store.Get("job-2")
 	if got.Status != "failed" {
@@ -355,7 +355,7 @@ func TestReviewJobStore_ActiveJobForScenario(t *testing.T) {
 	}
 
 	// Create a running job.
-	store.Create("job-1", []string{"tests"}, "foo")
+	store.Create("job-1", []string{"tests"}, "foo", 0)
 	if id := store.ActiveJobForScenario("foo"); id != "job-1" {
 		t.Errorf("expected job-1, got %s", id)
 	}
@@ -377,13 +377,13 @@ func TestReviewJobStore_Cleanup(t *testing.T) {
 	store := NewReviewJobStore()
 
 	// Create a job with a timestamp in the past.
-	store.Create("old-job", []string{"tests"}, "scenario")
+	store.Create("old-job", []string{"tests"}, "scenario", 0)
 	// Manually backdate the entry.
 	store.mu.Lock()
 	store.jobs["old-job"].status.StartedAt = time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
 	store.mu.Unlock()
 
-	store.Create("recent-job", []string{"tests"}, "scenario2")
+	store.Create("recent-job", []string{"tests"}, "scenario2", 0)
 
 	store.Cleanup()
 
@@ -398,7 +398,7 @@ func TestReviewJobStore_Cleanup(t *testing.T) {
 func TestReviewJobStore_GetReturnsCopy(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-1", []string{"tests"}, "scenario")
+	store.Create("job-1", []string{"tests"}, "scenario", 0)
 
 	got1, _ := store.Get("job-1")
 	got1.Checks["tests"] = CheckCompleted // mutate the copy
@@ -581,7 +581,7 @@ func TestBuildReviewSummary_NoServicesAvailable(t *testing.T) {
 func TestExecuteReviewRun_AllFailed(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-fail", []string{"tidiness", "tests"}, "my-scenario")
+	store.Create("job-fail", []string{"tidiness", "tests"}, "my-scenario", 0)
 
 	// Simulate all checks failing.
 	store.UpdateCheck("job-fail", "tidiness", CheckFailed)
@@ -617,7 +617,7 @@ func TestExecuteReviewRun_AllFailed(t *testing.T) {
 func TestExecuteReviewRun_AllSkipped(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-skip", []string{"tidiness", "tests"}, "my-scenario")
+	store.Create("job-skip", []string{"tidiness", "tests"}, "my-scenario", 0)
 
 	store.UpdateCheck("job-skip", "tidiness", CheckSkipped)
 	store.UpdateCheck("job-skip", "tests", CheckSkipped)
@@ -638,7 +638,7 @@ func TestExecuteReviewRun_AllSkipped(t *testing.T) {
 func TestExecuteReviewRun_MixedResults(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-mix", []string{"tidiness", "tests", "rules"}, "my-scenario")
+	store.Create("job-mix", []string{"tidiness", "tests", "rules"}, "my-scenario", 0)
 
 	store.UpdateCheck("job-mix", "tidiness", CheckCompleted)
 	store.UpdateCheck("job-mix", "tests", CheckFailed)
@@ -665,7 +665,7 @@ func TestReviewJobStore_ConcurrencyGuard(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
 
-	store.Create("job-1", []string{"tests"}, "my-scenario")
+	store.Create("job-1", []string{"tests"}, "my-scenario", 0)
 
 	// Same scenario should be blocked.
 	if id := store.ActiveJobForScenario("my-scenario"); id != "job-1" {
@@ -822,7 +822,7 @@ func TestReviewJobStore_StartStopCleanup(t *testing.T) {
 	store := NewReviewJobStore()
 	store.StartCleanup(50 * time.Millisecond)
 
-	store.Create("old-job", []string{"tests"}, "scenario")
+	store.Create("old-job", []string{"tests"}, "scenario", 0)
 	store.mu.Lock()
 	store.jobs["old-job"].status.StartedAt = time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
 	store.mu.Unlock()
@@ -850,5 +850,244 @@ func TestReviewRunRequest_CheckValidation(t *testing.T) {
 	msg := fmt.Sprintf("unknown check: %s", badCheck)
 	if msg != "unknown check: unknown-check" {
 		t.Errorf("unexpected message format: %s", msg)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Detail field population tests
+// ---------------------------------------------------------------------------
+
+func TestBuildCodeQualityIssues(t *testing.T) {
+	t.Parallel()
+
+	bd := &TidinessBreakdown{
+		LintIssues:        5,
+		TypeIssues:        0,
+		LongFiles:         2,
+		ComplexFunctions:  8,
+		TechDebtMarkers:   0,
+		DuplicationIssues: 1,
+	}
+
+	issues := buildCodeQualityIssues(bd, 10)
+	if len(issues) != 4 { // only non-zero
+		t.Fatalf("expected 4 issues, got %d", len(issues))
+	}
+	// Sorted by count descending.
+	if issues[0].Category != "complex_functions" || issues[0].Count != 8 {
+		t.Errorf("expected complex_functions:8 first, got %s:%d", issues[0].Category, issues[0].Count)
+	}
+	if issues[1].Category != "lint_issues" || issues[1].Count != 5 {
+		t.Errorf("expected lint_issues:5 second, got %s:%d", issues[1].Category, issues[1].Count)
+	}
+
+	// Test capping.
+	capped := buildCodeQualityIssues(bd, 2)
+	if len(capped) != 2 {
+		t.Fatalf("expected 2 capped issues, got %d", len(capped))
+	}
+}
+
+func TestBuildCodeQualityIssues_AllZero(t *testing.T) {
+	t.Parallel()
+	bd := &TidinessBreakdown{}
+	issues := buildCodeQualityIssues(bd, 5)
+	if len(issues) != 0 {
+		t.Errorf("expected 0 issues for all-zero breakdown, got %d", len(issues))
+	}
+}
+
+func TestBuildTestFailures(t *testing.T) {
+	t.Parallel()
+
+	phases := []TestPhaseResult{
+		{Name: "build", Status: "passed"},
+		{Name: "unit", Status: "failed", Error: "assertion error", Classification: "logic", Remediation: "fix test"},
+		{Name: "integration", Status: "failed", Error: "timeout", Classification: "infra"},
+		{Name: "lint", Status: "passed"},
+	}
+
+	failures := buildTestFailures(phases, 10)
+	if len(failures) != 2 {
+		t.Fatalf("expected 2 failures, got %d", len(failures))
+	}
+	if failures[0].Phase != "unit" {
+		t.Errorf("expected 'unit' first, got %s", failures[0].Phase)
+	}
+	if failures[0].Remediation != "fix test" {
+		t.Errorf("expected 'fix test' remediation, got %s", failures[0].Remediation)
+	}
+	if failures[1].Phase != "integration" {
+		t.Errorf("expected 'integration' second, got %s", failures[1].Phase)
+	}
+
+	// Test capping.
+	capped := buildTestFailures(phases, 1)
+	if len(capped) != 1 {
+		t.Fatalf("expected 1 capped failure, got %d", len(capped))
+	}
+}
+
+func TestBuildTestFailures_NoneFaild(t *testing.T) {
+	t.Parallel()
+	phases := []TestPhaseResult{
+		{Name: "build", Status: "passed"},
+		{Name: "unit", Status: "passed"},
+	}
+	failures := buildTestFailures(phases, 5)
+	if len(failures) != 0 {
+		t.Errorf("expected 0 failures, got %d", len(failures))
+	}
+}
+
+func TestBuildTopViolations(t *testing.T) {
+	t.Parallel()
+
+	violations := []AuditorViolation{
+		{FilePath: "a.go", LineNumber: 10, Title: "warn1", Severity: "warning", Recommendation: "fix warn"},
+		{FilePath: "b.go", LineNumber: 20, Title: "crit1", Severity: "critical", Recommendation: "fix crit"},
+		{FilePath: "c.go", LineNumber: 30, Title: "err1", Severity: "error", Recommendation: "fix err"},
+		{FilePath: "d.go", LineNumber: 40, Title: "warn2", Severity: "warning"},
+	}
+
+	top := buildTopViolations(violations, 10)
+	if len(top) != 4 {
+		t.Fatalf("expected 4 violations, got %d", len(top))
+	}
+	// Sorted: critical, error, warning, warning.
+	if top[0].Severity != "critical" {
+		t.Errorf("expected critical first, got %s", top[0].Severity)
+	}
+	if top[1].Severity != "error" {
+		t.Errorf("expected error second, got %s", top[1].Severity)
+	}
+	if top[2].Severity != "warning" || top[3].Severity != "warning" {
+		t.Error("expected warnings last")
+	}
+
+	// Test capping.
+	capped := buildTopViolations(violations, 2)
+	if len(capped) != 2 {
+		t.Fatalf("expected 2 capped violations, got %d", len(capped))
+	}
+	if capped[0].Severity != "critical" || capped[1].Severity != "error" {
+		t.Error("capped should contain critical and error")
+	}
+}
+
+func TestBuildTopViolations_Empty(t *testing.T) {
+	t.Parallel()
+	top := buildTopViolations(nil, 5)
+	if len(top) != 0 {
+		t.Errorf("expected 0 for nil violations, got %d", len(top))
+	}
+}
+
+func TestBuildUntracedFiles(t *testing.T) {
+	t.Parallel()
+
+	fakeGit := NewFakeGitRunner()
+	fakeGit.Unstaged = map[string]string{"api/handler.go": "diff", "api/store.go": "diff"}
+	fakeGit.Untracked = []string{"cli/new.go"}
+
+	tracedSet := map[string]struct{}{
+		"api/handler.go": {},
+	}
+
+	untraced := buildUntracedFiles(context.Background(), fakeGit, "/repo", tracedSet, 10)
+
+	// api/store.go and cli/new.go should be untraced.
+	if len(untraced) != 2 {
+		t.Fatalf("expected 2 untraced files, got %d: %v", len(untraced), untraced)
+	}
+
+	// Test capping.
+	capped := buildUntracedFiles(context.Background(), fakeGit, "/repo", tracedSet, 1)
+	if len(capped) != 1 {
+		t.Fatalf("expected 1 capped untraced file, got %d", len(capped))
+	}
+}
+
+func TestBuildUntracedFiles_AllTraced(t *testing.T) {
+	t.Parallel()
+
+	fakeGit := NewFakeGitRunner()
+	fakeGit.Unstaged = map[string]string{"api/handler.go": "diff"}
+
+	tracedSet := map[string]struct{}{
+		"api/handler.go": {},
+	}
+
+	untraced := buildUntracedFiles(context.Background(), fakeGit, "/repo", tracedSet, 10)
+	if len(untraced) != 0 {
+		t.Errorf("expected 0 untraced files when all traced, got %d", len(untraced))
+	}
+}
+
+func TestReviewDetailCount_BackwardCompat(t *testing.T) {
+	t.Parallel()
+
+	// When detailCount is 0, all detail fields should remain nil/empty.
+	scanTime := time.Now().Add(-5 * time.Minute)
+	dims := ReviewDimensions{
+		CodeQuality: &CodeQualityDimension{
+			Available:  true,
+			Score:      85,
+			Violations: 3,
+			LastScan:   scanTime.Format(time.RFC3339),
+		},
+		Tests: &TestsDimension{
+			Available:   true,
+			Passed:      false,
+			Total:       5,
+			PassedCount: 4,
+			FailedCount: 1,
+		},
+		Standards: &StandardsDimension{
+			Available:          true,
+			BlockingViolations: 1,
+			TotalViolations:    3,
+		},
+		Visual: &VisualDimension{
+			Available:       true,
+			ScreenshotCount: 2,
+		},
+		Provenance: &ProvenanceDimension{
+			Available:   true,
+			TracedFiles: 10,
+		},
+	}
+
+	// All detail fields should be nil/empty since they weren't populated.
+	if dims.CodeQuality.TopIssues != nil {
+		t.Error("TopIssues should be nil when not populated")
+	}
+	if dims.Tests.Failures != nil {
+		t.Error("Failures should be nil when not populated")
+	}
+	if dims.Standards.TopViolations != nil {
+		t.Error("TopViolations should be nil when not populated")
+	}
+	if dims.Visual.LatestCapture != nil {
+		t.Error("LatestCapture should be nil when not populated")
+	}
+	if dims.Provenance.UntracedFiles != nil {
+		t.Error("UntracedFiles should be nil when not populated")
+	}
+}
+
+func TestReviewJobStore_DetailCount(t *testing.T) {
+	t.Parallel()
+	store := NewReviewJobStore()
+	store.Create("job-1", []string{"tests"}, "scenario", 5)
+
+	dc := store.DetailCount("job-1")
+	if dc != 5 {
+		t.Errorf("expected detail count 5, got %d", dc)
+	}
+
+	dc = store.DetailCount("nonexistent")
+	if dc != 0 {
+		t.Errorf("expected detail count 0 for nonexistent job, got %d", dc)
 	}
 }

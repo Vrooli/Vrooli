@@ -17,6 +17,7 @@ type ReviewJobStore struct {
 type reviewJobEntry struct {
 	status       *ReviewJobStatus
 	scenarioName string
+	detailCount  int
 }
 
 // NewReviewJobStore creates a new empty ReviewJobStore.
@@ -27,7 +28,7 @@ func NewReviewJobStore() *ReviewJobStore {
 }
 
 // Create initialises a new job with the given checks set to pending.
-func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName string) *ReviewJobStatus {
+func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName string, detailCount int) *ReviewJobStatus {
 	checkMap := make(map[string]CheckStatus, len(checks))
 	for _, c := range checks {
 		checkMap[c] = CheckPending
@@ -41,10 +42,21 @@ func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName stri
 	}
 
 	s.mu.Lock()
-	s.jobs[jobID] = &reviewJobEntry{status: job, scenarioName: scenarioName}
+	s.jobs[jobID] = &reviewJobEntry{status: job, scenarioName: scenarioName, detailCount: detailCount}
 	s.mu.Unlock()
 
 	return job
+}
+
+// DetailCount returns the detail count stored for the given job.
+func (s *ReviewJobStore) DetailCount(jobID string) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if entry, ok := s.jobs[jobID]; ok {
+		return entry.detailCount
+	}
+	return 0
 }
 
 // ActiveJobForScenario returns the job ID of a running job for the given scenario, or "".
