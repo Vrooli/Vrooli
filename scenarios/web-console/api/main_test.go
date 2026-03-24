@@ -42,6 +42,8 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 		{"GET", "/api/v1/voice/speaker/profiles"},
 		{"POST", "/api/v1/voice/speaker/enroll"},
 		{"DELETE", "/api/v1/voice/speaker/profile"},
+		{"POST", "/api/v1/voice/speaker/profile/remove"},
+		{"POST", "/api/v1/voice/speaker/profile/delete"},
 	}
 
 	for _, rt := range routes {

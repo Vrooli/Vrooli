@@ -21,7 +21,7 @@ type SpeakerVerificationEnrollmentRequest struct {
 	ProfileID   string `json:"profileId"`
 	DisplayName string `json:"displayName"`
 	Notes       string `json:"notes"`
-	SetActive   bool   `json:"setActive"`
+	AddToActive bool   `json:"addToActive"`
 	Enable      bool   `json:"enable"`
 }
 
@@ -54,14 +54,13 @@ func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) 
 		Allowed:   true,
 		Threshold: cfg.Threshold,
 		Mode:      cfg.Mode,
-		ProfileID: cfg.ProfileID,
 	}
 	if !decision.Enabled {
 		return decision
 	}
-	if cfg.ProfileID == "" {
+	if len(cfg.ProfileIDs) == 0 {
 		decision.Allowed = cfg.FallbackWithoutVerification
-		decision.ErrorMessage = "speaker profile is not configured"
+		decision.ErrorMessage = "no speaker profiles configured"
 		return decision
 	}
 	if s.speakerVerification == nil {
@@ -70,22 +69,48 @@ func (s *Server) evaluateSpeakerVerification(ctx context.Context, audio []byte) 
 		return decision
 	}
 
-	result, err := s.speakerVerification.Verify(ctx, audio, cfg.ProfileID, cfg.Threshold)
-	if err != nil {
-		decision.Allowed = cfg.FallbackWithoutVerification
-		decision.ErrorMessage = err.Error()
-		return decision
+	// Try each profile — accept on first match (any-match strategy).
+	var bestScore float64
+	var bestProfileID string
+	var lastErr error
+	for _, profileID := range cfg.ProfileIDs {
+		result, err := s.speakerVerification.Verify(ctx, audio, profileID, cfg.Threshold)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if result.Score > bestScore {
+			bestScore = result.Score
+			bestProfileID = result.ProfileID
+			if bestProfileID == "" {
+				bestProfileID = profileID
+			}
+		}
+		if result.Matched {
+			decision.Applied = true
+			decision.Matched = true
+			decision.Score = result.Score
+			decision.Threshold = result.Threshold
+			decision.ProfileID = bestProfileID
+			decision.Allowed = true
+			return decision
+		}
 	}
 
-	decision.Applied = true
-	decision.Matched = result.Matched
-	decision.Score = result.Score
-	decision.Threshold = result.Threshold
-	if result.ProfileID != "" {
-		decision.ProfileID = result.ProfileID
+	// No profile matched — report the best score.
+	if bestProfileID != "" {
+		decision.Applied = true
+		decision.Score = bestScore
+		decision.ProfileID = bestProfileID
+	} else if lastErr != nil {
+		decision.ErrorMessage = lastErr.Error()
 	}
-	if result.Matched || cfg.Mode == "advisory" {
+	if cfg.Mode == "advisory" {
 		decision.Allowed = true
+		return decision
+	}
+	if !decision.Applied {
+		decision.Allowed = cfg.FallbackWithoutVerification
 		return decision
 	}
 	decision.Allowed = false
@@ -136,7 +161,7 @@ func (s *Server) handleEnrollSpeakerProfile(w http.ResponseWriter, r *http.Reque
 		ProfileID:   strings.TrimSpace(r.FormValue("profileId")),
 		DisplayName: strings.TrimSpace(r.FormValue("displayName")),
 		Notes:       strings.TrimSpace(r.FormValue("notes")),
-		SetActive:   r.FormValue("setActive") != "false",
+		AddToActive: r.FormValue("addToActive") != "false",
 		Enable:      r.FormValue("enable") != "false",
 	}
 	if req.ProfileID == "" {
@@ -156,8 +181,10 @@ func (s *Server) handleEnrollSpeakerProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	cfg := s.getSpeakerVerificationConfig()
-	if req.SetActive {
-		cfg.ProfileID = req.ProfileID
+	if req.AddToActive {
+		if !containsString(cfg.ProfileIDs, req.ProfileID) {
+			cfg.ProfileIDs = append(cfg.ProfileIDs, req.ProfileID)
+		}
 	}
 	if req.Enable {
 		cfg.Enabled = true
@@ -189,7 +216,7 @@ func (s *Server) handleEnrollSpeakerProfile(w http.ResponseWriter, r *http.Reque
 func (s *Server) handleClearSpeakerProfileBinding(w http.ResponseWriter, _ *http.Request) {
 	cfg := s.getSpeakerVerificationConfig()
 	cfg.Enabled = false
-	cfg.ProfileID = ""
+	cfg.ProfileIDs = nil
 	if err := cfg.Validate(); err != nil {
 		writeCatalogError(w, "speaker_profile_clear_failed", err.Error())
 		return
@@ -199,6 +226,97 @@ func (s *Server) handleClearSpeakerProfileBinding(w http.ResponseWriter, _ *http
 		log.Printf("speaker-verification-config: persist failed after clear binding: %v", err)
 	}
 	writeJSON(w, http.StatusOK, cfg)
+}
+
+func (s *Server) handleRemoveSpeakerProfile(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ProfileID string `json:"profileId"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	if body.ProfileID == "" {
+		writeCatalogError(w, "invalid_body", "profileId is required")
+		return
+	}
+
+	cfg := s.getSpeakerVerificationConfig()
+	cfg.ProfileIDs = removeString(cfg.ProfileIDs, body.ProfileID)
+	if len(cfg.ProfileIDs) == 0 {
+		cfg.Enabled = false
+	}
+	if err := cfg.Validate(); err != nil {
+		writeCatalogError(w, "speaker_profile_remove_failed", err.Error())
+		return
+	}
+	s.setSpeakerVerificationConfig(cfg)
+	if err := saveSpeakerVerificationConfig(s.speakerVerificationConfigPath, cfg); err != nil {
+		log.Printf("speaker-verification-config: persist failed after remove profile: %v", err)
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+// handleDeleteSpeakerProfile deletes a profile from the speaker-verification
+// resource AND removes it from the active config list.
+func (s *Server) handleDeleteSpeakerProfile(w http.ResponseWriter, r *http.Request) {
+	if s.speakerVerification == nil {
+		writeCatalogError(w, "speaker_verification_unavailable", "Speaker verification resource is not configured")
+		return
+	}
+
+	var body struct {
+		ProfileID string `json:"profileId"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	if body.ProfileID == "" {
+		writeCatalogError(w, "invalid_body", "profileId is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	if err := s.speakerVerification.DeleteProfile(ctx, body.ProfileID); err != nil {
+		log.Printf("speaker-verification-delete: %v", err)
+		writeCatalogError(w, "speaker_delete_failed", "Failed to delete speaker profile from resource")
+		return
+	}
+
+	// Also remove from the active config list.
+	cfg := s.getSpeakerVerificationConfig()
+	cfg.ProfileIDs = removeString(cfg.ProfileIDs, body.ProfileID)
+	if len(cfg.ProfileIDs) == 0 {
+		cfg.Enabled = false
+	}
+	if err := cfg.Validate(); err != nil {
+		writeCatalogError(w, "speaker_delete_failed", err.Error())
+		return
+	}
+	s.setSpeakerVerificationConfig(cfg)
+	if err := saveSpeakerVerificationConfig(s.speakerVerificationConfigPath, cfg); err != nil {
+		log.Printf("speaker-verification-config: persist failed after delete: %v", err)
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+func containsString(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(ss []string, s string) []string {
+	result := make([]string, 0, len(ss))
+	for _, v := range ss {
+		if v != s {
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // extractTargetSpeaker attempts to isolate the enrolled speaker's voice from
@@ -219,7 +337,7 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 		decision := s.evaluateSpeakerVerification(ctx, audio)
 		return audio, decision
 	}
-	if cfg.ProfileID == "" {
+	if len(cfg.ProfileIDs) == 0 {
 		decision := s.evaluateSpeakerVerification(ctx, audio)
 		return audio, decision
 	}
@@ -228,14 +346,43 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 		return audio, decision
 	}
 
-	// Call the extraction endpoint with a generous timeout.
+	// Try extraction against each profile — accept on first match.
 	extractCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	result, err := s.speakerVerification.Extract(extractCtx, audio, cfg.ProfileID, true)
-	if err != nil {
-		// TSE failed — fall back to verification-only on original audio.
-		log.Printf("speaker-extraction: failed, falling back to verify-only: %v", err)
+	var bestScore float64
+	var bestProfileID string
+	var bestAudio []byte
+	for _, profileID := range cfg.ProfileIDs {
+		result, err := s.speakerVerification.Extract(extractCtx, audio, profileID, true)
+		if err != nil {
+			log.Printf("speaker-extraction: profile %s failed: %v", profileID, err)
+			continue
+		}
+		if result.Score > bestScore {
+			bestScore = result.Score
+			bestProfileID = profileID
+			bestAudio = result.Audio
+		}
+		if result.Matched {
+			return result.Audio, speakerVerificationGateDecision{
+				Enabled:   true,
+				Applied:   true,
+				Matched:   true,
+				Score:     result.Score,
+				Threshold: cfg.Threshold,
+				ProfileID: profileID,
+				Mode:      cfg.Mode,
+				Extracted: true,
+				Allowed:   true,
+			}
+		}
+	}
+
+	// No profile matched via extraction. If we got at least one result,
+	// report the best score; otherwise fall back to verify-only.
+	if bestProfileID == "" {
+		log.Printf("speaker-extraction: all profiles failed, falling back to verify-only")
 		decision := s.evaluateSpeakerVerification(ctx, audio)
 		return audio, decision
 	}
@@ -243,19 +390,17 @@ func (s *Server) extractTargetSpeaker(ctx context.Context, audio []byte) ([]byte
 	decision := speakerVerificationGateDecision{
 		Enabled:   true,
 		Applied:   true,
-		Matched:   result.Matched,
-		Score:     result.Score,
+		Matched:   false,
+		Score:     bestScore,
 		Threshold: cfg.Threshold,
-		ProfileID: cfg.ProfileID,
+		ProfileID: bestProfileID,
 		Mode:      cfg.Mode,
 		Extracted: true,
 	}
-
-	if result.Matched || cfg.Mode == "advisory" {
+	if cfg.Mode == "advisory" {
 		decision.Allowed = true
-		return result.Audio, decision
+		return bestAudio, decision
 	}
-
 	decision.Allowed = false
 	return nil, decision
 }

@@ -272,7 +272,7 @@ func TestVoiceTranscribe_SpeakerVerificationRejectsAudio(t *testing.T) {
 	srv := serverWithCapability(true)
 	srv.speakerVerificationConfig = SpeakerVerificationConfig{
 		Enabled:                     true,
-		ProfileID:                   "default",
+		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",

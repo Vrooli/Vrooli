@@ -126,8 +126,7 @@ func (s *Server) handleVoiceStreamWS(w http.ResponseWriter, r *http.Request) {
 		_ = writeJSON(VoiceStreamMessage{
 			Type:              VoiceMsgSpeakerStatus,
 			Enabled:           speakerCfg.Enabled && speakerCfg.Mode != "off",
-			ProfileConfigured: speakerCfg.ProfileID != "",
-			ProfileID:         speakerCfg.ProfileID,
+			ProfileConfigured: len(speakerCfg.ProfileIDs) > 0,
 			Threshold:         speakerCfg.Threshold,
 			ExtractionEnabled: speakerCfg.ExtractionEnabled,
 		})

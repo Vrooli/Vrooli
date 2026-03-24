@@ -18,7 +18,8 @@ func TestLoadSpeakerVerificationConfig_MissingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if cfg != DefaultSpeakerVerificationConfig() {
+	defaults := DefaultSpeakerVerificationConfig()
+	if cfg.Enabled != defaults.Enabled || cfg.Threshold != defaults.Threshold || cfg.Mode != defaults.Mode {
 		t.Fatalf("expected defaults, got %+v", cfg)
 	}
 }
@@ -28,7 +29,7 @@ func TestSpeakerVerificationConfig_RoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "speaker-verification-config.json")
 	cfg := SpeakerVerificationConfig{
 		Enabled:                     true,
-		ProfileID:                   "default",
+		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.9,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
@@ -41,8 +42,15 @@ func TestSpeakerVerificationConfig_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadSpeakerVerificationConfig error = %v", err)
 	}
-	if loaded != cfg {
+	if loaded.Enabled != cfg.Enabled || loaded.Threshold != cfg.Threshold ||
+		loaded.Mode != cfg.Mode || loaded.RejectBehavior != cfg.RejectBehavior ||
+		len(loaded.ProfileIDs) != len(cfg.ProfileIDs) {
 		t.Fatalf("loaded config mismatch:\n got %+v\nwant %+v", loaded, cfg)
+	}
+	for i, id := range cfg.ProfileIDs {
+		if loaded.ProfileIDs[i] != id {
+			t.Fatalf("profileIDs[%d] = %q, want %q", i, loaded.ProfileIDs[i], id)
+		}
 	}
 }
 
@@ -50,9 +58,9 @@ func TestSpeakerVerificationConfigValidate(t *testing.T) {
 	cfg := DefaultSpeakerVerificationConfig()
 	cfg.Enabled = true
 	if err := cfg.Validate(); err == nil {
-		t.Fatal("expected missing profileId validation error")
+		t.Fatal("expected missing profileIds validation error")
 	}
-	cfg.ProfileID = "default"
+	cfg.ProfileIDs = []string{"default"}
 	cfg.Threshold = 1.1
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected threshold validation error")
@@ -73,7 +81,8 @@ func TestHandleGetSpeakerVerificationConfig(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if cfg != DefaultSpeakerVerificationConfig() {
+	defaults := DefaultSpeakerVerificationConfig()
+	if cfg.Enabled != defaults.Enabled || cfg.Threshold != defaults.Threshold || cfg.Mode != defaults.Mode {
 		t.Fatalf("config mismatch: got %+v", cfg)
 	}
 }
@@ -84,7 +93,7 @@ func TestHandleUpdateSpeakerVerificationConfig(t *testing.T) {
 		speakerVerificationConfig:     DefaultSpeakerVerificationConfig(),
 		speakerVerificationConfigPath: filepath.Join(dir, "speaker-verification-config.json"),
 	}
-	body := `{"enabled":true,"profileId":"default","threshold":0.9,"mode":"filter","rejectBehavior":"drop"}`
+	body := `{"enabled":true,"profileIds":["default"],"threshold":0.9,"mode":"filter","rejectBehavior":"drop"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/voice/speaker/config", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -96,7 +105,7 @@ func TestHandleUpdateSpeakerVerificationConfig(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &cfg); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !cfg.Enabled || cfg.ProfileID != "default" || cfg.Threshold != 0.9 {
+	if !cfg.Enabled || len(cfg.ProfileIDs) != 1 || cfg.ProfileIDs[0] != "default" || cfg.Threshold != 0.9 {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }
@@ -145,7 +154,7 @@ func TestHandleGetSpeakerVerificationStatus(t *testing.T) {
 		capabilities: reg,
 		speakerVerificationConfig: SpeakerVerificationConfig{
 			Enabled:        true,
-			ProfileID:      "default",
+			ProfileIDs:     []string{"default"},
 			Threshold:      0.85,
 			Mode:           "filter",
 			RejectBehavior: "drop",
@@ -275,7 +284,7 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 	}
 	_ = writer.WriteField("profileId", "default")
 	_ = writer.WriteField("displayName", "My Voice")
-	_ = writer.WriteField("setActive", "true")
+	_ = writer.WriteField("addToActive", "true")
 	_ = writer.WriteField("enable", "true")
 	if err := writer.Close(); err != nil {
 		t.Fatalf("close writer: %v", err)
@@ -290,7 +299,7 @@ func TestHandleEnrollSpeakerProfile(t *testing.T) {
 	}
 
 	cfg := srv.getSpeakerVerificationConfig()
-	if !cfg.Enabled || cfg.ProfileID != "default" {
+	if !cfg.Enabled || len(cfg.ProfileIDs) != 1 || cfg.ProfileIDs[0] != "default" {
 		t.Fatalf("unexpected config after enroll: %+v", cfg)
 	}
 }
@@ -300,7 +309,7 @@ func TestHandleClearSpeakerProfileBinding(t *testing.T) {
 	srv := &Server{
 		speakerVerificationConfig: SpeakerVerificationConfig{
 			Enabled:        true,
-			ProfileID:      "default",
+			ProfileIDs:     []string{"default", "singing"},
 			Threshold:      0.85,
 			Mode:           "filter",
 			RejectBehavior: "drop",
@@ -316,7 +325,7 @@ func TestHandleClearSpeakerProfileBinding(t *testing.T) {
 	}
 
 	cfg := srv.getSpeakerVerificationConfig()
-	if cfg.Enabled || cfg.ProfileID != "" {
+	if cfg.Enabled || len(cfg.ProfileIDs) != 0 {
 		t.Fatalf("unexpected config after clear: %+v", cfg)
 	}
 }

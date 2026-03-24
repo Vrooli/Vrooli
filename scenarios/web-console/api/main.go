@@ -161,9 +161,9 @@ func NewServer(db *sql.DB) *Server {
 		speakerVerificationCfg = DefaultSpeakerVerificationConfig()
 	}
 	log.Printf(
-		"speaker-verification-config: loaded: enabled=%v profile=%s threshold=%.2f mode=%s",
+		"speaker-verification-config: loaded: enabled=%v profiles=%v threshold=%.2f mode=%s",
 		speakerVerificationCfg.Enabled,
-		speakerVerificationCfg.ProfileID,
+		speakerVerificationCfg.ProfileIDs,
 		speakerVerificationCfg.Threshold,
 		speakerVerificationCfg.Mode,
 	)
@@ -383,6 +383,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/voice/speaker/profiles", s.handleGetSpeakerVerificationProfiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/voice/speaker/enroll", s.handleEnrollSpeakerProfile).Methods("POST")
 	s.router.HandleFunc("/api/v1/voice/speaker/profile", s.handleClearSpeakerProfileBinding).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/voice/speaker/profile/remove", s.handleRemoveSpeakerProfile).Methods("POST")
+	s.router.HandleFunc("/api/v1/voice/speaker/profile/delete", s.handleDeleteSpeakerProfile).Methods("POST")
 
 	// Hooks
 	s.router.HandleFunc("/api/v1/hooks/stop", s.handleHookStop).Methods("POST")

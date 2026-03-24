@@ -585,7 +585,7 @@ export async function updateVoiceStreamConfig(
 
 export interface SpeakerVerificationConfig {
   enabled: boolean;
-  profileId: string;
+  profileIds: string[];
   threshold: number;
   mode: "off" | "filter" | "advisory";
   rejectBehavior: "drop" | "show-muted";
@@ -690,7 +690,7 @@ export async function enrollSpeakerVerificationProfile(args: {
   profileId?: string;
   displayName?: string;
   notes?: string;
-  setActive?: boolean;
+  addToActive?: boolean;
   enable?: boolean;
 }): Promise<SpeakerVerificationEnrollResult> {
   const url = buildApiUrl("/voice/speaker/enroll", { baseUrl: API_BASE });
@@ -699,7 +699,7 @@ export async function enrollSpeakerVerificationProfile(args: {
   if (args.profileId) formData.append("profileId", args.profileId);
   if (args.displayName) formData.append("displayName", args.displayName);
   if (args.notes) formData.append("notes", args.notes);
-  if (args.setActive !== undefined) formData.append("setActive", String(args.setActive));
+  if (args.addToActive !== undefined) formData.append("addToActive", String(args.addToActive));
   if (args.enable !== undefined) formData.append("enable", String(args.enable));
 
   const res = await fetch(url, {
@@ -717,6 +717,28 @@ export async function clearSpeakerVerificationProfile(): Promise<SpeakerVerifica
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw await extractAPIError(res, "Failed to clear active speaker profile");
+  return (await res.json()) as SpeakerVerificationConfig;
+}
+
+export async function removeSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
+  const url = buildApiUrl("/voice/speaker/profile/remove", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profileId }),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to remove speaker profile");
+  return (await res.json()) as SpeakerVerificationConfig;
+}
+
+export async function deleteSpeakerVerificationProfile(profileId: string): Promise<SpeakerVerificationConfig> {
+  const url = buildApiUrl("/voice/speaker/profile/delete", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profileId }),
+  });
+  if (!res.ok) throw await extractAPIError(res, "Failed to delete speaker profile");
   return (await res.json()) as SpeakerVerificationConfig;
 }
 

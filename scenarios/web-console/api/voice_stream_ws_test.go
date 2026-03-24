@@ -1979,7 +1979,7 @@ func setupVoiceWSServerWithSpeaker(
 	}
 	srv.speakerVerificationConfig = SpeakerVerificationConfig{
 		Enabled:                     true,
-		ProfileID:                   "default",
+		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        mode,
 		RejectBehavior:              "drop",
@@ -2013,9 +2013,6 @@ func TestVoiceStreamWS_SpeakerVerification_SendsStatusOnConnect(t *testing.T) {
 	}
 	if !msg.ProfileConfigured {
 		t.Error("expected profileConfigured=true")
-	}
-	if msg.ProfileID != "default" {
-		t.Errorf("profileId = %q, want %q", msg.ProfileID, "default")
 	}
 
 	_ = conn.WriteJSON(VoiceStreamMessage{Type: VoiceMsgDone})
@@ -2288,7 +2285,7 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackPolicy(t *testing.T) {
 	// Fallback=false: should reject when verification errors
 	srv.speakerVerificationConfig = SpeakerVerificationConfig{
 		Enabled:                     true,
-		ProfileID:                   "default",
+		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",
@@ -2343,7 +2340,7 @@ func TestVoiceStreamWS_SpeakerVerification_FallbackAllowed(t *testing.T) {
 	// Fallback=true: should allow through when verification errors
 	srv.speakerVerificationConfig = SpeakerVerificationConfig{
 		Enabled:                     true,
-		ProfileID:                   "default",
+		ProfileIDs:                  []string{"default"},
 		Threshold:                   0.85,
 		Mode:                        "filter",
 		RejectBehavior:              "drop",

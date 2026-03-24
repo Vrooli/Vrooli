@@ -12,13 +12,13 @@ import (
 )
 
 type SpeakerVerificationConfig struct {
-	Enabled                     bool    `json:"enabled"`
-	ProfileID                   string  `json:"profileId"`
-	Threshold                   float64 `json:"threshold"`
-	Mode                        string  `json:"mode"`
-	RejectBehavior              string  `json:"rejectBehavior"`
-	FallbackWithoutVerification bool    `json:"fallbackWithoutVerification"`
-	ExtractionEnabled           bool    `json:"extractionEnabled"`
+	Enabled                     bool     `json:"enabled"`
+	ProfileIDs                  []string `json:"profileIds"`
+	Threshold                   float64  `json:"threshold"`
+	Mode                        string   `json:"mode"`
+	RejectBehavior              string   `json:"rejectBehavior"`
+	FallbackWithoutVerification bool     `json:"fallbackWithoutVerification"`
+	ExtractionEnabled           bool     `json:"extractionEnabled"`
 }
 
 func DefaultSpeakerVerificationConfig() SpeakerVerificationConfig {
@@ -45,28 +45,28 @@ func (c SpeakerVerificationConfig) Validate() error {
 	default:
 		return fmt.Errorf("rejectBehavior must be drop or show-muted")
 	}
-	if c.Enabled && c.ProfileID == "" {
-		return fmt.Errorf("profileId is required when speaker verification is enabled")
+	if c.Enabled && len(c.ProfileIDs) == 0 {
+		return fmt.Errorf("at least one profileId is required when speaker verification is enabled")
 	}
 	return nil
 }
 
 type SpeakerVerificationConfigPatch struct {
-	Enabled                     *bool    `json:"enabled,omitempty"`
-	ProfileID                   *string  `json:"profileId,omitempty"`
-	Threshold                   *float64 `json:"threshold,omitempty"`
-	Mode                        *string  `json:"mode,omitempty"`
-	RejectBehavior              *string  `json:"rejectBehavior,omitempty"`
-	FallbackWithoutVerification *bool    `json:"fallbackWithoutVerification,omitempty"`
-	ExtractionEnabled           *bool    `json:"extractionEnabled,omitempty"`
+	Enabled                     *bool     `json:"enabled,omitempty"`
+	ProfileIDs                  *[]string `json:"profileIds,omitempty"`
+	Threshold                   *float64  `json:"threshold,omitempty"`
+	Mode                        *string   `json:"mode,omitempty"`
+	RejectBehavior              *string   `json:"rejectBehavior,omitempty"`
+	FallbackWithoutVerification *bool     `json:"fallbackWithoutVerification,omitempty"`
+	ExtractionEnabled           *bool     `json:"extractionEnabled,omitempty"`
 }
 
 func (p SpeakerVerificationConfigPatch) Apply(base SpeakerVerificationConfig) SpeakerVerificationConfig {
 	if p.Enabled != nil {
 		base.Enabled = *p.Enabled
 	}
-	if p.ProfileID != nil {
-		base.ProfileID = *p.ProfileID
+	if p.ProfileIDs != nil {
+		base.ProfileIDs = *p.ProfileIDs
 	}
 	if p.Threshold != nil {
 		base.Threshold = *p.Threshold
@@ -192,7 +192,7 @@ func (s *Server) handleGetSpeakerVerificationStatus(w http.ResponseWriter, r *ht
 	resp := SpeakerVerificationStatusResponse{
 		Config:            cfg,
 		Capability:        string(StatusUnknown),
-		ProfileConfigured: cfg.ProfileID != "",
+		ProfileConfigured: len(cfg.ProfileIDs) > 0,
 		CheckedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -221,8 +221,12 @@ func (s *Server) handleGetSpeakerVerificationStatus(w http.ResponseWriter, r *ht
 	if err == nil {
 		resp.ProfileCount = profiles.Count
 		resp.Profiles = profiles.Profiles
+		configuredSet := make(map[string]struct{}, len(cfg.ProfileIDs))
+		for _, id := range cfg.ProfileIDs {
+			configuredSet[id] = struct{}{}
+		}
 		for _, profile := range profiles.Profiles {
-			if profile.ID == cfg.ProfileID {
+			if _, ok := configuredSet[profile.ID]; ok {
 				resp.ProfileExists = true
 				break
 			}

@@ -10,15 +10,18 @@ import {
   RefreshCw,
   RotateCcw,
   Square,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import {
   clearSpeakerVerificationProfile,
+  deleteSpeakerVerificationProfile,
   enrollSpeakerVerificationProfile,
   fetchCapabilities,
   getSpeakerVerificationStatus,
   getVoiceStreamConfig,
+  removeSpeakerVerificationProfile,
   toErrorInfo,
   type CapabilityState,
   type SpeakerVerificationStatusResponse,
@@ -62,6 +65,7 @@ export default function VoiceInputSection() {
   const [enrollmentSeconds, setEnrollmentSeconds] = useState(0);
   const [enrollmentMessage, setEnrollmentMessage] = useState<string | null>(null);
   const [profileDisplayName, setProfileDisplayName] = useState("My Voice");
+  const [reEnrollTargetId, setReEnrollTargetId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enrollmentChunksRef = useRef<Blob[]>([]);
@@ -160,10 +164,6 @@ export default function VoiceInputSection() {
       const status = await getSpeakerVerificationStatus();
       if (!signal?.cancelled) {
         setSpeakerStatus(status);
-        if (status.config.profileId && profileDisplayName === "My Voice") {
-          const activeProfile = status.profiles?.find((profile) => profile.id === status.config.profileId);
-          if (activeProfile?.display_name) setProfileDisplayName(activeProfile.display_name);
-        }
       }
     } catch (error) {
       if (!signal?.cancelled) {
@@ -172,7 +172,7 @@ export default function VoiceInputSection() {
     } finally {
       if (!signal?.cancelled) setSpeakerLoading(false);
     }
-  }, [profileDisplayName]);
+  }, []);
 
   // Load voice config when voice is enabled (needed for persistent mode settings
   // and advanced streaming section)
@@ -237,7 +237,7 @@ export default function VoiceInputSection() {
 
   const persistSpeakerConfig = useCallback(async (patch: {
     enabled?: boolean;
-    profileId?: string;
+    profileIds?: string[];
     threshold?: number;
     mode?: "off" | "filter" | "advisory";
     rejectBehavior?: "drop" | "show-muted";
@@ -301,18 +301,22 @@ export default function VoiceInputSection() {
           return;
         }
         setEnrollmentState("uploading");
+        const targetId = reEnrollTargetId
+          ?? (profileDisplayName.trim() || "My Voice").toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
         void enrollSpeakerVerificationProfile({
           audioBlob: blob,
-          profileId: speakerStatus?.config.profileId || "default",
+          profileId: targetId,
           displayName: profileDisplayName.trim() || "My Voice",
-          setActive: true,
+          addToActive: true,
           enable: true,
         }).then(async (result) => {
           setEnrollmentState("success");
+          setReEnrollTargetId(null);
           setEnrollmentMessage(`Enrolled ${result.enrollment.display_name}.`);
           await loadSpeakerStatus();
         }).catch((error) => {
           setEnrollmentState("error");
+          setReEnrollTargetId(null);
           setEnrollmentMessage(toErrorInfo(error).message);
         });
       };
@@ -327,7 +331,7 @@ export default function VoiceInputSection() {
       setEnrollmentState("error");
       setEnrollmentMessage(toErrorInfo(error).message);
     }
-  }, [loadSpeakerStatus, profileDisplayName, speakerStatus?.config.profileId, stopEnrollmentRecording]);
+  }, [loadSpeakerStatus, profileDisplayName, stopEnrollmentRecording]);
 
   const clearSpeakerBinding = useCallback(async () => {
     setSpeakerError(null);
@@ -338,6 +342,36 @@ export default function VoiceInputSection() {
         config: updated,
         profileConfigured: false,
         profileExists: false,
+      } : current);
+      await loadSpeakerStatus();
+    } catch (error) {
+      setSpeakerError(toErrorInfo(error).message);
+    }
+  }, [loadSpeakerStatus]);
+
+  const removeProfile = useCallback(async (profileId: string) => {
+    setSpeakerError(null);
+    try {
+      const updated = await removeSpeakerVerificationProfile(profileId);
+      setSpeakerStatus((current) => current ? {
+        ...current,
+        config: updated,
+        profileConfigured: updated.profileIds.length > 0,
+      } : current);
+      await loadSpeakerStatus();
+    } catch (error) {
+      setSpeakerError(toErrorInfo(error).message);
+    }
+  }, [loadSpeakerStatus]);
+
+  const deleteProfile = useCallback(async (profileId: string) => {
+    setSpeakerError(null);
+    try {
+      const updated = await deleteSpeakerVerificationProfile(profileId);
+      setSpeakerStatus((current) => current ? {
+        ...current,
+        config: updated,
+        profileConfigured: updated.profileIds.length > 0,
       } : current);
       await loadSpeakerStatus();
     } catch (error) {
@@ -568,50 +602,57 @@ export default function VoiceInputSection() {
 
           <SettingsRow
             label="Use speaker verification"
-            hint="Only accept dictation that matches your enrolled voice."
+            hint="Only accept dictation that matches any of your enrolled voice profiles."
             control={(
               <SettingsToggle
                 testId="speaker-verification-toggle"
                 checked={speakerStatus?.config.enabled ?? false}
                 onClick={() => {
                   const next = !(speakerStatus?.config.enabled ?? false);
-                  if (next && !(speakerStatus?.config.profileId || speakerStatus?.profiles?.[0]?.id)) {
+                  const ids = speakerStatus?.config.profileIds ?? [];
+                  if (next && ids.length === 0 && !speakerStatus?.profiles?.length) {
                     setSpeakerError("Enroll a voice profile before enabling speaker verification.");
                     return;
                   }
-                  void persistSpeakerConfig({
-                    enabled: next,
-                    profileId: speakerStatus?.config.profileId || speakerStatus?.profiles?.[0]?.id || "default",
-                  });
+                  const profileIds = ids.length > 0
+                    ? ids
+                    : (speakerStatus?.profiles?.map((p) => p.id) ?? ["default"]);
+                  void persistSpeakerConfig({ enabled: next, profileIds });
                 }}
               />
             )}
           />
 
-          <SettingsRow
-            label="Active voice profile"
-            hint="Use a single enrolled voiceprint for transcript filtering."
-            control={(
-              <select
-                data-testid="speaker-profile-select"
-                className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-                value={speakerStatus?.config.profileId ?? ""}
-                onChange={(event) => {
-                  const profileId = event.target.value;
-                  void persistSpeakerConfig({
-                    profileId,
-                    enabled: speakerStatus?.config.enabled ?? false,
-                  });
-                }}
-                disabled={!speakerStatus?.profiles?.length}
-              >
-                {!speakerStatus?.profiles?.length && <option value="">No enrolled profile</option>}
-                {speakerStatus?.profiles?.map((profile) => (
-                  <option key={profile.id} value={profile.id}>{profile.display_name}</option>
-                ))}
-              </select>
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-wc-text-secondary">Active voice profiles</div>
+            <div className="text-[11px] text-wc-text-muted">
+              Audio is accepted if it matches any of the active profiles below.
+            </div>
+            {(speakerStatus?.config.profileIds ?? []).length > 0 ? (
+              <div className="flex flex-wrap gap-1.5" data-testid="speaker-active-profiles">
+                {(speakerStatus?.config.profileIds ?? []).map((id) => {
+                  const profile = speakerStatus?.profiles?.find((p) => p.id === id);
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 rounded-full border border-wc-default bg-wc-surface-base px-2.5 py-0.5 text-[11px] text-wc-text-primary"
+                    >
+                      {profile?.display_name ?? id}
+                      <button
+                        className="ml-0.5 text-wc-text-faint hover:text-wc-text-primary"
+                        title={`Remove ${profile?.display_name ?? id}`}
+                        onClick={() => void removeProfile(id)}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-[11px] text-wc-text-faint">No active profiles. Enroll a voice below.</div>
             )}
-          />
+          </div>
 
           <SettingsRow
             label="Verification mode"
@@ -695,11 +736,14 @@ export default function VoiceInputSection() {
                   variant="outline"
                   size="sm"
                   className="h-8 px-3 text-xs"
-                  onClick={() => void startEnrollmentRecording()}
+                  onClick={() => {
+                    setReEnrollTargetId(null);
+                    void startEnrollmentRecording();
+                  }}
                   disabled={speakerStatus?.capability !== "available" || !speakerStatus?.resourceReady || enrollmentState === "uploading"}
                 >
                   <Mic className="mr-1 h-3.5 w-3.5" />
-                  {speakerStatus?.profileExists ? "Re-enroll voice" : "Enroll voice"}
+                  Add voice profile
                 </Button>
               )}
               <Button
@@ -708,9 +752,9 @@ export default function VoiceInputSection() {
                 size="sm"
                 className="h-8 px-3 text-xs text-wc-text-faint"
                 onClick={() => void clearSpeakerBinding()}
-                disabled={!speakerStatus?.config.profileId}
+                disabled={!(speakerStatus?.config.profileIds?.length)}
               >
-                Clear active profile
+                Clear all profiles
               </Button>
             </div>
             {enrollmentMessage && (
@@ -719,8 +763,69 @@ export default function VoiceInputSection() {
               </div>
             )}
             {speakerStatus?.profiles?.length ? (
-              <div className="mt-2 text-[11px] text-wc-text-faint">
-                Enrolled profiles: {speakerStatus.profiles.map((profile) => profile.display_name).join(", ")}
+              <div className="mt-3 space-y-1.5">
+                <div className="text-[11px] font-medium text-wc-text-secondary">Enrolled profiles on resource</div>
+                {speakerStatus.profiles.map((profile) => {
+                  const isActive = speakerStatus.config.profileIds?.includes(profile.id);
+                  return (
+                    <div
+                      key={profile.id}
+                      className="flex items-center justify-between rounded-lg border border-wc-default bg-wc-surface-base/40 px-2.5 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs text-wc-text-primary">
+                          {profile.display_name}
+                          {isActive && (
+                            <span className="rounded bg-green-400/15 px-1.5 py-0 text-[10px] text-green-400">active</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-wc-text-faint">
+                          {profile.enrollment_audio_seconds.toFixed(1)}s enrollment
+                          {profile.notes ? ` · ${profile.notes}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        {!isActive && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Add to active profiles"
+                            onClick={() => {
+                              const ids = [...(speakerStatus.config.profileIds ?? []), profile.id];
+                              void persistSpeakerConfig({ profileIds: ids, enabled: true });
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 text-wc-text-faint" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title={`Re-enroll ${profile.display_name}`}
+                          onClick={() => {
+                            setProfileDisplayName(profile.display_name);
+                            setReEnrollTargetId(profile.id);
+                            void startEnrollmentRecording();
+                          }}
+                          disabled={speakerStatus?.capability !== "available" || !speakerStatus?.resourceReady || enrollmentState === "recording" || enrollmentState === "uploading"}
+                        >
+                          <Mic className="h-3 w-3 text-wc-text-faint" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title={`Delete ${profile.display_name}`}
+                          onClick={() => void deleteProfile(profile.id)}
+                        >
+                          <Trash2 className="h-3 w-3 text-wc-text-faint hover:text-red-400" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
           </div>

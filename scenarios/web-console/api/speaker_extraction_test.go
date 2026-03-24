@@ -167,7 +167,7 @@ func TestExtractTargetSpeaker_Enabled(t *testing.T) {
 		speakerVerificationConfig: SpeakerVerificationConfig{
 			Enabled:           true,
 			ExtractionEnabled: true,
-			ProfileID:         "default",
+			ProfileIDs:        []string{"default"},
 			Threshold:         0.35,
 			Mode:              "filter",
 			RejectBehavior:    "drop",
@@ -200,7 +200,7 @@ func TestExtractTargetSpeaker_Disabled(t *testing.T) {
 		speakerVerificationConfig: SpeakerVerificationConfig{
 			Enabled:           true,
 			ExtractionEnabled: false,
-			ProfileID:         "default",
+			ProfileIDs:        []string{"default"},
 			Threshold:         0.35,
 			Mode:              "filter",
 			RejectBehavior:    "drop",
@@ -260,7 +260,7 @@ func TestExtractTargetSpeaker_ClientError(t *testing.T) {
 		speakerVerificationConfig: SpeakerVerificationConfig{
 			Enabled:           true,
 			ExtractionEnabled: true,
-			ProfileID:         "default",
+			ProfileIDs:        []string{"default"},
 			Threshold:         0.35,
 			Mode:              "filter",
 			RejectBehavior:    "drop",
@@ -296,7 +296,7 @@ func TestSpeakerVerificationConfig_ExtractionEnabled_RoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "speaker-verification-config.json")
 	cfg := SpeakerVerificationConfig{
 		Enabled:           true,
-		ProfileID:         "default",
+		ProfileIDs:        []string{"default"},
 		Threshold:         0.35,
 		Mode:              "filter",
 		RejectBehavior:    "drop",
