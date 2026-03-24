@@ -17,6 +17,8 @@ interface ConversationStoreState {
 interface ConversationStoreActions {
   hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor) => void;
   appendEvent: (event: ConversationEvent) => void;
+  /** Merge updated fields (e.g. summarization) into an existing event by ID. */
+  updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
   setViewMode: (sessionId: string, mode: PaneViewMode) => void;
   clearSession: (sessionId: string) => void;
@@ -54,6 +56,26 @@ export const useConversationStore = create<ConversationStoreState & Conversation
           ...existing,
           events: [...existing.events, event],
         },
+      },
+    };
+  }),
+
+  updateEvent: (sessionId, eventId, patch) => set((state) => {
+    const session = state.sessions[sessionId];
+    if (!session) return state;
+    const idx = session.events.findIndex((e) => e.id === eventId);
+    if (idx === -1) return state;
+    const updatedEvents = [...session.events];
+    const existing = updatedEvents[idx] as ConversationEvent;
+    const ev: ConversationEvent = { ...existing };
+    if (patch.speechParagraphs != null) ev.speechParagraphs = patch.speechParagraphs;
+    if (patch.originalSpeechParagraphs != null) ev.originalSpeechParagraphs = patch.originalSpeechParagraphs;
+    if (patch.summarized != null) ev.summarized = patch.summarized;
+    updatedEvents[idx] = ev;
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: { ...session, events: updatedEvents },
       },
     };
   }),

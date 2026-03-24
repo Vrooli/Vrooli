@@ -1,7 +1,24 @@
 import { LayoutGrid, LayoutList } from "lucide-react";
+import { useWakeLockStatus } from "../../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+
+const STATUS_HINTS: Record<string, string> = {
+  active: "Screen is being kept awake.",
+  off: "Prevent the device from dimming or locking while the console is open.",
+  unsupported: "Your browser or connection doesn't support screen wake lock. A video-based fallback is being used instead.",
+  denied: "Screen wake lock was denied — your device may be in power-save mode.",
+  released: "Re-acquiring screen wake lock\u2026",
+};
+
+const STATUS_HINT_CLASSES: Record<string, string | undefined> = {
+  active: "text-wc-accent",
+  denied: "text-wc-error",
+  released: "text-yellow-500",
+};
+
+const DEFAULT_HINT = "Prevent the device from dimming or locking while the console is open.";
 
 export default function WorkspaceSection() {
   const isMinimapVisible = useWorkspaceStore((state) => state.isMinimapVisible);
@@ -12,6 +29,14 @@ export default function WorkspaceSection() {
   const setToolbarLayout = useWorkspaceStore((state) => state.setToolbarLayout);
   const keepScreenAwake = useWorkspaceStore((state) => state.keepScreenAwake);
   const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
+  const wakeLockStatus = useWakeLockStatus((s) => s.status);
+
+  const wakeLockHint = keepScreenAwake
+    ? (STATUS_HINTS[wakeLockStatus] ?? DEFAULT_HINT)
+    : DEFAULT_HINT;
+  const wakeLockHintClass = keepScreenAwake
+    ? STATUS_HINT_CLASSES[wakeLockStatus]
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -93,7 +118,8 @@ export default function WorkspaceSection() {
         )}
         <SettingsRow
           label="Keep screen awake"
-          hint="Prevent the device from dimming or locking while the console is open."
+          hint={wakeLockHint}
+          hintClassName={wakeLockHintClass}
           control={(
             <SettingsToggle
               testId="keep-screen-awake-toggle"

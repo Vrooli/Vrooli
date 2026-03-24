@@ -31,7 +31,7 @@ func DefaultTTSSummarizeConfig() TTSSummarizeConfig {
 		CharThreshold:  500,
 		Level:          "moderate",
 		Model:          model,
-		TimeoutSeconds: 5,
+		TimeoutSeconds: 30,
 	}
 }
 
@@ -88,7 +88,7 @@ func loadTTSSummarizeConfig(path string) (TTSSummarizeConfig, error) {
 		cfg.Model = DefaultTTSSummarizeConfig().Model
 	}
 	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 5
+		cfg.TimeoutSeconds = 30
 	}
 	return cfg, nil
 }

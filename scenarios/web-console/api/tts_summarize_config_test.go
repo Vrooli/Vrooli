@@ -114,7 +114,7 @@ func TestTTSSummarizeConfig_LoadFillsDefaults(t *testing.T) {
 	if cfg.Level != "moderate" {
 		t.Errorf("expected default level, got %q", cfg.Level)
 	}
-	if cfg.TimeoutSeconds != 5 {
+	if cfg.TimeoutSeconds != 30 {
 		t.Errorf("expected default timeoutSeconds, got %d", cfg.TimeoutSeconds)
 	}
 }

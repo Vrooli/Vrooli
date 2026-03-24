@@ -40,11 +40,13 @@ export function SettingsCard({
 export function SettingsRow({
   label,
   hint,
+  hintClassName,
   control,
   className,
 }: {
   label: string;
   hint?: string;
+  hintClassName?: string;
   control: ReactNode;
   className?: string;
 }) {
@@ -52,7 +54,7 @@ export function SettingsRow({
     <div className={cn("flex items-center justify-between gap-4", className)}>
       <div className="min-w-0">
         <div className="text-sm font-medium text-wc-text-secondary">{label}</div>
-        {hint && <div className="text-[11px] text-wc-text-muted">{hint}</div>}
+        {hint && <div className={cn("text-[11px] text-wc-text-muted", hintClassName)}>{hint}</div>}
       </div>
       <div className="shrink-0">{control}</div>
     </div>

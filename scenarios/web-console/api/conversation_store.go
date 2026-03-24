@@ -58,6 +58,10 @@ type ConversationEvent struct {
 	DeliveryState            ConversationDeliveryState    `json:"deliveryState"`
 	TTSState                 ConversationTTSState         `json:"ttsState"`
 	ConsumptionState         ConversationConsumptionState `json:"consumptionState"`
+	// IsUpdate is a transient flag (not persisted) indicating this event is an
+	// async update to a previously delivered event (e.g. summarization result).
+	// The WS forwarder uses this to send a conversation_event_update message.
+	IsUpdate bool `json:"-"`
 }
 
 type ConversationCursor struct {

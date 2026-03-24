@@ -18,7 +18,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack" | "conversation_event_update";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -117,6 +117,8 @@ interface UseTerminalSocketOptions {
   hasCachedState?: boolean;
   /** Called when a conversation event arrives from the server. */
   onConversationEvent?: (event: ConversationEventMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => void;
+  /** Called when an async update (e.g. summarization) arrives for an existing event. */
+  onConversationEventUpdate?: (eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
 }
 
 /**
@@ -135,6 +137,7 @@ export function useTerminalSocket({
   historyOffset,
   hasCachedState,
   onConversationEvent,
+  onConversationEventUpdate,
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,9 +151,11 @@ export function useTerminalSocket({
   const onReadyRef = useRef(onReady);
   const hasCachedStateRef = useRef(hasCachedState ?? false);
   const onConversationEventRef = useRef(onConversationEvent);
+  const onConversationEventUpdateRef = useRef(onConversationEventUpdate);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
   onConversationEventRef.current = onConversationEvent;
+  onConversationEventUpdateRef.current = onConversationEventUpdate;
   hasCachedStateRef.current = hasCachedState ?? false;
 
   const enqueueInput = useCallback((data: string) => {
@@ -376,6 +381,15 @@ export function useTerminalSocket({
                 sequence: msg.sequence,
               } satisfies ConversationEventMessage;
               onConversationEventRef.current?.(event, (stage, message, backend) => sendConversationAck(event, stage, message, backend));
+            }
+            break;
+          case "conversation_event_update":
+            if (msg.eventId) {
+              onConversationEventUpdateRef.current?.(msg.eventId, {
+                speechParagraphs: msg.speechParagraphs,
+                originalSpeechParagraphs: msg.originalSpeechParagraphs,
+                summarized: msg.summarized,
+              });
             }
             break;
           case "resize_info":

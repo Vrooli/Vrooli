@@ -37,6 +37,9 @@ const (
 	MsgTypeConversationEvent = "conversation_event"
 	// MsgTypeConversationAck records browser-side delivery/playback progress.
 	MsgTypeConversationAck = "conversation_event_ack"
+	// MsgTypeConversationEventUpdate delivers async updates (e.g. summarization)
+	// for an already-delivered conversation event.
+	MsgTypeConversationEventUpdate = "conversation_event_update"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -206,9 +209,13 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if !ok {
 					continue
 				}
+				msgType := MsgTypeConversationEvent
+				if event.IsUpdate {
+					msgType = MsgTypeConversationEventUpdate
+				}
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
-					Type:                     MsgTypeConversationEvent,
+					Type:                     msgType,
 					Data:                     event.Text,
 					EventID:                  event.ID,
 					Source:                   event.Source,

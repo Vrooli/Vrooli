@@ -47,9 +47,11 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 
 	event, result := s.conversations.AppendAssistantEvent(targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
-		s.maybeSummarizeSpeechParagraphs(&event, targetSessionID)
+		// Send event to clients immediately (unsummarized) so there's no delay.
 		go s.preSynthesizeTTS(event, targetSessionID)
 		sess.SendConversation(event)
+		// Summarize asynchronously — if successful, push an update event to clients.
+		go s.asyncSummarizeAndNotify(event, targetSessionID, sess)
 	}
 	s.recordLastTTSRouting(result)
 	return result
@@ -74,20 +76,16 @@ func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source
 	return result
 }
 
-// maybeSummarizeSpeechParagraphs optionally summarizes long assistant responses
-// via the TTS summarizer before they are broadcast. The full original text is
-// preserved in the event; only speechParagraphs is replaced with the summary.
-// The original paragraphs are saved in OriginalSpeechParagraphs so the frontend
-// can toggle between summarized and full playback.
-func (s *Server) maybeSummarizeSpeechParagraphs(event *ConversationEvent, sessionID string) {
+// asyncSummarizeAndNotify runs summarization in a goroutine and, on success,
+// sends a conversation_event_update to all subscribed clients so the frontend
+// can display the summarized version without a page refresh.
+func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, sess *Session) {
 	if s.ttsSummarizer == nil {
-		log.Printf("tts-summarize: skipped (no summarizer configured)")
 		return
 	}
 
 	cfg := s.getTTSSummarizeConfig()
 	if !cfg.Enabled {
-		log.Printf("tts-summarize: skipped (disabled in config)")
 		return
 	}
 
@@ -104,7 +102,7 @@ func (s *Server) maybeSummarizeSpeechParagraphs(event *ConversationEvent, sessio
 
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 5 * time.Second
+		timeout = 30 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -114,13 +112,13 @@ func (s *Server) maybeSummarizeSpeechParagraphs(event *ConversationEvent, sessio
 
 	summary, err := s.ttsSummarizer.Summarize(ctx, normalized, cfg.Model, cfg.Level)
 	if err != nil {
-		log.Printf("tts-summarize: fallback to unsummarized (error: %v)", err)
+		log.Printf("tts-summarize: failed (error: %v)", err)
 		return
 	}
 
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
-		log.Printf("tts-summarize: fallback to unsummarized (empty summary returned)")
+		log.Printf("tts-summarize: failed (empty summary returned)")
 		return
 	}
 
@@ -128,8 +126,12 @@ func (s *Server) maybeSummarizeSpeechParagraphs(event *ConversationEvent, sessio
 		len(normalized), len(summary), float64(len(normalized)-len(summary))/float64(len(normalized))*100)
 
 	newParagraphs := SplitIntoSpeechParagraphs(summary)
+	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
+
+	// Send update event so connected clients can display the summary.
 	event.OriginalSpeechParagraphs = event.SpeechParagraphs
 	event.SpeechParagraphs = newParagraphs
 	event.Summarized = true
-	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
+	event.IsUpdate = true
+	sess.SendConversation(event)
 }

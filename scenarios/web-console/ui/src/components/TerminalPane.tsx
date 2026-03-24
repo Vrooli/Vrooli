@@ -128,6 +128,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const cachedOffsetRef = useRef<number | undefined>(undefined);
     const hadCacheRef = useRef(false);
     const livePlaybackEventRef = useRef<string | null>(null);
+    /** Ref to latest conversationEvents so imperative handle avoids dep churn. */
+    const conversationEventsRef = useRef<ConversationEvent[]>(EMPTY_CONVERSATION_EVENTS);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
 
     // Per-pane selectors with fallbacks for old persisted data
@@ -194,8 +196,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const autoTtsEnabled = useWorkspaceStore((s) => s.autoTtsEnabled);
     const activePane = useWorkspaceStore((s) => s.activePane);
     const { appendConversationEvent, persistCursor } = useConversationSession(sessionId);
+    const updateEvent = useConversationStore((state) => state.updateEvent);
     const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
     const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
+    conversationEventsRef.current = conversationEvents;
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
 
     const handleConversationEvent = useCallback(async (
@@ -237,7 +241,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendAck("playback_started", undefined, backend);
       try {
         const usedBackend = await speakParagraphs(paragraphs, { eventId: event.id });
-        sendAck("playback_succeeded", undefined, usedBackend ?? backend);
+        if (!usedBackend) {
+          // TTS provider wasn't ready or paragraphs were empty — don't mark as listened
+          sendAck("playback_failed", "TTS provider not ready", backend);
+          return;
+        }
+        sendAck("playback_succeeded", undefined, usedBackend);
         await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Speech failed";
@@ -249,6 +258,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         }
       }
     }, [activePane, appendConversationEvent, autoTtsEnabled, backend, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
+
+    const handleConversationEventUpdate = useCallback((eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => {
+      updateEvent(sessionId, eventId, patch);
+    }, [sessionId, updateEvent]);
 
     useEffect(() => {
       if (activePane !== sessionId) return;
@@ -274,7 +287,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           ttsStop();
           const paragraphs = ensureSpeechChunks(event.speechParagraphs ?? [event.text]);
           try {
-            await speakParagraphs(paragraphs, { eventId: event.id });
+            const usedBackend = await speakParagraphs(paragraphs, { eventId: event.id });
+            if (!usedBackend) {
+              // TTS provider not ready — stop trying pending events
+              return;
+            }
             await persistCursor({ lastListenedSequence: event.sequence, lastSeenSequence: event.sequence });
           } catch {
             return;
@@ -313,13 +330,31 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       historyOffset: cachedOffsetRef.current,
       hasCachedState: hadCacheRef.current,
       onConversationEvent: handleConversationEvent,
+      onConversationEventUpdate: handleConversationEventUpdate,
     });
 
     // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({
       sendInput,
       focus: () => terminal?.focus(),
-      stopTts: ttsStop,
+      stopTts: () => {
+        ttsStop();
+        // Advance cursor past all current assistant events to prevent the
+        // pending-events effect from re-triggering the same (or subsequent)
+        // events after the user explicitly stopped playback.
+        const events = conversationEventsRef.current;
+        const lastAssistantSeq = events.reduce(
+          (max, e) => (e.role === "assistant" && e.sequence > max ? e.sequence : max),
+          0,
+        );
+        if (lastAssistantSeq > 0) {
+          void persistCursor({ lastListenedSequence: lastAssistantSeq, lastSeenSequence: lastAssistantSeq });
+        }
+        if (livePlaybackEventRef.current) {
+          livePlaybackEventRef.current = null;
+          onSpeakingEventChange?.(null);
+        }
+      },
       speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
         ttsStop();
         void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), opts);
@@ -336,7 +371,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setTtsPlaybackRate: ttsSetPlaybackRate,
       setTtsVolume: ttsSetVolume,
       getTtsState: ttsGetPlaybackState,
-    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState]);
+    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState, persistCursor, onSpeakingEventChange]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 

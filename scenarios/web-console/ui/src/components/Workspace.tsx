@@ -9,6 +9,7 @@ import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useAppViewport } from "../hooks/useAppViewport";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { useWakeLockStatus } from "../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
@@ -97,7 +98,9 @@ export default function Workspace() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   useAppViewport();
-  useWakeLock(store.keepScreenAwake);
+  const wakeLockStatus = useWakeLock(store.keepScreenAwake);
+  const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
+  useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
