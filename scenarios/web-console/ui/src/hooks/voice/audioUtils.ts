@@ -10,7 +10,7 @@
 export function createAudioFilterChain(
   ctx: AudioContext,
   source: MediaStreamAudioSourceNode,
-): { analyser: AnalyserNode; filteredStream: MediaStream } {
+): { analyser: AnalyserNode; filteredStream: MediaStream; nodes: AudioNode[] } {
   const highpass = ctx.createBiquadFilter();
   highpass.type = "highpass";
   highpass.frequency.value = 80;
@@ -32,5 +32,5 @@ export function createAudioFilterChain(
   lowpass.connect(destination);
   lowpass.connect(analyser);
 
-  return { analyser, filteredStream: destination.stream };
+  return { analyser, filteredStream: destination.stream, nodes: [highpass, lowpass, destination, analyser] };
 }

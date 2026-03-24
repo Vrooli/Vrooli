@@ -305,6 +305,69 @@ describe("VAD persistent mode lifecycle", () => {
   });
 });
 
+// --- Noise floor inflation regression ---
+
+describe("VAD noise floor stability during sustained speech", () => {
+  it("does not inflate speechThreshold during sustained speech (regression)", () => {
+    // This test verifies the fix for: after sustained speech, the sliding
+    // window filled with high-RMS samples, inflating the noise floor and
+    // speechThreshold to levels that normal speech couldn't exceed. This
+    // caused premature VAD stops during active speech.
+    const vad = createVadRefs();
+    vad.state = "calibrating";
+    vad.recordingStart = 0;
+
+    // Calibrate with quiet noise (~0.005 RMS)
+    for (let t = 0; t < 500; t += 66) vadTick(vad, 0.005, t);
+    vadTick(vad, 0.005, 500);
+    expect(vad.state).toBe("waitingForSpeech");
+
+    const initialSpeechThreshold = vad.speechThreshold;
+
+    // Start speaking
+    vadTick(vad, 0.3, 600);
+    expect(vad.state).toBe("speechDetected");
+
+    // Sustain speech for 5 seconds at ~15Hz (75 ticks) — enough to fill
+    // the sliding window multiple times if speech samples were included.
+    for (let t = 700; t < 5600; t += 66) {
+      vadTick(vad, 0.2 + Math.random() * 0.15, t);
+    }
+    expect(vad.state).toBe("speechDetected");
+
+    // The speechThreshold should NOT have inflated significantly.
+    // Before the fix, it would rise to ~0.6+ (3x the 25th percentile of
+    // speech samples). After the fix, it stays near the calibrated level.
+    expect(vad.speechThreshold).toBeLessThan(initialSpeechThreshold * 3);
+
+    // A brief pause should allow return to speechDetected
+    vadTick(vad, 0.001, 5700);
+    expect(vad.state).toBe("watchingSilence");
+
+    // Normal speech level (0.2) should still exceed speechThreshold
+    vadTick(vad, 0.2, 5800);
+    expect(vad.state).toBe("speechDetected");
+  });
+
+  it("still adapts noise floor during silence/waiting states", () => {
+    const vad = createVadRefs();
+    vad.state = "calibrating";
+    vad.recordingStart = 0;
+
+    // Calibrate with quiet noise
+    for (let t = 0; t < 500; t += 66) vadTick(vad, 0.005, t);
+    vadTick(vad, 0.005, 500);
+    expect(vad.state).toBe("waitingForSpeech");
+
+    // Wait in silence with gradually increasing background noise
+    for (let t = 600; t < 3000; t += 66) {
+      vadTick(vad, 0.015, t); // higher ambient noise
+    }
+    // Noise floor should have adapted upward from the louder silence
+    expect(vad.silenceThreshold).toBeGreaterThan(0.02);
+  });
+});
+
 // --- Constants ---
 
 describe("VAD constants", () => {

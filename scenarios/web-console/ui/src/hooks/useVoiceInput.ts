@@ -113,6 +113,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   // sessions to avoid hitting the browser's 6-8 context limit.
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  /** Audio nodes created by startLevelMonitor — must be disconnected on stop
+   *  to prevent zombie node accumulation in the shared AudioContext. */
+  const audioNodesRef = useRef<AudioNode[]>([]);
   const rafRef = useRef<number>(0);
   const lastTickRef = useRef(0);
   const audioLevelRef = useRef(0);
@@ -199,7 +202,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     onTranscriptRef.current(finalText);
   }, []);
 
-  const startLevelMonitor = useCallback((stream: MediaStream) => {
+  const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
       let ctx = audioCtxRef.current;
       if (!ctx) {
@@ -207,12 +210,20 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         audioCtxRef.current = ctx;
       }
       if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
+        await ctx.resume().catch(() => {});
       }
 
+      // Disconnect any lingering nodes from a previous session to prevent
+      // zombie node accumulation in the AudioContext audio graph.
+      for (const node of audioNodesRef.current) {
+        try { node.disconnect(); } catch { /* already disconnected */ }
+      }
+      audioNodesRef.current = [];
+
       const source = ctx.createMediaStreamSource(stream);
-      const { analyser } = createAudioFilterChain(ctx, source);
+      const { analyser, nodes } = createAudioFilterChain(ctx, source);
       analyserRef.current = analyser;
+      audioNodesRef.current = [source, ...nodes];
 
       const data = new Uint8Array(analyser.frequencyBinCount);
       lastTickRef.current = 0;
@@ -313,6 +324,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     }
     audioLevelRef.current = 0;
     analyserRef.current = null;
+    // Disconnect all audio nodes to prevent zombie node accumulation
+    for (const node of audioNodesRef.current) {
+      try { node.disconnect(); } catch { /* already disconnected */ }
+    }
+    audioNodesRef.current = [];
     setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
   }, []);
 

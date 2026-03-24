@@ -77,4 +77,13 @@ describe("createAudioFilterChain", () => {
     const result = createAudioFilterChain(ctx, source);
     expect((result.analyser as unknown as { fftSize: number }).fftSize).toBe(128);
   });
+
+  it("returns nodes array for cleanup (regression: audio node leak)", () => {
+    const { ctx, source } = createMockAudioContext();
+    const result = createAudioFilterChain(ctx, source);
+    // Should return all created nodes (highpass, lowpass, destination, analyser)
+    // so the caller can disconnect them when done.
+    expect(result.nodes).toBeDefined();
+    expect(result.nodes).toHaveLength(4);
+  });
 });

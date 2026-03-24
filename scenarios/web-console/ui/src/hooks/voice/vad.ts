@@ -104,14 +104,19 @@ export function vadTick(vad: VadRefs, rms: number, now: number, silenceTimeoutMs
     return null;
   }
 
-  // --- Sliding window noise floor update (active in all post-calibration states) ---
-  // Push RMS into circular buffer
-  if (vad.slidingWindow.length < VAD_SLIDING_WINDOW_SIZE) {
-    vad.slidingWindow.push(rms);
-  } else {
-    vad.slidingWindow[vad.slidingWindowIdx % VAD_SLIDING_WINDOW_SIZE] = rms;
+  // --- Sliding window noise floor update ---
+  // Only collect samples when NOT in speechDetected state. During speech,
+  // high RMS values inflate the 25th percentile, pushing the noise floor
+  // (and thus speechThreshold) up to levels that normal speech can't exceed.
+  // This caused premature VAD stops during sustained speech.
+  if (vad.state !== "speechDetected") {
+    if (vad.slidingWindow.length < VAD_SLIDING_WINDOW_SIZE) {
+      vad.slidingWindow.push(rms);
+    } else {
+      vad.slidingWindow[vad.slidingWindowIdx % VAD_SLIDING_WINDOW_SIZE] = rms;
+    }
+    vad.slidingWindowIdx++;
   }
-  vad.slidingWindowIdx++;
 
   // Recompute noise floor when buffer is full
   if (vad.slidingWindow.length >= VAD_SLIDING_WINDOW_SIZE) {
