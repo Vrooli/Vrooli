@@ -169,6 +169,7 @@ func NewServer() (*Server, error) {
 	}()
 
 	srv.reviewJobStore = NewReviewJobStore()
+	srv.reviewJobStore.StartCleanup(10 * time.Minute)
 	srv.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	srv.envelopeCache = NewEnvelopeCache(60 * time.Second)
 	srv.visualCaptureStorage = NewVisualCaptureStorage(resolver, OSFileIO{})

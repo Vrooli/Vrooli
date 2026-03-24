@@ -661,7 +661,10 @@ function OverviewTab({
   // Used by both readiness fallback and visual status card
   const latestSnapshot = capture ?? baseline;
 
-  // Use server-side readiness when available, fall back to client-side calculation
+  // Use server-side readiness when available, fall back to client-side calculation.
+  // TODO: Remove this client-side fallback once the unified review endpoint is stable.
+  // The server-side calculation (review_readiness.go) is authoritative and also includes
+  // standards/blocking-violations checks that this fallback cannot replicate.
   const hasBeenScanned = Boolean(tidinessStaleness.data?.last_scan_at) ||
     (tidinessStaleness.data ? !tidinessStaleness.data.stale_reason?.includes("no scans") : false);
 

@@ -1,5 +1,7 @@
 package main
 
+import "regexp"
+
 // Readiness represents the overall review readiness of a scenario.
 type Readiness string
 
@@ -8,6 +10,21 @@ const (
 	ReadinessYellow Readiness = "yellow"
 	ReadinessRed    Readiness = "red"
 )
+
+// validScenarioName matches safe scenario names: alphanumeric, hyphens, underscores.
+var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+
+// IsValidScenarioName returns true if the name is safe for path construction.
+func IsValidScenarioName(name string) bool {
+	return len(name) > 0 && len(name) <= 128 && validScenarioName.MatchString(name)
+}
+
+// validReviewChecks is the set of recognized check names for review runs.
+var validReviewChecks = map[string]bool{
+	"tidiness": true,
+	"tests":    true,
+	"rules":    true,
+}
 
 // ReviewSummaryResponse is the unified review summary for a scenario.
 type ReviewSummaryResponse struct {
@@ -65,7 +82,6 @@ type VisualDimension struct {
 type ProvenanceDimension struct {
 	Available   bool `json:"available"`
 	TracedFiles int  `json:"tracedFiles"`
-	TotalFiles  int  `json:"totalFiles"`
 }
 
 // CheckStatus represents the status of an individual review check.

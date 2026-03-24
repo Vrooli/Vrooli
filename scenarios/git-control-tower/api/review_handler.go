@@ -25,6 +25,10 @@ func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
 		hctx.Resp.BadRequest("scenarioName query parameter is required")
 		return
 	}
+	if !IsValidScenarioName(scenarioName) {
+		hctx.Resp.BadRequest("scenarioName contains invalid characters")
+		return
+	}
 
 	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName)
 	hctx.Resp.OK(summary)
@@ -48,14 +52,32 @@ func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
 		hctx.Resp.BadRequest("scenarioName is required")
 		return
 	}
+	if !IsValidScenarioName(scenarioName) {
+		hctx.Resp.BadRequest("scenarioName contains invalid characters")
+		return
+	}
 
-	jobID := uuid.New().String()
 	checks := req.Checks
 	if len(checks) == 0 {
 		checks = []string{"tidiness", "tests", "rules"}
 	}
+	for _, c := range checks {
+		if !validReviewChecks[c] {
+			hctx.Resp.BadRequest("unknown check: " + c)
+			return
+		}
+	}
 
-	s.reviewJobStore.Create(jobID, checks)
+	// Reject concurrent runs for the same scenario.
+	if existingID := s.reviewJobStore.ActiveJobForScenario(scenarioName); existingID != "" {
+		hctx.Resp.JSON(http.StatusConflict, errorResponse{
+			Error: "a review run is already in progress for this scenario",
+		})
+		return
+	}
+
+	jobID := uuid.New().String()
+	s.reviewJobStore.Create(jobID, checks, scenarioName)
 
 	repoID := hctx.RepoID
 	repoDir := hctx.RepoDir
@@ -195,8 +217,11 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 		mu.Lock()
 		caps["browser-automation-studio"] = available
 		mu.Unlock()
+		if !available {
+			return
+		}
 
-		dim := &VisualDimension{Available: available}
+		dim := &VisualDimension{Available: true}
 		snapshots, err := s.visualCaptureStorage.ListSnapshotSets(repoID, scenarioName)
 		if err == nil {
 			for _, snap := range snapshots {
@@ -312,7 +337,23 @@ func (s *Server) executeReviewRun(jobID, scenarioName string, checks []string, r
 
 	wg.Wait()
 
-	// Build final summary after all checks complete.
+	// Check if all checks failed or were skipped.
+	job, _ := s.reviewJobStore.Get(jobID)
+	if job != nil {
+		allFailed := true
+		for _, status := range job.Checks {
+			if status == CheckCompleted {
+				allFailed = false
+				break
+			}
+		}
+		if allFailed {
+			s.reviewJobStore.Fail(jobID, "all checks failed or were skipped")
+			return
+		}
+	}
+
+	// Build final summary after at least one check succeeded.
 	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName)
 	s.reviewJobStore.Complete(jobID, summary)
 }

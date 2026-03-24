@@ -2543,7 +2543,6 @@ export interface VisualDimension {
 export interface ProvenanceDimension {
   available: boolean;
   tracedFiles: number;
-  totalFiles: number;
 }
 
 export interface ReviewDimensions {
