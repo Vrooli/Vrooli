@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "auto_workshop")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -19,6 +19,7 @@ class CreateBacklogItemRequest(_message.Message):
     RESEARCH_TARGET_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
+    AUTO_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -28,7 +29,8 @@ class CreateBacklogItemRequest(_message.Message):
     research_target: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ...) -> None: ...
+    auto_workshop: bool
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., auto_workshop: _Optional[bool] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
     __slots__ = ("title", "description", "status", "priority", "tags", "research_target", "depends_on", "initiative")
@@ -221,3 +223,33 @@ class ImportChange(_message.Message):
     action: str
     details: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, item: _Optional[str] = ..., action: _Optional[str] = ..., details: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class WorkshopSaveRequest(_message.Message):
+    __slots__ = ("round_number", "content", "auto_workshop")
+    ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    AUTO_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
+    round_number: int
+    content: str
+    auto_workshop: bool
+    def __init__(self, round_number: _Optional[int] = ..., content: _Optional[str] = ..., auto_workshop: _Optional[bool] = ...) -> None: ...
+
+class WorkshopSaveResponse(_message.Message):
+    __slots__ = ("file", "auto_advance")
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    AUTO_ADVANCE_FIELD_NUMBER: _ClassVar[int]
+    file: _backlog_pb2.BacklogFile
+    auto_advance: WorkshopAutoAdvance
+    def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., auto_advance: _Optional[_Union[WorkshopAutoAdvance, _Mapping]] = ...) -> None: ...
+
+class WorkshopAutoAdvance(_message.Message):
+    __slots__ = ("triggered", "run_id", "task_id", "reason")
+    TRIGGERED_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    triggered: bool
+    run_id: str
+    task_id: str
+    reason: str
+    def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...

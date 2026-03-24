@@ -218,4 +218,21 @@ describe("useWorkspaceStore", () => {
       expect(useWorkspaceStore.getState().rowFractions).toEqual([]);
     });
   });
+
+  describe("keepScreenAwake", () => {
+    it("defaults to true", () => {
+      expect(useWorkspaceStore.getState().keepScreenAwake).toBe(true);
+    });
+
+    it("can be toggled off", () => {
+      useWorkspaceStore.getState().setKeepScreenAwake(false);
+      expect(useWorkspaceStore.getState().keepScreenAwake).toBe(false);
+    });
+
+    it("can be toggled back on", () => {
+      useWorkspaceStore.getState().setKeepScreenAwake(false);
+      useWorkspaceStore.getState().setKeepScreenAwake(true);
+      expect(useWorkspaceStore.getState().keepScreenAwake).toBe(true);
+    });
+  });
 });

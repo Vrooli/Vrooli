@@ -74,6 +74,8 @@ interface WorkspaceState {
   modifiers: ModifierState;
   groups: TabGroupMeta[];
   tabContextMenu: TabContextMenuState | null;
+  /** Keep the device screen awake to support hands-free voice interaction. */
+  keepScreenAwake: boolean;
 }
 
 interface WorkspaceActions {
@@ -123,7 +125,9 @@ interface WorkspaceActions {
   updateGroup: (groupId: string, update: Partial<Omit<TabGroupMeta, "id">>) => void;
   setPaneGroup: (sessionId: string, groupId: string | null) => void;
   toggleGroupCollapsed: (groupId: string) => void;
+  applyAppearanceToAll: (sessionId: string) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
+  setKeepScreenAwake: (enabled: boolean) => void;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
@@ -165,6 +169,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       modifiers: { ctrl: false, alt: false, shift: false },
       groups: [],
       tabContextMenu: null,
+      keepScreenAwake: true,
 
       addRecentCombo: (comboId) =>
         set((state) => {
@@ -295,11 +300,24 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g
         ),
       })),
+      applyAppearanceToAll: (sessionId) =>
+        set((state) => {
+          const source = state.panes.find((p) => p.sessionId === sessionId);
+          if (!source) return state;
+          const { headerColor, themeId, fontSize } = source;
+          return {
+            panes: state.panes.map((p) => ({ ...p, headerColor, themeId, fontSize })),
+            defaultHeaderColor: headerColor,
+            defaultThemeId: themeId,
+            defaultFontSize: fontSize,
+          };
+        }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
+      setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
     }),
     {
       name: "wc-workspace",
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -344,6 +362,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           state.commandPrefix ??= "hey do";
           state.segmentSilenceMs ??= 1500;
         }
+        if (version < 11) {
+          state.keepScreenAwake ??= true;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -372,6 +393,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         defaultFontSize: state.defaultFontSize,
         plusButtonBehavior: state.plusButtonBehavior,
         recentCombos: state.recentCombos,
+        keepScreenAwake: state.keepScreenAwake,
       }),
     },
   ),

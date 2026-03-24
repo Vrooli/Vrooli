@@ -52,6 +52,10 @@ message CreateBacklogItemRequest {
 
   // Initiative this item belongs to.
   optional string initiative = 9;
+
+  // When true (default), auto-initialize workshop for the new item.
+  // Set to false to skip auto-initialization.
+  optional bool auto_workshop = 10;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -298,4 +302,47 @@ message ImportChange {
 
   // Details of what changed.
   repeated string details = 3;
+}
+
+// =============================================================================
+// WORKSHOP SAVE
+// =============================================================================
+
+// WorkshopSaveRequest saves a workshop round's responses and optionally
+// auto-triggers the next round if the item is not yet ready.
+message WorkshopSaveRequest {
+  // The round number being saved.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+
+  // The round content as a JSON string.
+  string content = 2 [(buf.validate.field).string.min_len = 1];
+
+  // When true (default), auto-advance to the next round if the item is not
+  // yet ready. Set to false to save without auto-advancing.
+  optional bool auto_workshop = 3;
+}
+
+// WorkshopSaveResponse returns the result of saving a workshop round.
+message WorkshopSaveResponse {
+  // The saved file node.
+  BacklogFile file = 1;
+
+  // Auto-advance decision metadata.
+  WorkshopAutoAdvance auto_advance = 2;
+}
+
+// WorkshopAutoAdvance reports whether and why auto-advance was triggered.
+message WorkshopAutoAdvance {
+  // Whether the next round was auto-triggered.
+  bool triggered = 1;
+
+  // Agent-manager run ID (set only when triggered=true).
+  optional string run_id = 2;
+
+  // Agent-manager task ID (set only when triggered=true).
+  optional string task_id = 3;
+
+  // Reason for the decision: "not_ready", "ready", "max_rounds",
+  // "pending_decisions", "opt_out", "error", "no_rounds".
+  string reason = 4;
 }

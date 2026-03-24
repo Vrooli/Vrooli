@@ -10,6 +10,8 @@ export default function WorkspaceSection() {
   const setDisplayMode = useWorkspaceStore((state) => state.setDisplayMode);
   const toolbarLayout = useWorkspaceStore((state) => state.toolbarLayout);
   const setToolbarLayout = useWorkspaceStore((state) => state.setToolbarLayout);
+  const keepScreenAwake = useWorkspaceStore((state) => state.keepScreenAwake);
+  const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
 
   return (
     <div className="space-y-4">
@@ -89,6 +91,17 @@ export default function WorkspaceSection() {
             )}
           />
         )}
+        <SettingsRow
+          label="Keep screen awake"
+          hint="Prevent the device from dimming or locking while the console is open."
+          control={(
+            <SettingsToggle
+              testId="keep-screen-awake-toggle"
+              checked={keepScreenAwake}
+              onClick={() => setKeepScreenAwake(!keepScreenAwake)}
+            />
+          )}
+        />
       </SettingsCard>
     </div>
   );

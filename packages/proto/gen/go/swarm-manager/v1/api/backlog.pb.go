@@ -43,7 +43,10 @@ type CreateBacklogItemRequest struct {
 	// Dependencies as "kind/name" references.
 	DependsOn []string `protobuf:"bytes,8,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	// Initiative this item belongs to.
-	Initiative    *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	Initiative *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
+	// When true (default), auto-initialize workshop for the new item.
+	// Set to false to skip auto-initialization.
+	AutoWorkshop  *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -139,6 +142,13 @@ func (x *CreateBacklogItemRequest) GetInitiative() string {
 		return *x.Initiative
 	}
 	return ""
+}
+
+func (x *CreateBacklogItemRequest) GetAutoWorkshop() bool {
+	if x != nil && x.AutoWorkshop != nil {
+		return *x.AutoWorkshop
+	}
+	return false
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -1282,11 +1292,206 @@ func (x *ImportChange) GetDetails() []string {
 	return nil
 }
 
+// WorkshopSaveRequest saves a workshop round's responses and optionally
+// auto-triggers the next round if the item is not yet ready.
+type WorkshopSaveRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The round number being saved.
+	RoundNumber int32 `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	// The round content as a JSON string.
+	Content string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	// When true (default), auto-advance to the next round if the item is not
+	// yet ready. Set to false to save without auto-advancing.
+	AutoWorkshop  *bool `protobuf:"varint,3,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkshopSaveRequest) Reset() {
+	*x = WorkshopSaveRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkshopSaveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkshopSaveRequest) ProtoMessage() {}
+
+func (x *WorkshopSaveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkshopSaveRequest.ProtoReflect.Descriptor instead.
+func (*WorkshopSaveRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *WorkshopSaveRequest) GetRoundNumber() int32 {
+	if x != nil {
+		return x.RoundNumber
+	}
+	return 0
+}
+
+func (x *WorkshopSaveRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *WorkshopSaveRequest) GetAutoWorkshop() bool {
+	if x != nil && x.AutoWorkshop != nil {
+		return *x.AutoWorkshop
+	}
+	return false
+}
+
+// WorkshopSaveResponse returns the result of saving a workshop round.
+type WorkshopSaveResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The saved file node.
+	File *domain.BacklogFile `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	// Auto-advance decision metadata.
+	AutoAdvance   *WorkshopAutoAdvance `protobuf:"bytes,2,opt,name=auto_advance,json=autoAdvance,proto3" json:"auto_advance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkshopSaveResponse) Reset() {
+	*x = WorkshopSaveResponse{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkshopSaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkshopSaveResponse) ProtoMessage() {}
+
+func (x *WorkshopSaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkshopSaveResponse.ProtoReflect.Descriptor instead.
+func (*WorkshopSaveResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WorkshopSaveResponse) GetFile() *domain.BacklogFile {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+func (x *WorkshopSaveResponse) GetAutoAdvance() *WorkshopAutoAdvance {
+	if x != nil {
+		return x.AutoAdvance
+	}
+	return nil
+}
+
+// WorkshopAutoAdvance reports whether and why auto-advance was triggered.
+type WorkshopAutoAdvance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the next round was auto-triggered.
+	Triggered bool `protobuf:"varint,1,opt,name=triggered,proto3" json:"triggered,omitempty"`
+	// Agent-manager run ID (set only when triggered=true).
+	RunId *string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3,oneof" json:"run_id,omitempty"`
+	// Agent-manager task ID (set only when triggered=true).
+	TaskId *string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	// Reason for the decision: "not_ready", "ready", "max_rounds",
+	// "pending_decisions", "opt_out", "error", "no_rounds".
+	Reason        string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkshopAutoAdvance) Reset() {
+	*x = WorkshopAutoAdvance{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkshopAutoAdvance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkshopAutoAdvance) ProtoMessage() {}
+
+func (x *WorkshopAutoAdvance) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkshopAutoAdvance.ProtoReflect.Descriptor instead.
+func (*WorkshopAutoAdvance) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *WorkshopAutoAdvance) GetTriggered() bool {
+	if x != nil {
+		return x.Triggered
+	}
+	return false
+}
+
+func (x *WorkshopAutoAdvance) GetRunId() string {
+	if x != nil && x.RunId != nil {
+		return *x.RunId
+	}
+	return ""
+}
+
+func (x *WorkshopAutoAdvance) GetTaskId() string {
+	if x != nil && x.TaskId != nil {
+		return *x.TaskId
+	}
+	return ""
+}
+
+func (x *WorkshopAutoAdvance) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xe8\x03\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xa4\x04\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1300,11 +1505,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"depends_on\x18\b \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
 	"initiative\x18\t \x01(\tH\x03R\n" +
-	"initiative\x88\x01\x01B\x0e\n" +
+	"initiative\x88\x01\x01\x12(\n" +
+	"\rauto_workshop\x18\n" +
+	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
 	"\x10_research_targetB\r\n" +
-	"\v_initiative\"\xd2\x03\n" +
+	"\v_initiativeB\x10\n" +
+	"\x0e_auto_workshop\"\xd2\x03\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1426,7 +1634,23 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\fImportChange\x12\x12\n" +
 	"\x04item\x18\x01 \x01(\tR\x04item\x12\x16\n" +
 	"\x06action\x18\x02 \x01(\tR\x06action\x12\x18\n" +
-	"\adetails\x18\x03 \x03(\tR\adetailsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\adetails\x18\x03 \x03(\tR\adetails\"\xa0\x01\n" +
+	"\x13WorkshopSaveRequest\x12*\n" +
+	"\fround_number\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\vroundNumber\x12!\n" +
+	"\acontent\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontent\x12(\n" +
+	"\rauto_workshop\x18\x03 \x01(\bH\x00R\fautoWorkshop\x88\x01\x01B\x10\n" +
+	"\x0e_auto_workshop\"\x93\x01\n" +
+	"\x14WorkshopSaveResponse\x121\n" +
+	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileR\x04file\x12H\n" +
+	"\fauto_advance\x18\x02 \x01(\v2%.swarm_manager.v1.WorkshopAutoAdvanceR\vautoAdvance\"\x9c\x01\n" +
+	"\x13WorkshopAutoAdvance\x12\x1c\n" +
+	"\ttriggered\x18\x01 \x01(\bR\ttriggered\x12\x1a\n" +
+	"\x06run_id\x18\x02 \x01(\tH\x00R\x05runId\x88\x01\x01\x12\x1c\n" +
+	"\atask_id\x18\x03 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reasonB\t\n" +
+	"\a_run_idB\n" +
+	"\n" +
+	"\b_task_idBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_backlog_proto_rawDescOnce sync.Once
@@ -1440,7 +1664,7 @@ func file_swarm_manager_v1_api_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*CreateBacklogItemRequest)(nil),     // 0: swarm_manager.v1.CreateBacklogItemRequest
 	(*UpdateBacklogItemRequest)(nil),     // 1: swarm_manager.v1.UpdateBacklogItemRequest
@@ -1458,22 +1682,27 @@ var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*ExportBacklogRequest)(nil),         // 13: swarm_manager.v1.ExportBacklogRequest
 	(*ImportBacklogResponse)(nil),        // 14: swarm_manager.v1.ImportBacklogResponse
 	(*ImportChange)(nil),                 // 15: swarm_manager.v1.ImportChange
-	(*domain.BacklogItem)(nil),           // 16: swarm_manager.v1.BacklogItem
-	(*domain.BacklogFile)(nil),           // 17: swarm_manager.v1.BacklogFile
+	(*WorkshopSaveRequest)(nil),          // 16: swarm_manager.v1.WorkshopSaveRequest
+	(*WorkshopSaveResponse)(nil),         // 17: swarm_manager.v1.WorkshopSaveResponse
+	(*WorkshopAutoAdvance)(nil),          // 18: swarm_manager.v1.WorkshopAutoAdvance
+	(*domain.BacklogItem)(nil),           // 19: swarm_manager.v1.BacklogItem
+	(*domain.BacklogFile)(nil),           // 20: swarm_manager.v1.BacklogFile
 }
 var file_swarm_manager_v1_api_backlog_proto_depIdxs = []int32{
-	16, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
-	16, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
-	17, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
-	17, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	17, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	16, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	19, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
+	19, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	20, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
+	20, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	20, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	19, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
 	15, // 6: swarm_manager.v1.ImportBacklogResponse.changes:type_name -> swarm_manager.v1.ImportChange
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	20, // 7: swarm_manager.v1.WorkshopSaveResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	18, // 8: swarm_manager.v1.WorkshopSaveResponse.auto_advance:type_name -> swarm_manager.v1.WorkshopAutoAdvance
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_backlog_proto_init() }
@@ -1489,13 +1718,15 @@ func file_swarm_manager_v1_api_backlog_proto_init() {
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[10].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[12].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[13].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_backlog_proto_msgTypes[16].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_backlog_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_backlog_proto_rawDesc), len(file_swarm_manager_v1_api_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

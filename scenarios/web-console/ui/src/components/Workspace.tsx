@@ -7,6 +7,7 @@ import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useAppViewport } from "../hooks/useAppViewport";
+import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
@@ -96,6 +97,7 @@ export default function Workspace() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   useAppViewport();
+  useWakeLock(store.keepScreenAwake);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
   const [launcherOpen, setLauncherOpen] = useState(false);

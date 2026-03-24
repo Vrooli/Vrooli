@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { X, GripHorizontal } from "lucide-react";
+import { X, GripHorizontal, CopyCheck } from "lucide-react";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import { DEFAULT_THEME_ID } from "../consts/config";
@@ -15,6 +15,8 @@ export default function AppearanceModal() {
   const setPaneColor = useWorkspaceStore((s) => s.setPaneColor);
   const setPaneTheme = useWorkspaceStore((s) => s.setPaneTheme);
   const setPaneFontSize = useWorkspaceStore((s) => s.setPaneFontSize);
+  const applyAppearanceToAll = useWorkspaceStore((s) => s.applyAppearanceToAll);
+  const paneCount = useWorkspaceStore((s) => s.panes.length);
 
   const pane = panes.find((p) => p.sessionId === appearanceModalPane);
 
@@ -107,6 +109,20 @@ export default function AppearanceModal() {
             onChangeSize={(size) => setPaneFontSize(sessionId, size)}
             testIdPrefix="appearance"
           />
+
+          {paneCount > 1 && (
+            <div className="pt-2 border-t border-wc-default">
+              <Button
+                data-testid="appearance-apply-all"
+                variant="outline"
+                className="w-full"
+                onClick={() => applyAppearanceToAll(sessionId)}
+              >
+                <CopyCheck className="h-4 w-4 mr-2" />
+                Apply to all sessions
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>

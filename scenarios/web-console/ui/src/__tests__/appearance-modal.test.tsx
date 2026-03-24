@@ -13,6 +13,7 @@ const mockStoreState: Record<string, unknown> = {
   setPaneColor: vi.fn(),
   setPaneTheme: vi.fn(),
   setPaneFontSize: vi.fn(),
+  applyAppearanceToAll: vi.fn(),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -50,6 +51,7 @@ describe("AppearanceModal", () => {
     mockStoreState.setPaneTheme = vi.fn();
     mockStoreState.setPaneFontSize = vi.fn();
     mockStoreState.setAppearanceModalPane = vi.fn();
+    mockStoreState.applyAppearanceToAll = vi.fn();
   });
 
   it("does not render when appearanceModalPane is null", () => {
@@ -138,6 +140,33 @@ describe("AppearanceModal", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     expect(screen.getByTestId("appearance-font-increase")).toBeDisabled();
+  });
+
+  it("does not show apply-all button with only one pane", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    expect(screen.queryByTestId("appearance-apply-all")).toBeNull();
+  });
+
+  it("shows apply-all button with multiple panes", () => {
+    mockStoreState.panes = [
+      { sessionId: "sess-1", name: "bash", headerColor: "transparent", themeId: "slate-ocean", fontSize: 14 },
+      { sessionId: "sess-2", name: "zsh", headerColor: "#ff7a7a", themeId: "dracula", fontSize: 16 },
+    ];
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    expect(screen.getByTestId("appearance-apply-all")).toBeTruthy();
+  });
+
+  it("apply-all button calls applyAppearanceToAll with session id", () => {
+    mockStoreState.panes = [
+      { sessionId: "sess-1", name: "bash", headerColor: "transparent", themeId: "slate-ocean", fontSize: 14 },
+      { sessionId: "sess-2", name: "zsh", headerColor: "#ff7a7a", themeId: "dracula", fontSize: 16 },
+    ];
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    fireEvent.click(screen.getByTestId("appearance-apply-all"));
+    expect(mockStoreState.applyAppearanceToAll).toHaveBeenCalledWith("sess-1");
   });
 
   it("displays current font size value", () => {
