@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -48,6 +48,9 @@ interface DiffViewerProps {
   commitHash?: string;
   // Related files
   onShowRelatedFiles?: (path: string) => void;
+  // Empty-state CTAs
+  onOpenSearch?: () => void;
+  onOpenReview?: () => void;
   // Read-only mode (viewing any file from search)
   isReadOnly?: boolean;
   onSaveFileContent?: (path: string, content: string, expectedHash?: string) => Promise<SaveFileContentResponse>;
@@ -593,6 +596,8 @@ export function DiffViewer({
   isHistoryMode = false,
   commitHash,
   onShowRelatedFiles,
+  onOpenSearch,
+  onOpenReview,
   isReadOnly = false,
   onSaveFileContent,
   isSavingFile = false,
@@ -1406,6 +1411,28 @@ export function DiffViewer({
               <p className={`text-slate-600 mt-1 ${isMobile ? "text-sm" : "text-xs"}`}>
                 {isMobile ? "Tap a file from the Changes tab" : "Click on a file from the list on the left"}
               </p>
+              {(onOpenSearch || onOpenReview) && (
+                <div className={`flex gap-2 mt-4 ${isMobile ? "flex-col w-full max-w-xs" : ""}`}>
+                  {onOpenSearch && (
+                    <button
+                      onClick={onOpenSearch}
+                      className={`inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-200 transition-colors ${isMobile ? "px-4 py-2.5 text-sm justify-center" : "px-3 py-1.5 text-xs"}`}
+                    >
+                      <Search className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                      Find a file
+                    </button>
+                  )}
+                  {onOpenReview && (
+                    <button
+                      onClick={onOpenReview}
+                      className={`inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-200 transition-colors ${isMobile ? "px-4 py-2.5 text-sm justify-center" : "px-3 py-1.5 text-xs"}`}
+                    >
+                      <ClipboardCheck className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                      Open review
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -2096,6 +2096,8 @@ export default function App() {
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
               onShowRelatedFiles={handleShowRelatedFiles}
+              onOpenSearch={() => setIsFileSearchOpen(true)}
+              onOpenReview={() => setPrimaryPanel("review")}
               isReadOnly={isViewingAnyFile}
               onSaveFileContent={handleSaveFileContent}
               isSavingFile={saveFileContentMutation.isPending}
@@ -2286,6 +2288,8 @@ export default function App() {
               // On mobile, switch to changes view to see the related files panel
               setMobileActivePanel("changes");
             }}
+            onOpenSearch={() => setIsFileSearchOpen(true)}
+            onOpenReview={() => setMobileActivePanel("review")}
             isReadOnly={isViewingAnyFile}
             onSaveFileContent={handleSaveFileContent}
             isSavingFile={saveFileContentMutation.isPending}
