@@ -59,6 +59,15 @@ message CreateBacklogItemRequest {
 
   // Effort estimate: XS, S, M, L, XL.
   optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+
+  // Relative path from project root identifying where this work targets.
+  optional string scope = 12;
+
+  // Glob patterns for file paths expected to be modified.
+  repeated string acceptance_allow = 13;
+
+  // Glob patterns for file paths that must NOT be modified.
+  repeated string acceptance_deny = 14;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -99,6 +108,15 @@ message UpdateBacklogItemRequest {
 
   // Effort estimate: XS, S, M, L, XL.
   optional string effort = 9 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+
+  // Relative path from project root identifying where this work targets.
+  optional string scope = 10;
+
+  // Glob patterns for file paths expected to be modified.
+  repeated string acceptance_allow = 11;
+
+  // Glob patterns for file paths that must NOT be modified.
+  repeated string acceptance_deny = 12;
 }
 
 // ListBacklogItemsResponse returns all backlog items.

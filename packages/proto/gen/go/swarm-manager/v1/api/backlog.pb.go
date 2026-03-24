@@ -48,9 +48,15 @@ type CreateBacklogItemRequest struct {
 	// Set to false to skip auto-initialization.
 	AutoWorkshop *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
-	Effort        *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Effort *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
+	// Relative path from project root identifying where this work targets.
+	Scope *string `protobuf:"bytes,12,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
+	// Glob patterns for file paths expected to be modified.
+	AcceptanceAllow []string `protobuf:"bytes,13,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
+	// Glob patterns for file paths that must NOT be modified.
+	AcceptanceDeny []string `protobuf:"bytes,14,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateBacklogItemRequest) Reset() {
@@ -160,6 +166,27 @@ func (x *CreateBacklogItemRequest) GetEffort() string {
 	return ""
 }
 
+func (x *CreateBacklogItemRequest) GetScope() string {
+	if x != nil && x.Scope != nil {
+		return *x.Scope
+	}
+	return ""
+}
+
+func (x *CreateBacklogItemRequest) GetAcceptanceAllow() []string {
+	if x != nil {
+		return x.AcceptanceAllow
+	}
+	return nil
+}
+
+func (x *CreateBacklogItemRequest) GetAcceptanceDeny() []string {
+	if x != nil {
+		return x.AcceptanceDeny
+	}
+	return nil
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 type UpdateBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -181,9 +208,15 @@ type UpdateBacklogItemRequest struct {
 	// Initiative this item belongs to.
 	Initiative *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
-	Effort        *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Effort *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
+	// Relative path from project root identifying where this work targets.
+	Scope *string `protobuf:"bytes,10,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
+	// Glob patterns for file paths expected to be modified.
+	AcceptanceAllow []string `protobuf:"bytes,11,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
+	// Glob patterns for file paths that must NOT be modified.
+	AcceptanceDeny []string `protobuf:"bytes,12,rep,name=acceptance_deny,json=acceptanceDeny,proto3" json:"acceptance_deny,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateBacklogItemRequest) Reset() {
@@ -277,6 +310,27 @@ func (x *UpdateBacklogItemRequest) GetEffort() string {
 		return *x.Effort
 	}
 	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetScope() string {
+	if x != nil && x.Scope != nil {
+		return *x.Scope
+	}
+	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetAcceptanceAllow() []string {
+	if x != nil {
+		return x.AcceptanceAllow
+	}
+	return nil
+}
+
+func (x *UpdateBacklogItemRequest) GetAcceptanceDeny() []string {
+	if x != nil {
+		return x.AcceptanceDeny
+	}
+	return nil
 }
 
 // ListBacklogItemsResponse returns all backlog items.
@@ -1509,7 +1563,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xe4\x04\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xdd\x05\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1526,13 +1580,17 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"initiative\x88\x01\x01\x12(\n" +
 	"\rauto_workshop\x18\n" +
 	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01\x123\n" +
-	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01B\x0e\n" +
+	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12\x19\n" +
+	"\x05scope\x18\f \x01(\tH\x06R\x05scope\x88\x01\x01\x12)\n" +
+	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
+	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDenyB\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\x10\n" +
 	"\x0e_auto_workshopB\t\n" +
-	"\a_effort\"\x92\x04\n" +
+	"\a_effortB\b\n" +
+	"\x06_scope\"\x8b\x05\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1546,10 +1604,15 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\b \x01(\tH\x01R\n" +
 	"initiative\x88\x01\x01\x123\n" +
-	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01B\x12\n" +
+	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12\x19\n" +
+	"\x05scope\x18\n" +
+	" \x01(\tH\x03R\x05scope\x88\x01\x01\x12)\n" +
+	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
+	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDenyB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\t\n" +
-	"\a_effort\"O\n" +
+	"\a_effortB\b\n" +
+	"\x06_scope\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +
 	"\x13BacklogItemResponse\x121\n" +
