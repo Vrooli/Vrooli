@@ -38,8 +38,6 @@ func NewHandlerFromService(svc *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/execution", h.Create).Methods("POST")
-	r.HandleFunc("/api/v1/execution/policy", h.GetPolicy).Methods("GET")
-	r.HandleFunc("/api/v1/execution/policy", h.UpdatePolicy).Methods("PUT")
 	r.HandleFunc("/api/v1/execution/{execution_id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
@@ -313,48 +311,6 @@ func isCancelRestoreError(err error) bool {
 		strings.Contains(message, "failed to restore backlog status after cancel")
 }
 
-func (h *Handler) GetPolicy(w http.ResponseWriter, r *http.Request) {
-	policy, err := h.service.Policy(r.Context())
-	if err != nil {
-		httputil.InternalError(w, "[execution] policy get", "failed to load execution policy")
-		return
-	}
-	resp := &apipb.ExecutionPolicyResponse{Policy: policyToProto(policy)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[execution] policy get", "failed to encode response")
-	}
-}
-
-func (h *Handler) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
-	var pbPolicy domainpb.ExecutionPolicy
-	if err := httputil.DecodeProtoJSON(r, &pbPolicy); err != nil {
-		httputil.BadRequest(w, "[execution] policy update", "invalid request body")
-		return
-	}
-	if !httputil.ValidateProtoRequest(w, "[execution] policy update", "default_mode must be manual, scheduled, or yolo", &pbPolicy) {
-		return
-	}
-	req := Policy{
-		DefaultMode:         Mode(pbPolicy.DefaultMode),
-		DefaultDelaySeconds: pbPolicy.DefaultDelaySeconds,
-		AutoFixup:           pbPolicy.AutoFixup,
-		MaxFixupAttempts:    int(pbPolicy.MaxFixupAttempts),
-	}
-	policy, err := h.service.UpdatePolicy(r.Context(), req)
-	if err != nil {
-		if strings.Contains(err.Error(), "default_mode") || strings.Contains(err.Error(), "default_delay_seconds") {
-			httputil.BadRequest(w, "[execution] policy update", err.Error())
-			return
-		}
-		httputil.InternalError(w, "[execution] policy update", "failed to persist execution policy")
-		return
-	}
-	resp := &apipb.ExecutionPolicyResponse{Policy: policyToProto(policy)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		httputil.InternalError(w, "[execution] policy update", "failed to encode response")
-	}
-}
-
 func executionResponse(record Record) *apipb.ExecutionResponse {
 	return &apipb.ExecutionResponse{Execution: recordToProto(record)}
 }
@@ -439,13 +395,4 @@ func reviewResultToProto(rr *ReviewResult) *domainpb.ReviewResult {
 		pb.Dimensions = append(pb.Dimensions, pbDim)
 	}
 	return pb
-}
-
-func policyToProto(p Policy) *domainpb.ExecutionPolicy {
-	return &domainpb.ExecutionPolicy{
-		DefaultMode:         string(p.DefaultMode),
-		DefaultDelaySeconds: p.DefaultDelaySeconds,
-		AutoFixup:           p.AutoFixup,
-		MaxFixupAttempts:    int32(p.MaxFixupAttempts),
-	}
 }

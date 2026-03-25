@@ -256,6 +256,10 @@ export const literalSelectors = {
     themeDark: "theme-dark",
     themeLight: "theme-light",
     themeSystem: "theme-system",
+    executionDefaults: "execution-defaults",
+    workshopSettings: "workshop-settings",
+    agentSettings: "agent-settings",
+    uiPreferences: "ui-preferences",
     saveButton: "settings-save",
   },
   // Execution page selectors

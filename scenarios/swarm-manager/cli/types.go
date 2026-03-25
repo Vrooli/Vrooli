@@ -204,15 +204,6 @@ type ExecutionItemResponse struct {
 	Execution ExecutionRecord `json:"execution"`
 }
 
-type ExecutionPolicy struct {
-	DefaultMode         string `json:"default_mode"`
-	DefaultDelaySeconds int64  `json:"default_delay_seconds"`
-}
-
-type ExecutionPolicyResponse struct {
-	Policy ExecutionPolicy `json:"policy"`
-}
-
 type SpecSyncArchiveResponse struct {
 	ExecutionID string `json:"execution_id"`
 	Status      string `json:"status"`

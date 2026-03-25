@@ -64,24 +64,24 @@ func (a *App) resolveExecutionMode(mode string) (string, error) {
 		return mode, nil
 	}
 
-	body, err := a.getV1("/execution/policy", nil)
+	body, err := a.getV1("/settings", nil)
 	if err != nil {
-		return "", fmt.Errorf("resolve execution mode from policy: %w", err)
+		return "", fmt.Errorf("resolve execution mode from settings: %w", err)
 	}
 	var response struct {
-		Policy struct {
+		Settings struct {
 			DefaultMode string `json:"default_mode"`
-		} `json:"policy"`
+		} `json:"settings"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("decode execution policy: %w", err)
+		return "", fmt.Errorf("decode settings: %w", err)
 	}
-	resolved := strings.ToLower(strings.TrimSpace(response.Policy.DefaultMode))
+	resolved := strings.ToLower(strings.TrimSpace(response.Settings.DefaultMode))
 	if resolved == "" {
-		return "", fmt.Errorf("execution policy default mode is empty; provide --mode manual|scheduled|yolo")
+		return "", fmt.Errorf("settings default_mode is empty; provide --mode manual|scheduled|yolo")
 	}
 	if resolved != "manual" && resolved != "scheduled" && resolved != "yolo" {
-		return "", fmt.Errorf("execution policy returned invalid default mode %q", resolved)
+		return "", fmt.Errorf("settings returned invalid default_mode %q", resolved)
 	}
 	return resolved, nil
 }
@@ -283,7 +283,7 @@ func (a *App) cmdExecutionPolicyGet(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/execution/policy", nil)
+	body, err := a.getV1("/settings", nil)
 	if err != nil {
 		return err
 	}
@@ -291,15 +291,26 @@ func (a *App) cmdExecutionPolicyGet(args []string) error {
 		return nil
 	}
 
-	response, err := decodeResponse[ExecutionPolicyResponse](body)
-	if err != nil {
-		return err
+	var response struct {
+		Settings struct {
+			DefaultMode         string `json:"default_mode"`
+			DefaultDelaySeconds int64  `json:"default_delay_seconds"`
+			AutoFixup           bool   `json:"auto_fixup"`
+			MaxFixupAttempts    int    `json:"max_fixup_attempts"`
+		} `json:"settings"`
 	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	s := response.Settings
 	printSection("Summary")
-	fmt.Printf("  Default mode: %s\n", response.Policy.DefaultMode)
-	fmt.Printf("  Default delay seconds: %d\n", response.Policy.DefaultDelaySeconds)
+	fmt.Printf("  Default mode: %s\n", s.DefaultMode)
+	fmt.Printf("  Default delay seconds: %d\n", s.DefaultDelaySeconds)
+	fmt.Printf("  Auto fixup: %t\n", s.AutoFixup)
+	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
 	printCommandListSection("Next Steps", []string{
-		cliCommand("execution", "policy-update", "--mode", response.Policy.DefaultMode, "--delay-seconds", fmt.Sprintf("%d", response.Policy.DefaultDelaySeconds)),
+		cliCommand("execution", "policy-update", "--mode", s.DefaultMode, "--delay-seconds", fmt.Sprintf("%d", s.DefaultDelaySeconds)),
+		cliCommand("settings", "get"),
 	})
 	return nil
 }
@@ -308,6 +319,8 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	fs := flag.NewFlagSet("execution policy update", flag.ContinueOnError)
 	mode := fs.String("mode", "", "Default mode: manual|scheduled|yolo")
 	delay := fs.Int64("delay-seconds", 300, "Default delay seconds for scheduled mode")
+	autoFixup := fs.Bool("auto-fixup", false, "Enable auto fixup")
+	maxFixup := fs.Int("max-fixup-attempts", -1, "Max fixup attempts (0-5)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -316,14 +329,21 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	if err != nil {
 		return err
 	}
-	payload, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"default_mode":          opts.mode,
 		"default_delay_seconds": opts.delaySeconds,
-	})
+	}
+	if *autoFixup {
+		payload["auto_fixup"] = true
+	}
+	if *maxFixup >= 0 {
+		payload["max_fixup_attempts"] = *maxFixup
+	}
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
-	body, err := a.requestV1("PUT", "/execution/policy", nil, json.RawMessage(payload))
+	body, err := a.requestV1("PUT", "/settings", nil, json.RawMessage(payloadBytes))
 	if err != nil {
 		return err
 	}
@@ -331,17 +351,28 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 		return nil
 	}
 
-	response, err := decodeResponse[ExecutionPolicyResponse](body)
-	if err != nil {
-		return err
+	var response struct {
+		Settings struct {
+			DefaultMode         string `json:"default_mode"`
+			DefaultDelaySeconds int64  `json:"default_delay_seconds"`
+			AutoFixup           bool   `json:"auto_fixup"`
+			MaxFixupAttempts    int    `json:"max_fixup_attempts"`
+		} `json:"settings"`
 	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	s := response.Settings
 	printSection("Result")
-	fmt.Printf("  Updated execution policy\n")
+	fmt.Printf("  Updated execution policy settings\n")
 	printSection("What Changed")
-	fmt.Printf("  Default mode: %s\n", response.Policy.DefaultMode)
-	fmt.Printf("  Default delay seconds: %d\n", response.Policy.DefaultDelaySeconds)
+	fmt.Printf("  Default mode: %s\n", s.DefaultMode)
+	fmt.Printf("  Default delay seconds: %d\n", s.DefaultDelaySeconds)
+	fmt.Printf("  Auto fixup: %t\n", s.AutoFixup)
+	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
 	printCommandListSection("Next Steps", []string{
 		cliCommand("execution", "policy-get"),
+		cliCommand("settings", "get"),
 	})
 	return nil
 }

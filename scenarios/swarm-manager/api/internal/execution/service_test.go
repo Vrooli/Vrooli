@@ -13,6 +13,24 @@ import (
 	"swarm-manager/internal/promptmanager"
 )
 
+// stubPolicyProvider implements PolicyProvider for tests.
+type stubPolicyProvider struct {
+	policy Policy
+}
+
+func (s *stubPolicyProvider) LoadPolicy() (Policy, error) {
+	return s.policy, nil
+}
+
+func defaultTestPolicyProvider() PolicyProvider {
+	return &stubPolicyProvider{policy: Policy{
+		DefaultMode:         ModeManual,
+		DefaultDelaySeconds: 300,
+		MaxFixupAttempts:    2,
+		AutoFixup:           false,
+	}}
+}
+
 type stubAgentService struct {
 	spawnCalls int
 	spawnErr   error
@@ -100,18 +118,14 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PolicyPath:   filepath.Join(root, ".vrooli", "execution-policy.json"),
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PolicyProvider: &stubPolicyProvider{policy: Policy{
+			DefaultMode:         ModeScheduled,
+			DefaultDelaySeconds: 600,
+		}},
 		AgentService: agent,
 	})
-	_, err := service.UpdatePolicy(context.Background(), Policy{
-		DefaultMode:         ModeScheduled,
-		DefaultDelaySeconds: 600,
-	})
-	if err != nil {
-		t.Fatalf("UpdatePolicy error: %v", err)
-	}
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -169,16 +183,13 @@ func TestQueueBacklog_RejectsScheduledModeWithoutEffectiveDelay(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
-	testPolicyPath := filepath.Join(root, ".vrooli", "execution-policy.json")
-	mustWritePolicy(t, testPolicyPath, map[string]any{
-		"default_mode":          "scheduled",
-		"default_delay_seconds": 0,
-	})
-
 	service := NewService(ServiceConfig{
-		RootDir:    root,
-		StorePath:  filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PolicyPath: testPolicyPath,
+		RootDir:   root,
+		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PolicyProvider: &stubPolicyProvider{policy: Policy{
+			DefaultMode:         ModeScheduled,
+			DefaultDelaySeconds: 0,
+		}},
 	})
 
 	_, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -381,23 +392,6 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	}
 }
 
-func TestUpdatePolicy_RejectsInvalidScheduledDefaults(t *testing.T) {
-	root := t.TempDir()
-	service := NewService(ServiceConfig{
-		RootDir:    root,
-		StorePath:  filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PolicyPath: filepath.Join(root, ".vrooli", "execution-policy.json"),
-	})
-
-	_, err := service.UpdatePolicy(context.Background(), Policy{
-		DefaultMode:         ModeScheduled,
-		DefaultDelaySeconds: 0,
-	})
-	if err == nil {
-		t.Fatal("expected error when scheduled default mode has non-positive delay")
-	}
-}
-
 func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[string]any) {
 	t.Helper()
 	kindDir := "ideas"
@@ -459,20 +453,6 @@ func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
 	return value
-}
-
-func mustWritePolicy(t *testing.T, path string, payload map[string]any) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir policy dir: %v", err)
-	}
-	bytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal policy payload: %v", err)
-	}
-	if err := os.WriteFile(path, bytes, 0o644); err != nil {
-		t.Fatalf("write policy file: %v", err)
-	}
 }
 
 func TestMapRunStatus_DirectMappings(t *testing.T) {
@@ -835,28 +815,6 @@ func mustLoadRecords(t *testing.T, path string) []map[string]any {
 		t.Fatalf("unmarshal records: %v", err)
 	}
 	return records
-}
-
-func TestPolicyToProto_IncludesAutoFixup(t *testing.T) {
-	policy := Policy{
-		DefaultMode:         ModeManual,
-		DefaultDelaySeconds: 300,
-		AutoFixup:           true,
-		MaxFixupAttempts:    3,
-	}
-	pb := policyToProto(policy)
-	if pb.DefaultMode != "manual" {
-		t.Fatalf("expected default_mode manual, got %s", pb.DefaultMode)
-	}
-	if pb.DefaultDelaySeconds != 300 {
-		t.Fatalf("expected default_delay_seconds 300, got %d", pb.DefaultDelaySeconds)
-	}
-	if !pb.AutoFixup {
-		t.Fatal("expected auto_fixup true")
-	}
-	if pb.MaxFixupAttempts != 3 {
-		t.Fatalf("expected max_fixup_attempts 3, got %d", pb.MaxFixupAttempts)
-	}
 }
 
 func TestRecordToProto_MapsReviewResult(t *testing.T) {

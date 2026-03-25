@@ -24,6 +24,17 @@ describe("MainLayout", () => {
     vi.clearAllMocks();
     vi.mocked(settingsService.get).mockResolvedValue({
       theme: "dark",
+      defaultMode: "manual",
+      defaultDelaySeconds: 300,
+      autoFixup: false,
+      maxFixupAttempts: 2,
+      maxAutoRounds: 10,
+      agentMaxTurns: 60,
+      agentTimeoutSeconds: 900,
+      agentRequiresApproval: true,
+      searchDebounceMs: 300,
+      toastDurationMs: 5000,
+      confirmDestructiveActions: true,
     });
   });
 

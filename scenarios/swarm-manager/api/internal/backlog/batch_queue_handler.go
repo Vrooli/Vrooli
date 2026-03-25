@@ -134,10 +134,10 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 		eq = h.executionQueuer
 	} else {
 		eq = execution.NewService(execution.ServiceConfig{
-			RootDir:      h.rootDir,
-			StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-			PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
-			AgentService: h.agentService,
+			RootDir:        h.rootDir,
+			StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+			PolicyProvider: h.policyProvider,
+			AgentService:   h.agentService,
 		})
 	}
 

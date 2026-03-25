@@ -1778,3 +1778,144 @@ func TestUpdatePromptTrace_InvalidJSON(t *testing.T) {
 	h.UpdatePromptTrace(w, req)
 	testutil.AssertStatus(t, w, http.StatusBadRequest)
 }
+
+func TestWorkshopDeleteRound_Success(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-delete-test", Title: "WS Delete Test",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	workshopDir := filepath.Join(rootDir, "ideas", "ws-delete-test", "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	for i := 1; i <= 3; i++ {
+		content := fmt.Sprintf(`{"round":%d,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`, i)
+		testutil.WriteFile(t, filepath.Join(workshopDir, fmt.Sprintf("round-%03d.json", i)), content)
+	}
+
+	reqBody := bytes.NewBufferString(`{"round_number":2}`)
+	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/ws-delete-test/workshop/round", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-delete-test"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopDeleteRound(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	// Round 2 should be gone, old round 3 should now be round 2.
+	testutil.AssertFileNotExists(t, filepath.Join(workshopDir, "round-003.json"))
+	testutil.AssertFileExists(t, filepath.Join(workshopDir, "round-001.json"))
+	testutil.AssertFileExists(t, filepath.Join(workshopDir, "round-002.json"))
+
+	// Verify the renumbered file has round=2 in its JSON.
+	data, err := os.ReadFile(filepath.Join(workshopDir, "round-002.json"))
+	if err != nil {
+		t.Fatalf("read round-002.json: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`"round": 2`)) {
+		t.Errorf("round-002.json should contain round=2, got: %s", string(data))
+	}
+
+	// Verify response.
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp["deleted_round"] != float64(2) {
+		t.Errorf("expected deleted_round=2, got %v", resp["deleted_round"])
+	}
+	if resp["remaining_rounds"] != float64(2) {
+		t.Errorf("expected remaining_rounds=2, got %v", resp["remaining_rounds"])
+	}
+}
+
+func TestWorkshopDeleteRound_LastRound(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-delete-last", Title: "WS Delete Last",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	workshopDir := filepath.Join(rootDir, "ideas", "ws-delete-last", "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
+		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
+
+	reqBody := bytes.NewBufferString(`{"round_number":1}`)
+	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/ws-delete-last/workshop/round", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-delete-last"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopDeleteRound(w, req)
+	testutil.AssertStatusOK(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(workshopDir, "round-001.json"))
+}
+
+func TestWorkshopDeleteRound_NotFound(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-delete-nf", Title: "WS Delete NF",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	workshopDir := filepath.Join(rootDir, "ideas", "ws-delete-nf", "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
+		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
+
+	reqBody := bytes.NewBufferString(`{"round_number":5}`)
+	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/ws-delete-nf/workshop/round", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-delete-nf"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopDeleteRound(w, req)
+	testutil.AssertStatus(t, w, http.StatusNotFound)
+}
+
+func TestWorkshopDeleteRound_LockedConflict(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "ws-delete-lock", Title: "WS Delete Lock",
+		Status: StatusBacklog, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+
+	itemDir := filepath.Join(rootDir, "ideas", "ws-delete-lock")
+	workshopDir := filepath.Join(itemDir, "workshop")
+	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	testutil.WriteFile(t, filepath.Join(workshopDir, "round-001.json"),
+		`{"round":1,"generated_at":"2026-01-01T00:00:00Z","readiness":{},"items":[]}`)
+
+	// Create a fresh lock file.
+	testutil.WriteFile(t, filepath.Join(itemDir, ".workshop-lock"), time.Now().UTC().Format(time.RFC3339))
+
+	reqBody := bytes.NewBufferString(`{"round_number":1}`)
+	req := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/ws-delete-lock/workshop/round", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "ws-delete-lock"})
+	w := httptest.NewRecorder()
+
+	h.WorkshopDeleteRound(w, req)
+	testutil.AssertStatus(t, w, http.StatusConflict)
+}

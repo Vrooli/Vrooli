@@ -148,10 +148,10 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	executionService := execution.NewService(execution.ServiceConfig{
-		RootDir:      h.rootDir,
-		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
-		AgentService: h.agentService,
+		RootDir:        h.rootDir,
+		StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+		PolicyProvider: h.policyProvider,
+		AgentService:   h.agentService,
 	})
 	preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if preflightErr != nil {
@@ -298,10 +298,10 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 	}
 
 	executionService := execution.NewService(execution.ServiceConfig{
-		RootDir:      h.rootDir,
-		StorePath:    filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
-		PolicyPath:   filepath.Join(h.rootDir, ".vrooli", "execution-policy.json"),
-		AgentService: h.agentService,
+		RootDir:        h.rootDir,
+		StorePath:      filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
+		PolicyProvider: h.policyProvider,
+		AgentService:   h.agentService,
 	})
 	preflight, err := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if err != nil {

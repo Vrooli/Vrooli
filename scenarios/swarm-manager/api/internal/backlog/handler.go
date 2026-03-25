@@ -28,6 +28,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/depgraph"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
@@ -42,6 +43,7 @@ type Handler struct {
 	promptClient       promptmanager.Client
 	initiativeAssigner InitiativeAssigner
 	executionQueuer    ExecutionQueuer
+	policyProvider     execution.PolicyProvider
 }
 
 // NewHandler creates a new backlog handler.
@@ -79,6 +81,11 @@ func NewHandlerWithClients(rootDir string, agentService agentmanager.Service, pr
 // initiative rollup computation).
 func (h *Handler) Store() Store {
 	return h.store
+}
+
+// SetPolicyProvider injects a policy provider for execution service creation.
+func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
+	h.policyProvider = pp
 }
 
 func validateCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) string {
@@ -156,6 +163,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/prompt-trace", h.UpdatePromptTrace).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/convert", h.Convert).Methods("POST")

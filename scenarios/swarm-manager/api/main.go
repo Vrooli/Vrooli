@@ -111,10 +111,42 @@ import (
 type Server struct {
 	router            *mux.Router
 	agentSvc          *agentmanager.AgentService
+	settingsStore     *settings.Store
 	scenariosHandler  *scenarios.Handler
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
 	executionStopChan chan struct{}
+}
+
+// settingsAgentAdapter bridges settings.Store to agentmanager.SettingsReader.
+type settingsAgentAdapter struct {
+	store *settings.Store
+}
+
+func (a *settingsAgentAdapter) LoadAgentSettings() (maxTurns, timeoutSeconds int32, requiresApproval bool, err error) {
+	s, err := a.store.Load()
+	if err != nil {
+		return 0, 0, false, err
+	}
+	return int32(s.AgentMaxTurns), int32(s.AgentTimeoutSeconds), s.AgentRequiresApproval, nil
+}
+
+// settingsPolicyAdapter bridges settings.Store to execution.PolicyProvider.
+type settingsPolicyAdapter struct {
+	store *settings.Store
+}
+
+func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
+	s, err := a.store.Load()
+	if err != nil {
+		return execution.Policy{}, err
+	}
+	return execution.Policy{
+		DefaultMode:         execution.Mode(s.DefaultMode),
+		DefaultDelaySeconds: s.DefaultDelaySeconds,
+		AutoFixup:           s.AutoFixup,
+		MaxFixupAttempts:    s.MaxFixupAttempts,
+	}, nil
 }
 
 // NewServer initializes routes. Database connection is optional.
@@ -141,12 +173,12 @@ func (s *Server) setupRoutes() {
 	scenarioRoot := pathutil.ResolveScenarioRoot("swarm-manager")
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.registerHealthRoutes()
+	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
 	backlogHandler := s.registerBacklogRoutes(scenarioRoot)
 	initService := s.registerInitiativeRoutes(scenarioRoot, backlogHandler)
 	s.registerOverviewRoutes(backlogHandler, initService)
 	s.registerCapturesRoutes(scenarioRoot)
 	s.registerScenarioRoutes(scenariosDir)
-	s.registerSettingsRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 	s.registerExecutionRoutes(scenarioRoot)
@@ -169,6 +201,7 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 	// Backlog endpoints
 	// [REQ:REQ-P0-002] Backlog management
 	backlogHandler := backlog.NewHandlerWithClients(scenarioRoot, s.agentSvc, nil)
+	backlogHandler.SetPolicyProvider(&settingsPolicyAdapter{store: s.settingsStore})
 	backlogHandler.RegisterRoutes(s.router)
 	return backlogHandler
 }
@@ -229,8 +262,15 @@ func (s *Server) registerScenarioRoutes(scenariosDir string) {
 
 func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	// Settings persistence endpoints
-	settingsHandler := settings.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "settings.json"))
+	settingsPath := filepath.Join(scenarioRoot, ".vrooli", "settings.json")
+	settingsHandler := settings.NewHandler(settingsPath)
 	settingsHandler.RegisterRoutes(s.router)
+	s.settingsStore = settingsHandler.GetStore()
+
+	// Wire settings into agent service for runtime profile config resolution.
+	if s.agentSvc != nil {
+		s.agentSvc.SetSettingsReader(&settingsAgentAdapter{store: s.settingsStore})
+	}
 }
 
 func (s *Server) registerAgentManagerRoutes() {
@@ -254,11 +294,11 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
-		RootDir:      scenarioRoot,
-		StorePath:    filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
-		PolicyPath:   filepath.Join(scenarioRoot, ".vrooli", "execution-policy.json"),
-		AgentService: s.agentSvc,
-		Archiver:     archiver,
+		RootDir:        scenarioRoot,
+		StorePath:      filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		PolicyProvider: &settingsPolicyAdapter{store: s.settingsStore},
+		AgentService:   s.agentSvc,
+		Archiver:       archiver,
 	}
 	s.executionSvc = execution.NewService(cfg)
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
@@ -305,7 +345,7 @@ func main() {
 
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := srv.agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
 			log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
 		}
 		cancel()

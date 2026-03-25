@@ -31,7 +31,6 @@ import type { AgentManagerStatusResponse as ProtoAgentManagerStatusResponse } fr
 import type { BacklogResearchResponse as ProtoBacklogResearchResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import type {
   ExecutionRecord as ProtoExecutionRecord,
-  ExecutionPolicy as ProtoExecutionPolicy,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 
 type ProtoMessage<T extends Message> = Omit<T, "$typeName" | "$unknown">;
@@ -540,14 +539,29 @@ export interface AgentRunState {
 export type ThemePreference = "dark" | "light" | "system";
 
 /**
- * User preferences and configuration
+ * User preferences and configuration (unified settings including execution defaults).
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
+  /** Execution defaults */
+  defaultMode: ExecutionMode;
+  defaultDelaySeconds: number;
+  autoFixup: boolean;
+  maxFixupAttempts: number;
+  /** Workshop */
+  maxAutoRounds: number;
+  /** Agent behavior */
+  agentMaxTurns: number;
+  agentTimeoutSeconds: number;
+  agentRequiresApproval: boolean;
+  /** UI preferences */
+  searchDebounceMs: number;
+  toastDurationMs: number;
+  confirmDestructiveActions: boolean;
 };
 
 /**
@@ -595,12 +609,6 @@ export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" 
   reviewJobId?: string;
 };
 
-export type ExecutionPolicy = Omit<ProtoMessage<ProtoExecutionPolicy>, "defaultDelaySeconds" | "maxFixupAttempts"> & {
-  defaultMode: ExecutionMode;
-  defaultDelaySeconds: number;
-  autoFixup: boolean;
-  maxFixupAttempts: number;
-};
 
 // ============================================================================
 // Prompt Center Domain

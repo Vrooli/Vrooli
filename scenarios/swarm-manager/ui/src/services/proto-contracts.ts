@@ -42,12 +42,10 @@ import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scen
 import {
   ListExecutionResponseSchema,
   ExecutionResponseSchema,
-  ExecutionPolicyResponseSchema,
   CreateExecutionRequestSchema,
   FollowUpExecutionRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/execution_pb";
 import type { ExecutionRecord as ProtoExecutionRecord } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
-import type { ExecutionPolicy as ProtoExecutionPolicy } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 import type {
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
@@ -57,7 +55,6 @@ import type {
   Settings as SettingsDomain,
   ThemePreference,
   ExecutionRecord as ExecutionRecordDomain,
-  ExecutionPolicy as ExecutionPolicyDomain,
   ExecutionStatus,
   ExecutionMode,
   ReviewClassification,
@@ -366,8 +363,21 @@ export function mapSpecSyncArchiveResponse(
 }
 
 export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
+  const delaySeconds = toFiniteNumber(protoSettings.defaultDelaySeconds);
+  const mode = isExecutionMode(protoSettings.defaultMode) ? protoSettings.defaultMode : "manual";
   return {
     theme: normalizeThemePreference(protoSettings.theme),
+    defaultMode: mode,
+    defaultDelaySeconds: delaySeconds ?? 0,
+    autoFixup: protoSettings.autoFixup ?? false,
+    maxFixupAttempts: protoSettings.maxFixupAttempts ?? 0,
+    maxAutoRounds: protoSettings.maxAutoRounds ?? 10,
+    agentMaxTurns: protoSettings.agentMaxTurns ?? 60,
+    agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
+    agentRequiresApproval: protoSettings.agentRequiresApproval ?? true,
+    searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
+    toastDurationMs: protoSettings.toastDurationMs ?? 5000,
+    confirmDestructiveActions: protoSettings.confirmDestructiveActions ?? true,
   };
 }
 
@@ -379,11 +389,6 @@ export const executionResponseSchema = createProtoSchema(
   ExecutionResponseSchema,
   "execution"
 );
-export const executionPolicyResponseSchema = createProtoSchema(
-  ExecutionPolicyResponseSchema,
-  "execution policy"
-);
-
 export { CreateExecutionRequestSchema, FollowUpExecutionRequestSchema };
 
 export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionRecordDomain {
@@ -425,13 +430,3 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
   return record;
 }
 
-export function mapProtoExecutionPolicy(proto: ProtoExecutionPolicy): ExecutionPolicyDomain {
-  const mode = isExecutionMode(proto.defaultMode) ? proto.defaultMode : "manual";
-  const delaySeconds = toFiniteNumber(proto.defaultDelaySeconds);
-  return {
-    defaultMode: mode,
-    defaultDelaySeconds: delaySeconds ?? 0,
-    autoFixup: proto.autoFixup ?? false,
-    maxFixupAttempts: proto.maxFixupAttempts ?? 0,
-  };
-}

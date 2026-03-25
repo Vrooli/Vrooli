@@ -16,11 +16,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 )
 
@@ -100,13 +102,19 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 
 	optOut := req.AutoWorkshop != nil && !*req.AutoWorkshop
 	if !optOut {
+		// Load settings to get maxAutoRounds.
+		cfg, cfgErr := settings.NewStore("").Load()
+		if cfgErr != nil {
+			log.Printf("[backlog] workshop-save: failed to load settings for auto-advance: %v", cfgErr)
+			cfg = settings.DefaultSettings()
+		}
 		// Load rounds to get the accurate count after save.
 		_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
 		if loadErr != nil {
 			log.Printf("[backlog] workshop-save: failed to load rounds for auto-advance check: %v", loadErr)
 			autoAdvance.Reason = "error"
 		} else {
-			result := workshop.ShouldAutoAdvance(&round, roundCount, string(kind))
+			result := workshop.ShouldAutoAdvance(&round, roundCount, string(kind), cfg.MaxAutoRounds)
 			autoAdvance.Reason = result.Reason
 			if result.Advance {
 				runID, taskID, spawnErr := h.spawnWorkshopAsync(item, ResearchModeWorkshop)
@@ -200,4 +208,70 @@ func tryAcquireWorkshopLock(itemDir string) (release func(), ok bool) {
 	f.Close()
 
 	return func() { _ = os.Remove(lockPath) }, true
+}
+
+// isWorkshopLocked peeks at the workshop lock without acquiring it.
+// Returns true if a non-stale lock exists.
+func isWorkshopLocked(itemDir string) bool {
+	lockPath := filepath.Join(itemDir, workshopLockFile)
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		return false
+	}
+	return time.Since(info.ModTime()) <= workshopLockTTL
+}
+
+// WorkshopDeleteRound deletes a workshop round and renumbers subsequent rounds.
+func (h *Handler) WorkshopDeleteRound(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "workshop-delete-round")
+	if !ok {
+		return
+	}
+
+	if _, err := h.store.LoadItem(kind, name); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.NotFound(w, "[backlog] workshop-delete-round", "backlog item not found")
+			return
+		}
+		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to load backlog item")
+		return
+	}
+
+	var req apipb.WorkshopDeleteRoundRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		httputil.BadRequest(w, "[backlog] workshop-delete-round", "invalid request body")
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] workshop-delete-round", "invalid request body", &req) {
+		return
+	}
+
+	itemDir := h.store.ItemDir(kind, name)
+
+	// Prevent deletion while a workshop agent is running.
+	if isWorkshopLocked(itemDir) {
+		httputil.Conflict(w, "[backlog] workshop-delete-round", "workshop is currently being generated; try again after the agent finishes")
+		return
+	}
+
+	remaining, err := workshop.DeleteRoundAndRenumber(itemDir, int(req.RoundNumber))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			httputil.NotFound(w, "[backlog] workshop-delete-round", err.Error())
+			return
+		}
+		log.Printf("[backlog] workshop-delete-round: %v", err)
+		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to delete workshop round")
+		return
+	}
+
+	log.Printf("[backlog] workshop-delete-round: deleted round %d from %s/%s (%d remaining)", req.RoundNumber, kind, name, remaining)
+
+	resp := &apipb.WorkshopDeleteRoundResponse{
+		DeletedRound:    req.RoundNumber,
+		RemainingRounds: int32(remaining),
+	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[backlog] workshop-delete-round", "failed to encode response")
+	}
 }

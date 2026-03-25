@@ -101,7 +101,7 @@ Score each dimension honestly from 0-3 based on the CURRENT state of the plan:
 | Dimension | What It Measures | 0 | 1 | 2 | 3 |
 |-----------|-----------------|---|---|---|---|
 | `problem_clarity` | Is the problem/goal well understood? | No information | Vague idea | Clear problem, some unknowns | Fully understood, well-articulated |
-| `scope_defined` | Are boundaries and non-goals defined? | No scope field set, no acceptance criteria | Scope identified (scenario known) but no acceptance globs | Scope set, acceptance_allow partially defined | Scope set, both acceptance_allow and acceptance_deny defined, plan changes align with globs |
+| `scope_defined` | Are boundaries and non-goals defined? | No acceptance criteria set | Target area identified in description/plan but no acceptance_allow patterns | acceptance_allow defined, covers planned changes | Both acceptance_allow and acceptance_deny defined, plan changes align with globs |
 | `approach_solid` | Is there a clear implementation strategy? | No approach | General direction | Concrete strategy, some details TBD | Detailed phased plan with dependencies |
 | `testable` | Do we know how to verify success? | No test plan | Vague success criteria | Specific test cases identified | Complete test plan with acceptance criteria |
 | `risk_awareness` | Are blockers and unknowns identified? | Not considered | Some risks noted | Key risks with mitigations | Comprehensive risk matrix |
@@ -156,13 +156,12 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Note decisions with `selected: null` — still pending, do not re-ask unless context has materially changed
    - Note any freeform responses on "Other" selections — incorporate these as user intent
 
-3. **Check scope and acceptance fields**
+3. **Check acceptance fields**
 
-   Read `scope`, `acceptance_allow`, and `acceptance_deny` from `spec.json`:
-   - If `scope` is **empty**, include a decision asking about the target scenario (e.g., "Which scenario does this work target?") with options listing likely candidates based on the item description.
-   - If `scope` is **set**, validate that the plan's described changes align with the scope path. Flag any planned changes that fall outside the scope directory.
-   - When the `approach_solid` readiness dimension reaches >= 2, propose `acceptance_allow` globs as a decision based on the planned file changes identified in the plan. Present options like: A) broad globs covering the whole scope directory, B) targeted globs for specific subdirectories/files, C) Other.
-   - If `acceptance_allow` is set but `acceptance_deny` is not, consider whether any paths within scope should be protected (e.g., secrets, config, generated files) and include a decision for `acceptance_deny` globs.
+   Read `acceptance_allow` and `acceptance_deny` from `spec.json`:
+   - If `acceptance_allow` is **empty** and the `approach_solid` readiness dimension is >= 1, include a decision asking about expected file change patterns with options: A) broad scenario-level globs (e.g., `scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
+   - If `acceptance_allow` is **set**, validate that the plan's described changes align with the patterns. Flag any planned changes that fall outside acceptance_allow.
+   - If `acceptance_allow` is set but `acceptance_deny` is **not**, consider whether any paths should be protected (e.g., secrets, config, generated files) and include a decision for `acceptance_deny` globs.
 
 4. **Identify plan gaps**
 

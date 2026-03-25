@@ -2,6 +2,7 @@
  * Renders a single workshop item (decision or info).
  */
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import type { WorkshopItem } from "../../types/domain";
 
@@ -11,9 +12,10 @@ interface WorkshopItemCardProps {
   item: WorkshopItem;
   disabled?: boolean;
   onUpdate?: (updated: WorkshopItem) => void;
+  onDelete?: () => void;
 }
 
-export function WorkshopItemCard({ item, disabled, onUpdate }: WorkshopItemCardProps) {
+export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: WorkshopItemCardProps) {
   const [localSelected, setLocalSelected] = useState(item.selected ?? "");
   const [localFreeform, setLocalFreeform] = useState(item.freeform ?? "");
   const [localNotes, setLocalNotes] = useState(item.notes ?? "");
@@ -47,7 +49,17 @@ export function WorkshopItemCard({ item, disabled, onUpdate }: WorkshopItemCardP
           <span className="mt-0.5 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
             Info
           </span>
-          <p className="text-sm text-slate-300">{item.topic || item.text}</p>
+          <p className="flex-1 text-sm text-slate-300">{item.topic || item.text}</p>
+          {onDelete && !disabled && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Delete item"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         {item.context && (
           <p className="mt-1 ml-12 text-xs text-slate-500">{item.context}</p>
@@ -75,7 +87,17 @@ export function WorkshopItemCard({ item, disabled, onUpdate }: WorkshopItemCardP
           )}>
             D
           </span>
-          <p className="text-sm font-medium text-slate-200">{item.topic || item.text}</p>
+          <p className="flex-1 text-sm font-medium text-slate-200">{item.topic || item.text}</p>
+          {onDelete && !disabled && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="shrink-0 rounded p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Delete item"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {item.context && (

@@ -72,7 +72,7 @@ See `swarm-manager-workshop` skill for the full schema. The round file includes:
 | Dimension | What It Measures |
 |-----------|-----------------|
 | `problem_clarity` | Is the problem/goal well understood? |
-| `scope_defined` | Are boundaries and non-goals defined? |
+| `scope_defined` | Are boundaries and acceptance criteria defined? |
 | `approach_solid` | Is there a clear implementation strategy? |
 | `testable` | Do we know how to verify success? |
 | `risk_awareness` | Are blockers and unknowns identified? |
@@ -105,12 +105,11 @@ You are initializing a Swarm Manager backlog item. Your goal is to bootstrap it 
    - Any user-added files in the item root
    - Existing `plan.md` and `workshop/` artifacts from a prior run (preserve these)
 
-2. **Check scope and acceptance fields**
+2. **Check acceptance fields**
 
-   Read `scope`, `acceptance_allow`, and `acceptance_deny` from `spec.json`:
-   - If `scope` is **set**, use it to contextualize the plan scaffold. Read the target scenario's directory structure (e.g., `ls scenarios/<scope-target>/`) to inform the plan's technical context, file layout, and approach sections.
-   - If `scope` is **NOT set**, include a scope decision in round-001.json asking: "Which scenario does this work target?" with options listing likely candidates based on the item description.
-   - If `scope` is set but `acceptance_allow` and `acceptance_deny` are both missing, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options based on the target scenario's structure (e.g., A: broad `scenarios/<name>/**`, B: targeted subdirectories, C: Other).
+   Read `acceptance_allow` and `acceptance_deny` from `spec.json`:
+   - If `acceptance_allow` is **set**, use the patterns to determine target directories and read their structure (e.g., `ls` the matched directories) to inform the plan's technical context, file layout, and approach sections.
+   - If `acceptance_allow` is **empty**, include an acceptance decision in round-001.json asking: "What file paths are expected to change?" with options: A) broad scenario-level globs (e.g., `scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
 
 3. **Create plan.md scaffold**
 

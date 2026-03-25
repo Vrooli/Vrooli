@@ -36,20 +36,22 @@ type Service interface {
 
 // AgentService implements the Service interface.
 type AgentService struct {
-	client      *HTTPClient
-	profileName string
-	profileKey  string
-	profileID   string
-	mu          sync.RWMutex
-	enabled     bool
+	client         *HTTPClient
+	profileName    string
+	profileKey     string
+	profileID      string
+	mu             sync.RWMutex
+	enabled        bool
+	settingsReader SettingsReader
 }
 
 // AgentServiceConfig contains configuration for the agent service.
 type AgentServiceConfig struct {
-	ProfileName string
-	ProfileKey  string
-	Timeout     time.Duration
-	Enabled     bool
+	ProfileName    string
+	ProfileKey     string
+	Timeout        time.Duration
+	Enabled        bool
+	SettingsReader SettingsReader
 }
 
 // DefaultServiceConfig returns a baseline configuration for Swarm Manager.
@@ -69,11 +71,18 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	}
 	client := NewHTTPClientWithTimeout(cfg.Timeout)
 	return &AgentService{
-		client:      client,
-		profileName: strings.TrimSpace(cfg.ProfileName),
-		profileKey:  strings.TrimSpace(cfg.ProfileKey),
-		enabled:     cfg.Enabled,
+		client:         client,
+		profileName:    strings.TrimSpace(cfg.ProfileName),
+		profileKey:     strings.TrimSpace(cfg.ProfileKey),
+		enabled:        cfg.Enabled,
+		settingsReader: cfg.SettingsReader,
 	}
+}
+
+// SetSettingsReader assigns a SettingsReader for runtime profile config resolution.
+// This is safe to call after construction, before any spawns occur.
+func (s *AgentService) SetSettingsReader(r SettingsReader) {
+	s.settingsReader = r
 }
 
 // IsEnabled returns whether agent-manager integration is enabled.
@@ -105,7 +114,7 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 		return nil
 	}
 	if cfg == nil {
-		cfg = DefaultProfileConfig()
+		cfg = s.resolveProfileConfig()
 	}
 
 	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
@@ -143,6 +152,27 @@ type ProfileConfig struct {
 	SkipPermissions  bool
 	RequiresSandbox  bool
 	RequiresApproval bool
+}
+
+// SettingsReader provides agent settings from an external source (e.g. settings store)
+// without creating a direct import dependency on the settings package.
+type SettingsReader interface {
+	LoadAgentSettings() (maxTurns, timeoutSeconds int32, requiresApproval bool, err error)
+}
+
+// ProfileConfigFromSettings creates a ProfileConfig by overlaying settings values
+// on top of the defaults. Zero/negative values for maxTurns or timeoutSeconds
+// are ignored, preserving the default.
+func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32, requiresApproval bool) *ProfileConfig {
+	cfg := DefaultProfileConfig()
+	if maxTurns > 0 {
+		cfg.MaxTurns = maxTurns
+	}
+	if timeoutSeconds > 0 {
+		cfg.TimeoutSeconds = timeoutSeconds
+	}
+	cfg.RequiresApproval = requiresApproval
+	return cfg
 }
 
 // DefaultProfileConfig returns the default configuration for swarm-manager agents.
@@ -185,13 +215,27 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 	}
 }
 
+// resolveProfileConfig returns a ProfileConfig derived from the settings store
+// when available, falling back to hardcoded defaults on error or when no
+// SettingsReader is configured.
+func (s *AgentService) resolveProfileConfig() *ProfileConfig {
+	if s.settingsReader != nil {
+		maxTurns, timeout, approval, err := s.settingsReader.LoadAgentSettings()
+		if err == nil {
+			return ProfileConfigFromSettings(maxTurns, timeout, approval)
+		}
+		log.Printf("[agent-manager] settings read failed, using defaults: %v", err)
+	}
+	return DefaultProfileConfig()
+}
+
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	if s.profileKey == "" {
 		return nil
 	}
 	return &apipb.ProfileRef{
 		ProfileKey: s.profileKey,
-		Defaults:   s.buildProfile(DefaultProfileConfig()),
+		Defaults:   s.buildProfile(s.resolveProfileConfig()),
 	}
 }
 

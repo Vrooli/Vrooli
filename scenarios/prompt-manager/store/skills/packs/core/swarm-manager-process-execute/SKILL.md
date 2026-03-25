@@ -40,12 +40,11 @@ You are executing a task for the Swarm Manager. Your goal is to complete the req
 
 1. **Understand the task**
    - Read `plan.md` first — it is the primary source of truth for what to do and how
-   - Read `spec.json` for metadata context, including `scope`, `acceptance_allow`, and `acceptance_deny` fields
+   - Read `spec.json` for metadata context, including `acceptance_allow` and `acceptance_deny` fields
    - Review workshop rounds for answered questions and accepted proposals
    - Review `research/summary.md` if available
    - Check any reference files provided
    - Identify success criteria
-   - Note the `scope` path — this identifies the target scenario/directory for this work
    - Note `acceptance_allow` globs — use these to guide which files to modify; stay within these boundaries
    - Note `acceptance_deny` globs — these files must NOT be modified under any circumstances
 
@@ -74,7 +73,6 @@ You are executing a task for the Swarm Manager. Your goal is to complete the req
      - Whether all modified files fall within `acceptance_allow` globs
      - Any deviations (files modified outside acceptance_allow) with justification
      - Confirmation that no files matching `acceptance_deny` were modified
-     - The `scope` path and whether all work stayed within it
 
 ### Common Execute Task Types
 

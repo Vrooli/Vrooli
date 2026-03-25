@@ -54,30 +54,47 @@ type Archiver interface {
 	ArchiveScenario(ctx context.Context, ac ArchiveContext) error
 }
 
+// PolicyProvider reads execution policy defaults from the unified settings store.
+type PolicyProvider interface {
+	LoadPolicy() (Policy, error)
+}
+
+// defaultPolicyProvider returns hardcoded defaults when no provider is configured.
+type defaultPolicyProvider struct{}
+
+func (d *defaultPolicyProvider) LoadPolicy() (Policy, error) {
+	return Policy{
+		DefaultMode:         ModeManual,
+		DefaultDelaySeconds: 300,
+		MaxFixupAttempts:    2,
+		AutoFixup:           false,
+	}, nil
+}
+
 // ServiceConfig configures execution service dependencies.
 type ServiceConfig struct {
-	RootDir      string
-	StorePath    string
-	PolicyPath   string
-	AgentService agentSpawner
-	PromptClient promptmanager.Client
-	Archiver     Archiver
-	ReviewClient ReviewClient
+	RootDir        string
+	StorePath      string
+	PolicyProvider PolicyProvider
+	AgentService   agentSpawner
+	PromptClient   promptmanager.Client
+	Archiver       Archiver
+	ReviewClient   ReviewClient
 }
 
 // Service owns execution lifecycle logic.
 type Service struct {
-	rootDir      string
-	store        Store
-	policyStore  *PolicyStore
-	agentService agentSpawner
-	promptClient promptmanager.Client
-	archiver     Archiver
-	reviewClient ReviewClient
-	inspector  runInspector
-	stopper    runStopper
-	continuer  runContinuer
-	mu         sync.Mutex
+	rootDir        string
+	store          Store
+	policyProvider PolicyProvider
+	agentService   agentSpawner
+	promptClient   promptmanager.Client
+	archiver       Archiver
+	reviewClient   ReviewClient
+	inspector      runInspector
+	stopper        runStopper
+	continuer      runContinuer
+	mu             sync.Mutex
 }
 
 type promptSelection struct {
@@ -97,14 +114,18 @@ func NewService(cfg ServiceConfig) *Service {
 	if pc == nil {
 		pc = promptmanager.NewHTTPClient()
 	}
+	pp := cfg.PolicyProvider
+	if pp == nil {
+		pp = &defaultPolicyProvider{}
+	}
 	service := &Service{
-		rootDir:      rootDir,
-		store:        NewStore(cfg.StorePath),
-		policyStore:  newPolicyStore(cfg.PolicyPath),
-		agentService: cfg.AgentService,
-		promptClient: pc,
-		archiver:     cfg.Archiver,
-		reviewClient: cfg.ReviewClient,
+		rootDir:        rootDir,
+		store:          NewStore(cfg.StorePath),
+		policyProvider: pp,
+		agentService:   cfg.AgentService,
+		promptClient:   pc,
+		archiver:       cfg.Archiver,
+		reviewClient:   cfg.ReviewClient,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
@@ -123,7 +144,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	policy, err := s.policyStore.Load()
+	policy, err := s.policyProvider.LoadPolicy()
 	if err != nil {
 		return Record{}, err
 	}
@@ -314,25 +335,11 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	return record, nil
 }
 
-// Policy returns current execution policy.
+// Policy returns current execution policy from the unified settings store.
 func (s *Service) Policy(_ context.Context) (Policy, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.policyStore.Load()
-}
-
-// UpdatePolicy persists execution policy.
-func (s *Service) UpdatePolicy(_ context.Context, policy Policy) (Policy, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := validatePolicyInputs(policy); err != nil {
-		return Policy{}, err
-	}
-	normalized := normalizePolicy(policy)
-	if err := s.policyStore.Save(normalized); err != nil {
-		return Policy{}, err
-	}
-	return normalized, nil
+	return s.policyProvider.LoadPolicy()
 }
 
 // Start starts a pending/scheduled/failed execution now.
@@ -622,7 +629,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 				_ = s.updateBacklogStatus(item, "completed")
 			}
 		} else {
-			policy, _ := s.policyStore.Load()
+			policy, _ := s.policyProvider.LoadPolicy()
 			if policy.AutoFixup && record.FixupAttempt < policy.MaxFixupAttempts {
 				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
 					s.spawnFixupRun(ctx, record, item)
@@ -1019,20 +1026,6 @@ func validateModeDelayInputs(mode Mode, delaySeconds int64) error {
 	}
 	if mode != ModeScheduled && delaySeconds > 0 {
 		return fmt.Errorf("delay_seconds is only supported for scheduled mode")
-	}
-	return nil
-}
-
-func validatePolicyInputs(policy Policy) error {
-	mode := normalizeMode(policy.DefaultMode)
-	if mode == "" {
-		return fmt.Errorf("default_mode must be manual, scheduled, or yolo")
-	}
-	if policy.DefaultDelaySeconds < 0 {
-		return fmt.Errorf("default_delay_seconds must be >= 0")
-	}
-	if mode == ModeScheduled && policy.DefaultDelaySeconds <= 0 {
-		return fmt.Errorf("scheduled default_mode requires default_delay_seconds > 0")
 	}
 	return nil
 }

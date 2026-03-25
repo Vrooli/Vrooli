@@ -896,6 +896,23 @@ export function BacklogDetailsPage() {
     }
   }, [moduleDialogMode, editingModuleId, createModuleMutation, updateModuleMetaMutation]);
 
+  // Workshop round deletion mutation.
+  const [roundToDelete, setRoundToDelete] = useState<number | null>(null);
+  const workshopDeleteRoundMutation = useMutation({
+    mutationFn: async ({ roundNumber }: { roundNumber: number }) => {
+      if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
+      return backlogService.workshopDeleteRound(backlogKind, name, roundNumber);
+    },
+    onSuccess: () => {
+      if (!backlogKind || !name) return;
+      setRoundToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
+      void refetchFiles();
+      void refetchWorkshopRounds();
+    },
+  });
+
   // --- Workshop handlers ---
   const handleSaveRound = useCallback((roundNumber: number, content: string) => {
     workshopSaveMutation.mutate({ roundNumber, content });
@@ -1566,6 +1583,19 @@ export function BacklogDetailsPage() {
           });
         }}
       />
+      <ConfirmDialog
+        isOpen={roundToDelete !== null}
+        onClose={() => setRoundToDelete(null)}
+        title="Delete Workshop Round"
+        description={`Round ${roundToDelete} and all its decisions will be permanently deleted. Subsequent rounds will be renumbered.`}
+        confirmLabel="Delete Round"
+        isLoading={workshopDeleteRoundMutation.isPending}
+        onConfirm={() => {
+          if (roundToDelete !== null) {
+            workshopDeleteRoundMutation.mutate({ roundNumber: roundToDelete });
+          }
+        }}
+      />
       <WorkshopPanel
         rounds={workshopRounds}
         backlogKind={backlogKind as BacklogKind}
@@ -1575,6 +1605,8 @@ export function BacklogDetailsPage() {
         isRunningWorkshop={agentMutation.isPending || agentRunIsActive}
         onSaveRound={handleSaveRound}
         onRunWorkshop={isTerminal ? undefined : handleRunWorkshop}
+        onDeleteRound={isTerminal ? undefined : setRoundToDelete}
+        isDeletingRound={workshopDeleteRoundMutation.isPending}
       />
     </div>
   );

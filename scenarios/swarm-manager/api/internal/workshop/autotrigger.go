@@ -5,12 +5,6 @@
 // but do not perform the actual spawning.
 package workshop
 
-// MaxAutoRounds is the safety cap on auto-triggered workshop rounds.
-// The boost formula guarantees convergence for raw scores >= 2 well before
-// this limit; this cap exists as a safety net for items with persistently
-// low raw scores.
-const MaxAutoRounds = 10
-
 // AutoAdvanceResult holds the decision and reason from ShouldAutoAdvance.
 type AutoAdvanceResult struct {
 	Advance bool
@@ -21,8 +15,8 @@ type AutoAdvanceResult struct {
 // auto-triggered after saving round responses. Returns true only when:
 //   - The latest round exists and has no pending (unanswered) decisions
 //   - The item is not yet ready (effective scores < 3 on at least one dimension)
-//   - The round count is below MaxAutoRounds
-func ShouldAutoAdvance(latestRound *Round, roundCount int, kind string) AutoAdvanceResult {
+//   - The round count is below maxAutoRounds
+func ShouldAutoAdvance(latestRound *Round, roundCount int, kind string, maxAutoRounds int) AutoAdvanceResult {
 	if latestRound == nil {
 		return AutoAdvanceResult{Advance: false, Reason: "no_rounds"}
 	}
@@ -33,7 +27,7 @@ func ShouldAutoAdvance(latestRound *Round, roundCount int, kind string) AutoAdva
 	if IsReady(effective) {
 		return AutoAdvanceResult{Advance: false, Reason: "ready"}
 	}
-	if roundCount >= MaxAutoRounds {
+	if roundCount >= maxAutoRounds {
 		return AutoAdvanceResult{Advance: false, Reason: "max_rounds"}
 	}
 	return AutoAdvanceResult{Advance: true, Reason: "not_ready"}

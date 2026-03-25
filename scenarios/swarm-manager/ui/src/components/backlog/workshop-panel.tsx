@@ -4,14 +4,55 @@
  * Renders all workshop rounds, latest expanded by default, older collapsed.
  * Users can answer questions, decide on proposals, and trigger the next round.
  */
-import { useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, Play, Save } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Play, Save, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
 import { cn } from "../../lib";
 import { buildWorkshopRoundContent, getPendingDecisionCount } from "../../lib/workshop-files";
 import type { WorkshopRound, WorkshopItem, BacklogKind } from "../../types/domain";
+
+/** Small dropdown menu for round-level actions. */
+function RoundMenu({ onDelete, disabled }: { onDelete: () => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: Event) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className="rounded p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+        title="Round actions"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-md border border-slate-700 bg-slate-900 py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete round
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface WorkshopPanelProps {
   rounds: WorkshopRound[];
@@ -22,6 +63,8 @@ interface WorkshopPanelProps {
   isRunningWorkshop?: boolean;
   onSaveRound?: (roundNumber: number, content: string) => void;
   onRunWorkshop?: () => void;
+  onDeleteRound?: (roundNumber: number) => void;
+  isDeletingRound?: boolean;
 }
 
 export function WorkshopPanel({
@@ -33,6 +76,8 @@ export function WorkshopPanel({
   isRunningWorkshop,
   onSaveRound,
   onRunWorkshop,
+  onDeleteRound,
+  isDeletingRound,
 }: WorkshopPanelProps) {
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
     if (rounds.length === 0) return new Set();
@@ -40,6 +85,7 @@ export function WorkshopPanel({
     return new Set(last ? [last.round] : []);
   });
   const [localUpdates, setLocalUpdates] = useState<Map<string, WorkshopItem>>(new Map());
+  const [deletedItems, setDeletedItems] = useState<Set<string>>(new Set());
 
   const toggleRound = useCallback((roundNum: number) => {
     setExpandedRounds((prev) => {
@@ -61,22 +107,39 @@ export function WorkshopPanel({
     });
   }, []);
 
-  const getEffectiveItems = useCallback((round: WorkshopRound): WorkshopItem[] => {
-    return round.items.map((item) => {
-      const key = `${round.round}:${item.id}`;
-      return localUpdates.get(key) ?? item;
+  const handleItemDelete = useCallback((roundNum: number, itemId: string) => {
+    setDeletedItems((prev) => {
+      const next = new Set(prev);
+      next.add(`${roundNum}:${itemId}`);
+      return next;
     });
-  }, [localUpdates]);
+  }, []);
 
-  const handleSave = useCallback((round: WorkshopRound) => {
-    const effectiveItems = getEffectiveItems(round);
-    const updatedRound: WorkshopRound = { ...round, items: effectiveItems };
-    const content = buildWorkshopRoundContent(updatedRound);
-    onSaveRound?.(round.round, content);
-  }, [getEffectiveItems, onSaveRound]);
+  const getEffectiveItems = useCallback((round: WorkshopRound): WorkshopItem[] => {
+    return round.items
+      .filter((item) => !deletedItems.has(`${round.round}:${item.id}`))
+      .map((item) => {
+        const key = `${round.round}:${item.id}`;
+        return localUpdates.get(key) ?? item;
+      });
+  }, [localUpdates, deletedItems]);
 
-  const latestRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
-  const hasUnsavedChanges = localUpdates.size > 0;
+  const handleSaveAll = useCallback(() => {
+    for (const round of rounds) {
+      const hasChangesInRound = round.items.some((item) => {
+        const key = `${round.round}:${item.id}`;
+        return localUpdates.has(key) || deletedItems.has(key);
+      });
+      if (hasChangesInRound) {
+        const effectiveItems = getEffectiveItems(round);
+        const updatedRound: WorkshopRound = { ...round, items: effectiveItems };
+        const content = buildWorkshopRoundContent(updatedRound);
+        onSaveRound?.(round.round, content);
+      }
+    }
+  }, [rounds, getEffectiveItems, onSaveRound, localUpdates, deletedItems]);
+
+  const hasUnsavedChanges = localUpdates.size > 0 || deletedItems.size > 0;
 
   if (rounds.length === 0) {
     return (
@@ -104,12 +167,12 @@ export function WorkshopPanel({
           Workshop Rounds ({rounds.length})
         </h3>
         <div className="flex items-center gap-2">
-          {hasUnsavedChanges && latestRound && (
+          {hasUnsavedChanges && (
             <Button
               variant="outline"
               size="sm"
               disabled={disabled || isSaving}
-              onClick={() => handleSave(latestRound)}
+              onClick={handleSaveAll}
             >
               <Save className="mr-2 h-3.5 w-3.5" />
               {isSaving ? "Saving..." : "Save Responses"}
@@ -142,29 +205,39 @@ export function WorkshopPanel({
             key={round.round}
             className="rounded-lg border border-slate-700 bg-slate-800/50"
           >
-            <button
-              type="button"
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
-              onClick={() => toggleRound(round.round)}
-            >
-              <div className="flex items-center gap-3">
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
-                )}
-                <span className="text-sm font-medium text-slate-200">
-                  Round {round.round}
-                </span>
-                <ReadinessDots round={round} prevRound={prevRound} />
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                {pendingDecisions > 0 && (
-                  <span className="text-amber-400">{pendingDecisions}D</span>
-                )}
-                <span>{round.items.length} items</span>
-              </div>
-            </button>
+            <div className="flex items-center">
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-between px-4 py-3 text-left"
+                onClick={() => toggleRound(round.round)}
+              >
+                <div className="flex items-center gap-3">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200">
+                    Round {round.round}
+                  </span>
+                  <ReadinessDots round={round} prevRound={prevRound} />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  {pendingDecisions > 0 && (
+                    <span className="text-amber-400">{pendingDecisions}D</span>
+                  )}
+                  <span>{round.items.length} items</span>
+                </div>
+              </button>
+              {onDeleteRound && !disabled && (
+                <div className="pr-2">
+                  <RoundMenu
+                    onDelete={() => onDeleteRound(round.round)}
+                    disabled={isDeletingRound}
+                  />
+                </div>
+              )}
+            </div>
 
             {isExpanded && (
               <div className="border-t border-slate-700 px-4 py-3 space-y-2">
@@ -179,6 +252,7 @@ export function WorkshopPanel({
                     item={item}
                     disabled={disabled}
                     onUpdate={(updated) => handleItemUpdate(round.round, updated)}
+                    onDelete={() => handleItemDelete(round.round, item.id)}
                   />
                 ))}
               </div>

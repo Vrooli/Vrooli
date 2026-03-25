@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 
@@ -22,11 +23,52 @@ func (a *App) cmdSettingsGet(args []string) error {
 		return nil
 	}
 
-	printSection("Summary")
-	fmt.Println("  Current settings")
-	cliutil.PrintJSON(body)
+	var response struct {
+		Settings struct {
+			Theme                    string `json:"theme"`
+			DefaultMode              string `json:"default_mode"`
+			DefaultDelaySeconds      int64  `json:"default_delay_seconds"`
+			AutoFixup                bool   `json:"auto_fixup"`
+			MaxFixupAttempts         int    `json:"max_fixup_attempts"`
+			MaxAutoRounds            int    `json:"max_auto_rounds"`
+			AgentMaxTurns            int    `json:"agent_max_turns"`
+			AgentTimeoutSeconds      int    `json:"agent_timeout_seconds"`
+			AgentRequiresApproval    bool   `json:"agent_requires_approval"`
+			SearchDebounceMs         int    `json:"search_debounce_ms"`
+			ToastDurationMs          int    `json:"toast_duration_ms"`
+			ConfirmDestructiveActions bool   `json:"confirm_destructive_actions"`
+		} `json:"settings"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	s := response.Settings
+
+	printSection("General")
+	fmt.Printf("  Theme: %s\n", s.Theme)
+
+	printSection("Execution Defaults")
+	fmt.Printf("  Default mode: %s\n", s.DefaultMode)
+	fmt.Printf("  Default delay seconds: %d\n", s.DefaultDelaySeconds)
+	fmt.Printf("  Auto fixup: %t\n", s.AutoFixup)
+	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
+
+	printSection("Workshop")
+	fmt.Printf("  Max auto rounds: %d\n", s.MaxAutoRounds)
+
+	printSection("Agent Behavior")
+	fmt.Printf("  Agent max turns: %d\n", s.AgentMaxTurns)
+	fmt.Printf("  Agent timeout seconds: %d\n", s.AgentTimeoutSeconds)
+	fmt.Printf("  Agent requires approval: %t\n", s.AgentRequiresApproval)
+
+	printSection("UI Preferences")
+	fmt.Printf("  Search debounce ms: %d\n", s.SearchDebounceMs)
+	fmt.Printf("  Toast duration ms: %d\n", s.ToastDurationMs)
+	fmt.Printf("  Confirm destructive actions: %t\n", s.ConfirmDestructiveActions)
+
 	printCommandListSection("Next Steps", []string{
-		cliCommand("settings", "update", "--data", "<json-or-@file>"),
+		cliCommand("settings", "update", "--data", `'{"default_mode":"yolo"}'`),
+		cliCommand("execution", "policy-get"),
 		cliCommand("status"),
 	})
 	return nil

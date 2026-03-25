@@ -174,6 +174,16 @@ export interface IBacklogService {
     content: string,
     autoWorkshop?: boolean
   ): Promise<WorkshopSaveResponse>;
+  workshopDeleteRound(
+    kind: BacklogKind,
+    name: string,
+    roundNumber: number,
+  ): Promise<WorkshopDeleteRoundResponse>;
+}
+
+export interface WorkshopDeleteRoundResponse {
+  deletedRound: number;
+  remainingRounds: number;
 }
 
 export interface ImportBacklogResponse {
@@ -517,6 +527,23 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
           taskId: data.auto_advance?.task_id,
           reason: data.auto_advance?.reason ?? "",
         },
+      };
+    },
+
+    async workshopDeleteRound(
+      kind: BacklogKind,
+      name: string,
+      roundNumber: number,
+    ): Promise<WorkshopDeleteRoundResponse> {
+      const data = await apiClient.delete<{
+        deleted_round: number;
+        remaining_rounds: number;
+      }>(API_ENDPOINTS.backlogWorkshopDeleteRound(kind, name), {
+        round_number: roundNumber,
+      });
+      return {
+        deletedRound: data.deleted_round,
+        remainingRounds: data.remaining_rounds,
       };
     },
   };

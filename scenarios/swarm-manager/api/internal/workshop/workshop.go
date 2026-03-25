@@ -208,3 +208,63 @@ func BuildHistory(rounds []Round) string {
 	}
 	return string(data)
 }
+
+// RoundFilename returns the standard zero-padded filename for a round number.
+func RoundFilename(n int) string {
+	return fmt.Sprintf("round-%03d.json", n)
+}
+
+// DeleteRoundAndRenumber removes a workshop round file and renumbers all
+// subsequent rounds so they remain contiguous. Returns the number of remaining
+// rounds after deletion.
+func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err error) {
+	workshopDir := filepath.Join(itemDir, "workshop")
+	rounds, err := LoadRounds(itemDir)
+	if err != nil {
+		return 0, fmt.Errorf("load rounds: %w", err)
+	}
+
+	// Verify the target round exists.
+	found := false
+	for _, r := range rounds {
+		if r.RoundNum == roundNum {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return len(rounds), fmt.Errorf("round %d not found", roundNum)
+	}
+
+	// Delete the target round file.
+	targetFile := filepath.Join(workshopDir, RoundFilename(roundNum))
+	if err := os.Remove(targetFile); err != nil {
+		return len(rounds), fmt.Errorf("delete round file: %w", err)
+	}
+
+	// Renumber subsequent rounds (ascending order — always writing to a
+	// lower slot that is already free).
+	for _, r := range rounds {
+		if r.RoundNum <= roundNum {
+			continue
+		}
+		oldFile := filepath.Join(workshopDir, RoundFilename(r.RoundNum))
+		newNum := r.RoundNum - 1
+		r.RoundNum = newNum
+		data, err := json.MarshalIndent(r, "", "  ")
+		if err != nil {
+			return 0, fmt.Errorf("marshal round %d: %w", r.RoundNum, err)
+		}
+		newFile := filepath.Join(workshopDir, RoundFilename(newNum))
+		if err := os.WriteFile(newFile, data, 0o644); err != nil {
+			return 0, fmt.Errorf("write round %d: %w", newNum, err)
+		}
+		// Only remove old file if it differs from the new path (i.e., not the
+		// round immediately after the deleted one when there's a gap).
+		if oldFile != newFile {
+			_ = os.Remove(oldFile)
+		}
+	}
+
+	return len(rounds) - 1, nil
+}

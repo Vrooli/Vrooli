@@ -7,11 +7,13 @@
   "schedule": "16 18 * * *",
   "lastExecution": {
     "startedAt": "2026-03-24T22:16:00Z",
-    "status": "running",
+    "endedAt": "2026-03-24T22:46:00Z",
+    "status": "failed",
     "runId": "4e4eb64e-cbe9-4f74-af12-688b1ef0b8bc",
-    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-24T22-16-00Z.log"
+    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-24T22-16-00Z.log",
+    "error": "Runner claude-code encountered an error. Please check runner configuration."
   },
-  "revision": 145,
+  "revision": 146,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-24T22:16:00Z"
+  "updatedAt": "2026-03-24T22:46:00Z"
 }

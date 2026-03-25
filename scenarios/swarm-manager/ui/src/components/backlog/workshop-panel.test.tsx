@@ -126,4 +126,95 @@ describe("WorkshopPanel", () => {
     // The component shows pending decisions as "{count}D"
     expect(screen.getByText("2D")).toBeInTheDocument();
   });
+
+  it("shows delete button on workshop items", () => {
+    const round = makeRound({
+      items: [
+        { id: "d1", type: "decision", topic: "Scope", text: "Pick scope", options: [], selected: null },
+        { id: "i1", type: "info", text: "Background context" },
+      ],
+    });
+    render(<WorkshopPanel {...defaultProps} rounds={[round]} />);
+
+    const deleteButtons = screen.getAllByTitle("Delete item");
+    expect(deleteButtons).toHaveLength(2);
+  });
+
+  it("hides delete button when disabled", () => {
+    const round = makeRound();
+    render(<WorkshopPanel {...defaultProps} rounds={[round]} disabled />);
+
+    expect(screen.queryAllByTitle("Delete item")).toHaveLength(0);
+  });
+
+  it("clicking delete removes item from rendered list", async () => {
+    const round = makeRound({
+      items: [
+        { id: "d1", type: "decision", topic: "Question 1", text: "Q1", options: [], selected: null },
+        { id: "d2", type: "decision", topic: "Question 2", text: "Q2", options: [], selected: null },
+      ],
+    });
+    render(<WorkshopPanel {...defaultProps} rounds={[round]} />);
+
+    expect(screen.getByText("Question 1")).toBeInTheDocument();
+    expect(screen.getByText("Question 2")).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByTitle("Delete item");
+    await fireEvent.click(deleteButtons[0]!);
+
+    expect(screen.queryByText("Question 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Question 2")).toBeInTheDocument();
+  });
+
+  it("shows round menu and fires onDeleteRound", async () => {
+    const onDeleteRound = vi.fn();
+    const round = makeRound({ round: 3 });
+    render(
+      <WorkshopPanel {...defaultProps} rounds={[round]} onDeleteRound={onDeleteRound} />,
+    );
+
+    // Click the round menu button
+    const menuBtn = screen.getByTitle("Round actions");
+    await fireEvent.click(menuBtn);
+
+    // Click "Delete round"
+    const deleteRoundBtn = screen.getByText("Delete round");
+    await fireEvent.click(deleteRoundBtn);
+
+    expect(onDeleteRound).toHaveBeenCalledWith(3);
+  });
+
+  it("hides round menu when disabled", () => {
+    render(
+      <WorkshopPanel {...defaultProps} rounds={[makeRound()]} onDeleteRound={vi.fn()} disabled />,
+    );
+
+    expect(screen.queryByTitle("Round actions")).not.toBeInTheDocument();
+  });
+
+  it("hides round menu when onDeleteRound is not provided", () => {
+    render(<WorkshopPanel {...defaultProps} rounds={[makeRound()]} />);
+
+    expect(screen.queryByTitle("Round actions")).not.toBeInTheDocument();
+  });
+
+  it("shows save button after deleting an item", async () => {
+    const onSaveRound = vi.fn();
+    const round = makeRound();
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[round]}
+        onSaveRound={onSaveRound}
+      />,
+    );
+
+    // No save button initially
+    expect(screen.queryByText("Save Responses")).not.toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByTitle("Delete item");
+    await fireEvent.click(deleteButtons[0]!);
+
+    expect(screen.getByText("Save Responses")).toBeInTheDocument();
+  });
 });
