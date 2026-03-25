@@ -9,11 +9,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // ExecutionRecord captures one backlog execution lifecycle entry.
 message ExecutionRecord {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore"] }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;
-  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "starting", "running", "needs_review", "completed", "failed", "canceled"] }];
+  string status = 6 [(buf.validate.field).string = { in: ["pending", "scheduled", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
   string mode = 7 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
   optional string scheduled_at = 8;
   optional string started_at = 9;
@@ -26,6 +26,18 @@ message ExecutionRecord {
 
   // Archive context for spec-sync-archive executions.
   optional ArchiveContext archive_context = 16;
+
+  // Parent execution ID for follow-up/fixup runs.
+  optional string parent_execution_id = 17;
+
+  // Number of fixup attempts (0 for original execution).
+  int32 fixup_attempt = 18;
+
+  // Post-execution review result from git-control-tower.
+  optional ReviewResult review_result = 19;
+
+  // Job ID for the in-progress review.
+  optional string review_job_id = 20;
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
@@ -37,8 +49,30 @@ message ArchiveContext {
   optional string preserve_preset = 5;
 }
 
-// ExecutionPolicy controls default mode and delay.
+// ReviewResult captures the outcome of a post-execution readiness review.
+message ReviewResult {
+  string job_id = 1;
+  // Classification: ready, ready_with_notes, needs_work, not_assessable.
+  string classification = 2;
+  repeated ReviewDimension dimensions = 3;
+  string summary = 4;
+  string reviewed_at = 5;
+}
+
+// ReviewDimension captures a single review dimension result.
+message ReviewDimension {
+  string name = 1;
+  // Status: green, yellow, red, skipped.
+  string status = 2;
+  optional string details = 3;
+}
+
+// ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 message ExecutionPolicy {
   string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "scheduled", "yolo"] }];
   int64 default_delay_seconds = 2 [(buf.validate.field).int64.gte = 0];
+  // When true, automatically re-runs execution when review finds issues.
+  bool auto_fixup = 3;
+  // Maximum number of automatic fixup attempts (0-5).
+  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
 }

@@ -41,3 +41,15 @@ class CreateExecutionRequest(_message.Message):
     started_by: str
     operation: str
     def __init__(self, backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., mode: _Optional[str] = ..., delay_seconds: _Optional[int] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ...) -> None: ...
+
+class FollowUpExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "follow_up_type", "context", "run_mode")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    FOLLOW_UP_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    RUN_MODE_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    follow_up_type: str
+    context: str
+    run_mode: str
+    def __init__(self, execution_id: _Optional[str] = ..., follow_up_type: _Optional[str] = ..., context: _Optional[str] = ..., run_mode: _Optional[str] = ...) -> None: ...

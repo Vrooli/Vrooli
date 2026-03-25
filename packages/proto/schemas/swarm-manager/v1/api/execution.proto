@@ -27,3 +27,14 @@ message CreateExecutionRequest {
   optional string started_by = 5;
   optional string operation = 6;
 }
+
+// FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
+message FollowUpExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Follow-up type: fixup (fix review issues), followup (general continuation), custom (free-form).
+  string follow_up_type = 2 [(buf.validate.field).string = { in: ["fixup", "followup", "custom"] }];
+  // Additional context or instructions for the follow-up.
+  optional string context = 3;
+  // Run mode: continue (reply to existing agent-manager run) or new (spawn fresh run).
+  string run_mode = 4 [(buf.validate.field).string = { in: ["continue", "new"] }];
+}

@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/execution.proto.
  */
 export const file_swarm_manager_v1_domain_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEi7QUKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESOQoMYmFja2xvZ19raW5kGAIgASgJQiO6SCByHlIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaBIdCgxiYWNrbG9nX25hbWUYAyABKAlCB7pIBHICEAESFAoHdGFza19pZBgEIAEoCUgAiAEBEhMKBnJ1bl9pZBgFIAEoCUgBiAEBEmcKBnN0YXR1cxgGIAEoCUJXukhUclJSB3BlbmRpbmdSCXNjaGVkdWxlZFIIc3RhcnRpbmdSB3J1bm5pbmdSDG5lZWRzX3Jldmlld1IJY29tcGxldGVkUgZmYWlsZWRSCGNhbmNlbGVkEiwKBG1vZGUYByABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxIZCgxzY2hlZHVsZWRfYXQYCCABKAlIAogBARIXCgpzdGFydGVkX2F0GAkgASgJSAOIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIBIgBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgFiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBogBARIWCglvcGVyYXRpb24YDSABKAlIB4gBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESPgoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMiAuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlQ29udGV4dEgIiAEBQgoKCF90YXNrX2lkQgkKB19ydW5faWRCDwoNX3NjaGVkdWxlZF9hdEINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXRCEQoPX2ZhaWx1cmVfcmVhc29uQg0KC19zdGFydGVkX2J5QgwKCl9vcGVyYXRpb25CEgoQX2FyY2hpdmVfY29udGV4dCLOAQoOQXJjaGl2ZUNvbnRleHQSHgoNc2NlbmFyaW9fbmFtZRgBIAEoCUIHukgEcgIQARIeCg1zY2VuYXJpb19wYXRoGAIgASgJQge6SARyAhABEh0KEHByZXNldF9vcl9jdXN0b20YAyABKAlIAIgBARIWCg5wcmVzZXJ2ZV9wYXRocxgEIAMoCRIcCg9wcmVzZXJ2ZV9wcmVzZXQYBSABKAlIAYgBAUITChFfcHJlc2V0X29yX2N1c3RvbUISChBfcHJlc2VydmVfcHJlc2V0Im8KD0V4ZWN1dGlvblBvbGljeRI0CgxkZWZhdWx0X21vZGUYASABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxImChVkZWZhdWx0X2RlbGF5X3NlY29uZHMYAiABKANCB7pIBCICKABCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEi2wcKD0V4ZWN1dGlvblJlY29yZBIdCgxleGVjdXRpb25faWQYASABKAlCB7pIBHICEAESQAoMYmFja2xvZ19raW5kGAIgASgJQiq6SCdyJVIEaWRlYVIDZml4UgdleGVjdXRlUghyZXNlYXJjaFIFY2hvcmUSHQoMYmFja2xvZ19uYW1lGAMgASgJQge6SARyAhABEhQKB3Rhc2tfaWQYBCABKAlIAIgBARITCgZydW5faWQYBSABKAlIAYgBARKAAQoGc3RhdHVzGAYgASgJQnC6SG1ya1IHcGVuZGluZ1IJc2NoZWR1bGVkUghzdGFydGluZ1IHcnVubmluZ1IMbmVlZHNfcmV2aWV3Ugp2YWxpZGF0aW5nUgtuZWVkc19maXh1cFIJY29tcGxldGVkUgZmYWlsZWRSCGNhbmNlbGVkEiwKBG1vZGUYByABKAlCHrpIG3IZUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sbxIZCgxzY2hlZHVsZWRfYXQYCCABKAlIAogBARIXCgpzdGFydGVkX2F0GAkgASgJSAOIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIBIgBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgFiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBogBARIWCglvcGVyYXRpb24YDSABKAlIB4gBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESPgoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMiAuc3dhcm1fbWFuYWdlci52MS5BcmNoaXZlQ29udGV4dEgIiAEBEiAKE3BhcmVudF9leGVjdXRpb25faWQYESABKAlICYgBARIVCg1maXh1cF9hdHRlbXB0GBIgASgFEjoKDXJldmlld19yZXN1bHQYEyABKAsyHi5zd2FybV9tYW5hZ2VyLnYxLlJldmlld1Jlc3VsdEgKiAEBEhoKDXJldmlld19qb2JfaWQYFCABKAlIC4gBAUIKCghfdGFza19pZEIJCgdfcnVuX2lkQg8KDV9zY2hlZHVsZWRfYXRCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0QhEKD19mYWlsdXJlX3JlYXNvbkINCgtfc3RhcnRlZF9ieUIMCgpfb3BlcmF0aW9uQhIKEF9hcmNoaXZlX2NvbnRleHRCFgoUX3BhcmVudF9leGVjdXRpb25faWRCEAoOX3Jldmlld19yZXN1bHRCEAoOX3Jldmlld19qb2JfaWQizgEKDkFyY2hpdmVDb250ZXh0Eh4KDXNjZW5hcmlvX25hbWUYASABKAlCB7pIBHICEAESHgoNc2NlbmFyaW9fcGF0aBgCIAEoCUIHukgEcgIQARIdChBwcmVzZXRfb3JfY3VzdG9tGAMgASgJSACIAQESFgoOcHJlc2VydmVfcGF0aHMYBCADKAkSHAoPcHJlc2VydmVfcHJlc2V0GAUgASgJSAGIAQFCEwoRX3ByZXNldF9vcl9jdXN0b21CEgoQX3ByZXNlcnZlX3ByZXNldCKTAQoMUmV2aWV3UmVzdWx0Eg4KBmpvYl9pZBgBIAEoCRIWCg5jbGFzc2lmaWNhdGlvbhgCIAEoCRI1CgpkaW1lbnNpb25zGAMgAygLMiEuc3dhcm1fbWFuYWdlci52MS5SZXZpZXdEaW1lbnNpb24SDwoHc3VtbWFyeRgEIAEoCRITCgtyZXZpZXdlZF9hdBgFIAEoCSJRCg9SZXZpZXdEaW1lbnNpb24SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFAoHZGV0YWlscxgDIAEoCUgAiAEBQgoKCF9kZXRhaWxzIqoBCg9FeGVjdXRpb25Qb2xpY3kSNAoMZGVmYXVsdF9tb2RlGAEgASgJQh66SBtyGVIGbWFudWFsUglzY2hlZHVsZWRSBHlvbG8SJgoVZGVmYXVsdF9kZWxheV9zZWNvbmRzGAIgASgDQge6SAQiAigAEhIKCmF1dG9fZml4dXAYAyABKAgSJQoSbWF4X2ZpeHVwX2F0dGVtcHRzGAQgASgFQgm6SAYaBBgFKABCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * ExecutionRecord captures one backlog execution lifecycle entry.
@@ -100,6 +100,34 @@ export type ExecutionRecord = Message<"swarm_manager.v1.ExecutionRecord"> & {
    * @generated from field: optional swarm_manager.v1.ArchiveContext archive_context = 16;
    */
   archiveContext?: ArchiveContext;
+
+  /**
+   * Parent execution ID for follow-up/fixup runs.
+   *
+   * @generated from field: optional string parent_execution_id = 17;
+   */
+  parentExecutionId?: string;
+
+  /**
+   * Number of fixup attempts (0 for original execution).
+   *
+   * @generated from field: int32 fixup_attempt = 18;
+   */
+  fixupAttempt: number;
+
+  /**
+   * Post-execution review result from git-control-tower.
+   *
+   * @generated from field: optional swarm_manager.v1.ReviewResult review_result = 19;
+   */
+  reviewResult?: ReviewResult;
+
+  /**
+   * Job ID for the in-progress review.
+   *
+   * @generated from field: optional string review_job_id = 20;
+   */
+  reviewJobId?: string;
 };
 
 /**
@@ -149,7 +177,79 @@ export const ArchiveContextSchema: GenMessage<ArchiveContext> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_execution, 1);
 
 /**
- * ExecutionPolicy controls default mode and delay.
+ * ReviewResult captures the outcome of a post-execution readiness review.
+ *
+ * @generated from message swarm_manager.v1.ReviewResult
+ */
+export type ReviewResult = Message<"swarm_manager.v1.ReviewResult"> & {
+  /**
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+
+  /**
+   * Classification: ready, ready_with_notes, needs_work, not_assessable.
+   *
+   * @generated from field: string classification = 2;
+   */
+  classification: string;
+
+  /**
+   * @generated from field: repeated swarm_manager.v1.ReviewDimension dimensions = 3;
+   */
+  dimensions: ReviewDimension[];
+
+  /**
+   * @generated from field: string summary = 4;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string reviewed_at = 5;
+   */
+  reviewedAt: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ReviewResult.
+ * Use `create(ReviewResultSchema)` to create a new message.
+ */
+export const ReviewResultSchema: GenMessage<ReviewResult> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 2);
+
+/**
+ * ReviewDimension captures a single review dimension result.
+ *
+ * @generated from message swarm_manager.v1.ReviewDimension
+ */
+export type ReviewDimension = Message<"swarm_manager.v1.ReviewDimension"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Status: green, yellow, red, skipped.
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: optional string details = 3;
+   */
+  details?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.ReviewDimension.
+ * Use `create(ReviewDimensionSchema)` to create a new message.
+ */
+export const ReviewDimensionSchema: GenMessage<ReviewDimension> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 3);
+
+/**
+ * ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
  *
  * @generated from message swarm_manager.v1.ExecutionPolicy
  */
@@ -163,6 +263,20 @@ export type ExecutionPolicy = Message<"swarm_manager.v1.ExecutionPolicy"> & {
    * @generated from field: int64 default_delay_seconds = 2;
    */
   defaultDelaySeconds: bigint;
+
+  /**
+   * When true, automatically re-runs execution when review finds issues.
+   *
+   * @generated from field: bool auto_fixup = 3;
+   */
+  autoFixup: boolean;
+
+  /**
+   * Maximum number of automatic fixup attempts (0-5).
+   *
+   * @generated from field: int32 max_fixup_attempts = 4;
+   */
+  maxFixupAttempts: number;
 };
 
 /**
@@ -170,5 +284,5 @@ export type ExecutionPolicy = Message<"swarm_manager.v1.ExecutionPolicy"> & {
  * Use `create(ExecutionPolicySchema)` to create a new message.
  */
 export const ExecutionPolicySchema: GenMessage<ExecutionPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 2);
+  messageDesc(file_swarm_manager_v1_domain_execution, 4);
 

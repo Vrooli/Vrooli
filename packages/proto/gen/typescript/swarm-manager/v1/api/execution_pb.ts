@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/execution.proto.
  */
 export const file_swarm_manager_v1_api_execution: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiSQoVTGlzdEV4ZWN1dGlvblJlc3BvbnNlEjAKBWl0ZW1zGAEgAygLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25SZWNvcmQiSQoRRXhlY3V0aW9uUmVzcG9uc2USNAoJZXhlY3V0aW9uGAEgASgLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25SZWNvcmQiTAoXRXhlY3V0aW9uUG9saWN5UmVzcG9uc2USMQoGcG9saWN5GAEgASgLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25Qb2xpY3kiiQIKFkNyZWF0ZUV4ZWN1dGlvblJlcXVlc3QSHQoMYmFja2xvZ19raW5kGAEgASgJQge6SARyAhABEh0KDGJhY2tsb2dfbmFtZRgCIAEoCUIHukgEcgIQARIsCgRtb2RlGAMgASgJQh66SBtyGVIGbWFudWFsUglzY2hlZHVsZWRSBHlvbG8SIwoNZGVsYXlfc2Vjb25kcxgEIAEoA0IHukgEIgIoAEgAiAEBEhcKCnN0YXJ0ZWRfYnkYBSABKAlIAYgBARIWCglvcGVyYXRpb24YBiABKAlIAogBAUIQCg5fZGVsYXlfc2Vjb25kc0INCgtfc3RhcnRlZF9ieUIMCgpfb3BlcmF0aW9uQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_execution]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9leGVjdXRpb24ucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiSQoVTGlzdEV4ZWN1dGlvblJlc3BvbnNlEjAKBWl0ZW1zGAEgAygLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25SZWNvcmQiSQoRRXhlY3V0aW9uUmVzcG9uc2USNAoJZXhlY3V0aW9uGAEgASgLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25SZWNvcmQiTAoXRXhlY3V0aW9uUG9saWN5UmVzcG9uc2USMQoGcG9saWN5GAEgASgLMiEuc3dhcm1fbWFuYWdlci52MS5FeGVjdXRpb25Qb2xpY3kiiQIKFkNyZWF0ZUV4ZWN1dGlvblJlcXVlc3QSHQoMYmFja2xvZ19raW5kGAEgASgJQge6SARyAhABEh0KDGJhY2tsb2dfbmFtZRgCIAEoCUIHukgEcgIQARIsCgRtb2RlGAMgASgJQh66SBtyGVIGbWFudWFsUglzY2hlZHVsZWRSBHlvbG8SIwoNZGVsYXlfc2Vjb25kcxgEIAEoA0IHukgEIgIoAEgAiAEBEhcKCnN0YXJ0ZWRfYnkYBSABKAlIAYgBARIWCglvcGVyYXRpb24YBiABKAlIAogBAUIQCg5fZGVsYXlfc2Vjb25kc0INCgtfc3RhcnRlZF9ieUIMCgpfb3BlcmF0aW9uIrsBChhGb2xsb3dVcEV4ZWN1dGlvblJlcXVlc3QSHQoMZXhlY3V0aW9uX2lkGAEgASgJQge6SARyAhABEjYKDmZvbGxvd191cF90eXBlGAIgASgJQh66SBtyGVIFZml4dXBSCGZvbGxvd3VwUgZjdXN0b20SFAoHY29udGV4dBgDIAEoCUgAiAEBEiYKCHJ1bl9tb2RlGAQgASgJQhS6SBFyD1IIY29udGludWVSA25ld0IKCghfY29udGV4dEJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_execution]);
 
 /**
  * @generated from message swarm_manager.v1.ListExecutionResponse
@@ -107,4 +107,44 @@ export type CreateExecutionRequest = Message<"swarm_manager.v1.CreateExecutionRe
  */
 export const CreateExecutionRequestSchema: GenMessage<CreateExecutionRequest> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_execution, 3);
+
+/**
+ * FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
+ *
+ * @generated from message swarm_manager.v1.FollowUpExecutionRequest
+ */
+export type FollowUpExecutionRequest = Message<"swarm_manager.v1.FollowUpExecutionRequest"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Follow-up type: fixup (fix review issues), followup (general continuation), custom (free-form).
+   *
+   * @generated from field: string follow_up_type = 2;
+   */
+  followUpType: string;
+
+  /**
+   * Additional context or instructions for the follow-up.
+   *
+   * @generated from field: optional string context = 3;
+   */
+  context?: string;
+
+  /**
+   * Run mode: continue (reply to existing agent-manager run) or new (spawn fresh run).
+   *
+   * @generated from field: string run_mode = 4;
+   */
+  runMode: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.FollowUpExecutionRequest.
+ * Use `create(FollowUpExecutionRequestSchema)` to create a new message.
+ */
+export const FollowUpExecutionRequestSchema: GenMessage<FollowUpExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_execution, 4);
 

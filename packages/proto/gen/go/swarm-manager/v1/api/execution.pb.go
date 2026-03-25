@@ -239,6 +239,78 @@ func (x *CreateExecutionRequest) GetOperation() string {
 	return ""
 }
 
+// FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
+type FollowUpExecutionRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Follow-up type: fixup (fix review issues), followup (general continuation), custom (free-form).
+	FollowUpType string `protobuf:"bytes,2,opt,name=follow_up_type,json=followUpType,proto3" json:"follow_up_type,omitempty"`
+	// Additional context or instructions for the follow-up.
+	Context *string `protobuf:"bytes,3,opt,name=context,proto3,oneof" json:"context,omitempty"`
+	// Run mode: continue (reply to existing agent-manager run) or new (spawn fresh run).
+	RunMode       string `protobuf:"bytes,4,opt,name=run_mode,json=runMode,proto3" json:"run_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowUpExecutionRequest) Reset() {
+	*x = FollowUpExecutionRequest{}
+	mi := &file_swarm_manager_v1_api_execution_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowUpExecutionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowUpExecutionRequest) ProtoMessage() {}
+
+func (x *FollowUpExecutionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_execution_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowUpExecutionRequest.ProtoReflect.Descriptor instead.
+func (*FollowUpExecutionRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_execution_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FollowUpExecutionRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *FollowUpExecutionRequest) GetFollowUpType() string {
+	if x != nil {
+		return x.FollowUpType
+	}
+	return ""
+}
+
+func (x *FollowUpExecutionRequest) GetContext() string {
+	if x != nil && x.Context != nil {
+		return *x.Context
+	}
+	return ""
+}
+
+func (x *FollowUpExecutionRequest) GetRunMode() string {
+	if x != nil {
+		return x.RunMode
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_api_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
@@ -261,7 +333,14 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\x0e_delay_secondsB\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
-	"_operationBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"_operation\"\xe8\x01\n" +
+	"\x18FollowUpExecutionRequest\x12*\n" +
+	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12D\n" +
+	"\x0efollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05fixupR\bfollowupR\x06customR\ffollowUpType\x12\x1d\n" +
+	"\acontext\x18\x03 \x01(\tH\x00R\acontext\x88\x01\x01\x12/\n" +
+	"\brun_mode\x18\x04 \x01(\tB\x14\xbaH\x11r\x0fR\bcontinueR\x03newR\arunModeB\n" +
+	"\n" +
+	"\b_contextBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_execution_proto_rawDescOnce sync.Once
@@ -275,19 +354,20 @@ func file_swarm_manager_v1_api_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_swarm_manager_v1_api_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_api_execution_proto_goTypes = []any{
-	(*ListExecutionResponse)(nil),   // 0: swarm_manager.v1.ListExecutionResponse
-	(*ExecutionResponse)(nil),       // 1: swarm_manager.v1.ExecutionResponse
-	(*ExecutionPolicyResponse)(nil), // 2: swarm_manager.v1.ExecutionPolicyResponse
-	(*CreateExecutionRequest)(nil),  // 3: swarm_manager.v1.CreateExecutionRequest
-	(*domain.ExecutionRecord)(nil),  // 4: swarm_manager.v1.ExecutionRecord
-	(*domain.ExecutionPolicy)(nil),  // 5: swarm_manager.v1.ExecutionPolicy
+	(*ListExecutionResponse)(nil),    // 0: swarm_manager.v1.ListExecutionResponse
+	(*ExecutionResponse)(nil),        // 1: swarm_manager.v1.ExecutionResponse
+	(*ExecutionPolicyResponse)(nil),  // 2: swarm_manager.v1.ExecutionPolicyResponse
+	(*CreateExecutionRequest)(nil),   // 3: swarm_manager.v1.CreateExecutionRequest
+	(*FollowUpExecutionRequest)(nil), // 4: swarm_manager.v1.FollowUpExecutionRequest
+	(*domain.ExecutionRecord)(nil),   // 5: swarm_manager.v1.ExecutionRecord
+	(*domain.ExecutionPolicy)(nil),   // 6: swarm_manager.v1.ExecutionPolicy
 }
 var file_swarm_manager_v1_api_execution_proto_depIdxs = []int32{
-	4, // 0: swarm_manager.v1.ListExecutionResponse.items:type_name -> swarm_manager.v1.ExecutionRecord
-	4, // 1: swarm_manager.v1.ExecutionResponse.execution:type_name -> swarm_manager.v1.ExecutionRecord
-	5, // 2: swarm_manager.v1.ExecutionPolicyResponse.policy:type_name -> swarm_manager.v1.ExecutionPolicy
+	5, // 0: swarm_manager.v1.ListExecutionResponse.items:type_name -> swarm_manager.v1.ExecutionRecord
+	5, // 1: swarm_manager.v1.ExecutionResponse.execution:type_name -> swarm_manager.v1.ExecutionRecord
+	6, // 2: swarm_manager.v1.ExecutionPolicyResponse.policy:type_name -> swarm_manager.v1.ExecutionPolicy
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -301,13 +381,14 @@ func file_swarm_manager_v1_api_execution_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_api_execution_proto_msgTypes[3].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_execution_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_execution_proto_rawDesc), len(file_swarm_manager_v1_api_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -42,8 +42,16 @@ type ExecutionRecord struct {
 	UpdatedAt     string                 `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Archive context for spec-sync-archive executions.
 	ArchiveContext *ArchiveContext `protobuf:"bytes,16,opt,name=archive_context,json=archiveContext,proto3,oneof" json:"archive_context,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Parent execution ID for follow-up/fixup runs.
+	ParentExecutionId *string `protobuf:"bytes,17,opt,name=parent_execution_id,json=parentExecutionId,proto3,oneof" json:"parent_execution_id,omitempty"`
+	// Number of fixup attempts (0 for original execution).
+	FixupAttempt int32 `protobuf:"varint,18,opt,name=fixup_attempt,json=fixupAttempt,proto3" json:"fixup_attempt,omitempty"`
+	// Post-execution review result from git-control-tower.
+	ReviewResult *ReviewResult `protobuf:"bytes,19,opt,name=review_result,json=reviewResult,proto3,oneof" json:"review_result,omitempty"`
+	// Job ID for the in-progress review.
+	ReviewJobId   *string `protobuf:"bytes,20,opt,name=review_job_id,json=reviewJobId,proto3,oneof" json:"review_job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -188,6 +196,34 @@ func (x *ExecutionRecord) GetArchiveContext() *ArchiveContext {
 	return nil
 }
 
+func (x *ExecutionRecord) GetParentExecutionId() string {
+	if x != nil && x.ParentExecutionId != nil {
+		return *x.ParentExecutionId
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetFixupAttempt() int32 {
+	if x != nil {
+		return x.FixupAttempt
+	}
+	return 0
+}
+
+func (x *ExecutionRecord) GetReviewResult() *ReviewResult {
+	if x != nil {
+		return x.ReviewResult
+	}
+	return nil
+}
+
+func (x *ExecutionRecord) GetReviewJobId() string {
+	if x != nil && x.ReviewJobId != nil {
+		return *x.ReviewJobId
+	}
+	return ""
+}
+
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
 type ArchiveContext struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -265,18 +301,162 @@ func (x *ArchiveContext) GetPreservePreset() string {
 	return ""
 }
 
-// ExecutionPolicy controls default mode and delay.
+// ReviewResult captures the outcome of a post-execution readiness review.
+type ReviewResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	// Classification: ready, ready_with_notes, needs_work, not_assessable.
+	Classification string             `protobuf:"bytes,2,opt,name=classification,proto3" json:"classification,omitempty"`
+	Dimensions     []*ReviewDimension `protobuf:"bytes,3,rep,name=dimensions,proto3" json:"dimensions,omitempty"`
+	Summary        string             `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	ReviewedAt     string             `protobuf:"bytes,5,opt,name=reviewed_at,json=reviewedAt,proto3" json:"reviewed_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReviewResult) Reset() {
+	*x = ReviewResult{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewResult) ProtoMessage() {}
+
+func (x *ReviewResult) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewResult.ProtoReflect.Descriptor instead.
+func (*ReviewResult) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ReviewResult) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *ReviewResult) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *ReviewResult) GetDimensions() []*ReviewDimension {
+	if x != nil {
+		return x.Dimensions
+	}
+	return nil
+}
+
+func (x *ReviewResult) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ReviewResult) GetReviewedAt() string {
+	if x != nil {
+		return x.ReviewedAt
+	}
+	return ""
+}
+
+// ReviewDimension captures a single review dimension result.
+type ReviewDimension struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Status: green, yellow, red, skipped.
+	Status        string  `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Details       *string `protobuf:"bytes,3,opt,name=details,proto3,oneof" json:"details,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewDimension) Reset() {
+	*x = ReviewDimension{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewDimension) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewDimension) ProtoMessage() {}
+
+func (x *ReviewDimension) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewDimension.ProtoReflect.Descriptor instead.
+func (*ReviewDimension) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ReviewDimension) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ReviewDimension) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ReviewDimension) GetDetails() string {
+	if x != nil && x.Details != nil {
+		return *x.Details
+	}
+	return ""
+}
+
+// ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 type ExecutionPolicy struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	DefaultMode         string                 `protobuf:"bytes,1,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
 	DefaultDelaySeconds int64                  `protobuf:"varint,2,opt,name=default_delay_seconds,json=defaultDelaySeconds,proto3" json:"default_delay_seconds,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// When true, automatically re-runs execution when review finds issues.
+	AutoFixup bool `protobuf:"varint,3,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
+	// Maximum number of automatic fixup attempts (0-5).
+	MaxFixupAttempts int32 `protobuf:"varint,4,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ExecutionPolicy) Reset() {
 	*x = ExecutionPolicy{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +468,7 @@ func (x *ExecutionPolicy) String() string {
 func (*ExecutionPolicy) ProtoMessage() {}
 
 func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +481,7 @@ func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicy.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicy) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ExecutionPolicy) GetDefaultMode() string {
@@ -318,18 +498,33 @@ func (x *ExecutionPolicy) GetDefaultDelaySeconds() int64 {
 	return 0
 }
 
+func (x *ExecutionPolicy) GetAutoFixup() bool {
+	if x != nil {
+		return x.AutoFixup
+	}
+	return false
+}
+
+func (x *ExecutionPolicy) GetMaxFixupAttempts() int32 {
+	if x != nil {
+		return x.MaxFixupAttempts
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa0\a\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xca\t\n" +
 	"\x0fExecutionRecord\x12*\n" +
-	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12F\n" +
-	"\fbacklog_kind\x18\x02 \x01(\tB#\xbaH r\x1eR\x04ideaR\x03fixR\aexecuteR\bresearchR\vbacklogKind\x12*\n" +
+	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12M\n" +
+	"\fbacklog_kind\x18\x02 \x01(\tB*\xbaH'r%R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
-	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12o\n" +
-	"\x06status\x18\x06 \x01(\tBW\xbaHTrRR\apendingR\tscheduledR\bstartingR\arunningR\fneeds_reviewR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
+	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x88\x01\n" +
+	"\x06status\x18\x06 \x01(\tBp\xbaHmrkR\apendingR\tscheduledR\bstartingR\arunningR\fneeds_reviewR\n" +
+	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x122\n" +
 	"\x04mode\x18\a \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x04mode\x12&\n" +
 	"\fscheduled_at\x18\b \x01(\tH\x02R\vscheduledAt\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -345,7 +540,12 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"created_at\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
 	"\n" +
 	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
-	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\bR\x0earchiveContext\x88\x01\x01B\n" +
+	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\bR\x0earchiveContext\x88\x01\x01\x123\n" +
+	"\x13parent_execution_id\x18\x11 \x01(\tH\tR\x11parentExecutionId\x88\x01\x01\x12#\n" +
+	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12H\n" +
+	"\rreview_result\x18\x13 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\n" +
+	"R\freviewResult\x88\x01\x01\x12'\n" +
+	"\rreview_job_id\x18\x14 \x01(\tH\vR\vreviewJobId\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0f\n" +
@@ -356,7 +556,10 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\v_started_byB\f\n" +
 	"\n" +
 	"_operationB\x12\n" +
-	"\x10_archive_context\"\x99\x02\n" +
+	"\x10_archive_contextB\x16\n" +
+	"\x14_parent_execution_idB\x10\n" +
+	"\x0e_review_resultB\x10\n" +
+	"\x0e_review_job_id\"\x99\x02\n" +
 	"\x0eArchiveContext\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
 	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +
@@ -364,10 +567,28 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0epreserve_paths\x18\x04 \x03(\tR\rpreservePaths\x12,\n" +
 	"\x0fpreserve_preset\x18\x05 \x01(\tH\x01R\x0epreservePreset\x88\x01\x01B\x13\n" +
 	"\x11_preset_or_customB\x12\n" +
-	"\x10_preserve_preset\"\x91\x01\n" +
+	"\x10_preserve_preset\"\xcb\x01\n" +
+	"\fReviewResult\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12&\n" +
+	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12A\n" +
+	"\n" +
+	"dimensions\x18\x03 \x03(\v2!.swarm_manager.v1.ReviewDimensionR\n" +
+	"dimensions\x12\x18\n" +
+	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1f\n" +
+	"\vreviewed_at\x18\x05 \x01(\tR\n" +
+	"reviewedAt\"h\n" +
+	"\x0fReviewDimension\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
+	"\adetails\x18\x03 \x01(\tH\x00R\adetails\x88\x01\x01B\n" +
+	"\n" +
+	"\b_details\"\xe9\x01\n" +
 	"\x0fExecutionPolicy\x12A\n" +
 	"\fdefault_mode\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
-	"\x15default_delay_seconds\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySecondsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x15default_delay_seconds\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySeconds\x12\x1d\n" +
+	"\n" +
+	"auto_fixup\x18\x03 \x01(\bR\tautoFixup\x127\n" +
+	"\x12max_fixup_attempts\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttemptsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_execution_proto_rawDescOnce sync.Once
@@ -381,19 +602,23 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
 	(*ExecutionRecord)(nil), // 0: swarm_manager.v1.ExecutionRecord
 	(*ArchiveContext)(nil),  // 1: swarm_manager.v1.ArchiveContext
-	(*ExecutionPolicy)(nil), // 2: swarm_manager.v1.ExecutionPolicy
+	(*ReviewResult)(nil),    // 2: swarm_manager.v1.ReviewResult
+	(*ReviewDimension)(nil), // 3: swarm_manager.v1.ReviewDimension
+	(*ExecutionPolicy)(nil), // 4: swarm_manager.v1.ExecutionPolicy
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
 	1, // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: swarm_manager.v1.ExecutionRecord.review_result:type_name -> swarm_manager.v1.ReviewResult
+	3, // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_execution_proto_init() }
@@ -403,13 +628,14 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 	}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[1].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_execution_proto_rawDesc), len(file_swarm_manager_v1_domain_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
