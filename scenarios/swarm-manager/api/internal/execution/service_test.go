@@ -776,67 +776,48 @@ func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
 	}
 }
 
-func TestShouldTriggerReview_WithScope(t *testing.T) {
+func TestShouldTriggerReview_WithScenarioGlobs(t *testing.T) {
 	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{Scope: "scenarios/web-console"}
+	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
 	record := Record{}
 	if !service.shouldTriggerReview(item, record) {
-		t.Fatal("expected true when scope is set and review client configured")
+		t.Fatal("expected true when acceptance_allow references a scenario")
 	}
 }
 
-func TestShouldTriggerReview_NoScope(t *testing.T) {
+func TestShouldTriggerReview_NoAcceptanceAllow(t *testing.T) {
 	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{Scope: ""}
+	item := backlogItem{}
 	record := Record{}
 	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when scope is empty")
+		t.Fatal("expected false when acceptance_allow is empty")
 	}
 }
 
 func TestShouldTriggerReview_NoReviewClient(t *testing.T) {
 	service := &Service{}
-	item := backlogItem{Scope: "scenarios/web-console"}
+	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
 	record := Record{}
 	if service.shouldTriggerReview(item, record) {
 		t.Fatal("expected false when review client is nil")
 	}
 }
 
-func TestShouldTriggerReview_NonScenarioScope(t *testing.T) {
+func TestShouldTriggerReview_NonScenarioGlobs(t *testing.T) {
 	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{Scope: "resources/postgres"}
+	item := backlogItem{AcceptanceAllow: []string{"packages/proto/**"}}
 	record := Record{}
 	if service.shouldTriggerReview(item, record) {
-		t.Fatal("expected false when scope does not start with scenarios/")
+		t.Fatal("expected false when acceptance_allow has no scenario globs")
 	}
 }
 
 func TestShouldTriggerReview_ArchiveContext(t *testing.T) {
 	service := &Service{reviewClient: NewHTTPReviewClient(nil)}
-	item := backlogItem{Scope: "scenarios/web-console"}
+	item := backlogItem{AcceptanceAllow: []string{"scenarios/web-console/**"}}
 	record := Record{ArchiveContext: &ArchiveContext{ScenarioName: "web-console"}}
 	if service.shouldTriggerReview(item, record) {
 		t.Fatal("expected false when archive context is set")
-	}
-}
-
-func TestScenarioNameFromScope(t *testing.T) {
-	tests := []struct {
-		scope string
-		want  string
-	}{
-		{"scenarios/web-console", "web-console"},
-		{"scenarios/web-console/api", "web-console"},
-		{"scenarios/foo/api/internal", "foo"},
-		{"scenarios/", ""},
-		{"", ""},
-	}
-	for _, tc := range tests {
-		got := scenarioNameFromScope(tc.scope)
-		if got != tc.want {
-			t.Errorf("scenarioNameFromScope(%q): got %q, want %q", tc.scope, got, tc.want)
-		}
 	}
 }
 

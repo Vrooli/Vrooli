@@ -26,14 +26,15 @@
     {
       "id": "d13",
       "type": "decision",
-      "topic": "Target scenario (skip if d12=A or d12=B)",
-      "context": "Consolidates d2, d9. Only needed if d12=C (real item). Determines scope field, acceptance globs, and which codebase areas the plan targets.",
+      "topic": "Acceptance file paths (skip if d12=A or d12=B)",
+      "context": "Consolidates d2, d9. Only needed if d12=C (real item). Determines acceptance_allow patterns and which codebase areas the plan targets.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Backlog scope fields, acceptance globs, workshop system."},
-        {"key": "B", "label": "scenarios/agent-manager", "rationale": "Agent sandbox execution, scope constraints."},
-        {"key": "C", "label": "scenarios/workspace-sandbox", "rationale": "Sandbox overlay mounts, filesystem isolation."},
-        {"key": "D", "label": "Cross-cutting (no single scenario)", "rationale": "Platform-level concern spanning multiple scenarios."},
-        {"key": "E", "label": "Other", "rationale": "Specify in freeform."}
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "Backlog acceptance globs, workshop system."},
+        {"key": "B", "label": "scenarios/agent-manager/**", "rationale": "Agent sandbox execution, acceptance constraints."},
+        {"key": "C", "label": "scenarios/workspace-sandbox/**", "rationale": "Sandbox overlay mounts, filesystem isolation."},
+        {"key": "D", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "E", "label": "Cross-cutting (multiple patterns)", "rationale": "Platform-level concern spanning multiple scenarios."},
+        {"key": "F", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform."}
       ],
       "selected": null,
       "freeform": null,

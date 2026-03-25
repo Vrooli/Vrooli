@@ -322,7 +322,6 @@ export function BacklogDetailsPage() {
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
-  const descRef = useRef<HTMLParagraphElement>(null);
 
   const [execSectionOpen, setExecSectionOpen] = useState(false);
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
@@ -356,27 +355,11 @@ export function BacklogDetailsPage() {
   });
 
   useEffect(() => {
-    const el = descRef.current;
-    if (!el) return;
-    const check = () => {
-      // line-clamp-3 (overflow:hidden + -webkit-line-clamp) constrains both
-      // scrollHeight and clientHeight to the clamped size. To detect overflow:
-      // capture clamped height, temporarily unclamp, capture natural height, restore.
-      const clamped = el.classList.contains("line-clamp-3");
-      if (!clamped) return; // expanded — nothing to check
-      const clampedHeight = el.getBoundingClientRect().height;
-      el.classList.remove("line-clamp-3");
-      void el.offsetHeight; // force synchronous reflow
-      const naturalHeight = el.getBoundingClientRect().height;
-      el.classList.add("line-clamp-3");
-      setDescOverflows(naturalHeight > clampedHeight + 1);
-    };
-    requestAnimationFrame(check);
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [item?.description, descExpanded]);
+    const desc = item?.description ?? "";
+    // Heuristic: 3 lines of text-sm leading-relaxed is roughly 150 chars on
+    // mobile, less on desktop. Any newline also signals multi-line content.
+    setDescOverflows(desc.length > 120 || desc.includes("\n"));
+  }, [item?.description]);
 
   const {
     data: files,
@@ -1493,7 +1476,6 @@ export function BacklogDetailsPage() {
         </div>
         <div className="relative">
           <p
-            ref={descRef}
             className={`text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
             data-testid={selectors.backlogDetails.description}
           >

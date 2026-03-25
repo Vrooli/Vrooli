@@ -27,14 +27,15 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Which scenario does this work target?",
-      "context": "No scope field is set on spec.json. Identifying the target scenario determines the sandbox overlay, acceptance boundaries, and technical context for planning. If this is a new scenario, choose option A.",
+      "topic": "Expected file change patterns",
+      "context": "No acceptance_allow patterns are set on spec.json. Identifying the target file paths determines the acceptance boundaries and technical context for planning. If this is a new scenario, choose option A.",
       "options": [
-        {"key": "A", "label": "New scenario (to be created)", "rationale": "This idea requires creating a new scenario from scratch"},
-        {"key": "B", "label": "agent-manager", "rationale": "Target the agent-manager scenario"},
-        {"key": "C", "label": "swarm-manager", "rationale": "Target the swarm-manager scenario"},
-        {"key": "D", "label": "web-console", "rationale": "Target the web-console scenario"},
-        {"key": "E", "label": "Other existing scenario", "rationale": "Specify which scenario in freeform"}
+        {"key": "A", "label": "New scenario directory (e.g., scenarios/<name>/**)", "rationale": "This idea requires creating a new scenario from scratch"},
+        {"key": "B", "label": "scenarios/agent-manager/**", "rationale": "Target the agent-manager scenario"},
+        {"key": "C", "label": "scenarios/swarm-manager/**", "rationale": "Target the swarm-manager scenario"},
+        {"key": "D", "label": "scenarios/web-console/**", "rationale": "Target the web-console scenario"},
+        {"key": "E", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries"},
+        {"key": "F", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform"}
       ],
       "selected": null,
       "freeform": null,

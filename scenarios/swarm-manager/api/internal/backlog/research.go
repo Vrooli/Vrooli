@@ -193,10 +193,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	scopePath := strings.TrimSpace(readOptionalString(req.ScopePath))
-	if scopePath == "" {
-		scopePath = h.store.ItemDir(kind, item.Name)
-	}
+	scopePath := "." // Always use project root for sandbox overlay.
 	projectRoot := strings.TrimSpace(readOptionalString(req.ProjectRoot))
 	if projectRoot == "" {
 		projectRoot = "."

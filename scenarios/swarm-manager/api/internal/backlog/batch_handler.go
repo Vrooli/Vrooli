@@ -48,7 +48,6 @@ type batchCreateItem struct {
 	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
-	Scope           *string  `json:"scope,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	AutoWorkshop    *bool    `json:"auto_workshop,omitempty"`
@@ -180,14 +179,6 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			effort = normalized
 		}
 
-		scope := ""
-		if raw.Scope != nil {
-			scope = strings.TrimSpace(*raw.Scope)
-			if err := validateScope(scope); err != nil {
-				httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: %s", i, err.Error()))
-				return
-			}
-		}
 		if err := validateGlobs(raw.AcceptanceAllow); err != nil {
 			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("item[%d]: acceptance_allow: %s", i, err.Error()))
 			return
@@ -211,7 +202,6 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			DependsOn:       dependsOn,
 			Initiative:      initiativeName,
 			Effort:          effort,
-			Scope:           scope,
 			AcceptanceAllow: raw.AcceptanceAllow,
 			AcceptanceDeny:  raw.AcceptanceDeny,
 		}

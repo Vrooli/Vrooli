@@ -27,7 +27,6 @@ type BatchCreateItem struct {
 	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
-	Scope           *string  `json:"scope,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }

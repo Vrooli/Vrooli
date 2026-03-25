@@ -12,17 +12,17 @@
     {
       "id": "d1",
       "type": "decision",
-      "topic": "Target scenario for this work",
-      "context": "The dashboard would be a new page within the swarm-manager UI, which already has an overview API endpoint and tabbed navigation. No scope field was set on the spec. The swarm-manager is the natural home since the overview data (backlog stats, initiatives, dependency graph) is its domain.",
+      "topic": "Acceptance file paths",
+      "context": "The dashboard would be a new page within the swarm-manager UI, which already has an overview API endpoint and tabbed navigation. No acceptance_allow patterns were set on the spec. The swarm-manager is the natural home since the overview data (backlog stats, initiatives, dependency graph) is its domain.",
       "options": [
-        {"key": "A", "label": "swarm-manager (add Dashboard page to existing UI)", "rationale": "Most natural fit — overview API already exists, UI already has tabbed layout, all backlog/initiative/execution data is here. Minimal new infrastructure."},
-        {"key": "B", "label": "web-console (add Dashboard tab alongside workspace)", "rationale": "Web-console is the Vrooli 'home base' UI, so a system-wide dashboard might belong there. But it currently has no swarm-manager API integration."},
-        {"key": "C", "label": "New standalone dashboard scenario", "rationale": "Clean separation, can aggregate data from multiple scenarios. But adds deployment overhead and cross-scenario API calls."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {"key": "A", "label": "scenarios/swarm-manager/ui/src/**", "rationale": "Most natural fit — overview API already exists, UI already has tabbed layout, all backlog/initiative/execution data is here. Only UI files change."},
+        {"key": "B", "label": "scenarios/swarm-manager/**", "rationale": "Broader scope — allows for API changes too if needed (e.g., adding fields to overview response)."},
+        {"key": "C", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own acceptance_allow patterns"}
       ],
       "selected": "A",
       "freeform": null,
-      "notes": "Pre-selected A because the overview API and all relevant data already live in swarm-manager."
+      "notes": "Pre-selected A because the plan calls for no new backend endpoints — all data comes from existing APIs."
     },
     {
       "id": "d2",
@@ -73,7 +73,7 @@
       "id": "d5",
       "type": "decision",
       "topic": "Acceptance file paths — what files should this work modify?",
-      "context": "Since scope is set to swarm-manager, we need to define which file paths are expected to change. This is a UI-only change with no new backend endpoints.",
+      "context": "Since acceptance_allow patterns should target swarm-manager, we need to define which file paths are expected to change. This is a UI-only change with no new backend endpoints.",
       "options": [
         {"key": "A", "label": "Targeted: scenarios/swarm-manager/ui/src/**", "rationale": "Only UI files change. New page, new components, route update, nav update."},
         {"key": "B", "label": "Broader: scenarios/swarm-manager/**", "rationale": "Allows for API changes too if needed (e.g., adding fields to overview response)."},

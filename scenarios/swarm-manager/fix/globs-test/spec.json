@@ -10,7 +10,6 @@
   "kind": "fix",
   "name": "globs-test",
   "priority": 5,
-  "scope": "scenarios/swarm-manager",
   "status": "backlog",
   "tags": null,
   "title": "Globs Test",

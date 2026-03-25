@@ -27,13 +27,14 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Which scenario does this work target?",
-      "context": "No scope field is set in spec.json. Identifying the target scenario is critical for planning the implementation approach, understanding existing code, and setting acceptance criteria.",
+      "topic": "Expected file change patterns",
+      "context": "No acceptance_allow patterns are set in spec.json. Identifying the target file paths is critical for planning the implementation approach, understanding existing code, and setting acceptance criteria.",
       "options": [
-        {"key": "A", "label": "New standalone scenario", "rationale": "Create a brand new scenario from scratch — appropriate if this is a new capability."},
-        {"key": "B", "label": "Enhancement to an existing scenario", "rationale": "Add this capability to an existing scenario. Specify which one in freeform."},
-        {"key": "C", "label": "Cross-cutting (multiple scenarios)", "rationale": "This affects shared infrastructure or multiple scenarios — e.g., packages/cli-core, shared resources."},
-        {"key": "D", "label": "Other", "rationale": "Provide the target scope."}
+        {"key": "A", "label": "New scenario directory (e.g., scenarios/<name>/**)", "rationale": "Create a brand new scenario from scratch — appropriate if this is a new capability."},
+        {"key": "B", "label": "Enhancement to an existing scenario (e.g., scenarios/<name>/**)", "rationale": "Add this capability to an existing scenario. Specify which one in freeform."},
+        {"key": "C", "label": "Cross-cutting (multiple patterns)", "rationale": "This affects shared infrastructure or multiple scenarios — e.g., packages/cli-core/**, shared resources."},
+        {"key": "D", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "E", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform."}
       ],
       "selected": null,
       "freeform": null,

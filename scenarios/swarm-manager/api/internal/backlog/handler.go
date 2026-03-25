@@ -338,15 +338,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		effort = normalized
 	}
 
-	scope := ""
-	if req.Scope != nil {
-		scope = strings.TrimSpace(*req.Scope)
-		if err := validateScope(scope); err != nil {
-			httputil.BadRequest(w, "[backlog] create", err.Error())
-			return
-		}
-	}
-
 	if err := validateGlobs(req.AcceptanceAllow); err != nil {
 		httputil.BadRequest(w, "[backlog] create", "acceptance_allow: "+err.Error())
 		return
@@ -370,7 +361,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		DependsOn:       dependsOn,
 		Initiative:      initiative,
 		Effort:          effort,
-		Scope:           scope,
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,
 	}
@@ -559,14 +549,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		existing.Effort = normalized
-	}
-	if update.Scope != nil {
-		s := strings.TrimSpace(*update.Scope)
-		if err := validateScope(s); err != nil {
-			httputil.BadRequest(w, "[backlog] update", err.Error())
-			return
-		}
-		existing.Scope = s
 	}
 	if update.AcceptanceAllow != nil {
 		if err := validateGlobs(update.AcceptanceAllow); err != nil {

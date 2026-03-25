@@ -209,11 +209,7 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "effort")
 	}
-	if strings.TrimSpace(item.Scope) != "" {
-		merged["scope"] = item.Scope
-	} else {
-		delete(merged, "scope")
-	}
+	delete(merged, "scope") // Lazy migration: strip legacy scope field on every save.
 	if len(item.AcceptanceAllow) > 0 {
 		merged["acceptance_allow"] = item.AcceptanceAllow
 	} else {

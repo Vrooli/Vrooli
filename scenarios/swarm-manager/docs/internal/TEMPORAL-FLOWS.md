@@ -300,7 +300,7 @@ When an execution completes on a scenario-scoped backlog item:
 ```
 Agent completes → StatusCompleted
     ↓
-shouldTriggerReview() — checks: scope starts with "scenarios/", not archive, reviewClient available
+shouldTriggerReview() — checks: acceptance_allow references scenarios/, not archive, reviewClient available
     ↓ YES
 TriggerReview() → POST git-control-tower /api/v1/review/run
     ↓

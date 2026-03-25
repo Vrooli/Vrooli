@@ -60,7 +60,6 @@ type BacklogItem struct {
 	DependsOn       []string      `json:"depends_on,omitempty"`
 	Initiative      string        `json:"initiative,omitempty"`
 	Effort          string        `json:"effort,omitempty"`
-	Scope           string        `json:"scope,omitempty"`
 	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
 }
@@ -144,30 +143,6 @@ func validateEffort(raw string) (string, error) {
 	}
 }
 
-// validateScope checks that a scope path is safe (relative, no "..").
-func validateScope(scope string) error {
-	scope = strings.TrimSpace(scope)
-	if scope == "" {
-		return nil
-	}
-	if filepath.IsAbs(scope) {
-		return fmt.Errorf("scope must be a relative path, got absolute: %s", scope)
-	}
-	// Check for ".." components in both raw and cleaned forms.
-	for _, part := range strings.Split(scope, "/") {
-		if part == ".." {
-			return fmt.Errorf("scope must not contain '..': %s", scope)
-		}
-	}
-	cleaned := filepath.Clean(scope)
-	for _, part := range strings.Split(cleaned, string(filepath.Separator)) {
-		if part == ".." {
-			return fmt.Errorf("scope must not contain '..': %s", scope)
-		}
-	}
-	return nil
-}
-
 // validateGlobs checks that each glob pattern is non-empty, relative, and
 // syntactically valid.
 func validateGlobs(globs []string) error {
@@ -222,9 +197,6 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if strings.TrimSpace(item.Effort) != "" {
 		result.Effort = &item.Effort
-	}
-	if strings.TrimSpace(item.Scope) != "" {
-		result.Scope = &item.Scope
 	}
 	if len(item.AcceptanceAllow) > 0 {
 		result.AcceptanceAllow = item.AcceptanceAllow

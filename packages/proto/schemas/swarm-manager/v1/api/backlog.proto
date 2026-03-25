@@ -60,8 +60,7 @@ message CreateBacklogItemRequest {
   // Effort estimate: XS, S, M, L, XL.
   optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
 
-  // Relative path from project root identifying where this work targets.
-  optional string scope = 12;
+  reserved 12; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
   // Glob patterns for file paths expected to be modified.
   repeated string acceptance_allow = 13;
@@ -109,8 +108,7 @@ message UpdateBacklogItemRequest {
   // Effort estimate: XS, S, M, L, XL.
   optional string effort = 9 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
 
-  // Relative path from project root identifying where this work targets.
-  optional string scope = 10;
+  reserved 10; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
   // Glob patterns for file paths expected to be modified.
   repeated string acceptance_allow = 11;
@@ -211,8 +209,7 @@ message BacklogResearchRequest {
   // Additional prompt context.
   optional string prompt = 1;
 
-  // Optional scope path override.
-  optional string scope_path = 2;
+  reserved 2; // scope_path — removed; sandbox always uses project root.
 
   // Optional project root override.
   optional string project_root = 3;

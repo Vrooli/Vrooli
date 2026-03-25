@@ -79,12 +79,10 @@ message BacklogItem {
   // Effort estimate: XS, S, M, L, XL.
   optional string effort = 13 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
 
-  // Relative path from project root identifying where this work targets
-  // (e.g., "scenarios/web-console"). Used for post-execution review and sandbox scoping.
-  optional string scope = 14;
+  reserved 14; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
-  // Glob patterns for file paths expected to be modified (e.g., ["api/internal/**", "ui/src/**"]).
-  // Used as sandbox acceptance allowlist and post-execution review targeting.
+  // Glob patterns for file paths expected to be modified (e.g., ["scenarios/web-console/api/**"]).
+  // Used as sandbox acceptance allowlist, post-execution review targeting, and scenario identification.
   repeated string acceptance_allow = 15;
 
   // Glob patterns for file paths that must NOT be modified (e.g., ["api/internal/auth/**"]).

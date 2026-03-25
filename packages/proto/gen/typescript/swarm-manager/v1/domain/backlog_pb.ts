@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/backlog.proto.
  */
 export const file_swarm_manager_v1_domain_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIoAFCgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRJLCg9yZXNlYXJjaF90YXJnZXQYCiABKAlCLbpIKnIoUgRpZGVhUgNmaXhSB2V4ZWN1dGVSBWNob3JlUgt1bnNwZWNpZmllZEgAiAEBEhIKCmRlcGVuZHNfb24YCyADKAkSFwoKaW5pdGlhdGl2ZRgMIAEoCUgBiAEBEisKBmVmZm9ydBgNIAEoCUIWukgTchFSAlhTUgFTUgFNUgFMUgJYTEgCiAEBEhIKBXNjb3BlGA4gASgJSAOIAQESGAoQYWNjZXB0YW5jZV9hbGxvdxgPIAMoCRIXCg9hY2NlcHRhbmNlX2RlbnkYECADKAlCEgoQX3Jlc2VhcmNoX3RhcmdldEINCgtfaW5pdGlhdGl2ZUIJCgdfZWZmb3J0QggKBl9zY29wZSK3AQoLQmFja2xvZ0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSGgoEc2l6ZRgEIAEoA0IHukgEIgIoAEgAiAEBEi8KCGNoaWxkcmVuGAUgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZUIHCgVfc2l6ZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9iYWNrbG9nLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIugECgtCYWNrbG9nSXRlbRIVCgRuYW1lGAEgASgJQge6SARyAhABEhYKBXRpdGxlGAIgASgJQge6SARyAhABEhMKC2Rlc2NyaXB0aW9uGAMgASgJEmQKBnN0YXR1cxgEIAEoCUJUukhRck9SB2JhY2tsb2dSC3Jlc2VhcmNoaW5nUgVyZWFkeVIGcXVldWVkUgtpbl9wcm9ncmVzc1IJY29tcGxldGVkUgZmYWlsZWRSCGFyY2hpdmVkEhsKCHByaW9yaXR5GAUgASgFQgm6SAYaBBgKKAESFgoEdGFncxgGIAMoCUIIukgFkgECGAESGAoHY3JlYXRlZBgHIAEoCUIHukgEcgIQARIYCgd1cGRhdGVkGAggASgJQge6SARyAhABEjgKBGtpbmQYCSABKAlCKrpIJ3IlUgRpZGVhUghyZXNlYXJjaFIDZml4UgdleGVjdXRlUgVjaG9yZRJLCg9yZXNlYXJjaF90YXJnZXQYCiABKAlCLbpIKnIoUgRpZGVhUgNmaXhSB2V4ZWN1dGVSBWNob3JlUgt1bnNwZWNpZmllZEgAiAEBEhIKCmRlcGVuZHNfb24YCyADKAkSFwoKaW5pdGlhdGl2ZRgMIAEoCUgBiAEBEisKBmVmZm9ydBgNIAEoCUIWukgTchFSAlhTUgFTUgFNUgFMUgJYTEgCiAEBEhgKEGFjY2VwdGFuY2VfYWxsb3cYDyADKAkSFwoPYWNjZXB0YW5jZV9kZW55GBAgAygJQhIKEF9yZXNlYXJjaF90YXJnZXRCDQoLX2luaXRpYXRpdmVCCQoHX2VmZm9ydEoECA4QDyK3AQoLQmFja2xvZ0ZpbGUSFQoEbmFtZRgBIAEoCUIHukgEcgIQARIVCgRwYXRoGAIgASgJQge6SARyAhABEiQKBHR5cGUYAyABKAlCFrpIE3IRUgRmaWxlUglkaXJlY3RvcnkSGgoEc2l6ZRgEIAEoA0IHukgEIgIoAEgAiAEBEi8KCGNoaWxkcmVuGAUgAygLMh0uc3dhcm1fbWFuYWdlci52MS5CYWNrbG9nRmlsZUIHCgVfc2l6ZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * BacklogItem represents a tracked unit of work for the swarm.
@@ -115,16 +115,8 @@ export type BacklogItem = Message<"swarm_manager.v1.BacklogItem"> & {
   effort?: string;
 
   /**
-   * Relative path from project root identifying where this work targets
-   * (e.g., "scenarios/web-console"). Used for post-execution review and sandbox scoping.
-   *
-   * @generated from field: optional string scope = 14;
-   */
-  scope?: string;
-
-  /**
-   * Glob patterns for file paths expected to be modified (e.g., ["api/internal/**", "ui/src/**"]).
-   * Used as sandbox acceptance allowlist and post-execution review targeting.
+   * Glob patterns for file paths expected to be modified (e.g., ["scenarios/web-console/api/**"]).
+   * Used as sandbox acceptance allowlist, post-execution review targeting, and scenario identification.
    *
    * @generated from field: repeated string acceptance_allow = 15;
    */

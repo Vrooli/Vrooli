@@ -26,13 +26,14 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Which scenario does this work target?",
-      "context": "No scope field is set on spec.json. Identifying the target scenario is required before implementation planning can proceed. Based on the item name and available scenarios, here are likely candidates.",
+      "topic": "Expected file change patterns",
+      "context": "No acceptance_allow patterns are set on spec.json. Identifying the target file paths is required before implementation planning can proceed. Based on the item name and available scenarios, here are likely candidates.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Most likely if this is about testing/improving the backlog scope field functionality within swarm-manager itself."},
-        {"key": "B", "label": "scenarios/agent-manager", "rationale": "If the scope test relates to agent sandbox scoping and acceptance boundaries."},
-        {"key": "C", "label": "No specific scenario (infrastructure/cross-cutting)", "rationale": "If this is a platform-level concern that spans multiple scenarios."},
-        {"key": "D", "label": "Other", "rationale": "Specify a different target scenario."}
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "Most likely if this is about testing/improving the backlog acceptance field functionality within swarm-manager itself."},
+        {"key": "B", "label": "scenarios/agent-manager/**", "rationale": "If the test relates to agent sandbox acceptance boundaries."},
+        {"key": "C", "label": "No specific file paths (infrastructure/cross-cutting)", "rationale": "If this is a platform-level concern that spans multiple scenarios."},
+        {"key": "D", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "E", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform."}
       ],
       "selected": null,
       "freeform": null,
@@ -75,7 +76,7 @@
     {
       "id": "i2",
       "type": "info",
-      "text": "The backlog system supports scope, acceptance_allow, and acceptance_deny fields on spec.json. These are used for sandbox overlay mounts, post-execution review targeting, and change boundary validation. Setting these after d2 is answered will improve execution safety."
+      "text": "The backlog system supports acceptance_allow and acceptance_deny fields on spec.json. These are used for sandbox overlay mounts, post-execution review targeting, and change boundary validation. Setting these after d2 is answered will improve execution safety."
     }
   ],
   "plan_updates": "Preserved existing plan.md scaffold (all sections TBD). No updates possible without item description or scope — awaiting workshop answers."

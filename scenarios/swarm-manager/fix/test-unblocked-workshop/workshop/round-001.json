@@ -12,12 +12,13 @@
     {
       "id": "d1",
       "type": "decision",
-      "topic": "Target scenario scope",
-      "context": "spec.json has no `scope` field set. This item is described as 'Test no deps' which suggests it's a validation item for the swarm-manager pipeline itself. We need to determine what scenario (if any) this work targets so we can set acceptance criteria.",
+      "topic": "Expected file change patterns",
+      "context": "spec.json has no acceptance_allow patterns set. This item is described as 'Test no deps' which suggests it's a validation item for the swarm-manager pipeline itself. We need to determine what file paths (if any) this work targets so we can set acceptance criteria.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "This is a test of the swarm-manager's own dependency/workshop pipeline, so the target is swarm-manager itself"},
-        {"key": "B", "label": "No scope needed (pipeline-only test)", "rationale": "This item only validates the backlog pipeline flow — no code changes are expected in any scenario"},
-        {"key": "C", "label": "Other", "rationale": "Specify a different target scenario"}
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "This is a test of the swarm-manager's own dependency/workshop pipeline, so changes target swarm-manager"},
+        {"key": "B", "label": "No file changes needed (pipeline-only test)", "rationale": "This item only validates the backlog pipeline flow — no code changes are expected in any scenario"},
+        {"key": "C", "label": "Targeted subdirectories only", "rationale": "Specify exact subdirectory paths"},
+        {"key": "D", "label": "Other", "rationale": "Specify different acceptance_allow patterns"}
       ],
       "selected": "B",
       "freeform": null,
@@ -27,7 +28,7 @@
       "id": "d2",
       "type": "decision",
       "topic": "Acceptance criteria for file changes",
-      "context": "Since scope is not set and this appears to be a pipeline test item, we need to decide whether any file changes are expected at all, and if so, what the acceptance globs should be.",
+      "context": "Since no acceptance_allow patterns are set and this appears to be a pipeline test item, we need to decide whether any file changes are expected at all, and if so, what the acceptance globs should be.",
       "options": [
         {"key": "A", "label": "No file changes expected", "rationale": "This is purely a pipeline flow test — only the item's own folder artifacts (plan.md, workshop/, etc.) change"},
         {"key": "B", "label": "Scoped to swarm-manager backlog files", "rationale": "acceptance_allow: ['scenarios/swarm-manager/fix/test-unblocked-workshop/**']"},

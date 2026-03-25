@@ -167,7 +167,7 @@ func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID
 		Title:       buildResearchTitle(item, mode),
 		Description: prompt,
 		Prompt:      prompt,
-		ScopePath:   itemDir,
+		ScopePath:   ".",
 		ProjectRoot: ".",
 		CreatedBy:   "swarm-manager",
 		Purpose:     "research",

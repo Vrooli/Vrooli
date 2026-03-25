@@ -15,7 +15,7 @@
       "topic": "Define purpose (blocker — rounds 1-2 unanswered)",
       "context": "This is the third attempt to establish what this item is for. Decisions d1 and d5 from prior rounds remain unanswered. The spec has no description, no archive materials, no scope field — there is zero context to work from. The plan cannot progress past TBD until this is answered. If this item was created as a test, selecting option D will clean it up.",
       "options": [
-        {"key": "A", "label": "Validate backlog scope/acceptance fields end-to-end", "rationale": "Test that scope, acceptance_allow, acceptance_deny correctly control sandbox mounts and post-execution review. Targets swarm-manager + workspace-sandbox."},
+        {"key": "A", "label": "Validate backlog acceptance fields end-to-end", "rationale": "Test that acceptance_allow and acceptance_deny correctly control sandbox mounts and post-execution review. Targets swarm-manager + workspace-sandbox."},
         {"key": "B", "label": "Pipeline dry-run (no code changes needed)", "rationale": "This item exists to exercise initialize→workshop→process. Success = completing the lifecycle. No deliverable beyond the workshop artifacts themselves."},
         {"key": "C", "label": "Delete this item", "rationale": "Created as a throwaway test. Clean up with: swarm-manager backlog delete --kind idea --name scope-test"},
         {"key": "D", "label": "Other — I'll provide a description", "rationale": "Use the freeform field to write what this item should accomplish. This will unblock all downstream planning."}
@@ -27,13 +27,14 @@
     {
       "id": "d9",
       "type": "decision",
-      "topic": "Target scenario (depends on d8)",
-      "context": "Restatement of d2 from round 1. Cannot set scope, acceptance_allow, or acceptance_deny without knowing the target. If d8=A, likely targets swarm-manager. If d8=B, no scope needed.",
+      "topic": "Acceptance file paths (depends on d8)",
+      "context": "Restatement of d2 from round 1. Cannot set acceptance_allow or acceptance_deny without knowing the target. If d8=A, likely targets swarm-manager. If d8=B, no acceptance patterns needed.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Backlog scope fields live here — natural target for scope-related work."},
-        {"key": "B", "label": "scenarios/agent-manager", "rationale": "If scope work relates to agent sandbox execution boundaries."},
-        {"key": "C", "label": "No scope needed (pipeline test only)", "rationale": "If d8=B, this item doesn't target any scenario."},
-        {"key": "D", "label": "Other", "rationale": "Specify a different target."}
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "Backlog acceptance fields live here — natural target for acceptance-related work."},
+        {"key": "B", "label": "scenarios/agent-manager/**", "rationale": "If acceptance work relates to agent sandbox execution boundaries."},
+        {"key": "C", "label": "No acceptance patterns needed (pipeline test only)", "rationale": "If d8=B, this item doesn't target any file paths."},
+        {"key": "D", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "E", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform."}
       ],
       "selected": null,
       "freeform": null,

@@ -65,3 +65,27 @@ func ResolveScenarioRoot(scenario string) string {
 func ResolveScenariosDir() string {
 	return filepath.Dir(ResolveScenarioRoot("swarm-manager"))
 }
+
+// ScenariosFromGlobs extracts deduplicated scenario names from acceptance glob
+// patterns. Globs that start with "scenarios/<name>/..." yield the scenario
+// name; all other patterns are skipped.
+func ScenariosFromGlobs(globs []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+	for _, g := range globs {
+		if !strings.HasPrefix(g, "scenarios/") {
+			continue
+		}
+		rest := strings.TrimPrefix(g, "scenarios/")
+		parts := strings.SplitN(rest, "/", 2)
+		if len(parts) == 0 || parts[0] == "" {
+			continue
+		}
+		name := parts[0]
+		if _, ok := seen[name]; !ok {
+			seen[name] = struct{}{}
+			result = append(result, name)
+		}
+	}
+	return result
+}

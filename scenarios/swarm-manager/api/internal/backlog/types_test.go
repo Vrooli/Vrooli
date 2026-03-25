@@ -2,30 +2,6 @@ package backlog
 
 import "testing"
 
-func TestValidateScope(t *testing.T) {
-	tests := []struct {
-		name    string
-		scope   string
-		wantErr bool
-	}{
-		{name: "empty is ok", scope: "", wantErr: false},
-		{name: "relative path ok", scope: "scenarios/foo", wantErr: false},
-		{name: "simple dir ok", scope: "api", wantErr: false},
-		{name: "absolute path error", scope: "/etc/passwd", wantErr: true},
-		{name: "dotdot error", scope: "foo/../bar", wantErr: true},
-		{name: "bare dotdot error", scope: "..", wantErr: true},
-		{name: "leading dotdot error", scope: "../secret", wantErr: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateScope(tt.scope)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateScope(%q) error = %v, wantErr %v", tt.scope, err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestValidateGlobs(t *testing.T) {
 	tests := []struct {
 		name    string

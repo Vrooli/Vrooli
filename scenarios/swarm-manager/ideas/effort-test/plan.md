@@ -1,51 +1,68 @@
-# Implementation Plan: Effort Test
+# Effort Test — Implementation Plan
 
-## Required Reading
+## 1. Purpose
+
+<!-- TBD — No description provided in spec.json. The title "Effort Test" suggests this may relate to testing or validating effort estimation capabilities within the swarm-manager system. Workshop round 1 will clarify the vision. -->
+
+## 2. Required Reading
+
 ```bash
 prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-and-enforcement
 ```
 
-## Purpose
-<!-- TBD — The title "Effort Test" suggests either (a) a scenario for effort estimation/tracking, (b) a test harness for measuring agent effort, or (c) a placeholder item. Blocked on workshop round-001 decision d1. -->
+## 3. Problem Statement
 
-## Problem Statement
-<!-- TBD — No description provided in spec.json. The core problem or opportunity this item addresses is the primary unknown. All downstream plan sections depend on this being answered. -->
+<!-- TBD — The item title "Effort Test" suggests this may relate to:
+- Testing effort estimation accuracy for backlog items
+- A test/validation scenario for the effort scoring system
+- Benchmarking how long tasks take vs. estimates
+Workshop round 1 decisions will clarify the actual intent. -->
 
-## Scope
+## 4. Scope
 
 ### In Scope
-<!-- TBD — Depends on round-001 d1 (what is this?), d3 (components), and round-002 d1 (target scenario). -->
+
+<!-- TBD — Pending workshop clarification on what "Effort Test" means -->
 
 ### Out of Scope
+
+<!-- TBD — Pending workshop clarification -->
+
+## 5. Current Technical Context
+
+<!-- TBD — Target scenario/files unknown until scope is defined. The swarm-manager backlog system exists at scenarios/swarm-manager/ with CLI, API, and UI components. -->
+
+## 6. Target End State
+
+<!-- TBD — Depends on problem statement and scope decisions -->
+
+## 7. Implementation Strategy
+
+<!-- TBD — Requires approach decision from workshop -->
+
+## 8. Contract Decisions
+
+<!-- TBD — API/CLI/data model contracts will be defined after scope is clear -->
+
+## 9. Testing Plan
+
+<!-- TBD — Test strategy depends on what is being built -->
+
+## 10. Rollout / Validation Checklist
+
 <!-- TBD -->
 
-## Current Technical Context
+## 11. Risks & Mitigations
 
-### Relevant Ecosystem Integration Points
-- **Agent-manager investigation scoring** (`internal/orchestration/investigation.go`): Already rates proposed fixes on a cost (1-5) scale representing effort/risk. If this item is about effort estimation, it may extend or complement this capability.
-- **Swarm-manager backlog metadata**: Tracks items with priority, timestamps, and status. Natural place to attach effort estimates for scheduling and prioritization.
-- **Vrooli resource stack**: PostgreSQL (storage), Ollama (local LLM inference), Redis (caching) are available as shared resources.
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Unclear scope due to empty description | High | Workshop round 1 focuses on clarifying intent and scope |
+| May overlap with existing swarm-manager features | Medium | Review existing codebase before implementation |
 
-## Target End State
+## 12. Non-Goals / Prohibited Patterns
+
 <!-- TBD -->
 
-## Implementation Strategy
-<!-- TBD — Blocked on scope and approach decisions from workshop rounds 1-3. -->
+## 13. Definition of Done
 
-## Contract Decisions
-<!-- TBD -->
-
-## Testing Plan
-<!-- TBD -->
-
-## Rollout / Validation Checklist
-<!-- TBD -->
-
-## Risks + Mitigations
-<!-- TBD -->
-
-## Non-goals / Prohibited Patterns
-<!-- TBD -->
-
-## Definition of Done
-<!-- TBD -->
+<!-- TBD — Acceptance criteria will be defined after scope clarification -->

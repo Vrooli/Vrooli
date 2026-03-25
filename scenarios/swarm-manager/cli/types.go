@@ -29,7 +29,6 @@ type BacklogItem struct {
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
-	Scope           string   `json:"scope,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }

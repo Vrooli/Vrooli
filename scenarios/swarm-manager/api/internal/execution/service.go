@@ -384,21 +384,13 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		CapturedAt:     nowRFC3339(),
 	}
 
-	scopePath := s.itemDir(item.Kind, item.Name)
-	if item.Scope != "" {
-		scopePath = item.Scope
-		if !filepath.IsAbs(scopePath) {
-			scopePath = filepath.Join(s.rootDir, scopePath)
-		}
-	}
-
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 		Kind:            item.Kind,
 		Name:            item.Name,
 		Title:           buildProcessingTitle(item),
 		Description:     prompt,
 		Prompt:          prompt,
-		ScopePath:       scopePath,
+		ScopePath:       ".",
 		ProjectRoot:     ".",
 		CreatedBy:       record.StartedBy,
 		Purpose:         "process",
@@ -498,30 +490,15 @@ func (s *Service) restoreBacklogStatusForRecord(record Record) error {
 }
 
 // shouldTriggerReview returns true if the completed execution should undergo review.
+// Review is triggered when acceptance_allow patterns reference at least one scenario.
 func (s *Service) shouldTriggerReview(item backlogItem, record Record) bool {
 	if s.reviewClient == nil {
-		return false
-	}
-	if strings.TrimSpace(item.Scope) == "" {
-		return false
-	}
-	if !strings.HasPrefix(item.Scope, "scenarios/") {
 		return false
 	}
 	if record.ArchiveContext != nil {
 		return false
 	}
-	return true
-}
-
-func scenarioNameFromScope(scope string) string {
-	// "scenarios/web-console" -> "web-console"
-	// "scenarios/web-console/api" -> "web-console"
-	parts := strings.SplitN(strings.TrimPrefix(scope, "scenarios/"), "/", 2)
-	if len(parts) > 0 {
-		return parts[0]
-	}
-	return ""
+	return len(pathutil.ScenariosFromGlobs(item.AcceptanceAllow)) > 0
 }
 
 // Retry retries a failed run immediately.
@@ -701,10 +678,10 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 			} else if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
 				if nextStatus == StatusCompleted {
 					// Check if this execution should trigger a review
-					if s.shouldTriggerReview(item, *record) {
-						scenarioName := scenarioNameFromScope(item.Scope)
+					scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
+					if s.shouldTriggerReview(item, *record) && len(scenarios) > 0 {
 						jobID, triggerErr := s.reviewClient.TriggerReview(ctx, ReviewRequest{
-							ScenarioName:  scenarioName,
+							ScenarioName:  scenarios[0],
 							ExpectedPaths: item.AcceptanceAllow,
 						})
 						if triggerErr != nil {
@@ -813,21 +790,13 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	}
 	records = append(records, fixupRecord)
 
-	scopePath := item.Scope
-	if scopePath != "" && !filepath.IsAbs(scopePath) {
-		scopePath = filepath.Join(s.rootDir, scopePath)
-	}
-	if scopePath == "" {
-		scopePath = s.itemDir(item.Kind, item.Name)
-	}
-
 	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 		Kind:            item.Kind,
 		Name:            item.Name,
 		Title:           fmt.Sprintf("Fix-up: %s/%s (attempt %d)", item.Kind, item.Name, fixupRecord.FixupAttempt),
 		Description:     prompt,
 		Prompt:          prompt,
-		ScopePath:       scopePath,
+		ScopePath:       ".",
 		ProjectRoot:     ".",
 		CreatedBy:       "swarm-manager:fixup",
 		Purpose:         "fixup",
@@ -935,21 +904,13 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 			return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
 		}
 
-		scopePath := item.Scope
-		if scopePath != "" && !filepath.IsAbs(scopePath) {
-			scopePath = filepath.Join(s.rootDir, scopePath)
-		}
-		if scopePath == "" {
-			scopePath = s.itemDir(item.Kind, item.Name)
-		}
-
 		runResult, spawnErr := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
 			Kind:            item.Kind,
 			Name:            item.Name,
 			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),
 			Description:     message,
 			Prompt:          message,
-			ScopePath:       scopePath,
+			ScopePath:       ".",
 			ProjectRoot:     ".",
 			CreatedBy:       "swarm-manager:follow-up",
 			Purpose:         req.FollowUpType,
@@ -1176,7 +1137,6 @@ type backlogItem struct {
 	Kind               string   `json:"kind"`
 	ResearchTarget     string   `json:"research_target,omitempty"`
 	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
-	Scope              string   `json:"scope,omitempty"`
 	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
 }

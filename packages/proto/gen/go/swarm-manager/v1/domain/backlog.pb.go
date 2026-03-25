@@ -55,11 +55,8 @@ type BacklogItem struct {
 	Initiative *string `protobuf:"bytes,12,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,13,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
-	// Relative path from project root identifying where this work targets
-	// (e.g., "scenarios/web-console"). Used for post-execution review and sandbox scoping.
-	Scope *string `protobuf:"bytes,14,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
-	// Glob patterns for file paths expected to be modified (e.g., ["api/internal/**", "ui/src/**"]).
-	// Used as sandbox acceptance allowlist and post-execution review targeting.
+	// Glob patterns for file paths expected to be modified (e.g., ["scenarios/web-console/api/**"]).
+	// Used as sandbox acceptance allowlist, post-execution review targeting, and scenario identification.
 	AcceptanceAllow []string `protobuf:"bytes,15,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
 	// Glob patterns for file paths that must NOT be modified (e.g., ["api/internal/auth/**"]).
 	// Used as sandbox acceptance denylist.
@@ -189,13 +186,6 @@ func (x *BacklogItem) GetEffort() string {
 	return ""
 }
 
-func (x *BacklogItem) GetScope() string {
-	if x != nil && x.Scope != nil {
-		return *x.Scope
-	}
-	return ""
-}
-
 func (x *BacklogItem) GetAcceptanceAllow() []string {
 	if x != nil {
 		return x.AcceptanceAllow
@@ -297,7 +287,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa1\x06\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x82\x06\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -316,14 +306,12 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\f \x01(\tH\x01R\n" +
 	"initiative\x88\x01\x01\x123\n" +
-	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12\x19\n" +
-	"\x05scope\x18\x0e \x01(\tH\x03R\x05scope\x88\x01\x01\x12)\n" +
+	"\x06effort\x18\r \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\x0f \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x10 \x03(\tR\x0eacceptanceDenyB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\t\n" +
-	"\a_effortB\b\n" +
-	"\x06_scope\"\xd9\x01\n" +
+	"\a_effortJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
 	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +

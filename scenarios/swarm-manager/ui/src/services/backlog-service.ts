@@ -128,7 +128,6 @@ export interface IBacklogService {
     name: string,
     payload?: {
       prompt?: string;
-      scopePath?: string;
       projectRoot?: string;
       mode?: string;
       targetKind?: BacklogResearchTarget;
@@ -371,7 +370,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       name: string,
       payload?: {
         prompt?: string;
-        scopePath?: string;
         projectRoot?: string;
         mode?: string;
         targetKind?: BacklogResearchTarget;
@@ -382,7 +380,6 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     ): Promise<ResearchResponse> {
       const message = buildMessage(BacklogResearchRequestSchema, {
         prompt: payload?.prompt,
-        scopePath: payload?.scopePath,
         projectRoot: payload?.projectRoot,
         mode: payload?.mode,
         targetKind: payload?.targetKind,

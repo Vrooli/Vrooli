@@ -27,15 +27,16 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Which scenario does this work target?",
-      "context": "No scope field is set in spec.json. We need to identify which scenario or area of the codebase this fix applies to so we can assess the technical context and file boundaries.",
+      "topic": "Expected file change patterns",
+      "context": "No acceptance_allow patterns are set in spec.json. We need to identify which file paths this fix applies to so we can assess the technical context and set change boundaries.",
       "options": [
-        {"key": "A", "label": "scenarios/agent-manager", "rationale": "Agent lifecycle, sandbox management, and run orchestration"},
-        {"key": "B", "label": "scenarios/swarm-manager", "rationale": "Backlog processing, workshop, batch operations, and meta-orchestration"},
-        {"key": "C", "label": "scenarios/landing-page-business-suite", "rationale": "LPBS API, download hosting, plans, and admin"},
-        {"key": "D", "label": "scenarios/web-console", "rationale": "Web UI console and workspace components"},
-        {"key": "E", "label": "scenarios/git-control-tower", "rationale": "Git operations, review handling, and PR management"},
-        {"key": "F", "label": "Other scenario or cross-cutting", "rationale": "Specify the target in freeform"}
+        {"key": "A", "label": "scenarios/agent-manager/**", "rationale": "Agent lifecycle, sandbox management, and run orchestration"},
+        {"key": "B", "label": "scenarios/swarm-manager/**", "rationale": "Backlog processing, workshop, batch operations, and meta-orchestration"},
+        {"key": "C", "label": "scenarios/landing-page-business-suite/**", "rationale": "LPBS API, download hosting, plans, and admin"},
+        {"key": "D", "label": "scenarios/web-console/**", "rationale": "Web UI console and workspace components"},
+        {"key": "E", "label": "scenarios/git-control-tower/**", "rationale": "Git operations, review handling, and PR management"},
+        {"key": "F", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries"},
+        {"key": "G", "label": "Other", "rationale": "Specify acceptance_allow patterns in freeform"}
       ],
       "selected": null,
       "freeform": null,

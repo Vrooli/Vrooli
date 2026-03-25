@@ -49,8 +49,6 @@ type CreateBacklogItemRequest struct {
 	AutoWorkshop *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
-	// Relative path from project root identifying where this work targets.
-	Scope *string `protobuf:"bytes,12,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
 	// Glob patterns for file paths expected to be modified.
 	AcceptanceAllow []string `protobuf:"bytes,13,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
 	// Glob patterns for file paths that must NOT be modified.
@@ -166,13 +164,6 @@ func (x *CreateBacklogItemRequest) GetEffort() string {
 	return ""
 }
 
-func (x *CreateBacklogItemRequest) GetScope() string {
-	if x != nil && x.Scope != nil {
-		return *x.Scope
-	}
-	return ""
-}
-
 func (x *CreateBacklogItemRequest) GetAcceptanceAllow() []string {
 	if x != nil {
 		return x.AcceptanceAllow
@@ -209,8 +200,6 @@ type UpdateBacklogItemRequest struct {
 	Initiative *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
-	// Relative path from project root identifying where this work targets.
-	Scope *string `protobuf:"bytes,10,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
 	// Glob patterns for file paths expected to be modified.
 	AcceptanceAllow []string `protobuf:"bytes,11,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
 	// Glob patterns for file paths that must NOT be modified.
@@ -308,13 +297,6 @@ func (x *UpdateBacklogItemRequest) GetInitiative() string {
 func (x *UpdateBacklogItemRequest) GetEffort() string {
 	if x != nil && x.Effort != nil {
 		return *x.Effort
-	}
-	return ""
-}
-
-func (x *UpdateBacklogItemRequest) GetScope() string {
-	if x != nil && x.Scope != nil {
-		return *x.Scope
 	}
 	return ""
 }
@@ -863,8 +845,6 @@ type BacklogResearchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Additional prompt context.
 	Prompt *string `protobuf:"bytes,1,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
-	// Optional scope path override.
-	ScopePath *string `protobuf:"bytes,2,opt,name=scope_path,json=scopePath,proto3,oneof" json:"scope_path,omitempty"`
 	// Optional project root override.
 	ProjectRoot *string `protobuf:"bytes,3,opt,name=project_root,json=projectRoot,proto3,oneof" json:"project_root,omitempty"`
 	// Optional research mode.
@@ -914,13 +894,6 @@ func (*BacklogResearchRequest) Descriptor() ([]byte, []int) {
 func (x *BacklogResearchRequest) GetPrompt() string {
 	if x != nil && x.Prompt != nil {
 		return *x.Prompt
-	}
-	return ""
-}
-
-func (x *BacklogResearchRequest) GetScopePath() string {
-	if x != nil && x.ScopePath != nil {
-		return *x.ScopePath
 	}
 	return ""
 }
@@ -1563,7 +1536,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xdd\x05\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xbe\x05\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1580,8 +1553,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"initiative\x88\x01\x01\x12(\n" +
 	"\rauto_workshop\x18\n" +
 	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01\x123\n" +
-	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12\x19\n" +
-	"\x05scope\x18\f \x01(\tH\x06R\x05scope\x88\x01\x01\x12)\n" +
+	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDenyB\x0e\n" +
 	"\f_descriptionB\v\n" +
@@ -1589,8 +1561,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\x10\n" +
 	"\x0e_auto_workshopB\t\n" +
-	"\a_effortB\b\n" +
-	"\x06_scope\"\x8b\x05\n" +
+	"\a_effortJ\x04\b\f\x10\r\"\xec\x04\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1604,15 +1575,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
 	"initiative\x18\b \x01(\tH\x01R\n" +
 	"initiative\x88\x01\x01\x123\n" +
-	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12\x19\n" +
-	"\x05scope\x18\n" +
-	" \x01(\tH\x03R\x05scope\x88\x01\x01\x12)\n" +
+	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDenyB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\t\n" +
-	"\a_effortB\b\n" +
-	"\x06_scope\"O\n" +
+	"\a_effortJ\x04\b\n" +
+	"\x10\v\"O\n" +
 	"\x18ListBacklogItemsResponse\x123\n" +
 	"\x05items\x18\x01 \x03(\v2\x1d.swarm_manager.v1.BacklogItemR\x05items\"H\n" +
 	"\x13BacklogItemResponse\x121\n" +
@@ -1660,24 +1629,21 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10blocking_reasons\x18\t \x03(\tR\x0fblockingReasons\x121\n" +
 	"\x14unanswered_questions\x18\n" +
 	" \x01(\x05R\x13unansweredQuestions\x12/\n" +
-	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\x96\x04\n" +
+	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\xe9\x03\n" +
 	"\x16BacklogResearchRequest\x12\x1b\n" +
-	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"scope_path\x18\x02 \x01(\tH\x01R\tscopePath\x88\x01\x01\x12&\n" +
-	"\fproject_root\x18\x03 \x01(\tH\x02R\vprojectRoot\x88\x01\x01\x12o\n" +
+	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12&\n" +
+	"\fproject_root\x18\x03 \x01(\tH\x01R\vprojectRoot\x88\x01\x01\x12o\n" +
 	"\x04mode\x18\x04 \x01(\tBV\xbaHSrQR\aclarifyR\asuggestR\aenhanceR\bresearchR\aexploreR\vinvestigateR\n" +
-	"initializeR\bworkshopH\x03R\x04mode\x88\x01\x01\x12S\n" +
-	"\vtarget_kind\x18\x05 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x04R\n" +
+	"initializeR\bworkshopH\x02R\x04mode\x88\x01\x01\x12S\n" +
+	"\vtarget_kind\x18\x05 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x03R\n" +
 	"targetKind\x88\x01\x01\x12#\n" +
 	"\rcontext_paths\x18\x06 \x03(\tR\fcontextPaths\x12,\n" +
 	"\x12context_target_ids\x18\a \x03(\tR\x10contextTargetIds\x126\n" +
 	"\x17context_requirement_ids\x18\b \x03(\tR\x15contextRequirementIdsB\t\n" +
-	"\a_promptB\r\n" +
-	"\v_scope_pathB\x0f\n" +
+	"\a_promptB\x0f\n" +
 	"\r_project_rootB\a\n" +
 	"\x05_modeB\x0e\n" +
-	"\f_target_kind\"\xa2\x01\n" +
+	"\f_target_kindJ\x04\b\x02\x10\x03\"\xa2\x01\n" +
 	"\x17BacklogResearchResponse\x12 \n" +
 	"\atask_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06taskId\x12\x1e\n" +
 	"\x06run_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x12\"\n" +

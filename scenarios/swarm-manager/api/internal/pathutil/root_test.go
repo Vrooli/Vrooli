@@ -125,3 +125,39 @@ func TestResolveScenariosDir(t *testing.T) {
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
+
+func TestScenariosFromGlobs(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{name: "nil returns nil", in: nil, want: nil},
+		{name: "empty returns nil", in: []string{}, want: nil},
+		{name: "single scenario", in: []string{"scenarios/web-console/**"}, want: []string{"web-console"}},
+		{name: "deep path extracts scenario", in: []string{"scenarios/web-console/api/internal/**"}, want: []string{"web-console"}},
+		{name: "dedup same scenario", in: []string{"scenarios/web-console/api/**", "scenarios/web-console/ui/**"}, want: []string{"web-console"}},
+		{name: "multiple scenarios", in: []string{"scenarios/foo/**", "scenarios/bar/**"}, want: []string{"foo", "bar"}},
+		{name: "non-scenario skipped", in: []string{"packages/proto/**"}, want: nil},
+		{name: "wildcard skipped", in: []string{"**/*.go"}, want: nil},
+		{name: "trailing slash no name", in: []string{"scenarios/"}, want: nil},
+		{name: "bare scenarios prefix", in: []string{"scenarios/web-console"}, want: []string{"web-console"}},
+		{name: "mixed scenario and non-scenario", in: []string{"scenarios/swarm-manager/**", "packages/proto/**"}, want: []string{"swarm-manager"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ScenariosFromGlobs(tt.in)
+			if len(got) == 0 && len(tt.want) == 0 {
+				return // both empty/nil
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("ScenariosFromGlobs(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("ScenariosFromGlobs(%v)[%d] = %q, want %q", tt.in, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

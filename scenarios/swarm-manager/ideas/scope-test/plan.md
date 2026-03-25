@@ -53,7 +53,7 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | No description provided | Cannot plan without understanding the goal | 9 workshop rounds asked for clarification |
-| No scope set | Cannot target implementation | 9 workshop rounds asked which scenario this targets |
+| No acceptance_allow patterns set | Cannot target implementation | 9 workshop rounds asked which file paths this targets |
 | 9 rounds with no user answers | Item stalled indefinitely | Final round (9) strongly recommends archive |
 | Backlog noise | Stale items consume workshop cycles | No further rounds will be generated |
 

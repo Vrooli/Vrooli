@@ -28,11 +28,11 @@
       "id": "d15",
       "type": "decision",
       "topic": "Target scenario (only if d14=A)",
-      "context": "Skip if d14 is B, C, or D. If this is a real item, which scenario does it target? This sets scope, acceptance_allow, and acceptance_deny on spec.json.",
+      "context": "Skip if d14 is B, C, or D. If this is a real item, which scenario does it target? This sets acceptance_allow and acceptance_deny on spec.json.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Backlog system, scope fields, workshop infrastructure."},
-        {"key": "B", "label": "scenarios/agent-manager", "rationale": "Agent execution, sandbox scoping."},
-        {"key": "C", "label": "scenarios/workspace-sandbox", "rationale": "Sandbox overlay mounts, filesystem isolation."},
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "Backlog system, acceptance fields, workshop infrastructure."},
+        {"key": "B", "label": "scenarios/agent-manager/**", "rationale": "Agent execution, sandbox configuration."},
+        {"key": "C", "label": "scenarios/workspace-sandbox/**", "rationale": "Sandbox overlay mounts, filesystem isolation."},
         {"key": "D", "label": "Cross-cutting / multiple scenarios", "rationale": "Platform-level work."},
         {"key": "E", "label": "Other", "rationale": "Specify in freeform."}
       ],

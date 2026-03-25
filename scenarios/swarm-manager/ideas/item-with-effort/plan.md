@@ -24,7 +24,7 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 
 ## 5. Current Technical Context
 
-<!-- TBD — No scope field set. Target scenario unknown until workshop round 1 is resolved. -->
+<!-- TBD — No acceptance_allow patterns set. Target file paths unknown until workshop round 1 is resolved. -->
 
 ## 6. Target End State
 

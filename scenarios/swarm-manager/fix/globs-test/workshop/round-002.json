@@ -12,10 +12,10 @@
     {
       "id": "d4",
       "type": "decision",
-      "topic": "Update spec.json with scope and acceptance from round-001 decisions",
-      "context": "Round-001 pre-selected scope=scenarios/swarm-manager (d1) and targeted acceptance paths (d3), but spec.json still has no scope or acceptance fields. These should be applied so downstream tooling (sandbox, review) can use them. Recommend option A — apply the decisions if the user agrees with them.",
+      "topic": "Update spec.json with acceptance_allow from round-001 decisions",
+      "context": "Round-001 pre-selected targeted acceptance paths (d3), but spec.json still has no acceptance fields. These should be applied so downstream tooling (sandbox, review) can use them. Recommend option A — apply the decisions if the user agrees with them.",
       "options": [
-        {"key": "A", "label": "Apply: scope=scenarios/swarm-manager, acceptance_allow=[scenarios/swarm-manager/api/internal/backlog/types.go, scenarios/swarm-manager/api/internal/backlog/types_test.go, scenarios/swarm-manager/api/go.mod, scenarios/swarm-manager/api/go.sum]", "rationale": "Matches the targeted file set from d3. Tight scope prevents unintended changes."},
+        {"key": "A", "label": "Apply: acceptance_allow=[scenarios/swarm-manager/api/internal/backlog/types.go, scenarios/swarm-manager/api/internal/backlog/types_test.go, scenarios/swarm-manager/api/go.mod, scenarios/swarm-manager/api/go.sum]", "rationale": "Matches the targeted file set from d3. Tight acceptance prevents unintended changes."},
         {"key": "B", "label": "Apply broader: acceptance_allow=[scenarios/swarm-manager/api/**]", "rationale": "Broader but still scoped to swarm-manager API. Allows flexibility if other files need minor adjustments."},
         {"key": "C", "label": "Skip — leave spec.json as-is", "rationale": "If this will be executed without sandbox constraints, no need to set acceptance fields."}
       ],

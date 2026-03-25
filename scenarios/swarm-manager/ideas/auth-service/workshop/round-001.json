@@ -28,13 +28,14 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Target scenario scope",
-      "context": "spec.json has no scope field set. This work could live as a new standalone scenario, extend an existing scenario, or be a cross-cutting library. Where should the code live?",
+      "topic": "Acceptance file paths",
+      "context": "spec.json has no acceptance_allow patterns set. This work could live as a new standalone scenario, extend an existing scenario, or be a cross-cutting library. Where should the code live?",
       "options": [
-        {"key": "A", "label": "New standalone scenario (scenarios/auth-service/)", "rationale": "Clean separation, own API/CLI/UI, independent lifecycle. Best if this becomes a core platform service."},
-        {"key": "B", "label": "Extend scenarios/scenario-authenticator/", "rationale": "Build on existing auth codebase. Avoids duplication but increases scope of that scenario."},
-        {"key": "C", "label": "Shared Go package (packages/auth/ or similar)", "rationale": "Library approach — no new scenario, just importable code. Best if goal is middleware/library (option B in d1)."},
-        {"key": "D", "label": "Other", "rationale": "Specify a different location"}
+        {"key": "A", "label": "scenarios/auth-service/**", "rationale": "Clean separation, own API/CLI/UI, independent lifecycle. Best if this becomes a core platform service."},
+        {"key": "B", "label": "scenarios/scenario-authenticator/**", "rationale": "Build on existing auth codebase. Avoids duplication but increases scope of that scenario."},
+        {"key": "C", "label": "packages/auth/**", "rationale": "Library approach — no new scenario, just importable code. Best if goal is middleware/library (option B in d1)."},
+        {"key": "D", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
+        {"key": "E", "label": "Other", "rationale": "Specify different acceptance_allow patterns"}
       ],
       "selected": null,
       "freeform": null,

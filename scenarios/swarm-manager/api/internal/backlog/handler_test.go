@@ -1604,73 +1604,6 @@ func TestUpdate_InvalidEffort(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, w)
 }
 
-func TestCreate_WithScope(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	payload := map[string]any{
-		"name":  "scope-test",
-		"title": "Scope Test",
-		"kind":  "idea",
-		"scope": "scenarios/my-scenario",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
-
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
-	if resp.Item.Scope != "scenarios/my-scenario" {
-		t.Errorf("expected scope 'scenarios/my-scenario', got %q", resp.Item.Scope)
-	}
-
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "scope-test", "spec.json"))
-	if saved.Scope != "scenarios/my-scenario" {
-		t.Errorf("expected saved scope 'scenarios/my-scenario', got %q", saved.Scope)
-	}
-}
-
-func TestCreate_InvalidScope_Absolute(t *testing.T) {
-	h, _ := setupTestHandler(t)
-
-	payload := map[string]any{
-		"name":  "abs-scope",
-		"title": "Abs Scope",
-		"kind":  "idea",
-		"scope": "/etc/passwd",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	h.Create(w, req)
-	testutil.AssertStatusBadRequest(t, w)
-}
-
-func TestCreate_InvalidScope_DotDot(t *testing.T) {
-	h, _ := setupTestHandler(t)
-
-	payload := map[string]any{
-		"name":  "dotdot-scope",
-		"title": "DotDot Scope",
-		"kind":  "idea",
-		"scope": "../secret",
-	}
-	body, _ := json.Marshal(payload)
-
-	req := httptest.NewRequest("POST", "/api/v1/backlog", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	h.Create(w, req)
-	testutil.AssertStatusBadRequest(t, w)
-}
-
 func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
@@ -1705,12 +1638,12 @@ func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 	}
 }
 
-func TestUpdate_ScopeAndAcceptance(t *testing.T) {
+func TestUpdate_Acceptance(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
 	item := BacklogItem{
-		Name:     "update-scope-test",
-		Title:    "Update Scope Test",
+		Name:     "update-acceptance-test",
+		Title:    "Update Acceptance Test",
 		Status:   StatusBacklog,
 		Priority: 5,
 		Tags:     []string{},
@@ -1720,35 +1653,34 @@ func TestUpdate_ScopeAndAcceptance(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":            "Update Scope Test",
+		"title":            "Update Acceptance Test",
 		"status":           "backlog",
 		"priority":         5,
 		"tags":             []string{},
-		"scope":            "scenarios/target",
-		"acceptance_allow": []string{"src/**"},
-		"acceptance_deny":  []string{"test/**"},
+		"acceptance_allow": []string{"scenarios/target/src/**"},
+		"acceptance_deny":  []string{"scenarios/target/test/**"},
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-scope-test", bytes.NewReader(body))
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-acceptance-test", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-scope-test"})
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-acceptance-test"})
 	w := httptest.NewRecorder()
 
 	h.Update(w, req)
 	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
-	if resp.Item.Scope != "scenarios/target" {
-		t.Errorf("expected scope 'scenarios/target', got %q", resp.Item.Scope)
+	if len(resp.Item.AcceptanceAllow) != 1 || resp.Item.AcceptanceAllow[0] != "scenarios/target/src/**" {
+		t.Errorf("expected acceptance_allow ['scenarios/target/src/**'], got %v", resp.Item.AcceptanceAllow)
 	}
-	if len(resp.Item.AcceptanceAllow) != 1 || resp.Item.AcceptanceAllow[0] != "src/**" {
-		t.Errorf("expected acceptance_allow ['src/**'], got %v", resp.Item.AcceptanceAllow)
+	if len(resp.Item.AcceptanceDeny) != 1 || resp.Item.AcceptanceDeny[0] != "scenarios/target/test/**" {
+		t.Errorf("expected acceptance_deny ['scenarios/target/test/**'], got %v", resp.Item.AcceptanceDeny)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-scope-test", "spec.json"))
-	if saved.Scope != "scenarios/target" {
-		t.Errorf("expected saved scope 'scenarios/target', got %q", saved.Scope)
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-acceptance-test", "spec.json"))
+	if len(saved.AcceptanceAllow) != 1 || saved.AcceptanceAllow[0] != "scenarios/target/src/**" {
+		t.Errorf("expected saved acceptance_allow ['scenarios/target/src/**'], got %v", saved.AcceptanceAllow)
 	}
 }
 

@@ -1,6 +1,6 @@
 {
   "round": 1,
-  "generated_at": "2026-03-24T16:00:00Z",
+  "generated_at": "2026-03-24T12:00:00Z",
   "readiness": {
     "problem_clarity": 0,
     "scope_defined": 0,
@@ -12,13 +12,13 @@
     {
       "id": "d1",
       "type": "decision",
-      "topic": "What is the core idea?",
-      "context": "The description 'A new test idea' is too vague to act on. We need to understand what domain this idea targets before any other decisions can be made. Is this about testing infrastructure, a product/scenario, or something else?",
+      "topic": "What is this idea actually about?",
+      "context": "The spec says 'A new test idea' with tags 'new, test' but provides no concrete goal, user story, or problem to solve. We need to understand the core concept before any planning can happen.",
       "options": [
-        {"key": "A", "label": "A new testing framework or tool for Vrooli scenarios", "rationale": "Builds on existing test-genie and scenario test infrastructure to provide better testing capabilities across the platform"},
-        {"key": "B", "label": "A new scenario (product/service) that happens to be test-related", "rationale": "A standalone scenario that provides testing as a service — e.g., API testing, load testing, or regression testing as a monetizable product"},
-        {"key": "C", "label": "An improvement to the existing test-genie scenario", "rationale": "Rather than building something new, enhance the existing AI-assisted test generation tool"},
-        {"key": "D", "label": "Other", "rationale": "Provide your own description of what this idea actually is"}
+        {"key": "A", "label": "A new Vrooli scenario (product/service)", "rationale": "If this is meant to become a deployable scenario that generates revenue or expands Vrooli capabilities"},
+        {"key": "B", "label": "A testing/QA improvement for an existing scenario", "rationale": "If this is about improving test coverage, adding test infrastructure, or validating existing functionality"},
+        {"key": "C", "label": "An internal tool or utility", "rationale": "If this is a developer-facing tool that improves the Vrooli development workflow"},
+        {"key": "D", "label": "Other", "rationale": "Provide a description of what this idea is about in the freeform field"}
       ],
       "selected": null,
       "freeform": null,
@@ -27,13 +27,13 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Target users / audience",
-      "context": "Who will use or benefit from this? Understanding the audience shapes every downstream decision — architecture, UX, pricing, and scope.",
+      "topic": "Target user / audience",
+      "context": "Understanding who benefits from this idea shapes scope, UX, and priority. Without a target user, we cannot define acceptance criteria.",
       "options": [
-        {"key": "A", "label": "Internal — Vrooli developers and agents", "rationale": "An internal tool that makes Vrooli's own development faster and more reliable"},
-        {"key": "B", "label": "External — developers using Vrooli as a platform", "rationale": "A capability exposed to users who build on top of Vrooli"},
-        {"key": "C", "label": "External — end users of a SaaS product", "rationale": "A standalone product targeting a market need"},
-        {"key": "D", "label": "Other", "rationale": "Provide your own audience description"}
+        {"key": "A", "label": "End users (external customers)", "rationale": "User-facing product that generates direct value or revenue"},
+        {"key": "B", "label": "Vrooli developers / agents", "rationale": "Internal tooling that improves development velocity or agent capabilities"},
+        {"key": "C", "label": "Both internal and external", "rationale": "Dual-purpose: serves users while also expanding Vrooli's capability set"},
+        {"key": "D", "label": "Other", "rationale": "Describe the target audience in the freeform field"}
       ],
       "selected": null,
       "freeform": null,
@@ -42,14 +42,14 @@
     {
       "id": "d3",
       "type": "decision",
-      "topic": "Problem being solved",
-      "context": "Every good idea starts with a clear problem. What pain point or gap does this address? Without a defined problem, we risk building something nobody needs.",
+      "topic": "Which Vrooli resources does this idea need?",
+      "context": "Vrooli scenarios compose local resources (postgres, redis, ollama, qdrant, etc.). Identifying resource dependencies early shapes architecture and feasibility.",
       "options": [
-        {"key": "A", "label": "Existing tests are too slow or unreliable", "rationale": "Focus on improving test execution speed, flakiness reduction, or parallelization"},
-        {"key": "B", "label": "Test coverage is insufficient or hard to measure", "rationale": "Focus on coverage analysis, gap detection, and reporting"},
-        {"key": "C", "label": "Writing tests is too manual or time-consuming", "rationale": "Focus on test generation, scaffolding, and AI-assisted authoring"},
-        {"key": "D", "label": "No existing solution for a specific type of testing", "rationale": "Fill a gap — e.g., integration testing across scenarios, end-to-end testing, contract testing"},
-        {"key": "E", "label": "Other", "rationale": "Describe the problem in freeform"}
+        {"key": "A", "label": "None — standalone or purely code-based", "rationale": "No external resource dependencies needed"},
+        {"key": "B", "label": "Database only (PostgreSQL/Redis)", "rationale": "Standard data persistence needs"},
+        {"key": "C", "label": "AI/ML resources (Ollama, Qdrant, etc.)", "rationale": "Requires AI inference, embeddings, or vector search"},
+        {"key": "D", "label": "Multiple resources", "rationale": "Specify which resources in the freeform field"},
+        {"key": "E", "label": "Unknown — needs research", "rationale": "Requirements not clear enough to determine yet"}
       ],
       "selected": null,
       "freeform": null,
@@ -58,13 +58,13 @@
     {
       "id": "d4",
       "type": "decision",
-      "topic": "Deployment model",
-      "context": "How should this be delivered? This affects architecture, dependencies, and monetization strategy.",
+      "topic": "Scope and complexity estimate",
+      "context": "A rough sense of size helps prioritize and plan phases. This is tagged priority 3 (medium), but that may not reflect actual complexity.",
       "options": [
-        {"key": "A", "label": "Vrooli scenario (API + optional UI)", "rationale": "Standard Vrooli scenario with Go API, optional React UI. Integrates with existing resource ecosystem."},
-        {"key": "B", "label": "CLI tool only", "rationale": "Lightweight command-line tool. Fast to build, easy to integrate into CI/CD pipelines."},
-        {"key": "C", "label": "Library / SDK", "rationale": "Reusable code package that other scenarios import. Maximum composability."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own deployment model"}
+        {"key": "A", "label": "Small — single component, < 1 day of work", "rationale": "Simple utility, script, or minor feature"},
+        {"key": "B", "label": "Medium — API + maybe UI, 1-3 days", "rationale": "Standard scenario with a few endpoints and basic UI"},
+        {"key": "C", "label": "Large — multi-component system, 3+ days", "rationale": "Full scenario with API, UI, integrations, and complex logic"},
+        {"key": "D", "label": "Unknown — need more detail first", "rationale": "Can't estimate without understanding the core idea"}
       ],
       "selected": null,
       "freeform": null,
@@ -73,13 +73,13 @@
     {
       "id": "d5",
       "type": "decision",
-      "topic": "Priority and timeline expectations",
-      "context": "This is currently priority 3 (medium). Should it stay there, or does the refined understanding of the idea change its urgency?",
+      "topic": "What file paths are expected to change?",
+      "context": "The spec has no acceptance_allow patterns set. Defining expected change boundaries enables sandbox enforcement and post-execution review. This can be refined later once the idea is clearer.",
       "options": [
-        {"key": "A", "label": "Keep at priority 3 — medium importance", "rationale": "It's a nice-to-have that can wait for higher-priority work to complete"},
-        {"key": "B", "label": "Raise to priority 2 — high importance", "rationale": "This addresses an active pain point that's slowing down other work"},
-        {"key": "C", "label": "Raise to priority 1 — critical", "rationale": "This is blocking other initiatives or causing significant harm"},
-        {"key": "D", "label": "Lower to priority 4 — backlog for later", "rationale": "Good idea but not timely — revisit when bandwidth opens up"}
+        {"key": "A", "label": "New scenario directory (e.g., scenarios/<name>/**)", "rationale": "If this creates a new scenario, all changes would be scoped there"},
+        {"key": "B", "label": "Existing scenario modifications", "rationale": "Specify which scenario(s) in the freeform field"},
+        {"key": "C", "label": "Cross-cutting changes (packages, shared code)", "rationale": "Changes span multiple scenarios or shared packages"},
+        {"key": "D", "label": "Unknown — decide after scope is clearer", "rationale": "Defer until the idea is better defined"}
       ],
       "selected": null,
       "freeform": null,
@@ -88,13 +88,13 @@
     {
       "id": "i1",
       "type": "info",
-      "text": "Vrooli already has test-genie (AI-assisted test generation at localhost:17480) and built-in scenario test infrastructure via `vrooli scenario test <name>`. Any new testing idea should be evaluated against these existing capabilities to avoid duplication."
+      "text": "This item has minimal context — the spec contains only a title ('New Test Idea'), a one-line description ('A new test idea'), and generic tags ('new', 'test'). No archive materials, research, or prior workshop rounds exist. The plan.md was scaffolded in a prior run but all sections are TBD. This workshop round focuses entirely on establishing what the idea is before any technical planning can proceed."
     },
     {
       "id": "i2",
       "type": "info",
-      "text": "The item currently has no archive materials, no detailed description, and no prior workshop rounds. All plan sections are TBD pending answers to this round's decisions. Readiness scores are near-zero across all dimensions."
+      "text": "No acceptance_allow or acceptance_deny patterns are configured in spec.json. These should be set once the scope is clear to enable proper sandbox enforcement during execution."
     }
   ],
-  "plan_updates": "Created initial plan.md scaffold with 13 sections. Only Risks + Mitigations has partial content (identified vagueness and overlap risks). All other sections are TBD pending workshop decisions."
+  "plan_updates": "Preserved existing plan.md scaffold (all sections TBD). No plan content updated this round — awaiting foundational decisions about what this idea actually is before any sections can be filled in."
 }

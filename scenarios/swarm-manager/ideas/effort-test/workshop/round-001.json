@@ -1,6 +1,6 @@
 {
   "round": 1,
-  "generated_at": "2026-03-24T18:00:00Z",
+  "generated_at": "2026-03-24T12:00:00Z",
   "readiness": {
     "problem_clarity": 0,
     "scope_defined": 0,
@@ -12,13 +12,14 @@
     {
       "id": "d1",
       "type": "decision",
-      "topic": "What is 'Effort Test'?",
-      "context": "The item has no description. The title could mean several things: a scenario that estimates development effort for tasks, a test harness that measures how much agent effort (tokens, time, steps) tasks consume, or a placeholder/test item. Clarifying intent is the single most important unknown.",
+      "topic": "What is the goal of 'Effort Test'?",
+      "context": "The spec.json has an empty description, so the intent behind this backlog item is unknown. The title 'Effort Test' could mean several things. Clarifying the core goal is the highest-priority unknown — everything else depends on it.",
       "options": [
-        {"key": "A", "label": "Effort estimation scenario", "rationale": "A tool/service that predicts how much work (time, complexity, story points) a task will take — useful for planning and prioritization in swarm-manager."},
-        {"key": "B", "label": "Agent effort measurement harness", "rationale": "A test framework that measures agent resource consumption (tokens, wall time, tool calls) per task — useful for optimizing agent performance and cost."},
-        {"key": "C", "label": "Placeholder / test item", "rationale": "This item was created to test backlog workflows and is not intended to become a real scenario. Can be archived."},
-        {"key": "D", "label": "Other", "rationale": "Describe your intended purpose in the freeform field."}
+        {"key": "A", "label": "Effort estimation validation", "rationale": "Build a system to predict how much effort (time/complexity) backlog items will require, then compare predictions against actuals to calibrate the model over time."},
+        {"key": "B", "label": "Backlog processing stress test", "rationale": "Create a test harness that exercises the full backlog pipeline (workshop → plan → execute) with synthetic items to validate reliability and performance under load."},
+        {"key": "C", "label": "Story point / sizing tool", "rationale": "Add a feature to the swarm-manager that helps estimate and track story points or t-shirt sizes for backlog items, providing historical data for planning."},
+        {"key": "D", "label": "End-to-end workflow test scenario", "rationale": "A lightweight test scenario that exercises the swarm-manager's full lifecycle as a regression test — not about effort estimation but about testing the effort of running through the pipeline."},
+        {"key": "E", "label": "Other", "rationale": "Describe your own vision for what 'Effort Test' should accomplish."}
       ],
       "selected": null,
       "freeform": null,
@@ -27,13 +28,13 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Target users",
-      "context": "If this becomes a real scenario, understanding who benefits is key to scoping. Vrooli agents building other scenarios? Human developers planning sprints? The swarm-manager itself for scheduling decisions?",
+      "topic": "Target scope and scale",
+      "context": "Understanding the intended scale helps determine whether this is a small utility, a new scenario feature, or a significant system addition. This affects architecture, timeline, and resource needs.",
       "options": [
-        {"key": "A", "label": "Vrooli agents (automated)", "rationale": "Agents use effort estimates to prioritize and schedule work autonomously via swarm-manager."},
-        {"key": "B", "label": "Human developers", "rationale": "Developers use effort estimates for sprint planning, capacity management, and stakeholder communication."},
-        {"key": "C", "label": "Both agents and humans", "rationale": "Dual interface — API for agents, UI/CLI for humans. More scope but more value."},
-        {"key": "D", "label": "Other", "rationale": "Describe the target audience in the freeform field."}
+        {"key": "A", "label": "Small utility / CLI command", "rationale": "A focused addition to the swarm-manager CLI — minimal new files, quick to build and test."},
+        {"key": "B", "label": "New feature within swarm-manager", "rationale": "A multi-file feature addition to the existing swarm-manager scenario (new API endpoints, UI pages, data model changes)."},
+        {"key": "C", "label": "Standalone scenario", "rationale": "A separate scenario that integrates with swarm-manager but lives in its own directory with its own API/UI."},
+        {"key": "D", "label": "Other", "rationale": "Describe the intended scale."}
       ],
       "selected": null,
       "freeform": null,
@@ -42,13 +43,13 @@
     {
       "id": "d3",
       "type": "decision",
-      "topic": "Scenario components",
-      "context": "What delivery surfaces does this need? An API is the minimum for agent consumption. A CLI enables developer workflows. A UI enables richer interaction and visualization.",
+      "topic": "Priority and timeline",
+      "context": "The item is set to priority 3 (mid-range). Understanding urgency helps determine how much upfront design vs. iterative development is appropriate.",
       "options": [
-        {"key": "A", "label": "API only", "rationale": "Minimal surface area. Other scenarios and agents consume via HTTP. Fastest to build."},
-        {"key": "B", "label": "API + CLI", "rationale": "API for programmatic access, CLI for developer convenience. Moderate scope."},
-        {"key": "C", "label": "API + CLI + UI", "rationale": "Full scenario with all surfaces. Most useful but largest scope."},
-        {"key": "D", "label": "Other", "rationale": "Describe your preferred components."}
+        {"key": "A", "label": "Exploratory — no timeline pressure", "rationale": "This is an experiment or proof-of-concept. Iterate freely, prioritize learning over polish."},
+        {"key": "B", "label": "Near-term — needed within a few weeks", "rationale": "Has a concrete use case that's blocking or slowing other work. Needs a focused implementation."},
+        {"key": "C", "label": "Strategic — important but not urgent", "rationale": "Valuable for the long-term vision but can be planned carefully and built incrementally."},
+        {"key": "D", "label": "Other", "rationale": "Describe your timeline expectations."}
       ],
       "selected": null,
       "freeform": null,
@@ -57,13 +58,13 @@
     {
       "id": "d4",
       "type": "decision",
-      "topic": "Estimation methodology",
-      "context": "If this is an effort estimation tool, the approach matters significantly. Historical data from completed backlog items could train a model. Alternatively, LLM-based analysis of task descriptions could provide estimates without historical data.",
+      "topic": "What file paths are expected to change?",
+      "context": "The spec.json has no acceptance_allow patterns set. Defining expected change boundaries early helps scope the work and enables post-execution validation.",
       "options": [
-        {"key": "A", "label": "Historical data analysis", "rationale": "Mine completed backlog items for actual effort data (time, commits, tokens). Requires sufficient history. Most accurate long-term."},
-        {"key": "B", "label": "LLM-based estimation", "rationale": "Use an LLM to analyze task descriptions and produce estimates. Works immediately but less calibrated. Could use Ollama."},
-        {"key": "C", "label": "Hybrid approach", "rationale": "Start with LLM estimates, calibrate against historical data as it accumulates. Best of both worlds but more complex."},
-        {"key": "D", "label": "Not applicable", "rationale": "Select if this isn't an estimation tool."}
+        {"key": "A", "label": "scenarios/swarm-manager/**", "rationale": "Changes within the existing swarm-manager scenario — broadest scope for an internal feature."},
+        {"key": "B", "label": "Targeted subdirectory paths", "rationale": "Specify exact directories (e.g., scenarios/swarm-manager/api/internal/effort/**, scenarios/swarm-manager/cli/cmd_effort.go)."},
+        {"key": "C", "label": "New standalone scenario path", "rationale": "e.g., scenarios/effort-test/** if this will be its own scenario."},
+        {"key": "D", "label": "Other", "rationale": "Specify your own file path patterns."}
       ],
       "selected": null,
       "freeform": null,
@@ -72,13 +73,13 @@
     {
       "id": "d5",
       "type": "decision",
-      "topic": "Resource dependencies",
-      "context": "Which shared Vrooli resources would this scenario need? PostgreSQL for storing estimates and history. Ollama if using LLM-based estimation. Redis for caching.",
+      "topic": "Integration with existing systems",
+      "context": "The swarm-manager already has backlog management, workshop rounds, execution pipeline, and a UI. Understanding which existing systems this should integrate with helps plan the architecture.",
       "options": [
-        {"key": "A", "label": "PostgreSQL only", "rationale": "Minimal — store estimates and historical data. Sufficient for data-driven approaches."},
-        {"key": "B", "label": "PostgreSQL + Ollama", "rationale": "Storage plus local LLM for analysis. Enables AI-powered estimation without external API costs."},
-        {"key": "C", "label": "PostgreSQL + Ollama + Redis", "rationale": "Full stack — storage, AI, and caching. Best performance but more operational overhead."},
-        {"key": "D", "label": "None / minimal", "rationale": "If this is a test item or lightweight tool, it may not need persistent resources."}
+        {"key": "A", "label": "Extend the backlog data model", "rationale": "Add effort fields to existing spec.json / backlog types and expose through existing API endpoints."},
+        {"key": "B", "label": "Standalone with API integration", "rationale": "Build independently but integrate via the swarm-manager API for data access."},
+        {"key": "C", "label": "No integration needed", "rationale": "This is a self-contained tool or test that doesn't need to connect with existing swarm-manager systems."},
+        {"key": "D", "label": "Other", "rationale": "Describe the integration approach you have in mind."}
       ],
       "selected": null,
       "freeform": null,
@@ -87,13 +88,13 @@
     {
       "id": "i1",
       "type": "info",
-      "text": "The swarm-manager already tracks backlog items with metadata (kind, priority, status, timestamps). If this becomes an effort estimation tool, it could integrate directly with swarm-manager's backlog API to pull task descriptions and push estimates back as metadata."
+      "text": "The spec.json has an empty description and no tags, acceptance_allow, or acceptance_deny patterns. All plan sections are currently TBD. This workshop round focuses entirely on establishing baseline intent — no implementation details can be planned until the core vision is clarified."
     },
     {
       "id": "i2",
       "type": "info",
-      "text": "No archive materials, description, or tags were provided for this item. All plan sections are currently TBD. The workshop round 1 decisions above are essential to make any progress on the plan."
+      "text": "The swarm-manager backlog system already tracks items with priority scores (1-5), status lifecycle (backlog → researching → ready → queued → in_progress → completed), and workshop-based refinement. Any effort estimation feature could potentially build on this existing infrastructure."
     }
   ],
-  "plan_updates": "Updated plan.md Purpose and Problem Statement sections with contextual notes about possible interpretations. All 13 sections remain TBD pending workshop decisions."
+  "plan_updates": "Updated plan.md scaffold with additional context in Problem Statement section noting possible interpretations of 'Effort Test'. Added a second risk entry for potential overlap with existing features. All 13 mandatory sections remain TBD pending workshop answers."
 }
