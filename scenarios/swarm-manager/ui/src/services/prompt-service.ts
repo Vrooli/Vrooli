@@ -61,6 +61,7 @@ export interface IPromptService {
   simulate(payload: PromptSimulateRequest): Promise<PromptSimulateResponse>;
   getExecutionPromptTrace(executionId: string): Promise<PromptTrace>;
   getBacklogPromptTrace(kind: BacklogKind, name: string): Promise<PromptTrace>;
+  updateBacklogPromptTrace(kind: BacklogKind, name: string, trace: PromptTrace): Promise<PromptTrace>;
 }
 
 export function createPromptService(apiClient: IApiClient = defaultApiClient): IPromptService {
@@ -143,6 +144,16 @@ export function createPromptService(apiClient: IApiClient = defaultApiClient): I
       const data = await apiClient.get<{ trace?: PromptTrace }>(API_ENDPOINTS.backlogPromptTrace(kind, name));
       if (!data.trace) {
         throw new Error("Prompt trace not found");
+      }
+      return data.trace;
+    },
+
+    async updateBacklogPromptTrace(kind: BacklogKind, name: string, trace: PromptTrace): Promise<PromptTrace> {
+      const data = await apiClient.put<{ trace?: PromptTrace }>(
+        API_ENDPOINTS.backlogPromptTrace(kind, name), trace
+      );
+      if (!data.trace) {
+        throw new Error("Failed to update prompt trace");
       }
       return data.trace;
     },

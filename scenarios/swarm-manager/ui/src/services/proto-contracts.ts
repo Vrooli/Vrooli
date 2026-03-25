@@ -44,6 +44,7 @@ import {
   ExecutionResponseSchema,
   ExecutionPolicyResponseSchema,
   CreateExecutionRequestSchema,
+  FollowUpExecutionRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/execution_pb";
 import type { ExecutionRecord as ProtoExecutionRecord } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
 import type { ExecutionPolicy as ProtoExecutionPolicy } from "@vrooli/proto-types/swarm-manager/v1/domain/execution_pb";
@@ -59,6 +60,7 @@ import type {
   ExecutionPolicy as ExecutionPolicyDomain,
   ExecutionStatus,
   ExecutionMode,
+  ReviewClassification,
 } from "../types";
 import {
   BACKLOG_KINDS,
@@ -291,6 +293,10 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     updated: protoItem.updated ?? "",
     kind,
     ...(researchTarget ? { researchTarget } : {}),
+    ...(protoItem.dependsOn?.length ? { dependsOn: protoItem.dependsOn } : {}),
+    ...(protoItem.initiative ? { initiative: protoItem.initiative } : {}),
+    ...(protoItem.acceptanceAllow?.length ? { acceptanceAllow: protoItem.acceptanceAllow } : {}),
+    ...(protoItem.acceptanceDeny?.length ? { acceptanceDeny: protoItem.acceptanceDeny } : {}),
   };
 }
 
@@ -378,12 +384,12 @@ export const executionPolicyResponseSchema = createProtoSchema(
   "execution policy"
 );
 
-export { CreateExecutionRequestSchema };
+export { CreateExecutionRequestSchema, FollowUpExecutionRequestSchema };
 
 export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionRecordDomain {
   const status = isExecutionStatus(proto.status) ? proto.status : "pending";
   const mode = isExecutionMode(proto.mode) ? proto.mode : "manual";
-  return {
+  const record: ExecutionRecordDomain = {
     executionId: proto.executionId ?? "",
     backlogKind: proto.backlogKind as ExecutionRecordDomain["backlogKind"],
     backlogName: proto.backlogName ?? "",
@@ -397,9 +403,26 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
     failureReason: proto.failureReason,
     startedBy: proto.startedBy,
     operation: proto.operation as ExecutionRecordDomain["operation"],
+    parentExecutionId: proto.parentExecutionId,
+    fixupAttempt: proto.fixupAttempt ?? 0,
+    reviewJobId: proto.reviewJobId,
     createdAt: proto.createdAt ?? "",
     updatedAt: proto.updatedAt ?? "",
   };
+  if (proto.reviewResult) {
+    record.reviewResult = {
+      jobId: proto.reviewResult.jobId ?? "",
+      classification: (proto.reviewResult.classification ?? "not_assessable") as ReviewClassification,
+      dimensions: (proto.reviewResult.dimensions ?? []).map((dim) => ({
+        name: dim.name ?? "",
+        status: dim.status ?? "",
+        details: dim.details,
+      })),
+      summary: proto.reviewResult.summary ?? "",
+      reviewedAt: proto.reviewResult.reviewedAt ?? "",
+    };
+  }
+  return record;
 }
 
 export function mapProtoExecutionPolicy(proto: ProtoExecutionPolicy): ExecutionPolicyDomain {
@@ -408,5 +431,7 @@ export function mapProtoExecutionPolicy(proto: ProtoExecutionPolicy): ExecutionP
   return {
     defaultMode: mode,
     defaultDelaySeconds: delaySeconds ?? 0,
+    autoFixup: proto.autoFixup ?? false,
+    maxFixupAttempts: proto.maxFixupAttempts ?? 0,
   };
 }

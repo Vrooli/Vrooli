@@ -23,7 +23,10 @@ import (
 	"swarm-manager/internal/workshop"
 )
 
-var errNotFound = errors.New("execution not found")
+var (
+	errNotFound       = errors.New("execution not found")
+	errSessionExpired = errors.New("agent session expired")
+)
 
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
 // DOC: docs/reference/operational-targets.md
@@ -40,6 +43,10 @@ type runInspector interface {
 
 type runStopper interface {
 	StopRun(ctx context.Context, runID string) error
+}
+
+type runContinuer interface {
+	ContinueRun(ctx context.Context, runID string, message string) error
 }
 
 // Archiver performs scenario archive operations after spec-sync completes.
@@ -67,9 +74,10 @@ type Service struct {
 	promptClient promptmanager.Client
 	archiver     Archiver
 	reviewClient ReviewClient
-	inspector    runInspector
-	stopper      runStopper
-	mu           sync.Mutex
+	inspector  runInspector
+	stopper    runStopper
+	continuer  runContinuer
+	mu         sync.Mutex
 }
 
 type promptSelection struct {
@@ -100,6 +108,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
+	}
+	if continuer, ok := cfg.AgentService.(runContinuer); ok {
+		service.continuer = continuer
 	}
 	if stopper, ok := cfg.AgentService.(runStopper); ok {
 		service.stopper = stopper
@@ -856,6 +867,151 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	record.UpdatedAt = now
 
 	_ = s.store.Save(records)
+}
+
+// FollowUp creates a follow-up execution from a completed/failed/needs_fixup execution.
+func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.agentService == nil || !s.agentService.IsEnabled() {
+		return Record{}, agentmanager.ErrNotAvailable
+	}
+
+	records, idx, err := s.loadRecordLocked(req.ExecutionID)
+	if err != nil {
+		return Record{}, err
+	}
+	parent := &records[idx]
+
+	// Only allow follow-up from terminal or needs_fixup states.
+	switch parent.Status {
+	case StatusCompleted, StatusFailed, StatusNeedsFixup:
+		// OK
+	default:
+		return Record{}, fmt.Errorf("cannot follow up execution in %q state", parent.Status)
+	}
+
+	// Build the follow-up prompt/message.
+	message := s.buildFollowUpMessage(parent, req)
+
+	now := nowRFC3339()
+	followUpRecord := Record{
+		ExecutionID:       idgen.Generate(),
+		BacklogKind:       parent.BacklogKind,
+		BacklogName:       parent.BacklogName,
+		PreviousStatus:    string(parent.Status),
+		Status:            StatusPending,
+		Mode:              ModeYOLO,
+		StartedBy:         "swarm-manager:follow-up",
+		Operation:         req.FollowUpType,
+		ParentExecutionID: parent.ExecutionID,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+	if req.FollowUpType == "fixup" {
+		followUpRecord.FixupAttempt = parent.FixupAttempt + 1
+	}
+
+	if req.RunMode == "continue" && strings.TrimSpace(parent.RunID) != "" {
+		// Continue existing agent-manager session.
+		if s.continuer == nil {
+			return Record{}, fmt.Errorf("cannot follow up: run continuation not available")
+		}
+		if err := s.continuer.ContinueRun(ctx, parent.RunID, message); err != nil {
+			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
+				return Record{}, fmt.Errorf("%w: %v", errSessionExpired, err)
+			}
+			return Record{}, fmt.Errorf("continue run failed: %w", err)
+		}
+		followUpRecord.RunID = parent.RunID
+		followUpRecord.TaskID = parent.TaskID
+		followUpRecord.Status = StatusRunning
+		followUpRecord.StartedAt = now
+	} else {
+		// Spawn a fresh run.
+		item, loadErr := s.loadBacklogItemByRecord(parent)
+		if loadErr != nil {
+			return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
+		}
+
+		scopePath := item.Scope
+		if scopePath != "" && !filepath.IsAbs(scopePath) {
+			scopePath = filepath.Join(s.rootDir, scopePath)
+		}
+		if scopePath == "" {
+			scopePath = s.itemDir(item.Kind, item.Name)
+		}
+
+		runResult, spawnErr := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
+			Kind:            item.Kind,
+			Name:            item.Name,
+			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),
+			Description:     message,
+			Prompt:          message,
+			ScopePath:       scopePath,
+			ProjectRoot:     ".",
+			CreatedBy:       "swarm-manager:follow-up",
+			Purpose:         req.FollowUpType,
+			AcceptanceAllow: item.AcceptanceAllow,
+			AcceptanceDeny:  item.AcceptanceDeny,
+		})
+		if spawnErr != nil {
+			return Record{}, fmt.Errorf("spawn follow-up failed: %w", spawnErr)
+		}
+		followUpRecord.TaskID = runResult.TaskID
+		followUpRecord.RunID = runResult.RunID
+		followUpRecord.Status = StatusStarting
+		followUpRecord.StartedAt = now
+	}
+
+	records = append(records, followUpRecord)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
+	}
+
+	return followUpRecord, nil
+}
+
+func (s *Service) buildFollowUpMessage(parent *Record, req FollowUpRequest) string {
+	switch req.FollowUpType {
+	case "fixup":
+		var reviewSummary string
+		if parent.ReviewResult != nil {
+			reviewSummary = parent.ReviewResult.Summary
+			for _, dim := range parent.ReviewResult.Dimensions {
+				if dim.Status != "green" {
+					reviewSummary += fmt.Sprintf("\n- %s (%s): %s", dim.Name, dim.Status, dim.Details)
+				}
+			}
+		}
+		prompt := fmt.Sprintf(
+			"Post-execution review found issues. Fix the following problems:\n\n%s\n\n"+
+				"The original plan is in plan.md. Focus only on fixing the identified issues.",
+			reviewSummary,
+		)
+		if strings.TrimSpace(req.Context) != "" {
+			prompt += "\n\nAdditional context:\n" + req.Context
+		}
+		return prompt
+
+	case "followup":
+		prompt := "Continue working on this backlog item. The original plan is in plan.md."
+		if strings.TrimSpace(req.Context) != "" {
+			prompt += "\n\nAdditional context:\n" + req.Context
+		}
+		return prompt
+
+	default: // custom
+		if strings.TrimSpace(req.Context) != "" {
+			return req.Context
+		}
+		return "Continue working on this backlog item."
+	}
+}
+
+func (s *Service) loadBacklogItemByRecord(record *Record) (backlogItem, error) {
+	return s.loadBacklogItem(record.BacklogKind, record.BacklogName)
 }
 
 func (s *Service) loadRecordLocked(executionID string) ([]Record, int, error) {

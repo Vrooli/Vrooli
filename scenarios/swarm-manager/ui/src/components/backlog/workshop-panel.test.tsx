@@ -86,9 +86,14 @@ describe("WorkshopPanel", () => {
     expect(screen.getByText("Old info")).toBeInTheDocument();
   });
 
-  it("shows 'Next Round' button when rounds exist", () => {
-    render(<WorkshopPanel {...defaultProps} rounds={[makeRound()]} />);
+  it("shows 'Next Round' button when onRunWorkshop is provided", () => {
+    render(<WorkshopPanel {...defaultProps} rounds={[makeRound()]} onRunWorkshop={vi.fn()} />);
     expect(screen.getByText("Next Round")).toBeInTheDocument();
+  });
+
+  it("hides 'Next Round' button when onRunWorkshop is not provided", () => {
+    render(<WorkshopPanel {...defaultProps} rounds={[makeRound()]} />);
+    expect(screen.queryByText("Next Round")).not.toBeInTheDocument();
   });
 
   it("fires onRunWorkshop when Next Round is clicked", () => {
@@ -103,7 +108,7 @@ describe("WorkshopPanel", () => {
 
   it("shows 'Running...' text when isRunningWorkshop is true", () => {
     render(
-      <WorkshopPanel {...defaultProps} rounds={[makeRound()]} isRunningWorkshop />,
+      <WorkshopPanel {...defaultProps} rounds={[makeRound()]} isRunningWorkshop onRunWorkshop={vi.fn()} />,
     );
     expect(screen.getByText("Running...")).toBeInTheDocument();
   });

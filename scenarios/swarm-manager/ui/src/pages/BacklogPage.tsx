@@ -17,9 +17,10 @@
  * - Summary stats show total items and count ready for processing
  */
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useUrlState } from "../hooks/use-url-state";
 import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -96,6 +97,19 @@ const STATUS_OPTIONS: BacklogStatus[] = [
 
 type TabKind = BacklogKind | "all";
 
+const VALID_KINDS = new Set<string>(["all", "idea", "fix", "execute", "chore", "research"]);
+const isTabKind = (v: string): v is TabKind => VALID_KINDS.has(v);
+
+const VALID_SORT_FIELDS = new Set<string>(["priority", "updated", "status", "title"]);
+const isSortField = (v: string): v is SortField => VALID_SORT_FIELDS.has(v);
+
+const VALID_STATUSES = new Set<string>(["", "backlog", "researching", "ready", "queued", "in_progress", "failed", "completed", "archived"]);
+const isBacklogStatusOrEmpty = (v: string): v is BacklogStatus | "" => VALID_STATUSES.has(v);
+
+const FINISHED_STATUSES: BacklogStatus[] = ["completed", "failed", "archived"];
+
+const SEARCH_DEBOUNCE_MS = 300;
+
 const BACKLOG_KIND_TABS: Array<{
   kind: TabKind;
   label: string;
@@ -155,10 +169,43 @@ const BACKLOG_KIND_TABS: Array<{
 ];
 
 export function BacklogPage() {
-  const [activeKind, setActiveKind] = useState<TabKind>("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BacklogStatus | "">("");
-  const [sortField, setSortField] = useState<SortField>("priority");
+  // URL-synced state (persists across navigation)
+  const [activeKind, setActiveKind] = useUrlState<TabKind>("kind", "all", { validate: isTabKind });
+  const [statusFilter, setStatusFilter] = useUrlState<BacklogStatus | "">("status", "", { validate: isBacklogStatusOrEmpty });
+  const [sortField, setSortField] = useUrlState<SortField>("sort", "priority", { validate: isSortField });
+  const [showFinishedParam, setShowFinishedParam] = useUrlState<"" | "1">("finished", "");
+  const showFinished = showFinishedParam === "1";
+  const setShowFinished = useCallback((v: boolean) => setShowFinishedParam(v ? "1" : ""), [setShowFinishedParam]);
+
+  // Search: local state for instant UI + debounced URL sync
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("q") ?? "");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (searchTerm) {
+          next.set("q", searchTerm);
+        } else {
+          next.delete("q");
+        }
+        return next;
+      }, { replace: true });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(searchTimerRef.current);
+  }, [searchTerm, setSearchParams]);
+
+  // Sync URL → local state when user navigates back (browser back button)
+  const urlQ = searchParams.get("q") ?? "";
+  useEffect(() => {
+    setSearchTerm((prev) => (prev !== urlQ ? urlQ : prev));
+  }, [urlQ]);
+
+  const location = useLocation();
+
+  // Ephemeral UI state (not persisted)
   const [showSort, setShowSort] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -166,7 +213,6 @@ export function BacklogPage() {
   const [showFeedbackHub, setShowFeedbackHub] = useState(false);
   const [feedbackHubInitialTab, setFeedbackHubInitialTab] = useState<"review" | "export" | "import">("review");
   const [feedbackHubSelectedNames, setFeedbackHubSelectedNames] = useState<string[] | undefined>();
-  const [showFinished, setShowFinished] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | null>(null);
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
@@ -281,8 +327,6 @@ export function BacklogPage() {
     () => activeKind === "all" ? items : items.filter((item) => item.kind === activeKind),
     [items, activeKind]
   );
-
-  const FINISHED_STATUSES: BacklogStatus[] = ["completed", "failed", "archived"];
 
   const filteredItems = useMemo(() => {
     let result = kindItems;
@@ -546,7 +590,7 @@ export function BacklogPage() {
                           <input
                             type="checkbox"
                             checked={showFinished}
-                            onChange={() => setShowFinished((prev) => !prev)}
+                            onChange={() => setShowFinished(!showFinished)}
                             className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/30"
                             data-testid={selectors.backlog.showFinishedToggle}
                           />
@@ -709,6 +753,7 @@ export function BacklogPage() {
                   as={Link}
                   key={`${item.kind}-${item.name}`}
                   to={`/backlog/${item.kind}/${item.name}`}
+                  state={{ backlogSearch: location.search }}
                   interactive
                   className="group relative block overflow-hidden"
                   data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
@@ -735,7 +780,7 @@ export function BacklogPage() {
                   {hasActiveStepper ? (
                     /* Inline question stepper — replaces badges, tags, readiness, run button */
                     <InlineQuestionStepper
-                      questions={pendingQuestions!}
+                      questions={pendingQuestions as PendingQuestion[]}
                       backlogKind={item.kind as BacklogKind}
                       backlogName={item.name}
                       onAllAnswered={() => {
@@ -861,6 +906,7 @@ export function BacklogPage() {
                   as={Link}
                   key={`${item.kind}-${item.name}`}
                   to={`/backlog/${item.kind}/${item.name}`}
+                  state={{ backlogSearch: location.search }}
                   interactive
                   className="group block"
                   data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
@@ -929,7 +975,9 @@ export function BacklogPage() {
                   )}
                   {!isBacklogQueueable(item) ? (
                     <p className="mt-3 text-xs text-slate-500">
-                      {getBacklogNotQueueableReason(item)}
+                      {item.status === "completed" || item.status === "failed"
+                        ? `${item.status === "completed" ? "Completed" : "Failed"} — open to follow up or review.`
+                        : getBacklogNotQueueableReason(item)}
                     </p>
                   ) : null}
                 </ResponsiveListItem>

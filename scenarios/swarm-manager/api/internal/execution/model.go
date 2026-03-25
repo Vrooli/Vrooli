@@ -144,6 +144,14 @@ type Policy struct {
 	AutoFixup           bool  `json:"auto_fixup"`
 }
 
+// FollowUpRequest describes a user-initiated follow-up from a completed/failed execution.
+type FollowUpRequest struct {
+	ExecutionID  string `json:"execution_id"`
+	FollowUpType string `json:"follow_up_type"` // fixup, followup, custom
+	Context      string `json:"context,omitempty"`
+	RunMode      string `json:"run_mode"` // continue, new
+}
+
 // ListFilters defines list query filters.
 type ListFilters struct {
 	Status      string

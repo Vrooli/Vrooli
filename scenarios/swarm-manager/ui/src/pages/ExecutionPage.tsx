@@ -11,6 +11,7 @@ import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ExecutionCard } from "../components/execution/execution-card";
+import { FollowUpDialog } from "../components/execution/follow-up-dialog";
 import { selectors } from "../consts/selectors";
 import {
   canCancelExecution,
@@ -74,6 +75,8 @@ export function ExecutionPage() {
   const [traceByExecutionId, setTraceByExecutionId] = useState<Record<string, PromptTrace>>({});
   const [traceLoadingId, setTraceLoadingId] = useState<string | null>(null);
   const [agentManagerUiUrl, setAgentManagerUiUrl] = useState<string | null>(null);
+  const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
+  const [workspaceSandboxBaseUrl, setWorkspaceSandboxBaseUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +88,14 @@ export function ExecutionPage() {
         }
       })
       .catch(() => { /* agent-manager not available */ });
+    fetch(`/embedded/${encodeURIComponent("workspace-sandbox")}/external-url`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) {
+          setWorkspaceSandboxBaseUrl(data.url);
+        }
+      })
+      .catch(() => { /* workspace-sandbox not available */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -191,6 +202,29 @@ export function ExecutionPage() {
       setActionError(message);
     } finally {
       setTraceLoadingId(null);
+    }
+  };
+
+  const handleFollowUp = (executionId: string) => {
+    const exec = items.find((i) => i.executionId === executionId);
+    if (exec) setFollowUpTarget(exec);
+  };
+
+  const handleOpenReviewSandbox = async (executionId: string) => {
+    const exec = items.find((i) => i.executionId === executionId);
+    if (!exec?.runId) return;
+    const baseUrl = workspaceSandboxBaseUrl ?? `/embedded/workspace-sandbox/`;
+    try {
+      const runResp = await fetch(`/api/v1/agent-manager/runs/${encodeURIComponent(exec.runId)}`);
+      const runData = runResp.ok ? await runResp.json() : null;
+      const sandboxId = runData?.run?.sandboxId;
+      if (sandboxId) {
+        window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${sandboxId}&review=true`, "_blank");
+      } else {
+        window.open(baseUrl, "_blank");
+      }
+    } catch {
+      window.open(baseUrl, "_blank");
     }
   };
 
@@ -461,6 +495,8 @@ export function ExecutionPage() {
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
                     agentManagerUiUrl={agentManagerUiUrl}
+                    onFollowUp={handleFollowUp}
+                    onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
                   />
                 </ResponsiveListItem>
               ))}
@@ -490,6 +526,8 @@ export function ExecutionPage() {
                     trace={traceByExecutionId[item.executionId]}
                     traceLoading={traceLoadingId === item.executionId}
                     agentManagerUiUrl={agentManagerUiUrl}
+                    onFollowUp={handleFollowUp}
+                    onOpenReviewSandbox={(id) => void handleOpenReviewSandbox(id)}
                   />
                 </ResponsiveListItem>
               ))}
@@ -497,6 +535,18 @@ export function ExecutionPage() {
           </div>
         ) : null}
       </div>
+
+      {followUpTarget && (
+        <FollowUpDialog
+          isOpen={Boolean(followUpTarget)}
+          onClose={() => setFollowUpTarget(null)}
+          execution={followUpTarget}
+          onSuccess={(newExec) => {
+            upsertExecution(newExec);
+            setFollowUpTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }

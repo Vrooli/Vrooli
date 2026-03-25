@@ -1,0 +1,33 @@
+{
+  "round": 8,
+  "generated_at": "2026-03-24T23:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d19",
+      "type": "decision",
+      "topic": "Item disposition (re-run — blocking decision from round 7 still unanswered)",
+      "context": "This is a re-run of the initialize skill. The item still has no description, no scope, no archive materials, and all 13 plan sections remain TBD. Decision d17 from round 7 (auto-archive recommendation) is still unanswered. This decision re-presents the same choice. No further workshop rounds will produce meaningful progress without user input.",
+      "options": [
+        {"key": "A", "label": "Archive this item", "rationale": "Move to archived status. All prior workshop rounds and plan scaffold are preserved. Re-activate later with: swarm-manager backlog update --kind idea --name scope-test --data '{\"status\":\"backlog\"}'"},
+        {"key": "B", "label": "Delete this item", "rationale": "Remove entirely to reduce backlog noise. Use: swarm-manager backlog delete --kind idea --name scope-test"},
+        {"key": "C", "label": "Keep active — provide description and scope NOW", "rationale": "Use the freeform field to describe what 'Scope Test' should accomplish and which scenario it targets. Without this, the item cannot progress."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": "Blocking. This is the 8th workshop round. d17 from round 7 asked the same question. No progress is possible without a user answer."
+    },
+    {
+      "id": "i13",
+      "type": "info",
+      "text": "Cumulative status: 8 rounds, 13 decisions presented (12 unanswered, 2 pre-selected by agent). Plan.md: all 13 mandatory sections TBD. spec.json: empty description, no scope, no acceptance criteria. No archive materials. Recommendation: answer d19 to unblock or archive this item."
+    }
+  ],
+  "plan_updates": "No plan.md changes — no new information available since round 7. All 13 sections remain TBD pending user input on item disposition (d19)."
+}

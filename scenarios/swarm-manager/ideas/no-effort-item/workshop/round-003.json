@@ -1,0 +1,48 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-24T23:45:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "This is the third workshop round. Rounds 1 and 2 asked a total of 9 decisions — all remain unanswered. The item has no description, no scope, no tags, no archive materials, and priority 5 (lowest). The plan is entirely TBD. This round distills everything down to the single blocking question: what is this item?"
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What is this backlog item about? (Blocking — nothing else can proceed without this)",
+      "context": "Two prior rounds asked detailed questions that all depend on one fundamental unknown: what 'No Effort' means. Without even a one-sentence description, it is impossible to write a plan, identify a target scenario, set acceptance criteria, or estimate effort. This decision blocks ALL progress. If no answer is provided, the recommendation is to archive this item (see d2).",
+      "options": [
+        {"key": "A", "label": "Test/placeholder item — created to exercise the backlog system", "rationale": "The empty description and lowest priority suggest this may be a system test item, not a real idea."},
+        {"key": "B", "label": "A real idea — provide description in freeform field", "rationale": "If this is a genuine idea, please write a 1-2 sentence description in the freeform field so planning can begin."},
+        {"key": "C", "label": "Related to effort estimation in the backlog system", "rationale": "The name 'No Effort' might refer to backlog items that lack effort estimates — a meta-feature for the swarm-manager."},
+        {"key": "D", "label": "Other", "rationale": "Provide any context about what this item should accomplish."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Should this item be archived if no description is provided?",
+      "context": "After 3 workshop rounds with no answers and no description, this item is adding noise to the backlog. Archiving removes it from active processing while preserving it for future reference. It can be un-archived if a real purpose emerges later.",
+      "options": [
+        {"key": "A", "label": "Archive this item", "rationale": "Clean up the backlog. The item can be recreated with a proper description when needed."},
+        {"key": "B", "label": "Keep in backlog — I will answer d1 above", "rationale": "The item has a real purpose and I will provide the missing context now."},
+        {"key": "C", "label": "Other", "rationale": "Specify what should happen with this item."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "No plan updates — all 13 sections remain TBD. The single blocking dependency is d1 (what is this item about). Once answered, the plan can be populated in a single pass."
+}

@@ -245,6 +245,7 @@ type RunState struct {
 	StartedAt  string
 	FinishedAt string
 	ErrorMsg   string
+	SandboxID  string
 }
 
 // SpawnResearch creates a research task/run in agent-manager.
@@ -405,10 +406,11 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	}
 
 	state := RunState{
-		RunID:    strings.TrimSpace(run.Id),
-		TaskID:   strings.TrimSpace(run.TaskId),
-		Status:   normalizeRunStatus(run.Status),
-		ErrorMsg: strings.TrimSpace(run.ErrorMsg),
+		RunID:     strings.TrimSpace(run.Id),
+		TaskID:    strings.TrimSpace(run.TaskId),
+		Status:    normalizeRunStatus(run.Status),
+		ErrorMsg:  strings.TrimSpace(run.ErrorMsg),
+		SandboxID: strings.TrimSpace(run.GetSandboxId()),
 	}
 	if run.StartedAt != nil {
 		state.StartedAt = run.StartedAt.AsTime().UTC().Format(time.RFC3339)

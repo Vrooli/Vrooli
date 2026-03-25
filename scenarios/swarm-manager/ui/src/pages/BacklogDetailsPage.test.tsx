@@ -85,9 +85,10 @@ describe("BacklogDetailsPage", () => {
     vi.mocked(backlogService.getFileContent).mockResolvedValue("Spec content");
   });
 
-  const renderPage = (kind = "idea", name = "test-idea") => {
+  const renderPage = (kind = "idea", name = "test-idea", tab?: string) => {
+    const search = tab ? `?tab=${tab}` : "";
     return render(
-      <MemoryRouter initialEntries={[`/backlog/${kind}/${name}`]}>
+      <MemoryRouter initialEntries={[`/backlog/${kind}/${name}${search}`]}>
         <QueryClientProvider client={queryClient}>
           <Routes>
             <Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} />
@@ -149,14 +150,14 @@ describe("BacklogDetailsPage", () => {
     expect(screen.queryByTestId("backlog-details-queue")).not.toBeInTheDocument();
   });
 
-  it("renders file tree", async () => {
+  it("renders file tree on files tab", async () => {
     vi.mocked(backlogService.get).mockResolvedValue(mockItem);
     vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
 
-    renderPage();
+    renderPage("idea", "test-idea", "files");
 
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-details-file-tree")).toBeInTheDocument();
+      expect(screen.getAllByTestId("backlog-details-file-tree").length).toBeGreaterThan(0);
     });
   });
 
@@ -177,10 +178,10 @@ describe("BacklogDetailsPage", () => {
     vi.mocked(backlogService.get).mockResolvedValue(mockItem);
     vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
 
-    renderPage();
+    renderPage("idea", "test-idea", "files");
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-header-actions-trigger")).toBeInTheDocument();
+      expect(screen.getAllByTestId("file-header-actions-trigger").length).toBeGreaterThan(0);
     });
   });
 
@@ -188,14 +189,17 @@ describe("BacklogDetailsPage", () => {
     vi.mocked(backlogService.get).mockResolvedValue(mockItem);
     vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
 
-    renderPage();
-
-    const trigger = await screen.findByTestId("file-header-actions-trigger");
-    fireEvent.click(trigger);
+    renderPage("idea", "test-idea", "files");
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-header-actions-popover")).toBeInTheDocument();
-      expect(screen.getByTestId("backlog-file-actions-menu")).toBeInTheDocument();
+      expect(screen.getAllByTestId("file-header-actions-trigger").length).toBeGreaterThan(0);
+    });
+    const triggers = screen.getAllByTestId("file-header-actions-trigger");
+    fireEvent.click(triggers[0]!);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("file-header-actions-popover").length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId("backlog-file-actions-menu").length).toBeGreaterThan(0);
     });
   });
 });

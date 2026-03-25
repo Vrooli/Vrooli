@@ -101,6 +101,8 @@ describe("Backlog Service", () => {
         tags: ["new"],
         kind: "idea",
         depends_on: [],
+        acceptance_allow: [],
+        acceptance_deny: [],
       });
       expect(result).toEqual(createdItem);
     });

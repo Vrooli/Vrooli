@@ -30,6 +30,7 @@ Vrooli's existing test infrastructure includes several relevant components:
 | Go test suites | `scenarios/*/api/*_test.go` | Per-scenario API unit/integration tests using testcontainers |
 | Bats tests | Various `*.bats` files | Shell/CLI integration testing |
 | agent-manager sandbox | `scenarios/agent-manager/` | Sandboxed execution environment for agents |
+| swarm-manager backlog | `scenarios/swarm-manager/` | Orchestrates backlog items through workshop, research, and execution pipelines |
 
 Any new testing idea should be evaluated against these existing capabilities to avoid duplication and maximize composability with the existing ecosystem.
 
@@ -37,13 +38,13 @@ Any new testing idea should be evaluated against these existing capabilities to 
 <!-- TBD — What does the system look like when this idea is implemented? -->
 
 ## Implementation Strategy
-<!-- TBD — Blocked on fundamental scope and approach decisions. 11 decisions across rounds 1-3 remain unresolved. At minimum, round 1 decisions d1 (core idea), d3 (problem), and round 2 decision d1 (scope) must be answered before this section can be populated. -->
+<!-- TBD — Blocked on foundational decisions. 17 decisions across rounds 1-5 remain unresolved. The critical path requires answering just 3 decisions: (1) what is the core idea, (2) what problem does it solve, (3) which scenario does it target. All other decisions can be inferred or deferred once these three are resolved. -->
 
 ## Contract Decisions
 <!-- TBD — API/CLI/data model contracts cannot be defined until the idea is scoped. -->
 
 ## Testing Plan
-<!-- TBD — We need to know what we're building before we can define a test plan. -->
+<!-- TBD — We need to know what we are building before we can define a test plan. -->
 
 ## Rollout / Validation Checklist
 <!-- TBD -->
@@ -52,12 +53,13 @@ Any new testing idea should be evaluated against these existing capabilities to 
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Idea too vague to act on | High | High | Workshop rounds 1-3 present 11 targeted decisions to force specificity |
+| Idea too vague to act on | High | High | Workshop rounds 1-5 present 17 targeted decisions; round 6 consolidates the 3 critical-path decisions |
 | Overlap with existing test tooling | Medium | Medium | Survey existing test infrastructure before building (see Current Technical Context) |
-| Decision paralysis from too many open questions | Medium | Medium | Prioritize round 1 decisions first — they gate all downstream planning |
+| Decision paralysis from too many open questions | Medium | Medium | Round 6 consolidation: only 3 decisions required to unblock all planning |
+| Workshop stalls without user engagement | High | High | Round 6 clearly states minimum-viable input: answer 3 decisions to unblock everything |
 
 ## Non-goals / Prohibited Patterns
 <!-- TBD — Will be defined after scope is established. -->
 
 ## Definition of Done
-<!-- TBD — Cannot define completion criteria without knowing what we're building. -->
+<!-- TBD — Cannot define completion criteria without knowing what we are building. -->

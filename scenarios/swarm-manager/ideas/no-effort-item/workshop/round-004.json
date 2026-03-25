@@ -1,0 +1,33 @@
+{
+  "round": 4,
+  "generated_at": "2026-03-24T23:55:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "This is the 4th workshop round. Rounds 1-3 asked a total of 13 decisions — all remain unanswered. The item has no description, no scope, no tags, no archive materials, and the lowest priority (5). The plan is entirely TBD. At this point the strongest recommendation is to either provide a description or archive the item. This round presents a final binary choice."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Final disposition: describe or archive this item",
+      "context": "Three prior rounds have been unable to make any progress because the fundamental question — what is this item? — remains unanswered. No description, no scope, no archive materials exist. The plan cannot advance without at minimum a one-sentence description of what 'No Effort' means. This round presents a final choice: provide the missing context or archive the item to reduce backlog noise.",
+      "options": [
+        {"key": "A", "label": "Archive this item — it's a test/placeholder", "rationale": "Remove from active backlog. Can be recreated with a proper description if needed later. Recommended given the pattern of empty context and unanswered rounds."},
+        {"key": "B", "label": "This is a real idea — here's the description", "rationale": "Write a 1-2 sentence description in the freeform field. Once provided, the plan can be fully populated in a single pass."},
+        {"key": "C", "label": "Keep in backlog but deprioritize — I'll add context later", "rationale": "Leave the item as-is. No further workshop rounds will be generated until a description is added to spec.json."}
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected 'Archive' based on the pattern: 4 rounds, 0 answers, empty description, lowest priority. Override by selecting B and providing a description."
+    }
+  ],
+  "plan_updates": "No plan updates — all 13 sections remain TBD. After 4 rounds with no user input, further workshop rounds are not productive. The recommended path is: answer d1 to either archive the item or provide a description that unblocks all planning."
+}

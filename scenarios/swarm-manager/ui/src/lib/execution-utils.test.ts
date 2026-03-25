@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   canCancelExecution,
+  canFollowUpExecution,
   canRetryExecution,
   canStartExecution,
+  EXECUTION_TAB_CONFIG,
   isExecutionActive,
   isExecutionInTab,
   matchesExecutionFilters,
@@ -82,6 +84,43 @@ describe("execution-utils", () => {
       expect(canCancelExecution("completed")).toBe(false);
       expect(canRetryExecution("failed")).toBe(true);
       expect(canRetryExecution("canceled")).toBe(false);
+    });
+  });
+
+  describe("canFollowUpExecution", () => {
+    it("returns true for completed, failed, needs_fixup", () => {
+      expect(canFollowUpExecution("completed")).toBe(true);
+      expect(canFollowUpExecution("failed")).toBe(true);
+      expect(canFollowUpExecution("needs_fixup")).toBe(true);
+    });
+
+    it("returns false for pending, running, validating, etc.", () => {
+      expect(canFollowUpExecution("pending")).toBe(false);
+      expect(canFollowUpExecution("running")).toBe(false);
+      expect(canFollowUpExecution("validating")).toBe(false);
+      expect(canFollowUpExecution("scheduled")).toBe(false);
+      expect(canFollowUpExecution("starting")).toBe(false);
+      expect(canFollowUpExecution("needs_review")).toBe(false);
+      expect(canFollowUpExecution("canceled")).toBe(false);
+    });
+  });
+
+  describe("isExecutionActive extended", () => {
+    it("returns true for validating", () => {
+      expect(isExecutionActive({ ...baseRecord, status: "validating" })).toBe(true);
+    });
+
+    it("returns false for needs_fixup", () => {
+      expect(isExecutionActive({ ...baseRecord, status: "needs_fixup" })).toBe(false);
+    });
+  });
+
+  describe("EXECUTION_TAB_CONFIG", () => {
+    it('"all" tab includes validating and needs_fixup', () => {
+      const allTab = EXECUTION_TAB_CONFIG.find((tab) => tab.id === "all");
+      expect(allTab).toBeDefined();
+      expect(allTab!.statuses).toContain("validating");
+      expect(allTab!.statuses).toContain("needs_fixup");
     });
   });
 });

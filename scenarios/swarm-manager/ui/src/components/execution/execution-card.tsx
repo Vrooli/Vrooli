@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSquare, AlertTriangle } from "lucide-react";
 import { Button } from "../ui/button";
-import { formatRelativeTime } from "../../lib";
+import { cn, formatRelativeTime, canFollowUpExecution } from "../../lib";
 import {
   BACKLOG_KIND_LABELS,
   EXECUTION_STATUS_COLORS,
@@ -10,7 +10,98 @@ import {
   type BacklogKind,
   type ExecutionRecord,
   type PromptTrace,
+  type ReviewResult,
 } from "../../types";
+
+// ============================================================================
+// ReviewStatusBadge
+// ============================================================================
+
+const REVIEW_DIMENSION_COLORS: Record<string, string> = {
+  green: "bg-emerald-500",
+  yellow: "bg-amber-500",
+  red: "bg-red-500",
+  skipped: "bg-slate-500",
+};
+
+function ReviewStatusBadge({
+  result,
+  onOpenSandbox,
+}: {
+  result: ReviewResult;
+  onOpenSandbox?: () => void;
+}) {
+  const [showDimensions, setShowDimensions] = useState(false);
+  const hasIssues = result.classification === "needs_work";
+  const nonGreenDimensions = result.dimensions.filter((d) => d.status !== "green" && d.status !== "skipped");
+
+  return (
+    <div className="space-y-1.5" data-testid="review-status-badge">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (result.dimensions.length > 0) setShowDimensions(!showDimensions);
+        }}
+        className={cn(
+          "flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
+          result.classification === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+          result.classification === "ready_with_notes" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
+          result.classification === "needs_work" && "border-red-500/30 bg-red-500/10 text-red-300",
+          result.classification === "not_assessable" && "border-slate-600 bg-slate-800/50 text-slate-400",
+          result.dimensions.length > 0 && "cursor-pointer hover:border-white/20",
+        )}
+      >
+        {result.classification === "ready" && <Check className="h-3.5 w-3.5 shrink-0" />}
+        {result.classification === "ready_with_notes" && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+        {result.classification === "needs_work" && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+        <span className="flex-1 text-left">
+          {result.classification === "ready" && "Checks passed"}
+          {result.classification === "ready_with_notes" && "Passed with notes"}
+          {result.classification === "needs_work" && "Issues found"}
+          {result.classification === "not_assessable" && "Review inconclusive"}
+        </span>
+        {result.dimensions.length > 0 && (
+          showDimensions
+            ? <ChevronUp className="h-3 w-3 shrink-0 text-slate-500" />
+            : <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
+        )}
+      </button>
+
+      {showDimensions && (
+        <div className="space-y-1 rounded-md bg-slate-800/50 px-2.5 py-2">
+          {result.dimensions.map((dim) => (
+            <div key={dim.name} className="flex items-center gap-2 text-xs" data-testid={`review-dim-${dim.name}`}>
+              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", REVIEW_DIMENSION_COLORS[dim.status] ?? "bg-slate-500")} />
+              <span className="text-slate-300">{dim.name}</span>
+              {dim.details && <span className="text-slate-500">— {dim.details}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasIssues && onOpenSandbox && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenSandbox();
+          }}
+          data-testid="review-open-sandbox"
+        >
+          <ExternalLink className="mr-1.5 h-3 w-3" />
+          Review in Sandbox
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// ExecutionCard
+// ============================================================================
 
 interface ExecutionCardProps {
   item: ExecutionRecord;
@@ -23,6 +114,8 @@ interface ExecutionCardProps {
   onRetry: (executionId: string) => void;
   onViewTrace: (executionId: string) => void;
   onViewBacklog: (backlogKind: string, backlogName: string) => void;
+  onFollowUp?: (executionId: string) => void;
+  onOpenReviewSandbox?: (executionId: string) => void;
   trace?: PromptTrace;
   traceLoading?: boolean;
   agentManagerUiUrl?: string | null;
@@ -40,6 +133,8 @@ export function ExecutionCard({
   onRetry,
   onViewTrace,
   onViewBacklog,
+  onFollowUp,
+  onOpenReviewSandbox,
   trace,
   traceLoading = false,
   agentManagerUiUrl,
@@ -47,6 +142,7 @@ export function ExecutionCard({
 }: ExecutionCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
+  const canFollowUp = canFollowUpExecution(item.status) && onFollowUp;
 
   return (
     <article className="group block space-y-3" data-testid={testId}>
@@ -83,14 +179,22 @@ export function ExecutionCard({
         </p>
       ) : null}
 
+      {/* Review status badge */}
+      {item.reviewResult ? (
+        <ReviewStatusBadge
+          result={item.reviewResult}
+          onOpenSandbox={onOpenReviewSandbox ? () => onOpenReviewSandbox(item.executionId) : undefined}
+        />
+      ) : null}
+
       {/* Timestamps — both labeled */}
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span title={new Date(item.updatedAt).toLocaleString()}>Updated {formatRelativeTime(item.updatedAt)}</span>
         <span title={new Date(item.createdAt).toLocaleString()}>Created {formatRelativeTime(item.createdAt)}</span>
       </div>
 
-      {/* Primary actions: Start / Cancel / Retry */}
-      {(canStart || canCancel || canRetry) && (
+      {/* Primary actions: Start / Cancel / Retry / Follow Up */}
+      {(canStart || canCancel || canRetry || canFollowUp) && (
         <div className="flex flex-wrap gap-2">
           {canStart && (
             <Button
@@ -136,6 +240,22 @@ export function ExecutionCard({
             >
               {isBusy ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
               Retry
+            </Button>
+          )}
+
+          {canFollowUp && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onFollowUp(item.executionId);
+              }}
+              data-testid="follow-up-button"
+            >
+              <MessageSquare className="mr-1.5 h-3 w-3" />
+              Follow Up
             </Button>
           )}
         </div>
@@ -199,6 +319,7 @@ export function ExecutionCard({
           <p>exec {item.executionId}</p>
           {item.runId ? <p>run {item.runId}</p> : null}
           {item.taskId ? <p>task {item.taskId}</p> : null}
+          {item.parentExecutionId ? <p>parent {item.parentExecutionId}</p> : null}
         </div>
       )}
 

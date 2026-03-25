@@ -1,0 +1,55 @@
+{
+  "round": 5,
+  "generated_at": "2026-03-24T18:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Existing inspiration or reference",
+      "context": "Sometimes an idea is best communicated by pointing to something that already exists. If there is an existing tool, product, or workflow that inspired this idea, naming it would resolve most of the open questions from rounds 1-4 in one stroke.",
+      "options": [
+        {"key": "A", "label": "Inspired by an existing open-source tool", "rationale": "Name the tool in freeform — we can model scope, architecture, and features after it"},
+        {"key": "B", "label": "Inspired by a commercial product", "rationale": "Name the product — helps define target market, feature set, and differentiation"},
+        {"key": "C", "label": "Inspired by an internal workflow or pain point", "rationale": "Describe the specific workflow — grounds the idea in a concrete problem"},
+        {"key": "D", "label": "No specific inspiration — original concept", "rationale": "The idea is novel and needs to be described from scratch. Please provide detail in freeform."},
+        {"key": "E", "label": "Other", "rationale": "Provide your own context"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Effort budget",
+      "context": "Understanding the expected investment level helps calibrate the scope of the plan. A weekend hack and a multi-month project require very different planning depth.",
+      "options": [
+        {"key": "A", "label": "Small — a few hours to a day", "rationale": "Quick win, minimal scope. Script, CLI tool, or single-endpoint API."},
+        {"key": "B", "label": "Medium — 1-2 weeks of agent work", "rationale": "A proper scenario with API, possibly UI. Standard Vrooli scenario scope."},
+        {"key": "C", "label": "Large — multi-week, phased delivery", "rationale": "Complex scenario requiring multiple services, integrations, or phased rollout."},
+        {"key": "D", "label": "Other", "rationale": "Specify your expected effort level"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "BLOCKER STATUS: 15 decisions across rounds 1-4 remain unresolved. The plan cannot progress beyond its current scaffold state. The critical path to unblock planning requires answering just 3 decisions: Round 1 d1 (what is the core idea?), Round 1 d3 (what problem does it solve?), and Round 2 d1 (which scenario does it target?). All other decisions can be deferred or inferred once these three are answered."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "WORKSHOP COVERAGE SUMMARY: Rounds 1-5 now cover: core concept definition, target audience, problem statement, deployment model, priority, target scenario, acceptance criteria, resource dependencies, integration patterns, MVP approach, success metrics, monetization, UI needs, security/isolation, test-genie relationship, inspiration/references, and effort budget. No further questions can meaningfully advance the plan until existing decisions are answered."
+    }
+  ],
+  "plan_updates": "Added swarm-manager to Current Technical Context table. Added workshop-stall risk to Risks + Mitigations. Updated decision count references. No structural plan changes possible — all sections remain TBD pending resolution of foundational decisions from rounds 1-4."
+}

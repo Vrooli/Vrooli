@@ -178,6 +178,11 @@ export const literalSelectors = {
     statusSelect: "backlog-details-status-select",
     executionHistory: "backlog-details-execution-history",
     activeRunBanner: "backlog-details-active-run-banner",
+    tabRow: "backlog-details-tab-row",
+    tabInfo: "backlog-details-tab-info",
+    tabPrompt: "backlog-details-tab-prompt",
+    tabFiles: "backlog-details-tab-files",
+    promptPanel: "backlog-details-prompt-panel",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -278,6 +283,18 @@ export const literalSelectors = {
     blockingReasons: "run-backlog-blocking-reasons",
     readinessWarning: "run-backlog-readiness-warning",
     error: "run-backlog-error",
+  },
+  followUp: {
+    dialog: "follow-up-dialog",
+    typeFixup: "follow-up-type-fixup",
+    typeFollowup: "follow-up-type-followup",
+    typeCustom: "follow-up-type-custom",
+    runModeContinue: "follow-up-run-mode-continue",
+    runModeNew: "follow-up-run-mode-new",
+    contextInput: "follow-up-context-input",
+    submitButton: "follow-up-submit-button",
+    error: "follow-up-error",
+    reviewSummary: "follow-up-review-summary",
   },
   prompts: {
     page: "prompts-page",

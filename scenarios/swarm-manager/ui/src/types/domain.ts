@@ -66,7 +66,7 @@ export type BacklogResearchTarget = "idea" | "fix" | "execute" | "chore" | "unsp
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget" | "dependsOn" | "initiative"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "researchTarget" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** Backlog category */
@@ -77,6 +77,10 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   dependsOn?: string[];
   /** Initiative this item belongs to. */
   initiative?: string;
+  /** Glob patterns for expected file modifications. */
+  acceptanceAllow?: string[];
+  /** Glob patterns for forbidden file modifications. */
+  acceptanceDeny?: string[];
 };
 
 /**
@@ -555,19 +559,47 @@ export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;
 // Execution Domain
 // ============================================================================
 
-export type ExecutionStatus = "pending" | "scheduled" | "starting" | "running" | "needs_review" | "completed" | "failed" | "canceled";
+export type ExecutionStatus = "pending" | "scheduled" | "starting" | "running" | "needs_review" | "validating" | "needs_fixup" | "completed" | "failed" | "canceled";
 
 export type ExecutionMode = "manual" | "scheduled" | "yolo";
 
-export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation"> & {
+export type ExecutionOperation = "generator" | "improver" | "fixup" | "followup";
+
+/** Classification of a post-execution readiness review. */
+export type ReviewClassification = "ready" | "ready_with_notes" | "needs_work" | "not_assessable";
+
+/** A single review dimension result from git-control-tower. */
+export interface ReviewDimension {
+  name: string;
+  /** green, yellow, red, skipped */
+  status: string;
+  details?: string;
+}
+
+/** Post-execution readiness review result. */
+export interface ReviewResult {
+  jobId: string;
+  classification: ReviewClassification;
+  dimensions: ReviewDimension[];
+  summary: string;
+  reviewedAt: string;
+}
+
+export type ExecutionRecord = Omit<ProtoMessage<ProtoExecutionRecord>, "status" | "mode" | "operation" | "fixupAttempt" | "reviewResult"> & {
   status: ExecutionStatus;
   mode: ExecutionMode;
-  operation?: "generator" | "improver";
+  operation?: ExecutionOperation;
+  parentExecutionId?: string;
+  fixupAttempt?: number;
+  reviewResult?: ReviewResult;
+  reviewJobId?: string;
 };
 
-export type ExecutionPolicy = Omit<ProtoMessage<ProtoExecutionPolicy>, "defaultDelaySeconds"> & {
+export type ExecutionPolicy = Omit<ProtoMessage<ProtoExecutionPolicy>, "defaultDelaySeconds" | "maxFixupAttempts"> & {
   defaultMode: ExecutionMode;
   defaultDelaySeconds: number;
+  autoFixup: boolean;
+  maxFixupAttempts: number;
 };
 
 // ============================================================================
@@ -579,6 +611,7 @@ export interface PromptTrace {
   purpose: string;
   variables?: Record<string, string>;
   prompt: string;
+  prompt_revision?: string;
   used_fallback: boolean;
   captured_at: string;
 }

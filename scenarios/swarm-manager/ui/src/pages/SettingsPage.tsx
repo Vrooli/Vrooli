@@ -311,6 +311,40 @@ export function SettingsPage() {
                 }
               />
             </div>
+            <div className="border-t border-white/5 pt-4">
+              <label className="block text-sm font-medium text-slate-300">Auto-Fixup</label>
+              <p className="mt-1 text-xs text-slate-400">When enabled, automatically re-runs execution when review finds issues.</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {([false, true] as const).map((enabled) => (
+                  <button
+                    key={String(enabled)}
+                    className={`rounded-lg border py-2 text-sm font-medium ${policyForm.autoFixup === enabled ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
+                    onClick={() => setPolicyForm({ ...policyForm, autoFixup: enabled })}
+                  >
+                    {enabled ? "Enabled" : "Disabled"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {policyForm.autoFixup && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300">Max Fixup Attempts</label>
+                <p className="mt-1 text-xs text-slate-400">Maximum number of automatic fix-up attempts (0-5).</p>
+                <Input
+                  type="number"
+                  min={0}
+                  max={5}
+                  className="mt-1"
+                  value={policyForm.maxFixupAttempts}
+                  onChange={(e) =>
+                    setPolicyForm({
+                      ...policyForm,
+                      maxFixupAttempts: Math.max(0, Math.min(5, Number(e.target.value || 0))),
+                    })
+                  }
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="mt-4">

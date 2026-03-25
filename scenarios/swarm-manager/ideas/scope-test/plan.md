@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-<!-- TBD — No description provided in spec.json. Blocked on workshop decision d17 (disposition). -->
+<!-- TBD — No description provided in spec.json. Blocked on workshop decision d20 (final disposition). -->
 
 ## 2. Required Reading
 
@@ -12,13 +12,13 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 
 ## 3. Problem Statement
 
-<!-- TBD — Blocked on workshop decision d17 (disposition). -->
+<!-- TBD — Blocked on workshop decision d20 (final disposition). -->
 
 ## 4. Scope
 
 ### In Scope
 
-<!-- TBD — Blocked on workshop decisions d17 (disposition) and d18 (target scenario). -->
+<!-- TBD — Blocked on workshop decisions d20 (disposition) and target scenario selection. -->
 
 ### Out of Scope
 
@@ -52,10 +52,10 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| No description provided | Cannot plan without understanding the goal | 7 workshop rounds asked for clarification |
-| No scope set | Cannot target implementation | 7 workshop rounds asked which scenario this targets |
-| 7 rounds with no user answers | Item stalled indefinitely | Round 7 recommends auto-archive |
-| Backlog noise | Stale items consume workshop cycles | Auto-archive recommended if round 7 goes unanswered |
+| No description provided | Cannot plan without understanding the goal | 9 workshop rounds asked for clarification |
+| No scope set | Cannot target implementation | 9 workshop rounds asked which scenario this targets |
+| 9 rounds with no user answers | Item stalled indefinitely | Final round (9) strongly recommends archive |
+| Backlog noise | Stale items consume workshop cycles | No further rounds will be generated |
 
 ## 12. Non-goals / Prohibited Patterns
 
@@ -73,5 +73,6 @@ prompt-manager skill read cli-steer api-steer utils-unification seam-discovery-a
 |----------|-------|--------|--------|
 | d3 (file paths) | 1 | Pre-selected | C: Defer until scope is decided |
 | d11 (priority) | 3 | Pre-selected | A: Keep at 5 |
-| d17 (disposition — AUTO-ARCHIVE RECOMMENDED) | 7 | **BLOCKING** | Unanswered — determines if item proceeds, is deleted, or archived |
-| d18 (target scenario) | 7 | **BLOCKING** | Unanswered — depends on d17=A |
+| d17 (disposition — archive recommended) | 7 | Unanswered | — |
+| d19 (disposition — re-run) | 8 | Unanswered | — |
+| d20 (final disposition — ARCHIVE STRONGLY RECOMMENDED) | 9 | **BLOCKING / FINAL** | Unanswered — no further rounds will be generated |

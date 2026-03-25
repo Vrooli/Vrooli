@@ -18,7 +18,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   ArrowRight,
   ArrowRightLeft,
@@ -34,6 +34,7 @@ import {
   Info,
   Lock,
   Loader2,
+  MessageSquare,
   MoreHorizontal,
   Play,
   Search,
@@ -44,6 +45,9 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { PromptTracePanel } from "../components/backlog/prompt-trace-panel";
+import { useUrlState } from "../hooks/use-url-state";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Dialog } from "../components/ui/dialog";
 import { Popover } from "../components/ui/popover";
@@ -63,6 +67,7 @@ import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { BacklogAgentDialog } from "../components/backlog/backlog-agent-dialog";
 import { WorkshopPanel } from "../components/backlog/workshop-panel";
 import { ReadinessDetailsPanel } from "../components/backlog/readiness-details-panel";
+import { FollowUpDialog } from "../components/execution/follow-up-dialog";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { RequirementFormDialog } from "../components/backlog/requirement-form-dialog";
@@ -71,6 +76,7 @@ import { ModuleFormDialog } from "../components/backlog/module-form-dialog";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import {
   cn,
+  canFollowUpExecution,
   defaultQueryOptions,
   formatRelativeTime,
   getBacklogNotQueueableReason,
@@ -120,7 +126,7 @@ const MIN_FILES_PANEL_WIDTH = 240;
 const MAX_FILES_PANEL_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
 const RESIZE_HANDLE_WIDTH = 8;
-type MobileView = "info" | "files";
+type DetailsTab = "info" | "prompt" | "files";
 type FileActionType = "rename" | "move" | "copy" | "delete";
 
 interface FileActionTarget {
@@ -206,6 +212,14 @@ export function BacklogDetailsPage() {
   const { kind, name } = useParams<{ kind: string; name: string }>();
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
   const navigate = useNavigate();
+  const routeLocation = useLocation();
+  // Capture backlog search params on initial mount — setSearchParams calls
+  // within this page replace the history entry and drop location.state,
+  // so we must snapshot it before that happens.
+  const backSearchRef = useRef(
+    (routeLocation.state as { backlogSearch?: string } | null)?.backlogSearch ?? "",
+  );
+  const backLink = `/backlog${backSearchRef.current}`;
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
@@ -286,7 +300,9 @@ export function BacklogDetailsPage() {
   const headerFileActionsRef = useRef<HTMLDivElement | null>(null);
   const [filesPanelWidth, setFilesPanelWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
-  const [mobileView, setMobileView] = useState<MobileView>("info");
+  const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
+    validate: (v): v is DetailsTab => ["info", "prompt", "files"].includes(v),
+  });
   const [showFilesSheet, setShowFilesSheet] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
@@ -310,6 +326,7 @@ export function BacklogDetailsPage() {
 
   const [execSectionOpen, setExecSectionOpen] = useState(false);
   const [expandedExecIds, setExpandedExecIds] = useState<Set<string>>(new Set());
+  const [followUpTarget, setFollowUpTarget] = useState<ExecutionRecord | null>(null);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
   const [reviewMode, setReviewMode] = useState(false);
@@ -341,8 +358,25 @@ export function BacklogDetailsPage() {
   useEffect(() => {
     const el = descRef.current;
     if (!el) return;
-    setDescOverflows(el.scrollHeight > el.clientHeight);
-  }, [item?.description]);
+    const check = () => {
+      // line-clamp-3 (overflow:hidden + -webkit-line-clamp) constrains both
+      // scrollHeight and clientHeight to the clamped size. To detect overflow:
+      // capture clamped height, temporarily unclamp, capture natural height, restore.
+      const clamped = el.classList.contains("line-clamp-3");
+      if (!clamped) return; // expanded — nothing to check
+      const clampedHeight = el.getBoundingClientRect().height;
+      el.classList.remove("line-clamp-3");
+      void el.offsetHeight; // force synchronous reflow
+      const naturalHeight = el.getBoundingClientRect().height;
+      el.classList.add("line-clamp-3");
+      setDescOverflows(naturalHeight > clampedHeight + 1);
+    };
+    requestAnimationFrame(check);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [item?.description, descExpanded]);
 
   const {
     data: files,
@@ -404,7 +438,7 @@ export function BacklogDetailsPage() {
     return workshopRoundContents
       .map((content) => parseWorkshopRound(content))
       .filter((r): r is { round: WorkshopRound; error?: string } => r.round !== null)
-      .map((r) => r.round!);
+      .map((r) => r.round);
   }, [workshopRoundContents]);
 
   const workshopBlockedDeps = useMemo(() => {
@@ -446,6 +480,8 @@ export function BacklogDetailsPage() {
 
   const LOCKED_STATUSES = new Set(["queued", "in_progress"]);
   const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
+  const TERMINAL_STATUSES = new Set(["completed", "failed"]);
+  const isTerminal = Boolean(item && TERMINAL_STATUSES.has(item.status));
 
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
@@ -454,7 +490,7 @@ export function BacklogDetailsPage() {
   const handleFileSelect = useCallback((file: BacklogFile) => {
     if (file.type === "file") {
       setSelectedFile(file);
-      setMobileView("files");
+      setActiveTab("files");
       setShowFilesSheet(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -568,6 +604,7 @@ export function BacklogDetailsPage() {
         upsertSpawnedRun({
           runId: result.autoAdvance.runId,
           taskId: result.autoAdvance.taskId ?? "",
+          baseUrl: "",
           backlogKind: backlogKind,
           backlogName: name,
           createdAt: new Date().toISOString(),
@@ -956,7 +993,7 @@ export function BacklogDetailsPage() {
   const agentError = agentMutation.isError
     ? agentMutation.error instanceof Error ? agentMutation.error.message : "Failed to start the agent. Make sure agent-manager is running."
     : null;
-  const workshopSaveError = workshopSaveMutation.isError
+  const _workshopSaveError = workshopSaveMutation.isError
     ? workshopSaveMutation.error instanceof Error ? workshopSaveMutation.error.message : "Failed to save workshop round."
     : null;
   const convertError = convertMutation.isError
@@ -1072,16 +1109,21 @@ export function BacklogDetailsPage() {
     setSelectedFile(null);
   }, [files, selectedFileParam, setSearchParams]);
 
+  const prevItemRef = useRef(`${backlogKind}/${name}`);
   useEffect(() => {
-    setMobileView("info");
-    setShowFilesSheet(false);
-  }, [backlogKind, name]);
-
-  useEffect(() => {
-    if (mobileView === "info" && showFilesSheet) {
+    const key = `${backlogKind}/${name}`;
+    if (key !== prevItemRef.current) {
+      prevItemRef.current = key;
+      setActiveTab("info");
       setShowFilesSheet(false);
     }
-  }, [mobileView, showFilesSheet]);
+  }, [backlogKind, name, setActiveTab]);
+
+  useEffect(() => {
+    if (activeTab === "info" && showFilesSheet) {
+      setShowFilesSheet(false);
+    }
+  }, [activeTab, showFilesSheet]);
 
   useEffect(() => {
     setShowFileActionsMenu(false);
@@ -1175,6 +1217,15 @@ export function BacklogDetailsPage() {
 
   const handleRequirementToggle = useCallback((id: string) => {
     setSelectedRequirementIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleExecExpand = useCallback((id: string) => {
+    setExpandedExecIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -1495,12 +1546,23 @@ export function BacklogDetailsPage() {
       )}
       {workshopBlockedDeps.length > 0 && workshopRounds.length === 0 && (
         <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-orange-300">
-              Workshop paused &mdash; waiting for: {workshopBlockedDeps.join(", ")}
+              Workshop paused &mdash; waiting for:{" "}
+              {workshopBlockedDeps.map((dep, i) => (
+                <span key={dep}>
+                  {i > 0 && ", "}
+                  <Link
+                    to={`/backlog/${dep}`}
+                    className="font-medium text-orange-200 underline decoration-orange-500/40 hover:text-orange-100 hover:decoration-orange-400/60"
+                  >
+                    {dep}
+                  </Link>
+                </span>
+              ))}
             </p>
             <button
-              className="text-xs text-orange-400 hover:text-orange-300 underline"
+              className="shrink-0 text-xs text-orange-400 hover:text-orange-300 underline"
               onClick={() => setShowForceWorkshopConfirm(true)}
             >
               Start Anyway
@@ -1526,23 +1588,14 @@ export function BacklogDetailsPage() {
         rounds={workshopRounds}
         backlogKind={backlogKind as BacklogKind}
         backlogName={name ?? ""}
-        disabled={isLocked}
+        disabled={isLocked || isTerminal}
         isSaving={workshopSaveMutation.isPending}
         isRunningWorkshop={agentMutation.isPending || agentRunIsActive}
         onSaveRound={handleSaveRound}
-        onRunWorkshop={handleRunWorkshop}
+        onRunWorkshop={isTerminal ? undefined : handleRunWorkshop}
       />
     </div>
   );
-
-  const toggleExecExpand = useCallback((id: string) => {
-    setExpandedExecIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
 
   const activeRunBanner = agentRunIsActive && latestAgentRun ? (
     <div
@@ -1657,6 +1710,20 @@ export function BacklogDetailsPage() {
                         {exec.failureReason}
                       </p>
                     )}
+                    {exec.reviewResult && (
+                      <div className={cn(
+                        "flex items-center gap-1.5 rounded px-2 py-1 text-xs",
+                        exec.reviewResult.classification === "ready" && "bg-emerald-500/10 text-emerald-300",
+                        exec.reviewResult.classification === "ready_with_notes" && "bg-amber-500/10 text-amber-300",
+                        exec.reviewResult.classification === "needs_work" && "bg-red-500/10 text-red-300",
+                        exec.reviewResult.classification === "not_assessable" && "bg-slate-700/50 text-slate-400",
+                      )}>
+                        {exec.reviewResult.classification === "ready" ? "✓ Checks passed" :
+                         exec.reviewResult.classification === "ready_with_notes" ? "⚠ Passed with notes" :
+                         exec.reviewResult.classification === "needs_work" ? "✕ Issues found" :
+                         "Review inconclusive"}
+                      </div>
+                    )}
                     <div className="space-y-1 text-xs text-slate-400">
                       {duration !== undefined && (
                         <p>Duration: {formatDuration(duration)}</p>
@@ -1696,6 +1763,16 @@ export function BacklogDetailsPage() {
                         >
                           <Square className="mr-1 h-3 w-3" />
                           {latestAgentRun.isStopping ? "Stopping..." : "Stop"}
+                        </Button>
+                      )}
+                      {canFollowUpExecution(exec.status as ExecutionStatus) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setFollowUpTarget(exec)}
+                        >
+                          Follow Up
                         </Button>
                       )}
                     </div>
@@ -1777,16 +1854,28 @@ export function BacklogDetailsPage() {
           <Edit className="mr-2 h-4 w-4" />
           Edit
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className={rowButtonClass}
-          onClick={() => runAction(() => setShowAgentDialog(true))}
-          disabled={isLocked}
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          {agentLabel}
-        </Button>
+        {isTerminal && executionHistory && executionHistory.length > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className={rowButtonClass}
+            onClick={() => runAction(() => setFollowUpTarget(executionHistory[0] ?? null))}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Follow Up
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className={rowButtonClass}
+            onClick={() => runAction(() => setShowAgentDialog(true))}
+            disabled={isLocked}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            {agentLabel}
+          </Button>
+        )}
         {!isLocked && item && (
           <div className="space-y-1">
             <label htmlFor="action-status-select" className="text-xs text-slate-400">
@@ -1999,7 +2088,7 @@ export function BacklogDetailsPage() {
 
       {item && !pageError && (
         <>
-          <div className="flex h-dvh flex-col overflow-hidden lg:hidden">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)} className="flex h-dvh flex-col overflow-hidden lg:hidden">
             <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
               <Button
                 asChild
@@ -2008,7 +2097,7 @@ export function BacklogDetailsPage() {
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
               >
                 <Link
-                  to="/backlog"
+                  to={backLink}
                   data-testid={selectors.backlogDetails.backButton}
                   aria-label="Back to backlog"
                 >
@@ -2026,24 +2115,6 @@ export function BacklogDetailsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 rounded-lg border-slate-700/80 bg-slate-900/45 px-3 text-xs font-medium text-slate-100 hover:bg-slate-800/70"
-                onClick={() => setMobileView((prev) => (prev === "info" ? "files" : "info"))}
-              >
-                {mobileView === "info" ? (
-                  <>
-                    <Files className="mr-1.5 h-4 w-4" />
-                    Files
-                  </>
-                ) : (
-                  <>
-                    <CircleHelp className="mr-1.5 h-4 w-4" />
-                    Info
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 className="h-9 w-9 rounded-md border-transparent bg-transparent p-0 hover:bg-slate-800/70"
                 onClick={() => setShowActionsSheet(true)}
                 aria-label="More actions"
@@ -2051,8 +2122,28 @@ export function BacklogDetailsPage() {
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
-            {mobileView === "info" ? mobileInfoView : fileWorkspace}
-          </div>
+            <div className="border-b border-slate-800" data-testid={selectors.backlogDetails.tabRow}>
+              <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
+                <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
+                  <CircleHelp className="h-4 w-4" />
+                  Info
+                </TabsTrigger>
+                <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
+                  <Sparkles className="h-4 w-4" />
+                  Prompt
+                </TabsTrigger>
+                <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
+                  <Files className="h-4 w-4" />
+                  Files
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            {activeTab === "info" && mobileInfoView}
+            {activeTab === "prompt" && (
+              <PromptTracePanel backlogKind={backlogKind as BacklogKind} backlogName={name!} className="flex-1 overflow-y-auto" />
+            )}
+            {activeTab === "files" && fileWorkspace}
+          </Tabs>
 
           <div className="hidden space-y-6 lg:block">
             <Card data-testid={selectors.backlogDetails.header}>
@@ -2210,35 +2301,70 @@ export function BacklogDetailsPage() {
             )}
           </Card>
 
-            {activeRunBanner}
-            {detailsPanel}
-            {notesPanel}
-            {archiveTargets?.has_archive && (
-              <>
-                <OperationalTargetsPanel
-                  targets={archiveTargets.targets}
-                  requirements={archiveTargets.requirements}
-                  editable
-                  onCreateRequirement={handleCreateRequirement}
-                  onEditRequirement={handleEditRequirement}
-                  onDeleteRequirement={handleDeleteRequirement}
-                  onReorderRequirement={handleReorderRequirement}
-                  onCreateModule={handleCreateModule}
-                  onEditModule={handleEditModule}
-                  onDeleteModule={handleDeleteModule}
-                  onCreateTarget={handleCreateTarget}
-                  onEditTarget={handleEditTarget}
-                  onDeleteTarget={handleDeleteTarget}
-                  reviewMode={reviewMode}
-                  onToggleReviewMode={() => setReviewMode((prev) => !prev)}
-                  onReviewAction={handleReviewAction}
-            reviewSaving={batchReviewMutation.isPending}
-            reviewError={batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)}>
+              <TabsList
+                className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 lg:w-auto lg:flex-wrap lg:overflow-visible lg:rounded-md lg:bg-slate-800/50 lg:p-1"
+                data-testid={selectors.backlogDetails.tabRow}
+              >
+                <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
+                  <CircleHelp className="h-4 w-4" />
+                  Info
+                </TabsTrigger>
+                <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
+                  <Sparkles className="h-4 w-4" />
+                  Prompt
+                </TabsTrigger>
+                <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
+                  <Files className="h-4 w-4" />
+                  Files
+                </TabsTrigger>
+              </TabsList>
+
+              {activeTab === "info" && (
+                <div className="space-y-6 pt-6">
+                  {activeRunBanner}
+                  {detailsPanel}
+                  {notesPanel}
+                  {archiveTargets?.has_archive && (
+                    <>
+                      <OperationalTargetsPanel
+                        targets={archiveTargets.targets}
+                        requirements={archiveTargets.requirements}
+                        editable
+                        onCreateRequirement={handleCreateRequirement}
+                        onEditRequirement={handleEditRequirement}
+                        onDeleteRequirement={handleDeleteRequirement}
+                        onReorderRequirement={handleReorderRequirement}
+                        onCreateModule={handleCreateModule}
+                        onEditModule={handleEditModule}
+                        onDeleteModule={handleDeleteModule}
+                        onCreateTarget={handleCreateTarget}
+                        onEditTarget={handleEditTarget}
+                        onDeleteTarget={handleDeleteTarget}
+                        reviewMode={reviewMode}
+                        onToggleReviewMode={() => setReviewMode((prev) => !prev)}
+                        onReviewAction={handleReviewAction}
+                        reviewSaving={batchReviewMutation.isPending}
+                        reviewError={batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null}
+                      />
+                    </>
+                  )}
+                  {executionHistorySection}
+                </div>
+              )}
+              {activeTab === "prompt" && (
+                <PromptTracePanel
+                  backlogKind={backlogKind as BacklogKind}
+                  backlogName={name!}
+                  className="mt-6 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50"
                 />
-              </>
-            )}
-            {executionHistorySection}
-            {fileWorkspace}
+              )}
+              {activeTab === "files" && (
+                <div className="pt-6">
+                  {fileWorkspace}
+                </div>
+              )}
+            </Tabs>
           </div>
 
           <BottomSheet
@@ -2465,6 +2591,18 @@ export function BacklogDetailsPage() {
         onClose={() => { setTargetDialogOpen(false); setEditingTarget(null); createTargetMutation.reset(); updateTargetMutation.reset(); }}
         onSubmit={handleTargetDialogSubmit}
       />
+
+      {followUpTarget && (
+        <FollowUpDialog
+          isOpen={Boolean(followUpTarget)}
+          onClose={() => setFollowUpTarget(null)}
+          execution={followUpTarget}
+          onSuccess={() => {
+            setFollowUpTarget(null);
+            void queryClient.invalidateQueries({ queryKey: ["execution-history"] });
+          }}
+        />
+      )}
 
     </div>
   );

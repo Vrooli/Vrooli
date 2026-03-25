@@ -8,6 +8,7 @@ package agentmanager
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -201,6 +202,31 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 		return nil, fmt.Errorf("%w: missing run id", ErrRequestFailed)
 	}
 	return result.Run, nil
+}
+
+// ContinueRun sends a follow-up message to an existing run's conversation.
+func (c *HTTPClient) ContinueRun(ctx context.Context, runID string, message string) error {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	body, err := json.Marshal(map[string]string{"runId": trimmed, "message": message})
+	if err != nil {
+		return fmt.Errorf("marshal continue request: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/continue", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp)
+	}
+
+	return nil
 }
 
 // StopRun stops a running run by ID.

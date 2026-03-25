@@ -115,15 +115,17 @@ export function WorkshopPanel({
               {isSaving ? "Saving..." : "Save Responses"}
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled || isRunningWorkshop}
-            onClick={onRunWorkshop}
-          >
-            <Play className="mr-2 h-3.5 w-3.5" />
-            {isRunningWorkshop ? "Running..." : "Next Round"}
-          </Button>
+          {onRunWorkshop && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled || isRunningWorkshop}
+              onClick={onRunWorkshop}
+            >
+              <Play className="mr-2 h-3.5 w-3.5" />
+              {isRunningWorkshop ? "Running..." : "Next Round"}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -291,6 +291,46 @@ All timing values are centralized in `ui/src/config/index.ts`. To modify:
 | Error recovery | ✅ Categorized | Clear paths per error type |
 | Teardown | ✅ Handled | React Query + Go graceful shutdown |
 
+### Post-Execution Review & Follow-Up Flow
+
+**Location**: `api/internal/execution/service.go` (`refreshRunningLocked`, `FollowUp`)
+
+When an execution completes on a scenario-scoped backlog item:
+
+```
+Agent completes → StatusCompleted
+    ↓
+shouldTriggerReview() — checks: scope starts with "scenarios/", not archive, reviewClient available
+    ↓ YES
+TriggerReview() → POST git-control-tower /api/v1/review/run
+    ↓
+StatusValidating (stores ReviewJobID)
+    ↓ polling loop (2s tick)
+PollReview() → GET /api/v1/review/run/{jobId}
+    ↓ completed
+mapJobToResult() — green→ready, yellow→ready_with_notes, red→needs_work
+    ↓
+  ┌─ ready/ready_with_notes → StatusCompleted, backlog → "completed"
+  └─ needs_work:
+       ├─ AutoFixup ON && attempts < max → spawnFixupRun() (auto, background)
+       └─ AutoFixup OFF || max reached → StatusNeedsFixup (user action needed)
+```
+
+**User-initiated follow-up** (`POST /api/v1/execution/{id}/follow-up`):
+
+```
+User clicks "Follow Up" on completed/failed/needs_fixup execution
+    ↓
+FollowUpDialog — selects type (fixup/followup/custom) + run mode (continue/new)
+    ↓
+  ┌─ continue → ContinueRun(runID, message) — replies to existing agent session
+  └─ new → SpawnBacklog() — fresh agent with follow-up prompt
+    ↓
+New execution record created with ParentExecutionID linking to original
+```
+
+**Timing**: Review polling runs on the same 2s tick as the main `refreshRunningLocked` loop. Follow-up is synchronous from the user's perspective (request returns the new execution record).
+
 ### Future Work
 
 1. **Add request cancellation test** - Verify unmount cancels in-flight requests

@@ -71,6 +71,7 @@ export type { ReadinessIndicatorData } from "./maturity";
 export {
   EXECUTION_TAB_CONFIG,
   canCancelExecution,
+  canFollowUpExecution,
   canRetryExecution,
   canStartExecution,
   isExecutionActive,

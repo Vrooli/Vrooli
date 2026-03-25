@@ -27,7 +27,7 @@ describe("execution-policy-service", () => {
     } as unknown as IApiClient;
     const service = createExecutionPolicyService(apiClient);
 
-    const policy = await service.update({ defaultMode: "scheduled", defaultDelaySeconds: 600 });
+    const policy = await service.update({ defaultMode: "scheduled", defaultDelaySeconds: 600, autoFixup: false, maxFixupAttempts: 2 });
 
     expect(apiClient.put).toHaveBeenCalled();
     expect(policy.defaultMode).toBe("scheduled");

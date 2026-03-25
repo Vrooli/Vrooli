@@ -309,7 +309,7 @@ function WorkshopQuestionView({ question, answer, disabled, onUpdate }: Workshop
               <span className="text-xs text-slate-200">{opt.label}</span>
             </div>
             {opt.rationale && (
-              <p className="mt-0.5 ml-5 text-[10px] text-slate-500 line-clamp-2">{opt.rationale}</p>
+              <p className="mt-0.5 ml-5 text-[10px] text-slate-500">{opt.rationale}</p>
             )}
           </button>
         ))}
@@ -394,7 +394,7 @@ function ReviewQuestionView({ question, answer, disabled, onUpdate }: ReviewQues
         </div>
       </div>
       {question.description && (
-        <p className="ml-7 text-[11px] text-slate-400 line-clamp-3">{question.description}</p>
+        <p className="ml-7 text-[11px] text-slate-400">{question.description}</p>
       )}
 
       {/* Approve / Flag buttons */}

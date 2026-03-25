@@ -11,6 +11,7 @@ import {
   toProtoJson,
   buildMessage,
   CreateExecutionRequestSchema,
+  FollowUpExecutionRequestSchema,
 } from "./proto-contracts";
 
 export interface CreateExecutionRequest {
@@ -32,6 +33,12 @@ export interface ListExecutionFilters {
   createdTo?: string;
 }
 
+export interface FollowUpRequest {
+  followUpType: "fixup" | "followup" | "custom";
+  context?: string;
+  runMode: "continue" | "new";
+}
+
 export interface IExecutionService {
   list(filters?: ListExecutionFilters): Promise<ExecutionRecord[]>;
   get(executionId: string): Promise<ExecutionRecord>;
@@ -39,6 +46,7 @@ export interface IExecutionService {
   start(executionId: string): Promise<ExecutionRecord>;
   cancel(executionId: string): Promise<ExecutionRecord>;
   retry(executionId: string): Promise<ExecutionRecord>;
+  followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord>;
 }
 
 export function createExecutionService(apiClient: IApiClient = defaultApiClient): IExecutionService {
@@ -111,6 +119,18 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
 
     async retry(executionId: string): Promise<ExecutionRecord> {
       return mutate(API_ENDPOINTS.executionRetry(executionId));
+    },
+
+    async followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord> {
+      const msg = buildMessage(FollowUpExecutionRequestSchema, {
+        executionId,
+        followUpType: request.followUpType,
+        ...(request.context ? { context: request.context } : {}),
+        runMode: request.runMode,
+      });
+      const body = toProtoJson(FollowUpExecutionRequestSchema, msg);
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.executionFollowUp(executionId), body);
+      return parseExecution(data);
     },
   };
 }

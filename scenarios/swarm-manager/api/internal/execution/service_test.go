@@ -855,3 +855,86 @@ func mustLoadRecords(t *testing.T, path string) []map[string]any {
 	}
 	return records
 }
+
+func TestPolicyToProto_IncludesAutoFixup(t *testing.T) {
+	policy := Policy{
+		DefaultMode:         ModeManual,
+		DefaultDelaySeconds: 300,
+		AutoFixup:           true,
+		MaxFixupAttempts:    3,
+	}
+	pb := policyToProto(policy)
+	if pb.DefaultMode != "manual" {
+		t.Fatalf("expected default_mode manual, got %s", pb.DefaultMode)
+	}
+	if pb.DefaultDelaySeconds != 300 {
+		t.Fatalf("expected default_delay_seconds 300, got %d", pb.DefaultDelaySeconds)
+	}
+	if !pb.AutoFixup {
+		t.Fatal("expected auto_fixup true")
+	}
+	if pb.MaxFixupAttempts != 3 {
+		t.Fatalf("expected max_fixup_attempts 3, got %d", pb.MaxFixupAttempts)
+	}
+}
+
+func TestRecordToProto_MapsReviewResult(t *testing.T) {
+	record := Record{
+		ExecutionID:       "exec-review-1",
+		BacklogKind:       "idea",
+		BacklogName:       "reviewed-idea",
+		Status:            StatusNeedsFixup,
+		Mode:              ModeYOLO,
+		ParentExecutionID: "parent-exec-0",
+		FixupAttempt:      2,
+		ReviewResult: &ReviewResult{
+			JobID:          "review-job-1",
+			Classification: "needs_work",
+			Summary:        "Tests failing",
+			ReviewedAt:     "2026-03-24T12:00:00Z",
+			Dimensions: []ReviewDimension{
+				{Name: "tests", Status: "red", Details: "3 tests failing"},
+				{Name: "lint", Status: "green"},
+			},
+		},
+		CreatedAt: "2026-03-24T00:00:00Z",
+		UpdatedAt: "2026-03-24T01:00:00Z",
+	}
+	pb := recordToProto(record)
+
+	if pb.ParentExecutionId == nil || *pb.ParentExecutionId != "parent-exec-0" {
+		t.Fatalf("expected parent_execution_id parent-exec-0, got %v", pb.ParentExecutionId)
+	}
+	if pb.FixupAttempt != 2 {
+		t.Fatalf("expected fixup_attempt 2, got %d", pb.FixupAttempt)
+	}
+	if pb.ReviewResult == nil {
+		t.Fatal("expected review_result to be set")
+	}
+	if pb.ReviewResult.JobId != "review-job-1" {
+		t.Fatalf("expected job_id review-job-1, got %s", pb.ReviewResult.JobId)
+	}
+	if pb.ReviewResult.Classification != "needs_work" {
+		t.Fatalf("expected classification needs_work, got %s", pb.ReviewResult.Classification)
+	}
+	if pb.ReviewResult.Summary != "Tests failing" {
+		t.Fatalf("expected summary 'Tests failing', got %s", pb.ReviewResult.Summary)
+	}
+	if pb.ReviewResult.ReviewedAt != "2026-03-24T12:00:00Z" {
+		t.Fatalf("expected reviewed_at 2026-03-24T12:00:00Z, got %s", pb.ReviewResult.ReviewedAt)
+	}
+	if len(pb.ReviewResult.Dimensions) != 2 {
+		t.Fatalf("expected 2 dimensions, got %d", len(pb.ReviewResult.Dimensions))
+	}
+	dim0 := pb.ReviewResult.Dimensions[0]
+	if dim0.Name != "tests" || dim0.Status != "red" {
+		t.Fatalf("expected tests/red, got %s/%s", dim0.Name, dim0.Status)
+	}
+	if dim0.Details == nil || *dim0.Details != "3 tests failing" {
+		t.Fatalf("expected details '3 tests failing', got %v", dim0.Details)
+	}
+	dim1 := pb.ReviewResult.Dimensions[1]
+	if dim1.Name != "lint" || dim1.Status != "green" {
+		t.Fatalf("expected lint/green, got %s/%s", dim1.Name, dim1.Status)
+	}
+}

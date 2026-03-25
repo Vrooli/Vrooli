@@ -89,9 +89,9 @@ describe("BacklogPage", () => {
     });
   });
 
-  const renderPage = () => {
+  const renderPage = (initialEntries: string[] = ["/backlog"]) => {
     return render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <QueryClientProvider client={queryClient}>
           <BacklogPage />
         </QueryClientProvider>
@@ -260,7 +260,7 @@ describe("BacklogPage", () => {
     fireEvent.click(screen.getByTestId("backlog-show-finished-toggle"));
 
     await waitFor(() => {
-      expect(screen.getByText("Completed items cannot be queued again.")).toBeInTheDocument();
+      expect(screen.getByText("Completed — open to follow up or review.")).toBeInTheDocument();
     });
   });
 
@@ -367,6 +367,85 @@ describe("BacklogPage", () => {
       const btn = el.closest("button");
       expect(btn).not.toBeNull();
       expect(btn).not.toBeDisabled();
+    });
+  });
+
+  describe("URL query param persistence", () => {
+    const mockItems = [
+      {
+        name: "auth-fix",
+        title: "Auth Fix",
+        description: "Fix authentication flow",
+        status: "ready" as const,
+        priority: 1,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T00:00:00Z",
+        kind: "fix" as const,
+      },
+      {
+        name: "dashboard-idea",
+        title: "Dashboard Idea",
+        description: "Build a dashboard",
+        status: "backlog" as const,
+        priority: 2,
+        tags: [],
+        created: "2026-01-29T00:00:00Z",
+        updated: "2026-01-29T00:00:00Z",
+        kind: "idea" as const,
+      },
+    ];
+
+    it("hydrates kind tab from URL param", async () => {
+      vi.mocked(backlogService.list).mockResolvedValue(mockItems);
+      renderPage(["/backlog?kind=fix"]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("backlog-grid")).toBeInTheDocument();
+      });
+
+      // Only the fix item should be visible when kind=fix tab is active
+      expect(screen.getByText("Auth Fix")).toBeInTheDocument();
+      expect(screen.queryByText("Dashboard Idea")).not.toBeInTheDocument();
+    });
+
+    it("hydrates search from URL param", async () => {
+      vi.mocked(backlogService.list).mockResolvedValue(mockItems);
+      renderPage(["/backlog?q=auth"]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
+      });
+
+      // Search input should contain the URL value
+      const searchInput = screen.getByTestId("backlog-search") as HTMLInputElement;
+      expect(searchInput.value).toBe("auth");
+    });
+
+    it("hydrates sort from URL param", async () => {
+      vi.mocked(backlogService.list).mockResolvedValue(mockItems);
+      renderPage(["/backlog?sort=title"]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("backlog-page")).toBeInTheDocument();
+      });
+
+      // The page should render without errors when sort param is provided
+      expect(screen.getByTestId("backlog-page")).toBeInTheDocument();
+    });
+
+    it("falls back to defaults for invalid URL param values", async () => {
+      vi.mocked(backlogService.list).mockResolvedValue(mockItems);
+      renderPage(["/backlog?kind=bogus&sort=invalid&status=nope"]);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("backlog-page")).toBeInTheDocument();
+      });
+
+      // Should show all items (default "all" tab) since kind=bogus is invalid
+      await waitFor(() => {
+        expect(screen.getByTestId("backlog-grid")).toBeInTheDocument();
+      });
     });
   });
 });

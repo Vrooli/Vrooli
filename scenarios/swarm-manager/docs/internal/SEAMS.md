@@ -258,6 +258,28 @@ The truncation recovery algorithm (ported from the former `idea-agent-files.ts`)
 
 **Testing at the seam**: Pure decision functions are unit tested in `autotrigger_test.go`. Integration tests in `workshop_save_test.go` use `mockAgentService` to verify spawn/no-spawn decisions, lock behavior, and error resilience. Create auto-init tests in `handler_test.go` use channel-based synchronization for goroutine testing.
 
+### Execution Review Boundary
+
+`api/internal/execution/review_client.go` defines the `ReviewClient` interface for post-execution readiness reviews via git-control-tower.
+
+- **ReviewClient interface**: `TriggerReview(ctx, req)` starts a review job, `PollReview(ctx, jobID)` checks status
+- **HTTPReviewClient**: HTTP implementation using service discovery (`discovery.ResolveScenarioURLDefault("git-control-tower")`)
+- **Review result mapping**: `mapJobToResult` converts git-control-tower readiness (green/yellow/red) to internal classification (ready/ready_with_notes/needs_work)
+- **Dimension parsing**: `parseDimensions` extracts per-dimension health (codeQuality, tests, standards) with traffic-light status
+
+**Testing at the seam**: `review_client_test.go` uses `httptest.NewServer` with mock handlers and `triggerReviewDirect`/`pollReviewDirect` helpers that bypass service discovery.
+
+### Execution Follow-Up Boundary
+
+`api/internal/execution/service.go` exposes the `FollowUp` method for user-initiated follow-ups from completed/failed/needs_fixup executions.
+
+- **runContinuer interface**: `ContinueRun(ctx, runID, message)` — sends follow-up message to existing agent-manager session
+- **agentSpawner interface**: `SpawnBacklog(ctx, req)` — spawns fresh agent run (existing seam)
+- **Run mode handling**: `continue` mode calls `ContinueRun` on the previous run; `new` mode spawns fresh via `SpawnBacklog`
+- **Prompt construction**: `buildFollowUpMessage` generates context-aware prompts based on follow-up type (fixup/followup/custom)
+
+**Testing at the seam**: Stub implementations of `runContinuer` and `agentSpawner` in test files enable testing both run modes, session expiry handling, and prompt construction without agent-manager.
+
 ## Architectural Decisions
 
 ### ADR-001: File-Based Backlog

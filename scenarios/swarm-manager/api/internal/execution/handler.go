@@ -45,6 +45,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
 }
 
 // StartScheduler launches a polling worker for scheduled starts.
@@ -241,6 +242,51 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) FollowUp(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		httputil.BadRequest(w, "[execution] follow-up", "execution_id is required")
+		return
+	}
+	var pbReq apipb.FollowUpExecutionRequest
+	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+		httputil.BadRequest(w, "[execution] follow-up", "invalid request body")
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[execution] follow-up", "invalid follow-up request", &pbReq) {
+		return
+	}
+	req := FollowUpRequest{
+		ExecutionID:  executionID,
+		FollowUpType: pbReq.FollowUpType,
+		Context:      pbReq.GetContext(),
+		RunMode:      pbReq.RunMode,
+	}
+	record, err := h.service.FollowUp(r.Context(), req)
+	if err != nil {
+		h.mapFollowUpError(w, err)
+		return
+	}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
+		httputil.InternalError(w, "[execution] follow-up", "failed to encode response")
+	}
+}
+
+func (h *Handler) mapFollowUpError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errNotFound):
+		httputil.NotFound(w, "[execution] follow-up", "execution not found")
+	case errors.Is(err, agentmanager.ErrNotAvailable):
+		httputil.ServiceUnavailable(w, "[execution] follow-up", "agent-manager is not available")
+	case errors.Is(err, errSessionExpired):
+		httputil.Conflict(w, "[execution] follow-up", "agent session expired; retry with run_mode=new")
+	case strings.Contains(err.Error(), "cannot follow up"):
+		httputil.BadRequest(w, "[execution] follow-up", err.Error())
+	default:
+		httputil.InternalError(w, "[execution] follow-up", "failed to create follow-up: "+httputil.TruncateErrorMessage(err, 240))
+	}
+}
+
 func (h *Handler) mapMutationError(w http.ResponseWriter, prefix string, err error) {
 	switch {
 	case errors.Is(err, errNotFound):
@@ -291,6 +337,8 @@ func (h *Handler) UpdatePolicy(w http.ResponseWriter, r *http.Request) {
 	req := Policy{
 		DefaultMode:         Mode(pbPolicy.DefaultMode),
 		DefaultDelaySeconds: pbPolicy.DefaultDelaySeconds,
+		AutoFixup:           pbPolicy.AutoFixup,
+		MaxFixupAttempts:    int(pbPolicy.MaxFixupAttempts),
 	}
 	policy, err := h.service.UpdatePolicy(r.Context(), req)
 	if err != nil {
@@ -360,6 +408,36 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 		}
 		pb.ArchiveContext = pbAc
 	}
+	if r.ParentExecutionID != "" {
+		pb.ParentExecutionId = &r.ParentExecutionID
+	}
+	pb.FixupAttempt = int32(r.FixupAttempt)
+	if r.ReviewJobID != "" {
+		pb.ReviewJobId = &r.ReviewJobID
+	}
+	if r.ReviewResult != nil {
+		pb.ReviewResult = reviewResultToProto(r.ReviewResult)
+	}
+	return pb
+}
+
+func reviewResultToProto(rr *ReviewResult) *domainpb.ReviewResult {
+	pb := &domainpb.ReviewResult{
+		JobId:          rr.JobID,
+		Classification: rr.Classification,
+		Summary:        rr.Summary,
+		ReviewedAt:     rr.ReviewedAt,
+	}
+	for _, dim := range rr.Dimensions {
+		pbDim := &domainpb.ReviewDimension{
+			Name:   dim.Name,
+			Status: dim.Status,
+		}
+		if dim.Details != "" {
+			pbDim.Details = &dim.Details
+		}
+		pb.Dimensions = append(pb.Dimensions, pbDim)
+	}
 	return pb
 }
 
@@ -367,5 +445,7 @@ func policyToProto(p Policy) *domainpb.ExecutionPolicy {
 	return &domainpb.ExecutionPolicy{
 		DefaultMode:         string(p.DefaultMode),
 		DefaultDelaySeconds: p.DefaultDelaySeconds,
+		AutoFixup:           p.AutoFixup,
+		MaxFixupAttempts:    int32(p.MaxFixupAttempts),
 	}
 }
