@@ -25,7 +25,7 @@ Object.defineProperty(window, "speechSynthesis", {
 vi.stubGlobal("SpeechSynthesisUtterance", class { text: string; rate = 1; pitch = 1; voice = null; onend = null; onerror = null; constructor(t: string) { this.text = t; } });
 
 // ── TTS mock: speakParagraphs returns a controllable promise ──
-const mockSpeakParagraphs = vi.fn<[], Promise<string | undefined>>();
+const mockSpeakParagraphs = vi.fn<() => Promise<string | undefined>>();
 const mockStop = vi.fn();
 let mockIsSpeaking = false;
 

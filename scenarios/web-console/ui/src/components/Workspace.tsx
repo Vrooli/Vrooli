@@ -16,6 +16,7 @@ import {
   reconcileTrackFractions,
   buildGridTrackTemplate,
   updateAdjacentFractions,
+  fractionsMatch,
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
@@ -521,6 +522,13 @@ export default function Workspace() {
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
+  // Persistent last-played event for the replay bar.  Unlike
+  // activeSpeakingEventId (which is cleared when TTS stops), these survive
+  // so the AudioPlayerBar can stay visible in a "replay" state when auto-TTS
+  // is enabled.
+  const [lastTtsEventId, setLastTtsEventId] = useState<string | null>(null);
+  const [lastTtsPaneId, setLastTtsPaneId] = useState<string | null>(null);
+
   // Clear the active speaking indicator when TTS stops
   const prevTtsSpeaking = useRef(isTtsSpeaking);
   useEffect(() => {
@@ -540,6 +548,9 @@ export default function Workspace() {
     const texts = eventsFromHere.flatMap((e) => e.speechParagraphs?.length ? e.speechParagraphs : [e.text]);
     const ids = eventsFromHere.map((e) => e.id);
     setActiveSpeakingEventId(ids[0] ?? null);
+    // Track the last event in the sequence for the persistent replay bar
+    const lastId = ids[ids.length - 1] ?? null;
+    if (lastId) { setLastTtsEventId(lastId); setLastTtsPaneId(sessionId); }
     void speakSequenceOnPane(sessionId, texts, (i) => {
       // Map flattened paragraph index back to event index for highlighting.
       // This is approximate — highlight the event whose paragraphs contain index i.
@@ -550,12 +561,16 @@ export default function Workspace() {
         if (i < consumed + count) { eventIdx = e; break; }
         consumed += count;
       }
-      setActiveSpeakingEventId(ids[eventIdx] ?? null);
+      const currentId = ids[eventIdx] ?? null;
+      setActiveSpeakingEventId(currentId);
+      if (currentId) { setLastTtsEventId(currentId); setLastTtsPaneId(sessionId); }
     });
   }, [speakSequenceOnPane]);
 
   const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => {
     setActiveSpeakingEventId(eventId);
+    setLastTtsEventId(eventId);
+    setLastTtsPaneId(sessionId);
     speakTextOnPane(sessionId, text, paragraphs, { eventId, version: opts?.version });
   }, [speakTextOnPane]);
 
@@ -649,21 +664,32 @@ export default function Workspace() {
     layout.rows,
   );
 
-  // Persist reconciled fractions if they differ
+  // Persist reconciled fractions if they differ.
+  //
+  // IMPORTANT — fractionsMatch uses an epsilon tolerance instead of strict
+  // equality (===).  normalizeFractions divides each value by the sum of all
+  // values.  For certain track counts (6, 7, 9, …) the sum is not exactly
+  // 1.0 in IEEE 754 floating-point, so re-normalizing already-normalized
+  // values produces slightly different results on each pass.  With strict
+  // equality the effect detects a "difference", writes the new values to the
+  // store (which triggers a re-render), re-normalizes (producing yet another
+  // slightly different result), and loops — exceeding React's maximum update
+  // depth (error #185).  An epsilon of 1e-12 is far below any user-visible
+  // precision while absorbing the ~1 ULP drift that normalization introduces.
+  //
+  // Additionally, in "tabs" display mode the grid is never rendered, so
+  // fraction reconciliation is skipped entirely to avoid unnecessary store
+  // writes.
   useEffect(() => {
-    if (
-      colFractions.length !== store.columnFractions.length ||
-      colFractions.some((f, i) => f !== store.columnFractions[i])
-    ) {
+    if (store.displayMode === "tabs") return;
+    if (!fractionsMatch(colFractions, store.columnFractions)) {
       store.setColumnFractions(colFractions);
     }
   }, [colFractions, store]);
 
   useEffect(() => {
-    if (
-      rowFractions.length !== store.rowFractions.length ||
-      rowFractions.some((f, i) => f !== store.rowFractions[i])
-    ) {
+    if (store.displayMode === "tabs") return;
+    if (!fractionsMatch(rowFractions, store.rowFractions)) {
       store.setRowFractions(rowFractions);
     }
   }, [rowFractions, store]);
@@ -822,7 +848,12 @@ export default function Workspace() {
               onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
               onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
               onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-              onSpeakingEventChange={(eventId) => { if (paneMeta.sessionId === store.activePane) setActiveSpeakingEventId(eventId); }}
+              onSpeakingEventChange={(eventId) => {
+                if (paneMeta.sessionId === store.activePane) {
+                  setActiveSpeakingEventId(eventId);
+                  if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
+                }
+              }}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -975,7 +1006,12 @@ export default function Workspace() {
                       onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
                       onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
                       onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-                      onSpeakingEventChange={(eventId) => { if (paneMeta.sessionId === store.activePane) setActiveSpeakingEventId(eventId); }}
+                      onSpeakingEventChange={(eventId) => {
+                        if (paneMeta.sessionId === store.activePane) {
+                          setActiveSpeakingEventId(eventId);
+                          if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
+                        }
+                      }}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }
@@ -1031,16 +1067,33 @@ export default function Workspace() {
 
       {/* Bottom bar */}
       <div className="relative z-10 shrink-0">
-        {/* TTS player bar — visible whenever audio is playing.
-         * Uses isTtsSpeaking as the sole visibility gate so the bar
-         * always appears the instant audio starts.  ttsPlayback is
-         * populated by polling; if the first poll hasn't fired yet we
-         * fall back to FALLBACK_TTS_PLAYBACK which has sensible defaults
-         * (see the comment block above the polling effect for details). */}
-        {isTtsSpeaking && (() => {
-          const pb = ttsPlayback ?? FALLBACK_TTS_PLAYBACK;
-          const activeEvent = activeSpeakingEventId && store.activePane
-            ? useConversationStore.getState().sessions[store.activePane]?.events.find((e) => e.id === activeSpeakingEventId)
+        {/* TTS player bar — visible when audio is playing OR when auto-TTS
+         * is enabled and there is a previous response available to replay.
+         *
+         * When actively speaking, the bar shows live playback state (polled
+         * at 100 ms).  When idle with a replayable event, it shows a
+         * "stopped" state where the play button triggers a replay.
+         *
+         * Uses isTtsSpeaking as the primary gate so the bar always appears
+         * the instant audio starts.  ttsPlayback is populated by polling;
+         * if the first poll hasn't fired yet we fall back to
+         * FALLBACK_TTS_PLAYBACK (see comment above the polling effect). */}
+        {(() => {
+          const isReplayMode = !isTtsSpeaking
+            && store.autoTtsEnabled
+            && lastTtsEventId != null
+            && store.activePane === lastTtsPaneId;
+          if (!isTtsSpeaking && !isReplayMode) return null;
+
+          const pb = isTtsSpeaking
+            ? (ttsPlayback ?? FALLBACK_TTS_PLAYBACK)
+            : { ...FALLBACK_TTS_PLAYBACK, isPaused: true };
+
+          // Resolve the event to show context for — prefer the actively
+          // speaking event, fall back to the last-played event for replay.
+          const displayEventId = activeSpeakingEventId ?? lastTtsEventId;
+          const activeEvent = displayEventId && store.activePane
+            ? useConversationStore.getState().sessions[store.activePane]?.events.find((e) => e.id === displayEventId)
             : undefined;
           const hasOriginal = (activeEvent?.summarized ?? false) &&
             (activeEvent?.originalSpeechParagraphs?.length ?? 0) > 0;
@@ -1058,11 +1111,23 @@ export default function Workspace() {
               canSummarize={canRequestSummarize}
               isSummarizing={isSummarizing}
               onPause={handleTtsPause}
-              onResume={handleTtsResume}
+              onResume={isReplayMode ? () => {
+                // Replay the last TTS event
+                if (activeEvent && store.activePane) {
+                  const paragraphs = activeEvent.speechParagraphs?.length
+                    ? activeEvent.speechParagraphs
+                    : [activeEvent.text];
+                  speakTextOnPane(store.activePane, activeEvent.text, paragraphs, { eventId: activeEvent.id });
+                }
+              } : handleTtsResume}
               onSeek={handleTtsSeek}
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
-              onStop={handleTtsStop}
+              onStop={isTtsSpeaking ? handleTtsStop : () => {
+                // In replay mode, stop dismisses the bar
+                setLastTtsEventId(null);
+                setLastTtsPaneId(null);
+              }}
               onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
                 const activePaneId = store.activePane;
                 if (!activePaneId) return;

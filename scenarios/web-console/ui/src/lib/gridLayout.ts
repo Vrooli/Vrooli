@@ -77,6 +77,29 @@ export const reconcileTrackFractions = (
 };
 
 /**
+ * Compares two fraction arrays with floating-point tolerance.
+ *
+ * normalizeFractions divides each value by the sum.  For certain track counts
+ * (6, 7, 9, …) the sum is not exactly 1.0 in IEEE 754, so re-normalizing
+ * already-normalized values produces a slightly different array.  Strict
+ * equality would see a difference on every pass, causing an infinite
+ * reconciliation loop in the Workspace effect that persists fractions to the
+ * store (React error #185 — maximum update depth exceeded).
+ *
+ * An epsilon of 1e-12 absorbs the ~1 ULP drift while remaining far below any
+ * user-visible precision.
+ */
+const FRAC_EPSILON = 1e-12;
+
+export const fractionsMatch = (a: number[], b: number[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (Math.abs((a[i] ?? 0) - (b[i] ?? 0)) > FRAC_EPSILON) return false;
+  }
+  return true;
+};
+
+/**
  * Generates a CSS grid template string like `"minmax(0, 0.5fr) 8px minmax(0, 0.5fr)"`.
  */
 export const buildGridTrackTemplate = (

@@ -36,7 +36,7 @@ function createMockWakeLock() {
 function spyOnVideoCreation() {
   const originalCreateElement = document.createElement.bind(document);
   let videoEl: HTMLVideoElement | null = null;
-  const pauseListeners: (() => void)[] = [];
+  const pauseListeners: EventListener[] = [];
 
   vi.spyOn(document, "createElement").mockImplementation((tag: string, options?: ElementCreationOptions) => {
     if (tag === "video") {
@@ -59,7 +59,7 @@ function spyOnVideoCreation() {
 
   return {
     getVideo: () => videoEl,
-    triggerPause: () => { for (const l of pauseListeners) l(); },
+    triggerPause: () => { for (const l of pauseListeners) l(new Event("pause")); },
     restore: () => { vi.mocked(document.createElement).mockRestore(); },
   };
 }
