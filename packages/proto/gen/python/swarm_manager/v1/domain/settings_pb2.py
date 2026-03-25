@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"N\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05themeJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xb9\x05\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12\x41\n\x0c\x64\x65\x66\x61ult_mode\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\x0b\x64\x65\x66\x61ultMode\x12;\n\x15\x64\x65\x66\x61ult_delay_seconds\x18\x06 \x01(\x03\x42\x07\xbaH\x04\"\x02(\x00R\x13\x64\x65\x66\x61ultDelaySeconds\x12\x1d\n\nauto_fixup\x18\x07 \x01(\x08R\tautoFixup\x12\x37\n\x12max_fixup_attempts\x18\x08 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x12\x31\n\x0fmax_auto_rounds\x18\t \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x32(\x01R\rmaxAutoRounds\x12\x32\n\x0f\x61gent_max_turns\x18\n \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xc8\x01(\x05R\ragentMaxTurns\x12>\n\x15\x61gent_timeout_seconds\x18\x0b \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\x90\x1c(<R\x13\x61gentTimeoutSeconds\x12\x36\n\x17\x61gent_requires_approval\x18\x0c \x01(\x08R\x15\x61gentRequiresApproval\x12\x38\n\x12search_debounce_ms\x18\r \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x12\x38\n\x11toast_duration_ms\x18\x0e \x01(\x05\x42\x0c\xbaH\t\x1a\x07\x18\xb0\xea\x01(\xe8\x07R\x0ftoastDurationMs\x12>\n\x1b\x63onfirm_destructive_actions\x18\x0f \x01(\x08R\x19\x63onfirmDestructiveActionsJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +35,22 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
   _globals['_SETTINGS'].fields_by_name['theme']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['theme']._serialized_options = b'\272H\027r\025R\004darkR\005lightR\006system'
-  _globals['_SETTINGS']._serialized_start=89
-  _globals['_SETTINGS']._serialized_end=167
+  _globals['_SETTINGS'].fields_by_name['default_mode']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['default_mode']._serialized_options = b'\272H\033r\031R\006manualR\tscheduledR\004yolo'
+  _globals['_SETTINGS'].fields_by_name['default_delay_seconds']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['default_delay_seconds']._serialized_options = b'\272H\004\"\002(\000'
+  _globals['_SETTINGS'].fields_by_name['max_fixup_attempts']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['max_fixup_attempts']._serialized_options = b'\272H\006\032\004\030\005(\000'
+  _globals['_SETTINGS'].fields_by_name['max_auto_rounds']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['max_auto_rounds']._serialized_options = b'\272H\006\032\004\0302(\001'
+  _globals['_SETTINGS'].fields_by_name['agent_max_turns']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['agent_max_turns']._serialized_options = b'\272H\007\032\005\030\310\001(\005'
+  _globals['_SETTINGS'].fields_by_name['agent_timeout_seconds']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['agent_timeout_seconds']._serialized_options = b'\272H\007\032\005\030\220\034(<'
+  _globals['_SETTINGS'].fields_by_name['search_debounce_ms']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['search_debounce_ms']._serialized_options = b'\272H\007\032\005\030\320\017(d'
+  _globals['_SETTINGS'].fields_by_name['toast_duration_ms']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['toast_duration_ms']._serialized_options = b'\272H\t\032\007\030\260\352\001(\350\007'
+  _globals['_SETTINGS']._serialized_start=90
+  _globals['_SETTINGS']._serialized_end=787
 # @@protoc_insertion_point(module_scope)

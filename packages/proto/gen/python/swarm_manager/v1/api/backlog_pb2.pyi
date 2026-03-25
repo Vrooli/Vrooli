@@ -263,3 +263,17 @@ class WorkshopAutoAdvance(_message.Message):
     task_id: str
     reason: str
     def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class WorkshopDeleteRoundRequest(_message.Message):
+    __slots__ = ("round_number",)
+    ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]
+    round_number: int
+    def __init__(self, round_number: _Optional[int] = ...) -> None: ...
+
+class WorkshopDeleteRoundResponse(_message.Message):
+    __slots__ = ("deleted_round", "remaining_rounds")
+    DELETED_ROUND_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_ROUNDS_FIELD_NUMBER: _ClassVar[int]
+    deleted_round: int
+    remaining_rounds: int
+    def __init__(self, deleted_round: _Optional[int] = ..., remaining_rounds: _Optional[int] = ...) -> None: ...

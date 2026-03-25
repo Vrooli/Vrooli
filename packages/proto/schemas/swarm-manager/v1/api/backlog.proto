@@ -367,3 +367,19 @@ message WorkshopAutoAdvance {
   // "pending_decisions", "opt_out", "error", "no_rounds".
   string reason = 4;
 }
+
+// WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
+// subsequent rounds to maintain contiguous numbering.
+message WorkshopDeleteRoundRequest {
+  // The round number to delete.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+}
+
+// WorkshopDeleteRoundResponse reports the result of deleting a workshop round.
+message WorkshopDeleteRoundResponse {
+  // The round number that was deleted.
+  int32 deleted_round = 1;
+
+  // Total rounds remaining after deletion.
+  int32 remaining_rounds = 2;
+}

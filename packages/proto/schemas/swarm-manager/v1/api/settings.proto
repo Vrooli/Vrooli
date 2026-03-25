@@ -35,4 +35,23 @@ message UpdateSettingsRequest {
   optional string theme = 1 [(buf.validate.field).string = { in: ["", "dark", "light", "system"] }];
 
   reserved 2, 3, 4;
+
+  // Execution defaults.
+  optional string default_mode = 5 [(buf.validate.field).string = { in: ["", "manual", "scheduled", "yolo"] }];
+  optional int64 default_delay_seconds = 6;
+  optional bool auto_fixup = 7;
+  optional int32 max_fixup_attempts = 8;
+
+  // Workshop settings.
+  optional int32 max_auto_rounds = 9;
+
+  // Agent behavior settings.
+  optional int32 agent_max_turns = 10;
+  optional int32 agent_timeout_seconds = 11;
+  optional bool agent_requires_approval = 12;
+
+  // UI preference settings.
+  optional int32 search_debounce_ms = 13;
+  optional int32 toast_duration_ms = 14;
+  optional bool confirm_destructive_actions = 15;
 }

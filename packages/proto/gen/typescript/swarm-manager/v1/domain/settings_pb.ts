@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJHCghTZXR0aW5ncxIpCgV0aGVtZRgBIAEoCUIaukgXchVSBGRhcmtSBWxpZ2h0UgZzeXN0ZW1KBAgCEANKBAgDEARKBAgEEAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLrAwoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjQKDGRlZmF1bHRfbW9kZRgFIAEoCUIeukgbchlSBm1hbnVhbFIJc2NoZWR1bGVkUgR5b2xvEiYKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0IHukgEIgIoABISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigBEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgISgQIAhADSgQIAxAESgQIBBAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -25,6 +25,69 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
    * @generated from field: string theme = 1;
    */
   theme: string;
+
+  /**
+   * Execution defaults (absorbed from ExecutionPolicy).
+   *
+   * @generated from field: string default_mode = 5;
+   */
+  defaultMode: string;
+
+  /**
+   * @generated from field: int64 default_delay_seconds = 6;
+   */
+  defaultDelaySeconds: bigint;
+
+  /**
+   * @generated from field: bool auto_fixup = 7;
+   */
+  autoFixup: boolean;
+
+  /**
+   * @generated from field: int32 max_fixup_attempts = 8;
+   */
+  maxFixupAttempts: number;
+
+  /**
+   * Workshop settings.
+   *
+   * @generated from field: int32 max_auto_rounds = 9;
+   */
+  maxAutoRounds: number;
+
+  /**
+   * Agent behavior settings.
+   *
+   * @generated from field: int32 agent_max_turns = 10;
+   */
+  agentMaxTurns: number;
+
+  /**
+   * @generated from field: int32 agent_timeout_seconds = 11;
+   */
+  agentTimeoutSeconds: number;
+
+  /**
+   * @generated from field: bool agent_requires_approval = 12;
+   */
+  agentRequiresApproval: boolean;
+
+  /**
+   * UI preference settings.
+   *
+   * @generated from field: int32 search_debounce_ms = 13;
+   */
+  searchDebounceMs: number;
+
+  /**
+   * @generated from field: int32 toast_duration_ms = 14;
+   */
+  toastDurationMs: number;
+
+  /**
+   * @generated from field: bool confirm_destructive_actions = 15;
+   */
+  confirmDestructiveActions: boolean;
 };
 
 /**

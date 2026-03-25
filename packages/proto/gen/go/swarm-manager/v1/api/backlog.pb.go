@@ -1532,6 +1532,108 @@ func (x *WorkshopAutoAdvance) GetReason() string {
 	return ""
 }
 
+// WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
+// subsequent rounds to maintain contiguous numbering.
+type WorkshopDeleteRoundRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The round number to delete.
+	RoundNumber   int32 `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkshopDeleteRoundRequest) Reset() {
+	*x = WorkshopDeleteRoundRequest{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkshopDeleteRoundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkshopDeleteRoundRequest) ProtoMessage() {}
+
+func (x *WorkshopDeleteRoundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkshopDeleteRoundRequest.ProtoReflect.Descriptor instead.
+func (*WorkshopDeleteRoundRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *WorkshopDeleteRoundRequest) GetRoundNumber() int32 {
+	if x != nil {
+		return x.RoundNumber
+	}
+	return 0
+}
+
+// WorkshopDeleteRoundResponse reports the result of deleting a workshop round.
+type WorkshopDeleteRoundResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The round number that was deleted.
+	DeletedRound int32 `protobuf:"varint,1,opt,name=deleted_round,json=deletedRound,proto3" json:"deleted_round,omitempty"`
+	// Total rounds remaining after deletion.
+	RemainingRounds int32 `protobuf:"varint,2,opt,name=remaining_rounds,json=remainingRounds,proto3" json:"remaining_rounds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WorkshopDeleteRoundResponse) Reset() {
+	*x = WorkshopDeleteRoundResponse{}
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkshopDeleteRoundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkshopDeleteRoundResponse) ProtoMessage() {}
+
+func (x *WorkshopDeleteRoundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_backlog_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkshopDeleteRoundResponse.ProtoReflect.Descriptor instead.
+func (*WorkshopDeleteRoundResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_backlog_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *WorkshopDeleteRoundResponse) GetDeletedRound() int32 {
+	if x != nil {
+		return x.DeletedRound
+	}
+	return 0
+}
+
+func (x *WorkshopDeleteRoundResponse) GetRemainingRounds() int32 {
+	if x != nil {
+		return x.RemainingRounds
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
@@ -1701,7 +1803,12 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x06reason\x18\x04 \x01(\tR\x06reasonB\t\n" +
 	"\a_run_idB\n" +
 	"\n" +
-	"\b_task_idBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\b_task_id\"H\n" +
+	"\x1aWorkshopDeleteRoundRequest\x12*\n" +
+	"\fround_number\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\vroundNumber\"m\n" +
+	"\x1bWorkshopDeleteRoundResponse\x12#\n" +
+	"\rdeleted_round\x18\x01 \x01(\x05R\fdeletedRound\x12)\n" +
+	"\x10remaining_rounds\x18\x02 \x01(\x05R\x0fremainingRoundsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_backlog_proto_rawDescOnce sync.Once
@@ -1715,7 +1822,7 @@ func file_swarm_manager_v1_api_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_swarm_manager_v1_api_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*CreateBacklogItemRequest)(nil),     // 0: swarm_manager.v1.CreateBacklogItemRequest
 	(*UpdateBacklogItemRequest)(nil),     // 1: swarm_manager.v1.UpdateBacklogItemRequest
@@ -1736,18 +1843,20 @@ var file_swarm_manager_v1_api_backlog_proto_goTypes = []any{
 	(*WorkshopSaveRequest)(nil),          // 16: swarm_manager.v1.WorkshopSaveRequest
 	(*WorkshopSaveResponse)(nil),         // 17: swarm_manager.v1.WorkshopSaveResponse
 	(*WorkshopAutoAdvance)(nil),          // 18: swarm_manager.v1.WorkshopAutoAdvance
-	(*domain.BacklogItem)(nil),           // 19: swarm_manager.v1.BacklogItem
-	(*domain.BacklogFile)(nil),           // 20: swarm_manager.v1.BacklogFile
+	(*WorkshopDeleteRoundRequest)(nil),   // 19: swarm_manager.v1.WorkshopDeleteRoundRequest
+	(*WorkshopDeleteRoundResponse)(nil),  // 20: swarm_manager.v1.WorkshopDeleteRoundResponse
+	(*domain.BacklogItem)(nil),           // 21: swarm_manager.v1.BacklogItem
+	(*domain.BacklogFile)(nil),           // 22: swarm_manager.v1.BacklogFile
 }
 var file_swarm_manager_v1_api_backlog_proto_depIdxs = []int32{
-	19, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
-	19, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
-	20, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
-	20, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	20, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
-	19, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	21, // 0: swarm_manager.v1.ListBacklogItemsResponse.items:type_name -> swarm_manager.v1.BacklogItem
+	21, // 1: swarm_manager.v1.BacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
+	22, // 2: swarm_manager.v1.BacklogFilesResponse.files:type_name -> swarm_manager.v1.BacklogFile
+	22, // 3: swarm_manager.v1.BacklogFileResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	22, // 4: swarm_manager.v1.BacklogFileOperationResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	21, // 5: swarm_manager.v1.QueueBacklogItemResponse.item:type_name -> swarm_manager.v1.BacklogItem
 	15, // 6: swarm_manager.v1.ImportBacklogResponse.changes:type_name -> swarm_manager.v1.ImportChange
-	20, // 7: swarm_manager.v1.WorkshopSaveResponse.file:type_name -> swarm_manager.v1.BacklogFile
+	22, // 7: swarm_manager.v1.WorkshopSaveResponse.file:type_name -> swarm_manager.v1.BacklogFile
 	18, // 8: swarm_manager.v1.WorkshopSaveResponse.auto_advance:type_name -> swarm_manager.v1.WorkshopAutoAdvance
 	9,  // [9:9] is the sub-list for method output_type
 	9,  // [9:9] is the sub-list for method input_type
@@ -1777,7 +1886,7 @@ func file_swarm_manager_v1_api_backlog_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_backlog_proto_rawDesc), len(file_swarm_manager_v1_api_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

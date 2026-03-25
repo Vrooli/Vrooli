@@ -26,9 +26,24 @@ const (
 type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UI theme preference.
-	Theme         string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Theme string `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
+	// Execution defaults (absorbed from ExecutionPolicy).
+	DefaultMode         string `protobuf:"bytes,5,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	DefaultDelaySeconds int64  `protobuf:"varint,6,opt,name=default_delay_seconds,json=defaultDelaySeconds,proto3" json:"default_delay_seconds,omitempty"`
+	AutoFixup           bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
+	MaxFixupAttempts    int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	// Workshop settings.
+	MaxAutoRounds int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3" json:"max_auto_rounds,omitempty"`
+	// Agent behavior settings.
+	AgentMaxTurns         int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds   int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
+	AgentRequiresApproval bool  `protobuf:"varint,12,opt,name=agent_requires_approval,json=agentRequiresApproval,proto3" json:"agent_requires_approval,omitempty"`
+	// UI preference settings.
+	SearchDebounceMs          int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
+	ToastDurationMs           int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
+	ConfirmDestructiveActions bool  `protobuf:"varint,15,opt,name=confirm_destructive_actions,json=confirmDestructiveActions,proto3" json:"confirm_destructive_actions,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -68,13 +83,106 @@ func (x *Settings) GetTheme() string {
 	return ""
 }
 
+func (x *Settings) GetDefaultMode() string {
+	if x != nil {
+		return x.DefaultMode
+	}
+	return ""
+}
+
+func (x *Settings) GetDefaultDelaySeconds() int64 {
+	if x != nil {
+		return x.DefaultDelaySeconds
+	}
+	return 0
+}
+
+func (x *Settings) GetAutoFixup() bool {
+	if x != nil {
+		return x.AutoFixup
+	}
+	return false
+}
+
+func (x *Settings) GetMaxFixupAttempts() int32 {
+	if x != nil {
+		return x.MaxFixupAttempts
+	}
+	return 0
+}
+
+func (x *Settings) GetMaxAutoRounds() int32 {
+	if x != nil {
+		return x.MaxAutoRounds
+	}
+	return 0
+}
+
+func (x *Settings) GetAgentMaxTurns() int32 {
+	if x != nil {
+		return x.AgentMaxTurns
+	}
+	return 0
+}
+
+func (x *Settings) GetAgentTimeoutSeconds() int32 {
+	if x != nil {
+		return x.AgentTimeoutSeconds
+	}
+	return 0
+}
+
+func (x *Settings) GetAgentRequiresApproval() bool {
+	if x != nil {
+		return x.AgentRequiresApproval
+	}
+	return false
+}
+
+func (x *Settings) GetSearchDebounceMs() int32 {
+	if x != nil {
+		return x.SearchDebounceMs
+	}
+	return 0
+}
+
+func (x *Settings) GetToastDurationMs() int32 {
+	if x != nil {
+		return x.ToastDurationMs
+	}
+	return 0
+}
+
+func (x *Settings) GetConfirmDestructiveActions() bool {
+	if x != nil {
+		return x.ConfirmDestructiveActions
+	}
+	return false
+}
+
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"N\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xb9\x05\n" +
 	"\bSettings\x120\n" +
-	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05themeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12A\n" +
+	"\fdefault_mode\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
+	"\x15default_delay_seconds\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13defaultDelaySeconds\x12\x1d\n" +
+	"\n" +
+	"auto_fixup\x18\a \x01(\bR\tautoFixup\x127\n" +
+	"\x12max_fixup_attempts\x18\b \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x121\n" +
+	"\x0fmax_auto_rounds\x18\t \x01(\x05B\t\xbaH\x06\x1a\x04\x182(\x01R\rmaxAutoRounds\x122\n" +
+	"\x0fagent_max_turns\x18\n" +
+	" \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x05R\ragentMaxTurns\x12>\n" +
+	"\x15agent_timeout_seconds\x18\v \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x126\n" +
+	"\x17agent_requires_approval\x18\f \x01(\bR\x15agentRequiresApproval\x128\n" +
+	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12>\n" +
+	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bR\x19confirmDestructiveActionsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once

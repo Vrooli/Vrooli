@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/settings.proto.
  */
 export const file_swarm_manager_v1_api_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyJlChVVcGRhdGVTZXR0aW5nc1JlcXVlc3QSMAoFdGhlbWUYASABKAlCHLpIGXIXUgBSBGRhcmtSBWxpZ2h0UgZzeXN0ZW1IAIgBAUIICgZfdGhlbWVKBAgCEANKBAgDEARKBAgEEAVCSVpHZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2FwaTthcGliBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
+  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyLtBQoVVXBkYXRlU2V0dGluZ3NSZXF1ZXN0EjAKBXRoZW1lGAEgASgJQhy6SBlyF1IAUgRkYXJrUgVsaWdodFIGc3lzdGVtSACIAQESOwoMZGVmYXVsdF9tb2RlGAUgASgJQiC6SB1yG1IAUgZtYW51YWxSCXNjaGVkdWxlZFIEeW9sb0gBiAEBEiIKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0gCiAEBEhcKCmF1dG9fZml4dXAYByABKAhIA4gBARIfChJtYXhfZml4dXBfYXR0ZW1wdHMYCCABKAVIBIgBARIcCg9tYXhfYXV0b19yb3VuZHMYCSABKAVIBYgBARIcCg9hZ2VudF9tYXhfdHVybnMYCiABKAVIBogBARIiChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVIB4gBARIkChdhZ2VudF9yZXF1aXJlc19hcHByb3ZhbBgMIAEoCEgIiAEBEh8KEnNlYXJjaF9kZWJvdW5jZV9tcxgNIAEoBUgJiAEBEh4KEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFSAqIAQESKAobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgISAuIAQFCCAoGX3RoZW1lQg8KDV9kZWZhdWx0X21vZGVCGAoWX2RlZmF1bHRfZGVsYXlfc2Vjb25kc0INCgtfYXV0b19maXh1cEIVChNfbWF4X2ZpeHVwX2F0dGVtcHRzQhIKEF9tYXhfYXV0b19yb3VuZHNCEgoQX2FnZW50X21heF90dXJuc0IYChZfYWdlbnRfdGltZW91dF9zZWNvbmRzQhoKGF9hZ2VudF9yZXF1aXJlc19hcHByb3ZhbEIVChNfc2VhcmNoX2RlYm91bmNlX21zQhQKEl90b2FzdF9kdXJhdGlvbl9tc0IeChxfY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zSgQIAhADSgQIAxAESgQIBBAFQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
 
 /**
  * SettingsResponse returns current settings.
@@ -46,6 +46,69 @@ export type UpdateSettingsRequest = Message<"swarm_manager.v1.UpdateSettingsRequ
    * @generated from field: optional string theme = 1;
    */
   theme?: string;
+
+  /**
+   * Execution defaults.
+   *
+   * @generated from field: optional string default_mode = 5;
+   */
+  defaultMode?: string;
+
+  /**
+   * @generated from field: optional int64 default_delay_seconds = 6;
+   */
+  defaultDelaySeconds?: bigint;
+
+  /**
+   * @generated from field: optional bool auto_fixup = 7;
+   */
+  autoFixup?: boolean;
+
+  /**
+   * @generated from field: optional int32 max_fixup_attempts = 8;
+   */
+  maxFixupAttempts?: number;
+
+  /**
+   * Workshop settings.
+   *
+   * @generated from field: optional int32 max_auto_rounds = 9;
+   */
+  maxAutoRounds?: number;
+
+  /**
+   * Agent behavior settings.
+   *
+   * @generated from field: optional int32 agent_max_turns = 10;
+   */
+  agentMaxTurns?: number;
+
+  /**
+   * @generated from field: optional int32 agent_timeout_seconds = 11;
+   */
+  agentTimeoutSeconds?: number;
+
+  /**
+   * @generated from field: optional bool agent_requires_approval = 12;
+   */
+  agentRequiresApproval?: boolean;
+
+  /**
+   * UI preference settings.
+   *
+   * @generated from field: optional int32 search_debounce_ms = 13;
+   */
+  searchDebounceMs?: number;
+
+  /**
+   * @generated from field: optional int32 toast_duration_ms = 14;
+   */
+  toastDurationMs?: number;
+
+  /**
+   * @generated from field: optional bool confirm_destructive_actions = 15;
+   */
+  confirmDestructiveActions?: boolean;
 };
 
 /**
