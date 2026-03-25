@@ -1,0 +1,115 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-25T00:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What is this idea?",
+      "context": "The description is 'A new test idea' which doesn't specify what problem is being solved or what value is delivered. We need a concrete description of what this idea is before any meaningful planning can happen.",
+      "options": [
+        {"key": "A", "label": "A new standalone scenario/application", "rationale": "A self-contained app that provides a distinct capability, like existing scenarios (video-studio, dashboard, etc.)"},
+        {"key": "B", "label": "An enhancement to an existing scenario", "rationale": "Adds new functionality to one of the existing Vrooli scenarios"},
+        {"key": "C", "label": "A testing/infrastructure tool for Vrooli itself", "rationale": "Internal tooling that improves Vrooli's development, testing, or deployment capabilities"},
+        {"key": "D", "label": "Other", "rationale": "Provide your own description of what this idea is"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Target users",
+      "context": "Understanding who will use this determines architecture, UX complexity, and deployment model. Vrooli scenarios can serve end users, developers, businesses, or internal Vrooli operations.",
+      "options": [
+        {"key": "A", "label": "End users / consumers", "rationale": "Public-facing application with UI, needs polished UX and onboarding"},
+        {"key": "B", "label": "Developers / technical users", "rationale": "API-first or CLI tool, can assume technical proficiency"},
+        {"key": "C", "label": "Internal Vrooli operations", "rationale": "Supports Vrooli's recursive improvement loop, used by agents or maintainers"},
+        {"key": "D", "label": "Other", "rationale": "Specify your target audience"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Required components",
+      "context": "Vrooli scenarios can include any combination of API, UI, and CLI. The component mix determines project structure, build tooling, and development effort.",
+      "options": [
+        {"key": "A", "label": "API only (Go backend)", "rationale": "Lightweight service, no frontend needed — good for data processing, automation, or internal tools"},
+        {"key": "B", "label": "API + UI (Go backend + React frontend)", "rationale": "Full-stack application with user-facing interface — most common pattern for end-user scenarios"},
+        {"key": "C", "label": "API + CLI (Go backend + Go CLI)", "rationale": "Backend service with command-line interface — good for developer tools and automation"},
+        {"key": "D", "label": "API + UI + CLI", "rationale": "Full suite — maximum flexibility but highest development effort"},
+        {"key": "E", "label": "Other", "rationale": "Specify your preferred component mix"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Vrooli resource dependencies",
+      "context": "Vrooli provides shared local resources (postgres, redis, qdrant, ollama, etc.) that scenarios can compose. Choosing the right resources early informs architecture and service.json configuration.",
+      "options": [
+        {"key": "A", "label": "PostgreSQL only", "rationale": "Standard relational storage — sufficient for most CRUD-oriented scenarios"},
+        {"key": "B", "label": "PostgreSQL + Redis", "rationale": "Adds caching and pub/sub — good for real-time features or session management"},
+        {"key": "C", "label": "PostgreSQL + Redis + Ollama", "rationale": "Adds local AI/LLM capabilities — needed for AI-powered features"},
+        {"key": "D", "label": "None / minimal", "rationale": "Standalone service with no shared resource dependencies"},
+        {"key": "E", "label": "Other", "rationale": "Specify your resource needs"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "What file paths are expected to change?",
+      "context": "The acceptance_allow field in spec.json is empty. Defining expected change boundaries helps with sandbox configuration and post-execution validation. This should be set before any implementation work begins.",
+      "options": [
+        {"key": "A", "label": "Broad scenario-level globs (e.g., scenarios/new-test-idea/**)", "rationale": "Covers all files in a new standalone scenario directory"},
+        {"key": "B", "label": "Targeted subdirectory/file paths", "rationale": "If modifying an existing scenario or specific Vrooli components, narrow the scope"},
+        {"key": "C", "label": "Other", "rationale": "Specify your expected change paths"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Monetization model",
+      "context": "Vrooli scenarios can serve as products generating real revenue. Understanding the business model early shapes feature priorities and deployment decisions.",
+      "options": [
+        {"key": "A", "label": "Internal tool / capability builder", "rationale": "Enhances Vrooli's recursive improvement loop, no direct monetization"},
+        {"key": "B", "label": "SaaS offering", "rationale": "Deployed as a service, subscription or usage-based pricing"},
+        {"key": "C", "label": "Open source / community tool", "rationale": "Free to use, builds ecosystem value and user base"},
+        {"key": "D", "label": "Other", "rationale": "Specify your monetization approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The current description ('A new test idea') is too minimal to create a meaningful implementation plan. Most plan sections are marked TBD pending answers to the decisions above. Once the core identity of this idea is established, a second workshop round can drill into architecture, data models, and implementation details."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "No archive materials were found for this item. If you have existing requirements documents, designs, prior scenario artifacts, or reference materials, add them to the archive/ folder before the next workshop round."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with 13 mandatory sections. Most sections are TBD due to minimal input context. Phase 1 (Define and Scope) is outlined. Risks section identifies vagueness as the primary risk."
+}

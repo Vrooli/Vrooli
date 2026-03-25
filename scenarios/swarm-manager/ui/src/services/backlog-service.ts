@@ -44,7 +44,7 @@ import {
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
+import type { ArchiveRequirementRecord, ArchiveTargetFormValues, ArchiveTargetsResponse, BacklogItem, BacklogFile, BacklogKind, BacklogResearchTarget, BacklogSummaryResponse, FeedbackSummaryResponse, MaturitySummaryResponse, ModuleFormValues, PendingQuestionsResponse, ResearchResponse, ReviewUpdate } from "../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -164,6 +164,7 @@ export interface IBacklogService {
     includeTemplate?: boolean;
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
+  getBacklogSummary(): Promise<BacklogSummaryResponse>;
   getFeedbackSummary(): Promise<FeedbackSummaryResponse>;
   getMaturitySummary(): Promise<MaturitySummaryResponse>;
   getPendingQuestions(): Promise<PendingQuestionsResponse>;
@@ -482,6 +483,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       return apiClient.post<ImportBacklogResponse>(API_ENDPOINTS.backlogImport, formData, {
         headers: {},
       });
+    },
+
+    async getBacklogSummary(): Promise<BacklogSummaryResponse> {
+      return apiClient.get<BacklogSummaryResponse>(API_ENDPOINTS.backlogSummary);
     },
 
     async getFeedbackSummary(): Promise<FeedbackSummaryResponse> {

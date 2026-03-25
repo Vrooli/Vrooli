@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { executionService } from "../services";
 import type { ExecutionRecord } from "../types";
-import { fetchWithRetry, shouldRefetch, type LoadStatus } from "./store-utils";
+import { clearStorage, fetchWithRetry, loadFromStorage, saveToStorage, shouldRefetch, type LoadStatus, type StorePersistConfig } from "./store-utils";
+
+const PERSIST_CONFIG: StorePersistConfig = {
+  key: "swarm-manager.executions.v1",
+  version: 1,
+  maxItems: 100,
+};
 
 interface ExecutionStoreState {
   items: ExecutionRecord[];
@@ -14,12 +20,14 @@ interface ExecutionStoreState {
   reset: () => void;
 }
 
+const hydrated = loadFromStorage<ExecutionRecord[]>(PERSIST_CONFIG, []);
+
 export const executionStoreInitialState = {
-  items: [],
-  status: "idle" as LoadStatus,
+  items: hydrated.data,
+  status: (hydrated.data.length > 0 ? "success" : "idle") as LoadStatus,
   error: null,
   isRefreshing: false,
-  lastFetchedAt: null,
+  lastFetchedAt: hydrated.lastFetchedAt,
 };
 
 const sortExecutions = (items: ExecutionRecord[]): ExecutionRecord[] => {
@@ -54,13 +62,15 @@ export const useExecutionStore = create<ExecutionStoreState>((set, get) => ({
 
     try {
       const result = await fetchWithRetry(() => executionService.list());
+      const now = Date.now();
       set({
         items: sortExecutions(result),
         status: "success",
         error: null,
         isRefreshing: false,
-        lastFetchedAt: Date.now(),
+        lastFetchedAt: now,
       });
+      saveToStorage(PERSIST_CONFIG, sortExecutions(result), now);
     } catch (error) {
       set({
         error: error instanceof Error ? error : new Error("Unable to load executions."),
@@ -75,11 +85,20 @@ export const useExecutionStore = create<ExecutionStoreState>((set, get) => ({
       const next = state.items.some((entry) => entry.executionId === record.executionId)
         ? state.items.map((entry) => (entry.executionId === record.executionId ? record : entry))
         : [...state.items, record];
-      return { items: sortExecutions(next) };
+      const sorted = sortExecutions(next);
+      saveToStorage(PERSIST_CONFIG, sorted, state.lastFetchedAt ?? Date.now());
+      return { items: sorted };
     });
   },
 
   reset: (): void => {
-    set({ ...executionStoreInitialState });
+    clearStorage(PERSIST_CONFIG.key);
+    set({
+      items: [],
+      status: "idle" as LoadStatus,
+      error: null,
+      isRefreshing: false,
+      lastFetchedAt: null,
+    });
   },
 }));

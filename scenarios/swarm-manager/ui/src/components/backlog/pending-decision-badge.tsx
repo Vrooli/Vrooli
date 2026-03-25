@@ -4,6 +4,7 @@
  * Small pill badges showing why a backlog item needs user attention.
  */
 
+import { memo } from "react";
 import type { AttentionReason } from "../../lib/feed";
 
 interface PendingDecisionBadgeProps {
@@ -25,7 +26,7 @@ const REASON_CONFIG: Record<AttentionReason["kind"], { label: (count: number) =>
   },
 };
 
-export function PendingDecisionBadge({ reasons }: PendingDecisionBadgeProps) {
+export const PendingDecisionBadge = memo(function PendingDecisionBadge({ reasons }: PendingDecisionBadgeProps) {
   if (reasons.length === 0) return null;
 
   return (
@@ -44,4 +45,4 @@ export function PendingDecisionBadge({ reasons }: PendingDecisionBadgeProps) {
       })}
     </div>
   );
-}
+});

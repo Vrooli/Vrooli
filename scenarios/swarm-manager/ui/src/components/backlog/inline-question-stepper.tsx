@@ -4,14 +4,12 @@
  * navigation, auto-save on advance, and a flush-bottom progress bar.
  */
 import { useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Loader2, SkipForward, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, SkipForward, CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { backlogService } from "../../services/backlog-service";
-import { parseWorkshopRound, buildWorkshopRoundContent } from "../../lib/workshop-files";
+import { OTHER_KEY, filterAgentOther, parseWorkshopRound, buildWorkshopRoundContent } from "../../lib/workshop-files";
 import type { PendingQuestion, BacklogKind, ReviewStatus } from "../../types";
-
-const OTHER_KEY = "__other__";
 
 interface InlineQuestionStepperProps {
   questions: PendingQuestion[];
@@ -261,7 +259,7 @@ function WorkshopQuestionView({ question, answer, disabled, onUpdate }: Workshop
   const selected = answer?.selected ?? question.selected ?? "";
   const freeform = answer?.freeform ?? question.freeform ?? "";
   const isOther = selected === OTHER_KEY;
-  const options = question.options ?? [];
+  const options = filterAgentOther(question.options ?? []);
 
   const handleSelect = (key: string) => {
     onUpdate({
@@ -293,7 +291,9 @@ function WorkshopQuestionView({ question, answer, disabled, onUpdate }: Workshop
               "w-full rounded-md border px-2.5 py-1.5 text-left transition-colors",
               selected === opt.key
                 ? "border-emerald-500/40 bg-emerald-500/10"
-                : "border-slate-600 bg-slate-800/50 hover:border-slate-500",
+                : opt.recommended
+                  ? "border-cyan-500/30 bg-cyan-500/[0.03] hover:border-cyan-500/50"
+                  : "border-slate-600 bg-slate-800/50 hover:border-slate-500",
               disabled && "opacity-50 cursor-not-allowed",
             )}
           >
@@ -307,6 +307,12 @@ function WorkshopQuestionView({ question, answer, disabled, onUpdate }: Workshop
                 {opt.key}
               </span>
               <span className="text-xs text-slate-200">{opt.label}</span>
+              {opt.recommended && (
+                <span className="ml-auto flex items-center gap-0.5 rounded bg-cyan-500/15 px-1 py-0.5 text-[9px] font-medium text-cyan-400">
+                  <Star className="h-2.5 w-2.5 fill-current" />
+                  Rec
+                </span>
+              )}
             </div>
             {opt.rationale && (
               <p className="mt-0.5 ml-5 text-[10px] text-slate-500">{opt.rationale}</p>

@@ -4,11 +4,13 @@
  * Small pill showing which initiative a backlog item belongs to.
  */
 
+import { memo } from "react";
+
 interface InitiativeBadgeProps {
   initiative?: string;
 }
 
-export function InitiativeBadge({ initiative }: InitiativeBadgeProps) {
+export const InitiativeBadge = memo(function InitiativeBadge({ initiative }: InitiativeBadgeProps) {
   if (!initiative) return null;
 
   const label = initiative.length > 20 ? initiative.slice(0, 18) + "\u2026" : initiative;
@@ -21,4 +23,4 @@ export function InitiativeBadge({ initiative }: InitiativeBadgeProps) {
       {label}
     </span>
   );
-}
+});

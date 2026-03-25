@@ -4,12 +4,16 @@
  * Shows 5 labeled readiness dimensions with score badges, round count,
  * next nudge message, and a "ready for execution" banner.
  */
+import { Play } from "lucide-react";
 import { cn } from "../../lib";
+import { Button } from "../ui/button";
 import { READINESS_DIMENSIONS, DIMENSION_LABELS, SCORE_COLORS } from "../../lib/maturity";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
 
 interface ReadinessDetailsPanelProps {
   data: ReadinessIndicatorData;
+  /** When provided and data.ready is true, renders a "Run" CTA button. */
+  onRun?: () => void;
 }
 
 const SCORE_BG_CLASSES: Record<string, string> = {
@@ -19,7 +23,7 @@ const SCORE_BG_CLASSES: Record<string, string> = {
   emerald: "bg-emerald-500/20 text-emerald-400",
 };
 
-export function ReadinessDetailsPanel({ data }: ReadinessDetailsPanelProps) {
+export function ReadinessDetailsPanel({ data, onRun }: ReadinessDetailsPanelProps) {
   if (data.roundsCompleted === 0) return null;
 
   return (
@@ -58,8 +62,21 @@ export function ReadinessDetailsPanel({ data }: ReadinessDetailsPanelProps) {
       )}
 
       {data.ready && (
-        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-400">
-          Ready for execution
+        <div className="space-y-2">
+          <div className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-400">
+            Ready for execution
+          </div>
+          {onRun && (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full"
+              onClick={onRun}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Run
+            </Button>
+          )}
         </div>
       )}
 

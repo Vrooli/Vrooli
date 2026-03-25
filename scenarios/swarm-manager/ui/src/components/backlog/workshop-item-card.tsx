@@ -2,11 +2,10 @@
  * Renders a single workshop item (decision or info).
  */
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
+import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
 import type { WorkshopItem } from "../../types/domain";
-
-const OTHER_KEY = "__other__";
 
 interface WorkshopItemCardProps {
   item: WorkshopItem;
@@ -71,7 +70,7 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
   // Decision items
   const isResolved = !!localSelected.trim();
   const isOther = localSelected === OTHER_KEY;
-  const options = item.options ?? [];
+  const options = filterAgentOther(item.options ?? []);
 
   return (
     <div className={cn(
@@ -116,7 +115,9 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
                   "w-full rounded-md border px-3 py-2 text-left transition-colors",
                   localSelected === opt.key
                     ? "border-emerald-500/40 bg-emerald-500/10"
-                    : "border-slate-600 bg-slate-800/50 hover:border-slate-500",
+                    : opt.recommended
+                      ? "border-cyan-500/30 bg-cyan-500/[0.03] hover:border-cyan-500/50"
+                      : "border-slate-600 bg-slate-800/50 hover:border-slate-500",
                   disabled && "opacity-50 cursor-not-allowed",
                 )}
               >
@@ -130,6 +131,12 @@ export function WorkshopItemCard({ item, disabled, onUpdate, onDelete }: Worksho
                     {opt.key}
                   </span>
                   <span className="text-sm text-slate-200">{opt.label}</span>
+                  {opt.recommended && (
+                    <span className="ml-auto flex items-center gap-0.5 rounded bg-cyan-500/15 px-1.5 py-0.5 text-[9px] font-medium text-cyan-400">
+                      <Star className="h-2.5 w-2.5 fill-current" />
+                      Recommended
+                    </span>
+                  )}
                 </div>
                 {opt.rationale && (
                   <p className="mt-1 ml-7 text-xs text-slate-500">{opt.rationale}</p>

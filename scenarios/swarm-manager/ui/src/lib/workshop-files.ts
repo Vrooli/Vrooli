@@ -7,7 +7,15 @@
  * DOC: docs/internal/SEAMS.md#workshop-parsing
  */
 
-import type { BacklogFile, WorkshopItem, WorkshopRound } from "../types/domain";
+import type { BacklogFile, DecisionOption, WorkshopItem, WorkshopRound } from "../types/domain";
+
+/** Sentinel value for the manually-appended "Other" freeform option. */
+export const OTHER_KEY = "__other__";
+
+/** Filter out agent-provided "Other" options so only our manual one (with textarea) is shown. */
+export function filterAgentOther(options: DecisionOption[]): DecisionOption[] {
+  return options.filter((opt) => opt.label.toLowerCase().trim() !== "other");
+}
 
 export const WORKSHOP_FILE_PATHS = {
   plan: "plan.md",
@@ -118,6 +126,7 @@ function normalizeDecisionOption(raw: unknown): import("../types/domain").Decisi
       key: String(obj.key ?? ""),
       label: String(obj.label ?? ""),
       rationale: String(obj.rationale ?? ""),
+      ...(obj.recommended === true && { recommended: true }),
     };
   }
   // Fallback for legacy string options

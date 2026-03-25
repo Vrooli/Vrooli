@@ -55,6 +55,7 @@ import { ReadinessBar } from "../components/backlog/readiness-bar";
 import { PendingDecisionBadge } from "../components/backlog/pending-decision-badge";
 import { InitiativeBadge } from "../components/backlog/initiative-badge";
 import { DependencyIndicator } from "../components/backlog/dependency-indicator";
+import { ScenarioBadge } from "../components/backlog/scenario-badge";
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
@@ -251,41 +252,31 @@ export function BacklogPage() {
     return () => clearInterval(interval);
   }, [captures, fetchCaptures]);
 
-  const feedbackSummaryQuery = useQuery({
-    queryKey: ["backlog-feedback-summary"],
-    queryFn: () => backlogService.getFeedbackSummary(),
+  // Single combined query replaces 3 separate summary RPCs.
+  const summaryQuery = useQuery({
+    queryKey: ["backlog-summary"],
+    queryFn: () => backlogService.getBacklogSummary(),
     staleTime: 60_000,
   });
-  const feedbackSummary = feedbackSummaryQuery.data;
+  const feedbackSummary = summaryQuery.data?.feedback;
 
-  const maturityQuery = useQuery({
-    queryKey: ["backlog-maturity-summary"],
-    queryFn: () => backlogService.getMaturitySummary(),
-    staleTime: 60_000,
-  });
   const readinessMap = useMemo(() => {
     const map = new Map<string, ReadinessIndicatorData>();
-    if (!maturityQuery.data?.items) return map;
-    for (const item of maturityQuery.data.items) {
+    if (!summaryQuery.data?.maturity?.items) return map;
+    for (const item of summaryQuery.data.maturity.items) {
       map.set(`${item.kind}/${item.name}`, buildReadinessData(item));
     }
     return map;
-  }, [maturityQuery.data]);
+  }, [summaryQuery.data?.maturity]);
 
-  // Pending questions for inline stepper on All tab
-  const pendingQuestionsQuery = useQuery({
-    queryKey: ["backlog-pending-questions"],
-    queryFn: () => backlogService.getPendingQuestions(),
-    staleTime: 60_000,
-  });
   const pendingQuestionsMap = useMemo(() => {
     const map = new Map<string, PendingQuestion[]>();
-    if (!pendingQuestionsQuery.data?.items) return map;
-    for (const pqi of pendingQuestionsQuery.data.items) {
+    if (!summaryQuery.data?.pending_questions?.items) return map;
+    for (const pqi of summaryQuery.data.pending_questions.items) {
       map.set(`${pqi.kind}/${pqi.name}`, pqi.questions);
     }
     return map;
-  }, [pendingQuestionsQuery.data]);
+  }, [summaryQuery.data?.pending_questions]);
 
   // Build unified feed for the "All" tab
   const feedItems = useMemo(() => {
@@ -295,14 +286,14 @@ export function BacklogPage() {
       name: item.name,
       pendingDecisions: item.pending_decisions ?? 0,
     }));
-    const maturityItems: MaturityItem[] = (maturityQuery.data?.items ?? []).map((item) => ({
+    const maturityItems: MaturityItem[] = (summaryQuery.data?.maturity?.items ?? []).map((item) => ({
       kind: item.kind,
       name: item.name,
       ready: item.ready ?? false,
       pendingItems: item.pending_items ?? 0,
     }));
     return buildFeed(captures, items, feedbackItems, maturityItems, { showFinished });
-  }, [activeKind, captures, items, feedbackSummary, maturityQuery.data, showFinished]);
+  }, [activeKind, captures, items, feedbackSummary, summaryQuery.data?.maturity, showFinished]);
 
   const actionableCount = useMemo(() => countActionableItems(feedItems), [feedItems]);
 
@@ -789,8 +780,7 @@ export function BacklogPage() {
                           next.add(itemKey);
                           return next;
                         });
-                        void queryClient.invalidateQueries({ queryKey: ["backlog-pending-questions"] });
-                        void queryClient.invalidateQueries({ queryKey: ["backlog-feedback-summary"] });
+                        void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
                       }}
                     />
                   ) : (
@@ -801,10 +791,11 @@ export function BacklogPage() {
                           <PendingDecisionBadge reasons={reasons} />
                         </div>
                       )}
-                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
+                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0) || (item.acceptanceAllow && item.acceptanceAllow.length > 0)) && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           <InitiativeBadge initiative={item.initiative} />
                           <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
+                          <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
                         </div>
                       )}
                       <TagList
@@ -1037,7 +1028,7 @@ export function BacklogPage() {
         selectedNames={feedbackHubSelectedNames}
         onDataChanged={() => {
           void fetchBacklog({ force: true });
-          void feedbackSummaryQuery.refetch();
+          void summaryQuery.refetch();
         }}
         initialTab={feedbackHubInitialTab}
       />

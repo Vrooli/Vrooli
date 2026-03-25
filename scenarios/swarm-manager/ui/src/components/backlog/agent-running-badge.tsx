@@ -2,6 +2,7 @@
  * Badge shown on backlog list cards when an agent is actively running for that item.
  * Uses the agent runs store to check for active runs (pending/starting/running/needs_review).
  */
+import { memo } from "react";
 import { useAgentRunsStore, selectLatestRunForBacklog } from "../../stores/agent-runs-store";
 import type { BacklogKind } from "../../types";
 
@@ -12,7 +13,7 @@ interface AgentRunningBadgeProps {
   backlogName: string;
 }
 
-export function AgentRunningBadge({ backlogKind, backlogName }: AgentRunningBadgeProps) {
+export const AgentRunningBadge = memo(function AgentRunningBadge({ backlogKind, backlogName }: AgentRunningBadgeProps) {
   const run = useAgentRunsStore((state) => selectLatestRunForBacklog(state, backlogKind, backlogName));
 
   if (!run || !ACTIVE_STATUSES.has(run.status)) return null;
@@ -28,4 +29,4 @@ export function AgentRunningBadge({ backlogKind, backlogName }: AgentRunningBadg
       {label}
     </span>
   );
-}
+});

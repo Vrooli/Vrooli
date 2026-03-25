@@ -45,9 +45,10 @@ type Item struct {
 
 // Option is a single lettered choice within a decision item.
 type Option struct {
-	Key       string `json:"key"`       // e.g. "A", "B", "C"
-	Label     string `json:"label"`     // short description
-	Rationale string `json:"rationale"` // agent's analysis of this option
+	Key         string `json:"key"`                    // e.g. "A", "B", "C"
+	Label       string `json:"label"`                  // short description
+	Rationale   string `json:"rationale"`              // agent's analysis of this option
+	Recommended bool   `json:"recommended,omitempty"`  // agent's pick
 }
 
 // ---------------------------------------------------------------------------

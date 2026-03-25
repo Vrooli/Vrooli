@@ -80,6 +80,9 @@ export {
 } from "./execution-utils";
 export type { ExecutionFilters, ExecutionTabId } from "./execution-utils";
 
+// Scenario Utilities
+export { scenariosFromGlobs } from "./scenario-utils";
+
 // Query Utilities - React Query configuration
 export { defaultQueryOptions } from "./query-utils";
 export type { DefaultQueryOptions } from "./query-utils";

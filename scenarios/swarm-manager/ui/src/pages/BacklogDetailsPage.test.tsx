@@ -202,4 +202,32 @@ describe("BacklogDetailsPage", () => {
       expect(screen.getAllByTestId("backlog-file-actions-menu").length).toBeGreaterThan(0);
     });
   });
+
+  it("shows target scenarios panel when acceptanceAllow has scenario globs", async () => {
+    vi.mocked(backlogService.get).mockResolvedValue({
+      ...mockItem,
+      acceptanceAllow: ["scenarios/web-console/api/**"],
+    });
+    vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Target Scenarios").length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText("web-console").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Control Tower Review: Enabled").length).toBeGreaterThan(0);
+  });
+
+  it("hides target scenarios panel when no acceptanceAllow", async () => {
+    vi.mocked(backlogService.get).mockResolvedValue(mockItem);
+    vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("backlog-details-page")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Target Scenarios")).not.toBeInTheDocument();
+  });
 });

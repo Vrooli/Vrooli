@@ -6,6 +6,7 @@
  * and execution-blocking (deps not yet completed).
  */
 
+import { memo } from "react";
 import type { BacklogItem } from "../../types";
 
 const WORKSHOP_BLOCKING_STATUSES = new Set(["backlog", "researching"]);
@@ -15,7 +16,7 @@ interface DependencyIndicatorProps {
   allItems: BacklogItem[];
 }
 
-export function DependencyIndicator({ dependsOn, allItems }: DependencyIndicatorProps) {
+export const DependencyIndicator = memo(function DependencyIndicator({ dependsOn, allItems }: DependencyIndicatorProps) {
   if (!dependsOn || dependsOn.length === 0) return null;
 
   const itemsByKey = new Map(allItems.map((item) => [`${item.kind}/${item.name}`, item]));
@@ -75,4 +76,4 @@ export function DependencyIndicator({ dependsOn, allItems }: DependencyIndicator
       {dependsOn.length} dep{dependsOn.length !== 1 ? "s" : ""}
     </span>
   );
-}
+});

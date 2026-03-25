@@ -7,6 +7,7 @@
  *
  * Returns null when no workshop rounds have been completed.
  */
+import { memo } from "react";
 import { cn } from "../../lib";
 import {
   READINESS_DIMENSIONS,
@@ -28,7 +29,7 @@ const FILLED_CLASSES: Record<number, string> = {
 
 const ZERO_CLASS = "ring-1 ring-slate-500 text-slate-500";
 
-export function ReadinessBar({ data, className }: ReadinessBarProps) {
+export const ReadinessBar = memo(function ReadinessBar({ data, className }: ReadinessBarProps) {
   if (data.roundsCompleted === 0) return null;
 
   return (
@@ -58,4 +59,4 @@ export function ReadinessBar({ data, className }: ReadinessBarProps) {
       )}
     </div>
   );
-}
+});

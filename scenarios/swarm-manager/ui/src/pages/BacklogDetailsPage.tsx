@@ -23,6 +23,7 @@ import {
   ArrowRight,
   ArrowRightLeft,
   ArrowUpRight,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import {
   Edit,
   FileText,
   Files,
+  FolderOpen,
   Info,
   Lock,
   Loader2,
@@ -81,6 +83,7 @@ import {
   formatRelativeTime,
   getBacklogNotQueueableReason,
   isBacklogQueueable,
+  scenariosFromGlobs,
 } from "../lib";
 import { parseWorkshopRound, WORKSHOP_FILE_PATHS, findBacklogFileByPath } from "../lib/workshop-files";
 import { buildReadinessData } from "../lib/maturity";
@@ -1535,9 +1538,42 @@ export function BacklogDetailsPage() {
     </Card>
   ) : null;
 
+  const targetScenarios = scenariosFromGlobs(item?.acceptanceAllow);
+
+  const scenariosPanel = targetScenarios.length > 0 ? (
+    <Card padding="sm" className="rounded-lg border-slate-700/60 bg-slate-900/45">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+          <FolderOpen className="h-4 w-4 text-slate-400" />
+          <h2 className="text-base font-semibold text-slate-100">Target Scenarios</h2>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {targetScenarios.map((name) => (
+            <Link
+              key={name}
+              to={`/scenarios/${name}`}
+              className="inline-flex items-center rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/25 transition-colors"
+            >
+              {name}
+            </Link>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 border-t border-slate-800 pt-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="text-xs text-emerald-400">Control Tower Review: Enabled</span>
+        </div>
+      </div>
+    </Card>
+  ) : null;
+
   const notesPanel = (
     <div className="space-y-4">
-      {readinessData && <ReadinessDetailsPanel data={readinessData} />}
+      {readinessData && (
+        <ReadinessDetailsPanel
+          data={readinessData}
+          onRun={canQueue ? () => setShowRunModal(true) : undefined}
+        />
+      )}
       {isLocked && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-sm text-amber-300">
           This item is {item ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
@@ -2034,6 +2070,7 @@ export function BacklogDetailsPage() {
       )}
       {activeRunBanner}
       {detailsPanel}
+      {scenariosPanel}
       {notesPanel}
       {archiveTargets?.has_archive && (
         <>
@@ -2126,6 +2163,17 @@ export function BacklogDetailsPage() {
                   {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
                 </p>
               </div>
+              {canQueue && readinessData?.ready && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowRunModal(true)}
+                  data-testid={selectors.backlogDetails.queueButton}
+                >
+                  <Play className="mr-1.5 h-4 w-4" />
+                  Run
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -2338,6 +2386,7 @@ export function BacklogDetailsPage() {
                 <div className="space-y-6 pt-6">
                   {activeRunBanner}
                   {detailsPanel}
+                  {scenariosPanel}
                   {notesPanel}
                   {archiveTargets?.has_archive && (
                     <>

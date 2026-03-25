@@ -208,6 +208,7 @@ export interface DecisionOption {
   key: string;
   label: string;
   rationale: string;
+  recommended?: boolean;
 }
 
 /**
@@ -256,6 +257,16 @@ export interface MaturityItemSummary {
  */
 export interface MaturitySummaryResponse {
   items: MaturityItemSummary[];
+}
+
+/**
+ * Combined backlog summary response (feedback + maturity + pending questions).
+ * Returned by the /backlog/summary endpoint to avoid 3 separate round-trips.
+ */
+export interface BacklogSummaryResponse {
+  feedback: FeedbackSummaryResponse;
+  maturity: MaturitySummaryResponse;
+  pending_questions: PendingQuestionsResponse;
 }
 
 /**

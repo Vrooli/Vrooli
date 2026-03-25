@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
   backlogPromptTrace: (kind: string, name: string) => `/backlog/${kind}/${name}/prompt-trace`,
   backlogExport: "/backlog/export",
   backlogImport: "/backlog/import",
+  backlogSummary: "/backlog/summary",
   backlogFeedbackSummary: "/backlog/feedback-summary",
   backlogMaturitySummary: "/backlog/maturity-summary",
   backlogPendingQuestions: "/backlog/pending-questions",

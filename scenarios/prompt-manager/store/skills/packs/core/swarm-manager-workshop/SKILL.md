@@ -59,7 +59,7 @@ EOF
       "topic": "Authentication approach",
       "context": "Why this matters and what was found",
       "options": [
-        {"key": "A", "label": "OAuth with Google", "rationale": "Lowest effort, covers 90% of users"},
+        {"key": "A", "label": "OAuth with Google", "rationale": "Lowest effort, covers 90% of users", "recommended": true},
         {"key": "B", "label": "JWT with custom auth", "rationale": "More control, offline support"},
         {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
       ],
@@ -89,7 +89,7 @@ EOF
 - Every decision MUST have at least 2 options (A, B) and should usually include an "Other" option as the last choice
 - Options are lettered A, B, C, D... (not numbered)
 - Each option needs a clear `label` AND `rationale` explaining tradeoffs
-- The agent should indicate which option it recommends and why (in the `context` field or as a note in the option rationale)
+- Set `"recommended": true` on exactly one option per decision to indicate the agent's pick. The rationale for that option should explain why it's recommended
 - Decisions replace both questions (where the agent presents answer options) and proposals (where the agent presents approaches)
 - For factual questions (like "what's the target user count?"), present likely ranges as options (e.g., A: "Under 100", B: "100-10k", C: "10k+", D: "Other")
 - Use `id` prefixes: `d1`, `d2`... for decisions; `i1`, `i2`... for info items
@@ -189,7 +189,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    **Quality rules:**
    - Decisions should target specific plan gaps, not general curiosity
    - Each decision option should have a clear label and rationale explaining tradeoffs
-   - The agent should indicate its recommended option and why
+   - Mark exactly one option per decision with `"recommended": true` and explain why in its rationale
    - Info items should share genuinely useful findings (codebase observations, dependency discoveries, etc.)
    - Do not repeat decisions from prior rounds unless the context has materially changed
    - Do not re-present decisions that the user has already resolved
