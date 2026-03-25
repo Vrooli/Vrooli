@@ -13,6 +13,7 @@ type FileStore struct {
 	skills    *FileSkillStore
 	agents    *FileAgentStore
 	teams     *FileTeamStore
+	topics    *FileTopicStore
 	relations *FileRelationStore
 	indexes   *FileIndexStore
 }
@@ -29,15 +30,17 @@ func NewFileStore(storeDir string) *FileStore {
 	skillStore := NewFileSkillStore(storeDir)
 	teamStore := NewFileTeamStore(storeDir, relationStore)
 	agentStore := NewFileAgentStore(storeDir)
+	topicStore := NewFileTopicStore(storeDir)
 
 	// Create index store (needs all entity stores)
-	indexStore := NewFileIndexStore(storeDir, skillStore, agentStore, teamStore, relationStore)
+	indexStore := NewFileIndexStore(storeDir, skillStore, agentStore, teamStore, topicStore, relationStore)
 
 	return &FileStore{
 		storeDir:  storeDir,
 		skills:    skillStore,
 		agents:    agentStore,
 		teams:     teamStore,
+		topics:    topicStore,
 		relations: relationStore,
 		indexes:   indexStore,
 	}
@@ -61,6 +64,16 @@ func (s *FileStore) Agents() AgentStore {
 // Teams returns the team store
 func (s *FileStore) Teams() TeamStore {
 	return s.teams
+}
+
+// Topics returns the topic store
+func (s *FileStore) Topics() TopicStore {
+	return s.topics
+}
+
+// FileTopics returns the concrete file topic store
+func (s *FileStore) FileTopics() *FileTopicStore {
+	return s.topics
 }
 
 // Relations returns the relation store
@@ -87,6 +100,7 @@ func ensureStoreDirectories(storeDir string) {
 		filepath.Join(storeDir, "templates", "agent-files"),
 		filepath.Join(storeDir, "agents"),
 		filepath.Join(storeDir, "teams"),
+		filepath.Join(storeDir, "topics"),
 		filepath.Join(storeDir, "relations", "team-member"),
 		filepath.Join(storeDir, "indexes"),
 	}

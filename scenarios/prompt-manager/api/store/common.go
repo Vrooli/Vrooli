@@ -24,6 +24,7 @@ const (
 	KindOrgChart   = "org-chart"
 	KindTeamInbox  = "team-inbox"
 	KindTeamMember = "team-member"
+	KindTopic      = "topic"
 )
 
 // Status values for skills

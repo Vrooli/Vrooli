@@ -10,6 +10,8 @@ Run one workshop round for a backlog item of any kind. Analyze gaps in the curre
 
 **Required reading:** `prompt-manager skill read implementation-plan-authoring` — canonical plan structure, mandatory sections, convergence patterns, quality gates, and guardrails for `plan.md`.
 
+**Required reading:** `prompt-manager skill read plan-skill-discovery` — methodology for discovering and embedding relevant skills into the plan
+
 ## Scope
 
 **In scope:**
@@ -172,7 +174,41 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - What test/verification strategy is missing?
    - What risks haven't been identified?
 
-5. **Generate workshop items**
+5. **Discover relevant skills**
+
+   Apply the plan-skill-discovery methodology to find domain-relevant skills:
+
+   **On round 1 (full discovery):**
+   a. Classify the work using the item's kind, title, description, and tags
+   b. Decompose into 2-5 focused concepts. For example, for a fix item titled "SQLite migration fails on large tables":
+      - "SQLite migration"
+      - "database schema changes"
+      - "Go error handling"
+   c. Run focused searches:
+      ```bash
+      prompt-manager topic search "<concept-1>" "<concept-2>" -limit 3
+      prompt-manager search "<concept-1>" -limit 3
+      prompt-manager search "<concept-2>" -limit 3
+      ```
+   d. Deduplicate results across queries and read top candidates:
+      ```bash
+      prompt-manager skill read <id-1> <id-2> <id-3> -output combined
+      ```
+   e. Assess relevance autonomously — include only skills that will materially improve the plan
+   f. Embed discovered skills as Required Reading entries in plan.md
+
+   **On subsequent rounds (conditional re-discovery):**
+   - Skip if the approach and domain have not changed materially since the last discovery
+   - Re-run discovery ONLY if:
+     - A user decision shifted the technical approach (e.g., changed from SQLite to PostgreSQL)
+     - New context reveals a domain not covered by existing Required Reading
+   - When re-running, check for skills already in Required Reading and only search for the new domain
+
+   **Use discovered knowledge:**
+   - Let discovered skill content inform the decisions and options you generate in step 6
+   - Reference specific skill guidance when it supports a recommended option
+
+6. **Generate workshop items**
 
    Based on the gaps identified, produce a focused set of items:
 
@@ -196,11 +232,11 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Pre-select options when inferable from existing context (set `selected` to the key)
    - Use IDs like `d1`, `d2`... for decisions, `i1`, `i2`... for info items (unique within the round)
 
-6. **Score readiness**
+7. **Score readiness**
 
    Evaluate each dimension honestly based on the current state of the plan AFTER incorporating answers from prior rounds. Use the scoring rubric above.
 
-7. **Update plan.md**
+8. **Update plan.md**
 
    Incorporate all settled information into the plan:
    - Resolved decisions (with a `selected` value) become facts/commitments in relevant sections
@@ -215,7 +251,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    EOF
    ```
 
-8. **Write the round file**
+9. **Write the round file**
 
    ```bash
    swarm-manager backlog file-upload --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --path workshop/round-{{ROUND_NUMBER}}.json --stdin <<'EOF'
@@ -225,7 +261,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    Use zero-padded 3-digit round numbers: `round-001.json`, `round-002.json`, etc.
 
-9. **Verify outputs**
+10. **Verify outputs**
 
    ```bash
    swarm-manager backlog files --kind {{ITEM_KIND}} --name {{ITEM_NAME}}
@@ -239,7 +275,7 @@ As rounds progress, your focus should shift:
 
 | Rounds Completed | Primary Focus |
 |-----------------|---------------|
-| 0 (first round) | Problem clarity, initial scope, gather requirements |
+| 0 (first round) | Problem clarity, initial scope, gather requirements, skill discovery |
 | 1-2 | Approach selection, technical context, scope refinement |
 | 3-4 | Testing strategy, risk identification, implementation details |
 | 5+ | Polish, edge cases, final validation criteria |

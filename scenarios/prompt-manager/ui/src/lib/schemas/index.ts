@@ -238,6 +238,25 @@ export {
   type WorldSeatsConfig,
 } from './worldSeats.schema'
 
+// Topic schemas
+export {
+  TopicSchema,
+  TopicArraySchema,
+  CreateTopicRequestSchema,
+  UpdateTopicRequestSchema,
+  AccumulatedSkillsResponseSchema,
+  TopicMatchRequestSchema,
+  TopicMatchResultSchema,
+  TopicMatchResponseSchema,
+  type Topic,
+  type CreateTopicRequest,
+  type UpdateTopicRequest,
+  type AccumulatedSkillsResponse,
+  type TopicMatchRequest,
+  type TopicMatchResult,
+  type TopicMatchResponse,
+} from './topic.schema'
+
 // Graph schemas
 export {
   NodeTypeSchema,

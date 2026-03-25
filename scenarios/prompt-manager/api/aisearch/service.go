@@ -31,6 +31,10 @@ type Service struct {
 	teamStore        TeamStoreReader
 	teamRelStore     TeamRelReader
 	teamSearchSvc    *search.TeamSearchService
+
+	// Topic support
+	topicVectorStore *VectorStore
+	topicStore       TopicStoreReader
 }
 
 // AgentStoreReader provides read access to agents for AI search.
@@ -53,6 +57,29 @@ type TeamStoreReader interface {
 // TeamRelReader provides access to team member relations.
 type TeamRelReader interface {
 	ListTeamMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error)
+}
+
+// TopicStoreReader provides read access to topics for AI search.
+type TopicStoreReader interface {
+	List(ctx context.Context) ([]store.Topic, error)
+	Get(ctx context.Context, id string) (*store.Topic, error)
+	GetWithContent(ctx context.Context, id string) (*store.Topic, string, error)
+	GetAncestors(ctx context.Context, id string) ([]store.Topic, error)
+	AccumulateSkills(ctx context.Context, id string) ([]string, error)
+}
+
+// ComplexityBudgets maps complexity levels to character budgets for skill discovery.
+var ComplexityBudgets = map[string]int{
+	"minor":         4000,
+	"moderate":      8000,
+	"major":         12000,
+	"architectural": 18000,
+}
+
+// ValidComplexity returns true if the given complexity string is recognized.
+func ValidComplexity(c string) bool {
+	_, ok := ComplexityBudgets[c]
+	return ok
 }
 
 // SearchOptions controls optional output formatting for AI search responses.
@@ -105,6 +132,9 @@ func (s *Service) Search(ctx context.Context, query string, limit int) (*AISearc
 	}
 
 	// Try AI search first
+	if s.embedder == nil {
+		return s.fallbackToTextSearch(ctx, query, limit)
+	}
 	vector, err := s.embedder.Embed(ctx, query)
 	if err != nil {
 		log.Printf("[aisearch] Embedding failed, falling back to text search: %v", err)
@@ -168,6 +198,352 @@ func (s *Service) SearchWithOptions(ctx context.Context, query string, limit int
 	resp.Format = normalizedFormat
 
 	return resp, nil
+}
+
+// SearchMultiWithOptions performs multiple AI searches (one per query), merges and deduplicates results.
+func (s *Service) SearchMultiWithOptions(ctx context.Context, queries []string, limit int, options SearchOptions) (*AISearchResponse, error) {
+	if len(queries) == 0 {
+		return nil, fmt.Errorf("at least one query is required")
+	}
+	if len(queries) == 1 {
+		return s.SearchWithOptions(ctx, queries[0], limit, options)
+	}
+
+	// Search each query independently, collect all results
+	seen := make(map[string]AISearchResult) // key: skill ID, value: best result
+	method := "ai"
+
+	for _, query := range queries {
+		resp, err := s.Search(ctx, query, limit)
+		if err != nil {
+			log.Printf("[aisearch] Multi-query search failed for %q: %v", query, err)
+			continue
+		}
+		if resp.Method == "text" {
+			method = "text"
+		}
+		for _, r := range resp.Results {
+			if existing, ok := seen[r.ID]; !ok || r.Score > existing.Score {
+				seen[r.ID] = r
+			}
+		}
+	}
+
+	// Collect and sort by score descending
+	results := make([]AISearchResult, 0, len(seen))
+	for _, r := range seen {
+		results = append(results, r)
+	}
+	sortAIResults(results)
+
+	// Apply limit
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	resp := &AISearchResponse{
+		Results: results,
+		Total:   len(results),
+		Query:   strings.Join(queries, " | "),
+		Method:  method,
+		Output:  normalizeSearchOutput(options.Output),
+	}
+
+	// Render combined output if requested
+	if outputIncludesCombined(resp.Output) {
+		renderLimit := options.RenderLimit
+		if renderLimit <= 0 || renderLimit > len(resp.Results) {
+			renderLimit = len(resp.Results)
+		}
+		ids := make([]string, 0, renderLimit)
+		for i := 0; i < renderLimit; i++ {
+			ids = append(ids, resp.Results[i].ID)
+		}
+		responses := s.loadResponsesByIDs(ids)
+		combined, normalizedFormat, err := skills.RenderCombined(responses, options.Format)
+		if err != nil {
+			return nil, err
+		}
+		resp.Combined = combined
+		resp.SkillCount = len(responses)
+		resp.TotalTokens = (len(combined) + 3) / 4
+		resp.Format = normalizedFormat
+	}
+
+	return resp, nil
+}
+
+// sortAIResults sorts AI search results by score descending.
+func sortAIResults(results []AISearchResult) {
+	for i := 1; i < len(results); i++ {
+		for j := i; j > 0 && results[j].Score > results[j-1].Score; j-- {
+			results[j], results[j-1] = results[j-1], results[j]
+		}
+	}
+}
+
+// SearchTopics performs AI semantic search for topics with graceful fallback.
+func (s *Service) SearchTopics(ctx context.Context, query string, limit int) ([]SearchResult, string, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	if s.topicVectorStore == nil {
+		return nil, "none", nil
+	}
+
+	vector, err := s.embedder.Embed(ctx, query)
+	if err != nil {
+		log.Printf("[aisearch] Topic embedding failed: %v", err)
+		return nil, "none", nil
+	}
+
+	results, err := s.topicVectorStore.Search(ctx, vector, limit, s.threshold)
+	if err != nil {
+		log.Printf("[aisearch] Topic vector search failed: %v", err)
+		return nil, "none", nil
+	}
+
+	return results, "ai", nil
+}
+
+// Discover performs unified topic + skill discovery.
+// For each query: searches topics (accumulates their skills) and searches skills directly.
+// Results are deduplicated, sorted by topic depth then search score, and annotated with content sizes.
+func (s *Service) Discover(ctx context.Context, queries []string, complexity string, limit int) (*DiscoverResponse, error) {
+	if len(queries) == 0 {
+		return nil, fmt.Errorf("at least one query is required")
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	type skillEntry struct {
+		result DiscoverResult
+	}
+	seen := make(map[string]*skillEntry)
+	method := "ai"
+
+	// Step 1: Topic search per query
+	for _, query := range queries {
+		topicResults, topicMethod, err := s.SearchTopics(ctx, query, 3)
+		if err != nil {
+			log.Printf("[aisearch] Discover topic search failed for %q: %v", query, err)
+			continue
+		}
+		if topicMethod == "none" {
+			if method == "ai" {
+				method = "mixed"
+			}
+		}
+
+		for _, tr := range topicResults {
+			topicID, _ := tr.Payload["topic_id"].(string)
+			if topicID == "" || s.topicStore == nil {
+				continue
+			}
+
+			// Get ancestors to compute depth
+			ancestors, err := s.topicStore.GetAncestors(ctx, topicID)
+			if err != nil {
+				log.Printf("[aisearch] Discover get ancestors failed for topic %s: %v", topicID, err)
+				continue
+			}
+			topicDepth := len(ancestors)
+
+			// Accumulate skills from this topic + ancestors
+			skillIDs, err := s.topicStore.AccumulateSkills(ctx, topicID)
+			if err != nil {
+				log.Printf("[aisearch] Discover accumulate skills failed for topic %s: %v", topicID, err)
+				continue
+			}
+
+			for _, skillID := range skillIDs {
+				if existing, exists := seen[skillID]; exists {
+					// Keep the shallowest depth
+					if existing.result.TopicDepth != nil && topicDepth < *existing.result.TopicDepth {
+						d := topicDepth
+						existing.result.TopicDepth = &d
+						existing.result.TopicID = topicID
+					}
+					continue
+				}
+
+				meta, folder, findErr := s.skillStore.FindByID(skillID)
+				if findErr != nil || meta == nil {
+					continue
+				}
+
+				d := topicDepth
+				seen[skillID] = &skillEntry{
+					result: DiscoverResult{
+						ID:           meta.ID,
+						Name:         meta.Name,
+						Description:  meta.Description,
+						Tags:         meta.Tags,
+						Modes:        meta.Modes,
+						Score:        tr.Score,
+						ScorePercent: int(tr.Score * 100),
+						Source:       "topic",
+						TopicDepth:   &d,
+						TopicID:      topicID,
+					},
+				}
+
+				// Load content size
+				content, contentErr := s.skillStore.GetContent(folder, meta.File)
+				if contentErr == nil {
+					seen[skillID].result.ContentChars = len(content)
+				}
+			}
+		}
+	}
+
+	// Step 2: Skill search per query
+	for _, query := range queries {
+		resp, err := s.Search(ctx, query, limit)
+		if err != nil {
+			log.Printf("[aisearch] Discover skill search failed for %q: %v", query, err)
+			continue
+		}
+		if resp.Method == "text" {
+			method = "mixed"
+		}
+
+		for _, r := range resp.Results {
+			if existing, exists := seen[r.ID]; exists {
+				// Topic source wins; for search dupes keep higher score
+				if existing.result.Source == "search" && r.Score > existing.result.Score {
+					existing.result.Score = r.Score
+					existing.result.ScorePercent = r.ScorePercent
+				}
+				continue
+			}
+
+			entry := &skillEntry{
+				result: DiscoverResult{
+					ID:           r.ID,
+					Name:         r.Name,
+					Description:  r.Description,
+					Tags:         r.Tags,
+					Modes:        r.Modes,
+					Score:        r.Score,
+					ScorePercent: r.ScorePercent,
+					Source:       "search",
+				},
+			}
+
+			// Load content size
+			meta, folder, findErr := s.skillStore.FindByID(r.ID)
+			if findErr == nil && meta != nil {
+				content, contentErr := s.skillStore.GetContent(folder, meta.File)
+				if contentErr == nil {
+					entry.result.ContentChars = len(content)
+				}
+			}
+
+			seen[r.ID] = entry
+		}
+	}
+
+	// Step 3: Sort - topic-sourced first (depth asc, score desc), then search-sourced (score desc)
+	var topicResults, searchResults []DiscoverResult
+	for _, entry := range seen {
+		if entry.result.Source == "topic" {
+			topicResults = append(topicResults, entry.result)
+		} else {
+			searchResults = append(searchResults, entry.result)
+		}
+	}
+
+	sortDiscoverTopicResults(topicResults)
+	sortDiscoverSearchResults(searchResults)
+
+	results := append(topicResults, searchResults...)
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	// Step 4: Build response
+	totalChars := 0
+	ids := make([]string, 0, len(results))
+	for _, r := range results {
+		totalChars += r.ContentChars
+		ids = append(ids, r.ID)
+	}
+
+	readCommand := ""
+	if len(ids) > 0 {
+		readCommand = "prompt-manager skill read " + strings.Join(ids, " ")
+	}
+
+	resp := &DiscoverResponse{
+		Results:           results,
+		Total:             len(results),
+		Query:             strings.Join(queries, " | "),
+		Method:            method,
+		TotalContentChars: totalChars,
+		ReadCommand:       readCommand,
+	}
+
+	// Step 5: Budget calculation
+	if complexity != "" {
+		budgetChars, ok := ComplexityBudgets[complexity]
+		if ok {
+			resp.BudgetChars = budgetChars
+			resp.Complexity = complexity
+
+			switch {
+			case totalChars == budgetChars:
+				resp.BudgetStatus = "at"
+			case totalChars < budgetChars:
+				resp.BudgetStatus = "under"
+			default:
+				resp.BudgetStatus = "over"
+				trimmedIDs := []string{}
+				cumChars := 0
+				for _, r := range results {
+					if cumChars+r.ContentChars > budgetChars {
+						break
+					}
+					cumChars += r.ContentChars
+					trimmedIDs = append(trimmedIDs, r.ID)
+				}
+				if len(trimmedIDs) > 0 {
+					resp.RecommendedReadCommand = "prompt-manager skill read " + strings.Join(trimmedIDs, " ")
+				}
+			}
+		}
+	}
+
+	return resp, nil
+}
+
+func sortDiscoverTopicResults(results []DiscoverResult) {
+	for i := 1; i < len(results); i++ {
+		for j := i; j > 0; j-- {
+			a, b := results[j], results[j-1]
+			aDepth, bDepth := 0, 0
+			if a.TopicDepth != nil {
+				aDepth = *a.TopicDepth
+			}
+			if b.TopicDepth != nil {
+				bDepth = *b.TopicDepth
+			}
+			if aDepth < bDepth || (aDepth == bDepth && a.Score > b.Score) {
+				results[j], results[j-1] = results[j-1], results[j]
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func sortDiscoverSearchResults(results []DiscoverResult) {
+	for i := 1; i < len(results); i++ {
+		for j := i; j > 0 && results[j].Score > results[j-1].Score; j-- {
+			results[j], results[j-1] = results[j-1], results[j]
+		}
+	}
 }
 
 // fallbackToTextSearch uses the existing text search when AI is unavailable.
@@ -480,6 +856,18 @@ func (s *Service) NeedsReindex(ctx context.Context) (bool, int, int, error) {
 		}
 	}
 
+	// Check topic collection
+	if s.topicVectorStore != nil && s.topicStore != nil {
+		topicIndexed, err := s.topicVectorStore.CountPoints(ctx)
+		if err == nil {
+			topics, err := s.topicStore.List(ctx)
+			if err == nil {
+				totalIndexed += topicIndexed
+				totalDisk += len(topics)
+			}
+		}
+	}
+
 	return totalIndexed != totalDisk, totalIndexed, totalDisk, nil
 }
 
@@ -521,6 +909,12 @@ func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreRea
 	s.teamStore = teamStore
 	s.teamRelStore = relStore
 	s.teamSearchSvc = searchSvc
+}
+
+// SetTopicSearch configures topic AI search support.
+func (s *Service) SetTopicSearch(vectorStore *VectorStore, topicStore TopicStoreReader) {
+	s.topicVectorStore = vectorStore
+	s.topicStore = topicStore
 }
 
 // SearchAgents performs AI semantic search for agents with fallback to text search.

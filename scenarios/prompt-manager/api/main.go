@@ -29,6 +29,7 @@ import (
 	"prompt-manager/teams"
 	"prompt-manager/templates"
 	"prompt-manager/testing"
+	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
 
@@ -174,9 +175,16 @@ func main() {
 	}
 	teamVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, teamAICollection, 768)
 
-	// Wire agent/team AI search into the service
+	topicAICollection := os.Getenv("AI_SEARCH_TOPIC_COLLECTION")
+	if topicAICollection == "" {
+		topicAICollection = "prompt-manager-topics"
+	}
+	topicVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, topicAICollection, 768)
+
+	// Wire agent/team/topic AI search into the service
 	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
 	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
+	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
 
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
@@ -323,6 +331,9 @@ func main() {
 	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
 	v1.HandleFunc("/search/ai/reindex/cancel", aiSearchHandlers.CancelReindex).Methods("POST")
 
+	// Discovery route (unified topic + skill search)
+	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
+
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")
 	v1.HandleFunc("/tags", tagsHandlers.Create).Methods("POST")
@@ -383,6 +394,20 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
+
+	// Topic routes
+	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())
+	topicHandlers.SetGraphInvalidator(graphIndex)
+	topicHandlers.SetAIIndexer(aiSearchService)
+	topicHandlers.SetTopicMatchFn(buildTopicMatchFn(aiSearchService, fileStore.Topics()))
+	// Match route must come before /topics/{id} to avoid mux treating "match" as an ID
+	v1.HandleFunc("/topics/match", topicHandlers.Match).Methods("POST")
+	v1.HandleFunc("/topics", topicHandlers.List).Methods("GET")
+	v1.HandleFunc("/topics", topicHandlers.Create).Methods("POST")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Get).Methods("GET")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/topics/{id}/skills", topicHandlers.AccumulatedSkills).Methods("GET")
 
 	// Heartbeat system
 	// Get Vrooli root for working directory
@@ -535,6 +560,88 @@ func main() {
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+// buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service
+// to perform topic matching and skill accumulation.
+func buildTopicMatchFn(aiSvc *aisearch.Service, topicStore store.TopicStore) topics.TopicMatchFunc {
+	return func(ctx context.Context, queries []string, limit int) ([]topics.MatchedTopic, []string, string, error) {
+		type topicEntry struct {
+			topic topics.MatchedTopic
+			score float64
+		}
+		seen := make(map[string]*topicEntry)
+		allSkillIDs := make(map[string]bool)
+		method := "ai"
+
+		for _, query := range queries {
+			topicResults, topicMethod, err := aiSvc.SearchTopics(ctx, query, limit)
+			if err != nil {
+				continue
+			}
+			if topicMethod != "ai" {
+				method = topicMethod
+			}
+
+			for _, tr := range topicResults {
+				topicID, _ := tr.Payload["topic_id"].(string)
+				if topicID == "" {
+					continue
+				}
+				name, _ := tr.Payload["name"].(string)
+				description, _ := tr.Payload["description"].(string)
+				parentID, _ := tr.Payload["parent_topic_id"].(string)
+
+				scorePercent := int(tr.Score * 100)
+				if scorePercent > 100 {
+					scorePercent = 100
+				}
+
+				if existing, ok := seen[topicID]; !ok || tr.Score > existing.score {
+					var parentPtr *string
+					if parentID != "" {
+						parentPtr = &parentID
+					}
+					seen[topicID] = &topicEntry{
+						topic: topics.MatchedTopic{
+							ID:            topicID,
+							Name:          name,
+							Description:   description,
+							ParentTopicID: parentPtr,
+							Score:         tr.Score,
+							ScorePercent:  scorePercent,
+						},
+						score: tr.Score,
+					}
+				}
+
+				skillIDs, err := topicStore.AccumulateSkills(ctx, topicID)
+				if err == nil {
+					for _, sid := range skillIDs {
+						allSkillIDs[sid] = true
+					}
+				}
+			}
+		}
+
+		matched := make([]topics.MatchedTopic, 0, len(seen))
+		for _, e := range seen {
+			matched = append(matched, e.topic)
+		}
+		// Sort by score descending
+		for i := 1; i < len(matched); i++ {
+			for j := i; j > 0 && matched[j].Score > matched[j-1].Score; j-- {
+				matched[j], matched[j-1] = matched[j-1], matched[j]
+			}
+		}
+
+		skillsList := make([]string, 0, len(allSkillIDs))
+		for sid := range allSkillIDs {
+			skillsList = append(skillsList, sid)
+		}
+
+		return matched, skillsList, method, nil
 	}
 }
 

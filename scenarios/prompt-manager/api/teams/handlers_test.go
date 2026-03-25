@@ -366,6 +366,11 @@ func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, 
 	return nil, nil
 }
 
+func (m *MockIndexStore) RegenerateTopics(ctx context.Context) error { return nil }
+func (m *MockIndexStore) GetTopicsIndex(ctx context.Context) (*store.TopicsIndex, error) {
+	return nil, nil
+}
+
 // Test helper to create handlers with mocks
 func setupTestHandlers() (*Handlers, *MockTeamStore, *MockAgentStore, *MockRelationStore) {
 	teamStore := NewMockTeamStore()

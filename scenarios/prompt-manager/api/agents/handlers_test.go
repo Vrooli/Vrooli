@@ -84,6 +84,11 @@ func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, 
 	return nil, nil
 }
 
+func (m *MockIndexStore) RegenerateTopics(ctx context.Context) error { return nil }
+func (m *MockIndexStore) GetTopicsIndex(ctx context.Context) (*store.TopicsIndex, error) {
+	return nil, nil
+}
+
 // MockRelationStore implements store.RelationStore for testing
 type MockRelationStore struct {
 	relations []store.TeamMemberRelation

@@ -227,6 +227,33 @@ func (s *Service) reindexAllWithProgress(
 		}
 	}
 
+	// Index topics if configured
+	if s.topicVectorStore != nil && s.topicStore != nil {
+		if err := s.topicVectorStore.EnsureCollection(ctx); err != nil {
+			log.Printf("[aisearch] Failed to ensure topic collection: %v", err)
+		} else {
+			topics, err := s.topicStore.List(ctx)
+			if err != nil {
+				log.Printf("[aisearch] Failed to list topics: %v", err)
+			} else {
+				for _, topic := range topics {
+					if err := ctx.Err(); err != nil {
+						break
+					}
+					if err := s.IndexTopic(ctx, topic.ID); err != nil {
+						log.Printf("[aisearch] Failed to index topic %s: %v", topic.ID, err)
+						errors++
+					} else {
+						indexed++
+					}
+					if progress != nil {
+						progress(indexed, skipped, errors)
+					}
+				}
+			}
+		}
+	}
+
 	return &ReindexResponse{
 		Indexed: indexed,
 		Skipped: skipped,
@@ -486,5 +513,84 @@ func (s *Service) DeleteTeamFromIndex(ctx context.Context, teamID string) error 
 		return fmt.Errorf("delete from index failed: %w", err)
 	}
 	log.Printf("[aisearch] Deleted team from index: %s", teamID)
+	return nil
+}
+
+// --- Topic indexing ---
+
+func topicPointID(topicID string) string {
+	name := strings.TrimSpace(topicID)
+	if name == "" {
+		name = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "prompt-manager-topic:"+name)
+}
+
+// composeTopicEmbeddingText creates a rich text representation for topic embedding.
+func composeTopicEmbeddingText(topic *store.Topic, content string) string {
+	var parts []string
+
+	parts = append(parts, topic.Name)
+
+	if topic.Description != "" {
+		parts = append(parts, topic.Description)
+	}
+
+	if len(topic.Skills) > 0 {
+		parts = append(parts, "Skills: "+strings.Join(topic.Skills, ", "))
+	}
+
+	if content != "" {
+		parts = append(parts, content)
+	}
+
+	return strings.Join(parts, "\n\n")
+}
+
+// IndexTopic indexes a single topic into the vector store.
+func (s *Service) IndexTopic(ctx context.Context, topicID string) error {
+	if s.topicVectorStore == nil || s.topicStore == nil {
+		return nil
+	}
+
+	topic, content, err := s.topicStore.GetWithContent(ctx, topicID)
+	if err != nil {
+		return fmt.Errorf("topic not found: %w", err)
+	}
+
+	embeddingText := composeTopicEmbeddingText(topic, content)
+
+	vector, err := s.embedder.Embed(ctx, embeddingText)
+	if err != nil {
+		return fmt.Errorf("embedding failed: %w", err)
+	}
+
+	payload := map[string]interface{}{
+		"topic_id":    topic.ID,
+		"name":        topic.Name,
+		"description": topic.Description,
+		"skills":      topic.Skills,
+	}
+	if topic.ParentTopicID != nil {
+		payload["parent_topic_id"] = *topic.ParentTopicID
+	}
+
+	if err := s.topicVectorStore.Upsert(ctx, topicPointID(topic.ID), vector, payload); err != nil {
+		return fmt.Errorf("upsert failed: %w", err)
+	}
+
+	log.Printf("[aisearch] Indexed topic: %s (%s)", topic.Name, topic.ID)
+	return nil
+}
+
+// DeleteTopicFromIndex removes a topic from the vector index.
+func (s *Service) DeleteTopicFromIndex(ctx context.Context, topicID string) error {
+	if s.topicVectorStore == nil {
+		return nil
+	}
+	if err := s.topicVectorStore.Delete(ctx, topicPointID(topicID)); err != nil {
+		return fmt.Errorf("delete from index failed: %w", err)
+	}
+	log.Printf("[aisearch] Deleted topic from index: %s", topicID)
 	return nil
 }

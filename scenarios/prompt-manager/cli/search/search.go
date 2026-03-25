@@ -88,11 +88,12 @@ type AISearchResponse struct {
 
 // AISearchRequest represents the request body for AI search
 type AISearchRequest struct {
-	Query       string `json:"query"`
-	Limit       int    `json:"limit"`
-	Output      string `json:"output,omitempty"`
-	Format      string `json:"format,omitempty"`
-	RenderLimit int    `json:"renderLimit,omitempty"`
+	Query       string   `json:"query,omitempty"`
+	Queries     []string `json:"queries,omitempty"`
+	Limit       int      `json:"limit"`
+	Output      string   `json:"output,omitempty"`
+	Format      string   `json:"format,omitempty"`
+	RenderLimit int      `json:"renderLimit,omitempty"`
 }
 
 // AvailabilityStatus represents AI search availability
@@ -214,9 +215,10 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("usage: search <query> [--content] [--text] [--case-sensitive] [--whole-word] [--regex] [--limit=N] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--tag=...] [--folder=...] [--json]")
 	}
 
+	allArgs := fs.Args()
 	query := ""
-	if fs.NArg() > 0 {
-		query = strings.Join(fs.Args(), " ")
+	if len(allArgs) > 0 {
+		query = strings.Join(allArgs, " ")
 	}
 
 	if query == "" && outputIncludesCombined(*output) {
@@ -235,7 +237,12 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		return textSearch(ctx, query, *tag, *folder, *jsonOut)
 	}
 
-	// Try AI search first
+	// For AI search: if multiple positional args, use multi-query (each searched independently)
+	if len(allArgs) > 1 {
+		return aiSearchMulti(ctx, allArgs, *limit, strings.ToLower(strings.TrimSpace(*output)), strings.ToLower(strings.TrimSpace(*format)), *renderLimit, *jsonOut)
+	}
+
+	// Single query AI search
 	return aiSearch(ctx, query, *limit, strings.ToLower(strings.TrimSpace(*output)), strings.ToLower(strings.TrimSpace(*format)), *renderLimit, *jsonOut)
 }
 
@@ -289,6 +296,62 @@ func aiSearch(ctx appctx.Context, query string, limit int, output, format string
 			tags = " [" + strings.Join(r.Tags, ", ") + "]"
 		}
 		// Show score as percentage for AI search
+		score := fmt.Sprintf(" (%d%%)", r.ScorePercent)
+		fmt.Printf("  %s - %s%s%s [%s]\n", r.Name, r.Folder, score, tags, r.ID)
+		if r.Description != "" {
+			fmt.Printf("    → %s\n", truncate(r.Description, 80))
+		}
+	}
+	return nil
+}
+
+// aiSearchMulti performs AI search with multiple independent queries, merging results.
+func aiSearchMulti(ctx appctx.Context, queries []string, limit int, output, format string, renderLimit int, jsonOut bool) error {
+	req := AISearchRequest{
+		Queries:     queries,
+		Limit:       limit,
+		Output:      output,
+		Format:      format,
+		RenderLimit: renderLimit,
+	}
+
+	var resp AISearchResponse
+	if err := ctx.Post("/search/ai", req, &resp); err != nil {
+		fmt.Fprintln(os.Stderr, "(AI search unavailable, using text search)")
+		return textSearch(ctx, strings.Join(queries, " "), "", "", jsonOut)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	methodLabel := "AI multi-query"
+	if resp.Method == "text" {
+		methodLabel = "text (AI unavailable)"
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No skills found matching: %s (%s search)\n", strings.Join(queries, ", "), methodLabel)
+		return nil
+	}
+
+	if outputIncludesCombined(output) && resp.Combined != "" {
+		fmt.Print(resp.Combined)
+		if output == "both" {
+			fmt.Print("\n\n")
+		} else {
+			return nil
+		}
+	}
+
+	fmt.Printf("Search Results (%d found, %s across %d queries):\n", resp.Total, methodLabel, len(queries))
+	for _, r := range resp.Results {
+		tags := ""
+		if len(r.Tags) > 0 {
+			tags = " [" + strings.Join(r.Tags, ", ") + "]"
+		}
 		score := fmt.Sprintf(" (%d%%)", r.ScorePercent)
 		fmt.Printf("  %s - %s%s%s [%s]\n", r.Name, r.Folder, score, tags, r.ID)
 		if r.Description != "" {

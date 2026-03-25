@@ -70,8 +70,17 @@ import {
   AvailableCCTeamSchema,
   ExportCCResponseSchema,
   ExclusiveMembersResponseSchema,
+  TopicSchema,
+  TopicArraySchema,
+  AccumulatedSkillsResponseSchema,
+  TopicMatchResponseSchema,
   WorldScaleConfigSchema,
   WorldSeatsConfigSchema,
+  type Topic,
+  type CreateTopicRequest,
+  type UpdateTopicRequest,
+  type AccumulatedSkillsResponse,
+  type TopicMatchResponse,
   type WorldScaleConfig,
   type WorldSeatsConfig,
   type Skill,
@@ -1016,6 +1025,66 @@ class ApiClient {
     // No per-node health endpoint - filter from full health scores
     const scores = await this.getGraphHealth()
     return scores.find((s) => s.nodeId === id) ?? null
+  }
+
+  // Topic methods - aligned with api/topics/handlers.go
+  async getTopics(): Promise<Topic[]> {
+    return this.request<Topic[]>('/topics', undefined, TopicArraySchema)
+  }
+
+  async getTopic(id: string): Promise<Topic> {
+    return this.request<Topic>(
+      `/topics/${encodeURIComponent(id)}`,
+      undefined,
+      TopicSchema
+    )
+  }
+
+  async createTopic(topic: CreateTopicRequest): Promise<Topic> {
+    return this.request<Topic>(
+      '/topics',
+      {
+        method: 'POST',
+        body: JSON.stringify(topic),
+      },
+      TopicSchema
+    )
+  }
+
+  async updateTopic(id: string, updates: UpdateTopicRequest): Promise<Topic> {
+    return this.request<Topic>(
+      `/topics/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      },
+      TopicSchema
+    )
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    await this.requestVoid(`/topics/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getAccumulatedSkills(id: string): Promise<AccumulatedSkillsResponse> {
+    return this.request<AccumulatedSkillsResponse>(
+      `/topics/${encodeURIComponent(id)}/skills`,
+      undefined,
+      AccumulatedSkillsResponseSchema
+    )
+  }
+
+  async matchTopics(queries: string[], limit?: number): Promise<TopicMatchResponse> {
+    return this.request<TopicMatchResponse>(
+      '/topics/match',
+      {
+        method: 'POST',
+        body: JSON.stringify({ queries, limit }),
+      },
+      TopicMatchResponseSchema
+    )
   }
 }
 

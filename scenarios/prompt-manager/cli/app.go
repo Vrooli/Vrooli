@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/agents"
+	"prompt-manager/cli/discover"
 	"prompt-manager/cli/graph"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/members"
@@ -19,6 +20,7 @@ import (
 	"prompt-manager/cli/tags"
 	"prompt-manager/cli/teams"
 	"prompt-manager/cli/testing"
+	"prompt-manager/cli/topics"
 )
 
 const (
@@ -101,9 +103,11 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	groups = append(groups, members.Commands(a))   // prompt-manager member <verb>
 	groups = append(groups, agents.Commands(a))    // prompt-manager agent <verb>
 	groups = append(groups, teams.Commands(a))     // prompt-manager team <verb>
+	groups = append(groups, topics.Commands(a))    // prompt-manager topic <verb>
 	groups = append(groups, testing.Commands(a))   // prompt-manager test <verb>
 	groups = append(groups, metadata.Commands(a))  // prompt-manager metadata <verb>
 	groups = append(groups, search.Commands(a))    // prompt-manager search (standalone)
+	groups = append(groups, discover.Commands(a))  // prompt-manager discover
 	groups = append(groups, graph.Commands(a))     // prompt-manager graph <verb>
 	groups = append(groups, config)
 

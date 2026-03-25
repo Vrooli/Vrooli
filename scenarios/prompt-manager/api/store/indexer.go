@@ -13,16 +13,18 @@ type FileIndexStore struct {
 	skillStore    SkillStore
 	agentStore    AgentStore
 	teamStore     TeamStore
+	topicStore    TopicStore
 	relationStore RelationStore
 }
 
 // NewFileIndexStore creates a new file-based index store
-func NewFileIndexStore(storeDir string, skillStore SkillStore, agentStore AgentStore, teamStore TeamStore, relationStore RelationStore) *FileIndexStore {
+func NewFileIndexStore(storeDir string, skillStore SkillStore, agentStore AgentStore, teamStore TeamStore, topicStore TopicStore, relationStore RelationStore) *FileIndexStore {
 	return &FileIndexStore{
 		storeDir:      storeDir,
 		skillStore:    skillStore,
 		agentStore:    agentStore,
 		teamStore:     teamStore,
+		topicStore:    topicStore,
 		relationStore: relationStore,
 	}
 }
@@ -42,6 +44,9 @@ func (s *FileIndexStore) RegenerateAll(ctx context.Context) error {
 	}
 	if err := s.RegenerateTeams(ctx); err != nil {
 		return fmt.Errorf("regenerating teams index: %w", err)
+	}
+	if err := s.RegenerateTopics(ctx); err != nil {
+		return fmt.Errorf("regenerating topics index: %w", err)
 	}
 	return nil
 }
@@ -166,4 +171,42 @@ func (s *FileIndexStore) GetTeamsIndex(ctx context.Context) (*TeamsIndex, error)
 		}
 	}
 	return LoadJSON[TeamsIndex](indexPath)
+}
+
+// RegenerateTopics regenerates the topics index
+func (s *FileIndexStore) RegenerateTopics(ctx context.Context) error {
+	topics, err := s.topicStore.List(ctx)
+	if err != nil {
+		return fmt.Errorf("listing topics: %w", err)
+	}
+
+	index := &TopicsIndex{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Items:       make([]TopicsIndexEntry, 0, len(topics)),
+	}
+
+	for _, topic := range topics {
+		entry := TopicsIndexEntry{
+			ID:            topic.ID,
+			Name:          topic.Name,
+			ParentTopicID: topic.ParentTopicID,
+			SkillCount:    len(topic.Skills),
+			Status:        topic.Status,
+		}
+		index.Items = append(index.Items, entry)
+	}
+
+	indexPath := filepath.Join(s.indexesDir(), "topics.index.json")
+	return SaveJSON(indexPath, index)
+}
+
+// GetTopicsIndex returns the current topics index
+func (s *FileIndexStore) GetTopicsIndex(ctx context.Context) (*TopicsIndex, error) {
+	indexPath := filepath.Join(s.indexesDir(), "topics.index.json")
+	if !FileExists(indexPath) {
+		if err := s.RegenerateTopics(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return LoadJSON[TopicsIndex](indexPath)
 }

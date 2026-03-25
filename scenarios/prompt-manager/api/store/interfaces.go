@@ -93,6 +93,36 @@ type TeamStore interface {
 	SetInbox(ctx context.Context, teamID, agentID string, inbox *TeamInbox) error
 }
 
+// TopicStore defines operations for topic storage
+type TopicStore interface {
+	// List returns all topics
+	List(ctx context.Context) ([]Topic, error)
+
+	// Get retrieves a topic by ID
+	Get(ctx context.Context, id string) (*Topic, error)
+
+	// GetWithContent retrieves a topic with its markdown content
+	GetWithContent(ctx context.Context, id string) (*Topic, string, error)
+
+	// Create creates a new topic
+	Create(ctx context.Context, topic *Topic, content string) error
+
+	// Update updates an existing topic
+	Update(ctx context.Context, id string, topic *Topic, content *string) error
+
+	// Delete removes a topic
+	Delete(ctx context.Context, id string) error
+
+	// GetAncestors returns the ancestor chain for a topic (parent, grandparent, etc.)
+	GetAncestors(ctx context.Context, id string) ([]Topic, error)
+
+	// GetChildren returns direct children of a topic
+	GetChildren(ctx context.Context, id string) ([]Topic, error)
+
+	// AccumulateSkills returns deduplicated skills from a topic and all its ancestors
+	AccumulateSkills(ctx context.Context, id string) ([]string, error)
+}
+
 // RelationStore defines operations for relationship storage
 type RelationStore interface {
 	// TeamMember operations
@@ -117,6 +147,9 @@ type IndexStore interface {
 	// RegenerateTeams regenerates the teams index
 	RegenerateTeams(ctx context.Context) error
 
+	// RegenerateTopics regenerates the topics index
+	RegenerateTopics(ctx context.Context) error
+
 	// GetSkillsIndex returns the current skills index
 	GetSkillsIndex(ctx context.Context) (*SkillsIndex, error)
 
@@ -125,6 +158,9 @@ type IndexStore interface {
 
 	// GetTeamsIndex returns the current teams index
 	GetTeamsIndex(ctx context.Context) (*TeamsIndex, error)
+
+	// GetTopicsIndex returns the current topics index
+	GetTopicsIndex(ctx context.Context) (*TopicsIndex, error)
 }
 
 // Store combines all store interfaces
@@ -132,6 +168,7 @@ type Store interface {
 	Skills() SkillStore
 	Agents() AgentStore
 	Teams() TeamStore
+	Topics() TopicStore
 	Relations() RelationStore
 	Indexes() IndexStore
 }

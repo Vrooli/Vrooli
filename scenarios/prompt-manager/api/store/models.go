@@ -200,6 +200,34 @@ type TeamMemberRelation struct {
 	Status  string   `json:"status"`
 }
 
+// Topic represents a topic entity from topic.json
+type Topic struct {
+	BaseEntity
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description,omitempty"`
+	ParentTopicID *string  `json:"parentTopicId,omitempty"`
+	Skills        []string `json:"skills,omitempty"`
+	Icon          string   `json:"icon,omitempty"`
+	Status        string   `json:"status"`
+	Timestamps
+}
+
+// TopicsIndex is the generated index of all topics
+type TopicsIndex struct {
+	GeneratedAt string             `json:"generatedAt"`
+	Items       []TopicsIndexEntry `json:"items"`
+}
+
+// TopicsIndexEntry is a single entry in the topics index
+type TopicsIndexEntry struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	ParentTopicID *string `json:"parentTopicId,omitempty"`
+	SkillCount    int     `json:"skillCount"`
+	Status        string  `json:"status"`
+}
+
 // HistoryEntry represents a version in the skill history
 type HistoryEntry struct {
 	Version   int    `json:"version"`

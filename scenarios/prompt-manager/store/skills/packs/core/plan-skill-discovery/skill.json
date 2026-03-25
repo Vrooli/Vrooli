@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "plan-skill-discovery",
   "name": "Plan Skill Discovery",
-  "description": "Methodology for discovering and loading relevant skills before creating implementation plans. Covers how to search prompt-manager, confirm relevance, and embed Required Reading sections so executing agents load the same skills.",
+  "description": "Methodology for discovering and loading relevant skills before creating implementation plans. Uses multi-query decomposition across both topic and skill search, with autonomous relevance assessment. Works in both interactive and automated (workshop) contexts.",
   "modes": [
     "practice"
   ],
@@ -11,12 +11,13 @@
     "practice",
     "planning",
     "skill-discovery",
-    "methodology"
+    "methodology",
+    "automation"
   ],
   "icon": "search",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 3,
   "createdAt": "2026-03-20T00:00:00Z",
-  "updatedAt": "2026-03-20T00:00:00Z"
+  "updatedAt": "2026-03-25T00:00:00Z"
 }

@@ -5,11 +5,12 @@ package aisearch
 
 // AISearchRequest represents a search request.
 type AISearchRequest struct {
-	Query       string `json:"query"`
-	Limit       int    `json:"limit,omitempty"`
-	Output      string `json:"output,omitempty"`      // "results", "combined", or "both"
-	Format      string `json:"format,omitempty"`      // "xml", "markdown", or "json" (for combined output)
-	RenderLimit int    `json:"renderLimit,omitempty"` // optional override for combined output count
+	Query       string   `json:"query"`
+	Queries     []string `json:"queries,omitempty"` // multi-query: each searched independently, results merged
+	Limit       int      `json:"limit,omitempty"`
+	Output      string   `json:"output,omitempty"`      // "results", "combined", or "both"
+	Format      string   `json:"format,omitempty"`      // "xml", "markdown", or "json" (for combined output)
+	RenderLimit int      `json:"renderLimit,omitempty"` // optional override for combined output count
 }
 
 // AISearchResult represents a single search result.
@@ -130,4 +131,42 @@ type AITeamSearchResponse struct {
 	Total   int                  `json:"total"`
 	Query   string               `json:"query"`
 	Method  string               `json:"method"`
+}
+
+// --- Discover types (unified topic + skill search) ---
+
+// DiscoverRequest represents a unified topic + skill discovery request.
+type DiscoverRequest struct {
+	Queries    []string `json:"queries"`
+	Complexity string   `json:"complexity,omitempty"` // minor|moderate|major|architectural
+	Limit      int      `json:"limit,omitempty"`
+}
+
+// DiscoverResult is a single discovery result with content size and source tracking.
+type DiscoverResult struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Modes        []string `json:"modes,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"`
+	Source       string   `json:"source"`               // "topic" or "search"
+	TopicDepth   *int     `json:"topicDepth,omitempty"` // 0=root, 1=child, etc.
+	TopicID      string   `json:"topicId,omitempty"`    // which topic sourced this skill
+	ContentChars int      `json:"contentChars"`
+}
+
+// DiscoverResponse wraps discovery results with budget metadata.
+type DiscoverResponse struct {
+	Results                []DiscoverResult `json:"results"`
+	Total                  int              `json:"total"`
+	Query                  string           `json:"query"`
+	Method                 string           `json:"method"`
+	TotalContentChars      int              `json:"totalContentChars"`
+	ReadCommand            string           `json:"readCommand"`
+	BudgetChars            int              `json:"budgetChars,omitempty"`
+	BudgetStatus           string           `json:"budgetStatus,omitempty"`           // under|over|at
+	RecommendedReadCommand string           `json:"recommendedReadCommand,omitempty"` // trimmed command if over budget
+	Complexity             string           `json:"complexity,omitempty"`
 }

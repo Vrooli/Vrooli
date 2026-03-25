@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // Handlers provides HTTP handlers for AI search operations.
@@ -24,8 +25,13 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Query == "" {
-		http.Error(w, "Query is required", http.StatusBadRequest)
+	// Support both single query and multi-query
+	queries := req.Queries
+	if len(queries) == 0 && req.Query != "" {
+		queries = []string{req.Query}
+	}
+	if len(queries) == 0 {
+		http.Error(w, "Query is required (provide 'query' or 'queries')", http.StatusBadRequest)
 		return
 	}
 
@@ -40,11 +46,22 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.SearchWithOptions(r.Context(), req.Query, limit, SearchOptions{
-		Output:      output,
-		Format:      req.Format,
-		RenderLimit: req.RenderLimit,
-	})
+	// For multi-query, search each independently and merge results
+	var resp *AISearchResponse
+	var err error
+	if len(queries) == 1 {
+		resp, err = h.service.SearchWithOptions(r.Context(), queries[0], limit, SearchOptions{
+			Output:      output,
+			Format:      req.Format,
+			RenderLimit: req.RenderLimit,
+		})
+	} else {
+		resp, err = h.service.SearchMultiWithOptions(r.Context(), queries, limit, SearchOptions{
+			Output:      output,
+			Format:      req.Format,
+			RenderLimit: req.RenderLimit,
+		})
+	}
 	if err != nil {
 		log.Printf("[aisearch] Search error: %v", err)
 		if outputIncludesCombined(output) {
@@ -151,6 +168,41 @@ func (h *Handlers) SearchTeams(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.service.SearchTeams(r.Context(), req.Query, limit)
 	if err != nil {
 		log.Printf("[aisearch] Team search error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// Discover handles POST /api/v1/discover - unified topic + skill discovery.
+func (h *Handlers) Discover(w http.ResponseWriter, r *http.Request) {
+	var req DiscoverRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Queries) == 0 {
+		http.Error(w, "queries is required", http.StatusBadRequest)
+		return
+	}
+
+	complexity := strings.ToLower(strings.TrimSpace(req.Complexity))
+	if complexity != "" && !ValidComplexity(complexity) {
+		http.Error(w, "complexity must be one of: minor, moderate, major, architectural", http.StatusBadRequest)
+		return
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	resp, err := h.service.Discover(r.Context(), req.Queries, complexity, limit)
+	if err != nil {
+		log.Printf("[aisearch] Discover error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

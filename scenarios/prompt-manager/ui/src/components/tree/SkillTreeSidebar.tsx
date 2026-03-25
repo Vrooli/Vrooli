@@ -34,6 +34,7 @@ import { isFilterEmpty } from '@/services/filterSortService'
 import { AgentListPanel } from '../agent/AgentListPanel'
 import { TeamListPanel } from '../team/TeamListPanel'
 import { RunListPanel } from '../run/RunListPanel'
+import { TopicListPanel } from '../topic/TopicListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
@@ -61,6 +62,7 @@ const TAB_SEARCH_FEATURES = {
   agents:  { contentSearch: false, aiSearch: false, tagFilter: false },
   teams:   { contentSearch: false, aiSearch: false, tagFilter: false },
   runs:    { contentSearch: false, aiSearch: false, tagFilter: false },
+  topics:  { contentSearch: false, aiSearch: false, tagFilter: false },
 } as const
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
@@ -70,6 +72,7 @@ const TAB_SEARCH_PLACEHOLDERS: Record<SearchableTab, string> = {
   agents: 'Search agents...',
   teams: 'Search teams...',
   runs: 'Search runs...',
+  topics: 'Search topics...',
 }
 
 interface ContentMatchGroup {
@@ -493,21 +496,27 @@ export function SkillTreeSidebar({
   // Active tab state
   const [activeTab, setActiveTab] = useState(initialActiveTab)
 
-  // Search state for agents/teams/runs tabs (skills search is managed by parent)
+  // Search state for agents/teams/runs/topics tabs (skills search is managed by parent)
   const [agentSearchQuery, setAgentSearchQuery] = useState('')
   const [teamSearchQuery, setTeamSearchQuery] = useState('')
   const [runSearchQuery, setRunSearchQuery] = useState('')
+  const [topicSearchQuery, setTopicSearchQuery] = useState('')
+
+  // Topic selection state
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null)
 
   // Unified search query for the current tab
   const currentSearchQuery = activeTab === 'skills' ? searchQuery
     : activeTab === 'agents' ? agentSearchQuery
     : activeTab === 'runs' ? runSearchQuery
+    : activeTab === 'topics' ? topicSearchQuery
     : teamSearchQuery
 
   const handleCurrentSearchChange = useCallback((query: string) => {
     if (activeTab === 'skills') onSearchChange(query)
     else if (activeTab === 'agents') setAgentSearchQuery(query)
     else if (activeTab === 'runs') setRunSearchQuery(query)
+    else if (activeTab === 'topics') setTopicSearchQuery(query)
     else setTeamSearchQuery(query)
   }, [activeTab, onSearchChange])
 
@@ -1096,6 +1105,7 @@ export function SkillTreeSidebar({
           <TabTrigger value="agents" icon={<User className="h-3.5 w-3.5" />} label="Agents" alwaysShowLabel testId={selectors.sidebar.tabAgents} />
           <TabTrigger value="teams" icon={<Users className="h-3.5 w-3.5" />} label="Teams" alwaysShowLabel />
           <TabTrigger value="runs" icon={<Activity className="h-3.5 w-3.5" />} label="Runs" alwaysShowLabel />
+          <TabTrigger value="topics" icon={<Layers className="h-3.5 w-3.5" />} label="Topics" alwaysShowLabel />
         </TabList>
 
         {/* Skills Tab */}
@@ -1385,6 +1395,16 @@ export function SkillTreeSidebar({
             selectedRunId={selectedRunId}
             onSelectRun={onSelectRunFromMenu ?? setSelectedRunId}
             searchQuery={runSearchQuery}
+            className="flex-1"
+          />
+        </Tabs.Content>
+
+        {/* Topics Tab */}
+        <Tabs.Content value="topics" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <TopicListPanel
+            selectedTopicId={selectedTopicId}
+            onSelectTopic={setSelectedTopicId}
+            searchQuery={topicSearchQuery}
             className="flex-1"
           />
         </Tabs.Content>
