@@ -1,0 +1,54 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-24T19:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Rounds 1 and 2 contain 7 unanswered decisions. The plan cannot progress until at least round-001 decisions d1 (what is this?) and d2 (target users) are answered. Please review and answer those first — all other decisions depend on them."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Priority and timeline intent",
+      "context": "This item is priority 3 (medium). Understanding urgency helps determine whether to invest in a full scenario or a quick prototype. If this is exploratory, a spike/proof-of-concept may be more appropriate than a full implementation plan.",
+      "options": [
+        {"key": "A", "label": "Full scenario — production quality", "rationale": "Invest in a complete scenario with proper tests, docs, and service.json. Appropriate if this will be a long-lived capability."},
+        {"key": "B", "label": "Spike / proof-of-concept first", "rationale": "Build a minimal prototype to validate the idea before committing to a full scenario. Lower risk, faster feedback."},
+        {"key": "C", "label": "Low priority — park for later", "rationale": "Capture the decisions made so far but don't invest implementation effort yet. Revisit when higher-priority work is done."},
+        {"key": "D", "label": "Other", "rationale": "Describe your timeline expectations in the freeform field."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Relationship to agent-manager investigation scoring",
+      "context": "The agent-manager already has an investigation scoring system (internal/orchestration/investigation.go) that rates proposed fixes on a cost (1-5) scale representing effort/risk to implement. If 'Effort Test' is about effort estimation, it may overlap with or extend this existing capability rather than being entirely new.",
+      "options": [
+        {"key": "A", "label": "Extends agent-manager's cost scoring", "rationale": "Build on the existing investigation.go cost dimension. Add richer effort modeling (time, tokens, complexity) as a new module within agent-manager."},
+        {"key": "B", "label": "Standalone — no relation to agent-manager", "rationale": "This is a separate concept unrelated to agent-manager's investigation scoring. Build from scratch."},
+        {"key": "C", "label": "Integrates with swarm-manager backlog", "rationale": "Effort estimation as a swarm-manager feature — attaches estimates to backlog items for prioritization and scheduling."},
+        {"key": "D", "label": "Not applicable", "rationale": "Select if this item is a placeholder or test."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Ecosystem context: The agent-manager's investigation.go already scores proposed fixes on cost (1-5 effort/risk). The swarm-manager tracks backlog items with priority metadata. If this idea is about effort estimation, there are natural integration points in both scenarios."
+    }
+  ],
+  "plan_updates": "No plan.md changes — all 13 sections remain TBD. Blocked on round-001 decisions (especially d1: what is 'Effort Test'?). Round 3 adds timeline/priority intent and ecosystem integration decisions."
+}

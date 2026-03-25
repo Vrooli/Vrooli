@@ -1,0 +1,19 @@
+{
+  "created": "2026-03-24T22:24:18Z",
+  "depends_on": [
+    "fix/dtv-sqlite-migration"
+  ],
+  "description": "Create HTTP handlers and an orchestration service to run structural and CLI validations against reference scenarios.\n\nScope:\n- Create a validation service that orchestrates: load expectations for a reference → run structural checker → run CLI executor → store results in validation_runs/structural_results/cli_results tables\n- Create HTTP handlers (e.g., POST /api/v1/validate/{reference_id} to trigger validation, GET /api/v1/validate/{reference_id}/results to retrieve results)\n- Wire handlers into main.go route registration\n- The domain logic already exists (domain/validation/structural_checker.go at 89% coverage, domain/validation/cli_executor.go at 91% coverage) — this item is about exposing it via API\n- Depends on dtv-sqlite-migration because expectation repos must exist to load expectations for validation",
+  "initiative": "dtv-meta-optimization-readiness",
+  "kind": "fix",
+  "name": "dtv-validation-api",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [
+    "api",
+    "validation",
+    "handlers"
+  ],
+  "title": "Validation API Handlers and Service",
+  "updated": "2026-03-24T22:24:18Z"
+}

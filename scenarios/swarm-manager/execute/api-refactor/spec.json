@@ -1,0 +1,14 @@
+{
+  "created": "2026-03-24T23:11:44Z",
+  "description": "Refactor the agent-manager API for improved structure, maintainability, and consistency",
+  "kind": "execute",
+  "name": "api-refactor",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "agent-manager",
+    "refactor"
+  ],
+  "title": "API Refactor",
+  "updated": "2026-03-24T23:11:44Z"
+}

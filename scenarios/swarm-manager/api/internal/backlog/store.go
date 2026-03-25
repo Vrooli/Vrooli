@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"swarm-manager/internal/workshop"
 )
 
 // Store abstracts persistence for backlog items. The primary implementation
@@ -27,6 +29,7 @@ type Store interface {
 	SaveItem(item BacklogItem) error
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
+	CheckWorkshopDependencies(dependsOn []string) ([]workshop.DependencyStatus, error)
 }
 
 // FileStore is the filesystem-backed Store implementation. It reads and writes
@@ -276,4 +279,25 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 		}
 	}
 	return unmet, nil
+}
+
+// CheckWorkshopDependencies loads each dependency's status for workshop
+// readiness evaluation. Returns structured data for workshop.CheckWorkshopDependencies.
+// Load failures are recorded as Found=false (fail-open).
+func (s *FileStore) CheckWorkshopDependencies(dependsOn []string) ([]workshop.DependencyStatus, error) {
+	result := make([]workshop.DependencyStatus, 0, len(dependsOn))
+	for _, ref := range dependsOn {
+		kind, name, err := parseDependencyRef(ref)
+		if err != nil {
+			result = append(result, workshop.DependencyStatus{Ref: ref, Found: false})
+			continue
+		}
+		item, loadErr := s.LoadItem(kind, name)
+		if loadErr != nil {
+			result = append(result, workshop.DependencyStatus{Ref: ref, Found: false})
+			continue
+		}
+		result = append(result, workshop.DependencyStatus{Ref: ref, Status: string(item.Status), Found: true})
+	}
+	return result, nil
 }

@@ -209,6 +209,7 @@ export function BacklogDetailsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
+  const allBacklogItems = useBacklogStore((state) => state.items);
   const removeItem = useBacklogStore((state) => state.removeItem);
   const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
   const refreshRun = useAgentRunsStore((state) => state.refreshRun);
@@ -301,6 +302,7 @@ export function BacklogDetailsPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [showAgentDialog, setShowAgentDialog] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
+  const [showForceWorkshopConfirm, setShowForceWorkshopConfirm] = useState(false);
   const [previewResetKey, setPreviewResetKey] = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
@@ -404,6 +406,16 @@ export function BacklogDetailsPage() {
       .filter((r): r is { round: WorkshopRound; error?: string } => r.round !== null)
       .map((r) => r.round!);
   }, [workshopRoundContents]);
+
+  const workshopBlockedDeps = useMemo(() => {
+    if (!item?.dependsOn || item.dependsOn.length === 0) return [];
+    const workshopBlockingStatuses = new Set(["backlog", "researching"]);
+    const itemsByKey = new Map(allBacklogItems.map((i) => [`${i.kind}/${i.name}`, i]));
+    return item.dependsOn.filter((dep) => {
+      const depItem = itemsByKey.get(dep);
+      return depItem && workshopBlockingStatuses.has(depItem.status);
+    });
+  }, [item?.dependsOn, allBacklogItems]);
 
   // Maturity / readiness data from the maturity-summary endpoint
   const { data: maturitySummaryData } = useQuery({
@@ -1481,6 +1493,35 @@ export function BacklogDetailsPage() {
           This item is {item ? formatBacklogStatus(item.status) : "locked"} and cannot be edited.
         </div>
       )}
+      {workshopBlockedDeps.length > 0 && workshopRounds.length === 0 && (
+        <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-orange-300">
+              Workshop paused &mdash; waiting for: {workshopBlockedDeps.join(", ")}
+            </p>
+            <button
+              className="text-xs text-orange-400 hover:text-orange-300 underline"
+              onClick={() => setShowForceWorkshopConfirm(true)}
+            >
+              Start Anyway
+            </button>
+          </div>
+        </div>
+      )}
+      <ConfirmDialog
+        isOpen={showForceWorkshopConfirm}
+        onClose={() => setShowForceWorkshopConfirm(false)}
+        title="Start Workshop Despite Unplanned Dependencies?"
+        description={`Dependencies not yet planned: ${workshopBlockedDeps.join(", ")}. Starting now may produce a plan that needs revision when these dependencies are finalized.`}
+        confirmLabel="Start Workshop"
+        onConfirm={() => {
+          setShowForceWorkshopConfirm(false);
+          agentMutation.mutate({
+            mode: "initialize",
+            prompt: "Initialize the first workshop round for this backlog item.",
+          });
+        }}
+      />
       <WorkshopPanel
         rounds={workshopRounds}
         backlogKind={backlogKind as BacklogKind}

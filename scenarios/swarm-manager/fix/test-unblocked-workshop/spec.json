@@ -1,0 +1,11 @@
+{
+  "created": "2026-03-24T23:20:48Z",
+  "description": "Test no deps",
+  "kind": "fix",
+  "name": "test-unblocked-workshop",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Test Unblocked",
+  "updated": "2026-03-24T23:20:48Z"
+}

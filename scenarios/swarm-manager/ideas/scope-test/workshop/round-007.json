@@ -1,0 +1,33 @@
+{
+  "round": 7,
+  "generated_at": "2026-03-24T23:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d17",
+      "type": "decision",
+      "topic": "Auto-archive recommendation (7th round, 6 prior rounds unanswered)",
+      "context": "This item has completed 6 workshop rounds with 11 unanswered decisions. No description, no scope, no archive materials, and all 13 plan sections remain TBD. Round 5 was marked FINAL, round 6 was an escalation, and no user input has been received at any stage. This round recommends auto-archiving. If you want to keep this item active, you MUST provide a description in the freeform field — otherwise no further workshop rounds will produce meaningful progress.",
+      "options": [
+        {"key": "A", "label": "Archive this item (recommended)", "rationale": "Move to archived status. All 6 prior workshop rounds and plan scaffold are preserved. Can be re-activated with 'swarm-manager backlog update --kind idea --name scope-test --data {\"status\":\"backlog\"}' when a real purpose is identified."},
+        {"key": "B", "label": "Delete this item", "rationale": "Remove entirely to reduce backlog noise. Use: swarm-manager backlog delete --kind idea --name scope-test"},
+        {"key": "C", "label": "Keep active — provide description NOW", "rationale": "Use the freeform field to describe what this item should accomplish and which scenario it targets. Without this, no further progress is possible."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": "AUTO-ARCHIVE RECOMMENDATION: 6 rounds, 0 user answers. No further workshop rounds should be generated unless the user provides a description."
+    },
+    {
+      "id": "i12",
+      "type": "info",
+      "text": "Cumulative: 7 rounds, 12 total decisions presented (11 unanswered, 2 pre-selected by agent). Plan.md: all 13 mandatory sections TBD. spec.json: empty description, no scope, no acceptance criteria, no tags, no dependencies. Archive: empty. This item has consumed 7 workshop cycles with no actionable progress."
+    }
+  ],
+  "plan_updates": "No plan.md changes — no new information available. All 13 sections remain TBD. Added auto-archive recommendation in round 7."
+}

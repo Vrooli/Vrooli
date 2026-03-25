@@ -395,20 +395,93 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-initialize workshop for new items (unless opted out).
-	if workshop.ShouldAutoInitialize(req.AutoWorkshop) {
-		go func() {
-			_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
-			if spawnErr != nil {
-				log.Printf("[backlog] auto-init: failed for %s/%s: %v", kind, name, spawnErr)
-			}
-		}()
-	}
+	// Auto-initialize workshop for new items (unless opted out or blocked by deps).
+	h.maybeAutoWorkshop(item, req.AutoWorkshop, false)
 
 	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] create", "failed to encode response")
+	}
+}
+
+// maybeAutoWorkshop checks auto-workshop opt-in, dependency readiness,
+// and spawns the first workshop round asynchronously if appropriate.
+func (h *Handler) maybeAutoWorkshop(item BacklogItem, autoWorkshop *bool, forceOverride bool) {
+	if !workshop.ShouldAutoInitialize(autoWorkshop) {
+		return
+	}
+	if !forceOverride && len(item.DependsOn) > 0 {
+		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
+		if err != nil {
+			log.Printf("[backlog] auto-workshop: dep check error for %s/%s: %v, proceeding anyway", item.Kind, item.Name, err)
+		} else {
+			result := workshop.CheckWorkshopDependencies(depStatuses)
+			if result.Blocked {
+				log.Printf("[backlog] auto-workshop: blocked for %s/%s by deps: %v", item.Kind, item.Name, result.BlockingDeps)
+				return
+			}
+		}
+	}
+	go func() {
+		_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
+		if spawnErr != nil {
+			log.Printf("[backlog] auto-init: failed for %s/%s: %v", item.Kind, item.Name, spawnErr)
+		}
+	}()
+}
+
+// cascadeWorkshopTrigger finds items that depend on the given item and
+// auto-triggers their workshops if all their dependencies are now met.
+// Only triggers for items still in "backlog" status with no existing
+// workshop rounds.
+func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
+	readyKey := string(readyItem.Kind) + "/" + readyItem.Name
+
+	allItems, err := h.store.LoadAll(nil)
+	if err != nil {
+		log.Printf("[backlog] cascade: failed to load items: %v", err)
+		return
+	}
+
+	for _, item := range allItems {
+		if item.Status != StatusBacklog {
+			continue
+		}
+		dependsOnReady := false
+		for _, dep := range item.DependsOn {
+			if dep == readyKey {
+				dependsOnReady = true
+				break
+			}
+		}
+		if !dependsOnReady {
+			continue
+		}
+
+		depStatuses, err := h.store.CheckWorkshopDependencies(item.DependsOn)
+		if err != nil {
+			log.Printf("[backlog] cascade: dep check failed for %s/%s: %v", item.Kind, item.Name, err)
+			continue
+		}
+		result := workshop.CheckWorkshopDependencies(depStatuses)
+		if result.Blocked {
+			continue
+		}
+
+		itemDir := h.store.ItemDir(item.Kind, item.Name)
+		_, roundCount, _ := workshop.LoadLatestRound(itemDir)
+		if roundCount > 0 {
+			continue
+		}
+
+		log.Printf("[backlog] cascade: triggering workshop for %s/%s (unblocked by %s)", item.Kind, item.Name, readyKey)
+		go func(it BacklogItem) {
+			_, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize)
+			if spawnErr != nil {
+				log.Printf("[backlog] cascade: failed for %s/%s: %v", it.Kind, it.Name, spawnErr)
+			}
+		}(item)
 	}
 }
 
@@ -531,6 +604,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[backlog] updated: %q (status=%s→%s, priority=%d→%d)", name, oldStatus, existing.Status, oldPriority, existing.Priority)
 	} else {
 		log.Printf("[backlog] updated: %q", name)
+	}
+
+	// Cascade: when status transitions to workshop-ready, trigger
+	// workshops for dependents that were previously blocked.
+	if oldStatus != existing.Status &&
+		workshop.IsWorkshopReady(string(existing.Status)) &&
+		!workshop.IsWorkshopReady(string(oldStatus)) {
+		go h.cascadeWorkshopTrigger(existing)
 	}
 
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}

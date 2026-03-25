@@ -1,0 +1,82 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-24T17:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Resource dependencies",
+      "context": "Vrooli scenarios compose local resources (postgres, redis, qdrant, ollama, etc.). Even without knowing the exact idea, understanding which resources are likely needed helps constrain the architecture space. This can be answered in parallel with round 1 decisions.",
+      "options": [
+        {"key": "A", "label": "Database only (PostgreSQL)", "rationale": "Simple data persistence needs — CRUD operations, metadata storage. Lightest resource footprint."},
+        {"key": "B", "label": "Database + cache (PostgreSQL + Redis)", "rationale": "Data persistence plus fast lookups, session state, or pub/sub. Common for API-driven scenarios."},
+        {"key": "C", "label": "AI-powered (Ollama + optional vector store)", "rationale": "If the idea involves AI/ML capabilities — e.g., intelligent test generation, analysis, or natural language interfaces."},
+        {"key": "D", "label": "Minimal / none", "rationale": "A lightweight tool or library with no runtime resource dependencies."},
+        {"key": "E", "label": "Other", "rationale": "Specify the expected resource dependencies"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Integration with existing scenarios",
+      "context": "Vrooli's value compounds when scenarios build on each other. Understanding how this idea relates to existing scenarios helps identify reuse opportunities and avoid duplication.",
+      "options": [
+        {"key": "A", "label": "Standalone — no direct integration needed", "rationale": "Independent scenario that provides value on its own. Can be integrated later if useful."},
+        {"key": "B", "label": "Consumes other scenarios' APIs", "rationale": "Depends on existing scenario capabilities (e.g., uses agent-manager for orchestration, test-genie for generation)."},
+        {"key": "C", "label": "Provides capabilities for other scenarios to consume", "rationale": "A building-block scenario that other scenarios will call into. Needs a well-defined API contract."},
+        {"key": "D", "label": "Bidirectional — both consumes and provides", "rationale": "Deep integration with the ecosystem. Higher complexity but maximum compound value."},
+        {"key": "E", "label": "Other", "rationale": "Describe the integration pattern"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "MVP definition approach",
+      "context": "Given the minimal description, how should we define the minimum viable product? This helps set expectations for the first implementation pass.",
+      "options": [
+        {"key": "A", "label": "Single core feature — ship the smallest useful thing", "rationale": "Identify the one capability that delivers value and build just that. Fast feedback loop, low risk."},
+        {"key": "B", "label": "Feature set — a coherent bundle of 3-5 features", "rationale": "Build enough features that the scenario is genuinely useful as a product. More effort but stronger launch."},
+        {"key": "C", "label": "Proof of concept — validate the approach before committing", "rationale": "Build a throwaway prototype to test feasibility. Appropriate if the core idea involves unproven technology."},
+        {"key": "D", "label": "Other", "rationale": "Describe your preferred MVP approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Success metrics",
+      "context": "How will we know this idea succeeded? Defining metrics early ensures we build toward measurable outcomes, not just features.",
+      "options": [
+        {"key": "A", "label": "Usage metrics — adoption, active users, API calls", "rationale": "Success = people use it. Appropriate for tools and services."},
+        {"key": "B", "label": "Efficiency metrics — time saved, error reduction", "rationale": "Success = measurable improvement in a workflow. Appropriate for internal tools."},
+        {"key": "C", "label": "Revenue metrics — paying customers, MRR", "rationale": "Success = generates income. Appropriate for SaaS products."},
+        {"key": "D", "label": "Capability metrics — unlocks new scenarios or workflows", "rationale": "Success = Vrooli can do something it couldn't before. Appropriate for infrastructure/platform work."},
+        {"key": "E", "label": "Other", "rationale": "Define your own success criteria"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Rounds 1 and 2 contain 7 foundational decisions that remain unresolved. The plan.md cannot be populated until at least the core idea (round 1, d1), problem statement (round 1, d3), and target scope (round 2, d1) are answered. Please prioritize answering round 1 decisions first — they gate all downstream planning."
+    }
+  ],
+  "plan_updates": "No plan.md changes this round. The plan scaffold remains fully TBD across all 13 mandatory sections (except Risks + Mitigations). Plan population is blocked on unresolved decisions from rounds 1 and 2. This round adds supplementary decisions about resource dependencies, integration patterns, MVP approach, and success metrics that can be answered in parallel."
+}

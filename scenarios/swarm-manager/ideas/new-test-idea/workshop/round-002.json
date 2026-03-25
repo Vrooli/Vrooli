@@ -1,0 +1,55 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-24T16:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Which scenario does this work target?",
+      "context": "The spec.json has no scope field set. Knowing the target scenario is essential for sandbox scoping, acceptance criteria, and plan context. If this is a brand-new scenario, select option A. If it enhances an existing scenario, select the most appropriate one.",
+      "options": [
+        {"key": "A", "label": "New standalone scenario (scenarios/new-test-idea/)", "rationale": "This is a greenfield idea requiring a new scenario directory with its own API, possible UI, and service.json"},
+        {"key": "B", "label": "Existing test-genie scenario (scenarios/test-genie/)", "rationale": "Extend or enhance the existing AI-assisted test generation scenario"},
+        {"key": "C", "label": "Existing agent-manager scenario (scenarios/agent-manager/)", "rationale": "Add testing capabilities within the agent-manager infrastructure"},
+        {"key": "D", "label": "Cross-cutting / infrastructure (no single scenario)", "rationale": "This work spans multiple scenarios or lives in shared infrastructure (scripts/, packages/, etc.)"},
+        {"key": "E", "label": "Other", "rationale": "Specify the target scenario or directory"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Expected file change boundaries (acceptance criteria)",
+      "context": "Acceptance allow/deny globs help constrain what files agents may modify during execution. This can only be fully answered after the scope decision above, but providing an early signal helps planning. Select the pattern that best matches the expected change footprint.",
+      "options": [
+        {"key": "A", "label": "Broad — entire scenario directory (scenarios/<name>/**)", "rationale": "New or heavily modified scenario; most files could change"},
+        {"key": "B", "label": "Targeted — specific subdirectories (e.g., scenarios/<name>/api/**, scenarios/<name>/ui/**)", "rationale": "Changes are contained to specific service layers"},
+        {"key": "C", "label": "Cross-scenario — multiple directories", "rationale": "Changes span multiple scenarios or shared packages"},
+        {"key": "D", "label": "Other", "rationale": "Specify the expected file patterns"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 contains 5 foundational decisions (core idea, target users, problem, deployment model, priority) that are all unresolved. Those decisions should be answered before this round's scope/acceptance questions can be fully contextualized. However, if you already know the target scenario, answering this round's questions in parallel is fine."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The plan.md remains fully TBD across all 13 mandatory sections (except Risks + Mitigations). No plan updates were made this round since no new information was available. Plan sections will be populated once round 1 and round 2 decisions are resolved."
+    }
+  ],
+  "plan_updates": "No plan.md changes this round. Existing plan scaffold preserved. Added supplemental scope and acceptance decisions not covered by round 1."
+}

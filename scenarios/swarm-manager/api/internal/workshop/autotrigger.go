@@ -48,3 +48,50 @@ func ShouldAutoInitialize(autoWorkshop *bool) bool {
 	}
 	return *autoWorkshop
 }
+
+// DependencyStatus holds a resolved dependency's ref and status.
+type DependencyStatus struct {
+	Ref    string // "kind/name"
+	Status string // backlog status string, or "" if unresolved
+	Found  bool   // false if dependency couldn't be loaded
+}
+
+// WorkshopBlockResult holds the workshop dependency-check decision.
+type WorkshopBlockResult struct {
+	Blocked      bool
+	BlockingDeps []string // refs that are blocking
+	Reason       string   // "deps_not_ready", "no_deps", "deps_ready"
+}
+
+// IsWorkshopReady returns true if a dependency status indicates its plan
+// is sufficiently developed to not block downstream workshops.
+func IsWorkshopReady(status string) bool {
+	switch status {
+	case "backlog", "researching":
+		return false
+	default:
+		return true
+	}
+}
+
+// CheckWorkshopDependencies decides whether an item's workshop should be
+// blocked based on its dependency statuses. Dependencies that could not
+// be loaded (Found=false) are treated as non-blocking (fail-open).
+func CheckWorkshopDependencies(deps []DependencyStatus) WorkshopBlockResult {
+	if len(deps) == 0 {
+		return WorkshopBlockResult{Blocked: false, Reason: "no_deps"}
+	}
+	var blocking []string
+	for _, d := range deps {
+		if !d.Found {
+			continue
+		}
+		if !IsWorkshopReady(d.Status) {
+			blocking = append(blocking, d.Ref)
+		}
+	}
+	if len(blocking) > 0 {
+		return WorkshopBlockResult{Blocked: true, BlockingDeps: blocking, Reason: "deps_not_ready"}
+	}
+	return WorkshopBlockResult{Blocked: false, Reason: "deps_ready"}
+}

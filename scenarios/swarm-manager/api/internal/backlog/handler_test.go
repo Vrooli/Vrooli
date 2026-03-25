@@ -1679,6 +1679,7 @@ func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 		"kind":             "fix",
 		"acceptance_allow": []string{"api/**", "*.go"},
 		"acceptance_deny":  []string{"vendor/**"},
+		"auto_workshop":    false,
 	}
 	body, _ := json.Marshal(payload)
 

@@ -1,0 +1,55 @@
+{
+  "round": 5,
+  "generated_at": "2026-03-24T22:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d14",
+      "type": "decision",
+      "topic": "Disposition of this item (FINAL — 5th round, consolidates all prior unanswered decisions)",
+      "context": "This item has no description, no archive materials, no scope, and no user answers across 4 prior rounds (8 unanswered decisions). All 13 plan sections remain TBD. This is the final round — please pick one option to either unblock or close this item. If no answer is provided, recommending auto-archive.",
+      "options": [
+        {"key": "A", "label": "Real item — provide description and scope now", "rationale": "Use the freeform field to describe the purpose. Also answer d15 (target scenario) to set scope. This unblocks the entire plan in one step."},
+        {"key": "B", "label": "Pipeline dry-run — no code changes needed", "rationale": "Item exists solely to test the backlog lifecycle. Mark as completed with a lifecycle-validation summary. No code deliverable."},
+        {"key": "C", "label": "Delete this item", "rationale": "Created as a test, no longer needed. Clean up: swarm-manager backlog delete --kind idea --name scope-test"},
+        {"key": "D", "label": "Archive — keep for later but stop workshopping", "rationale": "Move to archived status. Can be re-activated later if a purpose emerges."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": "FINAL ROUND: 4 prior rounds unanswered. If no response, recommend auto-archiving this item."
+    },
+    {
+      "id": "d15",
+      "type": "decision",
+      "topic": "Target scenario (only if d14=A)",
+      "context": "Skip if d14 is B, C, or D. If this is a real item, which scenario does it target? This sets scope, acceptance_allow, and acceptance_deny on spec.json.",
+      "options": [
+        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Backlog system, scope fields, workshop infrastructure."},
+        {"key": "B", "label": "scenarios/agent-manager", "rationale": "Agent execution, sandbox scoping."},
+        {"key": "C", "label": "scenarios/workspace-sandbox", "rationale": "Sandbox overlay mounts, filesystem isolation."},
+        {"key": "D", "label": "Cross-cutting / multiple scenarios", "rationale": "Platform-level work."},
+        {"key": "E", "label": "Other", "rationale": "Specify in freeform."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": "Skip unless d14=A."
+    },
+    {
+      "id": "i9",
+      "type": "info",
+      "text": "Cumulative status: 5 rounds, 10 unanswered decisions (d1, d2, d4-d10, d12-d13), 2 pre-selected (d3=defer file paths, d11=keep priority 5). Plan.md: all 13 sections TBD. No archive materials. No description in spec.json."
+    },
+    {
+      "id": "i10",
+      "type": "info",
+      "text": "Recommendation: If this item has no real purpose, select d14=C (delete) or d14=D (archive) to clean up the backlog. Stale items with no context consume workshop cycles without progress."
+    }
+  ],
+  "plan_updates": "Updated plan.md risk table with stall escalation note. All 13 plan sections remain TBD — no new information available to populate them."
+}

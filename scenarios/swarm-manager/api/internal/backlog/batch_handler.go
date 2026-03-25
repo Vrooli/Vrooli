@@ -51,6 +51,7 @@ type batchCreateItem struct {
 	Scope           *string  `json:"scope,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	AutoWorkshop    *bool    `json:"auto_workshop,omitempty"`
 }
 
 // batchCreateResponse is the JSON response for a successful batch create.
@@ -85,8 +86,9 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Phase 1: Validate all items and check for duplicate names within the batch.
 	type validatedItem struct {
-		item BacklogItem
-		kind BacklogKind
+		item         BacklogItem
+		kind         BacklogKind
+		autoWorkshop *bool
 	}
 	validated := make([]validatedItem, 0, len(req.Items))
 	batchNames := make(map[string]bool, len(req.Items))
@@ -214,7 +216,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			AcceptanceDeny:  raw.AcceptanceDeny,
 		}
 
-		validated = append(validated, validatedItem{item: item, kind: kind})
+		validated = append(validated, validatedItem{item: item, kind: kind, autoWorkshop: raw.AutoWorkshop})
 	}
 
 	// Phase 2: Validate dependencies — references must exist either in the
@@ -315,6 +317,11 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			warnings = append(warnings, fmt.Sprintf("items created but initiative assignment failed: %s",
 				httputil.TruncateErrorMessage(addErr, 240)))
 		}
+	}
+
+	// Phase 7: Auto-trigger workshops for items whose dependencies are met.
+	for i, item := range createdItems {
+		h.maybeAutoWorkshop(item, validated[i].autoWorkshop, false)
 	}
 
 	log.Printf("[backlog] batch-created %d items", len(createdItems))

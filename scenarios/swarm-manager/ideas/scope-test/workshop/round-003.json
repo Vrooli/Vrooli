@@ -1,0 +1,81 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-24T21:15:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d8",
+      "type": "decision",
+      "topic": "Define purpose (blocker — rounds 1-2 unanswered)",
+      "context": "This is the third attempt to establish what this item is for. Decisions d1 and d5 from prior rounds remain unanswered. The spec has no description, no archive materials, no scope field — there is zero context to work from. The plan cannot progress past TBD until this is answered. If this item was created as a test, selecting option D will clean it up.",
+      "options": [
+        {"key": "A", "label": "Validate backlog scope/acceptance fields end-to-end", "rationale": "Test that scope, acceptance_allow, acceptance_deny correctly control sandbox mounts and post-execution review. Targets swarm-manager + workspace-sandbox."},
+        {"key": "B", "label": "Pipeline dry-run (no code changes needed)", "rationale": "This item exists to exercise initialize→workshop→process. Success = completing the lifecycle. No deliverable beyond the workshop artifacts themselves."},
+        {"key": "C", "label": "Delete this item", "rationale": "Created as a throwaway test. Clean up with: swarm-manager backlog delete --kind idea --name scope-test"},
+        {"key": "D", "label": "Other — I'll provide a description", "rationale": "Use the freeform field to write what this item should accomplish. This will unblock all downstream planning."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": "BLOCKER: No plan sections can be populated until this is answered. 6 prior decisions across 2 rounds remain pending."
+    },
+    {
+      "id": "d9",
+      "type": "decision",
+      "topic": "Target scenario (depends on d8)",
+      "context": "Restatement of d2 from round 1. Cannot set scope, acceptance_allow, or acceptance_deny without knowing the target. If d8=A, likely targets swarm-manager. If d8=B, no scope needed.",
+      "options": [
+        {"key": "A", "label": "scenarios/swarm-manager", "rationale": "Backlog scope fields live here — natural target for scope-related work."},
+        {"key": "B", "label": "scenarios/agent-manager", "rationale": "If scope work relates to agent sandbox execution boundaries."},
+        {"key": "C", "label": "No scope needed (pipeline test only)", "rationale": "If d8=B, this item doesn't target any scenario."},
+        {"key": "D", "label": "Other", "rationale": "Specify a different target."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d10",
+      "type": "decision",
+      "topic": "Should we add a description to spec.json now?",
+      "context": "Round 2 asked this (d7) but got no answer. If you select d8-D and provide freeform text, I can update spec.json description automatically. Otherwise, answering this separately works too.",
+      "options": [
+        {"key": "A", "label": "Yes — use my d8-D freeform as the description", "rationale": "Efficient: one answer populates both the decision and spec.json."},
+        {"key": "B", "label": "No — leave empty for now", "rationale": "Proceed without a description. Plan stays TBD."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d11",
+      "type": "decision",
+      "topic": "Keep priority at 5?",
+      "context": "Restatement of d4 from round 1. Current priority is 5 (mid-range).",
+      "options": [
+        {"key": "A", "label": "Keep at 5", "rationale": "Default mid-priority, appropriate for non-urgent work."},
+        {"key": "B", "label": "Lower (7+)", "rationale": "If exploratory or low-impact."},
+        {"key": "C", "label": "Raise (1-3)", "rationale": "If blocking other work."}
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected A as reasonable default given no urgency signals."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Status after 3 rounds: plan.md has all 13 sections marked TBD. 8 of 10 decisions across rounds 1-3 remain unanswered. The critical blocker is d8 (purpose) — once answered, scope (d9), acceptance fields (d3), and plan sections 1-13 can all be populated in the next round."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "Quick action paths: (1) Answer d8 + d9 → triggers full plan population in round 4. (2) Select d8-C (delete) → cleanup complete. (3) No action → item stays in backlog with TBD plan indefinitely."
+    }
+  ],
+  "plan_updates": "No plan.md updates — all 13 sections remain TBD. Cannot populate without answers to foundational purpose/scope questions (d8, d9)."
+}

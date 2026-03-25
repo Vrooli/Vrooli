@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
 )
 
@@ -44,9 +45,14 @@ func (m *mockInitiativeAssigner) AddItems(name string, items []string) error {
 	return nil
 }
 
+func boolPtr(v bool) *bool { return &v }
+
 func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockInitiativeAssigner) {
 	t.Helper()
-	h, rootDir := setupTestHandler(t)
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "batch-run", TaskID: "batch-task"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
 	ia := newMockInitiativeAssigner()
 	h.SetInitiativeAssigner(ia)
 	return h, rootDir, ia
@@ -107,8 +113,8 @@ func TestBatchCreate_WithInitiative(t *testing.T) {
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "dashboard", Title: "Dashboard", Kind: "idea"},
-			{Name: "api-refactor", Title: "API Refactor", Kind: "execute"},
+			{Name: "dashboard", Title: "Dashboard", Kind: "idea", AutoWorkshop: boolPtr(false)},
+			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", AutoWorkshop: boolPtr(false)},
 		},
 		Initiative: "q1-sprint",
 	}
@@ -378,8 +384,8 @@ func TestBatchCreate_InitiativeAddItemsFails_ReturnsWarning(t *testing.T) {
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "widget-a", Title: "Widget A", Kind: "idea"},
-			{Name: "widget-b", Title: "Widget B", Kind: "fix"},
+			{Name: "widget-a", Title: "Widget A", Kind: "idea", AutoWorkshop: boolPtr(false)},
+			{Name: "widget-b", Title: "Widget B", Kind: "fix", AutoWorkshop: boolPtr(false)},
 		},
 		Initiative: "my-init",
 	}
@@ -476,14 +482,14 @@ func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
 }
 
 func TestBatchCreate_WithEffort(t *testing.T) {
-	h, _ := setupTestHandler(t)
+	h, _, _ := setupBatchTestHandler(t)
 
 	effortS := "S"
 	effortXL := "xl" // lowercase to test normalization
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item-with-effort", Title: "Item With Effort", Kind: "idea", Effort: &effortS},
-			{Name: "item-with-xl", Title: "Item XL", Kind: "fix", Effort: &effortXL},
+			{Name: "item-with-effort", Title: "Item With Effort", Kind: "idea", Effort: &effortS, AutoWorkshop: boolPtr(false)},
+			{Name: "item-with-xl", Title: "Item XL", Kind: "fix", Effort: &effortXL, AutoWorkshop: boolPtr(false)},
 		},
 	}
 
@@ -503,7 +509,7 @@ func TestBatchCreate_WithEffort(t *testing.T) {
 }
 
 func TestBatchCreate_InvalidEffort(t *testing.T) {
-	h, _ := setupTestHandler(t)
+	h, _, _ := setupBatchTestHandler(t)
 
 	badEffort := "HUGE"
 	payload := batchCreateRequest{
@@ -522,7 +528,7 @@ func TestBatchCreate_InvalidEffort(t *testing.T) {
 }
 
 func TestBatchCreate_EffortOptional(t *testing.T) {
-	h, _ := setupTestHandler(t)
+	h, _, _ := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{

@@ -1,0 +1,78 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-24T23:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 has 4 unresolved decisions (d1: target scenario, d2: core idea, d3: target user, d5: acceptance paths). Only d4 (priority) was pre-selected as 'keep at 5'. The plan remains entirely TBD until these foundational questions are answered. This round re-approaches the critical unknowns with more specific prompts."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Can you describe the idea in one sentence?",
+      "context": "The item title is 'No Effort' but the description field is empty. Without understanding what this idea IS, no planning can proceed. Even a rough sentence would unblock all downstream work. If this is a test/placeholder item, that's also fine to declare.",
+      "options": [
+        {"key": "A", "label": "This is a test/placeholder item", "rationale": "Created to test the backlog system, no real implementation intended"},
+        {"key": "B", "label": "A tool/feature that requires zero user effort to use", "rationale": "Something that works automatically without configuration or manual steps"},
+        {"key": "C", "label": "A way to estimate effort for backlog items", "rationale": "Meta-feature: the 'no effort' name refers to items lacking effort estimates"},
+        {"key": "D", "label": "Other", "rationale": "Provide a one-sentence description in the freeform field"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Is this idea connected to any existing work or initiative?",
+      "context": "Understanding if this relates to ongoing efforts would help narrow scope and approach. The item has no tags, no initiative, and no dependencies set.",
+      "options": [
+        {"key": "A", "label": "Standalone idea — not connected to existing work", "rationale": "This is an independent concept"},
+        {"key": "B", "label": "Related to swarm-manager backlog improvements", "rationale": "Could be about enhancing how items are processed or estimated"},
+        {"key": "C", "label": "Related to agent-manager capabilities", "rationale": "Could involve improving how agents handle tasks"},
+        {"key": "D", "label": "Other", "rationale": "Specify the connection in the freeform field"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "What is the expected size of this work?",
+      "context": "Even without full details, a rough size estimate helps set expectations for planning depth and workshop rounds needed.",
+      "options": [
+        {"key": "A", "label": "Small — a few hours of work, single file or config change", "rationale": "Quick enhancement or fix"},
+        {"key": "B", "label": "Medium — a few days, multiple files within one scenario", "rationale": "Feature addition or meaningful refactor"},
+        {"key": "C", "label": "Large — a week+, new scenario or cross-scenario changes", "rationale": "Major new capability"},
+        {"key": "D", "label": "Unknown — need to define the idea first", "rationale": "Can't estimate until the core concept is clear"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Should this item be archived if it's a placeholder?",
+      "context": "If this item was created as a test or lacks a real purpose, it may be better to archive it rather than keep it in the backlog. Keeping empty items adds noise to the backlog.",
+      "options": [
+        {"key": "A", "label": "Keep in backlog — it has a real purpose", "rationale": "The idea is genuine, just needs description added"},
+        {"key": "B", "label": "Archive — this was a test item", "rationale": "Clean up the backlog by removing placeholder items"},
+        {"key": "C", "label": "Other", "rationale": "Specify what to do with this item"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "No plan updates this round — all plan sections remain TBD pending resolution of foundational decisions from rounds 1 and 2. The critical path is: define the idea (r2-d1) → identify target scenario (r1-d1) → set acceptance boundaries (r1-d5) → populate plan sections."
+}

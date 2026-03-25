@@ -1,0 +1,87 @@
+{
+  "round": 4,
+  "generated_at": "2026-03-24T17:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Monetization strategy",
+      "context": "Vrooli scenarios target measurable value. Even at this early stage, having a monetization direction helps prioritize features and shape architecture (e.g., multi-tenancy, usage tracking, billing integration). This can be answered independently of round 1 decisions.",
+      "options": [
+        {"key": "A", "label": "Internal tool — no direct monetization", "rationale": "Value is measured by developer productivity gains. No billing infrastructure needed."},
+        {"key": "B", "label": "SaaS with usage-based pricing", "rationale": "Charge per test run, per seat, or per project. Requires usage metering and billing integration."},
+        {"key": "C", "label": "Open-source with premium features", "rationale": "Core is free, advanced features (analytics, CI/CD integration, team features) are paid. Wider adoption, slower revenue."},
+        {"key": "D", "label": "Bundled with Vrooli platform", "rationale": "Included as a platform capability that increases overall Vrooli value. No standalone pricing."},
+        {"key": "E", "label": "Other", "rationale": "Describe your preferred monetization approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "UI requirements",
+      "context": "Does this idea need a user interface, or is it purely API/CLI-driven? This significantly affects development effort and timeline.",
+      "options": [
+        {"key": "A", "label": "No UI — API and/or CLI only", "rationale": "Fastest to build. Suitable for developer tools, automation, and agent-consumed capabilities."},
+        {"key": "B", "label": "Simple dashboard UI", "rationale": "Read-only or light-interaction UI for viewing results, status, and metrics. Moderate effort."},
+        {"key": "C", "label": "Full interactive UI", "rationale": "Rich interface for configuration, execution, and analysis. Highest effort but best UX for non-technical users."},
+        {"key": "D", "label": "Embed in web-console", "rationale": "Add capabilities to the existing Vrooli web console rather than a standalone UI. Leverages existing frontend infrastructure."},
+        {"key": "E", "label": "Other", "rationale": "Describe your preferred UI approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Security and isolation requirements",
+      "context": "If this idea involves executing user-provided code or tests, security isolation is critical. Vrooli's agent-manager already has sandbox capabilities that could be leveraged.",
+      "options": [
+        {"key": "A", "label": "No special isolation — trusted internal execution", "rationale": "Runs only trusted code within the Vrooli server. Simplest architecture."},
+        {"key": "B", "label": "Sandboxed execution via agent-manager", "rationale": "Leverage existing sandbox infrastructure for untrusted code/test execution. Proven isolation model."},
+        {"key": "C", "label": "Container-based isolation", "rationale": "Each execution runs in its own container. Heavier but maximum isolation."},
+        {"key": "D", "label": "Other", "rationale": "Describe your preferred isolation approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Relationship to test-genie",
+      "context": "The test-genie scenario already provides AI-assisted test generation. Regardless of what this new idea is, we need to decide how it relates to test-genie to avoid duplication and maximize synergy.",
+      "options": [
+        {"key": "A", "label": "Completely independent — different domain", "rationale": "This idea has nothing to do with test generation. No overlap concern."},
+        {"key": "B", "label": "Complementary — different capability, same ecosystem", "rationale": "Both live in the testing space but address different problems. Could share data or call each other's APIs."},
+        {"key": "C", "label": "Replacement — supersedes test-genie", "rationale": "This idea is a better version of what test-genie does. test-genie would be deprecated."},
+        {"key": "D", "label": "Extension — builds on top of test-genie", "rationale": "Uses test-genie as a dependency/building block. Adds capabilities that test-genie doesn't have."},
+        {"key": "E", "label": "Other", "rationale": "Describe the relationship"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "STATUS: 15 decisions across 4 rounds remain unresolved. The plan.md is almost entirely TBD — only 'Current Technical Context' and 'Risks + Mitigations' have content. PRIORITY: Please answer round 1 decisions first (d1: core idea, d2: target users, d3: problem, d4: deployment model, d5: priority). These 5 decisions gate all downstream planning. Rounds 2-4 can be answered in parallel or deferred."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Updated plan.md this round: populated 'Current Technical Context' with a table of Vrooli's existing test infrastructure (vrooli scenario test, test-genie, Go test suites, Bats, agent-manager sandbox). Added decision paralysis as a risk with mitigation. Updated 'Implementation Strategy' to note the 11-decision blocker."
+    }
+  ],
+  "plan_updates": "Populated 'Current Technical Context' section with existing Vrooli test infrastructure table. Added decision-paralysis risk to 'Risks + Mitigations'. Updated 'Implementation Strategy' TBD comment to note 11 unresolved decisions as blocker. All other sections remain TBD."
+}

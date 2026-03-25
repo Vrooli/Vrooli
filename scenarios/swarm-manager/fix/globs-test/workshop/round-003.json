@@ -1,0 +1,37 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-24T22:10:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Resolve outstanding decision d5: path traversal (..) check in validateGlobs",
+      "context": "Decision d5 from round-002 was left unanswered. validateScope already rejects '..' traversal, but validateGlobs does not. A glob like '../secrets/**' would pass validation today. Since acceptance_deny globs define security boundaries, this is a real gap. The fix is one line: strings.Contains(g, \"..\"). The plan currently lists this as out-of-scope, but it's directly adjacent to the validation fix and closes a security hole. Recommend option A.",
+      "options": [
+        {"key": "A", "label": "Add .. check (recommended)", "rationale": "One-line addition that closes a real security gap in the same function being fixed. Consistent with validateScope. Minimal additional scope."},
+        {"key": "B", "label": "Skip — separate ticket", "rationale": "Keep this fix strictly about ** validation. File a separate backlog item for the traversal gap."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Re-run assessment: plan.md is complete with all 13 mandatory sections. Rounds 1-2 resolved scope (d1→scenarios/swarm-manager), validation approach (d2→ValidatePattern), acceptance paths (d3→targeted files), and spec.json update (d4→apply scope+acceptance). Only d5 (traversal check) remains unanswered. Once d5 is resolved, readiness is at ceiling and the item is ready for execution."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "Scope_defined remains at 2 because spec.json still lacks scope and acceptance_allow fields. Once d4 is applied (updating spec.json with scope=scenarios/swarm-manager and the targeted acceptance_allow paths), this dimension reaches 3. This is a metadata update that should happen before queueing for execution."
+    }
+  ],
+  "plan_updates": "No plan.md changes needed — plan remains complete from round-001. This round surfaces the one remaining unanswered decision (d5→traversal check) and notes that spec.json metadata update (d4) should be applied before execution."
+}

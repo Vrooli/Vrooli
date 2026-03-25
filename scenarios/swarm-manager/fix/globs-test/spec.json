@@ -1,11 +1,18 @@
 {
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/internal/backlog/types.go",
+    "scenarios/swarm-manager/api/internal/backlog/types_test.go",
+    "scenarios/swarm-manager/api/go.mod",
+    "scenarios/swarm-manager/api/go.sum"
+  ],
   "created": "2026-03-24T20:39:55Z",
   "description": "",
   "kind": "fix",
   "name": "globs-test",
   "priority": 5,
+  "scope": "scenarios/swarm-manager",
   "status": "backlog",
-  "tags": [],
+  "tags": null,
   "title": "Globs Test",
-  "updated": "2026-03-24T20:39:55Z"
+  "updated": "2026-03-24T23:17:42Z"
 }

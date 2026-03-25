@@ -184,3 +184,88 @@ func TestShouldAutoInitialize_ExplicitFalse(t *testing.T) {
 		t.Error("expected false when autoWorkshop is explicitly false")
 	}
 }
+
+// --- IsWorkshopReady tests ---
+
+func TestIsWorkshopReady_BlockingStatuses(t *testing.T) {
+	for _, status := range []string{"backlog", "researching"} {
+		if IsWorkshopReady(status) {
+			t.Errorf("expected IsWorkshopReady(%q) = false", status)
+		}
+	}
+}
+
+func TestIsWorkshopReady_AllowingStatuses(t *testing.T) {
+	for _, status := range []string{"ready", "queued", "in_progress", "completed", "failed", "archived"} {
+		if !IsWorkshopReady(status) {
+			t.Errorf("expected IsWorkshopReady(%q) = true", status)
+		}
+	}
+}
+
+// --- CheckWorkshopDependencies tests ---
+
+func TestCheckWorkshopDependencies_NoDeps(t *testing.T) {
+	result := CheckWorkshopDependencies(nil)
+	if result.Blocked {
+		t.Error("expected not blocked with no deps")
+	}
+	if result.Reason != "no_deps" {
+		t.Errorf("expected reason 'no_deps', got %q", result.Reason)
+	}
+}
+
+func TestCheckWorkshopDependencies_AllReady(t *testing.T) {
+	deps := []DependencyStatus{
+		{Ref: "fix/a", Status: "ready", Found: true},
+		{Ref: "idea/b", Status: "completed", Found: true},
+	}
+	result := CheckWorkshopDependencies(deps)
+	if result.Blocked {
+		t.Error("expected not blocked when all deps are ready")
+	}
+	if result.Reason != "deps_ready" {
+		t.Errorf("expected reason 'deps_ready', got %q", result.Reason)
+	}
+}
+
+func TestCheckWorkshopDependencies_SomeBlocking(t *testing.T) {
+	deps := []DependencyStatus{
+		{Ref: "fix/a", Status: "backlog", Found: true},
+		{Ref: "idea/b", Status: "ready", Found: true},
+	}
+	result := CheckWorkshopDependencies(deps)
+	if !result.Blocked {
+		t.Error("expected blocked when a dep is in backlog")
+	}
+	if result.Reason != "deps_not_ready" {
+		t.Errorf("expected reason 'deps_not_ready', got %q", result.Reason)
+	}
+	if len(result.BlockingDeps) != 1 || result.BlockingDeps[0] != "fix/a" {
+		t.Errorf("expected blocking dep 'fix/a', got %v", result.BlockingDeps)
+	}
+}
+
+func TestCheckWorkshopDependencies_NotFoundFailOpen(t *testing.T) {
+	deps := []DependencyStatus{
+		{Ref: "fix/missing", Found: false},
+	}
+	result := CheckWorkshopDependencies(deps)
+	if result.Blocked {
+		t.Error("expected not blocked when dep not found (fail-open)")
+	}
+}
+
+func TestCheckWorkshopDependencies_MixedNotFoundAndBlocking(t *testing.T) {
+	deps := []DependencyStatus{
+		{Ref: "fix/missing", Found: false},
+		{Ref: "fix/unplanned", Status: "researching", Found: true},
+	}
+	result := CheckWorkshopDependencies(deps)
+	if !result.Blocked {
+		t.Error("expected blocked by the researching dep")
+	}
+	if len(result.BlockingDeps) != 1 || result.BlockingDeps[0] != "fix/unplanned" {
+		t.Errorf("expected only 'fix/unplanned' blocking, got %v", result.BlockingDeps)
+	}
+}

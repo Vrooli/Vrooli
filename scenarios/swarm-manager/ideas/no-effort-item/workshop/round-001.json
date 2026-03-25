@@ -1,0 +1,94 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-24T23:15:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What does 'No Effort' mean?",
+      "context": "The item has no description. The title 'No Effort' could refer to several concepts: a zero-configuration experience for end users, an automation that eliminates manual steps, a low-priority placeholder item, or something else entirely. We need to understand the core vision before any planning can proceed.",
+      "options": [
+        {"key": "A", "label": "Zero-config user experience", "rationale": "A feature or scenario that works out of the box with no setup — users get value immediately without configuration steps."},
+        {"key": "B", "label": "Automation of a manual workflow", "rationale": "Automate something that currently requires manual effort — reducing toil for developers or end users."},
+        {"key": "C", "label": "Minimal-effort scenario template", "rationale": "A scenario template or scaffold that lets developers spin up new scenarios with near-zero boilerplate."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own description of what 'No Effort' means."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Which scenario does this work target?",
+      "context": "No scope field is set in spec.json. Identifying the target scenario is critical for planning the implementation approach, understanding existing code, and setting acceptance criteria.",
+      "options": [
+        {"key": "A", "label": "New standalone scenario", "rationale": "Create a brand new scenario from scratch — appropriate if this is a new capability."},
+        {"key": "B", "label": "Enhancement to an existing scenario", "rationale": "Add this capability to an existing scenario. Specify which one in freeform."},
+        {"key": "C", "label": "Cross-cutting (multiple scenarios)", "rationale": "This affects shared infrastructure or multiple scenarios — e.g., packages/cli-core, shared resources."},
+        {"key": "D", "label": "Other", "rationale": "Provide the target scope."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Who is the target user?",
+      "context": "Understanding the audience shapes the entire implementation — a developer tool has different requirements than an end-user feature or an internal system optimization.",
+      "options": [
+        {"key": "A", "label": "End users / customers", "rationale": "People using Vrooli-built products — focus on UX, onboarding, and polish."},
+        {"key": "B", "label": "Developers building on Vrooli", "rationale": "Scenario developers — focus on DX, tooling, and documentation."},
+        {"key": "C", "label": "Internal system / agents", "rationale": "Vrooli's own agents and automation — focus on reliability, APIs, and integration."},
+        {"key": "D", "label": "Other", "rationale": "Specify the target audience."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "What is the expected scope of effort?",
+      "context": "The item is priority 5 (lowest). Understanding the expected size helps calibrate the implementation strategy — a quick improvement vs. a multi-phase project.",
+      "options": [
+        {"key": "A", "label": "Small (< 1 day)", "rationale": "A focused change — single file or small feature addition."},
+        {"key": "B", "label": "Medium (1-3 days)", "rationale": "A meaningful feature requiring multiple components but well-contained."},
+        {"key": "C", "label": "Large (1+ week)", "rationale": "A significant initiative requiring phased implementation."},
+        {"key": "D", "label": "Other", "rationale": "Specify expected effort."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "What resources or integrations are needed?",
+      "context": "Vrooli scenarios compose local resources (postgres, redis, ollama, qdrant, etc.). Knowing which resources this idea requires helps define the technical architecture early.",
+      "options": [
+        {"key": "A", "label": "None — pure code/logic", "rationale": "No external resource dependencies needed."},
+        {"key": "B", "label": "Database (postgres/redis)", "rationale": "Needs persistent storage or caching."},
+        {"key": "C", "label": "AI/ML (ollama/qdrant)", "rationale": "Needs LLM inference or vector search capabilities."},
+        {"key": "D", "label": "Other", "rationale": "Specify the resources needed."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "This item was created with no description, no scope, no tags, and priority 5 (lowest). All plan sections are currently TBD. The workshop round asks foundational questions — once answered, a meaningful plan can be drafted in round 2."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with all 13 mandatory sections marked as TBD. No sections could be populated due to the absence of a description or any context materials."
+}
