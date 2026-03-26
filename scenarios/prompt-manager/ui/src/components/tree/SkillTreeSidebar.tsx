@@ -14,14 +14,14 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, List, GitBranch, AlertCircle } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, AlertCircle } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { Agent } from '@/types/agent'
 import { useCombineStore, type CombineFormat } from '@/stores/combineStore'
-import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig } from '@/lib/schemas'
+import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
@@ -36,6 +36,8 @@ import { TeamListPanel } from '../team/TeamListPanel'
 import { RunListPanel } from '../run/RunListPanel'
 import { TopicListPanel } from '../topic/TopicListPanel'
 import { TopicTreeView } from '../topic/TopicTreeView'
+import { TopicCardView } from '../topic/TopicCardView'
+import { ViewModeToggle } from '../sidebar/ViewModeToggle'
 import { useTopics } from '@/hooks/useTopicData'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
@@ -528,8 +530,17 @@ export function SkillTreeSidebar({
   const [teamSearchQuery, setTeamSearchQuery] = useState('')
   const [runSearchQuery, setRunSearchQuery] = useState('')
   const [topicSearchQuery, setTopicSearchQuery] = useState('')
-  const [topicViewMode, setTopicViewMode] = useState<'list' | 'tree'>('list')
+  const [topicViewMode, setTopicViewMode] = useState<ViewMode>('tree')
+  const [topicDetailMode, setTopicDetailMode] = useState<DetailMode>('compact')
   const { topics: allTopics } = useTopics()
+
+  const filteredTopics = useMemo(() => {
+    if (!topicSearchQuery) return allTopics
+    const lower = topicSearchQuery.toLowerCase()
+    return allTopics.filter(
+      (t) => t.name.toLowerCase().includes(lower) || t.description.toLowerCase().includes(lower)
+    )
+  }, [allTopics, topicSearchQuery])
 
   // Unified search query for the current tab
   const currentSearchQuery = activeTab === 'skills' ? searchQuery
@@ -591,6 +602,7 @@ export function SkillTreeSidebar({
   const [useDiscover, setUseDiscover] = useState(true)
   const [complexity, setComplexity] = useState<string | undefined>(undefined)
   const [budgetConfig, setBudgetConfig] = useState<BudgetConfig | null>(null)
+  const [filterConfig, setFilterConfig] = useState<DiscoverFilterConfig | null>(null)
 
   // Reactive selected content chars for budget gauge in selection mode
   const combineContentCharsMap = useCombineStore((s) => s.contentCharsMap)
@@ -820,9 +832,10 @@ export function SkillTreeSidebar({
     return () => clearTimeout(timer)
   }, [currentSearchQuery, searchMode])
 
-  // Load budget config on mount
+  // Load budget config and filter config on mount
   useEffect(() => {
     api.getBudgetConfig().then(setBudgetConfig).catch(() => {})
+    api.getDiscoverFilterConfig().then(setFilterConfig).catch(() => {})
   }, [])
 
   // AI search: clear results when switching away from AI mode
@@ -1018,6 +1031,15 @@ export function SkillTreeSidebar({
       .map((s) => s.modes),
     [skills]
   )
+
+  // Distinct modes and tags for filter config UI
+  const availableModes = useMemo(() => {
+    const set = new Set<string>()
+    for (const skill of skills) {
+      for (const mode of skill.modes) set.add(mode)
+    }
+    return Array.from(set).sort()
+  }, [skills])
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -1263,13 +1285,18 @@ export function SkillTreeSidebar({
                 complexity={complexity}
                 onComplexityChange={setComplexity}
                 budgetChars={discoverResults?.budgetChars}
-                budgetStatus={discoverResults?.budgetStatus}
                 totalContentChars={discoverResults?.totalContentChars}
                 selectedContentChars={selectedContentChars}
                 budgetConfig={budgetConfig}
                 onBudgetConfigSave={(config) => {
                   api.setBudgetConfig(config).then(setBudgetConfig).catch(() => {})
                 }}
+                filterConfig={filterConfig}
+                onFilterConfigSave={(config) => {
+                  api.setDiscoverFilterConfig(config).then(setFilterConfig).catch(() => {})
+                }}
+                availableModes={availableModes}
+                availableTags={availableTags}
               />
             </div>
           )}
@@ -1865,28 +1892,12 @@ export function SkillTreeSidebar({
             <>
               {/* View mode toggle + Discover button */}
               <div className="flex items-center justify-between px-2 py-1 border-b border-border">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setTopicViewMode('list')}
-                    className={cn(
-                      'p-1 rounded hover:bg-muted',
-                      topicViewMode === 'list' && 'bg-muted text-primary',
-                    )}
-                    title="List view"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setTopicViewMode('tree')}
-                    className={cn(
-                      'p-1 rounded hover:bg-muted',
-                      topicViewMode === 'tree' && 'bg-muted text-primary',
-                    )}
-                    title="Tree view"
-                  >
-                    <GitBranch className="w-4 h-4" />
-                  </button>
-                </div>
+                <ViewModeToggle
+                  viewMode={topicViewMode}
+                  onViewModeChange={setTopicViewMode}
+                  detailMode={topicDetailMode}
+                  onDetailModeChange={setTopicDetailMode}
+                />
                 <button
                   onClick={() => setTopicWizardActive(true)}
                   className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
@@ -1896,22 +1907,38 @@ export function SkillTreeSidebar({
                   <span className="hidden sm:inline">Discover</span>
                 </button>
               </div>
-              {topicViewMode === 'list' ? (
+              {topicViewMode === 'tree' ? (
+                <TopicTreeView
+                  topics={filteredTopics}
+                  selectedTopicId={selectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  className="flex-1"
+                  detailMode={topicDetailMode}
+                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  selectedIds={combineSelectedIds}
+                  onToggleSelection={(id) => handleAIResultToggle(id)}
+                />
+              ) : topicViewMode === 'list' ? (
                 <TopicListPanel
                   selectedTopicId={selectedTopicId}
                   onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
                   searchQuery={topicSearchQuery}
                   className="flex-1"
+                  detailMode={topicDetailMode}
                   isSelectMode={combineMode && combineEntityType === 'topics'}
                   selectedIds={combineSelectedIds}
                   onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
               ) : (
-                <TopicTreeView
-                  topics={allTopics}
+                <TopicCardView
+                  topics={filteredTopics}
                   selectedTopicId={selectedTopicId}
                   onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  detailMode={topicDetailMode}
                   className="flex-1"
+                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  selectedIds={combineSelectedIds}
+                  onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
               )}
             </>

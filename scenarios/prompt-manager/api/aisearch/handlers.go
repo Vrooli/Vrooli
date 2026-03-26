@@ -9,8 +9,9 @@ import (
 
 // Handlers provides HTTP handlers for AI search operations.
 type Handlers struct {
-	service           *Service
-	budgetConfigStore *BudgetConfigStore
+	service                   *Service
+	budgetConfigStore         *BudgetConfigStore
+	discoverFilterConfigStore *DiscoverFilterConfigStore
 }
 
 // NewHandlers creates new AI search handlers.
@@ -21,6 +22,11 @@ func NewHandlers(service *Service) *Handlers {
 // SetBudgetConfigStore sets the budget config store for config endpoints.
 func (h *Handlers) SetBudgetConfigStore(store *BudgetConfigStore) {
 	h.budgetConfigStore = store
+}
+
+// SetDiscoverFilterConfigStore sets the discover filter config store for config endpoints.
+func (h *Handlers) SetDiscoverFilterConfigStore(store *DiscoverFilterConfigStore) {
+	h.discoverFilterConfigStore = store
 }
 
 // Search handles POST /api/v1/search/ai - AI semantic search.
@@ -251,6 +257,48 @@ func (h *Handlers) PutBudgetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.budgetConfigStore.Put(r.Context(), cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
+}
+
+// GetDiscoverFilterConfig handles GET /api/v1/config/discover-filters.
+func (h *Handlers) GetDiscoverFilterConfig(w http.ResponseWriter, r *http.Request) {
+	if h.discoverFilterConfigStore == nil {
+		http.Error(w, "discover filter config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	cfg, err := h.discoverFilterConfigStore.Get(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
+}
+
+// PutDiscoverFilterConfig handles PUT /api/v1/config/discover-filters.
+func (h *Handlers) PutDiscoverFilterConfig(w http.ResponseWriter, r *http.Request) {
+	if h.discoverFilterConfigStore == nil {
+		http.Error(w, "discover filter config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var cfg DiscoverFilterConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := ValidateDiscoverFilterConfig(cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.discoverFilterConfigStore.Put(r.Context(), cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

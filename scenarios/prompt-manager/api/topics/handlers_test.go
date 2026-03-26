@@ -73,7 +73,11 @@ func (m *MockTopicStore) Update(_ context.Context, id string, updates *store.Top
 		existing.Description = updates.Description
 	}
 	if updates.ParentTopicID != nil {
-		existing.ParentTopicID = updates.ParentTopicID
+		if *updates.ParentTopicID == "" {
+			existing.ParentTopicID = nil
+		} else {
+			existing.ParentTopicID = updates.ParentTopicID
+		}
 	}
 	if updates.Skills != nil {
 		existing.Skills = updates.Skills
@@ -451,6 +455,50 @@ func TestUpdate_Success(t *testing.T) {
 	}
 	if resp.Description != "Updated description" {
 		t.Errorf("expected description 'Updated description', got %q", resp.Description)
+	}
+}
+
+func TestUpdate_ClearParent(t *testing.T) {
+	parentID := "programming"
+	ts := NewMockTopicStore()
+	ts.topics["go-basics"] = &store.Topic{
+		ID:            "go-basics",
+		Name:          "Go Basics",
+		ParentTopicID: &parentID,
+		Status:        "active",
+	}
+
+	h := NewHandlers(ts, &MockIndexStore{})
+
+	// Send empty string to clear parent (frontend sends "" instead of null)
+	emptyParent := ""
+	body, _ := json.Marshal(UpdateRequest{
+		ParentTopicID: &emptyParent,
+	})
+
+	req := httptest.NewRequest("PUT", "/topics/go-basics", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "go-basics"})
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d; body: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp Response
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.ParentTopicID != nil {
+		t.Errorf("expected parentTopicId to be nil (root topic), got %q", *resp.ParentTopicID)
+	}
+
+	// Verify in store
+	stored := ts.topics["go-basics"]
+	if stored.ParentTopicID != nil {
+		t.Errorf("expected stored parentTopicId to be nil, got %q", *stored.ParentTopicID)
 	}
 }
 

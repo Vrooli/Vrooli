@@ -2,24 +2,32 @@
  * Tests for DiscoverControls component.
  *
  * Covers: complexity buttons from budgetConfig, gear button toggle,
- * budget editor save/cancel, budget gauge rendering.
+ * settings panel (budget editor + filter editor) save/cancel, budget gauge rendering.
  */
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { DiscoverControls } from './DiscoverControls'
-import type { BudgetConfig } from '@/lib/schemas'
+import type { BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 
-const defaultConfig: BudgetConfig = {
+const defaultBudgetConfig: BudgetConfig = {
   minor: 4000,
   moderate: 8000,
   major: 12000,
   architectural: 18000,
 }
 
+const defaultFilterConfig: DiscoverFilterConfig = {
+  includeDrafts: false,
+  excludeModes: ['scope'],
+  excludeIds: [],
+  excludeTags: [],
+}
+
 const noopToggle = vi.fn()
 const noopComplexity = vi.fn()
-const noopSave = vi.fn()
+const noopBudgetSave = vi.fn()
+const noopFilterSave = vi.fn()
 
 function renderControls(overrides: Record<string, unknown> = {}) {
   const props = {
@@ -27,8 +35,12 @@ function renderControls(overrides: Record<string, unknown> = {}) {
     onToggleDiscover: noopToggle,
     complexity: undefined as string | undefined,
     onComplexityChange: noopComplexity,
-    budgetConfig: defaultConfig,
-    onBudgetConfigSave: noopSave,
+    budgetConfig: defaultBudgetConfig,
+    onBudgetConfigSave: noopBudgetSave,
+    filterConfig: defaultFilterConfig,
+    onFilterConfigSave: noopFilterSave,
+    availableModes: ['steer', 'scope', 'tools', 'meta'],
+    availableTags: ['go', 'react', 'deprecated'],
     ...overrides,
   }
   return render(<DiscoverControls {...props} />)
@@ -64,18 +76,20 @@ describe('DiscoverControls', () => {
     })
   })
 
-  describe('Gear button / budget editor', () => {
-    it('toggles budget editor visibility on gear click', () => {
+  describe('Settings panel', () => {
+    it('toggles settings visibility on gear click', () => {
       renderControls()
 
-      // Editor should not be visible initially
-      expect(screen.queryByText('Save')).toBeNull()
+      // Settings should not be visible initially
+      expect(screen.queryByText('Budget Tiers')).toBeNull()
 
       // Click gear button
-      const gearButton = screen.getByTitle('Configure budget tiers')
+      const gearButton = screen.getByTitle('Configure discovery settings')
       fireEvent.click(gearButton)
 
-      // Editor should now be visible
+      // Settings panel should now be visible with both sections
+      expect(screen.getByText('Budget Tiers')).toBeDefined()
+      expect(screen.getByText('Discovery Filters')).toBeDefined()
       expect(screen.getByText('Save')).toBeDefined()
       expect(screen.getByText('Cancel')).toBeDefined()
     })
@@ -83,8 +97,8 @@ describe('DiscoverControls', () => {
     it('calls onBudgetConfigSave with edited values on save', () => {
       renderControls()
 
-      // Open editor
-      fireEvent.click(screen.getByTitle('Configure budget tiers'))
+      // Open settings
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
 
       // Find inputs and change a value
       const inputs = screen.getAllByRole('spinbutton')
@@ -96,7 +110,7 @@ describe('DiscoverControls', () => {
       // Save
       fireEvent.click(screen.getByText('Save'))
 
-      expect(noopSave).toHaveBeenCalledWith({
+      expect(noopBudgetSave).toHaveBeenCalledWith({
         minor: 5000,
         moderate: 8000,
         major: 12000,
@@ -107,8 +121,8 @@ describe('DiscoverControls', () => {
     it('discards changes on cancel', () => {
       renderControls()
 
-      // Open editor
-      fireEvent.click(screen.getByTitle('Configure budget tiers'))
+      // Open settings
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
 
       // Change a value
       const inputs = screen.getAllByRole('spinbutton')
@@ -117,28 +131,78 @@ describe('DiscoverControls', () => {
       // Cancel
       fireEvent.click(screen.getByText('Cancel'))
 
-      // Editor should be closed
-      expect(screen.queryByText('Save')).toBeNull()
+      // Settings should be closed
+      expect(screen.queryByText('Budget Tiers')).toBeNull()
 
-      // onBudgetConfigSave should NOT have been called
-      expect(noopSave).not.toHaveBeenCalled()
+      // Neither save callback should have been called
+      expect(noopBudgetSave).not.toHaveBeenCalled()
+      expect(noopFilterSave).not.toHaveBeenCalled()
     })
 
-    it('disables save when values are not ascending', () => {
+    it('shows validation error when budget values are not ascending', () => {
       renderControls()
 
-      fireEvent.click(screen.getByTitle('Configure budget tiers'))
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
 
       // Set minor higher than moderate (invalid)
       const inputs = screen.getAllByRole('spinbutton')
       fireEvent.change(inputs[0]!, { target: { value: '9000' } })
 
-      // Save button should be disabled
-      const saveButton = screen.getByText('Save')
-      expect(saveButton.hasAttribute('disabled')).toBe(true)
-
       // Validation message should show
       expect(screen.getByText('Values must be ascending')).toBeDefined()
+    })
+  })
+
+  describe('Filter controls', () => {
+    it('renders include drafts toggle in settings', () => {
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      expect(screen.getByText('Include drafts')).toBeDefined()
+    })
+
+    it('renders available modes as chips', () => {
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      expect(screen.getByText('steer')).toBeDefined()
+      expect(screen.getByText('scope')).toBeDefined()
+      expect(screen.getByText('tools')).toBeDefined()
+    })
+
+    it('renders available tags as chips', () => {
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      expect(screen.getByText('go')).toBeDefined()
+      expect(screen.getByText('react')).toBeDefined()
+      expect(screen.getByText('deprecated')).toBeDefined()
+    })
+
+    it('calls onFilterConfigSave on save', () => {
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      // Save without changes
+      fireEvent.click(screen.getByText('Save'))
+
+      expect(noopFilterSave).toHaveBeenCalledWith(defaultFilterConfig)
+    })
+
+    it('toggles include drafts and saves', () => {
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      // Find the include drafts toggle (second switch - first is topic context)
+      const switches = screen.getAllByRole('switch')
+      const draftsToggle = switches[switches.length - 1]!
+      fireEvent.click(draftsToggle)
+
+      fireEvent.click(screen.getByText('Save'))
+
+      expect(noopFilterSave).toHaveBeenCalledWith(
+        expect.objectContaining({ includeDrafts: true })
+      )
     })
   })
 
@@ -147,7 +211,6 @@ describe('DiscoverControls', () => {
       renderControls({
         complexity: 'moderate',
         budgetChars: 8000,
-        budgetStatus: 'under',
         totalContentChars: 3000,
       })
 
@@ -158,7 +221,6 @@ describe('DiscoverControls', () => {
       renderControls({
         complexity: 'minor',
         budgetChars: 4000,
-        budgetStatus: 'over',
         totalContentChars: 6000,
       })
 

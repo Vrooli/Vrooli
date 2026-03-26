@@ -354,3 +354,18 @@ export const BudgetConfigSchema = z.object({
 })
 
 export type BudgetConfig = z.infer<typeof BudgetConfigSchema>
+
+// --- Discover filter configuration ---
+
+/**
+ * Persisted filter config for the discover endpoint.
+ * Controls which skills are excluded from discovery results.
+ */
+export const DiscoverFilterConfigSchema = z.object({
+  includeDrafts: z.boolean(),
+  excludeModes: z.array(z.string()).optional().default([]),
+  excludeIds: z.array(z.string()).optional().default([]),
+  excludeTags: z.array(z.string()).optional().default([]),
+})
+
+export type DiscoverFilterConfig = z.infer<typeof DiscoverFilterConfigSchema>

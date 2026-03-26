@@ -6,7 +6,7 @@
  * - Parent topic indicator
  * - Skill count badge
  * - Search/filter support
- * - Create and delete actions
+ * - Create action
  * - Selection mode with checkboxes
  */
 
@@ -14,6 +14,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Plus, Layers, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'
+import type { DetailMode } from '@/types/filterSort'
 
 interface TopicListPanelProps {
   selectedTopicId: string | null
@@ -21,6 +22,8 @@ interface TopicListPanelProps {
   /** Filter topics by name */
   searchQuery?: string
   className?: string
+  /** Detail level for metadata display */
+  detailMode?: DetailMode
   /** Selection mode: show checkboxes and toggle instead of navigate */
   isSelectMode?: boolean
   /** IDs currently selected (for checkbox state) */
@@ -37,6 +40,7 @@ export function TopicListPanel({
   onSelectTopic,
   searchQuery,
   className,
+  detailMode = 'full',
   isSelectMode,
   selectedIds,
   onToggleSelection,
@@ -127,7 +131,7 @@ export function TopicListPanel({
               type="button"
               onClick={() => handleItemClick(topic.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-left group',
+                'w-full flex items-center gap-3 px-3 py-2 text-left',
                 'hover:bg-muted/50 transition-colors',
                 !isSelectMode && selectedTopicId === topic.id && 'bg-primary/10',
                 isSelectMode && selectedIds?.has(topic.id) && 'bg-primary/10'
@@ -168,19 +172,21 @@ export function TopicListPanel({
                 <p className="text-sm font-medium text-foreground truncate">
                   {topic.name}
                 </p>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {topic.parentTopicId && topicNameMap.has(topic.parentTopicId) && (
-                    <span className="flex items-center gap-0.5 truncate">
-                      <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{topicNameMap.get(topic.parentTopicId)}</span>
-                    </span>
-                  )}
-                  {topic.skills.length > 0 && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-                      {topic.skills.length} skill{topic.skills.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
+                {detailMode === 'full' && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {topic.parentTopicId && topicNameMap.has(topic.parentTopicId) && (
+                      <span className="flex items-center gap-0.5 truncate">
+                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{topicNameMap.get(topic.parentTopicId)}</span>
+                      </span>
+                    )}
+                    {topic.skills.length > 0 && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                        {topic.skills.length} skill{topic.skills.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
             </button>

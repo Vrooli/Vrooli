@@ -191,6 +191,11 @@ func main() {
 	aiSearchService.SetBudgetConfig(budgetConfigStore)
 	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
 
+	// Discover filter config store
+	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(absStoreDir)
+	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
+	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
+
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
 
@@ -342,6 +347,10 @@ func main() {
 	// Budget config routes
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.PutBudgetConfig).Methods("PUT")
+
+	// Discover filter config routes
+	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.GetDiscoverFilterConfig).Methods("GET")
+	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.PutDiscoverFilterConfig).Methods("PUT")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")

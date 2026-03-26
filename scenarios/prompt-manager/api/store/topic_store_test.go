@@ -275,6 +275,38 @@ func TestTopicStore_DeleteWithChildren(t *testing.T) {
 	}
 }
 
+func TestTopicStore_ClearParent(t *testing.T) {
+	store, _ := setupTopicStore(t)
+	ctx := context.Background()
+
+	// Create parent and child
+	createTestTopic(t, store, "parent", "Parent", nil, nil)
+	createTestTopic(t, store, "child", "Child", strPtr("parent"), nil)
+
+	// Verify child has parent
+	got, err := store.Get(ctx, "child")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.ParentTopicID == nil || *got.ParentTopicID != "parent" {
+		t.Fatal("child should have parent before clearing")
+	}
+
+	// Clear parent by updating with empty string
+	updates := &Topic{ParentTopicID: strPtr("")}
+	if err := store.Update(ctx, "child", updates, nil); err != nil {
+		t.Fatalf("Update to clear parent: %v", err)
+	}
+
+	got, err = store.Get(ctx, "child")
+	if err != nil {
+		t.Fatalf("Get after clear: %v", err)
+	}
+	if got.ParentTopicID != nil {
+		t.Errorf("expected parentTopicId to be nil after clearing, got %q", *got.ParentTopicID)
+	}
+}
+
 func TestTopicStore_ParentValidation(t *testing.T) {
 	store, _ := setupTopicStore(t)
 	ctx := context.Background()

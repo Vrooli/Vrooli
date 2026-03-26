@@ -38,6 +38,9 @@ type Service struct {
 
 	// Budget configuration
 	budgetConfig BudgetConfigProvider
+
+	// Discover filter configuration
+	filterConfig DiscoverFilterConfigProvider
 }
 
 // AgentStoreReader provides read access to agents for AI search.
@@ -320,10 +323,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 		limit = 10
 	}
 
-	type skillEntry struct {
-		result DiscoverResult
-	}
-	seen := make(map[string]*skillEntry)
+	seen := make(map[string]*discoverSkillEntry)
 	topicNames := make(map[string]string) // cache topic ID → name
 	method := "ai"
 
@@ -386,7 +386,8 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 				}
 
 				d := topicDepth
-				seen[skillID] = &skillEntry{
+				seen[skillID] = &discoverSkillEntry{
+					draft: meta.Draft,
 					result: DiscoverResult{
 						ID:           meta.ID,
 						Name:         meta.Name,
@@ -432,7 +433,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 				continue
 			}
 
-			entry := &skillEntry{
+			entry := &discoverSkillEntry{
 				result: DiscoverResult{
 					ID:           r.ID,
 					Name:         r.Name,
@@ -445,9 +446,10 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 				},
 			}
 
-			// Load content size
+			// Load content size and draft status
 			meta, folder, findErr := s.skillStore.FindByID(r.ID)
 			if findErr == nil && meta != nil {
+				entry.draft = meta.Draft
 				content, contentErr := s.skillStore.GetContent(folder, meta.File)
 				if contentErr == nil {
 					entry.result.ContentChars = len(content)
@@ -455,6 +457,13 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 			}
 
 			seen[r.ID] = entry
+		}
+	}
+
+	// Step 2.5: Apply persisted filter config
+	if s.filterConfig != nil {
+		if filterCfg, err := s.filterConfig.Get(ctx); err == nil {
+			applyDiscoverFilters(seen, filterCfg)
 		}
 	}
 
@@ -565,6 +574,50 @@ func sortDiscoverSearchResults(results []DiscoverResult) {
 			results[j], results[j-1] = results[j-1], results[j]
 		}
 	}
+}
+
+// discoverSkillEntry tracks a skill during discover result accumulation.
+type discoverSkillEntry struct {
+	result DiscoverResult
+	draft  bool
+}
+
+// applyDiscoverFilters removes entries from the seen map based on the provided filter config.
+func applyDiscoverFilters(seen map[string]*discoverSkillEntry, cfg DiscoverFilterConfig) {
+	excludeIDSet := toStringSet(cfg.ExcludeIDs)
+	excludeModeSet := toStringSet(cfg.ExcludeModes)
+	excludeTagSet := toStringSet(cfg.ExcludeTags)
+
+	for id, entry := range seen {
+		if excludeIDSet[id] ||
+			(!cfg.IncludeDrafts && entry.draft) ||
+			(len(excludeModeSet) > 0 && hasOverlap(entry.result.Modes, excludeModeSet)) ||
+			(len(excludeTagSet) > 0 && hasOverlap(entry.result.Tags, excludeTagSet)) {
+			delete(seen, id)
+		}
+	}
+}
+
+// toStringSet converts a string slice to a set for O(1) lookup.
+func toStringSet(ss []string) map[string]bool {
+	if len(ss) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(ss))
+	for _, s := range ss {
+		set[s] = true
+	}
+	return set
+}
+
+// hasOverlap returns true if any item in the slice exists in the set.
+func hasOverlap(items []string, set map[string]bool) bool {
+	for _, item := range items {
+		if set[item] {
+			return true
+		}
+	}
+	return false
 }
 
 // fallbackToTextSearch uses the existing text search when AI is unavailable.
@@ -941,6 +994,11 @@ func (s *Service) SetTopicSearch(vectorStore *VectorStore, topicStore TopicStore
 // SetBudgetConfig sets the budget configuration provider.
 func (s *Service) SetBudgetConfig(p BudgetConfigProvider) {
 	s.budgetConfig = p
+}
+
+// SetDiscoverFilterConfig sets the discover filter configuration provider.
+func (s *Service) SetDiscoverFilterConfig(p DiscoverFilterConfigProvider) {
+	s.filterConfig = p
 }
 
 // SearchAgents performs AI semantic search for agents with fallback to text search.

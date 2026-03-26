@@ -729,3 +729,150 @@ func TestDiscoverHandler_InvalidComplexity(t *testing.T) {
 		t.Errorf("expected status 400, got %d", rr.Code)
 	}
 }
+
+// --- Discover filter tests ---
+
+func makeEntry(id string, modes, tags []string, draft bool) *discoverSkillEntry {
+	return &discoverSkillEntry{
+		draft: draft,
+		result: DiscoverResult{
+			ID:    id,
+			Name:  id,
+			Modes: modes,
+			Tags:  tags,
+		},
+	}
+}
+
+func TestApplyDiscoverFilters_ExcludeDrafts(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"published": makeEntry("published", nil, nil, false),
+		"draft":     makeEntry("draft", nil, nil, true),
+	}
+
+	applyDiscoverFilters(seen, DiscoverFilterConfig{})
+	if _, ok := seen["draft"]; ok {
+		t.Error("draft skill should be excluded when IncludeDrafts=false")
+	}
+	if _, ok := seen["published"]; !ok {
+		t.Error("published skill should remain")
+	}
+}
+
+func TestApplyDiscoverFilters_IncludeDrafts(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"published": makeEntry("published", nil, nil, false),
+		"draft":     makeEntry("draft", nil, nil, true),
+	}
+
+	applyDiscoverFilters(seen, DiscoverFilterConfig{IncludeDrafts: true})
+	if _, ok := seen["draft"]; !ok {
+		t.Error("draft skill should remain when IncludeDrafts=true")
+	}
+	if _, ok := seen["published"]; !ok {
+		t.Error("published skill should remain")
+	}
+}
+
+func TestApplyDiscoverFilters_ExcludeModes(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"steer-only":      makeEntry("steer-only", []string{"steer"}, nil, false),
+		"scope-only":      makeEntry("scope-only", []string{"scope"}, nil, false),
+		"steer-and-scope": makeEntry("steer-and-scope", []string{"steer", "scope"}, nil, false),
+	}
+
+	cfg := DiscoverFilterConfig{IncludeDrafts: true, ExcludeModes: []string{"scope"}}
+	applyDiscoverFilters(seen, cfg)
+
+	if _, ok := seen["steer-only"]; !ok {
+		t.Error("steer-only should remain (no excluded mode)")
+	}
+	if _, ok := seen["scope-only"]; ok {
+		t.Error("scope-only should be excluded")
+	}
+	if _, ok := seen["steer-and-scope"]; ok {
+		t.Error("steer-and-scope should be excluded (has scope mode)")
+	}
+}
+
+func TestApplyDiscoverFilters_ExcludeIDs(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"keep":    makeEntry("keep", nil, nil, false),
+		"exclude": makeEntry("exclude", nil, nil, false),
+	}
+
+	cfg := DiscoverFilterConfig{IncludeDrafts: true, ExcludeIDs: []string{"exclude"}}
+	applyDiscoverFilters(seen, cfg)
+
+	if _, ok := seen["keep"]; !ok {
+		t.Error("keep should remain")
+	}
+	if _, ok := seen["exclude"]; ok {
+		t.Error("exclude should be removed")
+	}
+}
+
+func TestApplyDiscoverFilters_ExcludeTags(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"good":       makeEntry("good", nil, []string{"useful"}, false),
+		"deprecated": makeEntry("deprecated", nil, []string{"deprecated", "old"}, false),
+	}
+
+	cfg := DiscoverFilterConfig{IncludeDrafts: true, ExcludeTags: []string{"deprecated"}}
+	applyDiscoverFilters(seen, cfg)
+
+	if _, ok := seen["good"]; !ok {
+		t.Error("good should remain")
+	}
+	if _, ok := seen["deprecated"]; ok {
+		t.Error("deprecated should be excluded (has excluded tag)")
+	}
+}
+
+func TestApplyDiscoverFilters_Combined(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"normal":      makeEntry("normal", []string{"steer"}, []string{"useful"}, false),
+		"draft-skill": makeEntry("draft-skill", []string{"steer"}, nil, true),
+		"scope-skill": makeEntry("scope-skill", []string{"scope"}, nil, false),
+		"tagged":      makeEntry("tagged", nil, []string{"internal"}, false),
+		"id-blocked":  makeEntry("id-blocked", nil, nil, false),
+	}
+
+	cfg := DiscoverFilterConfig{
+		IncludeDrafts: false,
+		ExcludeModes:  []string{"scope"},
+		ExcludeTags:   []string{"internal"},
+		ExcludeIDs:    []string{"id-blocked"},
+	}
+	applyDiscoverFilters(seen, cfg)
+
+	if _, ok := seen["normal"]; !ok {
+		t.Error("normal should remain")
+	}
+	if _, ok := seen["draft-skill"]; ok {
+		t.Error("draft-skill should be excluded")
+	}
+	if _, ok := seen["scope-skill"]; ok {
+		t.Error("scope-skill should be excluded")
+	}
+	if _, ok := seen["tagged"]; ok {
+		t.Error("tagged should be excluded")
+	}
+	if _, ok := seen["id-blocked"]; ok {
+		t.Error("id-blocked should be excluded")
+	}
+	if len(seen) != 1 {
+		t.Errorf("expected 1 remaining, got %d", len(seen))
+	}
+}
+
+func TestApplyDiscoverFilters_EmptyConfig(t *testing.T) {
+	seen := map[string]*discoverSkillEntry{
+		"published": makeEntry("published", []string{"steer"}, []string{"go"}, false),
+	}
+
+	applyDiscoverFilters(seen, DiscoverFilterConfig{})
+	if len(seen) != 1 {
+		t.Errorf("expected 1 remaining with empty config, got %d", len(seen))
+	}
+}

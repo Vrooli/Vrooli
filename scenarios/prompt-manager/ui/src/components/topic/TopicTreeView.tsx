@@ -2,13 +2,14 @@
  * TopicTreeView - Hierarchical tree visualization for topics.
  *
  * Displays topics in an indented tree showing parent-child relationships.
- * Clicking a topic selects it for editing.
+ * Clicking a topic selects it for editing. Supports selection mode with checkboxes.
  */
 
 import { useMemo, useState, useCallback } from 'react'
-import { ChevronRight, ChevronDown, Layers } from 'lucide-react'
+import { ChevronRight, ChevronDown, Layers, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Topic } from '@/lib/schemas'
+import type { DetailMode } from '@/types/filterSort'
 
 interface TopicTreeNode {
   topic: Topic
@@ -20,6 +21,13 @@ interface TopicTreeViewProps {
   selectedTopicId: string | null
   onSelectTopic: (id: string) => void
   className?: string
+  detailMode?: DetailMode
+  /** Selection mode: show checkboxes and toggle instead of navigate */
+  isSelectMode?: boolean
+  /** IDs currently selected (for checkbox state) */
+  selectedIds?: Set<string>
+  /** Called when an item is toggled in selection mode */
+  onToggleSelection?: (id: string) => void
 }
 
 /**
@@ -65,6 +73,10 @@ interface TreeNodeRowProps {
   expandedIds: Set<string>
   onToggleExpand: (id: string) => void
   onSelectTopic: (id: string) => void
+  detailMode: DetailMode
+  isSelectMode: boolean
+  selectedIds?: Set<string>
+  onToggleSelection?: (id: string) => void
 }
 
 function TreeNodeRow({
@@ -74,20 +86,34 @@ function TreeNodeRow({
   expandedIds,
   onToggleExpand,
   onSelectTopic,
+  detailMode,
+  isSelectMode,
+  selectedIds,
+  onToggleSelection,
 }: TreeNodeRowProps) {
   const hasChildren = node.children.length > 0
   const isExpanded = expandedIds.has(node.topic.id)
   const isSelected = selectedTopicId === node.topic.id
+  const isCombineSelected = isSelectMode && selectedIds?.has(node.topic.id)
+
+  const handleClick = () => {
+    if (isSelectMode && onToggleSelection) {
+      onToggleSelection(node.topic.id)
+    } else {
+      onSelectTopic(node.topic.id)
+    }
+  }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => onSelectTopic(node.topic.id)}
+        onClick={handleClick}
         className={cn(
           'w-full flex items-center gap-1.5 py-1.5 pr-3 text-left text-sm',
           'hover:bg-muted/50 transition-colors',
-          isSelected && 'bg-primary/10 text-primary'
+          !isSelectMode && isSelected && 'bg-primary/10 text-primary',
+          isCombineSelected && 'bg-primary/10'
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         data-topic-id={node.topic.id}
@@ -112,6 +138,18 @@ function TreeNodeRow({
           <span className="w-[18px] flex-shrink-0" />
         )}
 
+        {/* Selection checkbox */}
+        {isSelectMode && (
+          <span className={cn(
+            'flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors',
+            isCombineSelected
+              ? 'bg-primary border-primary'
+              : 'border-muted-foreground/40'
+          )}>
+            {isCombineSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+          </span>
+        )}
+
         {/* Icon */}
         {node.topic.icon ? (
           <span className="text-sm flex-shrink-0">{node.topic.icon}</span>
@@ -119,8 +157,13 @@ function TreeNodeRow({
           <Layers className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
         )}
 
-        {/* Name */}
-        <span className="truncate">{node.topic.name}</span>
+        {/* Name + optional description */}
+        <div className="flex-1 min-w-0">
+          <span className="truncate block">{node.topic.name}</span>
+          {detailMode === 'full' && node.topic.description && (
+            <p className="text-[10px] text-muted-foreground truncate">{node.topic.description}</p>
+          )}
+        </div>
 
         {/* Skill count */}
         {node.topic.skills.length > 0 && (
@@ -141,6 +184,10 @@ function TreeNodeRow({
             expandedIds={expandedIds}
             onToggleExpand={onToggleExpand}
             onSelectTopic={onSelectTopic}
+            detailMode={detailMode}
+            isSelectMode={isSelectMode}
+            selectedIds={selectedIds}
+            onToggleSelection={onToggleSelection}
           />
         ))
       )}
@@ -156,6 +203,10 @@ export function TopicTreeView({
   selectedTopicId,
   onSelectTopic,
   className,
+  detailMode = 'compact',
+  isSelectMode = false,
+  selectedIds,
+  onToggleSelection,
 }: TopicTreeViewProps) {
   const tree = useMemo(() => buildTree(topics), [topics])
 
@@ -200,6 +251,10 @@ export function TopicTreeView({
           expandedIds={expandedIds}
           onToggleExpand={handleToggleExpand}
           onSelectTopic={onSelectTopic}
+          detailMode={detailMode}
+          isSelectMode={isSelectMode}
+          selectedIds={selectedIds}
+          onToggleSelection={onToggleSelection}
         />
       ))}
     </div>

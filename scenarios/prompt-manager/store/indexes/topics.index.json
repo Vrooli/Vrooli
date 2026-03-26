@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-03-26T01:41:44Z",
+  "generatedAt": "2026-03-26T03:07:03Z",
   "items": [
     {
       "id": "topic-1",
-      "name": "Software Development",
+      "name": "Development",
       "skillCount": 3,
       "status": "active"
     },
@@ -33,6 +33,12 @@
       "name": "API",
       "parentTopicId": "topic-1",
       "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-6",
+      "name": "Fix",
+      "skillCount": 1,
       "status": "active"
     }
   ]

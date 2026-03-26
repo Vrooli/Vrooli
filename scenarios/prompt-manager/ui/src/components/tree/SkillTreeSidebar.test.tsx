@@ -34,6 +34,8 @@ vi.mock('@/lib/api', () => ({
     matchTopics: vi.fn().mockResolvedValue([]),
     getBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
     setBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
+    getDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
+    setDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
   },
 }))
 

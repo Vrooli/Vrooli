@@ -6,7 +6,7 @@
  * - Icon selector
  * - Parent topic dropdown
  * - Skill multi-select
- * - Save/delete/discard actions
+ * - Save/discard actions, delete via header menu
  * - Dirty tracking
  */
 
@@ -93,7 +93,7 @@ export function TopicEditorPanel({
       name,
       description,
       icon: icon || undefined,
-      parentTopicId,
+      parentTopicId: parentTopicId ?? '',
       skills: selectedSkills,
     }
     await updateTopic(topicId, updates)

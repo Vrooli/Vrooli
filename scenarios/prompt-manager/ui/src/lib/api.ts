@@ -62,6 +62,7 @@ import {
   AITeamSearchResponseSchema,
   DiscoverResponseSchema,
   BudgetConfigSchema,
+  DiscoverFilterConfigSchema,
   LinkPreviewDataSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -126,6 +127,7 @@ import {
   type AITeamSearchResponse,
   type DiscoverResponse,
   type BudgetConfig,
+  type DiscoverFilterConfig,
   type LinkPreviewData,
   type FolderType,
   type Team,
@@ -561,6 +563,26 @@ class ApiClient {
         body: JSON.stringify(config),
       },
       BudgetConfigSchema
+    )
+  }
+
+  // Discover filter configuration
+  async getDiscoverFilterConfig(): Promise<DiscoverFilterConfig> {
+    return this.request<DiscoverFilterConfig>(
+      '/config/discover-filters',
+      undefined,
+      DiscoverFilterConfigSchema
+    )
+  }
+
+  async setDiscoverFilterConfig(config: DiscoverFilterConfig): Promise<DiscoverFilterConfig> {
+    return this.request<DiscoverFilterConfig>(
+      '/config/discover-filters',
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      },
+      DiscoverFilterConfigSchema
     )
   }
 
