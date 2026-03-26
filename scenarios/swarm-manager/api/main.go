@@ -116,6 +116,7 @@ type Server struct {
 	executionSvc      *execution.Service
 	executionHandler  *execution.Handler
 	executionStopChan chan struct{}
+	scenarioRoot      string
 }
 
 // settingsAgentAdapter bridges settings.Store to agentmanager.SettingsReader.
@@ -149,8 +150,15 @@ func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
 	}, nil
 }
 
-// NewServer initializes routes. Database connection is optional.
+// NewServer initializes routes using the default scenario root resolved from
+// the environment. Database connection is optional.
 func NewServer() *Server {
+	return NewServerWithRoot(pathutil.ResolveScenarioRoot("swarm-manager"))
+}
+
+// NewServerWithRoot initializes routes using the given scenario root directory.
+// Tests should use this with t.TempDir() to avoid touching production data.
+func NewServerWithRoot(scenarioRoot string) *Server {
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
@@ -163,6 +171,7 @@ func NewServer() *Server {
 		router:            mux.NewRouter(),
 		agentSvc:          agentSvc,
 		executionStopChan: make(chan struct{}),
+		scenarioRoot:      scenarioRoot,
 	}
 	srv.setupRoutes()
 	return srv
@@ -170,7 +179,7 @@ func NewServer() *Server {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
-	scenarioRoot := pathutil.ResolveScenarioRoot("swarm-manager")
+	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.registerHealthRoutes()
 	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)

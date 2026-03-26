@@ -257,20 +257,25 @@ func (s *FileStore) ValidateDependencies(dependsOn []string) error {
 }
 
 // CheckDependencies returns the subset of depends_on references that are not
-// yet completed (status != "completed").
+// yet completed. A dependency whose spec no longer exists on disk is presumed
+// to have been completed and subsequently archived/deleted, so it is treated
+// as satisfied (not unmet). This avoids blocking execution when past work has
+// been cleaned up. Only dependencies that exist on disk with a non-completed
+// status are considered unmet.
 func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 	var unmet []string
 	for _, ref := range dependsOn {
 		kind, name, err := parseDependencyRef(ref)
 		if err != nil {
-			// Fail-open: treat unparseable refs as unmet rather than aborting.
-			unmet = append(unmet, ref)
+			// Unparseable refs are skipped — they cannot be validated and
+			// should not block execution.
 			continue
 		}
 		item, loadErr := s.LoadItem(kind, name)
 		if loadErr != nil {
-			// Fail-open: treat missing/unloadable deps as unmet.
-			unmet = append(unmet, ref)
+			// Missing/unloadable specs are presumed completed & archived.
+			// A dependency that no longer exists on disk should never block
+			// execution — it is valid for completed work to be cleaned up.
 			continue
 		}
 		if item.Status != StatusCompleted {
@@ -282,7 +287,8 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 
 // CheckWorkshopDependencies loads each dependency's status for workshop
 // readiness evaluation. Returns structured data for workshop.CheckWorkshopDependencies.
-// Load failures are recorded as Found=false (fail-open).
+// Dependencies whose specs no longer exist on disk are recorded as Found=false,
+// which the workshop layer treats as non-blocking (presumed completed & archived).
 func (s *FileStore) CheckWorkshopDependencies(dependsOn []string) ([]workshop.DependencyStatus, error) {
 	result := make([]workshop.DependencyStatus, 0, len(dependsOn))
 	for _, ref := range dependsOn {

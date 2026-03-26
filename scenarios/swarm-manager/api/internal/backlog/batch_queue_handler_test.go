@@ -530,13 +530,15 @@ func TestBatchQueue_InvalidMode(t *testing.T) {
 	}
 }
 
-func TestBatchQueue_DanglingDependencyRef(t *testing.T) {
+func TestBatchQueue_DeletedDependencyDoesNotBlock(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
-	// Create item-b with a dependency on a nonexistent item.
+	// Create an item whose dependency no longer exists on disk.
+	// This simulates the common workflow where a dependency was completed
+	// and then archived/deleted. It must NOT block execution.
 	createReadyTestItem(t, rootDir, KindIdea, BacklogItem{
-		Name:      "has-dangling-dep",
-		Title:     "Has Dangling Dep",
+		Name:      "has-archived-dep",
+		Title:     "Has Archived Dep",
 		Status:    StatusReady,
 		Priority:  3,
 		Tags:      []string{},
@@ -544,7 +546,7 @@ func TestBatchQueue_DanglingDependencyRef(t *testing.T) {
 	})
 
 	payload := batchQueueRequest{
-		Items:   []string{"idea/has-dangling-dep"},
+		Items:   []string{"idea/has-archived-dep"},
 		Confirm: false,
 	}
 
@@ -561,19 +563,8 @@ func TestBatchQueue_DanglingDependencyRef(t *testing.T) {
 	}
 
 	r := resp.Results[0]
-	if len(r.UnmetDependencies) == 0 {
-		t.Error("expected unmet dependencies for dangling ref")
-	}
-
-	foundDangling := false
-	for _, dep := range r.UnmetDependencies {
-		if dep == "idea/deleted-item" {
-			foundDangling = true
-			break
-		}
-	}
-	if !foundDangling {
-		t.Errorf("expected 'idea/deleted-item' in unmet deps, got: %v", r.UnmetDependencies)
+	if len(r.UnmetDependencies) != 0 {
+		t.Errorf("deleted/archived dep should not block; got unmet: %v", r.UnmetDependencies)
 	}
 }
 

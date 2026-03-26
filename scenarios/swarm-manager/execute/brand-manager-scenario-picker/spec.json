@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/brand-manager/api/**",
+    "scenarios/brand-manager/ui/**"
+  ],
+  "created": "2026-03-26T22:02:39Z",
+  "description": "## Goal\n\nBrands should be associated with a scenario from the moment of creation, not as a separate assignment step. Add a scenario picker component that lets users search and select a target scenario during brand creation, and manage the assignment from the brand detail page.\n\n## Current State\n\n- Brands are created standalone via `POST /api/v1/brands` with no scenario reference\n- Assignment is a separate step via `POST /api/v1/assignments` with `{brand_id, scenario_name, elements[]}`\n- The BrandFormPage has no scenario selection UI\n- The BrandDetailPage doesn't show which scenario the brand is assigned to\n\n## Implementation\n\n### Scenario Picker Component\n- Reusable dialog/dropdown that lists available scenarios\n- Search/filter functionality (by name)\n- Scenario cards showing: name, description, status, whether it already has a brand assigned\n- Single-select (one brand per scenario, enforced by UNIQUE constraint on assignments table)\n\n### Brand Creation Flow\n- Add scenario picker to BrandFormPage (optional but prominent)\n- When a scenario is selected:\n  - Pre-fill brand name from scenario's display name if available\n  - After brand creation, automatically create the assignment\n  - Show which elements will be applied (colors, typography, identity, etc.)\n- When no scenario is selected: create brand standalone (current behavior preserved)\n\n### Brand Detail Page\n- Show assigned scenario (if any) with a badge/link\n- \"Change Scenario\" button to reassign\n- \"Unassign\" option to remove the association\n- If no scenario assigned, show \"Assign to Scenario\" prompt\n\n### API for Scenario List\n- The scenario list can be sourced from the filesystem (`scenarios/` directory) or from a Vrooli CLI call\n- Endpoint: `GET /api/v1/scenarios` (list available scenarios with basic metadata)\n- Filter: name search, exclude already-assigned scenarios (optional)\n\n## Key Files\n\n- Brand form: `scenarios/brand-manager/ui/src/pages/BrandFormPage.tsx`\n- Brand detail: `scenarios/brand-manager/ui/src/pages/BrandDetailPage.tsx`\n- Assignment handler: `scenarios/brand-manager/api/handlers/` (CreateAssignment)\n- Domain types: `scenarios/brand-manager/api/domain/types.go` (Assignment struct)\n- API client: `scenarios/brand-manager/ui/src/lib/api.ts`",
+  "effort": "M",
+  "initiative": "brand-manager-readiness",
+  "kind": "execute",
+  "name": "brand-manager-scenario-picker",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add Scenario Picker to Brand Creation and Detail Flows",
+  "updated": "2026-03-26T22:02:39Z"
+}

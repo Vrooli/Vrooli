@@ -248,7 +248,8 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 }
 
 // computeUnmetDependencies returns dependencies that are neither completed on
-// disk nor queued in the current batch.
+// disk nor queued in the current batch. Dependencies whose specs no longer
+// exist are presumed completed & archived, so they never block execution.
 func computeUnmetDependencies(dependsOn []string, store Store, queuedInBatch map[string]bool) []string {
 	if len(dependsOn) == 0 {
 		return nil
@@ -260,12 +261,12 @@ func computeUnmetDependencies(dependsOn []string, store Store, queuedInBatch map
 		}
 		kind, name, err := parseDependencyRef(ref)
 		if err != nil {
-			unmet = append(unmet, ref)
+			// Unparseable refs are skipped — cannot be validated.
 			continue
 		}
 		item, loadErr := store.LoadItem(kind, name)
 		if loadErr != nil {
-			unmet = append(unmet, ref)
+			// Missing/unloadable specs are presumed completed & archived.
 			continue
 		}
 		if item.Status != StatusCompleted {
