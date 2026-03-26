@@ -3,8 +3,13 @@
   "schemaVersion": 1,
   "id": "topic-1",
   "name": "Software Development",
+  "skills": [
+    "documentation-health",
+    "test",
+    "seam-discovery-and-enforcement"
+  ],
   "status": "active",
-  "revision": 2,
+  "revision": 3,
   "createdAt": "2026-03-25T22:59:26Z",
-  "updatedAt": "2026-03-25T23:01:43Z"
+  "updatedAt": "2026-03-26T01:25:27Z"
 }

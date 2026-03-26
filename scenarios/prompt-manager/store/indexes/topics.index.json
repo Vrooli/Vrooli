@@ -1,10 +1,38 @@
 {
-  "generatedAt": "2026-03-25T23:01:43Z",
+  "generatedAt": "2026-03-26T01:41:44Z",
   "items": [
     {
       "id": "topic-1",
       "name": "Software Development",
-      "skillCount": 0,
+      "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-2",
+      "name": "UI",
+      "parentTopicId": "topic-1",
+      "skillCount": 2,
+      "status": "active"
+    },
+    {
+      "id": "topic-3",
+      "name": "Architecture",
+      "parentTopicId": "topic-1",
+      "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-4",
+      "name": "Deployment",
+      "parentTopicId": "topic-1",
+      "skillCount": 2,
+      "status": "active"
+    },
+    {
+      "id": "topic-5",
+      "name": "API",
+      "parentTopicId": "topic-1",
+      "skillCount": 3,
       "status": "active"
     }
   ]

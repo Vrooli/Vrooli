@@ -136,7 +136,7 @@ export function TeamListPanel({
 
   return (
     <div
-      className={cn('flex flex-col h-full', className)}
+      className={cn('flex flex-col min-h-0', className)}
       data-testid={selectors.teams.list}
     >
       {/* Team list */}

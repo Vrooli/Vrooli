@@ -11,7 +11,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react'
-import { Plus, Layers, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Layers, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'
 
@@ -41,7 +41,7 @@ export function TopicListPanel({
   selectedIds,
   onToggleSelection,
 }: TopicListPanelProps) {
-  const { topics, isLoading, isError, createTopic, deleteTopic } = useTopics()
+  const { topics, isLoading, isError, createTopic } = useTopics()
   const [isCreating, setIsCreating] = useState(false)
 
   const filteredTopics = useMemo(() => {
@@ -74,11 +74,6 @@ export function TopicListPanel({
     }
   }
 
-  const handleDeleteTopic = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    await deleteTopic(id)
-  }
-
   const handleItemClick = useCallback((id: string) => {
     if (isSelectMode && onToggleSelection) {
       onToggleSelection(id)
@@ -104,7 +99,7 @@ export function TopicListPanel({
   }
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div className={cn('flex flex-col min-h-0', className)}>
       {/* Topic list */}
       <div className="flex-1 overflow-y-auto py-1">
         {topics.length === 0 ? (
@@ -188,19 +183,6 @@ export function TopicListPanel({
                 </div>
               </div>
 
-              {/* Actions (hidden in select mode) */}
-              {!isSelectMode && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={(e) => void handleDeleteTopic(e, topic.id)}
-                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Delete topic"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
             </button>
           ))
         )}

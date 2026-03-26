@@ -11,16 +11,19 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, Save, Trash2, RotateCcw, Layers, ChevronDown } from 'lucide-react'
+import { Menu, X, Save, Trash2, RotateCcw, Layers, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTopics, useTopic } from '@/hooks/useTopicData'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { SkillPicker } from '@/components/shared/SkillPicker'
+import { ToolbarDropdown, DropdownItem } from '@/components/editor/ToolbarDropdown'
 import type { Topic, UpdateTopicRequest } from '@/lib/schemas'
 
 interface TopicEditorPanelProps {
   topicId: string
   onClose: () => void
+  /** Optional callback to open sidebar (used on mobile) */
+  onOpenSidebar?: () => void
   className?: string
 }
 
@@ -49,6 +52,7 @@ function wouldCreateCycle(
 export function TopicEditorPanel({
   topicId,
   onClose,
+  onOpenSidebar,
   className,
 }: TopicEditorPanelProps) {
   const { topic, isLoading: isLoadingTopic } = useTopic(topicId)
@@ -77,6 +81,7 @@ export function TopicEditorPanel({
   }, [topic])
 
   const markDirty = useCallback(() => setIsDirty(true), [])
+  const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Parent topic options (excluding self and descendants to prevent cycles)
   const parentOptions = useMemo(() => {
@@ -154,7 +159,18 @@ export function TopicEditorPanel({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+        {/* Close / hamburger button */}
+        <button
+          type="button"
+          onClick={onOpenSidebar ?? onClose}
+          className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor'}
+          title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
+        >
+          {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+        </button>
+
         <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
           {icon ? (
             <span className="text-lg">{icon}</span>
@@ -164,16 +180,36 @@ export function TopicEditorPanel({
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-semibold text-foreground truncate">{name || 'Untitled Topic'}</h2>
-          {isDirty && <span className="text-[10px] text-amber-500 font-medium">Unsaved changes</span>}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Close"
+
+        {/* Unsaved indicator */}
+        {isDirty && (
+          <div className="hidden min-[390px]:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+            Unsaved
+          </div>
+        )}
+
+        {/* Actions menu */}
+        <ToolbarDropdown
+          icon={<MoreHorizontal className="h-4 w-4" />}
+          label="Topic actions"
+          showChevron={false}
+          align="right"
+          className="h-9 w-9 p-0 rounded-lg"
         >
-          <X className="h-4 w-4" />
-        </button>
+          <DropdownItem
+            onClick={handleDiscard}
+            disabled={!isDirty}
+            icon={<RotateCcw className="h-4 w-4" />}
+            label="Discard changes"
+          />
+          <DropdownItem
+            onClick={() => void handleDelete()}
+            disabled={isDeleting}
+            icon={<Trash2 className="h-4 w-4 text-destructive" />}
+            label={isDeleting ? 'Deleting...' : 'Delete topic'}
+          />
+        </ToolbarDropdown>
       </div>
 
       {/* Form */}
@@ -339,18 +375,6 @@ export function TopicEditorPanel({
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Discard
-        </button>
-
-        <div className="flex-1" />
-
-        <button
-          type="button"
-          onClick={() => void handleDelete()}
-          disabled={isDeleting}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          {isDeleting ? 'Deleting...' : 'Delete'}
         </button>
       </div>
     </div>

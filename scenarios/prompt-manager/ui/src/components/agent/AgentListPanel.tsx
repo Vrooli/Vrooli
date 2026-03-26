@@ -116,7 +116,7 @@ export function AgentListPanel({
 
   return (
     <div
-      className={cn('flex flex-col h-full', className)}
+      className={cn('flex flex-col min-h-0', className)}
       data-testid={selectors.agents.list}
     >
       {/* Agent list */}

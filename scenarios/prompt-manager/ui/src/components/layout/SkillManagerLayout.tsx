@@ -1440,6 +1440,7 @@ export function SkillManagerLayout() {
               <TopicEditorPanel
                 topicId={selectedTopicId}
                 onClose={() => setSelectedTopicId(null)}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
             ) : selectedTeamId ? (
