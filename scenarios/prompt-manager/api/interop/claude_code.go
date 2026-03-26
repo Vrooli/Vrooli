@@ -208,15 +208,18 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	var b strings.Builder
 
 	// Header
-	b.WriteString("# Team Spawn Instructions\n\n")
-	b.WriteString(fmt.Sprintf("You are the team lead for **%s**.\n\n", config.TeamName))
+	b.WriteString("# Team Lead Heartbeat Instructions\n\n")
+	b.WriteString(fmt.Sprintf("You are the team lead for the existing prompt-manager team **%s**.\n\n", config.TeamName))
 	if config.Description != "" {
 		b.WriteString(fmt.Sprintf("**Mission:** %s\n\n", config.Description))
 	}
 
-	// Team creation
-	b.WriteString("## 1. Create Team\n\n")
-	b.WriteString(fmt.Sprintf("Create the team using `TeamCreate` with name `%s`.\n\n", config.TeamName))
+	// Existing team contract
+	b.WriteString("## 1. Existing Team\n\n")
+	b.WriteString(fmt.Sprintf("- The team already exists in prompt-manager as `%s`.\n", ctx.TeamID))
+	b.WriteString("- Do not create, import, or rename a team in this run.\n")
+	b.WriteString("- Your stored lead context below defines team-specific operating rules; follow it when it is more specific than the generic guidance here.\n")
+	b.WriteString("- Your job is to coordinate this heartbeat, persist state, emit a final handoff, and exit cleanly.\n\n")
 
 	// Team roster
 	b.WriteString("## 2. Team Roster\n\n")
@@ -230,8 +233,11 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	b.WriteString("\n")
 
 	// Member spawning
-	b.WriteString("## 3. Spawn Teammates\n\n")
-	b.WriteString("Spawn each teammate using the `Agent` tool with the appropriate `subagent_type`:\n\n")
+	b.WriteString("## 3. Spawn Direct Reports\n\n")
+	b.WriteString("Spawn each direct report as a subagent. In your first message to each teammate, instruct them to run:\n\n")
+	b.WriteString(fmt.Sprintf("`prompt-manager team member-context %s <agent-id>`\n\n", ctx.TeamID))
+	b.WriteString("Then give them a concrete deliverable format for this heartbeat.\n\n")
+	b.WriteString("Direct reports to spawn:\n\n")
 	for _, m := range config.Members[1:] { // skip lead (self)
 		b.WriteString(fmt.Sprintf("- Spawn **%s** with `subagent_type: \"%s\"`\n", m.Name, m.AgentType))
 	}
@@ -241,12 +247,29 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 
 	// Coordination
 	b.WriteString("## 4. Coordination\n\n")
-	b.WriteString("- Use `SendMessage` to communicate with teammates\n")
-	b.WriteString("- Track persistent state via the shared task board (run `prompt-manager team task-list` via Bash)\n")
-	b.WriteString("- Monitor teammate status and reassign work as needed\n\n")
+	b.WriteString("- Use your coding agent's built-in subagent messaging for in-session coordination.\n")
+	b.WriteString("- Use `prompt-manager` CLI commands via Bash for durable state: task board, decision log, knowledge log, handoff history, and member context.\n")
+	b.WriteString("- Do not use `prompt-manager team message-send` for your in-session subagents unless you intentionally want an asynchronous inbox message for a future heartbeat.\n")
+	b.WriteString("- Monitor teammate status, synthesize their findings, and avoid parallel tool misuse that leaves the run hanging.\n\n")
+
+	// Operating loop
+	b.WriteString("## 5. Operating Loop\n\n")
+	b.WriteString("1. Review the latest handoff, active tasks, recent decisions, pending approvals, and any team-specific planning surface named in your lead context.\n")
+	b.WriteString("2. Spawn direct reports and collect structured briefs from them.\n")
+	b.WriteString("3. Synthesize the team's current priorities, blockers, and recommended next moves.\n")
+	b.WriteString("4. Persist useful state with prompt-manager commands.\n")
+	b.WriteString("5. End your final response with a `## HANDOFF` section as the last section, then stop.\n\n")
+
+	if ctx.DecisionMode == "approval" {
+		b.WriteString("## 6. Approval Constraints\n\n")
+		b.WriteString("- This team is running in `approval` decision mode.\n")
+		b.WriteString("- You may analyze, prioritize, update tasks, record knowledge, and log decisions/options as pending.\n")
+		b.WriteString("- Do not mark decisions accepted or rejected; that requires a human.\n")
+		b.WriteString("- Do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n\n")
+	}
 
 	// Org chart
-	b.WriteString("## 5. Org Chart\n\n")
+	b.WriteString("## 7. Org Chart\n\n")
 	if len(config.Members) > 0 {
 		b.WriteString(fmt.Sprintf("- **Lead:** %s\n", config.Members[0].Name))
 		for _, m := range config.Members[1:] {
@@ -257,7 +280,7 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 
 	// Context
 	if ctx.WorkingDir != "" || ctx.VrooliRoot != "" || ctx.TeamID != "" || ctx.AdditionalCtx != "" {
-		b.WriteString("## 6. Context\n\n")
+		b.WriteString("## 8. Context\n\n")
 		if ctx.WorkingDir != "" {
 			b.WriteString(fmt.Sprintf("- **Working directory:** %s\n", ctx.WorkingDir))
 		}
@@ -268,7 +291,9 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 			b.WriteString(fmt.Sprintf("- **Team ID:** %s\n", ctx.TeamID))
 		}
 		if ctx.AdditionalCtx != "" {
-			b.WriteString(fmt.Sprintf("\n%s\n", ctx.AdditionalCtx))
+			b.WriteString("\n### Lead Context\n\n")
+			b.WriteString(ctx.AdditionalCtx)
+			b.WriteString("\n")
 		}
 	}
 

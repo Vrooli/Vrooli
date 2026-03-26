@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-03-26T18:33:10Z",
+  "depends_on": [
+    "execute/lpbs-desktop-release-contract-hardening"
+  ],
+  "description": "Raise confidence in paid desktop delivery by deepening automated assurance around Stripe-backed checkout, fulfillment, and entitlement enforcement.\n\nThis should extend test coverage around:\n- checkout session creation and failure handling\n- webhook validation, retries, and idempotency\n- payment-to-entitlement fulfillment for desktop access\n- download gating and post-payment access control\n- coupon, intro-offer, and free-access abuse cases\n- regressions where customers pay but do not receive service, or receive service without valid payment\n- security-sensitive flows that could leak paid functionality\n\nGoal: monetized desktop delivery is reliable enough to launch and hard to exploit in obvious ways.",
+  "effort": "L",
+  "initiative": "desktop-monetization-assurance",
+  "kind": "execute",
+  "name": "lpbs-stripe-monetization-assurance-suite",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Deepen LPBS Stripe Monetization Assurance",
+  "updated": "2026-03-26T18:33:10Z"
+}

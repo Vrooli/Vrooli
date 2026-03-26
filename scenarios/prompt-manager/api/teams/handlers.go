@@ -190,6 +190,13 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		team.SpawnMode = req.SpawnMode
 	}
+	if req.DecisionMode != "" {
+		if req.DecisionMode != "yolo" && req.DecisionMode != "approval" {
+			http.Error(w, "decisionMode must be 'yolo' or 'approval'", http.StatusBadRequest)
+			return
+		}
+		team.DecisionMode = req.DecisionMode
+	}
 
 	if err := h.teamStore.Create(ctx, team); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
@@ -242,6 +249,13 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		updates.SpawnMode = *req.SpawnMode
+	}
+	if req.DecisionMode != nil {
+		if *req.DecisionMode != "yolo" && *req.DecisionMode != "approval" {
+			http.Error(w, "decisionMode must be 'yolo' or 'approval'", http.StatusBadRequest)
+			return
+		}
+		updates.DecisionMode = *req.DecisionMode
 	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
@@ -920,14 +934,15 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	}
 
 	return Response{
-		ID:          t.ID,
-		DisplayName: t.DisplayName,
-		Mission:     t.Mission,
-		Enabled:     t.Enabled,
-		SpawnMode:   t.SpawnMode,
-		MemberCount: memberCount,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		ID:           t.ID,
+		DisplayName:  t.DisplayName,
+		Mission:      t.Mission,
+		Enabled:      t.Enabled,
+		SpawnMode:    t.SpawnMode,
+		DecisionMode: t.DecisionMode,
+		MemberCount:  memberCount,
+		CreatedAt:    t.CreatedAt,
+		UpdatedAt:    t.UpdatedAt,
 	}
 }
 

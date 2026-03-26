@@ -272,6 +272,7 @@ func TestFormatSpawnPrompt(t *testing.T) {
 		WorkingDir:    "/home/user/project",
 		VrooliRoot:    "/opt/vrooli",
 		TeamID:        "widget-builders",
+		DecisionMode:  "approval",
 		AdditionalCtx: "Focus on performance.",
 	}
 
@@ -282,11 +283,13 @@ func TestFormatSpawnPrompt(t *testing.T) {
 	}
 
 	requiredSections := []string{
-		"Team Spawn Instructions",
-		"Create Team",
+		"Team Lead Heartbeat Instructions",
+		"Existing Team",
 		"Team Roster",
-		"Spawn Teammates",
+		"Spawn Direct Reports",
 		"Coordination",
+		"Operating Loop",
+		"Approval Constraints",
 		"Org Chart",
 		"Context",
 	}
@@ -309,6 +312,21 @@ func TestFormatSpawnPrompt(t *testing.T) {
 	}
 	if !strings.Contains(prompt, ctx.AdditionalCtx) {
 		t.Errorf("prompt missing AdditionalCtx %q", ctx.AdditionalCtx)
+	}
+	if !strings.Contains(prompt, "## HANDOFF") {
+		t.Errorf("prompt missing handoff contract")
+	}
+	if !strings.Contains(prompt, "Do not create, import, or rename a team") {
+		t.Errorf("prompt missing existing-team constraint")
+	}
+	for _, want := range []string{
+		"team-specific planning surface named in your lead context",
+		"current priorities, blockers, and recommended next moves",
+		"### Lead Context",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("prompt missing updated guidance %q", want)
+		}
 	}
 }
 

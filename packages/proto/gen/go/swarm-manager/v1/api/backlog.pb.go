@@ -169,26 +169,33 @@ func (x *CreateBacklogItemRequest) GetAcceptanceDeny() []string {
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
+//
+// PATCH semantics:
+// - omitted fields remain unchanged
+// - provided scalar/optional fields replace the stored value
+// - provided repeated fields replace the stored list
+// - providing an empty repeated list clears that field
 type UpdateBacklogItemRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable title.
-	Title string `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	// Optional description.
-	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Title *string `protobuf:"bytes,1,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	// Description. Set to the empty string to clear.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// Lifecycle status.
 	// @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed, archived
-	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Status *string `protobuf:"bytes,3,opt,name=status,proto3,oneof" json:"status,omitempty"`
 	// Priority level (1-10).
-	Priority int32 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	Priority *int32 `protobuf:"varint,4,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
 	// Tags for categorization.
 	Tags []string `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
 	// Optional research target for research items.
+	// Set to the empty string to clear.
 	ResearchTarget *string `protobuf:"bytes,6,opt,name=research_target,json=researchTarget,proto3,oneof" json:"research_target,omitempty"`
 	// Dependencies as "kind/name" references.
 	DependsOn []string `protobuf:"bytes,7,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	// Initiative this item belongs to.
+	// Initiative this item belongs to. Set to the empty string to clear.
 	Initiative *string `protobuf:"bytes,8,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
-	// Effort estimate: XS, S, M, L, XL.
+	// Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
 	Effort *string `protobuf:"bytes,9,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Glob patterns for file paths expected to be modified.
 	AcceptanceAllow []string `protobuf:"bytes,11,rep,name=acceptance_allow,json=acceptanceAllow,proto3" json:"acceptance_allow,omitempty"`
@@ -229,29 +236,29 @@ func (*UpdateBacklogItemRequest) Descriptor() ([]byte, []int) {
 }
 
 func (x *UpdateBacklogItemRequest) GetTitle() string {
-	if x != nil {
-		return x.Title
+	if x != nil && x.Title != nil {
+		return *x.Title
 	}
 	return ""
 }
 
 func (x *UpdateBacklogItemRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
 
 func (x *UpdateBacklogItemRequest) GetStatus() string {
-	if x != nil {
-		return x.Status
+	if x != nil && x.Status != nil {
+		return *x.Status
 	}
 	return ""
 }
 
 func (x *UpdateBacklogItemRequest) GetPriority() int32 {
-	if x != nil {
-		return x.Priority
+	if x != nil && x.Priority != nil {
+		return *x.Priority
 	}
 	return 0
 }
@@ -1641,23 +1648,27 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\xec\x04\n" +
-	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
-	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
-	"\x06status\x18\x03 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xb6\x05\n" +
+	"\x18UpdateBacklogItemRequest\x12\"\n" +
+	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12q\n" +
+	"\x06status\x18\x03 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedH\x02R\x06status\x88\x01\x01\x12*\n" +
 	"\bpriority\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
-	"(\x01R\bpriority\x12\x1c\n" +
-	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12[\n" +
-	"\x0fresearch_target\x18\x06 \x01(\tB-\xbaH*r(R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x00R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
+	"(\x01H\x03R\bpriority\x88\x01\x01\x12\x1c\n" +
+	"\x04tags\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x18\x01R\x04tags\x12]\n" +
+	"\x0fresearch_target\x18\x06 \x01(\tB/\xbaH,r*R\x00R\x04ideaR\x03fixR\aexecuteR\x05choreR\vunspecifiedH\x04R\x0eresearchTarget\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"depends_on\x18\a \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
-	"initiative\x18\b \x01(\tH\x01R\n" +
-	"initiative\x88\x01\x01\x123\n" +
-	"\x06effort\x18\t \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x02R\x06effort\x88\x01\x01\x12)\n" +
+	"initiative\x18\b \x01(\tH\x05R\n" +
+	"initiative\x88\x01\x01\x125\n" +
+	"\x06effort\x18\t \x01(\tB\x18\xbaH\x15r\x13R\x00R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x06R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
-	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDenyB\x12\n" +
+	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDenyB\b\n" +
+	"\x06_titleB\x0e\n" +
+	"\f_descriptionB\t\n" +
+	"\a_statusB\v\n" +
+	"\t_priorityB\x12\n" +
 	"\x10_research_targetB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortJ\x04\b\n" +

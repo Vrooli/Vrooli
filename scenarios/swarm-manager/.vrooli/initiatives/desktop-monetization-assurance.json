@@ -1,0 +1,12 @@
+{
+  "name": "desktop-monetization-assurance",
+  "title": "Desktop Monetization Assurance",
+  "description": "Raise confidence in Stripe-backed paid desktop delivery through stronger automated assurance and follow-on payment and fulfillment guardrails.",
+  "status": "active",
+  "items": [
+    "execute/lpbs-stripe-monetization-assurance-suite",
+    "research/lpbs-payment-guardrails-and-reconciliation-plan"
+  ],
+  "created": "2026-03-26T18:33:10Z",
+  "updated": "2026-03-26T18:33:10Z"
+}

@@ -37,14 +37,6 @@
 - [ ] OT-P1-009 | test-genie integration | Run tests and display results
 - [x] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
 
-### 🟡 P0.5 – Implemented but not in original PRD
-- [x] OT-P05-001 | Prompts management | View, edit, preview, simulate, and version prompt-manager skills from the Prompts tab
-- [x] OT-P05-002 | Backlog CRUD form dialog | Create and edit backlog items via UI form dialog with kind selection, validation, and name sanitization
-- [x] OT-P05-003 | Scenario lifecycle control | Start, stop, restart scenarios from UI and CLI
-- [x] OT-P05-004 | Scenario spec-sync-archive | Queue spec-sync agent then auto-archive scenario with configurable file preservation
-- [x] OT-P05-005 | Backlog convert | Move backlog items between kinds (idea/research/fix/execute) via API and CLI
-- [x] OT-P05-006 | Backlog prompt trace | Capture and view prompt traces for research and execution operations
-
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort
 - [ ] OT-P2-002 | Pattern recognition | Heuristic similarity and pattern detection (filesystem-only)
@@ -73,49 +65,6 @@
 - Branding hooks: Consistent with Vrooli design system, scenario status indicators with color coding
 
 ## 📎 Appendix
-
-### Backlog File Structure
-Location: `scenarios/swarm-manager/{ideas,research,fix,execute}/` (git-tracked)
-```
-ideas/
-├── my-scenario-idea/
-│   ├── spec.json        # Required: name, title, description, status, priority
-│   ├── notes.md         # Optional context
-│   ├── mockup.png       # Optional visuals
-│   └── research/        # Optional supporting files
-research/
-├── discovery-pass/
-│   ├── spec.json
-│   └── research/
-│       └── summary.md
-fix/
-├── bugfix-auth-timeout/
-│   └── spec.json
-execute/
-├── rollout-plan/
-│   └── spec.json
-```
-
-### spec.json Schema
-```json
-{
-  "name": "my-scenario-idea",
-  "title": "My Scenario Idea",
-  "description": "Brief description",
-  "status": "backlog|researching|ready|queued|in_progress|completed|archived",
-  "priority": 1,
-  "tags": ["ai", "automation"],
-  "kind": "idea|research|fix|execute",
-  "research_target": "idea|fix|execute|unspecified",
-  "created": "2026-01-28T00:00:00Z",
-  "updated": "2026-01-28T00:00:00Z"
-}
-```
-
-### Recommendation Engine Data Sources
-Configurable checkboxes in Settings:
-- PROBLEMS.md scanning
-- Completeness scores
-- Test phase results
-- Test coverage percentages
-- Custom focus text input
+- Additional implemented operator surfaces beyond the core launch targets include prompts management, backlog conversion, prompt tracing, scenario lifecycle controls, and spec-sync-archive orchestration.
+- Backlog items live under `scenarios/swarm-manager/{ideas,research,fix,execute}/` as git-tracked folders with a required `spec.json` and optional supporting files.
+- Settings can draw recommendation context from sources such as `PROBLEMS.md`, completeness scores, test phase results, coverage data, and operator-supplied focus text.

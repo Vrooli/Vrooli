@@ -6,11 +6,12 @@
   "mission": "Set strategic direction for Vrooli, prioritize work across all teams, and ensure maximum impact.",
   "enabled": true,
   "spawnMode": "single-process",
+  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 4,
+  "revision": 6,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-15T01:55:34Z"
+  "updatedAt": "2026-03-26T21:34:15Z"
 }

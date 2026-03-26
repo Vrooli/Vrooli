@@ -80,6 +80,9 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
+	if err := teamStore.WriteSharedFile(ctx, team.ID, "TEAM.md", "Operate as an initiative portfolio manager."); err != nil {
+		t.Fatalf("write shared TEAM.md: %v", err)
+	}
 	if err := teamStore.SetResponsibilities(ctx, team.ID, agent.ID, "Do the work"); err != nil {
 		t.Fatalf("set responsibilities: %v", err)
 	}
@@ -110,16 +113,17 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 	}
 
 	agentIndex := strings.Index(prompt, "# Agent Files (Markdown)")
+	teamDocIndex := strings.Index(prompt, "# Team Charter (shared/TEAM.md)")
 	respIndex := strings.Index(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
 	relIndex := strings.Index(prompt, "# Team Relationships")
 	inboxIndex := strings.Index(prompt, "# Team Inbox")
 	taskIndex := strings.Index(prompt, "# Heartbeat Task (HEARTBEAT.md)")
 
-	if agentIndex == -1 || respIndex == -1 || relIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
+	if agentIndex == -1 || teamDocIndex == -1 || respIndex == -1 || relIndex == -1 || inboxIndex == -1 || taskIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if !(agentIndex < respIndex && respIndex < relIndex && relIndex < inboxIndex && inboxIndex < taskIndex) {
+	if !(agentIndex < teamDocIndex && teamDocIndex < respIndex && respIndex < relIndex && relIndex < inboxIndex && inboxIndex < taskIndex) {
 		t.Fatalf("prompt sections are out of order")
 	}
 
@@ -186,6 +190,71 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 
 	if !strings.Contains(prompt, "team-coordination-single-process") {
 		t.Fatalf("expected single-process coordination skill reference in prompt")
+	}
+}
+
+func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
+	ctx := context.Background()
+	storeDir := t.TempDir()
+	fileStore := store.NewFileStore(storeDir)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	relationStore := fileStore.Relations()
+
+	if err := teamStore.Create(ctx, &store.Team{
+		ID:           "team-sp",
+		DisplayName:  "SP Team",
+		Enabled:      true,
+		SpawnMode:    "single-process",
+		DecisionMode: "approval",
+	}); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+
+	for _, agent := range []store.Agent{
+		{ID: "director", DisplayName: "Director", Status: store.AgentStatusActive},
+		{ID: "strategist", DisplayName: "Strategist", Status: store.AgentStatusActive},
+	} {
+		agentCopy := agent
+		if err := agentStore.Create(ctx, &agentCopy); err != nil {
+			t.Fatalf("create agent %s: %v", agent.ID, err)
+		}
+		if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
+			TeamID:  "team-sp",
+			AgentID: agent.ID,
+			Status:  store.MemberStatusActive,
+		}); err != nil {
+			t.Fatalf("set membership %s: %v", agent.ID, err)
+		}
+	}
+
+	builder := NewPromptBuilder(teamStore, agentStore)
+	if err := teamStore.WriteSharedFile(ctx, "team-sp", "TEAM.md", "Focus on the initiative portfolio first."); err != nil {
+		t.Fatalf("write shared TEAM.md: %v", err)
+	}
+	if err := teamStore.SetResponsibilities(ctx, "team-sp", "director", "Lead portfolio prioritization."); err != nil {
+		t.Fatalf("set responsibilities: %v", err)
+	}
+	if err := teamStore.SetHeartbeatInstructions(ctx, "team-sp", "director", "Review `swarm-manager overview --format json` before broad repo signals."); err != nil {
+		t.Fatalf("set heartbeat instructions: %v", err)
+	}
+
+	prompt, err := builder.BuildTeamLeadPrompt(ctx, "team-sp", "director", "/workdir")
+	if err != nil {
+		t.Fatalf("BuildTeamLeadPrompt: %v", err)
+	}
+
+	for _, want := range []string{
+		"Lead Member Context",
+		"Focus on the initiative portfolio first.",
+		"Review `swarm-manager overview --format json` before broad repo signals.",
+		"This team is running in `approval` decision mode.",
+		"Do not create, import, or rename a team",
+		"End your final response with a `## HANDOFF` section as the last section, then stop.",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("expected prompt to contain %q", want)
+		}
 	}
 }
 

@@ -102,7 +102,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// Build the prompt (branch on spawnMode for single-process teams)
 	var prompt string
 	if team.SpawnMode == "single-process" {
-		prompt, err = e.promptBuilder.BuildTeamLeadPrompt(ctx, teamID, e.vrooliRoot)
+		prompt, err = e.promptBuilder.BuildTeamLeadPrompt(ctx, teamID, agentID, e.vrooliRoot)
 	} else {
 		prompt, err = e.BuildPrompt(ctx, teamID, agentID)
 	}

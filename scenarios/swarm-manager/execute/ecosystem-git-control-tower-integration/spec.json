@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/ecosystem-manager/api/**",
+    "scenarios/ecosystem-manager/ui/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "research/ecosystem-loop-health-snapshot-contract"
+  ],
+  "description": "## Goal\n\nIntegrate Git Control Tower's standardized review into ecosystem-manager's agent loop so every iteration produces a health snapshot of the target scenario.\n\n## Implementation\n\n### API Integration\n- Add a review client in ecosystem-manager (similar to `scenarios/swarm-manager/api/internal/execution/review_client.go`)\n- After each loop iteration completes, call `POST /api/v1/review/run` with the target scenario name\n- Poll `GET /api/v1/review/run/{jobId}` until completion\n- Store the ReviewResult (classification + 5 dimensions) in the execution history\n\n### Per-Loop Snapshot Storage\n- Enrich ExecutionHistory records with ReviewResult data\n- Store dimension statuses (codeQuality, tests, standards, visual, provenance) per iteration\n- Compute and store deltas between consecutive iterations\n\n### Regression Detection\n- Compare current iteration's review to previous iteration\n- Flag regressions: dimension status going from green → yellow or yellow → red\n- Surface regressions in the task detail UI and execution history\n\n### Configuration\n- Configurable review trigger: every iteration, only successful iterations, or manual\n- Configurable check selection (which Git Control Tower dimensions to run)\n- Option to block next iteration until review completes\n\n## Key References\n\n- Swarm-manager review integration: `scenarios/swarm-manager/api/internal/execution/service.go` (lines 605-646, 689-703)\n- Git Control Tower API: `scenarios/git-control-tower/api/review_handler.go`\n- Ecosystem-manager execution: `scenarios/ecosystem-manager/api/pkg/queue/execution_manager.go`\n- Execution history: `scenarios/ecosystem-manager/api/pkg/queue/execution_history.go`",
+  "effort": "L",
+  "initiative": "ecosystem-intelligence-loop",
+  "kind": "execute",
+  "name": "ecosystem-git-control-tower-integration",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Wire Ecosystem-Manager to Trigger Git Control Tower Reviews After Each Loop Iteration",
+  "updated": "2026-03-26T20:54:35Z"
+}

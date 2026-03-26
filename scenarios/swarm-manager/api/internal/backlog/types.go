@@ -121,10 +121,10 @@ func normalizeResearchTarget(raw string) (string, error) {
 		return "", nil
 	}
 	switch value {
-	case "idea", "fix", "execute", "unspecified":
+	case "idea", "fix", "execute", "chore", "unspecified":
 		return value, nil
 	default:
-		return "", fmt.Errorf("research_target must be idea, fix, execute, or unspecified")
+		return "", fmt.Errorf("research_target must be idea, fix, execute, chore, or unspecified")
 	}
 }
 

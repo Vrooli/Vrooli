@@ -772,15 +772,18 @@ Create a new team.
   "id": "engineering",
   "displayName": "Engineering Team",
   "mission": "Build great software",
-  "spawnMode": "multi-process"
+  "spawnMode": "multi-process",
+  "decisionMode": "approval"
 }
 ```
 
 **Required Fields:** `displayName`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`, `spawnMode`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`, `spawnMode`, `decisionMode`
 
 **spawnMode Values:** `multi-process` (default) - each member runs as a separate agent-manager process. `single-process` - one Claude Code team lead agent coordinates all members.
+
+**decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
 
 **Response:** Created team object with `201 Created`.
 
@@ -793,7 +796,9 @@ Update an existing team.
 {
   "displayName": "Updated Name",
   "mission": "New mission",
-  "spawnMode": "single-process"
+  "enabled": true,
+  "spawnMode": "single-process",
+  "decisionMode": "approval"
 }
 ```
 

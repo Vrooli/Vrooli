@@ -10,8 +10,9 @@
     "execute/scenario-to-desktop-approval-gate-integration",
     "research/release-record-contract-and-history-model",
     "execute/lpbs-desktop-release-contract-hardening",
-    "execute/deployment-manager-lpbs-desktop-release-orchestration"
+    "execute/deployment-manager-lpbs-desktop-release-orchestration",
+    "execute/scenario-to-desktop-canonical-update-policy"
   ],
   "created": "2026-03-26T16:35:48Z",
-  "updated": "2026-03-26T16:36:26Z"
+  "updated": "2026-03-26T18:33:10Z"
 }

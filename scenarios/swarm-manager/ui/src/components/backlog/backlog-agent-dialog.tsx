@@ -1,4 +1,4 @@
-// DOC: docs/guides/idea-agent-workflow.md
+// DOC: docs/guides/workshop-workflow.md
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
 import { useEffect, useMemo, useState } from "react";
 import { Sparkles, ChevronDown, ChevronRight, Paperclip, CheckCircle2, Circle } from "lucide-react";

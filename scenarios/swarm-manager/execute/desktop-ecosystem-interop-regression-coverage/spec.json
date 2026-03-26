@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "packages/api-core/**",
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/vrooli-emulator/**",
+    "scenarios/deployment-manager/**",
+    "docs/**"
+  ],
+  "created": "2026-03-26T18:33:10Z",
+  "depends_on": [
+    "execute/cross-platform-bundled-discovery-parity",
+    "execute/adopt-vrooli-emulator-in-deployment-flows"
+  ],
+  "description": "Add regression coverage for desktop ecosystem behavior, not just single-app launch success.\n\nThe suite should validate:\n- one downloaded app calling another downloaded app through standard discovery\n- a downloaded app preferring a downloaded peer over the same scenario running in a local swarm\n- mixed local-swarm plus downloaded-app topologies\n- core cross-platform interop cases for supported desktop targets\n- evidence capture that can feed deployment review and later approval automation\n\nGoal: prove that deployed desktop apps compose like a Vrooli ecosystem when multiple installations coexist.",
+  "effort": "L",
+  "initiative": "desktop-runtime-interop",
+  "kind": "execute",
+  "name": "desktop-ecosystem-interop-regression-coverage",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build Desktop Ecosystem Interop Regression Coverage",
+  "updated": "2026-03-26T18:33:10Z"
+}

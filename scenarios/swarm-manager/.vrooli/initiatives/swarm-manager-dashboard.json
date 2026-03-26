@@ -1,0 +1,14 @@
+{
+  "name": "swarm-manager-dashboard",
+  "title": "Swarm Manager Dashboard",
+  "description": "Replace the Settings tab with a strategic Dashboard page featuring initiative cards with rollup status, snapshot stats, and a needs-attention feed. Move Settings to a header gear icon. Add initiative management with priority, progress tracking, and item management.",
+  "status": "active",
+  "items": [
+    "research/swarm-manager-dashboard-ux",
+    "execute/swarm-manager-initiative-enhancements",
+    "execute/swarm-manager-dashboard-page",
+    "execute/swarm-manager-initiative-management-ui"
+  ],
+  "created": "2026-03-26T21:08:47Z",
+  "updated": "2026-03-26T21:08:47Z"
+}

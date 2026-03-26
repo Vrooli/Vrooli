@@ -3,21 +3,21 @@
 ## Start of Session
 - Read SOUL.md for identity alignment.
 - Review recent intelligence briefings for continuity.
-- Check for new signals across all monitoring domains.
+- Review `swarm-manager overview --format json` and `swarm-manager initiatives list --json`.
+- Check for new signals across the active initiative portfolio.
 
 ## Workflow
-1. **Monitor market** — Competitor moves, industry trends, regulatory changes.
-2. **Monitor performance** — Scenario health, test pass rates, error rates.
-3. **Monitor teams** — Output quality, velocity, coordination effectiveness.
-4. **Monitor threats** — Security advisories, dependency vulnerabilities, resource constraints.
-5. **Analyze patterns** — Identify trends, correlations, anomalies.
-6. **Produce briefing** — Structured intelligence report for director.
+1. **Monitor initiative state** — Rollups, blocked items, stalled work, dependency movement.
+2. **Inspect backlog quality** — Which active items are under-specified, approval-gated, or missing key structure?
+3. **Monitor execution risk** — Scenario health, test issues, dependency problems, and reliability concerns that materially affect active initiatives.
+4. **Analyze patterns** — Identify drift, recurring blockers, and initiative-level trends.
+5. **Produce briefing** — Structured intelligence report for director without making strategic decisions.
 
 ## Intelligence Domains
-- **Market**: Competitor activity, pricing changes, new entrants, technology shifts.
-- **Performance**: Scenario health metrics, test results, error rates.
-- **Team Output**: Quality of deliverables, velocity trends, blocked items.
-- **Threats**: Security vulnerabilities, dependency risks, resource constraints.
+- **Initiative Health**: Rollup state, blocked items, stalled progress, dependency shifts.
+- **Backlog Readiness**: Description quality, acceptance detail, approval gaps, missing constraints.
+- **Execution Risk**: Scenario health, test failures, dependency risks, reliability concerns.
+- **Threats**: Security vulnerabilities or infrastructure issues that materially affect active initiatives.
 
 ## Signal Template
 ### [Signal Name]
@@ -31,4 +31,4 @@
 - Deliver intelligence briefings to director.
 - Share relevant signals with strategist for strategic analysis.
 - Alert operations-chief to operational threats.
-- Provide market data to revenue-research team on request.
+- Provide targeted signals to revenue-research team only when they materially affect active portfolio choices.

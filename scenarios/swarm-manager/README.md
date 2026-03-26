@@ -160,6 +160,8 @@ swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-sco
 swarm-manager prompts simulate --kind <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH]
 ```
 
+`swarm-manager backlog update` uses sparse patch semantics. Omitted fields stay unchanged, empty strings clear scalar fields like `description`, and empty arrays clear list fields like `tags`, `depends_on`, or `acceptance_allow`.
+
 CLI usage guardrail:
 - Use the installed binary from `~/.vrooli/bin/swarm-manager` (or your PATH entry), not scenario-local binaries in `scenarios/swarm-manager/cli/`.
 - Reinstall canonical binary with:
@@ -180,5 +182,5 @@ CLI usage guardrail:
 - [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
 - [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred backlog items
 - [docs/guides/research-notes.md](./docs/guides/research-notes.md) - Research notes and uniqueness analysis
-- [docs/guides/idea-agent-workflow.md](./docs/guides/idea-agent-workflow.md) - Idea Agent 3-phase pipeline (clarify → suggest → enhance)
+- [docs/guides/workshop-workflow.md](./docs/guides/workshop-workflow.md) - Universal workshop refinement loop for backlog planning
 - [requirements/README.md](./requirements/README.md) - Requirement tracking modules

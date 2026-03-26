@@ -9,10 +9,11 @@
   "created": "2026-03-26T16:35:59Z",
   "depends_on": [
     "execute/lpbs-desktop-release-contract-hardening",
+    "execute/scenario-to-desktop-canonical-update-policy",
     "execute/deployment-manager-lpbs-desktop-release-orchestration",
     "execute/adopt-vrooli-emulator-in-deployment-flows"
   ],
-  "description": "Add end-to-end regression coverage for the monetized desktop release flow.\n\nThe suite should cover, as current infrastructure allows:\n- approval gating\n- visual validation and review linkage\n- LPBS artifact publication and promotion\n- update manifest verification\n- cross-platform release sanity checks\n\nThe purpose is to catch release regressions before paid desktop bundles ship.",
+  "description": "Add end-to-end regression coverage for the monetized desktop release flow.\n\nThe suite should cover, as current infrastructure allows:\n- approval gating\n- visual validation and review linkage\n- LPBS artifact publication and promotion\n- real update-flow regression checks, including startup check behavior, download, and ready-to-restart state\n- cross-platform launch sanity checks for macOS and Windows\n- emulator-driven smoke coverage before human approval\n- evidence handoff that supports the final human gating step\n\nThe purpose is to catch release regressions before paid desktop bundles ship.",
   "effort": "L",
   "initiative": "emulator-platform",
   "kind": "execute",
@@ -27,5 +28,5 @@
     "regression"
   ],
   "title": "Build The Desktop Release Regression Suite",
-  "updated": "2026-03-26T16:35:59Z"
+  "updated": "2026-03-26T18:34:28Z"
 }

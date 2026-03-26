@@ -358,15 +358,12 @@ func TestUpdate_Success(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":       "Updated Title",
-		"description": "Updated description",
-		"status":      "ready",
-		"priority":    2,
-		"tags":        []string{"new"},
+		"status": "ready",
+		"tags":   []string{"new"},
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-test", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/update-test", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-test"})
 	w := httptest.NewRecorder()
@@ -376,13 +373,22 @@ func TestUpdate_Success(t *testing.T) {
 	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
-	if resp.Item.Title != "Updated Title" {
-		t.Errorf("expected updated title, got '%s'", resp.Item.Title)
+	if resp.Item.Status != StatusReady {
+		t.Errorf("expected updated status, got '%s'", resp.Item.Status)
+	}
+	if got := resp.Item.Tags; len(got) != 1 || got[0] != "new" {
+		t.Errorf("expected updated tags, got %v", got)
 	}
 
 	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-test", "spec.json"))
 	if saved.Status != StatusReady {
 		t.Errorf("expected status ready, got '%s'", saved.Status)
+	}
+	if saved.Title != "Update Test" {
+		t.Errorf("expected title to remain unchanged, got %q", saved.Title)
+	}
+	if saved.Priority != 5 {
+		t.Errorf("expected priority to remain unchanged, got %d", saved.Priority)
 	}
 }
 
@@ -400,7 +406,7 @@ func TestUpdate_RejectsUnknownField(t *testing.T) {
 		Updated:     "2026-01-28T00:00:00Z",
 	})
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-test", strings.NewReader(`{
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/update-test", strings.NewReader(`{
 		"scope": "scenarios/swarm-manager"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -410,8 +416,135 @@ func TestUpdate_RejectsUnknownField(t *testing.T) {
 	h.Update(w, req)
 
 	testutil.AssertStatusBadRequest(t, w)
-	if !strings.Contains(w.Body.String(), "invalid request body") {
-		t.Fatalf("expected invalid request body error, got: %s", w.Body.String())
+	if !strings.Contains(w.Body.String(), `unknown field "scope"`) {
+		t.Fatalf("expected unknown field error, got: %s", w.Body.String())
+	}
+}
+
+func TestUpdate_PreservesOmittedFields(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:        "preserve-test",
+		Title:       "Preserve Test",
+		Description: "Keep me",
+		Status:      StatusBacklog,
+		Priority:    7,
+		Tags:        []string{"alpha", "beta"},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	})
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/preserve-test", strings.NewReader(`{"status":"ready"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "preserve-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "preserve-test", "spec.json"))
+	if saved.Title != "Preserve Test" {
+		t.Fatalf("expected title to remain unchanged, got %q", saved.Title)
+	}
+	if saved.Description != "Keep me" {
+		t.Fatalf("expected description to remain unchanged, got %q", saved.Description)
+	}
+	if saved.Priority != 7 {
+		t.Fatalf("expected priority to remain unchanged, got %d", saved.Priority)
+	}
+	if len(saved.Tags) != 2 || saved.Tags[0] != "alpha" || saved.Tags[1] != "beta" {
+		t.Fatalf("expected tags to remain unchanged, got %v", saved.Tags)
+	}
+}
+
+func TestUpdate_ClearsFields(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindResearch, BacklogItem{
+		Name:            "clear-test",
+		Title:           "Clear Test",
+		Description:     "To be cleared",
+		Status:          StatusBacklog,
+		Priority:        4,
+		Tags:            []string{"stale"},
+		Created:         "2026-01-28T00:00:00Z",
+		Updated:         "2026-01-28T00:00:00Z",
+		ResearchTarget:  "execute",
+		DependsOn:       []string{"idea/alpha"},
+		Initiative:      "release-hardening",
+		Effort:          "L",
+		AcceptanceAllow: []string{"api/**"},
+		AcceptanceDeny:  []string{"secrets/**"},
+	})
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/research/clear-test", strings.NewReader(`{
+		"description":"",
+		"tags":[],
+		"depends_on":[],
+		"initiative":"",
+		"effort":"",
+		"research_target":"",
+		"acceptance_allow":[],
+		"acceptance_deny":[]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "research", "name": "clear-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "research", "clear-test", "spec.json"))
+	if saved.Description != "" {
+		t.Fatalf("expected description to be cleared, got %q", saved.Description)
+	}
+	if len(saved.Tags) != 0 {
+		t.Fatalf("expected tags to be cleared, got %v", saved.Tags)
+	}
+	if len(saved.DependsOn) != 0 {
+		t.Fatalf("expected depends_on to be cleared, got %v", saved.DependsOn)
+	}
+	if saved.Initiative != "" {
+		t.Fatalf("expected initiative to be cleared, got %q", saved.Initiative)
+	}
+	if saved.Effort != "" {
+		t.Fatalf("expected effort to be cleared, got %q", saved.Effort)
+	}
+	if saved.ResearchTarget != "" {
+		t.Fatalf("expected research_target to be cleared, got %q", saved.ResearchTarget)
+	}
+	if len(saved.AcceptanceAllow) != 0 {
+		t.Fatalf("expected acceptance_allow to be cleared, got %v", saved.AcceptanceAllow)
+	}
+	if len(saved.AcceptanceDeny) != 0 {
+		t.Fatalf("expected acceptance_deny to be cleared, got %v", saved.AcceptanceDeny)
+	}
+}
+
+func TestUpdate_RejectsNullField(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:        "null-test",
+		Title:       "Null Test",
+		Description: "Original",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{"old"},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	})
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/null-test", strings.NewReader(`{"description":null}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "null-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+	testutil.AssertStatusBadRequest(t, w)
+	if !strings.Contains(w.Body.String(), "description cannot be null") {
+		t.Fatalf("expected null-field error, got: %s", w.Body.String())
 	}
 }
 
@@ -1229,15 +1362,11 @@ func TestUpdate_FailedStatus_Accepted(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":       "Failed Test",
-		"description": "Desc",
-		"status":      "failed",
-		"priority":    5,
-		"tags":        []string{},
+		"status": "failed",
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/failed-test", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/failed-test", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "failed-test"})
 	w := httptest.NewRecorder()
@@ -1268,15 +1397,11 @@ func TestUpdate_QueuedStatus_Rejected(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":       "Queued Reject",
-		"description": "Desc",
-		"status":      "queued",
-		"priority":    5,
-		"tags":        []string{},
+		"status": "queued",
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/queued-reject", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/queued-reject", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "queued-reject"})
 	w := httptest.NewRecorder()
@@ -1302,15 +1427,11 @@ func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":       "InProgress Reject",
-		"description": "Desc",
-		"status":      "in_progress",
-		"priority":    5,
-		"tags":        []string{},
+		"status": "in_progress",
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/inprog-reject", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/inprog-reject", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "inprog-reject"})
 	w := httptest.NewRecorder()
@@ -1333,15 +1454,10 @@ func TestUpdate_ChangeDependsOn(t *testing.T) {
 
 	// Update B to depend on A.
 	payload := map[string]any{
-		"title":       "Beta",
-		"description": "",
-		"status":      "backlog",
-		"priority":    5,
-		"tags":        []string{},
-		"depends_on":  []string{"idea/alpha"},
+		"depends_on": []string{"idea/alpha"},
 	}
 	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "beta"})
 	w := httptest.NewRecorder()
@@ -1360,7 +1476,7 @@ func TestUpdate_ChangeDependsOn(t *testing.T) {
 	// Update with different dependencies.
 	payload["depends_on"] = []string{"idea/alpha"}
 	body, _ = json.Marshal(payload)
-	req = httptest.NewRequest("PUT", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
+	req = httptest.NewRequest("PATCH", "/api/v1/backlog/idea/beta", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "beta"})
 	w = httptest.NewRecorder()
@@ -1658,15 +1774,11 @@ func TestUpdate_WithEffort(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":    "Update Effort Test",
-		"status":   "backlog",
-		"priority": 5,
-		"tags":     []string{},
-		"effort":   "M",
+		"effort": "M",
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-effort-test", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/update-effort-test", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-effort-test"})
 	w := httptest.NewRecorder()
@@ -1700,15 +1812,11 @@ func TestUpdate_InvalidEffort(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":    "Update Bad Effort",
-		"status":   "backlog",
-		"priority": 5,
-		"tags":     []string{},
-		"effort":   "XXXL",
+		"effort": "XXXL",
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-bad-effort", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/update-bad-effort", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-bad-effort"})
 	w := httptest.NewRecorder()
@@ -1765,16 +1873,12 @@ func TestUpdate_Acceptance(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, item)
 
 	payload := map[string]any{
-		"title":            "Update Acceptance Test",
-		"status":           "backlog",
-		"priority":         5,
-		"tags":             []string{},
 		"acceptance_allow": []string{"scenarios/target/src/**"},
 		"acceptance_deny":  []string{"scenarios/target/test/**"},
 	}
 	body, _ := json.Marshal(payload)
 
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-acceptance-test", bytes.NewReader(body))
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/update-acceptance-test", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-acceptance-test"})
 	w := httptest.NewRecorder()

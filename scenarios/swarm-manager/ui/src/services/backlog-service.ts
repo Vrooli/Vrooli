@@ -20,7 +20,6 @@
 
 import {
   CreateBacklogItemRequestSchema,
-  UpdateBacklogItemRequestSchema,
   ConvertBacklogItemRequestSchema,
   BacklogResearchRequestSchema,
   BacklogFileOperationRequestSchema,
@@ -69,6 +68,11 @@ export interface BacklogFileOperationResult {
   deletedPath?: string;
 }
 
+export type BacklogUpdatePatch = Partial<Pick<
+  BacklogItem,
+  "title" | "description" | "status" | "priority" | "tags" | "researchTarget" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny"
+>>;
+
 /** Result of auto-advance decision from the workshop save endpoint. */
 export interface WorkshopAutoAdvance {
   triggered: boolean;
@@ -94,7 +98,7 @@ export interface IBacklogService {
   update(
     kind: BacklogKind,
     name: string,
-    item: Pick<BacklogItem, "title" | "description" | "status" | "priority" | "tags" | "researchTarget">
+    patch: BacklogUpdatePatch
   ): Promise<BacklogItem>;
   delete(kind: BacklogKind, name: string): Promise<void>;
   getFiles(kind: BacklogKind, name: string): Promise<BacklogFile[]>;
@@ -194,6 +198,22 @@ export interface ImportBacklogResponse {
 }
 
 export function createBacklogService(apiClient: IApiClient = defaultApiClient): IBacklogService {
+  const buildBacklogUpdatePayload = (patch: BacklogUpdatePatch): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {};
+    if (patch.title !== undefined) payload.title = patch.title;
+    if (patch.description !== undefined) payload.description = patch.description;
+    if (patch.status !== undefined) payload.status = patch.status;
+    if (patch.priority !== undefined) payload.priority = patch.priority;
+    if (patch.tags !== undefined) payload.tags = patch.tags;
+    if (patch.researchTarget !== undefined) payload.research_target = patch.researchTarget;
+    if (patch.dependsOn !== undefined) payload.depends_on = patch.dependsOn;
+    if (patch.initiative !== undefined) payload.initiative = patch.initiative;
+    if (patch.effort !== undefined) payload.effort = patch.effort;
+    if (patch.acceptanceAllow !== undefined) payload.acceptance_allow = patch.acceptanceAllow;
+    if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
+    return payload;
+  };
+
   const uploadFile = async (
     kind: BacklogKind,
     name: string,
@@ -268,18 +288,10 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
     async update(
       kind: BacklogKind,
       name: string,
-      item: Pick<BacklogItem, "title" | "description" | "status" | "priority" | "tags" | "researchTarget">
+      patch: BacklogUpdatePatch
     ): Promise<BacklogItem> {
-      const message = buildMessage(UpdateBacklogItemRequestSchema, {
-        title: item.title,
-        description: item.description,
-        status: item.status,
-        priority: item.priority,
-        tags: item.tags,
-        researchTarget: item.researchTarget || undefined,
-      });
-      const payload = toProtoJson(UpdateBacklogItemRequestSchema, message);
-      const data = await apiClient.put<unknown>(API_ENDPOINTS.backlogItem(kind, name), payload);
+      const payload = buildBacklogUpdatePayload(patch);
+      const data = await apiClient.patch<unknown>(API_ENDPOINTS.backlogItem(kind, name), payload);
       const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
       return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));
     },

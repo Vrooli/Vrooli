@@ -440,6 +440,92 @@ func TestCmdBacklogUpdateValidation(t *testing.T) {
 	if !strings.Contains(err.Error(), "invalid JSON") {
 		t.Errorf("Error should contain 'invalid JSON', got: %v", err)
 	}
+
+	err = app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea", "--data", `{}`})
+	if err == nil {
+		t.Error("cmdBacklogUpdate with empty patch should return error")
+	}
+	if !strings.Contains(err.Error(), "at least one field must be provided") {
+		t.Errorf("Error should contain empty-patch message, got: %v", err)
+	}
+
+	err = app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea", "--data", `{"scope":"legacy"}`})
+	if err == nil {
+		t.Error("cmdBacklogUpdate with unknown field should return error")
+	}
+	if !strings.Contains(err.Error(), `unknown field "scope"`) {
+		t.Errorf("Error should report unknown field, got: %v", err)
+	}
+}
+
+func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/backlog/idea/my-idea" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if len(payload) != 1 || payload["status"] != "ready" {
+			t.Fatalf("expected sparse patch payload, got %v", payload)
+		}
+
+		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"ready","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea", "--data", `{"status":"ready"}`}); err != nil {
+		t.Fatalf("cmdBacklogUpdate returned error: %v", err)
+	}
+}
+
+func TestCmdBacklogUpdatePreservesEmptyArrayClears(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		tags, ok := payload["tags"].([]any)
+		if !ok {
+			t.Fatalf("expected tags array, got %T", payload["tags"])
+		}
+		if len(tags) != 0 {
+			t.Fatalf("expected empty tags array, got %v", tags)
+		}
+
+		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"backlog","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdBacklogUpdate([]string{"--kind", "idea", "--name", "my-idea", "--data", `{"tags":[]}`}); err != nil {
+		t.Fatalf("cmdBacklogUpdate returned error: %v", err)
+	}
 }
 
 func TestCmdBacklogDeleteValidation(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,13 +22,15 @@ import (
 
 // Team represents a team from the API (brief response)
 type Team struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"displayName"`
-	Mission     string `json:"mission,omitempty"`
-	SpawnMode   string `json:"spawnMode,omitempty"`
-	MemberCount int    `json:"memberCount"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
+	ID           string `json:"id"`
+	DisplayName  string `json:"displayName"`
+	Mission      string `json:"mission,omitempty"`
+	Enabled      bool   `json:"enabled"`
+	SpawnMode    string `json:"spawnMode,omitempty"`
+	DecisionMode string `json:"decisionMode,omitempty"`
+	MemberCount  int    `json:"memberCount"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
 }
 
 // TeamDetails represents full team details
@@ -235,17 +238,20 @@ type AddKnowledgeRequest struct {
 
 // CreateTeamRequest is the request body for creating a team
 type CreateTeamRequest struct {
-	ID          string `json:"id,omitempty"`
-	DisplayName string `json:"displayName"`
-	Mission     string `json:"mission,omitempty"`
-	SpawnMode   string `json:"spawnMode,omitempty"`
+	ID           string `json:"id,omitempty"`
+	DisplayName  string `json:"displayName"`
+	Mission      string `json:"mission,omitempty"`
+	SpawnMode    string `json:"spawnMode,omitempty"`
+	DecisionMode string `json:"decisionMode,omitempty"`
 }
 
 // UpdateTeamRequest is the request body for updating a team
 type UpdateTeamRequest struct {
-	DisplayName *string `json:"displayName,omitempty"`
-	Mission     *string `json:"mission,omitempty"`
-	SpawnMode   *string `json:"spawnMode,omitempty"`
+	DisplayName  *string `json:"displayName,omitempty"`
+	Mission      *string `json:"mission,omitempty"`
+	Enabled      *bool   `json:"enabled,omitempty"`
+	SpawnMode    *string `json:"spawnMode,omitempty"`
+	DecisionMode *string `json:"decisionMode,omitempty"`
 }
 
 // AddMemberRequest is the request body for adding a member
@@ -521,8 +527,12 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	if team.Mission != "" {
 		fmt.Printf("Mission: %s\n", team.Mission)
 	}
+	fmt.Printf("Enabled: %v\n", team.Enabled)
 	if team.SpawnMode != "" {
 		fmt.Printf("Spawn Mode: %s\n", team.SpawnMode)
+	}
+	if team.DecisionMode != "" {
+		fmt.Printf("Decision Mode: %s\n", team.DecisionMode)
 	}
 	fmt.Printf("Members: %d\n", team.MemberCount)
 	if len(team.Members) > 0 {
@@ -577,20 +587,22 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	mission := fs.String("mission", "", "Team mission statement")
 	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
+	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team create <name> [--mission=...] [--spawn-mode=...]")
+		return fmt.Errorf("usage: team create <name> [--mission=...] [--spawn-mode=...] [--decision-mode=...]")
 	}
 	name := fs.Arg(0)
 
 	req := CreateTeamRequest{
-		DisplayName: name,
-		Mission:     *mission,
-		SpawnMode:   *spawnMode,
+		DisplayName:  name,
+		Mission:      *mission,
+		SpawnMode:    *spawnMode,
+		DecisionMode: *decisionMode,
 	}
 
 	var team TeamDetails
@@ -612,14 +624,16 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
+	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
 	spawnMode := fs.String("spawn-mode", "", "Spawn mode (multi-process|single-process)")
+	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--spawn-mode=...]")
+		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--spawn-mode=...] [--decision-mode=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -630,8 +644,18 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	if *mission != "" {
 		req.Mission = mission
 	}
+	if *enabled != "" {
+		parsed, err := strconv.ParseBool(*enabled)
+		if err != nil {
+			return fmt.Errorf("invalid --enabled value %q: %w", *enabled, err)
+		}
+		req.Enabled = &parsed
+	}
 	if *spawnMode != "" {
 		req.SpawnMode = spawnMode
+	}
+	if *decisionMode != "" {
+		req.DecisionMode = decisionMode
 	}
 
 	var team TeamDetails

@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/ui/src/hooks/voice/**",
+    "scenarios/web-console/ui/src/hooks/useVoiceInput.ts"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "description": "## Problem\n\nIn persistent voice mode, the VAD (Voice Activity Detection) frequently detects false silence and stops recording even when the user is actively speaking. This happens most often in outdoor environments (during walks) where background noise profiles differ from indoor calibration.\n\n## Current Implementation\n\nThe VAD is a pure-function state machine in `scenarios/web-console/ui/src/hooks/voice/vad.ts` (~150 lines). It uses:\n- 500ms calibration window at recording start\n- Sliding window noise floor (30 samples, 25th percentile)\n- Adaptive thresholds: `silenceThreshold = avgRms * 1.5`, `speechThreshold = avgRms * 3`\n- 80Hz-8kHz bandpass filter in `audioUtils.ts` for speech isolation\n- `segmentSilenceMs` (default 1500ms) for segment boundaries in persistent mode\n\n## Likely Root Causes\n\n1. **Calibration bias:** The 500ms initial calibration may capture a noisy moment (wind gust, car passing) that sets thresholds too high, causing subsequent normal speech to fall below `speechThreshold`\n2. **Static thresholds:** The 1.5x/3x multipliers are fixed — outdoor noise may need different ratios than indoor\n3. **Noise floor drift:** The sliding window may not adapt fast enough to changing outdoor conditions\n4. **Bandpass limitations:** 80Hz-8kHz may not adequately isolate speech from wind/traffic noise\n\n## Expected Fix\n\n- Improve VAD robustness for variable noise environments\n- Consider: longer/repeated calibration, dynamic threshold adjustment, noise floor smoothing, or environment classification\n- Add tests covering outdoor noise profiles (wind, traffic, crowd)\n- Preserve the pure-function architecture (no shared mutable state)\n\n## Key Files\n\n- `scenarios/web-console/ui/src/hooks/voice/vad.ts` — VAD state machine\n- `scenarios/web-console/ui/src/hooks/voice/audioUtils.ts` — Audio filter chain\n- `scenarios/web-console/ui/src/hooks/voice/vad.test.ts` — VAD tests\n- `scenarios/web-console/ui/src/hooks/useVoiceInput.ts` — Voice recording orchestrator",
+  "effort": "S",
+  "initiative": "continuous-audio-platform",
+  "kind": "fix",
+  "name": "web-console-vad-false-silence",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Fix VAD False Silence Detection in Noisy/Outdoor Environments",
+  "updated": "2026-03-26T20:54:35Z"
+}

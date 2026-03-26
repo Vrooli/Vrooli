@@ -8,8 +8,8 @@ This reference maps PRD operational targets to current documentation and impleme
 Status: Implemented.
 References:
 - [DOC: docs/reference/configuration.md]
-- [CODE: api/internal/execution/policy_store.go]
-- [CODE: ui/src/services/execution-policy-service.ts]
+- [CODE: api/internal/execution/store.go]
+- [CODE: ui/src/services/execution-service.ts]
 
 ### OT-P1-002 - Execution operations page
 Status: Implemented.
@@ -25,14 +25,14 @@ References:
 - [DOC: docs/internal/ASSUMPTIONS.md]
 
 ### OT-P1-004 - Research agent modal
-Status: Implemented (3-phase Idea Agent workflow: clarify/suggest/enhance).
+Status: Implemented (workshop-based refinement flow).
 References:
 - [DOC: docs/concepts/ARCHITECTURE.md]
-- [DOC: docs/guides/idea-agent-workflow.md]
+- [DOC: docs/guides/workshop-workflow.md]
 - [CODE: ui/src/pages/BacklogDetailsPage.tsx]
 - [CODE: ui/src/components/backlog/backlog-agent-dialog.tsx]
-- [CODE: ui/src/components/backlog/idea-clarify-panel.tsx]
-- [CODE: ui/src/components/backlog/idea-suggestions-panel.tsx]
+- [CODE: ui/src/components/backlog/workshop-panel.tsx]
+- [CODE: ui/src/components/backlog/plan-panel.tsx]
 - [CODE: api/internal/backlog/handler.go]
 - [CODE: api/internal/prompttrace/model.go]
 

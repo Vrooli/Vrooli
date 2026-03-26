@@ -112,6 +112,9 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.SpawnMode != "" {
 		existing.SpawnMode = updates.SpawnMode
 	}
+	if updates.DecisionMode != "" {
+		existing.DecisionMode = updates.DecisionMode
+	}
 	return nil
 }
 
@@ -610,6 +613,61 @@ func TestCreateWithInvalidSpawnMode(t *testing.T) {
 	}
 }
 
+func TestCreateWithDecisionMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	body := CreateRequest{
+		DisplayName:  "Approval Team",
+		DecisionMode: "approval",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response TeamDetailsResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.DecisionMode != "approval" {
+		t.Errorf("expected decisionMode 'approval', got %q", response.DecisionMode)
+	}
+
+	stored := teamStore.teams["approval-team"]
+	if stored == nil {
+		t.Fatal("team not stored")
+	}
+	if stored.DecisionMode != "approval" {
+		t.Errorf("stored decisionMode = %q, want 'approval'", stored.DecisionMode)
+	}
+}
+
+func TestCreateWithInvalidDecisionMode(t *testing.T) {
+	handlers, _, _, _ := setupTestHandlers()
+
+	body := CreateRequest{
+		DisplayName:  "Bad Decision Mode",
+		DecisionMode: "manual",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestUpdateSpawnMode(t *testing.T) {
 	handlers, teamStore, _, _ := setupTestHandlers()
 
@@ -662,6 +720,72 @@ func TestUpdateInvalidSpawnMode(t *testing.T) {
 	invalid := "bad-mode"
 	body := UpdateRequest{
 		SpawnMode: &invalid,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecisionMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:           "team-1",
+		DisplayName:  "Original",
+		DecisionMode: "yolo",
+	}
+	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
+	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
+
+	newMode := "approval"
+	body := UpdateRequest{
+		DecisionMode: &newMode,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response TeamDetailsResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode: %v", err)
+	}
+
+	if response.DecisionMode != "approval" {
+		t.Errorf("expected decisionMode 'approval', got %q", response.DecisionMode)
+	}
+
+	if teamStore.teams["team-1"].DecisionMode != "approval" {
+		t.Errorf("stored decisionMode = %q, want 'approval'", teamStore.teams["team-1"].DecisionMode)
+	}
+}
+
+func TestUpdateInvalidDecisionMode(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+
+	teamStore.teams["team-1"] = &store.Team{
+		ID:          "team-1",
+		DisplayName: "Team",
+	}
+
+	invalid := "manual"
+	body := UpdateRequest{
+		DecisionMode: &invalid,
 	}
 	bodyBytes, _ := json.Marshal(body)
 

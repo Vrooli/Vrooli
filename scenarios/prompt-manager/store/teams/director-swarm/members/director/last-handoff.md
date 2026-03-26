@@ -1,41 +1,52 @@
-## Status
-Completed eighth strategic assessment heartbeat. Uncommitted files grew 34→57 despite 2 scenarios clearing. All builds GREEN.
+**Status**: Completed eleventh strategic assessment heartbeat. 122 files uncommitted (was 69). All builds GREEN, all tests PASS. Capability trap worsening — 11 active initiatives, 0 completions across 51 items.
 
-## Completed this heartbeat
-- Spawned intelligence-officer, operations-chief, strategist
-- Intelligence briefing: 57 files across 4 areas, all builds green
-- Operations assessment: 3 commit batches identified, all READY
-- Confirmed agent-manager (6 files) and git-control-tower (2 files) now fully committed
-- Logged 2 decisions: inventory update, revised NOW/NEAR/FAR
-- Updated task board: marked 2 tasks done, updated 3 with new file counts, added proto task
+**Completed this heartbeat**:
+- Spawned intelligence-officer, operations-chief, strategist — all returned structured briefs
+- Intelligence briefing: 122 files across 5 areas, 77% growth, 11 initiatives all at 0% completion, zero items in-progress
+- Operations assessment: 7 commit batches defined, all READY, universal AC gap identified (0/56 items have acceptance criteria), ~6 runtime state files should be excluded from commits
+- Strategic analysis: capability trap dramatically worse (10/11 initiatives are infrastructure), portfolio dilution extreme, "Focused 3" proposal targeting paid desktop delivery
+- Logged 3 decisions: portfolio pruning options (dec-1774559948691098880), commit inventory (dec-1774559950887013427), revised NOW/NEAR/FAR (dec-1774559959752588284)
+- Added 2 knowledge entries: acceptance-criteria-gap, capability-trap-metrics
+- Created 2 tasks: P0 awaiting human decisions, P1 commit batch
 
-## Key Decisions This Heartbeat
-1. **INVENTORY**: 57 files (was 34). +23 net despite clearing 8. prompt-manager sprint expanded from 4→22 files. swarm-manager 18→21. New proto batch of 12.
-2. **NOW/NEAR/FAR**: NOW=commit 57 files in 3 batches | NEAR=swarm-manager meta-orchestrator + prompt-manager sprint | FAR=LPBS revenue + autonomous loop
+**AWAITING HUMAN (2 decisions, should be resolved together)**:
 
-## In progress / blocked
-- 57 uncommitted files across 4 areas (all building clean)
-- No blockers. All batches ready to commit.
+1. **Portfolio pruning (dec-1774559948691098880)** — 4 options:
+   - **A (recommended)**: Defer 8 initiatives, keep 3 desktop-convergent (monetization-assurance, release-governance trimmed, emulator-platform). ~8-9 items instead of 51.
+   - **B**: Defer all 11, create single "LPBS Paid Desktop v1" initiative. Maximum focus.
+   - **C**: Defer 4 lowest, keep 7. Continues current pattern.
+   - **D**: Status quo. Not recommended.
 
-## Uncommitted file breakdown
-| Scenario | Files | Delta | Compiles | Priority |
-|----------|-------|-------|----------|----------|
-| prompt-manager | 22 | +18 | Yes | P1 |
-| swarm-manager | 21 | +3 | Yes | P1 |
-| packages/proto | 12 | +12 | Generated | P1 |
-| web-console | 2 | -1 | Yes | P2 |
+2. **Infra-vs-revenue pivot (dec-1774555790967023913)** — Now subsumed by the portfolio pruning decision. If A or B is chosen, the pivot happens automatically.
 
-## Next priorities
-1. **IMMEDIATE**: Commit swarm-manager (21) + packages/proto (12) together — related schema changes
-2. **IMMEDIATE**: Commit prompt-manager (22) — sprint producing substantial output
-3. **IMMEDIATE**: Commit web-console (2) — small, stable
-4. **THIS WEEK**: Continue swarm-manager meta-orchestrator work
-5. **THIS WEEK**: Continue prompt-manager shared team state sprint
-6. **THIS MONTH**: LPBS revenue readiness review
+**Commit batch plan** (all READY, all GREEN):
 
-## Notes for teammates
-- System health GREEN — all scenarios building, active forward progress everywhere
-- 2-heartbeat SLA clears old debt but new work outpaces commit cadence — consider more frequent commits
-- prompt-manager sprint is the biggest growth area (4→22 files) — monitor for scope creep
-- swarm-manager and proto must commit together (proto is generated from swarm-manager schemas)
-- agent-manager and git-control-tower fully cleared — good progress on those fronts
+| Batch | Area | Files | Order |
+|-------|------|-------|-------|
+| A | Proto schemas + generated | 17 | 1st (dependency) |
+| B | Swarm-manager API+CLI | 9 | 2nd |
+| C | Swarm-manager UI | 5 | 3rd |
+| D | Swarm-manager docs+specs+initiatives | 40 | 4th |
+| E | Prompt-manager code+config (excl runtime) | ~25 | 2nd (parallel w/ B) |
+| F | System-monitor + ecosystem | 4 | Any time |
+| SKIP | Prompt-manager runtime state | ~6 | Do not commit |
+
+**Key metrics this heartbeat**:
+- Uncommitted files: 34 → 69 → 122 (accelerating)
+- Active initiatives: ~5 → ~5 → 11 (doubled)
+- Completed items: 0 (unchanged across 5+ heartbeats)
+- Infrastructure ratio: 4/5 → 10/11
+- Acceptance criteria defined: 0/56 items
+
+**Next priorities**:
+1. **IMMEDIATE**: Human resolves portfolio pruning + pivot decisions
+2. **IMMEDIATE**: Commit proto batch (17 files, zero risk, unblocks all)
+3. **NEAR (post-decision)**: Execute desktop-monetization-assurance as first completion target
+4. **NEAR**: AC refinement pass on top 5-10 backlog items before deploying execution teams
+5. **FAR**: Full desktop release governance + data-driven reactivation of deferred initiatives
+
+**Notes for teammates**:
+- The capability trap is the #1 strategic risk. 11 initiatives generating 0 completions is not a planning problem — it's a focus problem.
+- Runtime state files (heartbeat-active-runs.json, team-queue, heartbeat.json, decisions.jsonl, handoff-history.jsonl, tasks.json) should be excluded from commits or .gitignored.
+- 5 prompt-manager files have MM status (staged + unstaged changes) — need `git add` before committing to capture latest changes.
+- Every deferred initiative retains its backlog items. Nothing is deleted. Deferral = "not consuming attention now."

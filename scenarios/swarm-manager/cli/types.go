@@ -56,6 +56,34 @@ type CreateBacklogRequest struct {
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
+type UpdateBacklogRequest struct {
+	Title           *string   `json:"title,omitempty"`
+	Description     *string   `json:"description,omitempty"`
+	Status          *string   `json:"status,omitempty"`
+	Priority        *int      `json:"priority,omitempty"`
+	Tags            *[]string `json:"tags,omitempty"`
+	ResearchTarget  *string   `json:"research_target,omitempty"`
+	DependsOn       *[]string `json:"depends_on,omitempty"`
+	Initiative      *string   `json:"initiative,omitempty"`
+	Effort          *string   `json:"effort,omitempty"`
+	AcceptanceAllow *[]string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  *[]string `json:"acceptance_deny,omitempty"`
+}
+
+func (r UpdateBacklogRequest) Empty() bool {
+	return r.Title == nil &&
+		r.Description == nil &&
+		r.Status == nil &&
+		r.Priority == nil &&
+		r.Tags == nil &&
+		r.ResearchTarget == nil &&
+		r.DependsOn == nil &&
+		r.Initiative == nil &&
+		r.Effort == nil &&
+		r.AcceptanceAllow == nil &&
+		r.AcceptanceDeny == nil
+}
+
 type BacklogFile struct {
 	Name     string        `json:"name"`
 	Path     string        `json:"path"`

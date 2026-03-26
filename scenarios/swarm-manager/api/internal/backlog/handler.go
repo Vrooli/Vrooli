@@ -128,22 +128,6 @@ func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
 	}
 }
 
-func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest) string {
-	if strings.TrimSpace(req.Title) == "" {
-		return "title is required"
-	}
-	if !validateBacklogStatus(req.Status) {
-		return "status must be a valid backlog status"
-	}
-	if req.Status == "queued" || req.Status == "in_progress" {
-		return "status 'queued' and 'in_progress' can only be set by the execution system"
-	}
-	if req.Priority < 1 || req.Priority > 10 {
-		return "priority must be between 1 and 10"
-	}
-	return ""
-}
-
 func (h *Handler) validateInitiativeReference(name string) error {
 	if strings.TrimSpace(name) == "" || h.initiativeAssigner == nil {
 		return nil
@@ -168,7 +152,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/maturity-summary", h.MaturitySummary).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/pending-questions", h.PendingQuestions).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Get).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Update).Methods("PUT")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.ListFiles).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.UploadFile).Methods("POST")
@@ -525,24 +509,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var update apipb.UpdateBacklogItemRequest
-	if err := httputil.DecodeProtoJSONStrict(r, &update); err != nil {
-		httputil.BadRequest(w, "[backlog] update", "invalid request body")
+	update, fields, err := decodeUpdateBacklogPatch(r)
+	if err != nil {
+		httputil.BadRequest(w, "[backlog] update", err.Error())
 		return
 	}
-	// Normalize effort before proto validation (proto expects uppercase).
-	if update.Effort != nil {
-		normalized := strings.ToUpper(strings.TrimSpace(*update.Effort))
-		if normalized == "" {
-			update.Effort = nil
-		} else {
-			update.Effort = &normalized
-		}
-	}
-	if !httputil.ValidateProtoRequest(w, "[backlog] update", "invalid request body", &update) {
-		return
-	}
-	if validationErr := validateUpdateBacklogItemRequest(&update); validationErr != "" {
+	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind); validationErr != "" {
 		httputil.BadRequest(w, "[backlog] update", validationErr)
 		return
 	}
@@ -550,58 +522,34 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	oldStatus := existing.Status
 	oldPriority := existing.Priority
 
-	existing.Title = update.Title
-	existing.Description = update.Description
-	existing.Status = BacklogStatus(update.Status)
-	existing.Priority = int(update.Priority)
-	existing.Tags = update.Tags
-	existing.Updated = time.Now().UTC().Format(time.RFC3339)
-	if update.DependsOn != nil {
-		existing.DependsOn = update.DependsOn
-	}
-	if update.Initiative != nil {
-		existing.Initiative = strings.TrimSpace(*update.Initiative)
-	}
-	if err := h.validateInitiativeReference(existing.Initiative); err != nil {
-		httputil.BadRequest(w, "[backlog] update", err.Error())
-		return
-	}
-	if existing.Kind == KindResearch && update.ResearchTarget != nil {
-		normalized, err := normalizeResearchTarget(*update.ResearchTarget)
+	if fields.Has(updateFieldResearchTarget) {
+		normalized, err := normalizeResearchTarget(update.GetResearchTarget())
 		if err != nil {
 			httputil.BadRequest(w, "[backlog] update", err.Error())
 			return
 		}
-		existing.ResearchTarget = normalized
+		update.ResearchTarget = &normalized
 	}
-	if existing.Kind != KindResearch {
-		existing.ResearchTarget = ""
-	}
-	if update.Effort != nil {
-		normalized, err := validateEffort(*update.Effort)
+	if fields.Has(updateFieldEffort) {
+		normalized, err := validateEffort(update.GetEffort())
 		if err != nil {
 			httputil.BadRequest(w, "[backlog] update", err.Error())
 			return
 		}
-		existing.Effort = normalized
-	}
-	if update.AcceptanceAllow != nil {
-		if err := validateGlobs(update.AcceptanceAllow); err != nil {
-			httputil.BadRequest(w, "[backlog] update", "acceptance_allow: "+err.Error())
-			return
-		}
-		existing.AcceptanceAllow = update.AcceptanceAllow
-	}
-	if update.AcceptanceDeny != nil {
-		if err := validateGlobs(update.AcceptanceDeny); err != nil {
-			httputil.BadRequest(w, "[backlog] update", "acceptance_deny: "+err.Error())
-			return
-		}
-		existing.AcceptanceDeny = update.AcceptanceDeny
+		update.Effort = &normalized
 	}
 
-	// Validate dependencies if changed.
-	if len(existing.DependsOn) > 0 {
+	applyUpdateBacklogPatch(&existing, update, fields)
+	existing.Updated = time.Now().UTC().Format(time.RFC3339)
+
+	if fields.Has(updateFieldInitiative) {
+		if err := h.validateInitiativeReference(existing.Initiative); err != nil {
+			httputil.BadRequest(w, "[backlog] update", err.Error())
+			return
+		}
+	}
+
+	if fields.Has(updateFieldDependsOn) && len(existing.DependsOn) > 0 {
 		if err := h.store.ValidateDependencies(existing.DependsOn); err != nil {
 			httputil.BadRequest(w, "[backlog] update", err.Error())
 			return

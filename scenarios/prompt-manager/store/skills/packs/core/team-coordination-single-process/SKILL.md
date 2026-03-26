@@ -4,6 +4,8 @@ You are the team lead in a single-process spawn mode. All teammates run as subag
 
 > **CLI vs built-in tools:** This skill references `prompt-manager` CLI commands. Always run them via the Bash tool. These commands persist state across heartbeats — they are your only way to create tasks, log decisions, record knowledge, and record handoffs. Do NOT search for tools with similar names (e.g. "TaskCreate", "ToolSearch") — those are unrelated built-in tools and will not interact with team shared state.
 
+> **Single-process contract:** The prompt-manager team already exists before your run starts. Do not create or import another team inside the heartbeat.
+
 ## Context Bootstrapping
 
 Each teammate you spawn needs team context. Instruct every teammate to run this bash command as their **first action**:
@@ -42,30 +44,26 @@ The `FormatSpawnPrompt()` function handles the **dynamic** team-specific structu
 
 ## Final Handoff
 
-At the end of every heartbeat, you MUST write a handoff. This creates continuity between your heartbeat executions and helps teammates understand your progress.
+At the end of every heartbeat, you MUST write a handoff as the final section of your response. Prompt-manager extracts it automatically from your last assistant message and persists it for the next run.
 
-Run this bash command to save your handoff:
+Use this exact header and structure as the final section of your response:
 
-```bash
-prompt-manager team handoff-set <team-id> <your-agent-id> --content="$(cat <<'HANDOFF'
-## Status
-[Brief state of your work — e.g., "In progress", "Blocked", "Completed milestone X"]
+## HANDOFF
 
-## Completed this heartbeat
+**Status**: [Brief state of your work — e.g., "In progress", "Blocked", "Completed milestone X"]
+
+**Completed this heartbeat**:
 - [What you accomplished, one bullet per item]
 
-## In progress / blocked
+**In progress / blocked**:
 - [Anything started but not finished, with enough context to resume]
 - [Any blockers and what would unblock them]
 
-## Next priorities
+**Next priorities**:
 - [What should happen in the next heartbeat, in priority order]
 
-## Notes for teammates
+**Notes for teammates**:
 - [Information other team members should know, or "None"]
-HANDOFF
-)"
-```
 
 ### Browsing Teammate Handoffs
 
@@ -77,6 +75,15 @@ prompt-manager team handoff-latest <team-id> <agent-id>
 ```
 
 Your most recent handoff is automatically included in your next heartbeat prompt, so you always have continuity with your previous work.
+
+## Approval Mode
+
+If your team's `decisionMode` is `approval`:
+
+- Treat unaccepted work as proposals, not authorizations.
+- Record options and rationale in the decision log, leaving status as `pending`.
+- Do not deploy teams, trigger external execution, create external backlog items, or otherwise act on a proposal until a human has accepted it.
+- If you already have an accepted decision, cite it when you proceed.
 
 ## Task Board
 
@@ -147,5 +154,5 @@ prompt-manager team knowledge-delete <team-id> <knowledge-id>
 2. **Delegate, don't micromanage.** Give teammates clear objectives with acceptance criteria, then let them execute. Check in for status updates as needed.
 3. **Centralize decisions.** As team lead, you are the decision-maker. Teammates should escalate ambiguity to you rather than guessing.
 4. **Monitor progress.** Periodically run `prompt-manager team task-list` via Bash to identify blocked or stalled work. Reassign or unblock as needed.
-5. **Persist everything.** Before finishing, ensure you have: (a) updated tasks via `prompt-manager team task-update`, (b) logged key decisions via `prompt-manager team decision-add`, (c) recorded learnings via `prompt-manager team knowledge-add`, and (d) written your handoff via `prompt-manager team handoff-set`. If state isn't persisted, the next heartbeat starts blind.
+5. **Persist everything.** Before finishing, ensure you have: (a) updated tasks via `prompt-manager team task-update`, (b) logged key decisions via `prompt-manager team decision-add`, (c) recorded learnings via `prompt-manager team knowledge-add`, and (d) ended your response with `## HANDOFF`. If state isn't persisted, the next heartbeat starts blind.
 6. **Summarize outcomes.** After all teammate work completes, synthesize results and report the overall outcome.

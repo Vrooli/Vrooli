@@ -365,7 +365,7 @@ prompt-manager team show engineering
 Create a new team.
 
 ```bash
-prompt-manager team create <name> [--mission=...] [--spawn-mode=multi-process|single-process] [--json]
+prompt-manager team create <name> [--mission=...] [--spawn-mode=multi-process|single-process] [--decision-mode=yolo|approval] [--json]
 ```
 
 **Options:**
@@ -373,13 +373,33 @@ prompt-manager team create <name> [--mission=...] [--spawn-mode=multi-process|si
 |------|-------------|
 | `--mission` | Team mission statement |
 | `--spawn-mode` | How the team is spawned: `multi-process` (default) or `single-process` |
+| `--decision-mode` | Decision policy: `yolo` (default behavior) or `approval` |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
 prompt-manager team create "Engineering" --mission="Build and maintain core platform"
 prompt-manager team create "Agent Swarm" --spawn-mode=single-process
+prompt-manager team create "Director Swarm" --spawn-mode=single-process --decision-mode=approval
 ```
+
+### prompt-manager team update
+
+Update an existing team.
+
+```bash
+prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--spawn-mode=multi-process|single-process] [--decision-mode=yolo|approval] [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--name` | New display name |
+| `--mission` | New mission statement |
+| `--enabled` | Enable or disable the team |
+| `--spawn-mode` | Change spawn mode |
+| `--decision-mode` | Change decision policy |
+| `--json` | Output as JSON |
 
 ### prompt-manager team add-member
 

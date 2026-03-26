@@ -30,6 +30,38 @@ class HealthRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class HealthResponse(_message.Message):
+    __slots__ = ("status", "service", "timestamp", "readiness", "version", "dependencies", "metrics")
+    class DependenciesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2_1.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2_1.JsonValue, _Mapping]] = ...) -> None: ...
+    class MetricsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2_1.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2_1.JsonValue, _Mapping]] = ...) -> None: ...
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SERVICE_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    READINESS_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    status: _types_pb2_1.HealthStatus
+    service: str
+    timestamp: str
+    readiness: bool
+    version: str
+    dependencies: _containers.MessageMap[str, _types_pb2_1.JsonValue]
+    metrics: _containers.MessageMap[str, _types_pb2_1.JsonValue]
+    def __init__(self, status: _Optional[_Union[_types_pb2_1.HealthStatus, str]] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., dependencies: _Optional[_Mapping[str, _types_pb2_1.JsonValue]] = ..., metrics: _Optional[_Mapping[str, _types_pb2_1.JsonValue]] = ...) -> None: ...
+
 class CreateProfileRequest(_message.Message):
     __slots__ = ("profile",)
     PROFILE_FIELD_NUMBER: _ClassVar[int]

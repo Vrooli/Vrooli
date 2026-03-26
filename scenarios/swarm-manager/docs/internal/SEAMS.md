@@ -948,7 +948,7 @@ These decisions exist but could benefit from further extraction or clarification
 
 #### 0. Backlog Status Update Guard
 
-**Current Location**: `api/internal/backlog/handler.go:validateUpdateBacklogItemRequest()`
+**Current Location**: `api/internal/backlog/update_patch.go:validateUpdateBacklogItemRequest()`
 
 **Decision**: Users cannot set backlog status to "queued" or "in_progress" via the update API — these are execution-system-only statuses. The "failed" status is set by the execution service when an agent-manager run fails, and can be manually changed by users (e.g., reset to "backlog" to retry).
 
@@ -957,7 +957,7 @@ These decisions exist but could benefit from further extraction or clarification
 - `failed` → backlog status set to "failed" (not silently reverted)
 - `canceled` → backlog status restored to previous status (user intentionally stopped)
 
-**Status**: Implemented. Guard enforced at the proto validation layer and Go handler validation.
+**Status**: Implemented. Guard enforced in the sparse patch validator before backlog items are persisted.
 
 #### 1. Tag Truncation (Inlined in Pages)
 

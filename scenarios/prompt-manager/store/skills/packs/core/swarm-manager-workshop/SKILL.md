@@ -166,6 +166,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
      - If the plan is specific enough to identify subdirectories (e.g., only `api/` or `ui/`), use targeted globs instead
      - Example: `swarm-manager backlog update --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --data '{"acceptance_allow":["scenarios/<scenario-name>/**"]}'`
      - Do NOT generate a decision for this — determine the patterns autonomously from context
+     - `backlog update` is sparse: omitted fields stay unchanged, and empty arrays clear list fields
    - If `acceptance_allow` is **set**, validate that the plan's described changes align with the patterns. Flag any planned changes that fall outside acceptance_allow as an info item.
    - For `acceptance_deny`: if the plan identifies paths that should be protected (e.g., secrets, config, generated files), auto-set `acceptance_deny` the same way. Otherwise leave it empty — most items don't need deny patterns.
 

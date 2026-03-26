@@ -68,16 +68,22 @@ message CreateBacklogItemRequest {
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
+//
+// PATCH semantics:
+// - omitted fields remain unchanged
+// - provided scalar/optional fields replace the stored value
+// - provided repeated fields replace the stored list
+// - providing an empty repeated list clears that field
 message UpdateBacklogItemRequest {
   // Human-readable title.
-  string title = 1 [(buf.validate.field).string.min_len = 1];
+  optional string title = 1 [(buf.validate.field).string.min_len = 1];
 
-  // Optional description.
-  string description = 2;
+  // Description. Set to the empty string to clear.
+  optional string description = 2;
 
   // Lifecycle status.
   // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed, archived
-  string status = 3 [(buf.validate.field).string = { in: [
+  optional string status = 3 [(buf.validate.field).string = { in: [
     "backlog",
     "researching",
     "ready",
@@ -89,22 +95,23 @@ message UpdateBacklogItemRequest {
   ] }];
 
   // Priority level (1-10).
-  int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
 
   // Tags for categorization.
   repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
 
   // Optional research target for research items.
-  optional string research_target = 6 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "chore", "unspecified"] }];
+  // Set to the empty string to clear.
+  optional string research_target = 6 [(buf.validate.field).string = { in: ["", "idea", "fix", "execute", "chore", "unspecified"] }];
 
   // Dependencies as "kind/name" references.
   repeated string depends_on = 7;
 
-  // Initiative this item belongs to.
+  // Initiative this item belongs to. Set to the empty string to clear.
   optional string initiative = 8;
 
-  // Effort estimate: XS, S, M, L, XL.
-  optional string effort = 9 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+  // Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
+  optional string effort = 9 [(buf.validate.field).string = { in: ["", "XS", "S", "M", "L", "XL"] }];
 
   reserved 10; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 

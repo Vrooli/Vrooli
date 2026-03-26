@@ -234,7 +234,7 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "data", *data); err != nil {
-		return fmt.Errorf("usage: backlog update --kind KIND --name NAME --data JSON [--json]\n\nExample:\n  backlog update --kind idea --name my-idea --data '{\"title\":\"Updated Title\",\"status\":\"ready\"}'\n\n%s", err)
+		return fmt.Errorf("usage: backlog update --kind KIND --name NAME --data JSON [--json]\n\nExample:\n  backlog update --kind idea --name my-idea --data '{\"status\":\"ready\"}'\n\n%s", err)
 	}
 
 	kind := strings.TrimSpace(*kindFlag)
@@ -244,12 +244,20 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 		return err
 	}
 
-	var update map[string]any
-	if err := json.Unmarshal(payload, &update); err != nil {
+	var update UpdateBacklogRequest
+	if err := decodeJSONStrict(payload, &update); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
+	if update.Empty() {
+		return fmt.Errorf("at least one field must be provided")
+	}
 
-	body, err := a.requestV1("PUT", "/backlog/"+kind+"/"+name, nil, payload)
+	requestBody, err := json.Marshal(update)
+	if err != nil {
+		return fmt.Errorf("marshal update payload: %w", err)
+	}
+
+	body, err := a.requestV1("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(requestBody))
 	if err != nil {
 		return err
 	}

@@ -136,6 +136,16 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 	}
 
 	if includeTeam {
+		// 1.5 Team shared charter / operating model
+		if teamDoc, err := b.teamStore.ReadSharedFile(ctx, teamID, "TEAM.md"); err == nil && strings.TrimSpace(teamDoc) != "" {
+			sections = append(sections, PromptSection{
+				Kind:       "team-shared-charter",
+				Label:      "shared/TEAM.md",
+				SourcePath: fmt.Sprintf("teams/%s/shared/TEAM.md", teamID),
+				Content:    "# Team Charter (shared/TEAM.md)\n\n" + teamDoc,
+			})
+		}
+
 		// 2. Team member RESPONSIBILITIES.md
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
@@ -278,7 +288,21 @@ func (b *PromptBuilder) buildCoordinationSkillSection(ctx context.Context, teamI
 	if team.SpawnMode == "single-process" {
 		skillID = "team-coordination-single-process"
 	}
-	return fmt.Sprintf("# Team Coordination\n\nFor team coordination guidance, run:\n```\nprompt-manager skill read %s\n```\n", skillID)
+	var section strings.Builder
+	section.WriteString("# Team Coordination\n\n")
+	section.WriteString("For team coordination guidance, run:\n```\n")
+	section.WriteString(fmt.Sprintf("prompt-manager skill read %s\n", skillID))
+	section.WriteString("```\n\n")
+	section.WriteString("## Runtime Contract\n\n")
+	section.WriteString("- This prompt-manager team already exists. Do not create or import another team.\n")
+	section.WriteString("- Use prompt-manager CLI commands only for durable state such as tasks, decisions, knowledge, and handoffs.\n")
+	section.WriteString("- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.\n")
+	section.WriteString("- End your final response with `## HANDOFF` as the last section so prompt-manager can persist continuity automatically.\n")
+	section.WriteString("- After writing the handoff, stop. Do not wait for extra confirmation inside the same run.\n")
+	if team.DecisionMode == "approval" {
+		section.WriteString("- This team is in `approval` decision mode. Analyze, prioritize, and log pending decisions, but do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n")
+	}
+	return section.String()
 }
 
 func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, agentID string) string {
@@ -346,7 +370,7 @@ func (b *PromptBuilder) buildRelationshipSection(ctx context.Context, teamID, ag
 
 // BuildTeamLeadPrompt constructs a prompt for single-process spawn mode.
 // It loads the full team snapshot, converts to CC config, and generates spawn instructions.
-func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, vrooliRoot string) (string, error) {
+func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID, vrooliRoot string) (string, error) {
 	if b.teamStore == nil {
 		return "", fmt.Errorf("team store is not configured")
 	}
@@ -401,11 +425,21 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, vrooliR
 	}
 
 	// Generate spawn prompt
+	additionalCtx := b.buildCoordinationSkillSection(ctx, teamID)
+	if agentID != "" {
+		if leadContext, err := b.Build(ctx, PromptBuildRequest{
+			TeamID:  teamID,
+			AgentID: agentID,
+		}); err == nil && strings.TrimSpace(leadContext) != "" {
+			additionalCtx = "## Lead Member Context\n\nApply this stored prompt-manager context in addition to the generic heartbeat instructions.\n\n" + leadContext
+		}
+	}
 	spawnCtx := interop.SpawnContext{
 		WorkingDir:    vrooliRoot,
 		VrooliRoot:    vrooliRoot,
 		TeamID:        teamID,
-		AdditionalCtx: b.buildCoordinationSkillSection(ctx, teamID),
+		DecisionMode:  team.DecisionMode,
+		AdditionalCtx: additionalCtx,
 	}
 
 	prompt, err := converter.FormatSpawnPrompt(ccConfig, spawnCtx)

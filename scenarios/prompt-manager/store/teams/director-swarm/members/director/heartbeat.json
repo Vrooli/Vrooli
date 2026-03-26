@@ -6,14 +6,13 @@
   "enabled": true,
   "schedule": "16 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-03-25T22:16:00Z",
-    "endedAt": "2026-03-25T22:46:00Z",
-    "status": "failed",
-    "runId": "c6b88796-771e-4ff5-92be-101998769a41",
-    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-25T22-16-00Z.log",
-    "error": "Runner claude-code encountered an error. Please check runner configuration."
+    "startedAt": "2026-03-26T21:13:59Z",
+    "endedAt": "2026-03-26T21:20:10Z",
+    "status": "completed",
+    "runId": "9c13721e-555a-4122-b38b-18c12106e290",
+    "logPath": "../store/teams/director-swarm/members/director/logs/2026-03-26T21-13-59Z.log"
   },
-  "revision": 149,
+  "revision": 155,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-25T22:46:00Z"
+  "updatedAt": "2026-03-26T21:20:10Z"
 }

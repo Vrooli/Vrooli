@@ -234,6 +234,30 @@ func TestDeleteTask(t *testing.T) {
 	}
 }
 
+func TestUpdatePersistsSpawnAndDecisionMode(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	updates := &Team{
+		SpawnMode:    "single-process",
+		DecisionMode: "approval",
+	}
+	if err := s.Update(ctx, "team-1", updates); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := s.Get(ctx, "team-1")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.SpawnMode != "single-process" {
+		t.Errorf("expected spawnMode 'single-process', got %q", got.SpawnMode)
+	}
+	if got.DecisionMode != "approval" {
+		t.Errorf("expected decisionMode 'approval', got %q", got.DecisionMode)
+	}
+}
+
 func TestAppendAndGetDecisions(t *testing.T) {
 	s := setupStateTestStore(t)
 	ctx := context.Background()

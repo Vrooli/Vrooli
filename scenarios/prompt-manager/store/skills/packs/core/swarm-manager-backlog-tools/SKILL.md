@@ -241,8 +241,13 @@ swarm-manager backlog create --data '{"kind":"idea","name":"my-feature","title":
 
 ### Update a backlog item
 ```bash
-swarm-manager backlog update --kind <kind> --name <name> --data '{"title":"Updated Title","priority":3,"acceptance_allow":["scenarios/web-console/**"]}'
+swarm-manager backlog update --kind <kind> --name <name> --data '{"acceptance_allow":["scenarios/web-console/**"]}'
 ```
+
+Notes:
+- `backlog update` is a sparse patch. Omitted fields stay unchanged.
+- Use empty strings to clear scalar fields like `description` or `initiative`.
+- Use empty arrays to clear list fields like `tags`, `depends_on`, `acceptance_allow`, or `acceptance_deny`.
 
 ### Delete a backlog item
 ```bash

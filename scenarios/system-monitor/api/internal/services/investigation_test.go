@@ -21,8 +21,15 @@ func newTestInvestigationService(t *testing.T, clock Clock) *InvestigationServic
 	t.Helper()
 	cfg := &config.Config{}
 	repo := memory.NewRepository()
+	configStore := NewMemoryConfigStore()
+	promptStore := NewMemoryConfigStore()
+	if err := promptStore.WriteConfig("anomaly-check.md", []byte("Investigation {{INVESTIGATION_ID}}")); err != nil {
+		t.Fatalf("seed prompt store: %v", err)
+	}
 	return NewInvestigationService(cfg, repo, nil, mocks.NewAgentExecutor().WithAvailable(true),
 		WithInvestigationClock(clock),
+		WithConfigStore(configStore),
+		WithPromptStore(promptStore),
 	)
 }
 

@@ -131,6 +131,12 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.EnabledSet {
 		team.Enabled = updates.Enabled
 	}
+	if updates.SpawnMode != "" {
+		team.SpawnMode = updates.SpawnMode
+	}
+	if updates.DecisionMode != "" {
+		team.DecisionMode = updates.DecisionMode
+	}
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
 	}

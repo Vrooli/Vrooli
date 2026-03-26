@@ -1,0 +1,18 @@
+{
+  "acceptance_allow": [
+    "scenarios/ecosystem-manager/**",
+    "scenarios/swarm-manager/api/internal/execution/review_client.go",
+    "scenarios/git-control-tower/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "description": "## Context\n\nEcosystem-manager runs iterative agent loops to develop/improve scenarios. Currently it tracks execution metadata (duration, prompt size, exit reason, Auto Steer phase/iteration) but does not capture scenario health snapshots between iterations. Without per-loop health data, there's no way to detect regressions or measure improvement across iterations.\n\nSwarm-manager already integrates Git Control Tower for post-execution scenario reviews. The same pattern should be adopted in ecosystem-manager.\n\n## Research Goals\n\n1. **Study the swarm-manager ↔ Git Control Tower integration:**\n   - `scenarios/swarm-manager/api/internal/execution/review_client.go` — HTTP client\n   - `scenarios/swarm-manager/api/internal/execution/service.go` — trigger and polling logic\n   - Review contract: `POST /api/v1/review/run` → poll → ReviewResult with 5 dimensions\n\n2. **Define what ecosystem-manager captures per loop iteration:**\n   - Git Control Tower ReviewResult (readiness classification + 5 dimensions: codeQuality, tests, standards, visual, provenance)\n   - Execution metadata already tracked (duration, prompt size, tokens, exit reason)\n   - Auto Steer metadata (phase, iteration, steering source)\n   - Delta between iterations (which dimensions improved/regressed)\n\n3. **Design the storage schema** for per-loop snapshots:\n   - How snapshots are stored (per-task execution history enrichment vs. separate snapshot store)\n   - How to efficiently query trends across iterations\n   - How to detect regressions (dimension status going from green → yellow → red)\n\n4. **Define the trigger contract:**\n   - When does ecosystem-manager trigger a review? (after every iteration? only successful ones? configurable?)\n   - How does it handle review failures or inconclusive results?\n   - Should it block the next iteration until review completes?\n\n## Deliverables\n\n- Per-loop snapshot schema\n- Trigger and polling contract\n- Regression detection algorithm\n- Storage design recommendation",
+  "effort": "M",
+  "initiative": "ecosystem-intelligence-loop",
+  "kind": "research",
+  "name": "ecosystem-loop-health-snapshot-contract",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Define Per-Loop Health Snapshot Contract Using Git Control Tower Reviews",
+  "updated": "2026-03-26T20:54:35Z"
+}

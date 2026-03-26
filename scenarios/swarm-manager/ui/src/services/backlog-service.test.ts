@@ -109,18 +109,13 @@ describe("Backlog Service", () => {
   });
 
   describe("update", () => {
-    it("puts an updated backlog item", async () => {
+    it("patches only the provided backlog fields", async () => {
       const updates = {
-        title: "Updated Title",
-        description: "Original description",
         status: "backlog" as const,
-        priority: 1,
-        tags: [],
-        researchTarget: undefined,
       };
       const updatedItem: BacklogItem = {
         name: "my-idea",
-        title: "Updated Title",
+        title: "My Idea",
         description: "Original description",
         status: "backlog",
         priority: 1,
@@ -129,21 +124,42 @@ describe("Backlog Service", () => {
         updated: "2026-01-28T01:00:00Z",
         kind: "idea",
       };
-      vi.mocked(mockApiClient.put).mockResolvedValue({ item: updatedItem });
+      vi.mocked(mockApiClient.patch).mockResolvedValue({ item: updatedItem });
 
       const result = await service.update("idea", "my-idea", updates);
 
-      expect(mockApiClient.put).toHaveBeenCalledWith(
+      expect(mockApiClient.patch).toHaveBeenCalledWith(
         "/backlog/idea/my-idea",
-        expect.objectContaining({
-          title: "Updated Title",
-          description: "Original description",
-          status: "backlog",
-          priority: 1,
-          tags: [],
-        })
+        { status: "backlog" }
       );
       expect(result).toEqual(updatedItem);
+    });
+
+    it("preserves explicit empty arrays when clearing list fields", async () => {
+      const updatedItem: BacklogItem = {
+        name: "my-idea",
+        title: "My Idea",
+        description: "",
+        status: "backlog",
+        priority: 1,
+        tags: [],
+        created: "2026-01-28T00:00:00Z",
+        updated: "2026-01-28T01:00:00Z",
+        kind: "idea",
+      };
+      vi.mocked(mockApiClient.patch).mockResolvedValue({ item: updatedItem });
+
+      await service.update("idea", "my-idea", {
+        tags: [],
+        dependsOn: [],
+        acceptanceAllow: [],
+      });
+
+      expect(mockApiClient.patch).toHaveBeenCalledWith("/backlog/idea/my-idea", {
+        tags: [],
+        depends_on: [],
+        acceptance_allow: [],
+      });
     });
   });
 

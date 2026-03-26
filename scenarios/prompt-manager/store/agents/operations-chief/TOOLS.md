@@ -4,12 +4,12 @@
 `prompt-manager skill read <skill-id>`
 
 ## Primary Skills
-- **progress** — Priority ordering and tracking.
-- **leader-explore-plan-implement** — Pipeline for structuring multi-team technical work.
+- **swarm-manager-backlog-tools** — Initiative and backlog inspection commands.
+- **swarm-manager-recommendations** — Approval-gated backlog proposal authoring.
 - **triage-methodology** — Severity assessment for prioritizing escalations and conflicts.
 
 ## Operations Management
-- Track team assignments and status.
+- Track initiative readiness and backlog quality.
 - Monitor cross-team dependencies.
 - Identify and resolve resource conflicts.
 
@@ -17,3 +17,4 @@
 - Track progress by outcomes, not activity.
 - Escalate blockers immediately, do not batch them.
 - Communicate clearly: what, who, when, status.
+- Do not deploy teams or create backlog items without approval; frame them as next artifacts or recommended moves.

@@ -60,14 +60,131 @@ func (*HealthRequest) Descriptor() ([]byte, []int) {
 	return file_system_monitor_v1_api_service_proto_rawDescGZIP(), []int{0}
 }
 
+// HealthResponse is the system-monitor health endpoint contract.
+//
+// Kept service-local to satisfy RPC message linting while preserving the
+// shared JSON shape exposed by /health.
+type HealthResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Overall service health status.
+	Status v1.HealthStatus `protobuf:"varint,1,opt,name=status,proto3,enum=common.v1.HealthStatus" json:"status,omitempty"`
+	// Identifier for the service reporting health.
+	Service string `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
+	// RFC3339 timestamp when the check was produced.
+	Timestamp string `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Readiness indicator for load balancers.
+	Readiness bool `protobuf:"varint,4,opt,name=readiness,proto3" json:"readiness,omitempty"`
+	// Optional service version string.
+	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	// Status of downstream dependencies.
+	Dependencies map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Additional health metrics for monitoring.
+	Metrics       map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthResponse) Reset() {
+	*x = HealthResponse{}
+	mi := &file_system_monitor_v1_api_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthResponse) ProtoMessage() {}
+
+func (x *HealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_api_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
+func (*HealthResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_api_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *HealthResponse) GetStatus() v1.HealthStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v1.HealthStatus(0)
+}
+
+func (x *HealthResponse) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *HealthResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *HealthResponse) GetReadiness() bool {
+	if x != nil {
+		return x.Readiness
+	}
+	return false
+}
+
+func (x *HealthResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *HealthResponse) GetDependencies() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Dependencies
+	}
+	return nil
+}
+
+func (x *HealthResponse) GetMetrics() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
 var File_system_monitor_v1_api_service_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_api_service_proto_rawDesc = "" +
 	"\n" +
 	"#system-monitor/v1/api/service.proto\x12\x11system_monitor.v1\x1a\x15common/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\x1a*system-monitor/v1/api/investigations.proto\x1a#system-monitor/v1/api/metrics.proto\x1a#system-monitor/v1/api/reports.proto\x1a#system-monitor/v1/api/scripts.proto\x1a$system-monitor/v1/api/settings.proto\"\x0f\n" +
-	"\rHealthRequest2\xd3!\n" +
-	"\x14SystemMonitorService\x12V\n" +
-	"\x06Health\x12 .system_monitor.v1.HealthRequest\x1a\x19.common.v1.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\a/health\x12\xa2\x01\n" +
+	"\rHealthRequest\"\xb0\x04\n" +
+	"\x0eHealthResponse\x12/\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x17.common.v1.HealthStatusR\x06status\x12\x18\n" +
+	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n" +
+	"\treadiness\x18\x04 \x01(\bR\treadiness\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x12W\n" +
+	"\fdependencies\x18\b \x03(\v23.system_monitor.v1.HealthResponse.DependenciesEntryR\fdependencies\x12H\n" +
+	"\ametrics\x18\t \x03(\v2..system_monitor.v1.HealthResponse.MetricsEntryR\ametrics\x1aU\n" +
+	"\x11DependenciesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aP\n" +
+	"\fMetricsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\x14dependencies_untypedR\x0fmetrics_untyped2\xdb!\n" +
+	"\x14SystemMonitorService\x12^\n" +
+	"\x06Health\x12 .system_monitor.v1.HealthRequest\x1a!.system_monitor.v1.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\a/health\x12\xa2\x01\n" +
 	"\x14TriggerInvestigation\x12..system_monitor.v1.TriggerInvestigationRequest\x1a/.system_monitor.v1.TriggerInvestigationResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/investigations/trigger\x12\x90\x01\n" +
 	"\x10GetInvestigation\x12*.system_monitor.v1.GetInvestigationRequest\x1a+.system_monitor.v1.GetInvestigationResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/investigations/{id}\x12\xa4\x01\n" +
 	"\x16GetLatestInvestigation\x120.system_monitor.v1.GetLatestInvestigationRequest\x1a1.system_monitor.v1.GetLatestInvestigationResponse\"%\x82\xd3\xe4\x93\x02\x1f\x12\x1d/api/v1/investigations/latest\x12\x91\x01\n" +
@@ -109,131 +226,140 @@ func file_system_monitor_v1_api_service_proto_rawDescGZIP() []byte {
 	return file_system_monitor_v1_api_service_proto_rawDescData
 }
 
-var file_system_monitor_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_system_monitor_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_system_monitor_v1_api_service_proto_goTypes = []any{
 	(*HealthRequest)(nil),                       // 0: system_monitor.v1.HealthRequest
-	(*TriggerInvestigationRequest)(nil),         // 1: system_monitor.v1.TriggerInvestigationRequest
-	(*GetInvestigationRequest)(nil),             // 2: system_monitor.v1.GetInvestigationRequest
-	(*GetLatestInvestigationRequest)(nil),       // 3: system_monitor.v1.GetLatestInvestigationRequest
-	(*ListInvestigationsRequest)(nil),           // 4: system_monitor.v1.ListInvestigationsRequest
-	(*UpdateInvestigationStatusRequest)(nil),    // 5: system_monitor.v1.UpdateInvestigationStatusRequest
-	(*UpdateInvestigationFindingsRequest)(nil),  // 6: system_monitor.v1.UpdateInvestigationFindingsRequest
-	(*UpdateInvestigationProgressRequest)(nil),  // 7: system_monitor.v1.UpdateInvestigationProgressRequest
-	(*AddInvestigationStepRequest)(nil),         // 8: system_monitor.v1.AddInvestigationStepRequest
-	(*GetCooldownStatusRequest)(nil),            // 9: system_monitor.v1.GetCooldownStatusRequest
-	(*GetTriggersRequest)(nil),                  // 10: system_monitor.v1.GetTriggersRequest
-	(*UpdateTriggerRequest)(nil),                // 11: system_monitor.v1.UpdateTriggerRequest
-	(*GetCurrentMetricsRequest)(nil),            // 12: system_monitor.v1.GetCurrentMetricsRequest
-	(*GetDetailedMetricsRequest)(nil),           // 13: system_monitor.v1.GetDetailedMetricsRequest
-	(*GetProcessMonitorRequest)(nil),            // 14: system_monitor.v1.GetProcessMonitorRequest
-	(*GetInfrastructureMonitorRequest)(nil),     // 15: system_monitor.v1.GetInfrastructureMonitorRequest
-	(*GetMetricsTimelineRequest)(nil),           // 16: system_monitor.v1.GetMetricsTimelineRequest
-	(*GetDiskDetailRequest)(nil),                // 17: system_monitor.v1.GetDiskDetailRequest
-	(*GenerateReportRequest)(nil),               // 18: system_monitor.v1.GenerateReportRequest
-	(*ListReportsRequest)(nil),                  // 19: system_monitor.v1.ListReportsRequest
-	(*GetReportRequest)(nil),                    // 20: system_monitor.v1.GetReportRequest
-	(*ListScriptsRequest)(nil),                  // 21: system_monitor.v1.ListScriptsRequest
-	(*GetScriptRequest)(nil),                    // 22: system_monitor.v1.GetScriptRequest
-	(*ExecuteScriptRequest)(nil),                // 23: system_monitor.v1.ExecuteScriptRequest
-	(*GetSettingsRequest)(nil),                  // 24: system_monitor.v1.GetSettingsRequest
-	(*UpdateSettingsRequest)(nil),               // 25: system_monitor.v1.UpdateSettingsRequest
-	(*ResetSettingsRequest)(nil),                // 26: system_monitor.v1.ResetSettingsRequest
-	(*GetMaintenanceStateRequest)(nil),          // 27: system_monitor.v1.GetMaintenanceStateRequest
-	(*SetMaintenanceStateRequest)(nil),          // 28: system_monitor.v1.SetMaintenanceStateRequest
-	(*v1.HealthResponse)(nil),                   // 29: common.v1.HealthResponse
-	(*TriggerInvestigationResponse)(nil),        // 30: system_monitor.v1.TriggerInvestigationResponse
-	(*GetInvestigationResponse)(nil),            // 31: system_monitor.v1.GetInvestigationResponse
-	(*GetLatestInvestigationResponse)(nil),      // 32: system_monitor.v1.GetLatestInvestigationResponse
-	(*ListInvestigationsResponse)(nil),          // 33: system_monitor.v1.ListInvestigationsResponse
-	(*UpdateInvestigationStatusResponse)(nil),   // 34: system_monitor.v1.UpdateInvestigationStatusResponse
-	(*UpdateInvestigationFindingsResponse)(nil), // 35: system_monitor.v1.UpdateInvestigationFindingsResponse
-	(*UpdateInvestigationProgressResponse)(nil), // 36: system_monitor.v1.UpdateInvestigationProgressResponse
-	(*AddInvestigationStepResponse)(nil),        // 37: system_monitor.v1.AddInvestigationStepResponse
-	(*GetCooldownStatusResponse)(nil),           // 38: system_monitor.v1.GetCooldownStatusResponse
-	(*GetTriggersResponse)(nil),                 // 39: system_monitor.v1.GetTriggersResponse
-	(*UpdateTriggerResponse)(nil),               // 40: system_monitor.v1.UpdateTriggerResponse
-	(*GetCurrentMetricsResponse)(nil),           // 41: system_monitor.v1.GetCurrentMetricsResponse
-	(*GetDetailedMetricsResponse)(nil),          // 42: system_monitor.v1.GetDetailedMetricsResponse
-	(*GetProcessMonitorResponse)(nil),           // 43: system_monitor.v1.GetProcessMonitorResponse
-	(*GetInfrastructureMonitorResponse)(nil),    // 44: system_monitor.v1.GetInfrastructureMonitorResponse
-	(*GetMetricsTimelineResponse)(nil),          // 45: system_monitor.v1.GetMetricsTimelineResponse
-	(*GetDiskDetailResponse)(nil),               // 46: system_monitor.v1.GetDiskDetailResponse
-	(*GenerateReportResponse)(nil),              // 47: system_monitor.v1.GenerateReportResponse
-	(*ListReportsResponse)(nil),                 // 48: system_monitor.v1.ListReportsResponse
-	(*GetReportResponse)(nil),                   // 49: system_monitor.v1.GetReportResponse
-	(*ListScriptsResponse)(nil),                 // 50: system_monitor.v1.ListScriptsResponse
-	(*GetScriptResponse)(nil),                   // 51: system_monitor.v1.GetScriptResponse
-	(*ExecuteScriptResponse)(nil),               // 52: system_monitor.v1.ExecuteScriptResponse
-	(*GetSettingsResponse)(nil),                 // 53: system_monitor.v1.GetSettingsResponse
-	(*UpdateSettingsResponse)(nil),              // 54: system_monitor.v1.UpdateSettingsResponse
-	(*ResetSettingsResponse)(nil),               // 55: system_monitor.v1.ResetSettingsResponse
-	(*GetMaintenanceStateResponse)(nil),         // 56: system_monitor.v1.GetMaintenanceStateResponse
-	(*SetMaintenanceStateResponse)(nil),         // 57: system_monitor.v1.SetMaintenanceStateResponse
+	(*HealthResponse)(nil),                      // 1: system_monitor.v1.HealthResponse
+	nil,                                         // 2: system_monitor.v1.HealthResponse.DependenciesEntry
+	nil,                                         // 3: system_monitor.v1.HealthResponse.MetricsEntry
+	(v1.HealthStatus)(0),                        // 4: common.v1.HealthStatus
+	(*v1.JsonValue)(nil),                        // 5: common.v1.JsonValue
+	(*TriggerInvestigationRequest)(nil),         // 6: system_monitor.v1.TriggerInvestigationRequest
+	(*GetInvestigationRequest)(nil),             // 7: system_monitor.v1.GetInvestigationRequest
+	(*GetLatestInvestigationRequest)(nil),       // 8: system_monitor.v1.GetLatestInvestigationRequest
+	(*ListInvestigationsRequest)(nil),           // 9: system_monitor.v1.ListInvestigationsRequest
+	(*UpdateInvestigationStatusRequest)(nil),    // 10: system_monitor.v1.UpdateInvestigationStatusRequest
+	(*UpdateInvestigationFindingsRequest)(nil),  // 11: system_monitor.v1.UpdateInvestigationFindingsRequest
+	(*UpdateInvestigationProgressRequest)(nil),  // 12: system_monitor.v1.UpdateInvestigationProgressRequest
+	(*AddInvestigationStepRequest)(nil),         // 13: system_monitor.v1.AddInvestigationStepRequest
+	(*GetCooldownStatusRequest)(nil),            // 14: system_monitor.v1.GetCooldownStatusRequest
+	(*GetTriggersRequest)(nil),                  // 15: system_monitor.v1.GetTriggersRequest
+	(*UpdateTriggerRequest)(nil),                // 16: system_monitor.v1.UpdateTriggerRequest
+	(*GetCurrentMetricsRequest)(nil),            // 17: system_monitor.v1.GetCurrentMetricsRequest
+	(*GetDetailedMetricsRequest)(nil),           // 18: system_monitor.v1.GetDetailedMetricsRequest
+	(*GetProcessMonitorRequest)(nil),            // 19: system_monitor.v1.GetProcessMonitorRequest
+	(*GetInfrastructureMonitorRequest)(nil),     // 20: system_monitor.v1.GetInfrastructureMonitorRequest
+	(*GetMetricsTimelineRequest)(nil),           // 21: system_monitor.v1.GetMetricsTimelineRequest
+	(*GetDiskDetailRequest)(nil),                // 22: system_monitor.v1.GetDiskDetailRequest
+	(*GenerateReportRequest)(nil),               // 23: system_monitor.v1.GenerateReportRequest
+	(*ListReportsRequest)(nil),                  // 24: system_monitor.v1.ListReportsRequest
+	(*GetReportRequest)(nil),                    // 25: system_monitor.v1.GetReportRequest
+	(*ListScriptsRequest)(nil),                  // 26: system_monitor.v1.ListScriptsRequest
+	(*GetScriptRequest)(nil),                    // 27: system_monitor.v1.GetScriptRequest
+	(*ExecuteScriptRequest)(nil),                // 28: system_monitor.v1.ExecuteScriptRequest
+	(*GetSettingsRequest)(nil),                  // 29: system_monitor.v1.GetSettingsRequest
+	(*UpdateSettingsRequest)(nil),               // 30: system_monitor.v1.UpdateSettingsRequest
+	(*ResetSettingsRequest)(nil),                // 31: system_monitor.v1.ResetSettingsRequest
+	(*GetMaintenanceStateRequest)(nil),          // 32: system_monitor.v1.GetMaintenanceStateRequest
+	(*SetMaintenanceStateRequest)(nil),          // 33: system_monitor.v1.SetMaintenanceStateRequest
+	(*TriggerInvestigationResponse)(nil),        // 34: system_monitor.v1.TriggerInvestigationResponse
+	(*GetInvestigationResponse)(nil),            // 35: system_monitor.v1.GetInvestigationResponse
+	(*GetLatestInvestigationResponse)(nil),      // 36: system_monitor.v1.GetLatestInvestigationResponse
+	(*ListInvestigationsResponse)(nil),          // 37: system_monitor.v1.ListInvestigationsResponse
+	(*UpdateInvestigationStatusResponse)(nil),   // 38: system_monitor.v1.UpdateInvestigationStatusResponse
+	(*UpdateInvestigationFindingsResponse)(nil), // 39: system_monitor.v1.UpdateInvestigationFindingsResponse
+	(*UpdateInvestigationProgressResponse)(nil), // 40: system_monitor.v1.UpdateInvestigationProgressResponse
+	(*AddInvestigationStepResponse)(nil),        // 41: system_monitor.v1.AddInvestigationStepResponse
+	(*GetCooldownStatusResponse)(nil),           // 42: system_monitor.v1.GetCooldownStatusResponse
+	(*GetTriggersResponse)(nil),                 // 43: system_monitor.v1.GetTriggersResponse
+	(*UpdateTriggerResponse)(nil),               // 44: system_monitor.v1.UpdateTriggerResponse
+	(*GetCurrentMetricsResponse)(nil),           // 45: system_monitor.v1.GetCurrentMetricsResponse
+	(*GetDetailedMetricsResponse)(nil),          // 46: system_monitor.v1.GetDetailedMetricsResponse
+	(*GetProcessMonitorResponse)(nil),           // 47: system_monitor.v1.GetProcessMonitorResponse
+	(*GetInfrastructureMonitorResponse)(nil),    // 48: system_monitor.v1.GetInfrastructureMonitorResponse
+	(*GetMetricsTimelineResponse)(nil),          // 49: system_monitor.v1.GetMetricsTimelineResponse
+	(*GetDiskDetailResponse)(nil),               // 50: system_monitor.v1.GetDiskDetailResponse
+	(*GenerateReportResponse)(nil),              // 51: system_monitor.v1.GenerateReportResponse
+	(*ListReportsResponse)(nil),                 // 52: system_monitor.v1.ListReportsResponse
+	(*GetReportResponse)(nil),                   // 53: system_monitor.v1.GetReportResponse
+	(*ListScriptsResponse)(nil),                 // 54: system_monitor.v1.ListScriptsResponse
+	(*GetScriptResponse)(nil),                   // 55: system_monitor.v1.GetScriptResponse
+	(*ExecuteScriptResponse)(nil),               // 56: system_monitor.v1.ExecuteScriptResponse
+	(*GetSettingsResponse)(nil),                 // 57: system_monitor.v1.GetSettingsResponse
+	(*UpdateSettingsResponse)(nil),              // 58: system_monitor.v1.UpdateSettingsResponse
+	(*ResetSettingsResponse)(nil),               // 59: system_monitor.v1.ResetSettingsResponse
+	(*GetMaintenanceStateResponse)(nil),         // 60: system_monitor.v1.GetMaintenanceStateResponse
+	(*SetMaintenanceStateResponse)(nil),         // 61: system_monitor.v1.SetMaintenanceStateResponse
 }
 var file_system_monitor_v1_api_service_proto_depIdxs = []int32{
-	0,  // 0: system_monitor.v1.SystemMonitorService.Health:input_type -> system_monitor.v1.HealthRequest
-	1,  // 1: system_monitor.v1.SystemMonitorService.TriggerInvestigation:input_type -> system_monitor.v1.TriggerInvestigationRequest
-	2,  // 2: system_monitor.v1.SystemMonitorService.GetInvestigation:input_type -> system_monitor.v1.GetInvestigationRequest
-	3,  // 3: system_monitor.v1.SystemMonitorService.GetLatestInvestigation:input_type -> system_monitor.v1.GetLatestInvestigationRequest
-	4,  // 4: system_monitor.v1.SystemMonitorService.ListInvestigations:input_type -> system_monitor.v1.ListInvestigationsRequest
-	5,  // 5: system_monitor.v1.SystemMonitorService.UpdateInvestigationStatus:input_type -> system_monitor.v1.UpdateInvestigationStatusRequest
-	6,  // 6: system_monitor.v1.SystemMonitorService.UpdateInvestigationFindings:input_type -> system_monitor.v1.UpdateInvestigationFindingsRequest
-	7,  // 7: system_monitor.v1.SystemMonitorService.UpdateInvestigationProgress:input_type -> system_monitor.v1.UpdateInvestigationProgressRequest
-	8,  // 8: system_monitor.v1.SystemMonitorService.AddInvestigationStep:input_type -> system_monitor.v1.AddInvestigationStepRequest
-	9,  // 9: system_monitor.v1.SystemMonitorService.GetCooldownStatus:input_type -> system_monitor.v1.GetCooldownStatusRequest
-	10, // 10: system_monitor.v1.SystemMonitorService.GetTriggers:input_type -> system_monitor.v1.GetTriggersRequest
-	11, // 11: system_monitor.v1.SystemMonitorService.UpdateTrigger:input_type -> system_monitor.v1.UpdateTriggerRequest
-	12, // 12: system_monitor.v1.SystemMonitorService.GetCurrentMetrics:input_type -> system_monitor.v1.GetCurrentMetricsRequest
-	13, // 13: system_monitor.v1.SystemMonitorService.GetDetailedMetrics:input_type -> system_monitor.v1.GetDetailedMetricsRequest
-	14, // 14: system_monitor.v1.SystemMonitorService.GetProcessMonitor:input_type -> system_monitor.v1.GetProcessMonitorRequest
-	15, // 15: system_monitor.v1.SystemMonitorService.GetInfrastructureMonitor:input_type -> system_monitor.v1.GetInfrastructureMonitorRequest
-	16, // 16: system_monitor.v1.SystemMonitorService.GetMetricsTimeline:input_type -> system_monitor.v1.GetMetricsTimelineRequest
-	17, // 17: system_monitor.v1.SystemMonitorService.GetDiskDetail:input_type -> system_monitor.v1.GetDiskDetailRequest
-	18, // 18: system_monitor.v1.SystemMonitorService.GenerateReport:input_type -> system_monitor.v1.GenerateReportRequest
-	19, // 19: system_monitor.v1.SystemMonitorService.ListReports:input_type -> system_monitor.v1.ListReportsRequest
-	20, // 20: system_monitor.v1.SystemMonitorService.GetReport:input_type -> system_monitor.v1.GetReportRequest
-	21, // 21: system_monitor.v1.SystemMonitorService.ListScripts:input_type -> system_monitor.v1.ListScriptsRequest
-	22, // 22: system_monitor.v1.SystemMonitorService.GetScript:input_type -> system_monitor.v1.GetScriptRequest
-	23, // 23: system_monitor.v1.SystemMonitorService.ExecuteScript:input_type -> system_monitor.v1.ExecuteScriptRequest
-	24, // 24: system_monitor.v1.SystemMonitorService.GetSettings:input_type -> system_monitor.v1.GetSettingsRequest
-	25, // 25: system_monitor.v1.SystemMonitorService.UpdateSettings:input_type -> system_monitor.v1.UpdateSettingsRequest
-	26, // 26: system_monitor.v1.SystemMonitorService.ResetSettings:input_type -> system_monitor.v1.ResetSettingsRequest
-	27, // 27: system_monitor.v1.SystemMonitorService.GetMaintenanceState:input_type -> system_monitor.v1.GetMaintenanceStateRequest
-	28, // 28: system_monitor.v1.SystemMonitorService.SetMaintenanceState:input_type -> system_monitor.v1.SetMaintenanceStateRequest
-	29, // 29: system_monitor.v1.SystemMonitorService.Health:output_type -> common.v1.HealthResponse
-	30, // 30: system_monitor.v1.SystemMonitorService.TriggerInvestigation:output_type -> system_monitor.v1.TriggerInvestigationResponse
-	31, // 31: system_monitor.v1.SystemMonitorService.GetInvestigation:output_type -> system_monitor.v1.GetInvestigationResponse
-	32, // 32: system_monitor.v1.SystemMonitorService.GetLatestInvestigation:output_type -> system_monitor.v1.GetLatestInvestigationResponse
-	33, // 33: system_monitor.v1.SystemMonitorService.ListInvestigations:output_type -> system_monitor.v1.ListInvestigationsResponse
-	34, // 34: system_monitor.v1.SystemMonitorService.UpdateInvestigationStatus:output_type -> system_monitor.v1.UpdateInvestigationStatusResponse
-	35, // 35: system_monitor.v1.SystemMonitorService.UpdateInvestigationFindings:output_type -> system_monitor.v1.UpdateInvestigationFindingsResponse
-	36, // 36: system_monitor.v1.SystemMonitorService.UpdateInvestigationProgress:output_type -> system_monitor.v1.UpdateInvestigationProgressResponse
-	37, // 37: system_monitor.v1.SystemMonitorService.AddInvestigationStep:output_type -> system_monitor.v1.AddInvestigationStepResponse
-	38, // 38: system_monitor.v1.SystemMonitorService.GetCooldownStatus:output_type -> system_monitor.v1.GetCooldownStatusResponse
-	39, // 39: system_monitor.v1.SystemMonitorService.GetTriggers:output_type -> system_monitor.v1.GetTriggersResponse
-	40, // 40: system_monitor.v1.SystemMonitorService.UpdateTrigger:output_type -> system_monitor.v1.UpdateTriggerResponse
-	41, // 41: system_monitor.v1.SystemMonitorService.GetCurrentMetrics:output_type -> system_monitor.v1.GetCurrentMetricsResponse
-	42, // 42: system_monitor.v1.SystemMonitorService.GetDetailedMetrics:output_type -> system_monitor.v1.GetDetailedMetricsResponse
-	43, // 43: system_monitor.v1.SystemMonitorService.GetProcessMonitor:output_type -> system_monitor.v1.GetProcessMonitorResponse
-	44, // 44: system_monitor.v1.SystemMonitorService.GetInfrastructureMonitor:output_type -> system_monitor.v1.GetInfrastructureMonitorResponse
-	45, // 45: system_monitor.v1.SystemMonitorService.GetMetricsTimeline:output_type -> system_monitor.v1.GetMetricsTimelineResponse
-	46, // 46: system_monitor.v1.SystemMonitorService.GetDiskDetail:output_type -> system_monitor.v1.GetDiskDetailResponse
-	47, // 47: system_monitor.v1.SystemMonitorService.GenerateReport:output_type -> system_monitor.v1.GenerateReportResponse
-	48, // 48: system_monitor.v1.SystemMonitorService.ListReports:output_type -> system_monitor.v1.ListReportsResponse
-	49, // 49: system_monitor.v1.SystemMonitorService.GetReport:output_type -> system_monitor.v1.GetReportResponse
-	50, // 50: system_monitor.v1.SystemMonitorService.ListScripts:output_type -> system_monitor.v1.ListScriptsResponse
-	51, // 51: system_monitor.v1.SystemMonitorService.GetScript:output_type -> system_monitor.v1.GetScriptResponse
-	52, // 52: system_monitor.v1.SystemMonitorService.ExecuteScript:output_type -> system_monitor.v1.ExecuteScriptResponse
-	53, // 53: system_monitor.v1.SystemMonitorService.GetSettings:output_type -> system_monitor.v1.GetSettingsResponse
-	54, // 54: system_monitor.v1.SystemMonitorService.UpdateSettings:output_type -> system_monitor.v1.UpdateSettingsResponse
-	55, // 55: system_monitor.v1.SystemMonitorService.ResetSettings:output_type -> system_monitor.v1.ResetSettingsResponse
-	56, // 56: system_monitor.v1.SystemMonitorService.GetMaintenanceState:output_type -> system_monitor.v1.GetMaintenanceStateResponse
-	57, // 57: system_monitor.v1.SystemMonitorService.SetMaintenanceState:output_type -> system_monitor.v1.SetMaintenanceStateResponse
-	29, // [29:58] is the sub-list for method output_type
-	0,  // [0:29] is the sub-list for method input_type
-	0,  // [0:0] is the sub-list for extension type_name
-	0,  // [0:0] is the sub-list for extension extendee
-	0,  // [0:0] is the sub-list for field type_name
+	4,  // 0: system_monitor.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
+	2,  // 1: system_monitor.v1.HealthResponse.dependencies:type_name -> system_monitor.v1.HealthResponse.DependenciesEntry
+	3,  // 2: system_monitor.v1.HealthResponse.metrics:type_name -> system_monitor.v1.HealthResponse.MetricsEntry
+	5,  // 3: system_monitor.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
+	5,  // 4: system_monitor.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
+	0,  // 5: system_monitor.v1.SystemMonitorService.Health:input_type -> system_monitor.v1.HealthRequest
+	6,  // 6: system_monitor.v1.SystemMonitorService.TriggerInvestigation:input_type -> system_monitor.v1.TriggerInvestigationRequest
+	7,  // 7: system_monitor.v1.SystemMonitorService.GetInvestigation:input_type -> system_monitor.v1.GetInvestigationRequest
+	8,  // 8: system_monitor.v1.SystemMonitorService.GetLatestInvestigation:input_type -> system_monitor.v1.GetLatestInvestigationRequest
+	9,  // 9: system_monitor.v1.SystemMonitorService.ListInvestigations:input_type -> system_monitor.v1.ListInvestigationsRequest
+	10, // 10: system_monitor.v1.SystemMonitorService.UpdateInvestigationStatus:input_type -> system_monitor.v1.UpdateInvestigationStatusRequest
+	11, // 11: system_monitor.v1.SystemMonitorService.UpdateInvestigationFindings:input_type -> system_monitor.v1.UpdateInvestigationFindingsRequest
+	12, // 12: system_monitor.v1.SystemMonitorService.UpdateInvestigationProgress:input_type -> system_monitor.v1.UpdateInvestigationProgressRequest
+	13, // 13: system_monitor.v1.SystemMonitorService.AddInvestigationStep:input_type -> system_monitor.v1.AddInvestigationStepRequest
+	14, // 14: system_monitor.v1.SystemMonitorService.GetCooldownStatus:input_type -> system_monitor.v1.GetCooldownStatusRequest
+	15, // 15: system_monitor.v1.SystemMonitorService.GetTriggers:input_type -> system_monitor.v1.GetTriggersRequest
+	16, // 16: system_monitor.v1.SystemMonitorService.UpdateTrigger:input_type -> system_monitor.v1.UpdateTriggerRequest
+	17, // 17: system_monitor.v1.SystemMonitorService.GetCurrentMetrics:input_type -> system_monitor.v1.GetCurrentMetricsRequest
+	18, // 18: system_monitor.v1.SystemMonitorService.GetDetailedMetrics:input_type -> system_monitor.v1.GetDetailedMetricsRequest
+	19, // 19: system_monitor.v1.SystemMonitorService.GetProcessMonitor:input_type -> system_monitor.v1.GetProcessMonitorRequest
+	20, // 20: system_monitor.v1.SystemMonitorService.GetInfrastructureMonitor:input_type -> system_monitor.v1.GetInfrastructureMonitorRequest
+	21, // 21: system_monitor.v1.SystemMonitorService.GetMetricsTimeline:input_type -> system_monitor.v1.GetMetricsTimelineRequest
+	22, // 22: system_monitor.v1.SystemMonitorService.GetDiskDetail:input_type -> system_monitor.v1.GetDiskDetailRequest
+	23, // 23: system_monitor.v1.SystemMonitorService.GenerateReport:input_type -> system_monitor.v1.GenerateReportRequest
+	24, // 24: system_monitor.v1.SystemMonitorService.ListReports:input_type -> system_monitor.v1.ListReportsRequest
+	25, // 25: system_monitor.v1.SystemMonitorService.GetReport:input_type -> system_monitor.v1.GetReportRequest
+	26, // 26: system_monitor.v1.SystemMonitorService.ListScripts:input_type -> system_monitor.v1.ListScriptsRequest
+	27, // 27: system_monitor.v1.SystemMonitorService.GetScript:input_type -> system_monitor.v1.GetScriptRequest
+	28, // 28: system_monitor.v1.SystemMonitorService.ExecuteScript:input_type -> system_monitor.v1.ExecuteScriptRequest
+	29, // 29: system_monitor.v1.SystemMonitorService.GetSettings:input_type -> system_monitor.v1.GetSettingsRequest
+	30, // 30: system_monitor.v1.SystemMonitorService.UpdateSettings:input_type -> system_monitor.v1.UpdateSettingsRequest
+	31, // 31: system_monitor.v1.SystemMonitorService.ResetSettings:input_type -> system_monitor.v1.ResetSettingsRequest
+	32, // 32: system_monitor.v1.SystemMonitorService.GetMaintenanceState:input_type -> system_monitor.v1.GetMaintenanceStateRequest
+	33, // 33: system_monitor.v1.SystemMonitorService.SetMaintenanceState:input_type -> system_monitor.v1.SetMaintenanceStateRequest
+	1,  // 34: system_monitor.v1.SystemMonitorService.Health:output_type -> system_monitor.v1.HealthResponse
+	34, // 35: system_monitor.v1.SystemMonitorService.TriggerInvestigation:output_type -> system_monitor.v1.TriggerInvestigationResponse
+	35, // 36: system_monitor.v1.SystemMonitorService.GetInvestigation:output_type -> system_monitor.v1.GetInvestigationResponse
+	36, // 37: system_monitor.v1.SystemMonitorService.GetLatestInvestigation:output_type -> system_monitor.v1.GetLatestInvestigationResponse
+	37, // 38: system_monitor.v1.SystemMonitorService.ListInvestigations:output_type -> system_monitor.v1.ListInvestigationsResponse
+	38, // 39: system_monitor.v1.SystemMonitorService.UpdateInvestigationStatus:output_type -> system_monitor.v1.UpdateInvestigationStatusResponse
+	39, // 40: system_monitor.v1.SystemMonitorService.UpdateInvestigationFindings:output_type -> system_monitor.v1.UpdateInvestigationFindingsResponse
+	40, // 41: system_monitor.v1.SystemMonitorService.UpdateInvestigationProgress:output_type -> system_monitor.v1.UpdateInvestigationProgressResponse
+	41, // 42: system_monitor.v1.SystemMonitorService.AddInvestigationStep:output_type -> system_monitor.v1.AddInvestigationStepResponse
+	42, // 43: system_monitor.v1.SystemMonitorService.GetCooldownStatus:output_type -> system_monitor.v1.GetCooldownStatusResponse
+	43, // 44: system_monitor.v1.SystemMonitorService.GetTriggers:output_type -> system_monitor.v1.GetTriggersResponse
+	44, // 45: system_monitor.v1.SystemMonitorService.UpdateTrigger:output_type -> system_monitor.v1.UpdateTriggerResponse
+	45, // 46: system_monitor.v1.SystemMonitorService.GetCurrentMetrics:output_type -> system_monitor.v1.GetCurrentMetricsResponse
+	46, // 47: system_monitor.v1.SystemMonitorService.GetDetailedMetrics:output_type -> system_monitor.v1.GetDetailedMetricsResponse
+	47, // 48: system_monitor.v1.SystemMonitorService.GetProcessMonitor:output_type -> system_monitor.v1.GetProcessMonitorResponse
+	48, // 49: system_monitor.v1.SystemMonitorService.GetInfrastructureMonitor:output_type -> system_monitor.v1.GetInfrastructureMonitorResponse
+	49, // 50: system_monitor.v1.SystemMonitorService.GetMetricsTimeline:output_type -> system_monitor.v1.GetMetricsTimelineResponse
+	50, // 51: system_monitor.v1.SystemMonitorService.GetDiskDetail:output_type -> system_monitor.v1.GetDiskDetailResponse
+	51, // 52: system_monitor.v1.SystemMonitorService.GenerateReport:output_type -> system_monitor.v1.GenerateReportResponse
+	52, // 53: system_monitor.v1.SystemMonitorService.ListReports:output_type -> system_monitor.v1.ListReportsResponse
+	53, // 54: system_monitor.v1.SystemMonitorService.GetReport:output_type -> system_monitor.v1.GetReportResponse
+	54, // 55: system_monitor.v1.SystemMonitorService.ListScripts:output_type -> system_monitor.v1.ListScriptsResponse
+	55, // 56: system_monitor.v1.SystemMonitorService.GetScript:output_type -> system_monitor.v1.GetScriptResponse
+	56, // 57: system_monitor.v1.SystemMonitorService.ExecuteScript:output_type -> system_monitor.v1.ExecuteScriptResponse
+	57, // 58: system_monitor.v1.SystemMonitorService.GetSettings:output_type -> system_monitor.v1.GetSettingsResponse
+	58, // 59: system_monitor.v1.SystemMonitorService.UpdateSettings:output_type -> system_monitor.v1.UpdateSettingsResponse
+	59, // 60: system_monitor.v1.SystemMonitorService.ResetSettings:output_type -> system_monitor.v1.ResetSettingsResponse
+	60, // 61: system_monitor.v1.SystemMonitorService.GetMaintenanceState:output_type -> system_monitor.v1.GetMaintenanceStateResponse
+	61, // 62: system_monitor.v1.SystemMonitorService.SetMaintenanceState:output_type -> system_monitor.v1.SetMaintenanceStateResponse
+	34, // [34:63] is the sub-list for method output_type
+	5,  // [5:34] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_api_service_proto_init() }
@@ -252,7 +378,7 @@ func file_system_monitor_v1_api_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_api_service_proto_rawDesc), len(file_system_monitor_v1_api_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
