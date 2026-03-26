@@ -1,9 +1,9 @@
 /**
- * FilterSortToolbar — Unified horizontal bar composing Filter, Sort, View, and Combine controls.
+ * FilterSortToolbar — Unified horizontal bar composing Filter, Sort, and View controls.
  */
 
 import { useState, useRef } from 'react'
-import { Filter, Layers } from 'lucide-react'
+import { Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ViewModeToggle } from './ViewModeToggle'
 import { SortDropdown } from './SortDropdown'
@@ -22,10 +22,6 @@ interface FilterSortToolbarProps {
   onDetailModeChange: (mode: DetailMode) => void
   availableTags: string[]
   availableFolders: string[]
-  /** Whether combine (multi-select) mode is active */
-  combineMode?: boolean
-  /** Toggle combine mode on/off. When undefined, the button is hidden. */
-  onCombineModeToggle?: () => void
   className?: string
 }
 
@@ -40,8 +36,6 @@ export function FilterSortToolbar({
   onDetailModeChange,
   availableTags,
   availableFolders,
-  combineMode = false,
-  onCombineModeToggle,
   className,
 }: FilterSortToolbarProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -95,24 +89,6 @@ export function FilterSortToolbar({
           />
         )}
 
-        {/* Combine (multi-select) toggle */}
-        {onCombineModeToggle && (
-          <button
-            type="button"
-            onClick={onCombineModeToggle}
-            className={cn(
-              'flex items-center gap-1 px-1.5 py-1 text-[10px] rounded border transition-colors',
-              combineMode
-                ? 'bg-primary/10 text-primary border-primary/40'
-                : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-            )}
-            title={combineMode ? 'Exit combine mode' : 'Combine skills'}
-            data-testid="combine-mode-toggle"
-          >
-            <Layers className="h-3 w-3" />
-            <span>Select</span>
-          </button>
-        )}
       </div>
 
       {/* Right: View mode toggle */}

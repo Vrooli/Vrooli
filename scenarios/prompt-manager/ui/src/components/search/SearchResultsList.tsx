@@ -49,10 +49,11 @@ export function SearchResultsList({
 }: SearchResultsListProps) {
   return (
     <ul className="divide-y divide-border">
-      {entityType === 'skills' && discoverMode && discoverResults?.map((result) => (
+      {entityType === 'skills' && discoverMode && discoverResults?.map((result, index) => (
         <ResultRow
           key={result.id}
           id={result.id}
+          rank={index + 1}
           isSelectMode={isSelectMode}
           isSelected={selectedIds.has(result.id)}
           isOverBudget={overBudgetIds?.has(result.id)}
@@ -68,7 +69,8 @@ export function SearchResultsList({
               <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{result.description}</p>
             )}
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
-              <SourceBadge source={result.source} topicId={result.topicId} topicDepth={result.topicDepth} />
+              <SourceBadge source={result.source} topicId={result.topicId} topicName={result.topicName} topicDepth={result.topicDepth} />
+              <CharsBadge chars={result.contentChars} />
               {result.tags.slice(0, 5).map((tag) => (
                 <TagPill key={tag} tag={tag} />
               ))}
@@ -207,8 +209,13 @@ export function SearchResultsList({
 
 // --- Sub-components ---
 
+function formatChars(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`
+}
+
 interface ResultRowProps {
   id: string
+  rank?: number
   isSelectMode: boolean
   isSelected: boolean
   isOverBudget?: boolean
@@ -219,6 +226,7 @@ interface ResultRowProps {
 }
 
 function ResultRow({
+  rank,
   isSelectMode,
   isSelected,
   isOverBudget,
@@ -249,6 +257,11 @@ function ResultRow({
         )}
       >
         <div className="flex items-start justify-between gap-3">
+          {rank != null && (
+            <span className="text-[10px] font-mono text-muted-foreground w-5 text-right flex-shrink-0 pt-0.5">
+              #{rank}
+            </span>
+          )}
           {isSelectMode && (
             <div className="flex-shrink-0 pt-0.5">
               <div
@@ -307,17 +320,35 @@ function ScoreBadge({ scorePercent }: { scorePercent: number }) {
   )
 }
 
-function SourceBadge({ source, topicId, topicDepth }: { source: string; topicId?: string; topicDepth?: number | null }) {
-  if (source === 'topic' && topicId) {
+function SourceBadge({ source, topicId, topicName, topicDepth }: {
+  source: string
+  topicId?: string
+  topicName?: string
+  topicDepth?: number | null
+}) {
+  if (source === 'topic' && (topicName || topicId)) {
+    const label = topicName || topicId
+    const depthTitle = topicDepth != null ? `depth ${topicDepth}` : undefined
     return (
-      <span className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded">
-        via topic: {topicId}{topicDepth != null ? ` (depth ${topicDepth})` : ''}
+      <span
+        className="px-1.5 py-0.5 text-[10px] bg-blue-500/10 text-blue-400 rounded"
+        title={depthTitle}
+      >
+        via {label}
       </span>
     )
   }
   return (
     <span className="px-1.5 py-0.5 text-[10px] bg-muted text-muted-foreground rounded">
       direct match
+    </span>
+  )
+}
+
+function CharsBadge({ chars }: { chars: number }) {
+  return (
+    <span className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
+      {formatChars(chars)} chars
     </span>
   )
 }

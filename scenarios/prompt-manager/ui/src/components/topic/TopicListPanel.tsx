@@ -7,9 +7,10 @@
  * - Skill count badge
  * - Search/filter support
  * - Create and delete actions
+ * - Selection mode with checkboxes
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Plus, Layers, Trash2, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'
@@ -20,6 +21,12 @@ interface TopicListPanelProps {
   /** Filter topics by name */
   searchQuery?: string
   className?: string
+  /** Selection mode: show checkboxes and toggle instead of navigate */
+  isSelectMode?: boolean
+  /** IDs currently selected (for checkbox state) */
+  selectedIds?: Set<string>
+  /** Called when an item is toggled in selection mode */
+  onToggleSelection?: (id: string) => void
 }
 
 /**
@@ -30,6 +37,9 @@ export function TopicListPanel({
   onSelectTopic,
   searchQuery,
   className,
+  isSelectMode,
+  selectedIds,
+  onToggleSelection,
 }: TopicListPanelProps) {
   const { topics, isLoading, isError, createTopic, deleteTopic } = useTopics()
   const [isCreating, setIsCreating] = useState(false)
@@ -68,6 +78,14 @@ export function TopicListPanel({
     e.stopPropagation()
     await deleteTopic(id)
   }
+
+  const handleItemClick = useCallback((id: string) => {
+    if (isSelectMode && onToggleSelection) {
+      onToggleSelection(id)
+    } else {
+      onSelectTopic(id)
+    }
+  }, [isSelectMode, onToggleSelection, onSelectTopic])
 
   if (isLoading) {
     return (
@@ -112,14 +130,35 @@ export function TopicListPanel({
             <button
               key={topic.id}
               type="button"
-              onClick={() => onSelectTopic(topic.id)}
+              onClick={() => handleItemClick(topic.id)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
-                selectedTopicId === topic.id && 'bg-primary/10'
+                !isSelectMode && selectedTopicId === topic.id && 'bg-primary/10',
+                isSelectMode && selectedIds?.has(topic.id) && 'bg-primary/10'
               )}
               data-topic-id={topic.id}
             >
+              {/* Selection checkbox */}
+              {isSelectMode && (
+                <div className="flex-shrink-0">
+                  <div
+                    className={cn(
+                      'h-4 w-4 rounded border transition-colors',
+                      selectedIds?.has(topic.id)
+                        ? 'bg-primary border-primary'
+                        : 'border-border bg-background'
+                    )}
+                  >
+                    {selectedIds?.has(topic.id) && (
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
+                        <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Topic icon */}
               <div className="flex-shrink-0 w-7 h-7 rounded-md bg-muted flex items-center justify-center">
                 {topic.icon ? (
@@ -149,38 +188,42 @@ export function TopicListPanel({
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={(e) => void handleDeleteTopic(e, topic.id)}
-                  className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete topic"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {/* Actions (hidden in select mode) */}
+              {!isSelectMode && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => void handleDeleteTopic(e, topic.id)}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete topic"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </button>
           ))
         )}
       </div>
 
-      {/* Footer - New topic button */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-        <button
-          type="button"
-          onClick={() => void handleCreateTopic()}
-          disabled={isCreating}
-          className={cn(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-            'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors',
-            isCreating && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          <Plus className="h-4 w-4" />
-          New Topic
-        </button>
-      </div>
+      {/* Footer - New topic button (hidden in select mode) */}
+      {!isSelectMode && (
+        <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => void handleCreateTopic()}
+            disabled={isCreating}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+              'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors',
+              isCreating && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            New Topic
+          </button>
+        </div>
+      )}
     </div>
   )
 }

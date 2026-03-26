@@ -1,5 +1,5 @@
 /**
- * Client-side formatting for non-skill entities in the AI search modal.
+ * Client-side formatting for non-skill entities.
  *
  * Skills use the backend POST /skills/read endpoint for combined rendering.
  * Agents, teams, and topics are formatted client-side since they lack
@@ -50,7 +50,7 @@ export function formatAgents(results: AIAgentSearchResult[], format: CombineForm
       }, null, 2)
 
     case 'cli':
-      return results.map((r) => `prompt-manager agent get ${r.id}`).join('\n')
+      return results.map((r) => `prompt-manager agent show ${r.id}`).join('\n')
   }
 }
 
@@ -95,7 +95,7 @@ export function formatTeams(results: AITeamSearchResult[], format: CombineFormat
       }, null, 2)
 
     case 'cli':
-      return results.map((r) => `prompt-manager team get ${r.id}`).join('\n')
+      return results.map((r) => `prompt-manager team show ${r.id}`).join('\n')
   }
 }
 

@@ -202,7 +202,7 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
       <section className="bg-muted/30 rounded-lg p-4">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Execution Details</h4>
         <dl className="grid gap-2.5">
-          {runDetails?.teamId && runDetails?.agentId && (
+          {runDetails?.teamId && runDetails.agentId && (
             <div className="flex items-center gap-3">
               <Users className="h-4 w-4 text-muted-foreground" />
               <dt className="text-xs text-muted-foreground min-w-[72px]">Source</dt>
@@ -210,8 +210,12 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    useSelectionStore.getState().setSelectedTeamId(runDetails.teamId!)
-                    useTeamEditorStore.getState().setSelectedMemberId(runDetails.agentId!)
+                    const teamId = runDetails?.teamId // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- runDetails can be null at click time
+                    const agentId = runDetails?.agentId // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- runDetails can be null at click time
+                    if (teamId && agentId) {
+                      useSelectionStore.getState().setSelectedTeamId(teamId)
+                      useTeamEditorStore.getState().setSelectedMemberId(agentId)
+                    }
                   }}
                   className="text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
                 >

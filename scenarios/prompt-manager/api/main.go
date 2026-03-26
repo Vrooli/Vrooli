@@ -186,6 +186,11 @@ func main() {
 	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
 	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
 
+	// Budget config store
+	budgetConfigStore := aisearch.NewBudgetConfigStore(absStoreDir)
+	aiSearchService.SetBudgetConfig(budgetConfigStore)
+	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
+
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
 
@@ -333,6 +338,10 @@ func main() {
 
 	// Discovery route (unified topic + skill search)
 	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
+
+	// Budget config routes
+	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
+	v1.HandleFunc("/config/budgets", aiSearchHandlers.PutBudgetConfig).Methods("PUT")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")

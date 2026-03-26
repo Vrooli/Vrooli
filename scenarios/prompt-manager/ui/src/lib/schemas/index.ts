@@ -172,6 +172,8 @@ export {
   type BudgetStatus,
   type DiscoverResult,
   type DiscoverResponse,
+  BudgetConfigSchema,
+  type BudgetConfig,
 } from './search.schema'
 
 // Team schemas

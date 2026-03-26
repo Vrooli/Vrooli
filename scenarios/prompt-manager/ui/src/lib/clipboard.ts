@@ -10,7 +10,8 @@
  * document.execCommand('copy') approach on any failure.
  */
 export async function copyToClipboard(text: string): Promise<void> {
-  // Try modern Clipboard API first
+  // Try modern Clipboard API first (runtime check — clipboard may be undefined in non-secure contexts)
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- navigator.clipboard is undefined in non-secure contexts (HTTP)
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text)
@@ -30,6 +31,7 @@ export async function copyToClipboard(text: string): Promise<void> {
   document.body.appendChild(textarea)
   textarea.select()
   try {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- No modern equivalent for this fallback case
     const ok = document.execCommand('copy')
     if (!ok) {
       throw new Error('Copy to clipboard failed')
@@ -55,6 +57,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 export function copyAsyncToClipboard(contentPromise: Promise<string>): Promise<void> {
   // Modern approach: ClipboardItem accepts a Promise<Blob> for deferred content.
   // This must be called synchronously in the click handler (within user activation).
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- navigator.clipboard is undefined in non-secure contexts (HTTP)
   if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
     const blobPromise = contentPromise.then(
       (text) => new Blob([text], { type: 'text/plain' })

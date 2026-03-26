@@ -35,6 +35,9 @@ type Service struct {
 	// Topic support
 	topicVectorStore *VectorStore
 	topicStore       TopicStoreReader
+
+	// Budget configuration
+	budgetConfig BudgetConfigProvider
 }
 
 // AgentStoreReader provides read access to agents for AI search.
@@ -321,6 +324,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 		result DiscoverResult
 	}
 	seen := make(map[string]*skillEntry)
+	topicNames := make(map[string]string) // cache topic ID → name
 	method := "ai"
 
 	// Step 1: Topic search per query
@@ -340,6 +344,13 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 			topicID, _ := tr.Payload["topic_id"].(string)
 			if topicID == "" || s.topicStore == nil {
 				continue
+			}
+
+			// Resolve and cache topic name
+			if _, cached := topicNames[topicID]; !cached {
+				if t, nameErr := s.topicStore.Get(ctx, topicID); nameErr == nil && t != nil {
+					topicNames[topicID] = t.Name
+				}
 			}
 
 			// Get ancestors to compute depth
@@ -364,6 +375,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 						d := topicDepth
 						existing.result.TopicDepth = &d
 						existing.result.TopicID = topicID
+						existing.result.TopicName = topicNames[topicID]
 					}
 					continue
 				}
@@ -386,6 +398,7 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 						Source:       "topic",
 						TopicDepth:   &d,
 						TopicID:      topicID,
+						TopicName:    topicNames[topicID],
 					},
 				}
 
@@ -487,8 +500,16 @@ func (s *Service) Discover(ctx context.Context, queries []string, complexity str
 
 	// Step 5: Budget calculation
 	if complexity != "" {
-		budgetChars, ok := ComplexityBudgets[complexity]
-		if ok {
+		budgetChars := 0
+		if s.budgetConfig != nil {
+			if cfg, cfgErr := s.budgetConfig.Get(ctx); cfgErr == nil {
+				budgetChars, _ = cfg.ForTier(complexity)
+			}
+		}
+		if budgetChars == 0 {
+			budgetChars = ComplexityBudgets[complexity]
+		}
+		if ok := budgetChars > 0; ok {
 			resp.BudgetChars = budgetChars
 			resp.Complexity = complexity
 
@@ -915,6 +936,11 @@ func (s *Service) SetTeamSearch(vectorStore *VectorStore, teamStore TeamStoreRea
 func (s *Service) SetTopicSearch(vectorStore *VectorStore, topicStore TopicStoreReader) {
 	s.topicVectorStore = vectorStore
 	s.topicStore = topicStore
+}
+
+// SetBudgetConfig sets the budget configuration provider.
+func (s *Service) SetBudgetConfig(p BudgetConfigProvider) {
+	s.budgetConfig = p
 }
 
 // SearchAgents performs AI semantic search for agents with fallback to text search.

@@ -1108,7 +1108,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(teamId: string, taskId: string): Promise<void> {
-  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/tasks/${encodeURIComponent(taskId)}`, {
+  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/tasks/${encodeURIComponent(taskId)}`, {
     method: 'DELETE',
   })
 }
@@ -1151,7 +1151,7 @@ export async function updateDecision(
 }
 
 export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
-  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
+  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
     method: 'DELETE',
   })
 }
@@ -1193,7 +1193,7 @@ export async function updateKnowledge(
 }
 
 export async function deleteKnowledge(teamId: string, knowledgeId: string): Promise<void> {
-  await apiRequest<void>(`/teams/${encodeURIComponent(teamId)}/knowledge/${encodeURIComponent(knowledgeId)}`, {
+  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/knowledge/${encodeURIComponent(knowledgeId)}`, {
     method: 'DELETE',
   })
 }

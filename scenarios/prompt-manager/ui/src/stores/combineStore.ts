@@ -38,6 +38,7 @@ interface CombineStore {
 
   // Actions — AI select mode
   enterAISelectMode: (entityType: CombineEntityType) => void
+  setEntityType: (entityType: CombineEntityType) => void
 
   // Actions — shared
   toggleSelection: (id: string) => void
@@ -100,6 +101,10 @@ export const useCombineStore = create<CombineStore>((set, get) => ({
       budgetChars: null,
       budgetStatus: null,
     })
+  },
+
+  setEntityType: (entityType) => {
+    set({ entityType, selectedIds: new Set(), contentCharsMap: new Map() })
   },
 
   toggleSelection: (id) => {

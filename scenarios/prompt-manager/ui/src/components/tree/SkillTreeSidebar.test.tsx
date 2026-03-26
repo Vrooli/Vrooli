@@ -13,6 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
 import type { Skill } from '@/types'
@@ -31,6 +32,8 @@ vi.mock('@/lib/api', () => ({
     aiSearchTeams: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     discover: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     matchTopics: vi.fn().mockResolvedValue([]),
+    getBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
+    setBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
   },
 }))
 
@@ -89,6 +92,16 @@ function createItemNode(id: string, label: string, itemId: string, depth = 0): T
     itemId,
     depth,
   }
+}
+
+/** Render helper that wraps with QueryClientProvider (needed when rendering non-skills tabs) */
+function renderWithQuery(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  )
 }
 
 describe('SkillTreeSidebar', () => {
@@ -627,6 +640,91 @@ describe('SkillTreeSidebar', () => {
 
       // Should show the normal empty state, not AI results
       expect(screen.getByText('No skills yet')).toBeInTheDocument()
+    })
+  })
+
+  describe('select mode', () => {
+    it('should render Select button on skills tab', () => {
+      render(<SkillTreeSidebar {...defaultProps} onEnterCombineMode={vi.fn()} onExitCombineMode={vi.fn()} />)
+
+      expect(screen.getByTestId('combine-mode-toggle')).toBeInTheDocument()
+      expect(screen.getByTestId('combine-mode-toggle')).toHaveTextContent('Select')
+    })
+
+    it('should render Select button on agents tab', () => {
+      renderWithQuery(
+        <SkillTreeSidebar
+          {...defaultProps}
+          initialActiveTab="agents"
+          onEnterCombineMode={vi.fn()}
+          onExitCombineMode={vi.fn()}
+          onEnterSelectMode={vi.fn()}
+        />
+      )
+
+      expect(screen.getByTestId('combine-mode-toggle')).toBeInTheDocument()
+    })
+
+    it('should call onEnterSelectMode with entity type when Select clicked on agents tab', () => {
+      const onEnterSelectMode = vi.fn()
+      renderWithQuery(
+        <SkillTreeSidebar
+          {...defaultProps}
+          initialActiveTab="agents"
+          onEnterCombineMode={vi.fn()}
+          onExitCombineMode={vi.fn()}
+          onEnterSelectMode={onEnterSelectMode}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId('combine-mode-toggle'))
+      expect(onEnterSelectMode).toHaveBeenCalledWith('agents')
+    })
+
+    it('should call onEnterCombineMode when Select clicked on skills tab in quick mode', () => {
+      const onEnterCombineMode = vi.fn()
+      render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          onEnterCombineMode={onEnterCombineMode}
+          onExitCombineMode={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId('combine-mode-toggle'))
+      expect(onEnterCombineMode).toHaveBeenCalled()
+    })
+
+    it('should call onExitCombineMode when Select clicked while in combine mode', () => {
+      const onExitCombineMode = vi.fn()
+      render(
+        <SkillTreeSidebar
+          {...defaultProps}
+          combineMode={true}
+          onEnterCombineMode={vi.fn()}
+          onExitCombineMode={onExitCombineMode}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId('combine-mode-toggle'))
+      expect(onExitCombineMode).toHaveBeenCalled()
+    })
+
+    it('should show CombineActionBar on agents tab when in combine mode', () => {
+      renderWithQuery(
+        <SkillTreeSidebar
+          {...defaultProps}
+          initialActiveTab="agents"
+          combineMode={true}
+          combineEntityType="agents"
+          combineSelectedIds={new Set(['agent-1'])}
+          onCombineFormatChange={vi.fn()}
+          onExitCombineMode={vi.fn()}
+          onCombineCopy={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('1 agent selected')).toBeInTheDocument()
     })
   })
 })

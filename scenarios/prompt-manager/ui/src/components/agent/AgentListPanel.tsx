@@ -23,6 +23,12 @@ interface AgentListPanelProps {
   onCustomizeAgent?: (agentId: string) => void
   /** Called when user requests to preview an agent's prompt via context menu */
   onPreviewPrompt?: (agentId: string) => void
+  /** Selection mode: show checkboxes and toggle instead of navigate */
+  isSelectMode?: boolean
+  /** IDs currently selected (for checkbox state) */
+  selectedIds?: Set<string>
+  /** Called when an item is toggled in selection mode */
+  onToggleSelection?: (id: string) => void
 }
 
 /**
@@ -36,6 +42,9 @@ export function AgentListPanel({
   onDuplicateAgent,
   onCustomizeAgent,
   onPreviewPrompt,
+  isSelectMode,
+  selectedIds,
+  onToggleSelection,
 }: AgentListPanelProps) {
   const { agents, isLoading, isError, createAgent, deleteAgent } = useAgentData()
 
@@ -80,6 +89,14 @@ export function AgentListPanel({
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu(null)
   }, [])
+
+  const handleItemClick = useCallback((id: string) => {
+    if (isSelectMode && onToggleSelection) {
+      onToggleSelection(id)
+    } else {
+      onSelectAgent(id)
+    }
+  }, [isSelectMode, onToggleSelection, onSelectAgent])
 
   if (isLoading) {
     return (
@@ -126,16 +143,37 @@ export function AgentListPanel({
             <button
               key={agent.id}
               type="button"
-              onClick={() => onSelectAgent(agent.id)}
+              onClick={() => handleItemClick(agent.id)}
               onContextMenu={(e) => handleContextMenu(e, agent.id, agent.displayName)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
-                selectedAgentId === agent.id && 'bg-primary/10'
+                !isSelectMode && selectedAgentId === agent.id && 'bg-primary/10',
+                isSelectMode && selectedIds?.has(agent.id) && 'bg-primary/10'
               )}
               data-testid={selectors.agents.row}
               data-agent-id={agent.id}
             >
+              {/* Selection checkbox */}
+              {isSelectMode && (
+                <div className="flex-shrink-0">
+                  <div
+                    className={cn(
+                      'h-4 w-4 rounded border transition-colors',
+                      selectedIds?.has(agent.id)
+                        ? 'bg-primary border-primary'
+                        : 'border-border bg-background'
+                    )}
+                  >
+                    {selectedIds?.has(agent.id) && (
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
+                        <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Agent color badge */}
               <AgentColorBadge appearance={agent.appearance} size="sm" />
 
@@ -146,40 +184,44 @@ export function AgentListPanel({
                 </p>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void handleDeleteAgent(agent.id)
-                  }}
-                  className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete agent"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {/* Actions (hidden in select mode) */}
+              {!isSelectMode && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDeleteAgent(agent.id)
+                    }}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete agent"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </button>
           ))
         )}
       </div>
 
-      {/* Footer - New agent button */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-        <button
-          type="button"
-          onClick={() => void handleCreateAgent()}
-          className={cn(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-            'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
-          )}
-          data-testid={selectors.agents.newButton}
-        >
-          <Plus className="h-4 w-4" />
-          New Agent
-        </button>
-      </div>
+      {/* Footer - New agent button (hidden in select mode) */}
+      {!isSelectMode && (
+        <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => void handleCreateAgent()}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+              'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
+            )}
+            data-testid={selectors.agents.newButton}
+          >
+            <Plus className="h-4 w-4" />
+            New Agent
+          </button>
+        </div>
+      )}
 
       {/* Context menu */}
       {contextMenu && (

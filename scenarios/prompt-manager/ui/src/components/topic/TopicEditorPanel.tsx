@@ -15,6 +15,7 @@ import { X, Save, Trash2, RotateCcw, Layers, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTopics, useTopic } from '@/hooks/useTopicData'
 import { useSkillsData } from '@/hooks/useSkillsData'
+import { SkillPicker } from '@/components/shared/SkillPicker'
 import type { Topic, UpdateTopicRequest } from '@/lib/schemas'
 
 interface TopicEditorPanelProps {
@@ -62,7 +63,6 @@ export function TopicEditorPanel({
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [isDirty, setIsDirty] = useState(false)
   const [showParentDropdown, setShowParentDropdown] = useState(false)
-  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
 
   // Sync form state when topic loads
   useEffect(() => {
@@ -111,14 +111,21 @@ export function TopicEditorPanel({
     }
   }
 
-  const toggleSkill = (skillId: string) => {
+  const selectedSkillSet = useMemo(() => new Set(selectedSkills), [selectedSkills])
+
+  const handleSkillToggle = useCallback((skillId: string) => {
     setSelectedSkills((prev) =>
       prev.includes(skillId)
         ? prev.filter((s) => s !== skillId)
         : [...prev, skillId]
     )
     markDirty()
-  }
+  }, [markDirty])
+
+  const availableTags = useMemo(
+    () => [...new Set(skills.flatMap((s) => s.tags))].sort(),
+    [skills],
+  )
 
   if (isLoadingTopic) {
     return (
@@ -264,9 +271,9 @@ export function TopicEditorPanel({
         </div>
 
         {/* Skills */}
-        <div className="relative">
+        <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Skills ({selectedSkills.length} selected)
+            Skills
           </label>
 
           {/* Selected skill chips */}
@@ -282,7 +289,7 @@ export function TopicEditorPanel({
                     {skill?.name ?? skillId}
                     <button
                       type="button"
-                      onClick={() => toggleSkill(skillId)}
+                      onClick={() => handleSkillToggle(skillId)}
                       className="hover:text-destructive transition-colors"
                     >
                       <X className="h-3 w-3" />
@@ -293,44 +300,12 @@ export function TopicEditorPanel({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => setShowSkillDropdown((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm bg-background border border-border rounded-md hover:border-primary/50 transition-colors"
-          >
-            <span className="text-muted-foreground">Add skills...</span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
-          {showSkillDropdown && (
-            <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-popover border border-border rounded-md shadow-lg">
-              {skills.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-muted-foreground">No skills available</div>
-              ) : (
-                skills.map((skill) => {
-                  const isSelected = selectedSkills.includes(skill.id)
-                  return (
-                    <button
-                      key={skill.id}
-                      type="button"
-                      onClick={() => toggleSkill(skill.id)}
-                      className={cn(
-                        'w-full px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors flex items-center gap-2',
-                        isSelected && 'bg-primary/10'
-                      )}
-                    >
-                      <div className={cn(
-                        'w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center',
-                        isSelected ? 'bg-primary border-primary' : 'border-border'
-                      )}>
-                        {isSelected && <span className="text-primary-foreground text-[9px] font-bold">&#10003;</span>}
-                      </div>
-                      <span className="truncate">{skill.name}</span>
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          )}
+          <SkillPicker
+            skills={skills}
+            selectedIds={selectedSkillSet}
+            onToggle={handleSkillToggle}
+            availableTags={availableTags}
+          />
         </div>
       </div>
 

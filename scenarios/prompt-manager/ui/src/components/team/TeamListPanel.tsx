@@ -19,6 +19,12 @@ interface TeamListPanelProps {
   className?: string
   /** Called when user toggles team enabled/disabled via context menu */
   onToggleTeamEnabled?: (teamId: string) => void
+  /** Selection mode: show checkboxes and toggle instead of navigate */
+  isSelectMode?: boolean
+  /** IDs currently selected (for checkbox state) */
+  selectedIds?: Set<string>
+  /** Called when an item is toggled in selection mode */
+  onToggleSelection?: (id: string) => void
 }
 
 /**
@@ -45,6 +51,9 @@ export function TeamListPanel({
   searchQuery,
   className,
   onToggleTeamEnabled,
+  isSelectMode,
+  selectedIds,
+  onToggleSelection,
 }: TeamListPanelProps) {
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
 
@@ -101,6 +110,14 @@ export function TeamListPanel({
     setContextMenu(null)
   }, [])
 
+  const handleItemClick = useCallback((id: string) => {
+    if (isSelectMode && onToggleSelection) {
+      onToggleSelection(id)
+    } else {
+      onSelectTeam(id)
+    }
+  }, [isSelectMode, onToggleSelection, onSelectTeam])
+
   if (isLoading) {
     return (
       <div className={cn('flex items-center justify-center py-8', className)}>
@@ -146,16 +163,37 @@ export function TeamListPanel({
             <button
               key={team.id}
               type="button"
-              onClick={() => onSelectTeam(team.id)}
+              onClick={() => handleItemClick(team.id)}
               onContextMenu={(e) => handleContextMenu(e, team.id, team.displayName, team.enabled)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
-                selectedTeamId === team.id && 'bg-primary/10'
+                !isSelectMode && selectedTeamId === team.id && 'bg-primary/10',
+                isSelectMode && selectedIds?.has(team.id) && 'bg-primary/10'
               )}
               data-testid={selectors.teams.row}
               data-team-id={team.id}
             >
+              {/* Selection checkbox */}
+              {isSelectMode && (
+                <div className="flex-shrink-0">
+                  <div
+                    className={cn(
+                      'h-4 w-4 rounded border transition-colors',
+                      selectedIds?.has(team.id)
+                        ? 'bg-primary border-primary'
+                        : 'border-border bg-background'
+                    )}
+                  >
+                    {selectedIds?.has(team.id) && (
+                      <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
+                        <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Team icon */}
               <div
                 className={cn(
@@ -188,64 +226,68 @@ export function TeamListPanel({
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void handleExportTeam(team.id, team.displayName)
-                  }}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  title="Export as Claude Code config"
-                  data-testid={selectors.teams.exportButton}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void handleDeleteTeam(team.id)
-                  }}
-                  className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete team"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {/* Actions (hidden in select mode) */}
+              {!isSelectMode && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleExportTeam(team.id, team.displayName)
+                    }}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Export as Claude Code config"
+                    data-testid={selectors.teams.exportButton}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDeleteTeam(team.id)
+                    }}
+                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete team"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </button>
           ))
         )}
       </div>
 
-      {/* Footer - New team + Import buttons */}
-      <div className="flex-shrink-0 px-3 py-3 border-t border-border space-y-2">
-        <button
-          type="button"
-          onClick={() => void handleCreateTeam()}
-          className={cn(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-            'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
-          )}
-          data-testid={selectors.teams.newButton}
-        >
-          <Plus className="h-4 w-4" />
-          New Team
-        </button>
-        <button
-          type="button"
-          onClick={() => setImportModalOpen(true)}
-          className={cn(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-            'border border-border hover:bg-muted text-foreground rounded-lg transition-colors'
-          )}
-          data-testid={selectors.teams.importButton}
-        >
-          <Upload className="h-4 w-4" />
-          Import from Claude Code
-        </button>
-      </div>
+      {/* Footer - New team + Import buttons (hidden in select mode) */}
+      {!isSelectMode && (
+        <div className="flex-shrink-0 px-3 py-3 border-t border-border space-y-2">
+          <button
+            type="button"
+            onClick={() => void handleCreateTeam()}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+              'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
+            )}
+            data-testid={selectors.teams.newButton}
+          >
+            <Plus className="h-4 w-4" />
+            New Team
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportModalOpen(true)}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+              'border border-border hover:bg-muted text-foreground rounded-lg transition-colors'
+            )}
+            data-testid={selectors.teams.importButton}
+          >
+            <Upload className="h-4 w-4" />
+            Import from Claude Code
+          </button>
+        </div>
+      )}
 
       {/* Import modal */}
       <CCTeamImportModal

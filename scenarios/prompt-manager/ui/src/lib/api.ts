@@ -61,6 +61,7 @@ import {
   AIAgentSearchResponseSchema,
   AITeamSearchResponseSchema,
   DiscoverResponseSchema,
+  BudgetConfigSchema,
   LinkPreviewDataSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -124,6 +125,7 @@ import {
   type AIAgentSearchResponse,
   type AITeamSearchResponse,
   type DiscoverResponse,
+  type BudgetConfig,
   type LinkPreviewData,
   type FolderType,
   type Team,
@@ -543,6 +545,22 @@ class ApiClient {
         body: JSON.stringify({ queries, complexity, limit }),
       },
       DiscoverResponseSchema
+    )
+  }
+
+  // Budget configuration
+  async getBudgetConfig(): Promise<BudgetConfig> {
+    return this.request<BudgetConfig>('/config/budgets', undefined, BudgetConfigSchema)
+  }
+
+  async setBudgetConfig(config: BudgetConfig): Promise<BudgetConfig> {
+    return this.request<BudgetConfig>(
+      '/config/budgets',
+      {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      },
+      BudgetConfigSchema
     )
   }
 

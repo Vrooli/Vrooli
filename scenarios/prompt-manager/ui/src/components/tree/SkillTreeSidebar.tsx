@@ -20,8 +20,8 @@ import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { Agent } from '@/types/agent'
-import type { CombineFormat } from '@/stores/combineStore'
-import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse } from '@/lib/schemas'
+import { useCombineStore, type CombineFormat } from '@/stores/combineStore'
+import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
@@ -324,14 +324,17 @@ interface SkillTreeSidebarProps {
   onMoveToFolder: (skillId: string, path: string[]) => void
   onChangeStorage: (skillId: string, folder: FolderType) => void
   onCreateNewFolder: (skillId: string) => void
-  // Combine mode props
+  // Combine / select mode props
   combineMode?: boolean
   combineSelectedIds?: Set<string>
   combineFormat?: CombineFormat
+  combineEntityType?: CombineEntityType
   onCombineFormatChange?: (format: CombineFormat) => void
   onCombineToggle?: (node: TreeNode) => void
   onEnterCombineMode?: () => void
   onExitCombineMode?: () => void
+  /** Enter select mode for a specific entity type (used for non-skills tabs and AI mode) */
+  onEnterSelectMode?: (entityType: CombineEntityType) => void
   onCombineCopy?: () => void
   isCombineCopying?: boolean
   combineCopySuccess?: boolean
@@ -440,10 +443,12 @@ export function SkillTreeSidebar({
   combineMode = false,
   combineSelectedIds = EMPTY_SET,
   combineFormat = 'xml',
+  combineEntityType = 'skills',
   onCombineFormatChange,
   onCombineToggle,
   onEnterCombineMode,
   onExitCombineMode,
+  onEnterSelectMode,
   onCombineCopy,
   isCombineCopying = false,
   combineCopySuccess = false,
@@ -548,7 +553,14 @@ export function SkillTreeSidebar({
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab)
     onActiveTabChange?.(tab)
-  }, [onActiveTabChange])
+    // Keep combineEntityType in sync when switching tabs while in select mode
+    if (combineMode) {
+      const entityType = TAB_TO_ENTITY_TYPE[tab]
+      if (entityType) {
+        useCombineStore.getState().setEntityType(entityType)
+      }
+    }
+  }, [onActiveTabChange, combineMode])
 
   // Folder context menu state
   const [folderContextMenu, setFolderContextMenu] = useState<{
@@ -578,7 +590,62 @@ export function SkillTreeSidebar({
   const [discoverResults, setDiscoverResults] = useState<DiscoverResponse | null>(null)
   const [useDiscover, setUseDiscover] = useState(true)
   const [complexity, setComplexity] = useState<string | undefined>(undefined)
+  const [budgetConfig, setBudgetConfig] = useState<BudgetConfig | null>(null)
+
+  // Reactive selected content chars for budget gauge in selection mode
+  const combineContentCharsMap = useCombineStore((s) => s.contentCharsMap)
+  const selectedContentChars = useMemo(() => {
+    if (!combineMode) return undefined
+    let total = 0
+    for (const id of combineSelectedIds) {
+      total += combineContentCharsMap.get(id) ?? 0
+    }
+    return total
+  }, [combineMode, combineSelectedIds, combineContentCharsMap])
   const [aiDebouncedQuery, setAIDebouncedQuery] = useState('')
+
+  // Toggle select/combine mode for the current tab
+  const handleSelectModeToggle = useCallback(() => {
+    if (combineMode) {
+      onExitCombineMode?.()
+    } else {
+      const entityType = TAB_TO_ENTITY_TYPE[activeTab]
+      if (!entityType) return
+      if (activeTab === 'skills' && searchMode !== 'ai') {
+        onEnterCombineMode?.()
+      } else {
+        onEnterSelectMode?.(entityType)
+
+        // Auto-select discover results when entering selection mode on skills tab
+        if (activeTab === 'skills' && useDiscover && discoverResults?.results?.length) {
+          const results = discoverResults.results
+          const budget = discoverResults.budgetChars
+
+          let idsToSelect: string[]
+          const charsEntries: Array<[string, number]> = results.map((r) => [r.id, r.contentChars])
+
+          if (complexity && budget) {
+            // With complexity: select only what fits within budget
+            idsToSelect = []
+            let cumulative = 0
+            for (const r of results) {
+              if (cumulative + r.contentChars > budget) break
+              cumulative += r.contentChars
+              idsToSelect.push(r.id)
+            }
+          } else {
+            // No complexity: select all
+            idsToSelect = results.map((r) => r.id)
+          }
+
+          // Schedule after enterAISelectMode completes (it resets selection)
+          requestAnimationFrame(() => {
+            useCombineStore.getState().selectMultiple(idsToSelect, charsEntries)
+          })
+        }
+      }
+    }
+  }, [combineMode, activeTab, searchMode, onExitCombineMode, onEnterCombineMode, onEnterSelectMode, useDiscover, discoverResults, complexity])
 
   // Content search state
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
@@ -753,6 +820,11 @@ export function SkillTreeSidebar({
     return () => clearTimeout(timer)
   }, [currentSearchQuery, searchMode])
 
+  // Load budget config on mount
+  useEffect(() => {
+    api.getBudgetConfig().then(setBudgetConfig).catch(() => {})
+  }, [])
+
   // AI search: clear results when switching away from AI mode
   useEffect(() => {
     if (searchMode !== 'ai') {
@@ -837,16 +909,27 @@ export function SkillTreeSidebar({
     return ids.size > 0 ? ids : undefined
   }, [discoverResults])
 
+  // Sync discover results contentChars into combineStore so budget gauge works in selection mode
+  useEffect(() => {
+    if (!discoverResults?.results?.length) return
+    const entries: Array<[string, number]> = discoverResults.results.map((r) => [r.id, r.contentChars])
+    // selectMultiple with empty ids array just populates the contentCharsMap
+    useCombineStore.getState().selectMultiple([], entries)
+  }, [discoverResults])
+
   // Helper: navigate to entity from AI results
   const handleAIResultNavigate = useCallback((id: string) => {
     if (activeTab === 'skills') {
       onSelectItem(id)
     } else if (activeTab === 'agents') {
-      onSelectAgentFromMenu?.(id) ?? setSelectedAgentId(id)
+      if (onSelectAgentFromMenu) onSelectAgentFromMenu(id)
+      else setSelectedAgentId(id)
     } else if (activeTab === 'teams') {
-      onSelectTeamFromMenu?.(id) ?? setSelectedTeamId(id)
+      if (onSelectTeamFromMenu) onSelectTeamFromMenu(id)
+      else setSelectedTeamId(id)
     } else if (activeTab === 'topics') {
-      onSelectTopicFromMenu?.(id) ?? setSelectedTopicId(id)
+      if (onSelectTopicFromMenu) onSelectTopicFromMenu(id)
+      else setSelectedTopicId(id)
     }
   }, [activeTab, onSelectItem, onSelectAgentFromMenu, setSelectedAgentId, onSelectTeamFromMenu, setSelectedTeamId, onSelectTopicFromMenu, setSelectedTopicId])
 
@@ -1098,52 +1181,74 @@ export function SkillTreeSidebar({
             />
           </div>
 
-          {/* Search mode toggle: Quick [+ Content] [+ AI] based on tab features */}
-          {(tabFeatures?.contentSearch || tabFeatures?.aiSearch) && (
-            <div className="flex items-center gap-1 mt-2">
-              <button
-                type="button"
-                onClick={() => onSearchModeChange('quick')}
-                className={cn(
-                  'px-2 py-1 text-[10px] rounded border transition-colors',
-                  searchMode === 'quick'
-                    ? 'bg-primary/10 text-primary border-primary/40'
-                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+          {/* Search mode toggle + Select button */}
+          {(tabFeatures?.contentSearch || tabFeatures?.aiSearch || activeTab in TAB_TO_ENTITY_TYPE) && (
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-1">
+                {(tabFeatures?.contentSearch || tabFeatures?.aiSearch) && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchModeChange('quick')}
+                    className={cn(
+                      'px-2 py-1 text-[10px] rounded border transition-colors',
+                      searchMode === 'quick'
+                        ? 'bg-primary/10 text-primary border-primary/40'
+                        : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    Quick
+                  </button>
                 )}
-              >
-                Quick
-              </button>
-              {tabFeatures?.contentSearch && (
+                {tabFeatures?.contentSearch && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchModeChange('content')}
+                    className={cn(
+                      'px-2 py-1 text-[10px] rounded border transition-colors',
+                      searchMode === 'content'
+                        ? 'bg-primary/10 text-primary border-primary/40'
+                        : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    Content
+                  </button>
+                )}
+                {tabFeatures?.aiSearch && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchModeChange('ai')}
+                    disabled={!aiSearchAvailable}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
+                      searchMode === 'ai'
+                        ? 'bg-primary/10 text-primary border-primary/40'
+                        : aiSearchAvailable
+                          ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                          : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
+                    )}
+                    title={aiSearchAvailable ? 'AI semantic search' : 'AI search unavailable (Ollama not running)'}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    AI
+                  </button>
+                )}
+              </div>
+              {/* Select (combine) toggle — available on all entity tabs */}
+              {activeTab in TAB_TO_ENTITY_TYPE && (onEnterCombineMode || onEnterSelectMode) && (
                 <button
                   type="button"
-                  onClick={() => onSearchModeChange('content')}
+                  onClick={handleSelectModeToggle}
                   className={cn(
-                    'px-2 py-1 text-[10px] rounded border transition-colors',
-                    searchMode === 'content'
+                    'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
+                    combineMode
                       ? 'bg-primary/10 text-primary border-primary/40'
                       : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
                   )}
+                  title={combineMode ? 'Exit select mode' : 'Select items to copy'}
+                  data-testid="combine-mode-toggle"
                 >
-                  Content
-                </button>
-              )}
-              {tabFeatures?.aiSearch && (
-                <button
-                  type="button"
-                  onClick={() => onSearchModeChange('ai')}
-                  disabled={!aiSearchAvailable}
-                  className={cn(
-                    'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
-                    searchMode === 'ai'
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : aiSearchAvailable
-                        ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                        : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
-                  )}
-                  title={aiSearchAvailable ? 'AI semantic search' : 'AI search unavailable (Ollama not running)'}
-                >
-                  <Sparkles className="h-3 w-3" />
-                  AI
+                  <Layers className="h-3 w-3" />
+                  Select
                 </button>
               )}
             </div>
@@ -1160,7 +1265,11 @@ export function SkillTreeSidebar({
                 budgetChars={discoverResults?.budgetChars}
                 budgetStatus={discoverResults?.budgetStatus}
                 totalContentChars={discoverResults?.totalContentChars}
-                selectedContentChars={combineMode ? undefined : undefined}
+                selectedContentChars={selectedContentChars}
+                budgetConfig={budgetConfig}
+                onBudgetConfigSave={(config) => {
+                  api.setBudgetConfig(config).then(setBudgetConfig).catch(() => {})
+                }}
               />
             </div>
           )}
@@ -1233,14 +1342,6 @@ export function SkillTreeSidebar({
                 onDetailModeChange={onDetailModeChange}
                 availableTags={availableTags}
                 availableFolders={availableFolders}
-                combineMode={combineMode}
-                onCombineModeToggle={onEnterCombineMode ? () => {
-                  if (combineMode) {
-                    onExitCombineMode?.()
-                  } else {
-                    onEnterCombineMode()
-                  }
-                } : undefined}
                 className="mt-2"
               />
               {!isFilterEmpty(filterState) && (
@@ -1299,9 +1400,9 @@ export function SkillTreeSidebar({
 
                   return (
                     <>
-                      {method && method !== 'ai' && (
+                      {method === 'text' && (
                         <div className="mb-2 px-2 py-1 text-[10px] bg-yellow-500/10 text-yellow-500 rounded">
-                          {method === 'text' ? 'Using text fallback (AI unavailable)' : 'Mixed AI + text results'}
+                          Using text fallback (AI unavailable)
                         </div>
                       )}
 
@@ -1556,7 +1657,7 @@ export function SkillTreeSidebar({
 
           {/* Footer - Context dependent */}
           <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-            {combineMode && onCombineCopy && onExitCombineMode && onCombineFormatChange ? (
+            {combineMode && combineEntityType === 'skills' && onCombineCopy && onExitCombineMode && onCombineFormatChange ? (
               <CombineActionBar
                 selectedCount={combineSelectedIds.size}
                 format={combineFormat}
@@ -1565,6 +1666,7 @@ export function SkillTreeSidebar({
                 onCancel={onExitCombineMode}
                 isCopying={isCombineCopying}
                 copySuccess={combineCopySuccess}
+                entityLabel="skill"
               />
             ) : (
               <button
@@ -1628,7 +1730,25 @@ export function SkillTreeSidebar({
               onCustomizeAgent={onCustomizeAgent}
               onPreviewPrompt={onPreviewPrompt}
               className="flex-1"
+              isSelectMode={combineMode && combineEntityType === 'agents'}
+              selectedIds={combineSelectedIds}
+              onToggleSelection={(id) => handleAIResultToggle(id)}
             />
+          )}
+          {/* Footer for agents */}
+          {combineMode && combineEntityType === 'agents' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+            <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+              <CombineActionBar
+                selectedCount={combineSelectedIds.size}
+                format={combineFormat}
+                onFormatChange={onCombineFormatChange}
+                onCopy={onCombineCopy}
+                onCancel={onExitCombineMode}
+                isCopying={isCombineCopying}
+                copySuccess={combineCopySuccess}
+                entityLabel="agent"
+              />
+            </div>
           )}
         </Tabs.Content>
 
@@ -1674,7 +1794,25 @@ export function SkillTreeSidebar({
               searchQuery={teamSearchQuery}
               onToggleTeamEnabled={onToggleTeamEnabled}
               className="flex-1"
+              isSelectMode={combineMode && combineEntityType === 'teams'}
+              selectedIds={combineSelectedIds}
+              onToggleSelection={(id) => handleAIResultToggle(id)}
             />
+          )}
+          {/* Footer for teams */}
+          {combineMode && combineEntityType === 'teams' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+            <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+              <CombineActionBar
+                selectedCount={combineSelectedIds.size}
+                format={combineFormat}
+                onFormatChange={onCombineFormatChange}
+                onCopy={onCombineCopy}
+                onCancel={onExitCombineMode}
+                isCopying={isCombineCopying}
+                copySuccess={combineCopySuccess}
+                entityLabel="team"
+              />
+            </div>
           )}
         </Tabs.Content>
 
@@ -1764,6 +1902,9 @@ export function SkillTreeSidebar({
                   onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
                   searchQuery={topicSearchQuery}
                   className="flex-1"
+                  isSelectMode={combineMode && combineEntityType === 'topics'}
+                  selectedIds={combineSelectedIds}
+                  onToggleSelection={(id) => handleAIResultToggle(id)}
                 />
               ) : (
                 <TopicTreeView
@@ -1774,6 +1915,21 @@ export function SkillTreeSidebar({
                 />
               )}
             </>
+          )}
+          {/* Footer for topics */}
+          {combineMode && combineEntityType === 'topics' && onCombineCopy && onExitCombineMode && onCombineFormatChange && (
+            <div className="flex-shrink-0 px-3 py-3 border-t border-border">
+              <CombineActionBar
+                selectedCount={combineSelectedIds.size}
+                format={combineFormat}
+                onFormatChange={onCombineFormatChange}
+                onCopy={onCombineCopy}
+                onCancel={onExitCombineMode}
+                isCopying={isCombineCopying}
+                copySuccess={combineCopySuccess}
+                entityLabel="topic"
+              />
+            </div>
           )}
         </Tabs.Content>
       </Tabs.Root>

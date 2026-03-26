@@ -154,6 +154,7 @@ type DiscoverResult struct {
 	Source       string   `json:"source"`               // "topic" or "search"
 	TopicDepth   *int     `json:"topicDepth,omitempty"` // 0=root, 1=child, etc.
 	TopicID      string   `json:"topicId,omitempty"`    // which topic sourced this skill
+	TopicName    string   `json:"topicName,omitempty"`  // resolved topic name for display
 	ContentChars int      `json:"contentChars"`
 }
 

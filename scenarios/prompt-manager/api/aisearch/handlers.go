@@ -9,12 +9,18 @@ import (
 
 // Handlers provides HTTP handlers for AI search operations.
 type Handlers struct {
-	service *Service
+	service           *Service
+	budgetConfigStore *BudgetConfigStore
 }
 
 // NewHandlers creates new AI search handlers.
 func NewHandlers(service *Service) *Handlers {
 	return &Handlers{service: service}
+}
+
+// SetBudgetConfigStore sets the budget config store for config endpoints.
+func (h *Handlers) SetBudgetConfigStore(store *BudgetConfigStore) {
+	h.budgetConfigStore = store
 }
 
 // Search handles POST /api/v1/search/ai - AI semantic search.
@@ -209,4 +215,46 @@ func (h *Handlers) Discover(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// GetBudgetConfig handles GET /api/v1/config/budgets.
+func (h *Handlers) GetBudgetConfig(w http.ResponseWriter, r *http.Request) {
+	if h.budgetConfigStore == nil {
+		http.Error(w, "budget config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	cfg, err := h.budgetConfigStore.Get(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
+}
+
+// PutBudgetConfig handles PUT /api/v1/config/budgets.
+func (h *Handlers) PutBudgetConfig(w http.ResponseWriter, r *http.Request) {
+	if h.budgetConfigStore == nil {
+		http.Error(w, "budget config store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	var cfg BudgetConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := ValidateBudgetConfig(cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.budgetConfigStore.Put(r.Context(), cfg); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
 }

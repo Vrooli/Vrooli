@@ -50,6 +50,7 @@ import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
+import { formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree } from '@/services/treeService'
@@ -266,22 +267,26 @@ export function SkillManagerLayout() {
   // Combine store
   const {
     combineMode,
+    combineEntityType,
     combineSelectedIds,
     combineFormat,
     isCombineCopying,
     enterCombineMode,
     exitCombineMode,
+    enterAISelectMode,
     toggleCombineSkillSelection,
     toggleCombineMultipleSkills,
     setCombineFormat,
     setIsCombineCopying,
   } = useCombineStore(useShallow((state) => ({
     combineMode: state.isActive,
+    combineEntityType: state.entityType,
     combineSelectedIds: state.selectedIds,
     combineFormat: state.format,
     isCombineCopying: state.isCopying,
     enterCombineMode: state.enterCombineMode,
     exitCombineMode: state.exitCombineMode,
+    enterAISelectMode: state.enterAISelectMode,
     toggleCombineSkillSelection: state.toggleSelection,
     toggleCombineMultipleSkills: state.toggleMultiple,
     setCombineFormat: state.setFormat,
@@ -313,8 +318,57 @@ export function SkillManagerLayout() {
     setCombineCopySuccess(false)
 
     const identifiers = Array.from(combineSelectedIds)
-    const contentPromise = api.displaySkills(identifiers, combineFormat)
-      .then((response) => response.combined)
+    const entityLabel = combineEntityType === 'skills' ? 'skill'
+      : combineEntityType === 'agents' ? 'agent'
+      : combineEntityType === 'teams' ? 'team'
+      : 'topic'
+
+    // Build content promise based on entity type
+    let contentPromise: Promise<string>
+    if (combineEntityType === 'skills') {
+      contentPromise = api.displaySkills(identifiers, combineFormat)
+        .then((response) => response.combined)
+    } else if (combineEntityType === 'agents') {
+      // Need to look up the full result objects for formatting
+      const results = identifiers.map((id) => {
+        const agent = agents.find((a) => a.id === id)
+        return agent ? {
+          id: agent.id,
+          displayName: agent.displayName,
+          description: agent.description ?? '',
+          status: agent.status,
+          tags: agent.tags,
+          score: 0,
+          scorePercent: 0,
+        } : null
+      }).filter((r): r is NonNullable<typeof r> => r !== null)
+      contentPromise = Promise.resolve(formatAgents(results, combineFormat))
+    } else if (combineEntityType === 'teams') {
+      // Teams are fetched by the TeamListPanel — we need to get them from the API
+      contentPromise = api.getTeams().then((teams) => {
+        const selected = teams.filter((t) => combineSelectedIds.has(t.id))
+        const results = selected.map((t) => ({
+          id: t.id,
+          displayName: t.displayName,
+          mission: t.mission ?? '',
+          enabled: t.enabled,
+          memberCount: t.memberCount,
+          score: 0,
+          scorePercent: 0,
+        }))
+        return formatTeams(results, combineFormat)
+      })
+    } else {
+      // Topics
+      contentPromise = api.getTopics().then((topics) => {
+        const selected = topics.filter((t) => combineSelectedIds.has(t.id))
+        const results = selected.map((t) => ({
+          topic: t,
+          score: 0,
+        }))
+        return formatTopics(results, combineFormat)
+      })
+    }
 
     // IMPORTANT: copyAsyncToClipboard must be called synchronously in the click
     // handler (within user activation). It uses ClipboardItem with a Promise<Blob>
@@ -324,22 +378,22 @@ export function SkillManagerLayout() {
         setCombineCopySuccess(true)
         toast({
           title: 'Copied to clipboard',
-          description: `${identifiers.length} skill${identifiers.length !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,
+          description: `${identifiers.length} ${entityLabel}${identifiers.length !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,
         })
         setTimeout(() => setCombineCopySuccess(false), 2000)
       })
       .catch((error: unknown) => {
-        console.error('Failed to copy combined skills:', error)
+        console.error(`Failed to copy combined ${combineEntityType}:`, error)
         toast({
           title: 'Copy failed',
-          description: 'Failed to combine and copy skills',
+          description: `Failed to combine and copy ${combineEntityType}`,
           variant: 'destructive',
         })
       })
       .finally(() => {
         setIsCombineCopying(false)
       })
-  }, [combineSelectedIds, combineFormat, setIsCombineCopying])
+  }, [combineSelectedIds, combineFormat, combineEntityType, setIsCombineCopying, agents])
 
   // Skill editor state
   const {
@@ -1295,6 +1349,8 @@ export function SkillManagerLayout() {
         onCombineToggle={handleCombineCheckboxChange}
         onEnterCombineMode={enterCombineMode}
         onExitCombineMode={exitCombineMode}
+        onEnterSelectMode={enterAISelectMode}
+        combineEntityType={combineEntityType}
         onCombineCopy={() => { handleCombineCopy() }}
         isCombineCopying={isCombineCopying}
         combineCopySuccess={combineCopySuccess}
@@ -1624,6 +1680,8 @@ export function SkillManagerLayout() {
                 onCombineToggle={handleCombineCheckboxChange}
                 onEnterCombineMode={enterCombineMode}
                 onExitCombineMode={exitCombineMode}
+                onEnterSelectMode={enterAISelectMode}
+                combineEntityType={combineEntityType}
                 onCombineCopy={() => { handleCombineCopy() }}
                 isCombineCopying={isCombineCopying}
                 combineCopySuccess={combineCopySuccess}

@@ -49,6 +49,8 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `AgentSoulReader` | `aisearch` | SOUL.md content for agent embeddings |
 | `TeamStoreReader` | `aisearch` | Read-only team access for AI indexing |
 | `TeamRelReader` | `aisearch` | Team member relations for team embeddings |
+| `TopicStoreReader` | `aisearch` | Read-only topic access for discover pipeline |
+| `BudgetConfigProvider` | `aisearch` | Budget tier config for discover budgeting |
 
 ### Search Service Seams
 
@@ -483,6 +485,28 @@ type codeDetector interface {
 ### Index Persistence Seam
 
 `GraphIndexStore` accepts a `storeDir` parameter. Tests point at a temp directory, isolating index file I/O from the real store.
+
+---
+
+## Budget Config
+
+The discover system uses a `BudgetConfigProvider` interface (`aisearch/budget_config.go`)
+to decouple budget lookup from file I/O:
+
+```go
+type BudgetConfigProvider interface {
+    Get(ctx context.Context) (BudgetConfig, error)
+}
+```
+
+**Production:** `BudgetConfigStore` reads/writes `store/config/budgets.json` with
+`sync.RWMutex` protection. Falls back to `DefaultBudgetConfig()` when no file exists.
+
+**Testing:** `MockBudgetConfigProvider` returns custom budget values, allowing Discover()
+tests to verify budget calculation with arbitrary tier configs without touching the filesystem.
+
+**Handlers:** `GetBudgetConfig`/`PutBudgetConfig` on `aisearch.Handlers` follow the same
+pattern as `graph.Handlers.GetHealthConfig`/`PutHealthConfig`.
 
 ---
 

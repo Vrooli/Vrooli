@@ -70,7 +70,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('Failed to copy skills:', error)
       })
   }
@@ -162,7 +162,7 @@ export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPane
 
           <Button
             size="sm"
-            onClick={() => void handleCopy()}
+            onClick={() => { handleCopy() }}
             disabled={!validation.valid}
             className="gap-1.5"
           >

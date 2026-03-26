@@ -317,6 +317,7 @@ export const DiscoverResultSchema = z.object({
   source: DiscoverSourceSchema,
   topicDepth: z.number().nullable().optional(),
   topicId: z.string().optional().default(''),
+  topicName: z.string().optional().default(''),
   contentChars: z.number(),
 })
 
@@ -339,3 +340,17 @@ export const DiscoverResponseSchema = z.object({
 })
 
 export type DiscoverResponse = z.infer<typeof DiscoverResponseSchema>
+
+// --- Budget configuration ---
+
+/**
+ * Budget configuration for complexity tiers (character budgets).
+ */
+export const BudgetConfigSchema = z.object({
+  minor: z.number(),
+  moderate: z.number(),
+  major: z.number(),
+  architectural: z.number(),
+})
+
+export type BudgetConfig = z.infer<typeof BudgetConfigSchema>

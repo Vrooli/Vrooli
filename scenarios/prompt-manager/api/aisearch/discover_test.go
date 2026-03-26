@@ -456,6 +456,19 @@ func TestDiscover_FullPipeline_TopicAndSkillResults(t *testing.T) {
 		t.Errorf("expected budgetStatus 'under' (small test content), got %q", resp.BudgetStatus)
 	}
 
+	// --- Verify TopicName is populated on topic-sourced results ---
+	for _, r := range resp.Results {
+		if r.Source == "topic" && r.TopicName == "" {
+			t.Errorf("topic-sourced result %q has empty TopicName", r.ID)
+		}
+	}
+	// The coaching topic should be named "Coaching"
+	for _, r := range resp.Results {
+		if r.TopicID == "coaching" && r.TopicName != "Coaching" {
+			t.Errorf("result %q TopicName = %q, want 'Coaching'", r.ID, r.TopicName)
+		}
+	}
+
 	// --- Verify dedup: api-steer from topics should not duplicate in search results ---
 	apiSteerCount := 0
 	for _, r := range resp.Results {
@@ -610,6 +623,75 @@ func TestDiscover_Deduplication_TopicWinsOverSearch(t *testing.T) {
 	}
 	if len(resp.Results) > 0 && resp.Results[0].Source != "topic" {
 		t.Errorf("expected source 'topic' (topic wins over search), got %q", resp.Results[0].Source)
+	}
+}
+
+func TestDiscover_WithCustomBudgetConfig(t *testing.T) {
+	mockSkills := NewMockSkillStore()
+	content2k := strings.Repeat("x", 2000)
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID: "skill-a", Name: "Skill A", Description: "A",
+		File: "skill-a.md", Tags: []string{}, Modes: []string{},
+	}, content2k)
+	mockSkills.AddSkill("core", skills.Metadata{
+		ID: "skill-b", Name: "Skill B", Description: "B",
+		File: "skill-b.md", Tags: []string{}, Modes: []string{},
+	}, content2k)
+
+	embedder, closeEmbed := newTestEmbedder(t)
+	defer closeEmbed()
+
+	skillVS, closeSkillVS := newTestVectorStore(t, "prompt-manager-skills", []searchResultFixture{
+		{ID: "uuid-a", Score: 0.9, Payload: map[string]interface{}{
+			"skill_id": "skill-a", "name": "Skill A", "description": "A",
+			"folder": "core", "tags": []interface{}{}, "modes": []interface{}{},
+		}},
+		{ID: "uuid-b", Score: 0.8, Payload: map[string]interface{}{
+			"skill_id": "skill-b", "name": "Skill B", "description": "B",
+			"folder": "core", "tags": []interface{}{}, "modes": []interface{}{},
+		}},
+	})
+	defer closeSkillVS()
+
+	// Custom budget: minor = 3000 (only 1 skill fits at 2000 chars each)
+	mockBudget := &MockBudgetConfigProvider{
+		cfg: BudgetConfig{Minor: 3000, Moderate: 6000, Major: 10000, Architectural: 20000},
+	}
+
+	svc := &Service{
+		embedder:      embedder,
+		vectorStore:   skillVS,
+		skillStore:    mockSkills,
+		searchService: search.NewService(mockSkills),
+		threshold:     0.5,
+		budgetConfig:  mockBudget,
+		reindex:       &reindexState{},
+	}
+
+	resp, err := svc.Discover(context.Background(), []string{"test"}, "minor", 10)
+	if err != nil {
+		t.Fatalf("Discover failed: %v", err)
+	}
+
+	// Budget should use custom value (3000), not default (4000)
+	if resp.BudgetChars != 3000 {
+		t.Errorf("BudgetChars = %d, want 3000 (custom)", resp.BudgetChars)
+	}
+
+	// 2 skills x 2000 = 4000 > 3000 → over budget
+	if resp.BudgetStatus != "over" {
+		t.Errorf("BudgetStatus = %q, want 'over'", resp.BudgetStatus)
+	}
+
+	// RecommendedReadCommand should only include skill-a (2000 <= 3000, but 4000 > 3000)
+	if resp.RecommendedReadCommand == "" {
+		t.Fatal("expected non-empty RecommendedReadCommand")
+	}
+	if !strings.Contains(resp.RecommendedReadCommand, "skill-a") {
+		t.Error("RecommendedReadCommand should include skill-a")
+	}
+	if strings.Contains(resp.RecommendedReadCommand, "skill-b") {
+		t.Error("RecommendedReadCommand should not include skill-b (over budget)")
 	}
 }
 

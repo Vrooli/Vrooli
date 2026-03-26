@@ -156,13 +156,15 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
       }
 
       // Start drilldown with the first parent
-      const firstParent = parentsWithChildren[0]!
+      const firstParent = parentsWithChildren[0]
+      if (firstParent === undefined) return
       const firstTopic = topics.find((t) => t.id === firstParent)
       const children = childrenOf(firstParent)
 
       // Auto-select and skip if only one child
-      if (children.length === 1) {
-        setSelectedTopicIds((prev) => new Set([...prev, children[0]!.id]))
+      const onlyChild = children.length === 1 ? children[0] : undefined
+      if (onlyChild) {
+        setSelectedTopicIds((prev) => new Set([...prev, onlyChild.id]))
         // Continue to next parent or review
         const remaining = parentsWithChildren.slice(1)
         if (remaining.length === 0) {
@@ -170,7 +172,8 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
           return
         }
         setDrilldownQueue(remaining.slice(1))
-        const next = remaining[0]!
+        const next = remaining[0]
+        if (next === undefined) return
         const nextTopic = topics.find((t) => t.id === next)
         setDrilldownParentId(next)
         setDrilldownBreadcrumbs([{ id: next, name: nextTopic?.name ?? next }])
@@ -185,13 +188,15 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
     } else if (step === 'drilldown') {
       // Move to next parent in queue or go to review
       if (drilldownQueue.length > 0) {
-        const nextParent = drilldownQueue[0]!
+        const nextParent = drilldownQueue[0]
+        if (nextParent === undefined) return
         const nextTopic = topics.find((t) => t.id === nextParent)
         const children = childrenOf(nextParent)
 
         // Auto-select and skip single child
-        if (children.length === 1) {
-          setSelectedTopicIds((prev) => new Set([...prev, children[0]!.id]))
+        const singleChild = children.length === 1 ? children[0] : undefined
+        if (singleChild) {
+          setSelectedTopicIds((prev) => new Set([...prev, singleChild.id]))
           setDrilldownQueue((prev) => prev.slice(1))
           if (drilldownQueue.length <= 1) {
             setStep('review')
@@ -213,7 +218,8 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
       if (drilldownBreadcrumbs.length > 1) {
         // Go back one level in the breadcrumb
         const newBreadcrumbs = drilldownBreadcrumbs.slice(0, -1)
-        const parent = newBreadcrumbs[newBreadcrumbs.length - 1]!
+        const parent = newBreadcrumbs[newBreadcrumbs.length - 1]
+        if (parent === undefined) return
         setDrilldownBreadcrumbs(newBreadcrumbs)
         setDrilldownParentId(parent.id)
       } else {
@@ -250,8 +256,9 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
       }
 
       // Auto-select and skip single child
-      if (children.length === 1) {
-        setSelectedTopicIds((prev) => new Set([...prev, children[0]!.id]))
+      const onlyChild = children.length === 1 ? children[0] : undefined
+      if (onlyChild) {
+        setSelectedTopicIds((prev) => new Set([...prev, onlyChild.id]))
         return
       }
 
@@ -271,7 +278,7 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
 
     const selectedIds = Array.from(selectedTopicIds)
 
-    Promise.all(
+    void Promise.all(
       selectedIds.map((id) =>
         getAccumulatedSkills(id).catch(() => ({ topicId: id, ancestry: [], skills: [] })),
       ),
@@ -279,9 +286,7 @@ export function TopicSelectionWizard({ onClose, className }: TopicSelectionWizar
       if (cancelled) return
       const allSkills = new Set<string>()
       for (const r of results) {
-        if (r) {
-          for (const s of r.skills) allSkills.add(s)
-        }
+        for (const s of r.skills) allSkills.add(s)
       }
       setAccumulatedSkillIds(Array.from(allSkills))
       setIsLoadingSkills(false)
@@ -726,7 +731,8 @@ function getAllDescendants(topicId: string, topics: Topic[]): string[] {
   const result: string[] = []
   const queue = [topicId]
   while (queue.length > 0) {
-    const current = queue.shift()!
+    const current = queue.shift()
+    if (current === undefined) continue
     const children = topics.filter((t) => t.parentTopicId === current)
     for (const child of children) {
       result.push(child.id)

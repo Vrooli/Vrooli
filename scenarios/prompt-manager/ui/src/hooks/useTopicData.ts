@@ -130,7 +130,7 @@ export function useTopic(id: string | null): UseTopicReturn {
     error,
   } = useQuery({
     queryKey: QUERY_KEYS.topic(id ?? ''),
-    queryFn: () => topicService.getTopic(id!),
+    queryFn: () => topicService.getTopic(id ?? ''),
     enabled: !!id,
     staleTime: 5000,
   })

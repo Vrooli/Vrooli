@@ -36,9 +36,11 @@ function buildTree(topics: Topic[]): TopicTreeNode[] {
 
   // Build parent-child relationships
   for (const topic of topics) {
-    const node = topicMap.get(topic.id)!
+    const node = topicMap.get(topic.id)
+    if (!node) continue
     if (topic.parentTopicId && topicMap.has(topic.parentTopicId)) {
-      topicMap.get(topic.parentTopicId)!.children.push(node)
+      const parentNode = topicMap.get(topic.parentTopicId)
+      if (parentNode) parentNode.children.push(node)
     } else {
       roots.push(node)
     }
