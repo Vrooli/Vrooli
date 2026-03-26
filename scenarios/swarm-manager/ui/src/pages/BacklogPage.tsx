@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useUrlState } from "../hooks/use-url-state";
-import { Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
+import { Archive, Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -35,7 +35,7 @@ import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.cons
 import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { formatRelativeTime, getBacklogNotQueueableReason, isBacklogQueueable } from "../lib";
+import { formatRelativeTime, getBacklogNotQueueableReason, hasBlockingDeps, isBacklogQueueable } from "../lib";
 import { buildReadinessData } from "../lib/maturity";
 import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService } from "../services";
@@ -60,9 +60,9 @@ import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
 import { AgentRunningBadge } from "../components/backlog/agent-running-badge";
-import { InlineQuestionStepper } from "../components/backlog/inline-question-stepper";
+import { InlineQuestionStepper, type StepperCompletionResult } from "../components/backlog/inline-question-stepper";
 import { buildFeed, countActionableItems, type FeedbackItem, type MaturityItem } from "../lib/feed";
-import { useBacklogStore, useCaptureStore } from "../stores";
+import { useAgentRunsStore, useBacklogStore, useCaptureStore } from "../stores";
 import type { BacklogFormValues, PendingQuestion } from "../types";
 
 type SortField = "priority" | "updated" | "status" | "title";
@@ -107,7 +107,7 @@ const isSortField = (v: string): v is SortField => VALID_SORT_FIELDS.has(v);
 const VALID_STATUSES = new Set<string>(["", "backlog", "researching", "ready", "queued", "in_progress", "failed", "completed", "archived"]);
 const isBacklogStatusOrEmpty = (v: string): v is BacklogStatus | "" => VALID_STATUSES.has(v);
 
-const FINISHED_STATUSES: BacklogStatus[] = ["completed", "failed", "archived"];
+const FINISHED_STATUSES: BacklogStatus[] = ["archived"];
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -219,8 +219,22 @@ export function BacklogPage() {
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [completedSteppers, setCompletedSteppers] = useState<Set<string>>(() => new Set());
+  /** Items whose stepper just completed — kept visible with a transition message before feed refresh. */
+  const [transitionItems, setTransitionItems] = useState<Map<string, StepperCompletionResult>>(() => new Map());
   const [searchFocused, setSearchFocused] = useState(false);
   const queryClient = useQueryClient();
+  const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
+  const agentRuns = useAgentRunsStore((state) => state.runs);
+  const activeRunKeys = useMemo(() => {
+    const ACTIVE = new Set(["pending", "starting", "running", "needs_review"]);
+    const keys = new Set<string>();
+    for (const run of agentRuns) {
+      if (run.backlogKind && run.backlogName && ACTIVE.has(run.status)) {
+        keys.add(`${run.backlogKind}/${run.backlogName}`);
+      }
+    }
+    return keys;
+  }, [agentRuns]);
   const items = useBacklogStore((state) => state.items);
   const status = useBacklogStore((state) => state.status);
   const error = useBacklogStore((state) => state.error);
@@ -304,6 +318,44 @@ export function BacklogPage() {
       setShowCreate(false);
     },
   });
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ kind, name: itemName, item }: { kind: BacklogKind; name: string; item: BacklogItem }) =>
+      backlogService.update(kind, itemName, { ...item, status: "archived" }),
+    onSuccess: () => {
+      void fetchBacklog({ force: true });
+    },
+  });
+
+  /** Trigger a workshop round directly from a card. */
+  const [workshopError, setWorkshopError] = useState<string | null>(null);
+  const workshopMutation = useMutation({
+    mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
+      backlogService.research(kind, itemName, {
+        mode: "workshop",
+        prompt: "Run the next workshop round for this backlog item.",
+      }),
+    onSuccess: (result, variables) => {
+      setWorkshopError(null);
+      if (result.runId) {
+        upsertSpawnedRun({
+          runId: result.runId,
+          taskId: result.taskId ?? "",
+          baseUrl: result.baseUrl ?? "",
+          backlogKind: variables.kind,
+          backlogName: variables.name,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+    },
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : "Failed to start workshop round";
+      setWorkshopError(msg);
+      // Auto-clear error after 8 seconds
+      setTimeout(() => setWorkshopError(null), 8000);
+    },
+  });
   const openFeedbackHub = (tab: "review" | "export" | "import", names?: string[]) => {
     setFeedbackHubInitialTab(tab);
     setFeedbackHubSelectedNames(names);
@@ -376,8 +428,8 @@ export function BacklogPage() {
 
   const activeTab = BACKLOG_KIND_TABS.find((tab) => tab.kind === activeKind) ?? BACKLOG_KIND_TABS[0];
   const queueableFilteredItems = useMemo(
-    () => filteredItems.filter((item) => isBacklogQueueable(item)),
-    [filteredItems]
+    () => filteredItems.filter((item) => isBacklogQueueable(item) && !hasBlockingDeps(item, items)),
+    [filteredItems, items]
   );
   const queueableFilteredKeySet = useMemo(
     () => new Set(queueableFilteredItems.map((item) => `${item.kind}/${item.name}`)),
@@ -585,7 +637,7 @@ export function BacklogPage() {
                             className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/30"
                             data-testid={selectors.backlog.showFinishedToggle}
                           />
-                          Show {stats.finishedCount} finished
+                          Show {stats.finishedCount} archived
                         </label>
                       )}
                     </div>
@@ -714,6 +766,14 @@ export function BacklogPage() {
           </Card>
         )}
 
+        {/* Workshop mutation error banner */}
+        {workshopError && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+            <X className="h-4 w-4 shrink-0 cursor-pointer hover:text-red-200" onClick={() => setWorkshopError(null)} />
+            {workshopError}
+          </div>
+        )}
+
         {/* Unified feed rendering for "All" tab (captures + backlog items interleaved) */}
         {activeKind === "all" && feedItems.length > 0 && !searchTerm && !statusFilter && (
           <ResponsiveList data-testid={selectors.backlog.grid}>
@@ -739,6 +799,7 @@ export function BacklogPage() {
               const itemKey = `${item.kind}/${item.name}`;
               const pendingQuestions = pendingQuestionsMap.get(itemKey);
               const hasActiveStepper = (pendingQuestions?.length ?? 0) > 0 && !completedSteppers.has(itemKey);
+              const transitionResult = transitionItems.get(itemKey);
               return (
                 <ResponsiveListItem
                   as={Link}
@@ -758,6 +819,7 @@ export function BacklogPage() {
                       <span className="text-xs uppercase tracking-wider text-slate-400">
                         {formatBacklogStatus(item.status)}
                       </span>
+                      <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
                       <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
                     </div>
                     <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
@@ -774,15 +836,61 @@ export function BacklogPage() {
                       questions={pendingQuestions as PendingQuestion[]}
                       backlogKind={item.kind as BacklogKind}
                       backlogName={item.name}
-                      onAllAnswered={() => {
+                      onAllAnswered={(result) => {
                         setCompletedSteppers((prev) => {
                           const next = new Set(prev);
                           next.add(itemKey);
                           return next;
                         });
-                        void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+                        // Track spawned agent run so AgentRunningBadge updates.
+                        if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
+                          upsertSpawnedRun({
+                            runId: result.autoAdvance.runId,
+                            taskId: result.autoAdvance.taskId ?? "",
+                            baseUrl: "",
+                            backlogKind: item.kind as BacklogKind,
+                            backlogName: item.name,
+                            backlogTitle: item.title,
+                            createdAt: new Date().toISOString(),
+                          });
+                        }
+                        // Show a transition message on the card before refreshing the feed.
+                        setTransitionItems((prev) => {
+                          const next = new Map(prev);
+                          next.set(itemKey, result);
+                          return next;
+                        });
+                        // Delay feed refresh so the card stays visible with feedback.
+                        setTimeout(() => {
+                          setTransitionItems((prev) => {
+                            const next = new Map(prev);
+                            next.delete(itemKey);
+                            return next;
+                          });
+                          void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+                        }, 4000);
                       }}
                     />
+                  ) : transitionResult ? (
+                    /* Brief transition message after stepper completes */
+                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
+                      {transitionResult.autoAdvance?.triggered ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                          Generating next workshop round...
+                        </>
+                      ) : transitionResult.autoAdvance?.reason === "ready" ? (
+                        <>
+                          <CheckSquare className="h-4 w-4 shrink-0 text-emerald-400" />
+                          <span className="text-emerald-300">All decisions answered — item is ready!</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="h-4 w-4 shrink-0" />
+                          All decisions answered
+                        </>
+                      )}
+                    </div>
                   ) : (
                     /* Normal card content */
                     <>
@@ -791,11 +899,10 @@ export function BacklogPage() {
                           <PendingDecisionBadge reasons={reasons} />
                         </div>
                       )}
-                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0) || (item.acceptanceAllow && item.acceptanceAllow.length > 0)) && (
+                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           <InitiativeBadge initiative={item.initiative} />
                           <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
-                          <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
                         </div>
                       )}
                       <TagList
@@ -811,18 +918,57 @@ export function BacklogPage() {
                         <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                         <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                       </div>
-                      {isBacklogQueueable(item) && (
+                      {isBacklogQueueable(item) && !hasBlockingDeps(item, items) && (() => {
+                        const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
+                        const needsWorkshop = mat && !mat.ready;
+                        const agentBusy = activeRunKeys.has(itemKey);
+                        return (
+                          <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                            {needsWorkshop ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={agentBusy || workshopMutation.isPending}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name });
+                                }}
+                              >
+                                <MessageSquareText className="mr-1 h-3 w-3" />
+                                {agentBusy ? "Agent running..." : workshopMutation.isPending ? "Starting..." : "Workshop"}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                disabled={agentBusy}
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                                }}
+                              >
+                                <Play className="mr-1 h-3 w-3" />
+                                {agentBusy ? "Agent running..." : "Run"}
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {item.status === "completed" && (
                         <div className="mt-3" onClick={(event) => event.preventDefault()}>
                           <Button
                             size="sm"
+                            variant="outline"
+                            disabled={archiveMutation.isPending}
                             onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
-                              setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                              archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item });
                             }}
                           >
-                            <Play className="mr-1 h-3 w-3" />
-                            Run
+                            <Archive className="mr-1 h-3 w-3" />
+                            {archiveMutation.isPending ? "Archiving..." : "Archive"}
                           </Button>
                         </div>
                       )}
@@ -904,7 +1050,7 @@ export function BacklogPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      {batchMode && isBacklogQueueable(item) ? (
+                      {batchMode && isBacklogQueueable(item) && !hasBlockingDeps(item, items) ? (
                         <input
                           type="checkbox"
                           aria-label={`Select backlog item ${item.title}`}
@@ -922,6 +1068,7 @@ export function BacklogPage() {
                       <span className="text-xs uppercase tracking-wider text-slate-400">
                         {formatBacklogStatus(item.status)}
                       </span>
+                      <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
                       <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
                     </div>
                     <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
@@ -949,25 +1096,64 @@ export function BacklogPage() {
                     <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>
-                  {isBacklogQueueable(item) && (
+                  {isBacklogQueueable(item) && !hasBlockingDeps(item, items) && (() => {
+                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
+                    const needsWorkshop = mat && !mat.ready;
+                    const agentBusy = activeRunKeys.has(`${item.kind}/${item.name}`);
+                    return (
+                      <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                        {needsWorkshop ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={agentBusy || workshopMutation.isPending}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name });
+                            }}
+                          >
+                            <MessageSquareText className="mr-1 h-3 w-3" />
+                            {agentBusy ? "Agent running..." : workshopMutation.isPending ? "Starting..." : "Workshop"}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={agentBusy}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                            }}
+                          >
+                            <Play className="mr-1 h-3 w-3" />
+                            {agentBusy ? "Agent running..." : "Run"}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {item.status === "completed" && (
                     <div className="mt-3" onClick={(event) => event.preventDefault()}>
                       <Button
                         size="sm"
+                        variant="outline"
+                        disabled={archiveMutation.isPending}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
+                          archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item });
                         }}
                       >
-                        <Play className="mr-1 h-3 w-3" />
-                        Run
+                        <Archive className="mr-1 h-3 w-3" />
+                        {archiveMutation.isPending ? "Archiving..." : "Archive"}
                       </Button>
                     </div>
                   )}
-                  {!isBacklogQueueable(item) ? (
+                  {!isBacklogQueueable(item) && item.status !== "completed" ? (
                     <p className="mt-3 text-xs text-slate-500">
-                      {item.status === "completed" || item.status === "failed"
-                        ? `${item.status === "completed" ? "Completed" : "Failed"} — open to follow up or review.`
+                      {item.status === "failed"
+                        ? "Failed — open to follow up or review."
                         : getBacklogNotQueueableReason(item)}
                     </p>
                   ) : null}

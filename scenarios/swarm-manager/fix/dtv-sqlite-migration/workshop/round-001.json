@@ -15,9 +15,21 @@
       "topic": "Acceptance file paths",
       "context": "The spec.json has no `acceptance_allow` patterns set. The work clearly targets the DTV scenario — we need acceptance patterns so the sandbox and post-execution review know which files are expected to change.",
       "options": [
-        {"key": "A", "label": "scenarios/development-toolchain-validator/**", "rationale": "Broad — all changes are within this scenario directory. The api/, initialization/, and .vrooli/ subdirectories are all under this root."},
-        {"key": "B", "label": "Targeted subdirectories only", "rationale": "Narrower globs like scenarios/development-toolchain-validator/api/infrastructure/**, scenarios/development-toolchain-validator/api/main.go, etc."},
-        {"key": "C", "label": "Other", "rationale": "Provide custom acceptance patterns"}
+        {
+          "key": "A",
+          "label": "scenarios/development-toolchain-validator/**",
+          "rationale": "Broad — all changes are within this scenario directory. The api/, initialization/, and .vrooli/ subdirectories are all under this root."
+        },
+        {
+          "key": "B",
+          "label": "Targeted subdirectories only",
+          "rationale": "Narrower globs like scenarios/development-toolchain-validator/api/infrastructure/**, scenarios/development-toolchain-validator/api/main.go, etc."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide custom acceptance patterns"
+        }
       ],
       "selected": "A",
       "freeform": null,
@@ -29,11 +41,24 @@
       "topic": "SQLite connection strategy",
       "context": "api-core provides two patterns for SQLite: (1) `database.Connect()` with `DriverSQLite` which reads `SQLITE_PATH`/`SQLITE_DB` env vars, or (2) using the storage resolver to compute a `ClassData` path and opening the connection directly. The agent-manager uses a custom fallback chain. The system-monitor uses the storage resolver pattern. Recommendation: Use the storage resolver (option B) — it provides scenario-isolated paths automatically and doesn't require env var setup.",
       "options": [
-        {"key": "A", "label": "api-core database.Connect()", "rationale": "Unified interface, but requires SQLITE_PATH env var to be set externally. Less self-contained."},
-        {"key": "B", "label": "Storage resolver + direct open", "rationale": "Computes path automatically via ClassData. Self-contained — no env var configuration needed. Matches system-monitor pattern.", "recommended": true},
-        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "api-core database.Connect()",
+          "rationale": "Unified interface, but requires SQLITE_PATH env var to be set externally. Less self-contained."
+        },
+        {
+          "key": "B",
+          "label": "Storage resolver + direct open",
+          "rationale": "Computes path automatically via ClassData. Self-contained — no env var configuration needed. Matches system-monitor pattern.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
       "notes": null
     },
@@ -43,11 +68,24 @@
       "topic": "Validation runs and results tables",
       "context": "The PostgreSQL schema has 7 tables. Tables 1-4 (reference_scenarios, skill_connections, structural_expectations, cli_assertions) map directly to the 4 repository interfaces. Tables 5-7 (validation_runs, structural_results, cli_results) are for validation history — but there are NO domain interfaces for these tables yet. The spec says to implement repos for the 4 existing interfaces only. Should we include schema for the history tables (5-7) even though no repo interfaces exist, or only create tables that have corresponding interfaces?",
       "options": [
-        {"key": "A", "label": "All 7 tables in schema, repos for 4 interfaces only", "rationale": "Future-proofs the schema. History tables are referenced by FKs and will be needed when validation execution is built. No extra code — just SQL DDL.", "recommended": true},
-        {"key": "B", "label": "Only 4 tables that have interfaces", "rationale": "Strict YAGNI — only build what's needed now. Add history tables when validation execution is implemented."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "All 7 tables in schema, repos for 4 interfaces only",
+          "rationale": "Future-proofs the schema. History tables are referenced by FKs and will be needed when validation execution is built. No extra code — just SQL DDL.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only 4 tables that have interfaces",
+          "rationale": "Strict YAGNI — only build what's needed now. Add history tables when validation execution is implemented."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },

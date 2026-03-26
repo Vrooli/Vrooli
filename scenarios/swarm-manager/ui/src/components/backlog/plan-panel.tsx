@@ -1,11 +1,10 @@
 /**
- * PromptTracePanel Component
+ * PlanPanel Component
  *
- * Displays the generated prompt trace for a backlog item with:
+ * Displays the backlog item's plan.md content with:
  * - Rendered markdown view (default)
  * - Raw Monaco editor for editing
  * - Save-to-API for persisting edits
- * - Metadata bar (skill_id, captured_at, used_fallback)
  * - Copy-to-clipboard
  */
 
@@ -17,25 +16,26 @@ import {
   Code,
   Copy,
   Eye,
+  FileText,
   Loader2,
   Save,
-  Sparkles,
-  TriangleAlert,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { defaultQueryOptions, formatRelativeTime, useResolvedTheme } from "../../lib";
+import { defaultQueryOptions, useResolvedTheme } from "../../lib";
 import { renderMarkdown } from "../../lib/render-markdown";
-import { promptService } from "../../services";
-import type { BacklogKind, PromptTrace } from "../../types";
+import { backlogService } from "../../services";
+import type { BacklogKind } from "../../types";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
 
-export interface PromptTracePanelProps {
+export interface PlanPanelProps {
   backlogKind: BacklogKind;
   backlogName: string;
   className?: string;
 }
+
+const PLAN_FILE_PATH = "plan.md";
 
 const EDITOR_OPTIONS = {
   minimap: { enabled: false },
@@ -60,69 +60,62 @@ const EDITOR_OPTIONS = {
   automaticLayout: true,
 } as const;
 
-export function PromptTracePanel({ backlogKind, backlogName, className }: PromptTracePanelProps) {
+export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProps) {
   const queryClient = useQueryClient();
   const resolvedTheme = useResolvedTheme();
 
   const [viewMode, setViewMode] = useState<"rendered" | "raw">("rendered");
-  const [draftPrompt, setDraftPrompt] = useState("");
+  const [draftContent, setDraftContent] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
 
-  const queryKey = ["backlog-prompt-trace", backlogKind, backlogName];
+  const queryKey = ["backlog-plan-content", backlogKind, backlogName];
 
   const {
-    data: trace,
+    data: planContent,
     isLoading,
     error,
     refetch,
-  } = useQuery<PromptTrace>({
+  } = useQuery<string>({
     queryKey,
-    queryFn: () => promptService.getBacklogPromptTrace(backlogKind, backlogName),
+    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, PLAN_FILE_PATH),
     ...defaultQueryOptions,
   });
 
-  // Sync draft when trace loads or changes
   useEffect(() => {
-    if (trace) {
-      setDraftPrompt(trace.prompt);
+    if (planContent !== undefined) {
+      setDraftContent(planContent);
     }
-  }, [trace]);
+  }, [planContent]);
 
-  const isDirty = trace ? draftPrompt !== trace.prompt : false;
+  const isDirty = planContent !== undefined ? draftContent !== planContent : false;
 
   const saveMutation = useMutation({
-    mutationFn: (updatedPrompt: string) => {
-      if (!trace) throw new Error("No trace to update");
-      return promptService.updateBacklogPromptTrace(backlogKind, backlogName, {
-        ...trace,
-        prompt: updatedPrompt,
-      });
-    },
+    mutationFn: (content: string) =>
+      backlogService.saveFileContent(backlogKind, backlogName, PLAN_FILE_PATH, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const handleCopy = useCallback(async () => {
-    if (!trace) return;
-    await navigator.clipboard.writeText(trace.prompt);
+    if (planContent === undefined) return;
+    await navigator.clipboard.writeText(draftContent);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
-  }, [trace]);
+  }, [planContent, draftContent]);
 
   const handleSave = useCallback(() => {
     if (isDirty) {
-      saveMutation.mutate(draftPrompt);
+      saveMutation.mutate(draftContent);
     }
-  }, [isDirty, draftPrompt, saveMutation]);
+  }, [isDirty, draftContent, saveMutation]);
 
   const handleDiscard = useCallback(() => {
-    if (trace) {
-      setDraftPrompt(trace.prompt);
+    if (planContent !== undefined) {
+      setDraftContent(planContent);
     }
-  }, [trace]);
+  }, [planContent]);
 
-  // Detect 404 (no trace yet)
   const is404 = error && (error as Error).message?.includes("not found");
 
   if (isLoading) {
@@ -133,15 +126,15 @@ export function PromptTracePanel({ backlogKind, backlogName, className }: Prompt
     );
   }
 
-  if (is404 || (!isLoading && !error && !trace)) {
+  if (is404 || (!isLoading && !error && planContent === undefined)) {
     return (
       <div
         className={cn("flex flex-col items-center justify-center gap-3 py-20 text-center", className)}
         data-testid={selectors.backlogDetails.promptPanel}
       >
-        <Sparkles className="h-10 w-10 text-slate-600" />
-        <p className="text-sm font-medium text-slate-400">No prompt trace yet</p>
-        <p className="text-xs text-slate-500">Run a workshop session to generate a prompt trace.</p>
+        <FileText className="h-10 w-10 text-slate-600" />
+        <p className="text-sm font-medium text-slate-400">No plan yet</p>
+        <p className="text-xs text-slate-500">Run a workshop session to generate a plan.</p>
       </div>
     );
   }
@@ -154,29 +147,13 @@ export function PromptTracePanel({ backlogKind, backlogName, className }: Prompt
     );
   }
 
-  if (!trace) return null;
+  if (planContent === undefined) return null;
 
   return (
     <div
       className={cn("flex flex-col", className)}
       data-testid={selectors.backlogDetails.promptPanel}
     >
-      {/* Metadata bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-4 py-2.5">
-        <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-300">
-          {trace.skill_id}
-        </span>
-        <span className="text-xs text-slate-500">
-          {formatRelativeTime(trace.captured_at)}
-        </span>
-        {trace.used_fallback && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
-            <TriangleAlert className="h-3 w-3" />
-            Fallback
-          </span>
-        )}
-      </div>
-
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 border-b border-slate-800 px-4 py-2">
         <Button
@@ -241,7 +218,7 @@ export function PromptTracePanel({ backlogKind, backlogName, className }: Prompt
           size="sm"
           className="h-8 px-2.5 text-xs"
           onClick={handleCopy}
-          aria-label="Copy prompt"
+          aria-label="Copy plan"
         >
           {copySuccess ? (
             <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
@@ -255,7 +232,7 @@ export function PromptTracePanel({ backlogKind, backlogName, className }: Prompt
       {/* Save feedback */}
       {saveMutation.isSuccess && (
         <div className="border-b border-green-500/20 bg-green-500/10 px-4 py-1.5 text-xs text-green-400">
-          Prompt trace saved.
+          Plan saved.
         </div>
       )}
       {saveMutation.isError && (
@@ -269,15 +246,15 @@ export function PromptTracePanel({ backlogKind, backlogName, className }: Prompt
         {viewMode === "rendered" ? (
           <div
             className="px-4 py-4"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(trace.prompt) }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(planContent) }}
           />
         ) : (
           <Editor
             height="100%"
             language="markdown"
             theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-            value={draftPrompt}
-            onChange={(value) => setDraftPrompt(value ?? "")}
+            value={draftContent}
+            onChange={(value) => setDraftContent(value ?? "")}
             options={EDITOR_OPTIONS}
             loading={
               <div className="flex items-center justify-center py-20">

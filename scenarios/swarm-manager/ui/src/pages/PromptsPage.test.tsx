@@ -14,7 +14,6 @@ vi.mock("../services", () => ({
     preview: vi.fn(),
     simulate: vi.fn(),
     getExecutionPromptTrace: vi.fn(),
-    getBacklogPromptTrace: vi.fn(),
   },
 }));
 

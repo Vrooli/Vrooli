@@ -15,10 +15,26 @@
       "topic": "Acceptance file paths",
       "context": "The dashboard would be a new page within the swarm-manager UI, which already has an overview API endpoint and tabbed navigation. No acceptance_allow patterns were set on the spec. The swarm-manager is the natural home since the overview data (backlog stats, initiatives, dependency graph) is its domain.",
       "options": [
-        {"key": "A", "label": "scenarios/swarm-manager/ui/src/**", "rationale": "Most natural fit — overview API already exists, UI already has tabbed layout, all backlog/initiative/execution data is here. Only UI files change."},
-        {"key": "B", "label": "scenarios/swarm-manager/**", "rationale": "Broader scope — allows for API changes too if needed (e.g., adding fields to overview response)."},
-        {"key": "C", "label": "Targeted subdirectories only", "rationale": "Restrict to specific subdirectories for tighter change boundaries."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own acceptance_allow patterns"}
+        {
+          "key": "A",
+          "label": "scenarios/swarm-manager/ui/src/**",
+          "rationale": "Most natural fit — overview API already exists, UI already has tabbed layout, all backlog/initiative/execution data is here. Only UI files change."
+        },
+        {
+          "key": "B",
+          "label": "scenarios/swarm-manager/**",
+          "rationale": "Broader scope — allows for API changes too if needed (e.g., adding fields to overview response)."
+        },
+        {
+          "key": "C",
+          "label": "Targeted subdirectories only",
+          "rationale": "Restrict to specific subdirectories for tighter change boundaries."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own acceptance_allow patterns"
+        }
       ],
       "selected": "A",
       "freeform": null,
@@ -30,10 +46,26 @@
       "topic": "Dashboard widget composition",
       "context": "The overview API returns: summary stats (total items, by-status, by-kind, active initiatives), initiative rollups, and dependency graph (edges, blocked, unblocked). Execution data is available from separate endpoints. The question is which widgets to include in v1 vs defer.",
       "options": [
-        {"key": "A", "label": "Minimal: summary stat cards + blocked items only", "rationale": "Fastest to ship. Answers 'what needs attention?' without complexity. Can expand later."},
-        {"key": "B", "label": "Standard: stats + blocked items + initiative progress + recent activity", "rationale": "Covers the main use cases (status, blockers, progress, activity). Moderate effort, good value."},
-        {"key": "C", "label": "Full: Standard + dependency graph visualization + scenario health", "rationale": "Most comprehensive. Dependency graph viz adds significant complexity (layout algorithms, interactive nodes). May be premature for v1."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own widget set"}
+        {
+          "key": "A",
+          "label": "Minimal: summary stat cards + blocked items only",
+          "rationale": "Fastest to ship. Answers 'what needs attention?' without complexity. Can expand later."
+        },
+        {
+          "key": "B",
+          "label": "Standard: stats + blocked items + initiative progress + recent activity",
+          "rationale": "Covers the main use cases (status, blockers, progress, activity). Moderate effort, good value."
+        },
+        {
+          "key": "C",
+          "label": "Full: Standard + dependency graph visualization + scenario health",
+          "rationale": "Most comprehensive. Dependency graph viz adds significant complexity (layout algorithms, interactive nodes). May be premature for v1."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own widget set"
+        }
       ],
       "selected": "B",
       "freeform": null,
@@ -45,14 +77,30 @@
       "topic": "Navigation integration — adding a 6th tab",
       "context": "The swarm-manager UI currently has 5 tabs: Backlog, Scenarios, Execution, Prompts, Settings. Adding Dashboard as a 6th tab (first position) changes the navigation layout. On mobile with bottom-nav, 6 tabs may be tight.",
       "options": [
-        {"key": "A", "label": "Add Dashboard as 6th tab (first position), icon-only on mobile", "rationale": "Clean separation. Dashboard gets its own tab. Use icons on mobile to save space."},
-        {"key": "B", "label": "Replace the index redirect — Dashboard is the Backlog page's default sub-view", "rationale": "No new tab needed. Dashboard becomes a 'summary' view within Backlog. But conflates two concepts."},
-        {"key": "C", "label": "Add Dashboard tab, merge Prompts into Settings to keep 5 tabs", "rationale": "Keeps tab count at 5. But Prompts may be too different from Settings to merge cleanly."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Add Dashboard as 6th tab (first position), icon-only on mobile",
+          "rationale": "Clean separation. Dashboard gets its own tab. Use icons on mobile to save space."
+        },
+        {
+          "key": "B",
+          "label": "Replace the index redirect — Dashboard is the Backlog page's default sub-view",
+          "rationale": "No new tab needed. Dashboard becomes a 'summary' view within Backlog. But conflates two concepts."
+        },
+        {
+          "key": "C",
+          "label": "Add Dashboard tab, merge Prompts into Settings to keep 5 tabs",
+          "rationale": "Keeps tab count at 5. But Prompts may be too different from Settings to merge cleanly."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "C",
       "freeform": null,
-      "notes": "No pre-selection — this is a UX decision that benefits from user input. Option A is the most straightforward but option C is worth considering if tab crowding is a concern."
+      "notes": null
     },
     {
       "id": "d4",
@@ -60,10 +108,26 @@
       "topic": "Data refresh strategy",
       "context": "The dashboard shows point-in-time data. Operators may leave it open as a monitoring view. Options range from manual refresh to polling to server-sent events.",
       "options": [
-        {"key": "A", "label": "Fetch on mount only (manual refresh via browser)", "rationale": "Simplest. No polling overhead. Users can refresh the page. Good for v1."},
-        {"key": "B", "label": "Auto-poll every 60 seconds with manual refresh button", "rationale": "Good UX for a monitoring view. Moderate complexity. Configurable interval via Settings."},
-        {"key": "C", "label": "Server-Sent Events for real-time updates", "rationale": "Best UX but requires new backend infrastructure (SSE endpoint). Over-engineered for v1."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Fetch on mount only (manual refresh via browser)",
+          "rationale": "Simplest. No polling overhead. Users can refresh the page. Good for v1."
+        },
+        {
+          "key": "B",
+          "label": "Auto-poll every 60 seconds with manual refresh button",
+          "rationale": "Good UX for a monitoring view. Moderate complexity. Configurable interval via Settings."
+        },
+        {
+          "key": "C",
+          "label": "Server-Sent Events for real-time updates",
+          "rationale": "Best UX but requires new backend infrastructure (SSE endpoint). Over-engineered for v1."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
       "selected": "B",
       "freeform": null,
@@ -75,9 +139,21 @@
       "topic": "Acceptance file paths — what files should this work modify?",
       "context": "Since acceptance_allow patterns should target swarm-manager, we need to define which file paths are expected to change. This is a UI-only change with no new backend endpoints.",
       "options": [
-        {"key": "A", "label": "Targeted: scenarios/swarm-manager/ui/src/**", "rationale": "Only UI files change. New page, new components, route update, nav update."},
-        {"key": "B", "label": "Broader: scenarios/swarm-manager/**", "rationale": "Allows for API changes too if needed (e.g., adding fields to overview response)."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own path set"}
+        {
+          "key": "A",
+          "label": "Targeted: scenarios/swarm-manager/ui/src/**",
+          "rationale": "Only UI files change. New page, new components, route update, nav update."
+        },
+        {
+          "key": "B",
+          "label": "Broader: scenarios/swarm-manager/**",
+          "rationale": "Allows for API changes too if needed (e.g., adding fields to overview response)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own path set"
+        }
       ],
       "selected": "A",
       "freeform": null,

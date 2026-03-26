@@ -1,0 +1,120 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-26T14:30:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Tool baselines: what is a baseline and how is it stored?",
+      "context": "The --tool-baselines report needs to compare current CLI assertion results against stored baselines. The spec mentions three tools: scenario-auditor, test-genie, and scenario-completeness-scoring. A baseline is a snapshot of CLI assertion results at a known-good point in time. We need to define what the schema looks like and how baselines are created vs queried.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-connection baseline snapshots",
+          "rationale": "Store one baseline row per (connection_id, tool_name) with a JSON blob of assertion results and a timestamp. Creating a baseline snapshots all current CLI results for that connection. The report re-runs assertions and diffs against the stored blob. Simple schema, flexible for any tool. Recommended because it's the simplest model that covers the use case.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Per-assertion baseline rows",
+          "rationale": "Store one row per (assertion_id, baseline_run_id) with expected_value, actual_value, status. More granular — enables per-assertion regression tracking. But adds schema complexity and the report already has per-assertion detail from CLI results."
+        },
+        {
+          "key": "C",
+          "label": "Reuse validation_runs/cli_results as baselines",
+          "rationale": "Tag a validation_run as a baseline (add is_baseline flag to validation_runs table). The report compares the latest run against the baseline-tagged run. No new table needed, but couples baselines to the validation run lifecycle and requires modifying existing schema."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "SkillMetadataFetcher: CLI subprocess vs HTTP client",
+      "context": "The drift report needs current skill version and content hash from prompt-manager. The infrastructure/promptmanager/ directory exists but is empty. prompt-manager exposes both a CLI (`prompt-manager skill read <id>`) and likely an HTTP API. The fetcher needs to return (version, content_hash) for a given skill ID.",
+      "options": [
+        {
+          "key": "A",
+          "label": "CLI subprocess via os/exec",
+          "rationale": "Shell out to `prompt-manager skill info <id> --json` and parse stdout. No network dependency, works when prompt-manager is installed locally (which it always is in Vrooli). Simpler to implement. Downside: subprocess overhead per skill, slower for many connections.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "HTTP client to prompt-manager API",
+          "rationale": "Call prompt-manager's HTTP API if it exposes one. Lower latency per call, supports batching. But adds network dependency and requires prompt-manager to be running as a service, which may not always be the case."
+        },
+        {
+          "key": "C",
+          "label": "Batch CLI call",
+          "rationale": "Use a single CLI invocation with multiple skill IDs (`prompt-manager skill info <id1> <id2> ... --json`). Best of both worlds — no network dependency, reduced subprocess overhead. Depends on prompt-manager supporting batch queries."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Should tool-baselines run live CLI assertions or compare stored results?",
+      "context": "The spec says 'run CLI assertions for scenario-auditor, test-genie, scenario-completeness-scoring against references, compare results to stored baselines.' This implies live execution. But live execution means the report endpoint triggers potentially slow subprocess calls. The validation domain already has CLIExecutor for running assertions. Alternative: compare the most recent validation run results against baselines without re-running.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Compare latest stored validation results against baselines",
+          "rationale": "Query the most recent cli_results for each tool's assertions and diff against the baseline snapshot. Fast, deterministic, no side effects. But requires validation to have been run recently — stale results may not reflect current tool state. Recommended because report endpoints should be read-only queries, not trigger execution.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Run live CLI assertions at report time",
+          "rationale": "Execute assertions via CLIExecutor when the endpoint is called. Always up-to-date. But slow (subprocess calls), has side effects (disk I/O), and makes the report endpoint non-idempotent. The meta-optimization team may prefer freshness over speed."
+        },
+        {
+          "key": "C",
+          "label": "Configurable via query parameter",
+          "rationale": "Default to stored results, allow `?live=true` to trigger fresh execution. Flexible but adds complexity and the live path still has the latency/side-effect issues."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The fix/dtv-validation-api dependency in spec.json references an item whose spec no longer exists. The validation domain types (StructuralChecker, CLIExecutor, ConnectionValidationResult, etc.) all exist in the codebase already. This dependency can be treated as resolved — the report domain builds on existing validation types with no missing prerequisites."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The fix/dtv-sqlite-migration is in progress and defines the SQLite schema with all 7 existing tables. The report domain only needs one new additive table (tool_baselines). This can be added to schema.sql independently — no conflict with the migration work."
+    }
+  ],
+  "plan_updates": "Incorporated all 4 round-1 decisions into the plan: pairwise conflict detection algorithm, count-based maturity tiers with specific thresholds, SkillMetadataFetcher interface for drift, and broad DTV API acceptance_allow. Added acceptance_allow to spec.json. Expanded Contract Decisions section with settled algorithms. Added infrastructure/promptmanager/client.go to scope. Noted validation domain has no service layer (use checker/executor directly). Added dependency resolution note. Left Tool Baselines contract TBD pending round 2 decisions."
+}

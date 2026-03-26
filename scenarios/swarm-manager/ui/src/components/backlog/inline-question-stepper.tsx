@@ -11,11 +11,21 @@ import { backlogService } from "../../services/backlog-service";
 import { OTHER_KEY, filterAgentOther, parseWorkshopRound, buildWorkshopRoundContent } from "../../lib/workshop-files";
 import type { PendingQuestion, BacklogKind, ReviewStatus } from "../../types";
 
+/** Result passed to onAllAnswered when workshop auto-advance is evaluated. */
+export interface StepperCompletionResult {
+  autoAdvance?: {
+    triggered: boolean;
+    runId?: string;
+    taskId?: string;
+    reason: string;
+  };
+}
+
 interface InlineQuestionStepperProps {
   questions: PendingQuestion[];
   backlogKind: BacklogKind;
   backlogName: string;
-  onAllAnswered: () => void;
+  onAllAnswered: (result: StepperCompletionResult) => void;
 }
 
 /** Local answer state for a single question. */
@@ -55,7 +65,7 @@ export function InlineQuestionStepper({
     setSaveError(null);
   }, []);
 
-  /** Check if all questions are answered or skipped. */
+  /** Check if all questions are answered or skipped. If so, trigger workshopSave for auto-advance. */
   const checkCompletion = useCallback((answers: Map<string, QuestionAnswer>, skipped: Set<string>) => {
     if (completionFired.current) return;
     const allDone = questions.every((q) => {
@@ -65,11 +75,33 @@ export function InlineQuestionStepper({
       if (q.source === "workshop") return !!a.selected?.trim();
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
-    if (allDone) {
-      completionFired.current = true;
-      onAllAnswered();
+    if (!allDone) return;
+    completionFired.current = true;
+
+    // Find the workshop round number so we can call workshopSave() for auto-advance.
+    const workshopQ = questions.find((q) => q.source === "workshop" && q.round_number != null);
+    if (!workshopQ || workshopQ.round_number == null) {
+      // No workshop questions (review-only) — complete without auto-advance.
+      onAllAnswered({});
+      return;
     }
-  }, [questions, onAllAnswered]);
+
+    const roundNumber = workshopQ.round_number;
+    const roundNum = String(roundNumber).padStart(3, "0");
+    const filePath = `workshop/round-${roundNum}.json`;
+
+    // Read the saved round file and call workshopSave() to trigger auto-advance evaluation.
+    (async () => {
+      try {
+        const content = await backlogService.getFileContent(backlogKind, backlogName, filePath);
+        const result = await backlogService.workshopSave(backlogKind, backlogName, roundNumber, content);
+        onAllAnswered({ autoAdvance: result.autoAdvance });
+      } catch {
+        // If workshopSave fails, still notify parent that all questions are answered.
+        onAllAnswered({});
+      }
+    })();
+  }, [questions, onAllAnswered, backlogKind, backlogName]);
 
   /** Save the current question's answer to the backend. */
   const saveAnswer = useCallback(async (q: PendingQuestion, a: QuestionAnswer | undefined) => {

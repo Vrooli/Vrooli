@@ -4,7 +4,6 @@ package backlog
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -331,53 +330,5 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	tracePath := prompttrace.ResearchTracePath(h.store.ItemDir(kind, item.Name))
 	if err := prompttrace.Save(tracePath, trace); err != nil {
 		log.Printf("[backlog] research: failed to save prompt trace: %v", err)
-	}
-}
-
-// UpdatePromptTrace saves an edited prompt trace for a backlog item.
-func (h *Handler) UpdatePromptTrace(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "update-prompt-trace")
-	if !ok {
-		return
-	}
-	var body prompttrace.Trace
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httputil.BadRequest(w, "[backlog] update-prompt-trace", "invalid JSON body")
-		return
-	}
-	if strings.TrimSpace(body.Prompt) == "" {
-		httputil.BadRequest(w, "[backlog] update-prompt-trace", "prompt field is required")
-		return
-	}
-	itemDir := h.store.ItemDir(kind, name)
-	tracePath := prompttrace.ResearchTracePath(itemDir)
-	if err := prompttrace.Save(tracePath, body); err != nil {
-		httputil.InternalError(w, "[backlog] update-prompt-trace", "failed to save prompt trace")
-		return
-	}
-	if err := httputil.JSON(w, map[string]any{"trace": body}); err != nil {
-		httputil.InternalError(w, "[backlog] update-prompt-trace", "failed to encode response")
-	}
-}
-
-// GetPromptTrace returns the latest stored prompt trace for backlog research.
-func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "prompt-trace")
-	if !ok {
-		return
-	}
-	itemDir := h.store.ItemDir(kind, name)
-	tracePath := prompttrace.ResearchTracePath(itemDir)
-	trace, err := prompttrace.Load(tracePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			httputil.NotFound(w, "[backlog] prompt-trace", "prompt trace not found")
-			return
-		}
-		httputil.InternalError(w, "[backlog] prompt-trace", "failed to load prompt trace")
-		return
-	}
-	if err := httputil.JSON(w, map[string]any{"trace": trace}); err != nil {
-		httputil.InternalError(w, "[backlog] prompt-trace", "failed to encode response")
 	}
 }

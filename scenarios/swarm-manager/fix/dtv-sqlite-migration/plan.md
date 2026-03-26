@@ -18,7 +18,6 @@ prompt-manager skill read cli-steer api-steer
 - `scenarios/development-toolchain-validator/api/domain/expectation/repository.go` — Expectation interfaces (StructuralRepository: 5 methods, CLIRepository: 5 methods)
 - `scenarios/development-toolchain-validator/api/infrastructure/postgres/` — Existing Postgres implementations (DELETE target)
 - `scenarios/development-toolchain-validator/api/main.go` — Server bootstrap and repo wiring
-- `packages/api-core/database/connect.go` — Unified database connection (supports `DriverSQLite`)
 - `packages/api-core/storage/resolver.go` — Storage path resolver (`ClassData` for DB files)
 - `scenarios/agent-manager/api/internal/database/connection.go` — Reference SQLite pattern with pragmas
 
@@ -27,6 +26,10 @@ prompt-manager skill read cli-steer api-steer
 DTV currently depends on PostgreSQL for persistence, but only the reference and skill repos have Postgres implementations. The expectation domain has interfaces, service, and handlers but **no persistence layer at all**. PostgreSQL is heavyweight for DTV's single-user local workload. SQLite eliminates the external dependency while completing the missing expectation repos.
 
 ## 4. Scope
+
+**Acceptance patterns (settled, round 1):**
+- `acceptance_allow`: `scenarios/development-toolchain-validator/**`
+- `acceptance_deny`: TBD (round 2, decision d1)
 
 **In scope:**
 - Delete `infrastructure/postgres/` directory entirely (reference_repo.go, skill_repo.go, tests)
@@ -38,7 +41,7 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
   - `skill_repo.go` — skill.Repository
   - `structural_expectations_repo.go` — expectation.StructuralRepository
   - `cli_assertions_repo.go` — expectation.CLIRepository
-- Create `infrastructure/sqlite/schema.sql` — SQLite-compatible schema
+- Create `infrastructure/sqlite/schema.sql` — SQLite-compatible schema (all 7 tables — settled, round 1)
 - Create `infrastructure/sqlite/sqlite.go` — connection setup, schema init, pragmas
 - Update `main.go` — switch from Postgres to SQLite wiring, wire all repos including expectations
 - Update tests to use SQLite (temp file per test)
@@ -70,17 +73,20 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
 7. `cli_results` — UUID PK, run_id FK, assertion_id FK, status, actual_value (JSONB), execution_time_ms
 
 ### PostgreSQL Features Requiring SQLite Adaptation
-- `uuid_generate_v4()` → Generate UUIDs in Go with `github.com/google/uuid`
+- `uuid_generate_v4()` → Generate UUIDs in Go with `github.com/google/uuid` (already indirect dep at v1.6.0, promote to direct)
 - `ENUM` types → `TEXT` with `CHECK` constraints
 - `JSONB` → `TEXT` (store as JSON string, parse in Go)
 - `$1` placeholders → `?` placeholders
 - `PL/pgSQL` triggers for `updated_at` → Handle in repo layer (Go code sets timestamp on update)
 - Connection pool → `MaxOpenConns(1)` for SQLite single-writer model
+- `RETURNING` clause → **Fully supported** by modernc.org/sqlite v1.34.5 (bundles SQLite 3.46+). All 4 existing `INSERT/UPDATE ... RETURNING` patterns in Postgres repos can be directly ported.
 
 ### api-core Infrastructure (Already Available)
-- `database.Connect(ctx, database.Config{Driver: database.DriverSQLite})` — reads `SQLITE_PATH` or `SQLITE_DB` env vars
-- `storage.NewResolver()` with `ClassData` — provides `~/.vrooli/data/vrooli/<scenario>/<file>.db`
+- `storage.NewResolver()` with `ClassData` — provides `~/.vrooli/data/vrooli/<scenario>/<file>.db` **(settled, round 1: use this pattern)**
 - WAL mode, foreign keys, busy timeout pragmas — established patterns in agent-manager
+
+### SQLite Driver
+- `modernc.org/sqlite` v1.34.5 — pure Go, no CGO, matches agent-manager. Bundles SQLite 3.46+.
 
 ## 6. Target End State
 
@@ -102,8 +108,8 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
 
 ### Phase 2: SQLite Foundation
 1. Create `api/infrastructure/sqlite/sqlite.go`:
-   - `NewDB(dbPath string) (*sql.DB, error)` — opens SQLite with pragmas (WAL, foreign_keys, busy_timeout)
-   - `InitSchema(db *sql.DB) error` — runs embedded schema.sql
+   - `NewDB(dbPath string) (*sql.DB, error)` — opens SQLite with pragmas (WAL, foreign_keys, busy_timeout, cache_size, synchronous=NORMAL)
+   - `InitSchema(db *sql.DB) error` — runs schema SQL (loading approach TBD — round 2, decision d2)
    - Connection config: `MaxOpenConns(1)`
 2. Create `api/infrastructure/sqlite/schema.sql`:
    - Convert all 7 tables from PostgreSQL to SQLite syntax
@@ -112,8 +118,8 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
    - `TEXT` for JSON (was JSONB)
    - `DATETIME DEFAULT CURRENT_TIMESTAMP` for timestamps
    - All `CREATE TABLE IF NOT EXISTS` for idempotency
-3. Add `github.com/google/uuid` dependency (if not already present)
-4. Add SQLite driver dependency (`modernc.org/sqlite` — pure Go, no CGO, matches existing Vrooli patterns)
+3. Promote `github.com/google/uuid` to direct dependency
+4. Add `modernc.org/sqlite` v1.34.5
 
 ### Phase 3: Repository Implementations
 1. `reference_repo.go` — Implement reference.Repository (6 methods), port from Postgres with `?` placeholders
@@ -121,12 +127,13 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
 3. `structural_expectations_repo.go` — Implement expectation.StructuralRepository (5 methods), NEW
 4. `cli_assertions_repo.go` — Implement expectation.CLIRepository (5 methods), NEW
 
+SQL library choice TBD (round 2, decision d3 — database/sql vs sqlx).
+
 ### Phase 4: Wiring
 1. Update `main.go`:
    - Use storage resolver to get DB path, then open with `infrastructure/sqlite.NewDB()`
    - Create all 4 repo instances
    - Wire expectation repos into service and handlers (uncomment/fix the current gap)
-2. Set `SQLITE_PATH` or use storage resolver directly in main.go
 
 ### Phase 5: Tests
 1. Create `api/infrastructure/sqlite/test_helpers_test.go` — shared `setupTestDB(t)` using `t.TempDir()`
@@ -140,6 +147,7 @@ DTV currently depends on PostgreSQL for persistence, but only the reference and 
 - **Data model**: Unchanged — same fields, same types at the Go level
 - **JSONB → TEXT**: `expected_value` and `actual_value` fields stored as JSON strings; repos marshal/unmarshal in Go
 - **ENUMs → CHECK constraints**: Same valid values, enforced at DB level via CHECK
+- **RETURNING**: Preserved — SQLite 3.46+ supports it natively
 
 ## 9. Testing Plan
 

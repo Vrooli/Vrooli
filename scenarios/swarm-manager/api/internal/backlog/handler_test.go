@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
-	"swarm-manager/internal/prompttrace"
 	"swarm-manager/internal/testutil"
 )
 
@@ -915,15 +914,6 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	if agent.lastReq == nil || agent.lastReq.Purpose != "research" {
 		t.Errorf("expected agent spawn for research")
 	}
-
-	traceReq := httptest.NewRequest("GET", "/api/v1/backlog/idea/research-test/prompt-trace", nil)
-	traceReq = mux.SetURLVars(traceReq, map[string]string{"kind": "idea", "name": "research-test"})
-	traceW := httptest.NewRecorder()
-	h.GetPromptTrace(traceW, traceReq)
-	testutil.AssertStatusOK(t, traceW)
-	if !strings.Contains(traceW.Body.String(), `"skill_id":"swarm-manager-workshop"`) {
-		t.Fatalf("expected prompt trace with workshop skill, got %s", traceW.Body.String())
-	}
 }
 
 func TestResearch_DryRun_DoesNotSpawnAgent(t *testing.T) {
@@ -1682,101 +1672,6 @@ func TestUpdate_Acceptance(t *testing.T) {
 	if len(saved.AcceptanceAllow) != 1 || saved.AcceptanceAllow[0] != "scenarios/target/src/**" {
 		t.Errorf("expected saved acceptance_allow ['scenarios/target/src/**'], got %v", saved.AcceptanceAllow)
 	}
-}
-
-func TestUpdatePromptTrace_Success(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	item := BacklogItem{
-		Name:        "trace-update-test",
-		Title:       "Trace Update Test",
-		Description: "",
-		Status:      StatusBacklog,
-		Priority:    3,
-		Tags:        []string{},
-		Created:     "2026-01-28T00:00:00Z",
-		Updated:     "2026-01-28T00:00:00Z",
-	}
-	createTestItem(t, rootDir, KindIdea, item)
-
-	// Seed a prompt trace so .swarm dir exists
-	itemDir := filepath.Join(rootDir, "ideas", "trace-update-test")
-	tracePath := prompttrace.ResearchTracePath(itemDir)
-	_ = prompttrace.Save(tracePath, prompttrace.Trace{
-		SkillID: "swarm-manager-workshop",
-		Purpose: "research",
-		Prompt:  "original prompt",
-	})
-
-	// PUT updated trace
-	payload := `{"skill_id":"swarm-manager-workshop","purpose":"research","prompt":"edited prompt","used_fallback":false}`
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/trace-update-test/prompt-trace", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "trace-update-test"})
-	w := httptest.NewRecorder()
-
-	h.UpdatePromptTrace(w, req)
-	testutil.AssertStatusOK(t, w)
-
-	if !strings.Contains(w.Body.String(), `"edited prompt"`) {
-		t.Fatalf("expected updated prompt in response, got %s", w.Body.String())
-	}
-
-	// Verify persisted to disk
-	loaded, err := prompttrace.Load(tracePath)
-	if err != nil {
-		t.Fatalf("failed to load saved trace: %v", err)
-	}
-	if loaded.Prompt != "edited prompt" {
-		t.Errorf("expected saved prompt 'edited prompt', got %q", loaded.Prompt)
-	}
-}
-
-func TestUpdatePromptTrace_EmptyPrompt(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	item := BacklogItem{
-		Name:     "trace-empty-test",
-		Title:    "Trace Empty Test",
-		Status:   StatusBacklog,
-		Priority: 3,
-		Tags:     []string{},
-		Created:  "2026-01-28T00:00:00Z",
-		Updated:  "2026-01-28T00:00:00Z",
-	}
-	createTestItem(t, rootDir, KindIdea, item)
-
-	payload := `{"skill_id":"test","purpose":"research","prompt":"","used_fallback":false}`
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/trace-empty-test/prompt-trace", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "trace-empty-test"})
-	w := httptest.NewRecorder()
-
-	h.UpdatePromptTrace(w, req)
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
-}
-
-func TestUpdatePromptTrace_InvalidJSON(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	item := BacklogItem{
-		Name:     "trace-invalid-test",
-		Title:    "Trace Invalid Test",
-		Status:   StatusBacklog,
-		Priority: 3,
-		Tags:     []string{},
-		Created:  "2026-01-28T00:00:00Z",
-		Updated:  "2026-01-28T00:00:00Z",
-	}
-	createTestItem(t, rootDir, KindIdea, item)
-
-	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/trace-invalid-test/prompt-trace", strings.NewReader("{not valid json"))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "trace-invalid-test"})
-	w := httptest.NewRecorder()
-
-	h.UpdatePromptTrace(w, req)
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
 }
 
 func TestWorkshopDeleteRound_Success(t *testing.T) {

@@ -4,7 +4,7 @@
   "kind": "idea",
   "name": "brand-manager",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "branding",
     "design-system",
@@ -13,5 +13,5 @@
     "rewrite"
   ],
   "title": "Brand Manager – Full Branding Lifecycle for All Scenarios",
-  "updated": "2026-03-20T16:46:57Z"
+  "updated": "2026-03-26T05:32:21Z"
 }

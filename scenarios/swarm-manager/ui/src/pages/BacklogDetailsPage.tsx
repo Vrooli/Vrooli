@@ -48,7 +48,7 @@ import {
   X,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { PromptTracePanel } from "../components/backlog/prompt-trace-panel";
+import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { Dialog } from "../components/ui/dialog";
@@ -1525,6 +1525,46 @@ export function BacklogDetailsPage() {
             <TagList tags={item.tags} maxTags={10} />
           </div>
         )}
+        <div className="space-y-2 border-t border-slate-800 pt-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <FolderOpen className="h-3.5 w-3.5" />
+            Acceptance Allow
+          </div>
+          {item.acceptanceAllow && item.acceptanceAllow.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {item.acceptanceAllow.map((glob) => (
+                <code
+                  key={glob}
+                  className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                >
+                  {glob}
+                </code>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs italic text-slate-500">Not set</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <X className="h-3.5 w-3.5" />
+            Acceptance Deny
+          </div>
+          {item.acceptanceDeny && item.acceptanceDeny.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {item.acceptanceDeny.map((glob) => (
+                <code
+                  key={glob}
+                  className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono"
+                >
+                  {glob}
+                </code>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs italic text-slate-500">Not set</p>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3 border-t border-slate-800 pt-3">
           <div className="space-y-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Created</p>
@@ -2207,7 +2247,7 @@ export function BacklogDetailsPage() {
             </div>
             {activeTab === "info" && mobileInfoView}
             {activeTab === "prompt" && (
-              <PromptTracePanel backlogKind={backlogKind as BacklogKind} backlogName={name!} className="flex-1 overflow-y-auto" />
+              <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name!} className="flex-1 overflow-y-auto" />
             )}
             {activeTab === "files" && fileWorkspace}
           </Tabs>
@@ -2421,7 +2461,7 @@ export function BacklogDetailsPage() {
                 </div>
               )}
               {activeTab === "prompt" && (
-                <PromptTracePanel
+                <PlanPanel
                   backlogKind={backlogKind as BacklogKind}
                   backlogName={name!}
                   className="mt-6 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50"

@@ -17,6 +17,10 @@ vi.mock("../../services/backlog-service", () => ({
     })),
     saveFileContent: vi.fn().mockResolvedValue({}),
     batchReview: vi.fn().mockResolvedValue(undefined),
+    workshopSave: vi.fn().mockResolvedValue({
+      file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 100 },
+      autoAdvance: { triggered: false, reason: "not_ready" },
+    }),
   },
 }));
 
@@ -154,7 +158,7 @@ describe("InlineQuestionStepper", () => {
     expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
-  it("calls onAllAnswered when all questions are skipped", () => {
+  it("calls onAllAnswered when all questions are skipped", async () => {
     const onAllAnswered = vi.fn();
     render(
       <InlineQuestionStepper
@@ -166,7 +170,7 @@ describe("InlineQuestionStepper", () => {
 
     fireEvent.click(screen.getByTestId("question-stepper-skip"));
 
-    expect(onAllAnswered).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onAllAnswered).toHaveBeenCalledTimes(1));
   });
 
   it("calls onAllAnswered when all questions are answered and advanced", async () => {

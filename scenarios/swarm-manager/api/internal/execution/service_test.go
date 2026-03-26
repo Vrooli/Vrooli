@@ -22,15 +22,6 @@ func (s *stubPolicyProvider) LoadPolicy() (Policy, error) {
 	return s.policy, nil
 }
 
-func defaultTestPolicyProvider() PolicyProvider {
-	return &stubPolicyProvider{policy: Policy{
-		DefaultMode:         ModeManual,
-		DefaultDelaySeconds: 300,
-		MaxFixupAttempts:    2,
-		AutoFixup:           false,
-	}}
-}
-
 type stubAgentService struct {
 	spawnCalls int
 	spawnErr   error

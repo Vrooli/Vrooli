@@ -47,7 +47,7 @@
           "rationale": "Do not implement this suggestion"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },
@@ -68,7 +68,7 @@
           "rationale": "Do not implement this suggestion"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     }
