@@ -51,7 +51,7 @@ function isBlockedByDeps(item: BacklogItem, itemsByKey: Map<string, BacklogItem>
 /**
  * Compute attention reasons for a backlog item based on feedback and maturity data.
  */
-function getAttentionReasons(
+export function getAttentionReasons(
   item: BacklogItem,
   feedbackMap: Map<string, FeedbackItem>,
   maturityMap: Map<string, MaturityItem>,

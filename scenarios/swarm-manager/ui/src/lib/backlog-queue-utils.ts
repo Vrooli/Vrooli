@@ -1,6 +1,30 @@
+/**
+ * Backlog Queue & Action Utilities
+ *
+ * Centralizes all action-visibility and action-disabled logic for backlog items.
+ * Both BacklogCard and BacklogDetailsPage consume `getItemActions()` so that
+ * the CTA funnel is defined in exactly one place.
+ *
+ * DOC: docs/concepts/ARCHITECTURE.md#backlog-action-funnel
+ */
+
 import type { BacklogItem, BacklogKind, BacklogStatus } from "../types";
 
+// ---------------------------------------------------------------------------
+// Status constants
+// ---------------------------------------------------------------------------
+
 export const QUEUEABLE_BACKLOG_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
+
+/** Statuses where the item is mid-execution and should not be edited or re-queued. */
+export const LOCKED_STATUSES = new Set<BacklogStatus>(["queued", "in_progress"]);
+
+/** Statuses that represent a finished execution (success or failure). */
+export const TERMINAL_STATUSES = new Set<BacklogStatus>(["completed", "failed"]);
+
+// ---------------------------------------------------------------------------
+// Queueability helpers
+// ---------------------------------------------------------------------------
 
 interface QueueableBacklogItem {
   kind: BacklogKind;
@@ -10,22 +34,6 @@ interface QueueableBacklogItem {
 export const isBacklogQueueable = (item: QueueableBacklogItem): boolean =>
   (item.kind !== "research" && QUEUEABLE_BACKLOG_STATUSES.includes(item.status)) ||
   (item.kind === "idea" && item.status === "archived");
-
-/** Statuses that indicate a dependency is not yet planned/ready — blocking downstream items. */
-const BLOCKING_DEP_STATUSES = new Set<BacklogStatus>(["backlog", "researching"]);
-
-/**
- * Check whether any of an item's dependencies are still in an unplanned state,
- * meaning this item should not be run yet.
- */
-export function hasBlockingDeps(item: Pick<BacklogItem, "dependsOn">, allItems: BacklogItem[]): boolean {
-  if (!item.dependsOn || item.dependsOn.length === 0) return false;
-  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
-  return item.dependsOn.some((dep) => {
-    const depItem = itemsByKey.get(dep);
-    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
-  });
-}
 
 export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string | null => {
   if (isBacklogQueueable(item)) {
@@ -49,3 +57,212 @@ export const getBacklogNotQueueableReason = (item: QueueableBacklogItem): string
       return "This item cannot be queued from its current status.";
   }
 };
+
+// ---------------------------------------------------------------------------
+// Dependency blocking
+// ---------------------------------------------------------------------------
+
+/** Statuses that indicate a dependency is not yet planned/ready — blocking downstream items. */
+const BLOCKING_DEP_STATUSES = new Set<BacklogStatus>(["backlog", "researching"]);
+
+/**
+ * Check whether any of an item's dependencies are still in an unplanned state,
+ * meaning this item should not be run yet.
+ */
+export function hasBlockingDeps(item: Pick<BacklogItem, "dependsOn">, allItems: BacklogItem[]): boolean {
+  if (!item.dependsOn || item.dependsOn.length === 0) return false;
+  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
+  return item.dependsOn.some((dep) => {
+    const depItem = itemsByKey.get(dep);
+    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
+  });
+}
+
+/**
+ * Return the keys of dependencies that are blocking this item.
+ * Used for display purposes (linking to blocking items in the UI).
+ */
+export function getBlockingDepKeys(item: Pick<BacklogItem, "dependsOn">, allItems: BacklogItem[]): string[] {
+  if (!item.dependsOn || item.dependsOn.length === 0) return [];
+  const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
+  return item.dependsOn.filter((dep) => {
+    const depItem = itemsByKey.get(dep);
+    return depItem && BLOCKING_DEP_STATUSES.has(depItem.status);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Action resolver
+// ---------------------------------------------------------------------------
+
+/**
+ * Input context for computing item actions. All fields are pre-computed
+ * booleans/values so the resolver stays pure and framework-agnostic.
+ */
+export interface ActionContext {
+  item: Pick<BacklogItem, "kind" | "name" | "status" | "dependsOn" | "researchTarget">;
+  allItems: BacklogItem[];
+  /** Whether the item's plan is ready for execution. null = no readiness data loaded. */
+  readinessReady: boolean | null;
+  /** Whether an agent run is currently active for this item. */
+  agentRunning: boolean;
+  /** Whether the item has unanswered workshop decisions. */
+  hasPendingDecisions: boolean;
+  /** Whether execution history exists for this item (details page only; card passes false). */
+  hasExecutionHistory: boolean;
+  /** Whether a research item has non-spec output files (details page only; card passes false). */
+  hasResearchOutput: boolean;
+}
+
+/** Which single CTA should receive primary visual emphasis. */
+export type PrimaryCta = "run" | "workshop" | "followUp" | "archive" | "convert" | null;
+
+/** Computed action states for a backlog item. */
+export interface ItemActions {
+  /** Item is mid-execution (queued/in_progress) — no CTAs allowed. */
+  locked: boolean;
+  /** Item execution finished (completed/failed). */
+  terminal: boolean;
+  /** Item has incomplete dependencies blocking it. */
+  blocked: boolean;
+  /** Keys of the specific dependencies that are blocking (for display). */
+  blockingDepKeys: string[];
+  /** Which CTA should be visually emphasized as the primary action. */
+  primaryCta: PrimaryCta;
+  /** "Run" button: visible and enabled. */
+  canRun: boolean;
+  /** "Run" button: visible but disabled (agent running or blocked). */
+  runDisabled: boolean;
+  /** "Workshop" button: visible and enabled. */
+  canWorkshop: boolean;
+  /** "Workshop" button: visible but disabled (agent running or blocked). */
+  workshopDisabled: boolean;
+  /** "Follow Up" button: visible (terminal + has execution history). */
+  canFollowUp: boolean;
+  /** "Archive" button: visible (terminal items). */
+  canArchive: boolean;
+  /** "Convert" button: visible (research items with output). */
+  canConvert: boolean;
+  /** Inline decision stepper / expanded workshop panel should render. */
+  showDecisionStepper: boolean;
+  /** Pass-through for label text ("Agent running..."). */
+  agentRunning: boolean;
+  /** Human-readable reason why the item can't be queued, if applicable. */
+  notQueueableReason: string | null;
+}
+
+/**
+ * Compute all action states for a backlog item following the CTA funnel:
+ *
+ * | Step | Condition                          | Primary CTA     |
+ * |------|------------------------------------|-----------------|
+ * | -1   | Locked (queued/in_progress)         | none            |
+ * |  0   | Blocked by deps                    | disabled        |
+ * |  1   | Agent running                      | disabled        |
+ * |  2   | Unanswered decisions               | stepper/panel   |
+ * |  3   | Readiness not met (no decisions)    | workshop        |
+ * |  4   | Ready, no active run               | run             |
+ * |  5   | Terminal (completed/failed)         | follow-up/archive |
+ */
+export function getItemActions(ctx: ActionContext): ItemActions {
+  const { item, allItems, agentRunning } = ctx;
+
+  const locked = LOCKED_STATUSES.has(item.status);
+  const terminal = TERMINAL_STATUSES.has(item.status);
+  const blocked = hasBlockingDeps(item, allItems);
+  const blockingDepKeys = blocked ? getBlockingDepKeys(item, allItems) : [];
+  const queueable = isBacklogQueueable(item);
+  const isResearch = item.kind === "research";
+  const notQueueableReason = getBacklogNotQueueableReason(item);
+
+  // Base result with all actions off.
+  const base: ItemActions = {
+    locked,
+    terminal,
+    blocked,
+    blockingDepKeys,
+    primaryCta: null,
+    canRun: false,
+    runDisabled: false,
+    canWorkshop: false,
+    workshopDisabled: false,
+    canFollowUp: false,
+    canArchive: false,
+    canConvert: false,
+    showDecisionStepper: false,
+    agentRunning,
+    notQueueableReason,
+  };
+
+  // Step -1: Locked — no CTAs at all.
+  if (locked) return base;
+
+  // Step 5: Terminal — follow-up + archive. Checked before steps 0-4 because
+  // terminal items should never show run/workshop regardless of other state.
+  if (terminal) {
+    return {
+      ...base,
+      canFollowUp: ctx.hasExecutionHistory,
+      canArchive: true,
+      primaryCta: ctx.hasExecutionHistory ? "followUp" : "archive",
+    };
+  }
+
+  // Step 0: Blocked by deps — show actions as disabled.
+  if (blocked && queueable && !isResearch) {
+    const needsWorkshop = ctx.readinessReady === false;
+    return {
+      ...base,
+      showDecisionStepper: ctx.hasPendingDecisions,
+      canWorkshop: false,
+      workshopDisabled: needsWorkshop,
+      canRun: false,
+      runDisabled: !needsWorkshop,
+      primaryCta: needsWorkshop ? "workshop" : "run",
+    };
+  }
+
+  // Step 2: Unanswered decisions — stepper is primary, workshop as secondary.
+  if (ctx.hasPendingDecisions) {
+    const needsWorkshop = queueable && !isResearch && ctx.readinessReady === false;
+    return {
+      ...base,
+      showDecisionStepper: true,
+      canWorkshop: needsWorkshop && !agentRunning,
+      workshopDisabled: needsWorkshop && agentRunning,
+      primaryCta: needsWorkshop ? "workshop" : null,
+    };
+  }
+
+  // Step 3: Readiness not met — workshop is primary.
+  if (queueable && !isResearch && ctx.readinessReady === false) {
+    return {
+      ...base,
+      canWorkshop: !agentRunning,
+      workshopDisabled: agentRunning,
+      primaryCta: "workshop",
+    };
+  }
+
+  // Step 4: Ready — run is primary.
+  if (queueable && !isResearch) {
+    return {
+      ...base,
+      canRun: !agentRunning,
+      runDisabled: agentRunning,
+      primaryCta: "run",
+    };
+  }
+
+  // Research items: convert instead of run.
+  if (isResearch && ctx.hasResearchOutput && item.researchTarget && item.researchTarget !== "unspecified") {
+    return {
+      ...base,
+      canConvert: true,
+      primaryCta: "convert",
+    };
+  }
+
+  // Fallback: no primary CTA (e.g., research without output, or other edge cases).
+  return base;
+}

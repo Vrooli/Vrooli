@@ -20,6 +20,7 @@ import { useState, useCallback, useEffect, useMemo, useRef, type MouseEvent, typ
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
+  Archive,
   ArrowRight,
   ArrowRightLeft,
   ArrowUpRight,
@@ -37,6 +38,7 @@ import {
   Lock,
   Loader2,
   MessageSquare,
+  MessageSquareText,
   MoreHorizontal,
   Play,
   Search,
@@ -81,10 +83,10 @@ import {
   canFollowUpExecution,
   defaultQueryOptions,
   formatRelativeTime,
-  getBacklogNotQueueableReason,
-  isBacklogQueueable,
+  getItemActions,
   scenariosFromGlobs,
 } from "../lib";
+import type { ItemActions } from "../lib/backlog-queue-utils";
 import { parseWorkshopRound, WORKSHOP_FILE_PATHS, findBacklogFileByPath } from "../lib/workshop-files";
 import { buildReadinessData } from "../lib/maturity";
 import type { ReadinessIndicatorData } from "../lib/maturity";
@@ -395,6 +397,19 @@ export function BacklogDetailsPage() {
     refetchInterval: 10_000,
   });
 
+  // Auto-open follow-up dialog when navigated with ?action=followup
+  const actionParam = searchParams.get("action");
+  useEffect(() => {
+    if (actionParam === "followup" && executionHistory && executionHistory.length > 0 && !followUpTarget) {
+      setFollowUpTarget(executionHistory[0] ?? null);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("action");
+        return next;
+      }, { replace: true });
+    }
+  }, [actionParam, executionHistory, followUpTarget, setSearchParams]);
+
   // Workshop round files — find workshop/ directory, then load each round file
   const workshopDir = useMemo(
     () => findBacklogFileByPath(files ?? [], WORKSHOP_FILE_PATHS.workshopDir.replace(/\/$/, "")),
@@ -432,16 +447,6 @@ export function BacklogDetailsPage() {
       .map((r) => r.round);
   }, [workshopRoundContents]);
 
-  const workshopBlockedDeps = useMemo(() => {
-    if (!item?.dependsOn || item.dependsOn.length === 0) return [];
-    const workshopBlockingStatuses = new Set(["backlog", "researching"]);
-    const itemsByKey = new Map(allBacklogItems.map((i) => [`${i.kind}/${i.name}`, i]));
-    return item.dependsOn.filter((dep) => {
-      const depItem = itemsByKey.get(dep);
-      return depItem && workshopBlockingStatuses.has(depItem.status);
-    });
-  }, [item?.dependsOn, allBacklogItems]);
-
   // Maturity / readiness data from the maturity-summary endpoint
   const { data: maturitySummaryData } = useQuery({
     queryKey: ["backlog-maturity-summary"],
@@ -469,10 +474,36 @@ export function BacklogDetailsPage() {
     ...defaultQueryOptions,
   });
 
-  const LOCKED_STATUSES = new Set(["queued", "in_progress"]);
-  const isLocked = Boolean(item && LOCKED_STATUSES.has(item.status));
-  const TERMINAL_STATUSES = new Set(["completed", "failed"]);
-  const isTerminal = Boolean(item && TERMINAL_STATUSES.has(item.status));
+  const hasResearchOutput = useMemo(() => {
+    if (!files || files.length === 0) return false;
+    const hasNonSpecFile = (entries: BacklogFile[]): boolean => {
+      return entries.some((entry) => {
+        if (entry.type === "directory") {
+          return entry.children ? hasNonSpecFile(entry.children) : false;
+        }
+        return entry.path !== "spec.json";
+      });
+    };
+    return hasNonSpecFile(files);
+  }, [files]);
+
+  const itemActions: ItemActions | null = useMemo(() => {
+    if (!item) return null;
+    return getItemActions({
+      item,
+      allItems: allBacklogItems,
+      readinessReady: readinessData ? readinessData.ready : null,
+      agentRunning: agentRunIsActive,
+      hasPendingDecisions: workshopRounds.some(
+        (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
+      ),
+      hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
+      hasResearchOutput,
+    });
+  }, [item, allBacklogItems, readinessData, agentRunIsActive, workshopRounds, executionHistory, hasResearchOutput]);
+  const isLocked = itemActions?.locked ?? false;
+  const isTerminal = itemActions?.terminal ?? false;
+  const workshopBlockedDeps = itemActions?.blockingDepKeys ?? [];
 
   const isPageLoading = isLoadingItem && !item;
   const pageError = itemError;
@@ -1008,29 +1039,10 @@ export function BacklogDetailsPage() {
     ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
     : null;
 
-  const canQueue = Boolean(item && isBacklogQueueable(item));
-  const queueBlockedReason = item ? getBacklogNotQueueableReason(item) : null;
-
-  const hasResearchOutput = useMemo(() => {
-    if (!files || files.length === 0) return false;
-    const hasNonSpecFile = (entries: BacklogFile[]): boolean => {
-      return entries.some((entry) => {
-        if (entry.type === "directory") {
-          return entry.children ? hasNonSpecFile(entry.children) : false;
-        }
-        return entry.path !== "spec.json";
-      });
-    };
-    return hasNonSpecFile(files);
-  }, [files]);
-
-  const canConvert =
-    item?.kind === "research" &&
-    item.researchTarget &&
-    item.researchTarget !== "unspecified" &&
-    hasResearchOutput;
-
-  const convertTarget = canConvert ? (item.researchTarget as BacklogKind) : null;
+  const canQueue = itemActions?.canRun ?? false;
+  const canWorkshopAction = itemActions?.canWorkshop ?? false;
+  const canConvert = itemActions?.canConvert ?? false;
+  const convertTarget = canConvert && item?.researchTarget ? (item.researchTarget as BacklogKind) : null;
   const searchResults = useMemo(
     () => collectMatchingFiles(files ?? [], fileSearch),
     [files, fileSearch]
@@ -1616,7 +1628,7 @@ export function BacklogDetailsPage() {
       {readinessData && (
         <ReadinessDetailsPanel
           data={readinessData}
-          onRun={canQueue ? () => setShowRunModal(true) : undefined}
+          onRun={itemActions?.canRun ? () => setShowRunModal(true) : undefined}
         />
       )}
       {isLocked && (
@@ -1908,19 +1920,32 @@ export function BacklogDetailsPage() {
 
     return (
       <div className="space-y-2">
-        {canQueue && (
+        {(itemActions?.canRun || itemActions?.runDisabled) && (
           <Button
             variant="default"
             size="sm"
             className={primaryRowButtonClass}
             onClick={() => runAction(() => setShowRunModal(true))}
+            disabled={itemActions.runDisabled}
           >
             <Play className="mr-2 h-4 w-4" />
-            Run
+            {itemActions.agentRunning ? "Agent running..." : "Run"}
           </Button>
         )}
-        {!canQueue && queueBlockedReason ? (
-          <p className="text-xs text-slate-500">{queueBlockedReason}</p>
+        {(itemActions?.canWorkshop || itemActions?.workshopDisabled) && (
+          <Button
+            variant="default"
+            size="sm"
+            className={itemActions.primaryCta === "workshop" ? primaryRowButtonClass : rowButtonClass}
+            onClick={() => runAction(handleRunWorkshop)}
+            disabled={itemActions.workshopDisabled || agentMutation.isPending}
+          >
+            <MessageSquareText className="mr-2 h-4 w-4" />
+            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Workshop"}
+          </Button>
+        )}
+        {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
+          <p className="text-xs text-slate-500">{itemActions.notQueueableReason}</p>
         ) : null}
         {canConvert && convertTarget && (
           <Button
@@ -1949,17 +1974,17 @@ export function BacklogDetailsPage() {
           <Edit className="mr-2 h-4 w-4" />
           Edit
         </Button>
-        {isTerminal && executionHistory && executionHistory.length > 0 ? (
+        {itemActions?.canFollowUp ? (
           <Button
             variant="outline"
             size="sm"
             className={rowButtonClass}
-            onClick={() => runAction(() => setFollowUpTarget(executionHistory[0] ?? null))}
+            onClick={() => runAction(() => setFollowUpTarget(executionHistory?.[0] ?? null))}
           >
             <MessageSquare className="mr-2 h-4 w-4" />
             Follow Up
           </Button>
-        ) : (
+        ) : !isTerminal ? (
           <Button
             variant="outline"
             size="sm"
@@ -1969,6 +1994,27 @@ export function BacklogDetailsPage() {
           >
             <Sparkles className="mr-2 h-4 w-4" />
             {agentLabel}
+          </Button>
+        ) : null}
+        {itemActions?.canArchive && item && (
+          <Button
+            variant="outline"
+            size="sm"
+            className={rowButtonClass}
+            onClick={() => runAction(() => {
+              updateMutation.mutate({
+                title: item.title,
+                description: item.description,
+                status: "archived",
+                priority: item.priority,
+                tags: item.tags,
+                researchTarget: item.researchTarget,
+              });
+            })}
+            disabled={updateMutation.isPending}
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            {updateMutation.isPending ? "Archiving..." : "Archive"}
           </Button>
         )}
         {!isLocked && item && (
@@ -2208,7 +2254,7 @@ export function BacklogDetailsPage() {
                   {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
                 </p>
               </div>
-              {canQueue && readinessData?.ready && (
+              {itemActions?.canRun && (
                 <Button
                   variant="default"
                   size="sm"
@@ -2217,6 +2263,17 @@ export function BacklogDetailsPage() {
                 >
                   <Play className="mr-1.5 h-4 w-4" />
                   Run
+                </Button>
+              )}
+              {canWorkshopAction && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunWorkshop}
+                  disabled={agentMutation.isPending}
+                >
+                  <MessageSquareText className="mr-1.5 h-4 w-4" />
+                  Workshop
                 </Button>
               )}
               <Button
@@ -2317,19 +2374,31 @@ export function BacklogDetailsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {canQueue && (
+                {(itemActions?.canRun || itemActions?.runDisabled) && (
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() => setShowRunModal(true)}
+                    disabled={itemActions.runDisabled}
                     data-testid={selectors.backlogDetails.queueButton}
                   >
                     <Play className="mr-2 h-4 w-4" />
-                    Run
+                    {itemActions.agentRunning ? "Agent running..." : "Run"}
                   </Button>
                 )}
-                {!canQueue && queueBlockedReason ? (
-                  <span className="max-w-xs text-xs text-slate-500">{queueBlockedReason}</span>
+                {(itemActions?.canWorkshop || itemActions?.workshopDisabled) && (
+                  <Button
+                    variant={itemActions?.primaryCta === "workshop" ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleRunWorkshop}
+                    disabled={itemActions?.workshopDisabled || agentMutation.isPending}
+                  >
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    {itemActions?.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Workshop"}
+                  </Button>
+                )}
+                {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
+                  <span className="max-w-xs text-xs text-slate-500">{itemActions.notQueueableReason}</span>
                 ) : null}
                 {canConvert && convertTarget && (
                   <Button

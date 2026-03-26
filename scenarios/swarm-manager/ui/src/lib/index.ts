@@ -30,7 +30,17 @@ export { capitalize, formatDisplayText, formatFileSize, getFileExtension, format
 
 // Backlog Utilities
 export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-utils";
-export { QUEUEABLE_BACKLOG_STATUSES, getBacklogNotQueueableReason, hasBlockingDeps, isBacklogQueueable } from "./backlog-queue-utils";
+export {
+  LOCKED_STATUSES,
+  QUEUEABLE_BACKLOG_STATUSES,
+  TERMINAL_STATUSES,
+  getBacklogNotQueueableReason,
+  getBlockingDepKeys,
+  getItemActions,
+  hasBlockingDeps,
+  isBacklogQueueable,
+} from "./backlog-queue-utils";
+export type { ActionContext, ItemActions, PrimaryCta } from "./backlog-queue-utils";
 
 // Theme Utilities
 export { applyTheme, resolveTheme, useResolvedTheme, watchSystemTheme } from "./theme-utils";

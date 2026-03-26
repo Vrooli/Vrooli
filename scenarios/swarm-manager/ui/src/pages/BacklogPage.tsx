@@ -19,9 +19,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useUrlState } from "../hooks/use-url-state";
-import { Archive, Plus, Filter, Lightbulb, ArrowRight, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText, Loader2 } from "lucide-react";
+import { Plus, Filter, Lightbulb, ArrowUpDown, CheckSquare, Terminal, X, Search, Wrench, Play, LayoutGrid, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -32,38 +32,30 @@ import { SearchBar } from "../components/ui/search-bar";
 import { Select } from "../components/ui/select";
 import { StatusLegend } from "../components/ui/status-legend";
 import { BACKLOG_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.constants";
-import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { formatRelativeTime, getBacklogNotQueueableReason, hasBlockingDeps, isBacklogQueueable } from "../lib";
+import { getItemActions, hasBlockingDeps, isBacklogQueueable } from "../lib";
 import { buildReadinessData } from "../lib/maturity";
 import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService } from "../services";
 import { selectors } from "../consts/selectors";
 import {
   BACKLOG_KIND_LABELS,
-  BACKLOG_STATUS_COLORS,
   formatBacklogStatus,
   type BacklogKind,
   type BacklogStatus,
 } from "../types";
-import { displayLimitsConfig } from "../config";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { CaptureCard } from "../components/backlog/capture-card";
 import { FeedbackHubModal } from "../components/backlog/feedback-hub-modal";
-import { ReadinessBar } from "../components/backlog/readiness-bar";
-import { PendingDecisionBadge } from "../components/backlog/pending-decision-badge";
-import { InitiativeBadge } from "../components/backlog/initiative-badge";
-import { DependencyIndicator } from "../components/backlog/dependency-indicator";
-import { ScenarioBadge } from "../components/backlog/scenario-badge";
 import { QuickCaptureInput } from "../components/backlog/quick-capture-input";
 import { RunBacklogModal } from "../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../components/backlog/run-backlog-modal";
-import { AgentRunningBadge } from "../components/backlog/agent-running-badge";
-import { InlineQuestionStepper, type StepperCompletionResult } from "../components/backlog/inline-question-stepper";
-import { buildFeed, countActionableItems, type FeedbackItem, type MaturityItem } from "../lib/feed";
+import type { StepperCompletionResult } from "../components/backlog/inline-question-stepper";
+import { buildFeed, countActionableItems, getAttentionReasons, type AttentionReason, type FeedbackItem, type FeedItem, type MaturityItem } from "../lib/feed";
+import { BacklogCard } from "../components/backlog/backlog-card";
 import { useAgentRunsStore, useBacklogStore, useCaptureStore } from "../stores";
-import type { BacklogFormValues, PendingQuestion } from "../types";
+import type { BacklogFormValues, BacklogItem, PendingQuestion } from "../types";
 
 type SortField = "priority" | "updated" | "status" | "title";
 
@@ -205,6 +197,7 @@ export function BacklogPage() {
   }, [urlQ]);
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Ephemeral UI state (not persisted)
   const [showSort, setShowSort] = useState(false);
@@ -292,22 +285,42 @@ export function BacklogPage() {
     return map;
   }, [summaryQuery.data?.pending_questions]);
 
-  // Build unified feed for the "All" tab
-  const feedItems = useMemo(() => {
-    if (activeKind !== "all") return [];
-    const feedbackItems: FeedbackItem[] = (feedbackSummary?.items ?? []).map((item) => ({
+  const feedbackItems = useMemo<FeedbackItem[]>(
+    () => (feedbackSummary?.items ?? []).map((item) => ({
       kind: item.kind,
       name: item.name,
       pendingDecisions: item.pending_decisions ?? 0,
-    }));
-    const maturityItems: MaturityItem[] = (summaryQuery.data?.maturity?.items ?? []).map((item) => ({
+    })),
+    [feedbackSummary],
+  );
+
+  const maturityItems = useMemo<MaturityItem[]>(
+    () => (summaryQuery.data?.maturity?.items ?? []).map((item) => ({
       kind: item.kind,
       name: item.name,
       ready: item.ready ?? false,
       pendingItems: item.pending_items ?? 0,
-    }));
+    })),
+    [summaryQuery.data?.maturity],
+  );
+
+  // Build unified feed for the "All" tab
+  const feedItems = useMemo(() => {
+    if (activeKind !== "all") return [];
     return buildFeed(captures, items, feedbackItems, maturityItems, { showFinished });
-  }, [activeKind, captures, items, feedbackSummary, summaryQuery.data?.maturity, showFinished]);
+  }, [activeKind, captures, items, feedbackItems, maturityItems, showFinished]);
+
+  // Attention reasons for all items (used when not in feed mode)
+  const attentionReasonsMap = useMemo(() => {
+    const fbMap = new Map(feedbackItems.map((f) => [`${f.kind}/${f.name}`, f]));
+    const matMap = new Map(maturityItems.map((m) => [`${m.kind}/${m.name}`, m]));
+    const map = new Map<string, AttentionReason[]>();
+    for (const item of items) {
+      const reasons = getAttentionReasons(item, fbMap, matMap);
+      if (reasons.length > 0) map.set(`${item.kind}/${item.name}`, reasons);
+    }
+    return map;
+  }, [items, feedbackItems, maturityItems]);
 
   const actionableCount = useMemo(() => countActionableItems(feedItems), [feedItems]);
 
@@ -356,6 +369,38 @@ export function BacklogPage() {
       setTimeout(() => setWorkshopError(null), 8000);
     },
   });
+  const handleStepperCompleted = useCallback((itemKey: string, item: BacklogItem, result: StepperCompletionResult) => {
+    setCompletedSteppers((prev) => {
+      const next = new Set(prev);
+      next.add(itemKey);
+      return next;
+    });
+    if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
+      upsertSpawnedRun({
+        runId: result.autoAdvance.runId,
+        taskId: result.autoAdvance.taskId ?? "",
+        baseUrl: "",
+        backlogKind: item.kind as BacklogKind,
+        backlogName: item.name,
+        backlogTitle: item.title,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    setTransitionItems((prev) => {
+      const next = new Map(prev);
+      next.set(itemKey, result);
+      return next;
+    });
+    setTimeout(() => {
+      setTransitionItems((prev) => {
+        const next = new Map(prev);
+        next.delete(itemKey);
+        return next;
+      });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+    }, 4000);
+  }, [upsertSpawnedRun, queryClient]);
+
   const openFeedbackHub = (tab: "review" | "export" | "import", names?: string[]) => {
     setFeedbackHubInitialTab(tab);
     setFeedbackHubSelectedNames(names);
@@ -774,394 +819,140 @@ export function BacklogPage() {
           </div>
         )}
 
-        {/* Unified feed rendering for "All" tab (captures + backlog items interleaved) */}
-        {activeKind === "all" && feedItems.length > 0 && !searchTerm && !statusFilter && (
-          <ResponsiveList data-testid={selectors.backlog.grid}>
-            {feedItems.map((entry) => {
-              if (entry.type === "capture") {
-                return (
-                  <ResponsiveListItem
-                    key={`capture-${entry.capture.id}`}
-                    className="group relative block overflow-hidden"
-                  >
-                    <CaptureCard
-                      capture={entry.capture}
-                      onEditItem={(prefill: BacklogFormValues) => {
-                        setCreatePrefill(prefill);
-                        setShowCreate(true);
-                      }}
-                    />
-                  </ResponsiveListItem>
-                );
-              }
-              const item = entry.type === "attention" ? entry.item : entry.item;
-              const reasons = entry.type === "attention" ? entry.reasons : [];
-              const itemKey = `${item.kind}/${item.name}`;
-              const pendingQuestions = pendingQuestionsMap.get(itemKey);
-              const hasActiveStepper = (pendingQuestions?.length ?? 0) > 0 && !completedSteppers.has(itemKey);
-              const transitionResult = transitionItems.get(itemKey);
-              return (
-                <ResponsiveListItem
-                  as={Link}
-                  key={`${item.kind}-${item.name}`}
-                  to={`/backlog/${item.kind}/${item.name}`}
-                  state={{ backlogSearch: location.search }}
-                  interactive
-                  className="group relative block overflow-hidden"
-                  data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
-                >
-                  {/* Header: status + priority (always shown) */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-                      />
-                      <span className="text-xs uppercase tracking-wider text-slate-400">
-                        {formatBacklogStatus(item.status)}
-                      </span>
-                      <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
-                      <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
-                    </div>
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                      P{item.priority}
-                    </span>
-                  </div>
-                  {/* Title + description (always shown) */}
-                  <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
-
-                  {hasActiveStepper ? (
-                    /* Inline question stepper — replaces badges, tags, readiness, run button */
-                    <InlineQuestionStepper
-                      questions={pendingQuestions as PendingQuestion[]}
-                      backlogKind={item.kind as BacklogKind}
-                      backlogName={item.name}
-                      onAllAnswered={(result) => {
-                        setCompletedSteppers((prev) => {
-                          const next = new Set(prev);
-                          next.add(itemKey);
-                          return next;
-                        });
-                        // Track spawned agent run so AgentRunningBadge updates.
-                        if (result.autoAdvance?.triggered && result.autoAdvance.runId) {
-                          upsertSpawnedRun({
-                            runId: result.autoAdvance.runId,
-                            taskId: result.autoAdvance.taskId ?? "",
-                            baseUrl: "",
-                            backlogKind: item.kind as BacklogKind,
-                            backlogName: item.name,
-                            backlogTitle: item.title,
-                            createdAt: new Date().toISOString(),
-                          });
-                        }
-                        // Show a transition message on the card before refreshing the feed.
-                        setTransitionItems((prev) => {
-                          const next = new Map(prev);
-                          next.set(itemKey, result);
-                          return next;
-                        });
-                        // Delay feed refresh so the card stays visible with feedback.
-                        setTimeout(() => {
-                          setTransitionItems((prev) => {
-                            const next = new Map(prev);
-                            next.delete(itemKey);
-                            return next;
-                          });
-                          void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
-                        }, 4000);
-                      }}
-                    />
-                  ) : transitionResult ? (
-                    /* Brief transition message after stepper completes */
-                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
-                      {transitionResult.autoAdvance?.triggered ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                          Generating next workshop round...
-                        </>
-                      ) : transitionResult.autoAdvance?.reason === "ready" ? (
-                        <>
-                          <CheckSquare className="h-4 w-4 shrink-0 text-emerald-400" />
-                          <span className="text-emerald-300">All decisions answered — item is ready!</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckSquare className="h-4 w-4 shrink-0" />
-                          All decisions answered
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    /* Normal card content */
-                    <>
-                      {reasons.length > 0 && (
-                        <div className="mt-2">
-                          <PendingDecisionBadge reasons={reasons} />
-                        </div>
-                      )}
-                      {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          <InitiativeBadge initiative={item.initiative} />
-                          <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
-                        </div>
-                      )}
-                      <TagList
-                        tags={item.tags}
-                        maxTags={displayLimitsConfig.backlogCardMaxTags}
-                        className="mt-3"
-                      />
-                      {(() => {
-                        const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
-                        return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
-                      })()}
-                      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                        <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
-                        <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
-                      </div>
-                      {isBacklogQueueable(item) && !hasBlockingDeps(item, items) && (() => {
-                        const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
-                        const needsWorkshop = mat && !mat.ready;
-                        const agentBusy = activeRunKeys.has(itemKey);
-                        return (
-                          <div className="mt-3" onClick={(event) => event.preventDefault()}>
-                            {needsWorkshop ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={agentBusy || workshopMutation.isPending}
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name });
-                                }}
-                              >
-                                <MessageSquareText className="mr-1 h-3 w-3" />
-                                {agentBusy ? "Agent running..." : workshopMutation.isPending ? "Starting..." : "Workshop"}
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                disabled={agentBusy}
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
-                                }}
-                              >
-                                <Play className="mr-1 h-3 w-3" />
-                                {agentBusy ? "Agent running..." : "Run"}
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })()}
-                      {item.status === "completed" && (
-                        <div className="mt-3" onClick={(event) => event.preventDefault()}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={archiveMutation.isPending}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item });
-                            }}
-                          >
-                            <Archive className="mr-1 h-3 w-3" />
-                            {archiveMutation.isPending ? "Archiving..." : "Archive"}
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </ResponsiveListItem>
-              );
-            })}
-          </ResponsiveList>
-        )}
-
-        {/* Standard list rendering (kind tabs or filtered "all" tab) */}
-        {(activeKind !== "all" || searchTerm || statusFilter) && filteredItems.length > 0 && (
-          <div className="space-y-3">
-            {batchMode && (
-              <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        aria-label="Select all queueable items"
-                        checked={allQueueableSelected}
-                        onChange={toggleSelectAllQueueable}
-                        disabled={queueableFilteredItems.length === 0}
-                      />
-                      <span>Select all queueable</span>
-                    </label>
-                    <span className="text-slate-400">
-                      {selectedQueueableItems.length} selected
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {queueableFilteredItems.length} queueable in current view
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const names = selectedQueueableItems.map((item) => `${item.kind}/${item.name}`);
-                        openFeedbackHub("export", names);
-                      }}
-                      disabled={!hasAnySelectedQueueable}
-                    >
-                      <MessageSquareText className="mr-1 h-3 w-3" />
-                      Export Selected
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        setRunModalTargets(
-                          selectedQueueableItems.map((item) => ({
-                            kind: item.kind,
-                            name: item.name,
-                            title: item.title,
-                          })),
-                        )
-                      }
-                      disabled={!hasAnySelectedQueueable}
-                    >
-                      <Play className="mr-1 h-3 w-3" />
-                      Run Selected
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )}
-            <ResponsiveList data-testid={selectors.backlog.grid}>
-              {sortedItems.map((item) => (
-                <ResponsiveListItem
-                  as={Link}
-                  key={`${item.kind}-${item.name}`}
-                  to={`/backlog/${item.kind}/${item.name}`}
-                  state={{ backlogSearch: location.search }}
-                  interactive
-                  className="group block"
-                  data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      {batchMode && isBacklogQueueable(item) && !hasBlockingDeps(item, items) ? (
+        {/* Backlog items + captures (unified rendering for all tabs) */}
+        {(() => {
+          const isUnfilteredAll = activeKind === "all" && !searchTerm && !statusFilter;
+          const displayItems: FeedItem[] = isUnfilteredAll
+            ? feedItems
+            : sortedItems.map((item) => ({ type: "backlog" as const, item }));
+          if (displayItems.length === 0) return null;
+          return (
+            <div className="space-y-3">
+              {batchMode && (
+                <Card className="border border-slate-700/70 bg-slate-900/45 p-3">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                      <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
-                          aria-label={`Select backlog item ${item.title}`}
-                          checked={selectedKeys.includes(`${item.kind}/${item.name}`)}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => {
-                            event.stopPropagation();
-                            toggleItemSelection(item);
-                          }}
+                          aria-label="Select all queueable items"
+                          checked={allQueueableSelected}
+                          onChange={toggleSelectAllQueueable}
+                          disabled={queueableFilteredItems.length === 0}
                         />
-                      ) : null}
-                      <span
-                        className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500"}`}
-                      />
-                      <span className="text-xs uppercase tracking-wider text-slate-400">
-                        {formatBacklogStatus(item.status)}
+                        <span>Select all queueable</span>
+                      </label>
+                      <span className="text-slate-400">
+                        {selectedQueueableItems.length} selected
                       </span>
-                      <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
-                      <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
+                      <span className="text-xs text-slate-500">
+                        {queueableFilteredItems.length} queueable in current view
+                      </span>
                     </div>
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                      P{item.priority}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 font-medium text-slate-100">{item.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-400">{item.description}</p>
-                  {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      <InitiativeBadge initiative={item.initiative} />
-                      <DependencyIndicator dependsOn={item.dependsOn} allItems={items} />
-                    </div>
-                  )}
-                  <TagList
-                    tags={item.tags}
-                    maxTags={displayLimitsConfig.backlogCardMaxTags}
-                    className="mt-3"
-                  />
-                  {(() => {
-                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
-                    return mat ? <ReadinessBar data={mat} className="mt-3" /> : null;
-                  })()}
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                    <span title={new Date(item.updated).toLocaleString()}>{formatRelativeTime(item.updated)}</span>
-                    <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
-                  </div>
-                  {isBacklogQueueable(item) && !hasBlockingDeps(item, items) && (() => {
-                    const mat = item.kind === "idea" ? readinessMap.get(`${item.kind}/${item.name}`) : undefined;
-                    const needsWorkshop = mat && !mat.ready;
-                    const agentBusy = activeRunKeys.has(`${item.kind}/${item.name}`);
-                    return (
-                      <div className="mt-3" onClick={(event) => event.preventDefault()}>
-                        {needsWorkshop ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={agentBusy || workshopMutation.isPending}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name });
-                            }}
-                          >
-                            <MessageSquareText className="mr-1 h-3 w-3" />
-                            {agentBusy ? "Agent running..." : workshopMutation.isPending ? "Starting..." : "Workshop"}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={agentBusy}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setRunModalTarget({ kind: item.kind, name: item.name, title: item.title });
-                            }}
-                          >
-                            <Play className="mr-1 h-3 w-3" />
-                            {agentBusy ? "Agent running..." : "Run"}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {item.status === "completed" && (
-                    <div className="mt-3" onClick={(event) => event.preventDefault()}>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const names = selectedQueueableItems.map((item) => `${item.kind}/${item.name}`);
+                          openFeedbackHub("export", names);
+                        }}
+                        disabled={!hasAnySelectedQueueable}
+                      >
+                        <MessageSquareText className="mr-1 h-3 w-3" />
+                        Export Selected
+                      </Button>
                       <Button
                         size="sm"
-                        variant="outline"
-                        disabled={archiveMutation.isPending}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item });
-                        }}
+                        onClick={() =>
+                          setRunModalTargets(
+                            selectedQueueableItems.map((item) => ({
+                              kind: item.kind,
+                              name: item.name,
+                              title: item.title,
+                            })),
+                          )
+                        }
+                        disabled={!hasAnySelectedQueueable}
                       >
-                        <Archive className="mr-1 h-3 w-3" />
-                        {archiveMutation.isPending ? "Archiving..." : "Archive"}
+                        <Play className="mr-1 h-3 w-3" />
+                        Run Selected
                       </Button>
                     </div>
-                  )}
-                  {!isBacklogQueueable(item) && item.status !== "completed" ? (
-                    <p className="mt-3 text-xs text-slate-500">
-                      {item.status === "failed"
-                        ? "Failed — open to follow up or review."
-                        : getBacklogNotQueueableReason(item)}
-                    </p>
-                  ) : null}
-                </ResponsiveListItem>
-              ))}
-            </ResponsiveList>
-          </div>
-        )}
+                  </div>
+                </Card>
+              )}
+              <ResponsiveList data-testid={selectors.backlog.grid}>
+                {displayItems.map((entry) => {
+                  if (entry.type === "capture") {
+                    return (
+                      <ResponsiveListItem
+                        key={`capture-${entry.capture.id}`}
+                        className="group relative block overflow-hidden"
+                      >
+                        <CaptureCard
+                          capture={entry.capture}
+                          onEditItem={(prefill: BacklogFormValues) => {
+                            setCreatePrefill(prefill);
+                            setShowCreate(true);
+                          }}
+                        />
+                      </ResponsiveListItem>
+                    );
+                  }
+                  const item = entry.item;
+                  const itemKey = `${item.kind}/${item.name}`;
+                  const reasons = entry.type === "attention"
+                    ? entry.reasons
+                    : (attentionReasonsMap.get(itemKey) ?? []);
+                  return (
+                    <ResponsiveListItem
+                      as={Link}
+                      key={`${item.kind}-${item.name}`}
+                      to={`/backlog/${item.kind}/${item.name}`}
+                      state={{ backlogSearch: location.search }}
+                      interactive
+                      className="group relative block overflow-hidden"
+                      data-testid={selectors.backlog.cardByName({ kind: item.kind, name: item.name })}
+                    >
+                      <BacklogCard
+                        item={item}
+                        allItems={items}
+                        readinessData={item.kind === "idea" ? readinessMap.get(itemKey) : undefined}
+                        itemActions={getItemActions({
+                          item,
+                          allItems: items,
+                          readinessReady: (() => {
+                            const rd = item.kind === "idea" ? readinessMap.get(itemKey) : undefined;
+                            return rd ? rd.ready : null;
+                          })(),
+                          agentRunning: activeRunKeys.has(itemKey),
+                          hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
+                          hasExecutionHistory: item.status === "completed" || item.status === "failed",
+                          hasResearchOutput: false,
+                        })}
+                        attentionReasons={reasons}
+                        pendingQuestions={pendingQuestionsMap.get(itemKey)}
+                        isStepperCompleted={completedSteppers.has(itemKey)}
+                        transitionResult={transitionItems.get(itemKey)}
+                        onStepperCompleted={(result) => handleStepperCompleted(itemKey, item, result)}
+                        batchMode={batchMode}
+                        isSelected={selectedKeys.includes(itemKey)}
+                        onToggleSelection={() => toggleItemSelection(item)}
+                        onRun={() => setRunModalTarget({ kind: item.kind, name: item.name, title: item.title })}
+                        onArchive={() => archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item })}
+                        onFollowUp={() => navigate(`/backlog/${item.kind}/${item.name}?action=followup`)}
+                        onWorkshop={() => workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name })}
+                        archivePending={archiveMutation.isPending}
+                        workshopPending={workshopMutation.isPending}
+                      />
+                    </ResponsiveListItem>
+                  );
+                })}
+              </ResponsiveList>
+            </div>
+          );
+        })()}
       </div>
 
       <FloatingActionButton

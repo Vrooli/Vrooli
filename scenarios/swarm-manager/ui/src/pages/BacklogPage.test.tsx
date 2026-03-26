@@ -225,7 +225,7 @@ describe("BacklogPage", () => {
     expect(backlogService.list).toHaveBeenCalledTimes(2);
   });
 
-  it("shows a reason when an item is not queueable", async () => {
+  it("shows archive button for completed items", async () => {
     vi.mocked(backlogService.list).mockResolvedValue([
       {
         name: "done-idea",
@@ -242,9 +242,8 @@ describe("BacklogPage", () => {
 
     renderPage();
 
-    // Type a search term to force the standard list renderer (the "All" tab's
-    // unified feed doesn't render not-queueable reasons, but searching activates
-    // the standard list which does).
+    // Completed items are visible by default (only archived items are hidden).
+    // Search to activate the standard list renderer.
     await waitFor(() => {
       expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
     });
@@ -252,15 +251,8 @@ describe("BacklogPage", () => {
       target: { value: "Done" },
     });
 
-    // Completed items are hidden by default — open filter dropdown, then toggle.
-    fireEvent.click(screen.getByTestId("backlog-filter"));
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-show-finished-toggle")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("backlog-show-finished-toggle"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Completed — open to follow up or review.")).toBeInTheDocument();
+      expect(screen.getByText("Archive")).toBeInTheDocument();
     });
   });
 

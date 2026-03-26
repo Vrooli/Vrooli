@@ -129,7 +129,7 @@ describe("BacklogDetailsPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("backlog-details-queue")).toBeInTheDocument();
+      expect(screen.getAllByTestId("backlog-details-queue").length).toBeGreaterThan(0);
     });
   });
 
