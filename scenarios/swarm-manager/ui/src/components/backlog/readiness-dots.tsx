@@ -9,6 +9,7 @@
  * "intentionally scored zero" rather than "missing data".
  */
 import { useState, useRef, useCallback } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { cn } from "../../lib";
 import {
   READINESS_DIMENSIONS,
@@ -75,7 +76,16 @@ export function ReadinessDots({ round, prevRound, className }: ReadinessDotsProp
     delayClickOutside: true,
   });
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = useCallback((e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setIsOpen((prev) => !prev);
+  }, []);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== "Enter" && e.key !== " ") {
+      return;
+    }
+    e.preventDefault();
     e.stopPropagation();
     setIsOpen((prev) => !prev);
   }, []);
@@ -83,9 +93,11 @@ export function ReadinessDots({ round, prevRound, className }: ReadinessDotsProp
   return (
     <div ref={containerRef} className={cn("relative inline-flex", className)}>
       {/* Dot row */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         className="flex gap-0.5 rounded px-0.5 py-0.5 hover:bg-slate-700/50 transition-colors"
         aria-label="View readiness details"
         data-testid="readiness-dots-trigger"
@@ -104,7 +116,7 @@ export function ReadinessDots({ round, prevRound, className }: ReadinessDotsProp
             </div>
           );
         })}
-      </button>
+      </div>
 
       {/* Popover */}
       {isOpen && (

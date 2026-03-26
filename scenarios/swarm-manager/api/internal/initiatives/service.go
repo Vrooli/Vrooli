@@ -33,11 +33,19 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
-	if strings.TrimSpace(req.Title) == "" {
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
 		return nil, fmt.Errorf("title is required")
 	}
 	if s.store.Exists(name) {
 		return nil, fmt.Errorf("initiative %q already exists", name)
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = "active"
+	}
+	if !ValidateStatus(status) {
+		return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", req.Status)
 	}
 
 	items := req.Items
@@ -47,9 +55,9 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	init := &Initiative{
 		Name:        name,
-		Title:       req.Title,
+		Title:       title,
 		Description: strings.TrimSpace(req.Description),
-		Status:      "active",
+		Status:      status,
 		Items:       items,
 		Created:     now,
 		Updated:     now,
@@ -103,18 +111,29 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.Title) == "" {
-		return nil, fmt.Errorf("title is required")
-	}
-	if !ValidateStatus(req.Status) {
-		return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", req.Status)
+	if !req.HasChanges() {
+		return nil, fmt.Errorf("at least one field must be provided")
 	}
 
-	init.Title = req.Title
-	init.Description = strings.TrimSpace(req.Description)
-	init.Status = req.Status
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			return nil, fmt.Errorf("title is required")
+		}
+		init.Title = title
+	}
+	if req.Description != nil {
+		init.Description = strings.TrimSpace(*req.Description)
+	}
+	if req.Status != nil {
+		status := strings.TrimSpace(*req.Status)
+		if !ValidateStatus(status) {
+			return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", *req.Status)
+		}
+		init.Status = status
+	}
 	if req.Items != nil {
-		init.Items = req.Items
+		init.Items = *req.Items
 	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 
@@ -130,6 +149,25 @@ func (s *Service) Delete(name string) error {
 		return nil // idempotent
 	}
 	return s.store.Delete(name)
+}
+
+// Replace writes a full initiative snapshot, used for internal rollback flows.
+func (s *Service) Replace(init Initiative) error {
+	if strings.TrimSpace(init.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if strings.TrimSpace(init.Title) == "" {
+		return fmt.Errorf("title is required")
+	}
+	if !ValidateStatus(strings.TrimSpace(init.Status)) {
+		return fmt.Errorf("invalid status %q: must be active, completed, or archived", init.Status)
+	}
+	init.Name = strings.TrimSpace(init.Name)
+	init.Title = strings.TrimSpace(init.Title)
+	init.Description = strings.TrimSpace(init.Description)
+	init.Status = strings.TrimSpace(init.Status)
+	init.Updated = time.Now().UTC().Format(time.RFC3339)
+	return s.store.Save(&init)
 }
 
 // ComputeRollup loads each referenced backlog item and aggregates status

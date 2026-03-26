@@ -29,14 +29,11 @@ type workshopAutoAdv struct {
 	Reason    string  `json:"reason"`
 }
 
-func makeWorkshopSaveBody(roundNumber int, round workshop.Round, autoWorkshop *bool) []byte {
+func makeWorkshopSaveBody(roundNumber int, round workshop.Round) []byte {
 	content, _ := json.Marshal(round)
 	body := map[string]any{
 		"round_number": roundNumber,
 		"content":      string(content),
-	}
-	if autoWorkshop != nil {
-		body["auto_workshop"] = *autoWorkshop
 	}
 	data, _ := json.Marshal(body)
 	return data
@@ -49,8 +46,29 @@ func workshopSaveRequest(kind, name string, body []byte) *http.Request {
 	return req
 }
 
+// enableAutoAdvanceSettings writes settings that enable auto-advance but disable
+// auto-initialize (so no agent spawn on item creation, only on workshop save).
+func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
+	t.Helper()
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+}
+
 func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
+	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-test", Title: "WS Test", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -63,9 +81,7 @@ func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	// Auto-workshop disabled since we don't have a mock agent.
-	falseVal := false
-	body := makeWorkshopSaveBody(1, round, &falseVal)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-test", body))
 
@@ -84,8 +100,8 @@ func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
 	if resp.File.Name != "round-001.json" {
 		t.Errorf("expected file name 'round-001.json', got %q", resp.File.Name)
 	}
-	if resp.AutoAdvance.Reason != "opt_out" {
-		t.Errorf("expected reason 'opt_out', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "ready" {
+		t.Errorf("expected reason 'ready', got %q", resp.AutoAdvance.Reason)
 	}
 }
 
@@ -112,7 +128,7 @@ func TestWorkshopSave_ItemNotFound_Returns404(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
 	round := workshop.Round{RoundNum: 1, Readiness: map[string]int{}}
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "nonexistent", body))
 
@@ -126,6 +142,23 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-123", TaskID: "task-456"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Enable auto-advance for this test.
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-advance", Title: "WS Advance", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -139,7 +172,7 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-advance", body))
 
@@ -167,6 +200,7 @@ func TestWorkshopSave_Ready_NoAutoAdvance(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-ready", Title: "WS Ready", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -180,7 +214,7 @@ func TestWorkshopSave_Ready_NoAutoAdvance(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-ready", body))
 
@@ -208,6 +242,7 @@ func TestWorkshopSave_MaxRounds_NoAutoAdvance(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-maxrounds", Title: "WS Max", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -233,7 +268,7 @@ func TestWorkshopSave_MaxRounds_NoAutoAdvance(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	body := makeWorkshopSaveBody(10, round, nil)
+	body := makeWorkshopSaveBody(10, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-maxrounds", body))
 
@@ -258,6 +293,7 @@ func TestWorkshopSave_PendingDecisions_NoAutoAdvance(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-pending", Title: "WS Pending", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -271,7 +307,7 @@ func TestWorkshopSave_PendingDecisions_NoAutoAdvance(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision"}}, // No Selected
 	}
 
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-pending", body))
 
@@ -291,13 +327,31 @@ func TestWorkshopSave_PendingDecisions_NoAutoAdvance(t *testing.T) {
 	}
 }
 
-func TestWorkshopSave_OptOut_NoAutoAdvance(t *testing.T) {
+func TestWorkshopSave_AutoAdvanceDisabledViaSetting(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Disable auto-advance via settings.
+	t.Setenv("SCENARIO_ROOT", rootDir)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    true,
+		"auto_advance_workshop":       false,
+		"auto_cascade_workshop":       true,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
-		Name: "ws-optout", Title: "WS OptOut", Status: StatusBacklog,
+		Name: "ws-disabled", Title: "WS Disabled", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
 	})
 
@@ -308,10 +362,9 @@ func TestWorkshopSave_OptOut_NoAutoAdvance(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	falseVal := false
-	body := makeWorkshopSaveBody(1, round, &falseVal)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
-	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-optout", body))
+	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-disabled", body))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -322,13 +375,13 @@ func TestWorkshopSave_OptOut_NoAutoAdvance(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp.AutoAdvance.Triggered {
-		t.Error("expected auto-advance NOT triggered with opt-out")
+		t.Error("expected auto-advance NOT triggered when disabled via setting")
 	}
-	if resp.AutoAdvance.Reason != "opt_out" {
-		t.Errorf("expected reason 'opt_out', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "disabled" {
+		t.Errorf("expected reason 'disabled', got %q", resp.AutoAdvance.Reason)
 	}
 	if agent.lastReq != nil {
-		t.Error("expected no agent spawn with opt-out")
+		t.Error("expected no agent spawn when auto-advance disabled")
 	}
 }
 
@@ -337,6 +390,23 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 		err: fmt.Errorf("agent unavailable"),
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Enable auto-advance to test agent-down resilience.
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-agentdown", Title: "WS Agent Down", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -349,7 +419,7 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-agentdown", body))
 
@@ -379,6 +449,23 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Enable auto-advance to test lock behavior.
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-lock", Title: "WS Lock", Status: StatusBacklog,
 		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
@@ -396,7 +483,7 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
 	}
 
-	body := makeWorkshopSaveBody(1, round, nil)
+	body := makeWorkshopSaveBody(1, round)
 	w := httptest.NewRecorder()
 	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-lock", body))
 

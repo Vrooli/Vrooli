@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-03-26T16:36:02Z",
+  "description": "Read the existing vrooli-bridge implementation only to extract reusable signal for the new direction.\n\nCapture anything still useful, including requirements, trust and auth assumptions, data-model ideas, UI or CLI patterns, and mistakes to avoid. The purpose is to learn from the legacy work, not to preserve its architecture by default.",
+  "effort": "M",
+  "initiative": "trusted-node-bridge",
+  "kind": "research",
+  "name": "legacy-vrooli-bridge-signal-extraction",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "vrooli-bridge",
+    "research",
+    "greenfield",
+    "trusted-nodes"
+  ],
+  "title": "Extract Reusable Signal From The Legacy Bridge",
+  "updated": "2026-03-26T16:36:02Z"
+}

@@ -59,11 +59,13 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	// Phase 1: Batch-create 3 items in a dependency chain with an initiative.
 	p1, p2, p3 := int32(1), int32(2), int32(3)
 	payload := batchCreateRequest{
-		Initiative: "test-initiative",
 		Items: []batchCreateItem{
-			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1},
-			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}},
-			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}},
+			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Initiative: "test-initiative"},
+			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Initiative: "test-initiative"},
+			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Initiative: "test-initiative"},
+		},
+		Initiatives: []batchCreateInitiative{
+			{Name: "test-initiative", Title: "Test Initiative"},
 		},
 	}
 
@@ -79,8 +81,8 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	}
 
 	// Verify initiative was ensured and items were added.
-	if !ia.existingInitiatives["test-initiative"] {
-		t.Error("expected initiative 'test-initiative' to be ensured")
+	if _, ok := ia.snapshots["test-initiative"]; !ok {
+		t.Error("expected initiative 'test-initiative' to be created")
 	}
 	if len(ia.addedItems["test-initiative"]) != 3 {
 		t.Errorf("expected 3 items added to initiative, got %d", len(ia.addedItems["test-initiative"]))

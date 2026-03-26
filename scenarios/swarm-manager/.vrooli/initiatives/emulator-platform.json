@@ -1,0 +1,14 @@
+{
+  "name": "emulator-platform",
+  "title": "Dedicated Emulator Platform",
+  "description": "Extract shared validation and live-desktop capabilities into a reusable emulator scenario and wire it into deployment flows.",
+  "status": "active",
+  "items": [
+    "research/emulator-extraction-and-service-plan",
+    "execute/vrooli-emulator-linux-first",
+    "execute/adopt-vrooli-emulator-in-deployment-flows",
+    "execute/desktop-release-regression-suite"
+  ],
+  "created": "2026-03-26T16:35:59Z",
+  "updated": "2026-03-26T16:36:27Z"
+}

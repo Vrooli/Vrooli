@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**",
+    "scenarios/scenario-to-desktop/**"
+  ],
+  "created": "2026-03-26T16:35:59Z",
+  "depends_on": [
+    "research/emulator-extraction-and-service-plan"
+  ],
+  "description": "Create the new dedicated emulator scenario, using vrooli-emulator as the working scenario name, as a reusable Linux-first validation service.\n\nThe implementation should reuse proven concepts from scenario-to-desktop livedesktop and smoketest work, but rehome them behind clean service boundaries so other deployment ramps and deployment-manager can consume one shared emulator app instead of each owning their own ad hoc validation logic.",
+  "effort": "XL",
+  "initiative": "emulator-platform",
+  "kind": "execute",
+  "name": "vrooli-emulator-linux-first",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "emulator",
+    "linux",
+    "greenfield",
+    "desktop-validation"
+  ],
+  "title": "Build The Dedicated Emulator Service Linux First",
+  "updated": "2026-03-26T16:35:59Z"
+}

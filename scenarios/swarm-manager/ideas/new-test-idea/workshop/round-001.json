@@ -1,0 +1,110 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-26T01:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What domain does this idea target?",
+      "context": "The description 'A new test idea' and tags 'new, test' are ambiguous. We need to identify the problem domain before any meaningful planning can begin. Does this relate to testing infrastructure, a new product concept, or something else entirely?",
+      "options": [
+        {"key": "A", "label": "Testing infrastructure/framework", "rationale": "Build or improve test tooling for Vrooli scenarios (e.g., test harness, test generators, test reporting)"},
+        {"key": "B", "label": "New product/scenario concept", "rationale": "A new scenario delivering user-facing value, with 'test' referring to its experimental nature"},
+        {"key": "C", "label": "QA/validation tooling", "rationale": "Automated validation of scenario outputs, integration test suites, or CI/CD test pipelines"},
+        {"key": "D", "label": "Other", "rationale": "Provide your own description of the domain"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Who are the target users?",
+      "context": "Understanding the audience shapes the entire architecture. Internal tooling for developers has very different requirements than a user-facing product.",
+      "options": [
+        {"key": "A", "label": "Vrooli developers/agents", "rationale": "Internal tooling — focus on CLI, APIs, and automation-friendly interfaces"},
+        {"key": "B", "label": "External end users", "rationale": "User-facing product — needs UI, onboarding, and polish"},
+        {"key": "C", "label": "Both internal and external", "rationale": "Dual-purpose — developer API with a user-friendly UI layer on top"},
+        {"key": "D", "label": "Other", "rationale": "Provide your own target audience"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "What problem does this solve?",
+      "context": "A clear problem statement is essential for scoping. What pain point or opportunity motivates this idea?",
+      "options": [
+        {"key": "A", "label": "Reduces manual effort in an existing workflow", "rationale": "Automation play — measure ROI by time saved"},
+        {"key": "B", "label": "Enables a capability that doesn't exist yet", "rationale": "Greenfield capability — measure by what becomes possible"},
+        {"key": "C", "label": "Improves quality/reliability of existing systems", "rationale": "Quality play — measure by error reduction or confidence increase"},
+        {"key": "D", "label": "Other", "rationale": "Describe the problem in your own words"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "New scenario or enhancement to existing?",
+      "context": "This determines whether we're creating a new scenario from scratch or extending an existing one. Affects scope, dependencies, and architecture decisions.",
+      "options": [
+        {"key": "A", "label": "New standalone scenario", "rationale": "Clean slate — full control over architecture, but more work to set up"},
+        {"key": "B", "label": "Enhancement to an existing scenario", "rationale": "Builds on existing infrastructure — faster to deliver but constrained by current design"},
+        {"key": "C", "label": "Cross-scenario capability", "rationale": "Shared infrastructure used by multiple scenarios — highest impact but requires careful API design"},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "What file paths are expected to change?",
+      "context": "The acceptance_allow field is currently empty. Defining expected change boundaries enables sandbox enforcement and post-execution review. This can be refined later once the domain is clearer.",
+      "options": [
+        {"key": "A", "label": "Broad scenario-level globs (e.g., scenarios/new-test-idea/**)", "rationale": "Appropriate if creating a new standalone scenario"},
+        {"key": "B", "label": "Targeted subdirectory/file paths", "rationale": "Appropriate if modifying specific parts of an existing scenario"},
+        {"key": "C", "label": "Defer until domain is clarified", "rationale": "Cannot set meaningful boundaries until we know what we're building"},
+        {"key": "D", "label": "Other", "rationale": "Specify custom glob patterns"}
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": "Pre-selected: deferring is the right call given the current lack of clarity on domain and scope"
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "What resources would this idea likely need?",
+      "context": "Vrooli provides shared local resources (postgres, redis, qdrant, ollama, etc.). Early resource identification helps shape the architecture.",
+      "options": [
+        {"key": "A", "label": "Database only (postgres)", "rationale": "Simple CRUD with persistent storage"},
+        {"key": "B", "label": "Database + caching (postgres + redis)", "rationale": "Standard web app pattern with performance optimization"},
+        {"key": "C", "label": "AI-powered (ollama + qdrant + postgres)", "rationale": "AI/ML features requiring inference and vector search"},
+        {"key": "D", "label": "Minimal/none", "rationale": "Stateless utility or CLI tool with no persistence needs"},
+        {"key": "E", "label": "Other", "rationale": "Specify your resource requirements"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The current spec is extremely minimal ('A new test idea' with tags 'new, test'). All plan sections are TBD pending answers to the decisions in this round. A second workshop round will be needed to flesh out architecture, testing, and implementation details once the domain and scope are clarified."
+    }
+  ],
+  "plan_updates": "Reviewed existing plan.md scaffold — all 13 mandatory sections are present but marked TBD. No updates made this round since the idea lacks sufficient context to fill any sections. Plan will be updated in round 2 after decisions are resolved."
+}

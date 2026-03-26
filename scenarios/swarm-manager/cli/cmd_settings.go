@@ -30,6 +30,9 @@ func (a *App) cmdSettingsGet(args []string) error {
 			DefaultDelaySeconds      int64  `json:"default_delay_seconds"`
 			AutoFixup                bool   `json:"auto_fixup"`
 			MaxFixupAttempts         int    `json:"max_fixup_attempts"`
+			AutoInitializeWorkshop   bool   `json:"auto_initialize_workshop"`
+			AutoAdvanceWorkshop      bool   `json:"auto_advance_workshop"`
+			AutoCascadeWorkshop      bool   `json:"auto_cascade_workshop"`
 			MaxAutoRounds            int    `json:"max_auto_rounds"`
 			AgentMaxTurns            int    `json:"agent_max_turns"`
 			AgentTimeoutSeconds      int    `json:"agent_timeout_seconds"`
@@ -54,7 +57,10 @@ func (a *App) cmdSettingsGet(args []string) error {
 	fmt.Printf("  Max fixup attempts: %d\n", s.MaxFixupAttempts)
 
 	printSection("Workshop")
-	fmt.Printf("  Max auto rounds: %d\n", s.MaxAutoRounds)
+	fmt.Printf("  Auto-initialize workshop: %t\n", s.AutoInitializeWorkshop)
+	fmt.Printf("  Auto-advance workshop:    %t\n", s.AutoAdvanceWorkshop)
+	fmt.Printf("  Auto-cascade workshop:    %t\n", s.AutoCascadeWorkshop)
+	fmt.Printf("  Max auto rounds:          %d\n", s.MaxAutoRounds)
 
 	printSection("Agent Behavior")
 	fmt.Printf("  Agent max turns: %d\n", s.AgentMaxTurns)

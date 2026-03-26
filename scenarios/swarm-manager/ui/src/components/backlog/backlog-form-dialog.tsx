@@ -69,7 +69,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, researchTarget, tags, initiative, dependsOn } = values;
+  const { name, title, description, status, priority, kind, researchTarget, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
 
   const isEditMode = mode === "edit";
 
@@ -109,6 +109,9 @@ export function BacklogFormDialog({
       researchTarget: kind === "research" ? researchTarget : undefined,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
       initiative: initiative?.trim() || undefined,
+      effort: effort?.trim() || undefined,
+      acceptanceAllow: acceptanceAllow && acceptanceAllow.length > 0 ? acceptanceAllow : undefined,
+      acceptanceDeny: acceptanceDeny && acceptanceDeny.length > 0 ? acceptanceDeny : undefined,
     });
   };
 
@@ -362,6 +365,74 @@ export function BacklogFormDialog({
             disabled={isSubmitting}
           />
           <p className="mt-1 text-xs text-slate-500">Comma-separated kind/name references.</p>
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-effort" className="text-sm font-medium text-slate-300">
+            Effort
+          </label>
+          <div className="mt-2">
+            <Select
+              id="backlog-form-effort"
+              value={effort ?? ""}
+              onChange={(e) => {
+                setField("effort", e.target.value);
+                if (error) setError(null);
+              }}
+              disabled={isSubmitting}
+            >
+              <option value="">-- None --</option>
+              <option value="XS">XS</option>
+              <option value="S">S</option>
+              <option value="M">M</option>
+              <option value="L">L</option>
+              <option value="XL">XL</option>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-acceptance-allow" className="text-sm font-medium text-slate-300">
+            Acceptance Allow
+          </label>
+          <Input
+            id="backlog-form-acceptance-allow"
+            value={(acceptanceAllow ?? []).join(", ")}
+            onChange={(e) => {
+              const patterns = e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+              setField("acceptanceAllow", patterns);
+              if (error) setError(null);
+            }}
+            placeholder="src/**, docs/**"
+            className="mt-2"
+            disabled={isSubmitting}
+          />
+          <p className="mt-1 text-xs text-slate-500">Glob patterns for file paths expected to be modified.</p>
+        </div>
+
+        <div>
+          <label htmlFor="backlog-form-acceptance-deny" className="text-sm font-medium text-slate-300">
+            Acceptance Deny
+          </label>
+          <Input
+            id="backlog-form-acceptance-deny"
+            value={(acceptanceDeny ?? []).join(", ")}
+            onChange={(e) => {
+              const patterns = e.target.value
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+              setField("acceptanceDeny", patterns);
+              if (error) setError(null);
+            }}
+            placeholder="*.lock, node_modules/**"
+            className="mt-2"
+            disabled={isSubmitting}
+          />
+          <p className="mt-1 text-xs text-slate-500">Glob patterns for file paths that must NOT be modified.</p>
         </div>
 
         {displayError && (

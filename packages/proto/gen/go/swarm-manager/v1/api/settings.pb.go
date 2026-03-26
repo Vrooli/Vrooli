@@ -79,7 +79,10 @@ type UpdateSettingsRequest struct {
 	AutoFixup           *bool   `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3,oneof" json:"auto_fixup,omitempty"`
 	MaxFixupAttempts    *int32  `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3,oneof" json:"max_fixup_attempts,omitempty"`
 	// Workshop settings.
-	MaxAutoRounds *int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3,oneof" json:"max_auto_rounds,omitempty"`
+	MaxAutoRounds          *int32 `protobuf:"varint,9,opt,name=max_auto_rounds,json=maxAutoRounds,proto3,oneof" json:"max_auto_rounds,omitempty"`
+	AutoInitializeWorkshop *bool  `protobuf:"varint,16,opt,name=auto_initialize_workshop,json=autoInitializeWorkshop,proto3,oneof" json:"auto_initialize_workshop,omitempty"`
+	AutoAdvanceWorkshop    *bool  `protobuf:"varint,17,opt,name=auto_advance_workshop,json=autoAdvanceWorkshop,proto3,oneof" json:"auto_advance_workshop,omitempty"`
+	AutoCascadeWorkshop    *bool  `protobuf:"varint,18,opt,name=auto_cascade_workshop,json=autoCascadeWorkshop,proto3,oneof" json:"auto_cascade_workshop,omitempty"`
 	// Agent behavior settings.
 	AgentMaxTurns         *int32 `protobuf:"varint,10,opt,name=agent_max_turns,json=agentMaxTurns,proto3,oneof" json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds   *int32 `protobuf:"varint,11,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3,oneof" json:"agent_timeout_seconds,omitempty"`
@@ -164,6 +167,27 @@ func (x *UpdateSettingsRequest) GetMaxAutoRounds() int32 {
 	return 0
 }
 
+func (x *UpdateSettingsRequest) GetAutoInitializeWorkshop() bool {
+	if x != nil && x.AutoInitializeWorkshop != nil {
+		return *x.AutoInitializeWorkshop
+	}
+	return false
+}
+
+func (x *UpdateSettingsRequest) GetAutoAdvanceWorkshop() bool {
+	if x != nil && x.AutoAdvanceWorkshop != nil {
+		return *x.AutoAdvanceWorkshop
+	}
+	return false
+}
+
+func (x *UpdateSettingsRequest) GetAutoCascadeWorkshop() bool {
+	if x != nil && x.AutoCascadeWorkshop != nil {
+		return *x.AutoCascadeWorkshop
+	}
+	return false
+}
+
 func (x *UpdateSettingsRequest) GetAgentMaxTurns() int32 {
 	if x != nil && x.AgentMaxTurns != nil {
 		return *x.AgentMaxTurns
@@ -212,7 +236,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xbb\a\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xbd\t\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12H\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB \xbaH\x1dr\x1bR\x00R\x06manualR\tscheduledR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x127\n" +
@@ -220,21 +244,27 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
 	"auto_fixup\x18\a \x01(\bH\x03R\tautoFixup\x88\x01\x01\x121\n" +
 	"\x12max_fixup_attempts\x18\b \x01(\x05H\x04R\x10maxFixupAttempts\x88\x01\x01\x12+\n" +
-	"\x0fmax_auto_rounds\x18\t \x01(\x05H\x05R\rmaxAutoRounds\x88\x01\x01\x12+\n" +
+	"\x0fmax_auto_rounds\x18\t \x01(\x05H\x05R\rmaxAutoRounds\x88\x01\x01\x12=\n" +
+	"\x18auto_initialize_workshop\x18\x10 \x01(\bH\x06R\x16autoInitializeWorkshop\x88\x01\x01\x127\n" +
+	"\x15auto_advance_workshop\x18\x11 \x01(\bH\aR\x13autoAdvanceWorkshop\x88\x01\x01\x127\n" +
+	"\x15auto_cascade_workshop\x18\x12 \x01(\bH\bR\x13autoCascadeWorkshop\x88\x01\x01\x12+\n" +
 	"\x0fagent_max_turns\x18\n" +
-	" \x01(\x05H\x06R\ragentMaxTurns\x88\x01\x01\x127\n" +
-	"\x15agent_timeout_seconds\x18\v \x01(\x05H\aR\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
-	"\x17agent_requires_approval\x18\f \x01(\bH\bR\x15agentRequiresApproval\x88\x01\x01\x121\n" +
-	"\x12search_debounce_ms\x18\r \x01(\x05H\tR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
-	"\x11toast_duration_ms\x18\x0e \x01(\x05H\n" +
-	"R\x0ftoastDurationMs\x88\x01\x01\x12C\n" +
-	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bH\vR\x19confirmDestructiveActions\x88\x01\x01B\b\n" +
+	" \x01(\x05H\tR\ragentMaxTurns\x88\x01\x01\x127\n" +
+	"\x15agent_timeout_seconds\x18\v \x01(\x05H\n" +
+	"R\x13agentTimeoutSeconds\x88\x01\x01\x12;\n" +
+	"\x17agent_requires_approval\x18\f \x01(\bH\vR\x15agentRequiresApproval\x88\x01\x01\x121\n" +
+	"\x12search_debounce_ms\x18\r \x01(\x05H\fR\x10searchDebounceMs\x88\x01\x01\x12/\n" +
+	"\x11toast_duration_ms\x18\x0e \x01(\x05H\rR\x0ftoastDurationMs\x88\x01\x01\x12C\n" +
+	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bH\x0eR\x19confirmDestructiveActions\x88\x01\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\x18\n" +
 	"\x16_default_delay_secondsB\r\n" +
 	"\v_auto_fixupB\x15\n" +
 	"\x13_max_fixup_attemptsB\x12\n" +
-	"\x10_max_auto_roundsB\x12\n" +
+	"\x10_max_auto_roundsB\x1b\n" +
+	"\x19_auto_initialize_workshopB\x18\n" +
+	"\x16_auto_advance_workshopB\x18\n" +
+	"\x16_auto_cascade_workshopB\x12\n" +
 	"\x10_agent_max_turnsB\x18\n" +
 	"\x16_agent_timeout_secondsB\x1a\n" +
 	"\x18_agent_requires_approvalB\x15\n" +

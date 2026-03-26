@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -82,6 +83,27 @@ func TestHandler_CreateAndList(t *testing.T) {
 	}
 }
 
+func TestHandler_Create_RejectsUnknownField(t *testing.T) {
+	h := setupTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/initiatives", strings.NewReader(`{
+		"name": "test-init",
+		"title": "Test Initiative",
+		"scope": "legacy"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.Create(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "invalid request body") {
+		t.Fatalf("expected invalid request body error, got: %s", rec.Body.String())
+	}
+}
+
 func TestHandler_Get(t *testing.T) {
 	h := setupTestHandler(t)
 
@@ -125,7 +147,11 @@ func TestHandler_Update(t *testing.T) {
 	}
 
 	// Update.
-	updateReq := UpdateRequest{Title: "Updated", Status: "completed", Items: []string{"idea/foo"}}
+	updateReq := UpdateRequest{
+		Title:  strPtr("Updated"),
+		Status: strPtr("completed"),
+		Items:  slicePtr([]string{"idea/foo"}),
+	}
 	rec = httptest.NewRecorder()
 	h.Update(rec, requestWithVars("PUT", "/api/v1/initiatives/upd-test", updateReq, map[string]string{"name": "upd-test"}))
 
@@ -145,10 +171,37 @@ func TestHandler_Update(t *testing.T) {
 	}
 }
 
+func TestHandler_Update_RejectsUnknownField(t *testing.T) {
+	h := setupTestHandler(t)
+
+	createReq := CreateRequest{Name: "upd-test", Title: "Original"}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d", rec.Code)
+	}
+
+	req := httptest.NewRequest("PUT", "/api/v1/initiatives/upd-test", strings.NewReader(`{
+		"scope": "legacy"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"name": "upd-test"})
+	rec = httptest.NewRecorder()
+
+	h.Update(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "invalid request body") {
+		t.Fatalf("expected invalid request body error, got: %s", rec.Body.String())
+	}
+}
+
 func TestHandler_Update_NotFound(t *testing.T) {
 	h := setupTestHandler(t)
 
-	updateReq := UpdateRequest{Title: "Updated", Status: "active"}
+	updateReq := UpdateRequest{Title: strPtr("Updated"), Status: strPtr("active")}
 	rec := httptest.NewRecorder()
 	h.Update(rec, requestWithVars("PUT", "/api/v1/initiatives/missing", updateReq, map[string]string{"name": "missing"}))
 
@@ -169,7 +222,7 @@ func TestHandler_Update_BadStatus(t *testing.T) {
 	}
 
 	// Update with bad status.
-	updateReq := UpdateRequest{Title: "Test", Status: "invalid"}
+	updateReq := UpdateRequest{Title: strPtr("Test"), Status: strPtr("invalid")}
 	rec = httptest.NewRecorder()
 	h.Update(rec, requestWithVars("PUT", "/api/v1/initiatives/bad-status", updateReq, map[string]string{"name": "bad-status"}))
 

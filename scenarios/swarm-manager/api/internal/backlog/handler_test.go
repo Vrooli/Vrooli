@@ -55,13 +55,37 @@ type processPreflightEnvelope struct {
 	Preflight map[string]any `json:"preflight"`
 }
 
+// disableAutoWorkshopSettings writes a settings.json that disables all auto-workshop
+// behavior. Tests that specifically test auto-workshop should write their own settings.
+func disableAutoWorkshopSettings(t *testing.T, rootDir string) {
+	t.Helper()
+	t.Setenv("SCENARIO_ROOT", rootDir)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       false,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+}
+
 // setupTestHandler creates a handler with a temporary root directory.
+// Auto-workshop is disabled by default to prevent goroutine leaks in tests
+// that don't provide a mock agent.
 func setupTestHandler(t *testing.T) (*Handler, string) {
 	t.Helper()
 	rootDir := t.TempDir()
 	for _, dir := range backlogKindDirs {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
+	disableAutoWorkshopSettings(t, rootDir)
 	return NewHandler(rootDir), rootDir
 }
 
@@ -71,6 +95,7 @@ func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handl
 	for _, dir := range backlogKindDirs {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
+	disableAutoWorkshopSettings(t, rootDir)
 	return NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"}), rootDir
 }
 
@@ -295,6 +320,28 @@ func TestCreate_Success(t *testing.T) {
 	testutil.AssertFileExists(t, specPath)
 }
 
+func TestCreate_RejectsUnknownField(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog", strings.NewReader(`{
+		"name": "new-test-idea",
+		"title": "New Test Idea",
+		"kind": "idea",
+		"scope": "scenarios/swarm-manager"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	if !strings.Contains(w.Body.String(), "invalid request body") {
+		t.Fatalf("expected invalid request body error, got: %s", w.Body.String())
+	}
+
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "new-test-idea", "spec.json"))
+}
+
 func TestUpdate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 
@@ -336,6 +383,35 @@ func TestUpdate_Success(t *testing.T) {
 	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-test", "spec.json"))
 	if saved.Status != StatusReady {
 		t.Errorf("expected status ready, got '%s'", saved.Status)
+	}
+}
+
+func TestUpdate_RejectsUnknownField(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:        "update-test",
+		Title:       "Update Test",
+		Description: "Original",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{"old"},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	})
+
+	req := httptest.NewRequest("PUT", "/api/v1/backlog/idea/update-test", strings.NewReader(`{
+		"scope": "scenarios/swarm-manager"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "update-test"})
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	if !strings.Contains(w.Body.String(), "invalid request body") {
+		t.Fatalf("expected invalid request body error, got: %s", w.Body.String())
 	}
 }
 
@@ -1328,7 +1404,23 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 		result:   agentmanager.RunResult{RunID: "run-auto", TaskID: "task-auto"},
 		spawnedC: spawned,
 	}
-	h, _ := setupTestHandlerWithAgent(t, agent)
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Re-enable auto-initialize for this test.
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    true,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       true,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
 
 	payload := map[string]any{
 		"name":  "auto-init-test",
@@ -1359,17 +1451,33 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 	}
 }
 
-func TestCreate_AutoWorkshopOptOut(t *testing.T) {
+func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
-	h, _ := setupTestHandlerWithAgent(t, agent)
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Disable auto-initialize via settings.
+	t.Setenv("SCENARIO_ROOT", rootDir)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       true,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
 
 	payload := map[string]any{
-		"name":          "no-auto-test",
-		"title":         "No Auto Test",
-		"kind":          "idea",
-		"auto_workshop": false,
+		"name":  "no-auto-test",
+		"title": "No Auto Test",
+		"kind":  "idea",
 	}
 	body, _ := json.Marshal(payload)
 
@@ -1384,7 +1492,7 @@ func TestCreate_AutoWorkshopOptOut(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	if agent.lastReq != nil {
-		t.Error("expected NO agent spawn when auto_workshop is false")
+		t.Error("expected NO agent spawn when auto_initialize_workshop is false")
 	}
 }
 
@@ -1395,6 +1503,22 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 		spawnedC: spawned,
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	// Re-enable auto-initialize to test agent-down resilience.
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    true,
+		"auto_advance_workshop":       true,
+		"auto_cascade_workshop":       true,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
 
 	payload := map[string]any{
 		"name":  "agent-down-test",
@@ -1457,11 +1581,10 @@ func TestCreate_EffortNormalizesCase(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
 	payload := map[string]any{
-		"name":          "effort-case-test",
-		"title":         "Effort Case Test",
-		"kind":          "fix",
-		"effort":        "xl",
-		"auto_workshop": false,
+		"name":   "effort-case-test",
+		"title":  "Effort Case Test",
+		"kind":   "fix",
+		"effort": "xl",
 	}
 	body, _ := json.Marshal(payload)
 
@@ -1603,7 +1726,6 @@ func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 		"kind":             "fix",
 		"acceptance_allow": []string{"api/**", "*.go"},
 		"acceptance_deny":  []string{"vendor/**"},
-		"auto_workshop":    false,
 	}
 	body, _ := json.Marshal(payload)
 

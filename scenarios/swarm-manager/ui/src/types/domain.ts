@@ -96,6 +96,9 @@ export interface BacklogFormValues {
   researchTarget?: BacklogResearchTarget;
   dependsOn?: string[];
   initiative?: string;
+  effort?: string;
+  acceptanceAllow?: string[];
+  acceptanceDeny?: string[];
 }
 
 /**
@@ -564,6 +567,9 @@ export type Settings = Omit<
   autoFixup: boolean;
   maxFixupAttempts: number;
   /** Workshop */
+  autoInitializeWorkshop: boolean;
+  autoAdvanceWorkshop: boolean;
+  autoCascadeWorkshop: boolean;
   maxAutoRounds: number;
   /** Agent behavior */
   agentMaxTurns: number;

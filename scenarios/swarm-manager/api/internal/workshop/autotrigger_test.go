@@ -4,8 +4,6 @@ import (
 	"testing"
 )
 
-func boolPtr(v bool) *bool { return &v }
-
 // Helper to build a round with given readiness scores and all decisions answered.
 func makeRound(readiness map[string]int, pendingDecisions int) *Round {
 	items := make([]Item, 0, pendingDecisions+1)
@@ -46,7 +44,7 @@ func allMaxScores() map[string]int {
 
 func TestShouldAutoAdvance_NotReadyBelowCap(t *testing.T) {
 	round := makeRound(allLowScores(), 0)
-	result := ShouldAutoAdvance(round, 1, "idea", 10)
+	result := ShouldAutoAdvance(true, round, 1, "idea", 10)
 	if !result.Advance {
 		t.Errorf("expected Advance=true, got false (reason=%s)", result.Reason)
 	}
@@ -57,7 +55,7 @@ func TestShouldAutoAdvance_NotReadyBelowCap(t *testing.T) {
 
 func TestShouldAutoAdvance_AlreadyReady(t *testing.T) {
 	round := makeRound(allMaxScores(), 0)
-	result := ShouldAutoAdvance(round, 3, "idea", 10)
+	result := ShouldAutoAdvance(true, round, 3, "idea", 10)
 	if result.Advance {
 		t.Error("expected Advance=false when item is ready")
 	}
@@ -68,7 +66,7 @@ func TestShouldAutoAdvance_AlreadyReady(t *testing.T) {
 
 func TestShouldAutoAdvance_AtMaxRounds(t *testing.T) {
 	round := makeRound(allLowScores(), 0)
-	result := ShouldAutoAdvance(round, 10, "idea", 10)
+	result := ShouldAutoAdvance(true, round, 10, "idea", 10)
 	if result.Advance {
 		t.Error("expected Advance=false at max rounds")
 	}
@@ -79,7 +77,7 @@ func TestShouldAutoAdvance_AtMaxRounds(t *testing.T) {
 
 func TestShouldAutoAdvance_PendingDecisions(t *testing.T) {
 	round := makeRound(allLowScores(), 2)
-	result := ShouldAutoAdvance(round, 1, "idea", 10)
+	result := ShouldAutoAdvance(true, round, 1, "idea", 10)
 	if result.Advance {
 		t.Error("expected Advance=false with pending decisions")
 	}
@@ -89,7 +87,7 @@ func TestShouldAutoAdvance_PendingDecisions(t *testing.T) {
 }
 
 func TestShouldAutoAdvance_NoRounds(t *testing.T) {
-	result := ShouldAutoAdvance(nil, 0, "idea", 10)
+	result := ShouldAutoAdvance(true, nil, 0, "idea", 10)
 	if result.Advance {
 		t.Error("expected Advance=false with nil round")
 	}
@@ -109,7 +107,7 @@ func TestShouldAutoAdvance_BoostPushesToReady(t *testing.T) {
 		"risk_awareness":  2,
 	}
 	round := makeRound(scores, 0)
-	result := ShouldAutoAdvance(round, 3, "fix", 10)
+	result := ShouldAutoAdvance(true, round, 3, "fix", 10)
 	if result.Advance {
 		t.Error("expected Advance=false when boost pushes all scores to 3")
 	}
@@ -147,14 +145,14 @@ func TestShouldAutoAdvance_AllKindBoostDivisors(t *testing.T) {
 
 			// One round before ready: should still advance.
 			if tt.minRoundsReady > 1 {
-				result := ShouldAutoAdvance(round, tt.minRoundsReady-1, tt.kind, 10)
+				result := ShouldAutoAdvance(true, round, tt.minRoundsReady-1, tt.kind, 10)
 				if !result.Advance {
 					t.Errorf("%s: expected Advance=true at %d rounds", tt.kind, tt.minRoundsReady-1)
 				}
 			}
 
 			// At minRoundsReady: should be ready, no advance.
-			result := ShouldAutoAdvance(round, tt.minRoundsReady, tt.kind, 10)
+			result := ShouldAutoAdvance(true, round, tt.minRoundsReady, tt.kind, 10)
 			if result.Advance {
 				t.Errorf("%s: expected Advance=false at %d rounds (should be ready)", tt.kind, tt.minRoundsReady)
 			}
@@ -165,23 +163,53 @@ func TestShouldAutoAdvance_AllKindBoostDivisors(t *testing.T) {
 	}
 }
 
+func TestShouldAutoAdvance_Disabled(t *testing.T) {
+	round := makeRound(allLowScores(), 0)
+	result := ShouldAutoAdvance(false, round, 1, "idea", 10)
+	if result.Advance {
+		t.Error("expected Advance=false when disabled")
+	}
+	if result.Reason != "disabled" {
+		t.Errorf("expected reason 'disabled', got %q", result.Reason)
+	}
+}
+
+func TestShouldAutoAdvance_MaxRoundsZero(t *testing.T) {
+	round := makeRound(allLowScores(), 0)
+	result := ShouldAutoAdvance(true, round, 1, "idea", 0)
+	if result.Advance {
+		t.Error("expected Advance=false when maxAutoRounds is 0")
+	}
+	if result.Reason != "max_rounds" {
+		t.Errorf("expected reason 'max_rounds', got %q", result.Reason)
+	}
+}
+
 // --- ShouldAutoInitialize tests ---
 
-func TestShouldAutoInitialize_NilDefault(t *testing.T) {
-	if !ShouldAutoInitialize(nil) {
-		t.Error("expected true when autoWorkshop is nil (default)")
+func TestShouldAutoInitialize_Enabled(t *testing.T) {
+	if !ShouldAutoInitialize(true) {
+		t.Error("expected true when enabled")
 	}
 }
 
-func TestShouldAutoInitialize_ExplicitTrue(t *testing.T) {
-	if !ShouldAutoInitialize(boolPtr(true)) {
-		t.Error("expected true when autoWorkshop is explicitly true")
+func TestShouldAutoInitialize_Disabled(t *testing.T) {
+	if ShouldAutoInitialize(false) {
+		t.Error("expected false when disabled")
 	}
 }
 
-func TestShouldAutoInitialize_ExplicitFalse(t *testing.T) {
-	if ShouldAutoInitialize(boolPtr(false)) {
-		t.Error("expected false when autoWorkshop is explicitly false")
+// --- ShouldCascade tests ---
+
+func TestShouldCascade_Enabled(t *testing.T) {
+	if !ShouldCascade(true) {
+		t.Error("expected true when enabled")
+	}
+}
+
+func TestShouldCascade_Disabled(t *testing.T) {
+	if ShouldCascade(false) {
+		t.Error("expected false when disabled")
 	}
 }
 

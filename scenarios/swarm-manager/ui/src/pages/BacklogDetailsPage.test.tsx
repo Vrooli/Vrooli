@@ -195,7 +195,12 @@ describe("BacklogDetailsPage", () => {
       expect(screen.getAllByTestId("file-header-actions-trigger").length).toBeGreaterThan(0);
     });
     const triggers = screen.getAllByTestId("file-header-actions-trigger");
-    fireEvent.click(triggers[0]!);
+    const firstTrigger = triggers[0];
+    expect(firstTrigger).toBeDefined();
+    if (!firstTrigger) {
+      throw new Error("File header actions trigger not found");
+    }
+    fireEvent.click(firstTrigger);
 
     await waitFor(() => {
       expect(screen.getAllByTestId("file-header-actions-popover").length).toBeGreaterThan(0);

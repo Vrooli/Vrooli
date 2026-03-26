@@ -8,6 +8,14 @@ import (
 	"swarm-manager/internal/backlog"
 )
 
+func strPtr(value string) *string {
+	return &value
+}
+
+func slicePtr(values []string) *[]string {
+	return &values
+}
+
 // mockBacklogLoader is a test double implementing BacklogLoader.
 type mockBacklogLoader struct {
 	items map[string]backlog.BacklogItem // key: "kind/name"
@@ -98,9 +106,9 @@ func TestService_Update(t *testing.T) {
 	}
 
 	updated, err := svc.Update("upd", UpdateRequest{
-		Title:  "Updated",
-		Status: "completed",
-		Items:  []string{"fix/bar"},
+		Title:  strPtr("Updated"),
+		Status: strPtr("completed"),
+		Items:  slicePtr([]string{"fix/bar"}),
 	})
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
@@ -121,7 +129,7 @@ func TestService_Update_InvalidStatus(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	_, err = svc.Update("test", UpdateRequest{Title: "Test", Status: "invalid"})
+	_, err = svc.Update("test", UpdateRequest{Title: strPtr("Test"), Status: strPtr("invalid")})
 	if err == nil {
 		t.Fatal("expected error for invalid status")
 	}
@@ -130,9 +138,32 @@ func TestService_Update_InvalidStatus(t *testing.T) {
 func TestService_Update_NotFound(t *testing.T) {
 	svc := newTestService(t, nil)
 
-	_, err := svc.Update("missing", UpdateRequest{Title: "Test", Status: "active"})
+	_, err := svc.Update("missing", UpdateRequest{Title: strPtr("Test"), Status: strPtr("active")})
 	if err == nil {
 		t.Fatal("expected error for missing initiative")
+	}
+}
+
+func TestService_Update_Partial(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	_, err := svc.Create(CreateRequest{Name: "partial", Title: "Original", Description: "keep me"})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	updated, err := svc.Update("partial", UpdateRequest{Status: strPtr("completed")})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+	if updated.Title != "Original" {
+		t.Errorf("expected title to remain Original, got %q", updated.Title)
+	}
+	if updated.Status != "completed" {
+		t.Errorf("expected status completed, got %q", updated.Status)
+	}
+	if updated.Description != "keep me" {
+		t.Errorf("expected description to remain unchanged, got %q", updated.Description)
 	}
 }
 

@@ -173,7 +173,6 @@ export interface IBacklogService {
     name: string,
     roundNumber: number,
     content: string,
-    autoWorkshop?: boolean
   ): Promise<WorkshopSaveResponse>;
   workshopDeleteRound(
     kind: BacklogKind,
@@ -506,15 +505,11 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       name: string,
       roundNumber: number,
       content: string,
-      autoWorkshop?: boolean
     ): Promise<WorkshopSaveResponse> {
       const body: Record<string, unknown> = {
         round_number: roundNumber,
         content,
       };
-      if (autoWorkshop !== undefined) {
-        body.auto_workshop = autoWorkshop;
-      }
       const data = await apiClient.post<{
         file: Record<string, unknown>;
         auto_advance: { triggered: boolean; run_id?: string; task_id?: string; reason: string };

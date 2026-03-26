@@ -158,12 +158,16 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - Note decisions with `selected: null` — still pending, do not re-ask unless context has materially changed
    - Note any freeform responses on "Other" selections — incorporate these as user intent
 
-3. **Check acceptance fields**
+3. **Auto-populate acceptance fields**
 
    Read `acceptance_allow` and `acceptance_deny` from `spec.json`:
-   - If `acceptance_allow` is **empty** and the `approach_solid` readiness dimension is >= 1, include a decision asking about expected file change patterns with options: A) broad scenario-level globs (e.g., `scenarios/<name>/**`), B) targeted subdirectory/file paths, C) Other.
-   - If `acceptance_allow` is **set**, validate that the plan's described changes align with the patterns. Flag any planned changes that fall outside acceptance_allow.
-   - If `acceptance_allow` is set but `acceptance_deny` is **not**, consider whether any paths should be protected (e.g., secrets, config, generated files) and include a decision for `acceptance_deny` globs.
+   - If `acceptance_allow` is **empty**, infer the target scenario(s) from the item's title, description, tags, and plan content. Then auto-set `acceptance_allow` using `swarm-manager backlog update`:
+     - Default to broad scenario-level globs: `scenarios/<scenario-name>/**`
+     - If the plan is specific enough to identify subdirectories (e.g., only `api/` or `ui/`), use targeted globs instead
+     - Example: `swarm-manager backlog update --kind {{ITEM_KIND}} --name {{ITEM_NAME}} --data '{"acceptance_allow":["scenarios/<scenario-name>/**"]}'`
+     - Do NOT generate a decision for this — determine the patterns autonomously from context
+   - If `acceptance_allow` is **set**, validate that the plan's described changes align with the patterns. Flag any planned changes that fall outside acceptance_allow as an info item.
+   - For `acceptance_deny`: if the plan identifies paths that should be protected (e.g., secrets, config, generated files), auto-set `acceptance_deny` the same way. Otherwise leave it empty — most items don't need deny patterns.
 
 4. **Identify plan gaps**
 
@@ -293,6 +297,7 @@ As rounds progress, your focus should shift:
 - **Don't** skip reading prior rounds — context accumulates across rounds
 - **Don't** leave plan.md unchanged — every round should advance the plan
 - **Don't** present decisions that could be resolved by reading existing context
+- **Don't** generate decisions for `acceptance_allow` or `acceptance_deny` — infer and auto-set them
 - **Don't** omit the "Other" option unless the choices are truly exhaustive (e.g., yes/no)
 
 ## Troubleshooting

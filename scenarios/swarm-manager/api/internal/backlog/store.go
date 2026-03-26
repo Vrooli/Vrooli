@@ -209,7 +209,6 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "effort")
 	}
-	delete(merged, "scope") // Lazy migration: strip legacy scope field on every save.
 	if len(item.AcceptanceAllow) > 0 {
 		merged["acceptance_allow"] = item.AcceptanceAllow
 	} else {
@@ -264,11 +263,15 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 	for _, ref := range dependsOn {
 		kind, name, err := parseDependencyRef(ref)
 		if err != nil {
-			return nil, err
+			// Fail-open: treat unparseable refs as unmet rather than aborting.
+			unmet = append(unmet, ref)
+			continue
 		}
 		item, loadErr := s.LoadItem(kind, name)
 		if loadErr != nil {
-			return nil, fmt.Errorf("failed to load dependency %q: %w", ref, loadErr)
+			// Fail-open: treat missing/unloadable deps as unmet.
+			unmet = append(unmet, ref)
+			continue
 		}
 		if item.Status != StatusCompleted {
 			unmet = append(unmet, ref)

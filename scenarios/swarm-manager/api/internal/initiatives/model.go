@@ -34,15 +34,21 @@ type CreateRequest struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status,omitempty"`
 	Items       []string `json:"items,omitempty"`
 }
 
 // UpdateRequest holds validated fields for updating an existing initiative.
 type UpdateRequest struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Status      string   `json:"status"`
-	Items       []string `json:"items,omitempty"`
+	Title       *string   `json:"title,omitempty"`
+	Description *string   `json:"description,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Items       *[]string `json:"items,omitempty"`
+}
+
+// HasChanges reports whether the update request contains at least one field.
+func (r UpdateRequest) HasChanges() bool {
+	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil
 }
 
 // ValidateStatus returns true if the status string is valid.

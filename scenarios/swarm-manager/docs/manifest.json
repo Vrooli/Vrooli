@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "title": "Swarm Manager Documentation",
   "description": "Documentation for backlog-first scenario governance and execution control",
   "defaultDocument": "QUICKSTART.md",
@@ -64,6 +64,18 @@
           "path": "reference/configuration.md",
           "title": "Configuration",
           "description": "Tunable levers and environment variables",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Endpoints",
+          "description": "Canonical backlog, initiative, and preview request/response contracts",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Canonical preview/create flows for backlog imports and initiatives",
           "audience": ["developers", "operators"]
         },
         {

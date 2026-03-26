@@ -9,6 +9,15 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+func isValidInitiativeStatus(status string) bool {
+	switch status {
+	case "active", "completed", "archived":
+		return true
+	default:
+		return false
+	}
+}
+
 func (a *App) cmdInitiativesList(args []string) error {
 	fs := flag.NewFlagSet("initiatives list", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -117,7 +126,7 @@ func (a *App) cmdInitiativesGet(args []string) error {
 	}
 
 	printCommandListSection("Next Steps", []string{
-		cliCommand("initiatives", "update", "--name", init.Name, "--data", "'{\"title\":\"...\",\"status\":\"completed\"}'"),
+		cliCommand("initiatives", "update", "--name", init.Name, "--data", "'{\"title\":\"...\"}'"),
 		cliCommand("initiatives", "delete", "--name", init.Name),
 	})
 	return nil
@@ -139,15 +148,15 @@ func (a *App) cmdInitiativesCreate(args []string) error {
 		return err
 	}
 
-	var req struct {
-		Name  string `json:"name"`
-		Title string `json:"title"`
-	}
-	if err := json.Unmarshal(payload, &req); err != nil {
+	var req InitiativeCreateRequest
+	if err := decodeJSONStrict(payload, &req); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 	if req.Name == "" || req.Title == "" {
 		return fmt.Errorf("name and title are required fields")
+	}
+	if status := strings.TrimSpace(req.Status); status != "" && !isValidInitiativeStatus(status) {
+		return fmt.Errorf("status must be active, completed, or archived")
 	}
 
 	body, err := a.requestV1("POST", "/initiatives", nil, payload)
@@ -190,6 +199,16 @@ func (a *App) cmdInitiativesUpdate(args []string) error {
 	payload, err := parseJSONString(*data)
 	if err != nil {
 		return err
+	}
+	var req InitiativeUpdateRequest
+	if err := decodeJSONStrict(payload, &req); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	if !req.HasChanges() {
+		return fmt.Errorf("at least one field must be provided")
+	}
+	if req.Status != nil && !isValidInitiativeStatus(strings.TrimSpace(*req.Status)) {
+		return fmt.Errorf("status must be active, completed, or archived")
 	}
 
 	body, err := a.requestV1("PUT", "/initiatives/"+name, nil, payload)

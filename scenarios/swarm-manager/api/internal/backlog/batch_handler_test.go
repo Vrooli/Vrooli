@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
@@ -16,24 +17,80 @@ import (
 
 // mockInitiativeAssigner implements InitiativeAssigner for testing.
 type mockInitiativeAssigner struct {
-	existingInitiatives map[string]bool
-	addedItems          map[string][]string
-	ensureErr           error
-	addErr              error
+	snapshots  map[string]InitiativeSnapshot
+	addedItems map[string][]string
+	getErr     error
+	createErr  error
+	updateErr  error
+	replaceErr error
+	deleteErr  error
+	addErr     error
 }
 
 func newMockInitiativeAssigner() *mockInitiativeAssigner {
 	return &mockInitiativeAssigner{
-		existingInitiatives: make(map[string]bool),
-		addedItems:          make(map[string][]string),
+		snapshots:  make(map[string]InitiativeSnapshot),
+		addedItems: make(map[string][]string),
 	}
 }
 
-func (m *mockInitiativeAssigner) EnsureExists(name string) error {
-	if m.ensureErr != nil {
-		return m.ensureErr
+func (m *mockInitiativeAssigner) Get(name string) (*InitiativeSnapshot, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
 	}
-	m.existingInitiatives[name] = true
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return nil, fmt.Errorf("initiative %q not found", name)
+	}
+	copied := snapshot
+	copied.Items = append([]string(nil), snapshot.Items...)
+	return &copied, nil
+}
+
+func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
+	if m.createErr != nil {
+		return m.createErr
+	}
+	m.snapshots[spec.Name] = InitiativeSnapshot{
+		Name:        spec.Name,
+		Title:       spec.Title,
+		Description: spec.Description,
+		Status:      spec.Status,
+		Items:       nil,
+	}
+	return nil
+}
+
+func (m *mockInitiativeAssigner) Update(spec InitiativeSpec) error {
+	if m.updateErr != nil {
+		return m.updateErr
+	}
+	snapshot, ok := m.snapshots[spec.Name]
+	if !ok {
+		return fmt.Errorf("initiative %q not found", spec.Name)
+	}
+	snapshot.Title = spec.Title
+	snapshot.Description = spec.Description
+	snapshot.Status = spec.Status
+	m.snapshots[spec.Name] = snapshot
+	return nil
+}
+
+func (m *mockInitiativeAssigner) Replace(snapshot InitiativeSnapshot) error {
+	if m.replaceErr != nil {
+		return m.replaceErr
+	}
+	copied := snapshot
+	copied.Items = append([]string(nil), snapshot.Items...)
+	m.snapshots[snapshot.Name] = copied
+	return nil
+}
+
+func (m *mockInitiativeAssigner) Delete(name string) error {
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	delete(m.snapshots, name)
 	return nil
 }
 
@@ -42,10 +99,14 @@ func (m *mockInitiativeAssigner) AddItems(name string, items []string) error {
 		return m.addErr
 	}
 	m.addedItems[name] = append(m.addedItems[name], items...)
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return fmt.Errorf("initiative %q not found", name)
+	}
+	snapshot.Items = append(snapshot.Items, items...)
+	m.snapshots[name] = snapshot
 	return nil
 }
-
-func boolPtr(v bool) *bool { return &v }
 
 func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockInitiativeAssigner) {
 	t.Helper()
@@ -103,8 +164,8 @@ func TestBatchCreate_Success(t *testing.T) {
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "fix", "fix-login", "spec.json"))
 
 	// No initiative was requested.
-	if len(ia.existingInitiatives) != 0 {
-		t.Errorf("expected no initiatives created, got %d", len(ia.existingInitiatives))
+	if len(ia.snapshots) != 0 {
+		t.Errorf("expected no initiatives created, got %d", len(ia.snapshots))
 	}
 }
 
@@ -113,10 +174,12 @@ func TestBatchCreate_WithInitiative(t *testing.T) {
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "dashboard", Title: "Dashboard", Kind: "idea", AutoWorkshop: boolPtr(false)},
-			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", AutoWorkshop: boolPtr(false)},
+			{Name: "dashboard", Title: "Dashboard", Kind: "idea", Initiative: "q1-sprint"},
+			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", Initiative: "q1-sprint"},
 		},
-		Initiative: "q1-sprint",
+		Initiatives: []batchCreateInitiative{
+			{Name: "q1-sprint", Title: "Q1 Sprint"},
+		},
 	}
 
 	w := doBatchCreate(t, h, payload)
@@ -127,16 +190,22 @@ func TestBatchCreate_WithInitiative(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if resp.Initiative != "q1-sprint" {
-		t.Errorf("expected initiative 'q1-sprint', got %q", resp.Initiative)
+	if len(resp.Initiatives) != 1 || resp.Initiatives[0].Name != "q1-sprint" {
+		t.Fatalf("expected initiative summary for q1-sprint, got %+v", resp.Initiatives)
+	}
+	if resp.Initiatives[0].Action != "create" {
+		t.Errorf("expected create action, got %q", resp.Initiatives[0].Action)
 	}
 
-	// Verify initiative was ensured and items added.
-	if !ia.existingInitiatives["q1-sprint"] {
-		t.Error("expected initiative 'q1-sprint' to be ensured")
+	snapshot, ok := ia.snapshots["q1-sprint"]
+	if !ok {
+		t.Fatal("expected initiative 'q1-sprint' to be created")
 	}
 	if len(ia.addedItems["q1-sprint"]) != 2 {
 		t.Errorf("expected 2 items added to initiative, got %d", len(ia.addedItems["q1-sprint"]))
+	}
+	if len(snapshot.Items) != 2 {
+		t.Errorf("expected 2 persisted initiative items, got %d", len(snapshot.Items))
 	}
 }
 
@@ -149,6 +218,34 @@ func TestBatchCreate_EmptyBatch(t *testing.T) {
 
 	w := doBatchCreate(t, h, payload)
 	testutil.AssertStatusBadRequest(t, w)
+}
+
+func TestBatchCreate_RejectsUnknownField(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/backlog/batch", strings.NewReader(`{
+		"items": [
+			{
+				"name": "same-item",
+				"title": "Same Item",
+				"kind": "idea",
+				"scope": "scenarios/swarm-manager"
+			}
+		]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.BatchCreate(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	if !strings.Contains(w.Body.String(), `unknown field "scope"`) {
+		t.Fatalf("expected unknown scope field error, got: %s", w.Body.String())
+	}
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "same-item", "spec.json"))
+	if len(ia.snapshots) != 0 {
+		t.Fatalf("expected no initiative mutations, got %d", len(ia.snapshots))
+	}
 }
 
 func TestBatchCreate_DuplicateNameInBatch(t *testing.T) {
@@ -378,65 +475,73 @@ func containsSubstr(s, substr string) bool {
 	return false
 }
 
-func TestBatchCreate_InitiativeAddItemsFails_ReturnsWarning(t *testing.T) {
+func TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 	ia.addErr = fmt.Errorf("disk full")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "widget-a", Title: "Widget A", Kind: "idea", AutoWorkshop: boolPtr(false)},
-			{Name: "widget-b", Title: "Widget B", Kind: "fix", AutoWorkshop: boolPtr(false)},
+			{Name: "widget-a", Title: "Widget A", Kind: "idea", Initiative: "my-init"},
+			{Name: "widget-b", Title: "Widget B", Kind: "fix", Initiative: "my-init"},
 		},
-		Initiative: "my-init",
+		Initiatives: []batchCreateInitiative{
+			{Name: "my-init", Title: "My Initiative"},
+		},
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
-
-	var resp batchCreateResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	// Items should still be created on disk.
-	if resp.Count != 2 {
-		t.Errorf("expected count 2, got %d", resp.Count)
-	}
-	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
-	testutil.AssertFileExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
-
-	// Response should contain a warning about initiative assignment failure.
-	if len(resp.Warnings) == 0 {
-		t.Fatal("expected warnings in response, got none")
-	}
-	found := false
-	for _, w := range resp.Warnings {
-		if contains(w, "initiative assignment failed") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected warning containing 'initiative assignment failed', got: %v", resp.Warnings)
+	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
+	if _, ok := ia.snapshots["my-init"]; ok {
+		t.Fatal("expected initiative rollback to remove my-init")
 	}
 }
 
-func TestBatchCreate_InitiativeEnsureExistsFails_Returns500(t *testing.T) {
+func TestBatchCreate_InitiativeCreateFails_Returns500(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
-	ia.ensureErr = fmt.Errorf("store corrupt")
+	ia.createErr = fmt.Errorf("store corrupt")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "orphan-item", Title: "Orphan", Kind: "idea"},
+			{Name: "orphan-item", Title: "Orphan", Kind: "idea", Initiative: "broken-init"},
 		},
-		Initiative: "broken-init",
+		Initiatives: []batchCreateInitiative{
+			{Name: "broken-init", Title: "Broken Init"},
+		},
 	}
 
 	w := doBatchCreate(t, h, payload)
 	testutil.AssertStatus(t, w, http.StatusInternalServerError)
 
-	// Item should NOT be on disk — EnsureExists fails before item creation.
+	// Item should NOT be on disk — initiative creation fails before item creation.
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "orphan-item", "spec.json"))
+}
+
+func TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+
+	payload := batchCreateRequest{
+		Preview: true,
+		Items: []batchCreateItem{
+			{Name: "preview-item", Title: "Preview Item", Kind: "idea", Initiative: "preview-init"},
+		},
+		Initiatives: []batchCreateInitiative{
+			{Name: "preview-init", Title: "Preview Init"},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	if !resp.Preview {
+		t.Fatal("expected preview response")
+	}
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "preview-item", "spec.json"))
+	if len(ia.snapshots) != 0 {
+		t.Fatalf("expected preview to avoid initiative mutations, got %d snapshots", len(ia.snapshots))
+	}
 }
 
 func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
@@ -488,8 +593,8 @@ func TestBatchCreate_WithEffort(t *testing.T) {
 	effortXL := "xl" // lowercase to test normalization
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item-with-effort", Title: "Item With Effort", Kind: "idea", Effort: &effortS, AutoWorkshop: boolPtr(false)},
-			{Name: "item-with-xl", Title: "Item XL", Kind: "fix", Effort: &effortXL, AutoWorkshop: boolPtr(false)},
+			{Name: "item-with-effort", Title: "Item With Effort", Kind: "idea", Effort: &effortS},
+			{Name: "item-with-xl", Title: "Item XL", Kind: "fix", Effort: &effortXL},
 		},
 	}
 

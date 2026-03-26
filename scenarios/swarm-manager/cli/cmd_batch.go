@@ -12,8 +12,9 @@ import (
 
 // BatchCreateRequest is the request body for the batch create endpoint.
 type BatchCreateRequest struct {
-	Items      []BatchCreateItem `json:"items"`
-	Initiative string            `json:"initiative,omitempty"`
+	Items       []BatchCreateItem       `json:"items"`
+	Initiatives []BatchCreateInitiative `json:"initiatives,omitempty"`
+	Preview     bool                    `json:"preview,omitempty"`
 }
 
 // BatchCreateItem represents a single item in a batch create request.
@@ -26,17 +27,34 @@ type BatchCreateItem struct {
 	Tags            []string `json:"tags,omitempty"`
 	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
+	Initiative      string   `json:"initiative,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
+type BatchCreateInitiative struct {
+	Name        string  `json:"name"`
+	Title       string  `json:"title"`
+	Description *string `json:"description,omitempty"`
+	Status      *string `json:"status,omitempty"`
+}
+
+type BatchCreateInitiativeResult struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	Action      string `json:"action"`
+}
+
 // BatchCreateResponse is the response from the batch create endpoint.
 type BatchCreateResponse struct {
-	Items      []BacklogItem `json:"items"`
-	Initiative string        `json:"initiative,omitempty"`
-	Count      int           `json:"count"`
-	Warnings   []string      `json:"warnings,omitempty"`
+	Items       []BacklogItem                 `json:"items"`
+	Initiatives []BatchCreateInitiativeResult `json:"initiatives,omitempty"`
+	Count       int                           `json:"count"`
+	Preview     bool                          `json:"preview,omitempty"`
+	Warnings    []string                      `json:"warnings,omitempty"`
 }
 
 // BatchQueueRequest is the request body for the batch queue endpoint.
@@ -65,13 +83,13 @@ type BatchQueueItemResult struct {
 func (a *App) cmdBacklogBatchCreate(args []string) error {
 	fs := flag.NewFlagSet("backlog batch-create", flag.ContinueOnError)
 	fileFlag := fs.String("file", "", "Path to JSON file containing items (or @file for inline)")
-	initiativeFlag := fs.String("initiative", "", "Initiative to assign all items to")
+	previewFlag := fs.Bool("preview", false, "Preview the batch import without creating items")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlag("file", *fileFlag); err != nil {
-		return fmt.Errorf("usage: backlog batch-create --file items.json [--initiative NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog batch-create --file items.json [--preview] [--json]\n\n%s", err)
 	}
 
 	// Read and parse the JSON file.
@@ -80,22 +98,11 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// The file may contain just the items array or the full request object.
-	// Try parsing as full request first.
 	var req BatchCreateRequest
-	if jsonErr := json.Unmarshal(raw, &req); jsonErr != nil {
-		// Try as items array.
-		var items []BatchCreateItem
-		if arrErr := json.Unmarshal(raw, &items); arrErr != nil {
-			return fmt.Errorf("file must contain a JSON object with 'items' array or a JSON array of items: %w", jsonErr)
-		}
-		req.Items = items
+	if err := decodeJSONStrict(raw, &req); err != nil {
+		return fmt.Errorf("file must contain a JSON object with an 'items' array: %w", err)
 	}
-
-	// Override initiative from flag if provided.
-	if strings.TrimSpace(*initiativeFlag) != "" {
-		req.Initiative = strings.TrimSpace(*initiativeFlag)
-	}
+	req.Preview = req.Preview || *previewFlag
 
 	if len(req.Items) == 0 {
 		return fmt.Errorf("no items found in file")
@@ -127,9 +134,10 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 	}
 
 	printSection("Result")
-	fmt.Printf("  Created %d backlog item(s)\n", response.Count)
-	if response.Initiative != "" {
-		fmt.Printf("  Initiative: %s\n", response.Initiative)
+	if response.Preview {
+		fmt.Printf("  Previewed %d backlog item(s)\n", response.Count)
+	} else {
+		fmt.Printf("  Created %d backlog item(s)\n", response.Count)
 	}
 
 	printSection("Items")
@@ -141,6 +149,20 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		fmt.Printf("  [%s] %s (priority: %d, status: %s%s)\n", item.Kind, item.Name, item.Priority, item.Status, effortStr)
 		if len(item.DependsOn) > 0 {
 			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
+		}
+		if item.Initiative != "" {
+			fmt.Printf("    Initiative: %s\n", item.Initiative)
+		}
+	}
+
+	if len(response.Initiatives) > 0 {
+		printSection("Initiatives")
+		for _, initiative := range response.Initiatives {
+			fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(initiative.Action), initiative.Name, initiative.Status)
+			fmt.Printf("    Title: %s\n", initiative.Title)
+			if initiative.Description != "" {
+				fmt.Printf("    Description: %s\n", initiative.Description)
+			}
 		}
 	}
 

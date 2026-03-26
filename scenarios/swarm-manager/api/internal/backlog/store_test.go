@@ -732,3 +732,77 @@ func TestStore_SaveItem(t *testing.T) {
 		testutil.AssertFileExists(t, specPath)
 	})
 }
+
+func TestCheckDependencies_FailOpen(t *testing.T) {
+	store, rootDir := setupTestStore(t)
+
+	// Create a completed dependency.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-done", map[string]any{
+		"title":    "Done Dep",
+		"status":   "completed",
+		"priority": 3,
+		"created":  "2025-01-01T00:00:00Z",
+	})
+
+	// Create an incomplete dependency.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-pending", map[string]any{
+		"title":    "Pending Dep",
+		"status":   "ready",
+		"priority": 3,
+		"created":  "2025-01-01T00:00:00Z",
+	})
+
+	t.Run("dangling ref treated as unmet not error", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{"idea/nonexistent-item"})
+		if err != nil {
+			t.Fatalf("expected no error for dangling ref, got: %v", err)
+		}
+		if len(unmet) != 1 || unmet[0] != "idea/nonexistent-item" {
+			t.Errorf("expected [idea/nonexistent-item] as unmet, got: %v", unmet)
+		}
+	})
+
+	t.Run("unparseable ref treated as unmet not error", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{"bad-ref-no-slash"})
+		if err != nil {
+			t.Fatalf("expected no error for bad ref, got: %v", err)
+		}
+		if len(unmet) != 1 || unmet[0] != "bad-ref-no-slash" {
+			t.Errorf("expected [bad-ref-no-slash] as unmet, got: %v", unmet)
+		}
+	})
+
+	t.Run("completed dep is not unmet", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{"idea/dep-done"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 0 {
+			t.Errorf("expected no unmet deps for completed item, got: %v", unmet)
+		}
+	})
+
+	t.Run("incomplete dep is unmet", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{"idea/dep-pending"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 1 || unmet[0] != "idea/dep-pending" {
+			t.Errorf("expected [idea/dep-pending] as unmet, got: %v", unmet)
+		}
+	})
+
+	t.Run("mixed valid and dangling deps", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{
+			"idea/dep-done",
+			"idea/nonexistent-item",
+			"idea/dep-pending",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 2 {
+			t.Fatalf("expected 2 unmet deps, got %d: %v", len(unmet), unmet)
+		}
+	})
+}

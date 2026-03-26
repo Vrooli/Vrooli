@@ -8,15 +8,19 @@ package workshop
 // AutoAdvanceResult holds the decision and reason from ShouldAutoAdvance.
 type AutoAdvanceResult struct {
 	Advance bool
-	Reason  string // "not_ready", "ready", "max_rounds", "pending_decisions", "no_rounds"
+	Reason  string // "not_ready", "ready", "max_rounds", "pending_decisions", "disabled", "no_rounds"
 }
 
 // ShouldAutoAdvance decides whether the next workshop round should be
 // auto-triggered after saving round responses. Returns true only when:
+//   - Auto-advance is enabled globally
 //   - The latest round exists and has no pending (unanswered) decisions
 //   - The item is not yet ready (effective scores < 3 on at least one dimension)
 //   - The round count is below maxAutoRounds
-func ShouldAutoAdvance(latestRound *Round, roundCount int, kind string, maxAutoRounds int) AutoAdvanceResult {
+func ShouldAutoAdvance(enabled bool, latestRound *Round, roundCount int, kind string, maxAutoRounds int) AutoAdvanceResult {
+	if !enabled {
+		return AutoAdvanceResult{Advance: false, Reason: "disabled"}
+	}
 	if latestRound == nil {
 		return AutoAdvanceResult{Advance: false, Reason: "no_rounds"}
 	}
@@ -34,13 +38,17 @@ func ShouldAutoAdvance(latestRound *Round, roundCount int, kind string, maxAutoR
 }
 
 // ShouldAutoInitialize decides whether a newly-created backlog item should
-// have its first workshop round auto-triggered. The default is true (when
-// autoWorkshop is nil). Callers can opt out by passing a pointer to false.
-func ShouldAutoInitialize(autoWorkshop *bool) bool {
-	if autoWorkshop == nil {
-		return true
-	}
-	return *autoWorkshop
+// have its first workshop round auto-triggered. Controlled by the global
+// auto_initialize_workshop setting.
+func ShouldAutoInitialize(enabled bool) bool {
+	return enabled
+}
+
+// ShouldCascade decides whether dependency-resolved items should auto-trigger
+// workshops for their dependents. Controlled by the global
+// auto_cascade_workshop setting.
+func ShouldCascade(enabled bool) bool {
+	return enabled
 }
 
 // DependencyStatus holds a resolved dependency's ref and status.

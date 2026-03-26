@@ -17,7 +17,8 @@ export const ScenarioBadge = memo(function ScenarioBadge({ acceptanceAllow }: Sc
   const scenarios = scenariosFromGlobs(acceptanceAllow);
   if (scenarios.length === 0) return null;
 
-  const first = scenarios[0]!;
+  const [first] = scenarios;
+  if (!first) return null;
   const label = first.length > 20 ? first.slice(0, 18) + "\u2026" : first;
   const suffix = scenarios.length > 1 ? ` +${scenarios.length - 1}` : "";
   const tooltip = scenarios.length === 1

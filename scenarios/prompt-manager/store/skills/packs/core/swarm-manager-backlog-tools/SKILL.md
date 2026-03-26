@@ -61,6 +61,8 @@ item-folder/
 }
 ```
 
+`scope` is not a valid backlog field. Use `acceptance_allow` and `acceptance_deny` to describe execution boundaries, and use `initiative` to group related items.
+
 #### `depends_on` (optional)
 
 Array of `"kind/name"` strings referencing other backlog items this item depends on. Dependency validation rules:
@@ -306,21 +308,50 @@ swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"<mod
 
 ### Batch create items
 ```bash
-# Create multiple items atomically (all-or-nothing). Validates dependencies exist and no cycles.
-# Write item definitions to a JSON file, then pass via --file:
+# Preview or create multiple items atomically (all-or-nothing). The request can
+# assign each item to an initiative and can also create/update initiative metadata
+# inline through the top-level `initiatives` array.
 cat > /tmp/batch-items.json <<'EOF'
 {
   "items": [
-    {"kind": "fix", "name": "auth-bug", "title": "Fix auth bug", "description": "...", "acceptance_allow": ["scenarios/swarm-manager/api/**"]},
-    {"kind": "idea", "name": "new-feature", "title": "New feature", "description": "...", "depends_on": ["fix/auth-bug"], "acceptance_allow": ["scenarios/web-console/**"]}
+    {
+      "kind": "fix",
+      "name": "auth-bug",
+      "title": "Fix auth bug",
+      "description": "...",
+      "initiative": "release-control",
+      "acceptance_allow": ["scenarios/swarm-manager/api/**"]
+    },
+    {
+      "kind": "idea",
+      "name": "new-feature",
+      "title": "New feature",
+      "description": "...",
+      "depends_on": ["fix/auth-bug"],
+      "initiative": "release-control",
+      "acceptance_allow": ["scenarios/web-console/**"]
+    }
+  ],
+  "initiatives": [
+    {
+      "name": "release-control",
+      "title": "Release Control",
+      "description": "Shared release-governance improvements",
+      "status": "active"
+    }
   ]
 }
 EOF
-swarm-manager backlog batch-create --file /tmp/batch-items.json
+swarm-manager backlog batch-create --file /tmp/batch-items.json --preview
 
-# Optionally assign all items to an initiative:
-swarm-manager backlog batch-create --file /tmp/batch-items.json --initiative my-initiative
+# Create for real after previewing:
+swarm-manager backlog batch-create --file /tmp/batch-items.json
 ```
+
+Notes:
+- `--preview` validates item payloads, dependency refs, and initiative actions without writing anything.
+- Unknown fields are rejected. Do not send legacy `scope`.
+- Initiative assignment is per item (`"initiative": "..."`), not a top-level CLI flag.
 
 ### Batch queue items
 ```bash
@@ -345,8 +376,8 @@ swarm-manager captures classify --id <id>                # AI-classify a capture
 ```bash
 swarm-manager initiatives list                                    # List all initiatives with rollup status
 swarm-manager initiatives get --name <name>                       # Get initiative details and member items
-swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"..."}'
-swarm-manager initiatives update --name <name> --data '{"title":"Updated Title","status":"active"}'
+swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"...","status":"active"}'
+swarm-manager initiatives update --name <name> --data '{"title":"Updated Title"}' # Partial update
 swarm-manager initiatives delete --name <name>                    # Delete an initiative
 swarm-manager initiatives add-items --name <name> --items kind/name,kind/name   # Add items to initiative
 swarm-manager initiatives remove-items --name <name> --items kind/name,kind/name # Remove items from initiative

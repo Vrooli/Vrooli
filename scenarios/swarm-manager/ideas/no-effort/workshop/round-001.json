@@ -1,0 +1,110 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-26T16:30:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "What is the core concept behind 'No Effort'?",
+      "context": "The item has only a title with no description, tags, or archive materials. Before any planning can proceed, the fundamental idea needs to be defined. The name suggests something that reduces or eliminates human effort in some domain.",
+      "options": [
+        {"key": "A", "label": "Automation scenario — a service that automates a specific repetitive workflow end-to-end", "rationale": "Aligns with Vrooli's vision of scenarios as reusable capabilities. Could target a specific pain point (e.g., invoice processing, report generation, data entry)."},
+        {"key": "B", "label": "Zero-config developer tool — a scenario that works out-of-the-box with no setup or configuration", "rationale": "The 'no effort' name could mean zero-config. Would focus on convention-over-configuration patterns for developer tooling."},
+        {"key": "C", "label": "AI agent that handles tasks autonomously — a scenario where the user just states intent and the system does everything", "rationale": "Maximally aligned with 'no effort'. Could be a conversational interface backed by Vrooli's existing agent infrastructure."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own description of what 'No Effort' means."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "What domain or problem area does this target?",
+      "context": "Understanding the target domain is essential for scoping the implementation. Vrooli scenarios typically target measurable business value or expand the platform's internal capabilities.",
+      "options": [
+        {"key": "A", "label": "Internal Vrooli capability — improves or extends Vrooli itself (e.g., scenario creation, agent management, deployment)", "rationale": "Compounds Vrooli's recursive improvement loop. Each internal tool makes future tools easier to build."},
+        {"key": "B", "label": "Business/productivity — targets a specific business workflow (e.g., CRM, scheduling, invoicing, content creation)", "rationale": "Direct revenue potential. Aligns with scenario-based business model."},
+        {"key": "C", "label": "Personal/consumer — targets individual users (e.g., personal assistant, home automation, learning)", "rationale": "Broader market but potentially lower per-unit value. Could align with Phase 3 household server vision."},
+        {"key": "D", "label": "Other", "rationale": "Specify the target domain."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "What is the target user persona?",
+      "context": "The effort level a user considers 'zero' varies dramatically by persona. A developer's 'no effort' might mean a single CLI command; a non-technical user's might mean a conversational interface.",
+      "options": [
+        {"key": "A", "label": "Developers / technical users", "rationale": "Can handle CLI tools, APIs, and config files. 'No effort' means minimal boilerplate and smart defaults."},
+        {"key": "B", "label": "Business users / non-technical staff", "rationale": "Need GUI-first experiences. 'No effort' means no code, no terminal, no configuration."},
+        {"key": "C", "label": "Vrooli agents / internal consumers", "rationale": "The scenario is primarily consumed by other Vrooli agents as a capability building block."},
+        {"key": "D", "label": "Other", "rationale": "Specify the target persona."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "What Vrooli resources should this scenario leverage?",
+      "context": "Vrooli provides shared local resources that scenarios can compose. Selecting resources early shapes architecture decisions.",
+      "options": [
+        {"key": "A", "label": "Minimal — no database or heavy resources, stateless service", "rationale": "Fastest to build. Suitable for transformation/routing tasks."},
+        {"key": "B", "label": "Standard stack — PostgreSQL + Redis", "rationale": "Covers most CRUD + caching needs. Well-supported in existing scenarios."},
+        {"key": "C", "label": "AI-heavy — Ollama + Qdrant (+ optionally PostgreSQL)", "rationale": "For AI/ML workloads: LLM inference, vector search, embeddings."},
+        {"key": "D", "label": "Full stack — PostgreSQL + Redis + Ollama + Qdrant", "rationale": "Maximum capability but heavier resource footprint."},
+        {"key": "E", "label": "Other", "rationale": "Specify which resources."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "What file paths are expected to change?",
+      "context": "No acceptance_allow or acceptance_deny patterns are set on the spec. These patterns define the expected change boundaries for execution and post-execution review.",
+      "options": [
+        {"key": "A", "label": "New scenario: scenarios/no-effort/**", "rationale": "Creates a new standalone scenario directory. Standard for new ideas."},
+        {"key": "B", "label": "Targeted subdirectories within an existing scenario", "rationale": "If this enhances an existing scenario rather than creating a new one."},
+        {"key": "C", "label": "Other", "rationale": "Specify the expected file paths."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "What services should this scenario include?",
+      "context": "Vrooli scenarios can include an API, CLI, UI, or any combination. The choice depends on the target user persona and interaction model.",
+      "options": [
+        {"key": "A", "label": "API only — headless service consumed via HTTP/gRPC", "rationale": "Simplest. Good for internal capabilities or developer-facing tools."},
+        {"key": "B", "label": "API + CLI — service with command-line interface", "rationale": "Developer-friendly. Good for automation and scripting."},
+        {"key": "C", "label": "API + UI — service with web interface", "rationale": "End-user friendly. Good for business/consumer scenarios."},
+        {"key": "D", "label": "API + CLI + UI — full stack", "rationale": "Maximum flexibility. Higher implementation cost."},
+        {"key": "E", "label": "Other", "rationale": "Specify the service composition."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "This item was created with only a title ('No Effort') and no description, tags, or archive materials. All plan sections are marked TBD pending answers to the decisions above. Once the core concept is defined, a second workshop round can flesh out architecture, implementation phases, and acceptance criteria."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with all 12 mandatory sections marked TBD. Only the Risks section was populated (noting that the undefined idea is the primary risk). All sections await workshop decision responses before they can be filled in."
+}

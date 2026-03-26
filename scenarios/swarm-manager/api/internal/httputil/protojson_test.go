@@ -66,3 +66,13 @@ func TestDecodeProtoJSONDiscardUnknown(t *testing.T) {
 		t.Fatalf("expected priority 3, got %d", msg.Priority)
 	}
 }
+
+func TestDecodeProtoJSONStrictRejectsUnknown(t *testing.T) {
+	payload := []byte(`{"name":"idea-2","title":"T","status":"backlog","priority":3,"kind":"idea","unknown_field":"ignored"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(payload))
+
+	msg := &domainpb.BacklogItem{}
+	if err := DecodeProtoJSONStrict(req, msg); err == nil {
+		t.Fatal("expected DecodeProtoJSONStrict to reject unknown fields")
+	}
+}

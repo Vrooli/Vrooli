@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/deployment-manager/**",
+    "scenarios/prompt-manager/store/skills/packs/core/scenario-to-desktop/**"
+  ],
+  "created": "2026-03-26T16:35:48Z",
+  "depends_on": [
+    "research/desktop-release-control-plane-audit",
+    "execute/deployment-manager-approval-gate-surfaces"
+  ],
+  "description": "Make scenario-to-desktop participate directly in the canonical approval-gating flow owned by deployment-manager.\n\nThat includes using build provenance consistently, creating or updating pending approval state where appropriate, surfacing blocked release conditions in scenario-specific UI/CLI flows, and supporting wait/resume style behavior without duplicating approval storage or business rules.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "scenario-to-desktop-approval-gate-integration",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "scenario-to-desktop",
+    "approval-gating",
+    "build-provenance",
+    "desktop-release"
+  ],
+  "title": "Integrate Scenario To Desktop With Canonical Approval Gates",
+  "updated": "2026-03-26T16:35:48Z"
+}

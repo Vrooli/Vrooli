@@ -10,7 +10,6 @@ vi.mock("../../services", () => ({
   },
 }));
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const { executionService } = await import("../../services") as unknown as {
   executionService: { followUp: ReturnType<typeof vi.fn> };
 };

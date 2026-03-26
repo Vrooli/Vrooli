@@ -160,7 +160,12 @@ describe("WorkshopPanel", () => {
     expect(screen.getByText("Question 2")).toBeInTheDocument();
 
     const deleteButtons = screen.getAllByTitle("Delete item");
-    await fireEvent.click(deleteButtons[0]!);
+    const firstDeleteButton = deleteButtons[0];
+    expect(firstDeleteButton).toBeDefined();
+    if (!firstDeleteButton) {
+      throw new Error("Delete button not found");
+    }
+    await fireEvent.click(firstDeleteButton);
 
     expect(screen.queryByText("Question 1")).not.toBeInTheDocument();
     expect(screen.getByText("Question 2")).toBeInTheDocument();
@@ -213,7 +218,12 @@ describe("WorkshopPanel", () => {
     expect(screen.queryByText("Save Responses")).not.toBeInTheDocument();
 
     const deleteButtons = screen.getAllByTitle("Delete item");
-    await fireEvent.click(deleteButtons[0]!);
+    const firstDeleteButton = deleteButtons[0];
+    expect(firstDeleteButton).toBeDefined();
+    if (!firstDeleteButton) {
+      throw new Error("Delete button not found");
+    }
+    await fireEvent.click(firstDeleteButton);
 
     expect(screen.getByText("Save Responses")).toBeInTheDocument();
   });

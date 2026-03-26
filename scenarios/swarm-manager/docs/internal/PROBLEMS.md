@@ -10,6 +10,30 @@ No known open issues at this time.
 
 ## Recently Resolved
 
+### Backlog Contract Drift Between API, CLI, and Skills (2026-03-26)
+
+**Problem**: The Swarm Manager API, CLI, and prompt-manager skills had drifted apart around backlog import semantics. The most visible symptoms were:
+
+1. Meta-orchestrator examples still used legacy `scope`
+2. Batch create docs still taught a request-level `--initiative` flow
+3. Initiative updates behaved as partial updates in operator expectations but not in the documented contract
+4. There was no canonical preview-first import workflow for multi-initiative planning
+
+**Fix**:
+- Strict request decoding now rejects unknown fields like `scope`
+- backlog batch-create now supports preview plus inline initiative metadata
+- initiatives update is documented and implemented as partial
+- new reference docs capture the canonical API and CLI contract
+- prompt-manager Swarm Manager skills were rewritten to match the real system
+
+**Files Changed**:
+- `api/internal/backlog/`
+- `api/internal/initiatives/`
+- `cli/`
+- `docs/reference/api-endpoints.md`
+- `docs/reference/cli-commands.md`
+- `prompt-manager/store/skills/packs/core/swarm-manager-*.md`
+
 ### Backlog status silently reverted on execution failure (2026-03-21)
 
 **Problem**: When an execution failed, `restoreBacklogStatus()` silently reverted the backlog item to its previous status (e.g., "backlog"). Users couldn't distinguish items that were never executed from those that failed multiple times.

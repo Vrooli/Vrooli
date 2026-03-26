@@ -42,14 +42,12 @@ function toSlug(title: string) {
 
 function SuggestionRow({
   item,
-  index,
   isAccepting,
   onAccept,
   onEdit,
   onDismiss,
 }: {
   item: CaptureClassificationItem;
-  index: number;
   isAccepting: boolean;
   onAccept: () => void;
   onEdit?: () => void;
@@ -181,7 +179,9 @@ export function CaptureCard({ capture, onEditItem, className }: CaptureCardProps
   const handleAcceptAll = async () => {
     for (let i = 0; i < items.length; i++) {
       if (!acceptedIndices.has(i) && !dismissedIndices.has(i)) {
-        await handleAcceptItem(items[i]!, i);
+        const item = items[i];
+        if (!item) continue;
+        await handleAcceptItem(item, i);
       }
     }
   };
@@ -327,7 +327,6 @@ export function CaptureCard({ capture, onEditItem, className }: CaptureCardProps
                 <SuggestionRow
                   key={index}
                   item={item}
-                  index={index}
                   isAccepting={acceptingIndex === index}
                   onAccept={() => handleAcceptItem(item, index)}
                   onEdit={onEditItem ? () => handleEditItem(item, index) : undefined}

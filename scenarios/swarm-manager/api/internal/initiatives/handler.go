@@ -1,7 +1,6 @@
 package initiatives
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
@@ -50,7 +49,7 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 // Create creates a new initiative.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[initiatives] create", "invalid request body")
 		return
 	}
@@ -61,6 +60,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Title) == "" {
 		httputil.BadRequest(w, "[initiatives] create", "title is required")
+		return
+	}
+	if status := strings.TrimSpace(req.Status); status != "" && !ValidateStatus(status) {
+		httputil.BadRequest(w, "[initiatives] create", "status must be active, completed, or archived")
 		return
 	}
 
@@ -119,16 +122,20 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[initiatives] update", "invalid request body")
 		return
 	}
 
-	if strings.TrimSpace(req.Title) == "" {
+	if !req.HasChanges() {
+		httputil.BadRequest(w, "[initiatives] update", "at least one field must be provided")
+		return
+	}
+	if req.Title != nil && strings.TrimSpace(*req.Title) == "" {
 		httputil.BadRequest(w, "[initiatives] update", "title is required")
 		return
 	}
-	if !ValidateStatus(req.Status) {
+	if req.Status != nil && !ValidateStatus(strings.TrimSpace(*req.Status)) {
 		httputil.BadRequest(w, "[initiatives] update", "status must be active, completed, or archived")
 		return
 	}
@@ -186,7 +193,7 @@ func (h *Handler) AddItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req itemsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[initiatives] add-items", "invalid request body")
 		return
 	}
@@ -230,7 +237,7 @@ func (h *Handler) RemoveItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req itemsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[initiatives] remove-items", "invalid request body")
 		return
 	}

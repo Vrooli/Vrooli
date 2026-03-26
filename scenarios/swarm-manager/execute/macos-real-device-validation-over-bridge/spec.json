@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**",
+    "scenarios/vrooli-emulator/**",
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/deployment-manager/**"
+  ],
+  "created": "2026-03-26T16:36:02Z",
+  "depends_on": [
+    "execute/vrooli-emulator-remote-node-backend"
+  ],
+  "description": "Add the first real-device validation flow over the bridge for macOS hardware.\n\nThe finished flow should let deployment and emulator surfaces request a validation session on a trusted remote Mac, run the sanity check there, and feed the result back into the same approval and review path used for desktop releases.",
+  "effort": "L",
+  "initiative": "trusted-node-bridge",
+  "kind": "execute",
+  "name": "macos-real-device-validation-over-bridge",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "vrooli-bridge",
+    "macos",
+    "real-device",
+    "validation"
+  ],
+  "title": "Add MacOS Real Device Validation Over Bridge",
+  "updated": "2026-03-26T16:36:02Z"
+}

@@ -37,7 +37,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },
@@ -69,8 +69,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
+      "selected": "__other__",
+      "freeform": "Use the shared `discovery` code in the api for all inter-scenario communication",
       "notes": null
     },
     {
@@ -101,7 +101,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
       "notes": null
     },

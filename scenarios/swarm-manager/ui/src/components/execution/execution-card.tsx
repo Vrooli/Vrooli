@@ -33,7 +33,6 @@ function ReviewStatusBadge({
 }) {
   const [showDimensions, setShowDimensions] = useState(false);
   const hasIssues = result.classification === "needs_work";
-  const nonGreenDimensions = result.dimensions.filter((d) => d.status !== "green" && d.status !== "skipped");
 
   return (
     <div className="space-y-1.5" data-testid="review-status-badge">

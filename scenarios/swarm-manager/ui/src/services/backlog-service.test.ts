@@ -231,18 +231,5 @@ describe("Backlog Service", () => {
       expect(result.autoAdvance.reason).toBe("not_ready");
     });
 
-    it("passes auto_workshop flag when specified", async () => {
-      vi.mocked(mockApiClient.post).mockResolvedValue({
-        file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 200 },
-        auto_advance: { triggered: false, reason: "opt_out" },
-      });
-
-      await service.workshopSave("idea", "my-idea", 1, '{"round":1}', false);
-
-      expect(mockApiClient.post).toHaveBeenCalledWith(
-        "/backlog/idea/my-idea/workshop/save",
-        { round_number: 1, content: '{"round":1}', auto_workshop: false }
-      );
-    });
   });
 });

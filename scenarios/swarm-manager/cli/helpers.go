@@ -91,6 +91,24 @@ func decodeResponse[T any](body []byte) (T, error) {
 	return response, nil
 }
 
+func decodeJSONStrict[T any](body []byte, target *T) error {
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+
+	var extra json.RawMessage
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("invalid trailing JSON content")
+		}
+		return err
+	}
+
+	return nil
+}
+
 func requireFlag(name, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("--%s is required", name)

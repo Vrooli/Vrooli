@@ -194,12 +194,16 @@ func TestBacklogItemStruct(t *testing.T) {
 // [REQ:REQ-P0-003] Test CreateBacklogRequest struct JSON marshaling
 func TestCreateBacklogRequestStruct(t *testing.T) {
 	req := CreateBacklogRequest{
-		Name:        "new-idea",
-		Title:       "New Idea",
-		Description: "Description",
-		Priority:    3,
-		Tags:        []string{"new"},
-		Kind:        "idea",
+		Name:            "new-idea",
+		Title:           "New Idea",
+		Description:     "Description",
+		Priority:        3,
+		Tags:            []string{"new"},
+		Kind:            "idea",
+		ResearchTarget:  "execute",
+		DependsOn:       []string{"fix/auth-bug"},
+		AcceptanceAllow: []string{"scenarios/swarm-manager/**"},
+		AcceptanceDeny:  []string{"scenarios/swarm-manager/secrets/**"},
 	}
 
 	data, err := json.Marshal(req)
@@ -216,6 +220,18 @@ func TestCreateBacklogRequestStruct(t *testing.T) {
 	}
 	if !strings.Contains(jsonStr, `"kind":"idea"`) {
 		t.Error("JSON should contain kind field")
+	}
+	if !strings.Contains(jsonStr, `"research_target":"execute"`) {
+		t.Error("JSON should contain snake_case research_target field")
+	}
+	if !strings.Contains(jsonStr, `"depends_on":["fix/auth-bug"]`) {
+		t.Error("JSON should contain snake_case depends_on field")
+	}
+	if !strings.Contains(jsonStr, `"acceptance_allow":["scenarios/swarm-manager/**"]`) {
+		t.Error("JSON should contain snake_case acceptance_allow field")
+	}
+	if !strings.Contains(jsonStr, `"acceptance_deny":["scenarios/swarm-manager/secrets/**"]`) {
+		t.Error("JSON should contain snake_case acceptance_deny field")
 	}
 }
 
@@ -258,12 +274,48 @@ func TestCmdBacklogCreateValidation(t *testing.T) {
 		t.Errorf("Error should contain 'invalid JSON', got: %v", err)
 	}
 
+	err = app.cmdBacklogCreate([]string{"--data", `{"name":"idea","title":"Idea","kind":"idea","scope":"scenarios/swarm-manager"}`})
+	if err == nil {
+		t.Error("cmdBacklogCreate with legacy scope should return error")
+	}
+	if !strings.Contains(err.Error(), `unknown field "scope"`) {
+		t.Errorf("Error should report unknown scope field, got: %v", err)
+	}
+
 	err = app.cmdBacklogCreate([]string{"--data", `{"description":"only description"}`})
 	if err == nil {
 		t.Error("cmdBacklogCreate with missing name/title/kind should return error")
 	}
 	if !strings.Contains(err.Error(), "required") {
 		t.Errorf("Error should contain 'required', got: %v", err)
+	}
+}
+
+func TestCmdBacklogBatchCreateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdBacklogBatchCreate([]string{})
+	if err == nil {
+		t.Error("cmdBacklogBatchCreate with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "batch.json")
+	if err := os.WriteFile(path, []byte(`{"items":[{"name":"item","title":"Item","kind":"idea","scope":"scenarios/swarm-manager"}]}`), 0o644); err != nil {
+		t.Fatalf("write temp batch file: %v", err)
+	}
+
+	err = app.cmdBacklogBatchCreate([]string{"--file", path})
+	if err == nil {
+		t.Error("cmdBacklogBatchCreate with legacy scope should return error")
+	}
+	if !strings.Contains(err.Error(), `unknown field "scope"`) {
+		t.Errorf("Error should report unknown scope field, got: %v", err)
 	}
 }
 
@@ -918,13 +970,13 @@ func TestCmdBacklogQueueOmitsModeWhenUnset(t *testing.T) {
 }
 
 func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
-	policyRequested := false
+	settingsRequested := false
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/execution/policy":
-			policyRequested = true
-			_, _ = w.Write([]byte(`{"policy":{"default_mode":"manual","default_delay_seconds":0}}`))
+		case "/api/v1/settings":
+			settingsRequested = true
+			_, _ = w.Write([]byte(`{"settings":{"default_mode":"manual","default_delay_seconds":0}}`))
 		case "/api/v1/execution":
 			if r.Method != http.MethodPost {
 				t.Fatalf("unexpected method: %s", r.Method)
@@ -955,8 +1007,39 @@ func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
 	if err := app.cmdExecutionCreate([]string{"--kind", "idea", "--name", "test-item"}); err != nil {
 		t.Fatalf("cmdExecutionCreate returned error: %v", err)
 	}
-	if !policyRequested {
-		t.Fatal("expected execution policy endpoint to be requested when --mode is unset")
+	if !settingsRequested {
+		t.Fatal("expected settings endpoint to be requested when --mode is unset")
+	}
+}
+
+func TestCmdInitiativesUpdateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdInitiativesUpdate([]string{})
+	if err == nil {
+		t.Error("cmdInitiativesUpdate with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdInitiativesUpdate([]string{"--name", "my-init", "--data", `{}`})
+	if err == nil {
+		t.Error("cmdInitiativesUpdate with empty data should return error")
+	}
+	if !strings.Contains(err.Error(), "at least one field must be provided") {
+		t.Errorf("Error should contain empty-update message, got: %v", err)
+	}
+
+	err = app.cmdInitiativesUpdate([]string{"--name", "my-init", "--data", `{"scope":"legacy"}`})
+	if err == nil {
+		t.Error("cmdInitiativesUpdate with unknown field should return error")
+	}
+	if !strings.Contains(err.Error(), `unknown field "scope"`) {
+		t.Errorf("Error should report unknown field, got: %v", err)
 	}
 }
 

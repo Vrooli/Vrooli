@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**"
+  ],
+  "created": "2026-03-26T16:36:02Z",
+  "depends_on": [
+    "idea/greenfield-vrooli-bridge-foundation-spec"
+  ],
+  "description": "Implement the new bridge runtime, API, and CLI as a greenfield scenario reusing the vrooli-bridge slot after retirement of the legacy implementation.\n\nThe job of this runtime is trusted-node connectivity and task/session transport between Vrooli machines. It is not a continuation of the legacy external-project documentation-injection mission.",
+  "effort": "XL",
+  "initiative": "trusted-node-bridge",
+  "kind": "execute",
+  "name": "greenfield-vrooli-bridge-core-runtime",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "vrooli-bridge",
+    "runtime",
+    "api",
+    "cli",
+    "trusted-nodes"
+  ],
+  "title": "Implement The Greenfield Bridge Core Runtime",
+  "updated": "2026-03-26T16:36:02Z"
+}

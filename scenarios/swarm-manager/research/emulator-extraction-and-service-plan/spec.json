@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/prompt-manager/**"
+  ],
+  "created": "2026-03-26T16:35:59Z",
+  "depends_on": [
+    "research/desktop-release-control-plane-audit"
+  ],
+  "description": "Design the extraction of scenario-to-desktop livedesktop and related validation capabilities into a dedicated emulator scenario.\n\nUse a working name of vrooli-emulator for planning purposes and define:\n- API, UI, and CLI boundaries\n- backend abstraction expectations\n- artifact launch model\n- how human validation should consume the service\n- what stays in scenario-to-desktop versus what becomes shared emulator responsibility\n- a migration path that avoids destabilizing the existing desktop flow",
+  "effort": "M",
+  "initiative": "emulator-platform",
+  "kind": "research",
+  "name": "emulator-extraction-and-service-plan",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "emulator",
+    "scenario-to-desktop",
+    "architecture",
+    "extraction"
+  ],
+  "title": "Plan The Dedicated Emulator Extraction",
+  "updated": "2026-03-26T16:35:59Z"
+}

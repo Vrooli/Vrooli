@@ -32,6 +32,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 )
 
@@ -143,6 +144,19 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest) strin
 	return ""
 }
 
+func (h *Handler) validateInitiativeReference(name string) error {
+	if strings.TrimSpace(name) == "" || h.initiativeAssigner == nil {
+		return nil
+	}
+	if _, err := h.initiativeAssigner.Get(strings.TrimSpace(name)); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("initiative %q does not exist", strings.TrimSpace(name))
+		}
+		return fmt.Errorf("failed to load initiative %q: %w", strings.TrimSpace(name), err)
+	}
+	return nil
+}
+
 // RegisterRoutes registers the backlog API routes.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog", h.List).Methods("GET")
@@ -246,7 +260,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 // Create creates a new backlog item.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req apipb.CreateBacklogItemRequest
-	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[backlog] create", "invalid request body")
 		return
 	}
@@ -274,29 +288,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		httputil.BadRequest(w, "[backlog] create", "name is required")
 		return
-	}
-
-	itemDir := h.store.ItemDir(kind, name)
-	if err := os.Mkdir(itemDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			httputil.Conflict(w, "[backlog] create", "backlog item already exists")
-			return
-		}
-		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
-		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
-			log.Printf("[backlog] create: failed to create parent directory for %q: %v", name, mkErr)
-			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
-			return
-		}
-		if retryErr := os.Mkdir(itemDir, 0o755); retryErr != nil {
-			if os.IsExist(retryErr) {
-				httputil.Conflict(w, "[backlog] create", "backlog item already exists")
-				return
-			}
-			log.Printf("[backlog] create: failed to create directory for %q: %v", name, retryErr)
-			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
-			return
-		}
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -333,6 +324,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	initiative := ""
 	if req.Initiative != nil {
 		initiative = strings.TrimSpace(*req.Initiative)
+	}
+	if err := h.validateInitiativeReference(initiative); err != nil {
+		httputil.BadRequest(w, "[backlog] create", err.Error())
+		return
 	}
 
 	effort := ""
@@ -372,6 +367,29 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		AcceptanceDeny:  req.AcceptanceDeny,
 	}
 
+	itemDir := h.store.ItemDir(kind, name)
+	if err := os.Mkdir(itemDir, 0o755); err != nil {
+		if os.IsExist(err) {
+			httputil.Conflict(w, "[backlog] create", "backlog item already exists")
+			return
+		}
+		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
+		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
+			log.Printf("[backlog] create: failed to create parent directory for %q: %v", name, mkErr)
+			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
+			return
+		}
+		if retryErr := os.Mkdir(itemDir, 0o755); retryErr != nil {
+			if os.IsExist(retryErr) {
+				httputil.Conflict(w, "[backlog] create", "backlog item already exists")
+				return
+			}
+			log.Printf("[backlog] create: failed to create directory for %q: %v", name, retryErr)
+			httputil.InternalError(w, "[backlog] create", "failed to create backlog directory")
+			return
+		}
+	}
+
 	// Validate dependencies exist and check for cycles.
 	if len(item.DependsOn) > 0 {
 		if err := h.store.ValidateDependencies(item.DependsOn); err != nil {
@@ -393,8 +411,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-initialize workshop for new items (unless opted out or blocked by deps).
-	h.maybeAutoWorkshop(item, req.AutoWorkshop, false)
+	// Auto-initialize workshop for new items (unless disabled in settings or blocked by deps).
+	h.maybeAutoWorkshop(item, false)
 
 	log.Printf("[backlog] created: %q (kind=%s, priority=%d, status=%s)", name, kind, priority, StatusBacklog)
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
@@ -403,10 +421,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// maybeAutoWorkshop checks auto-workshop opt-in, dependency readiness,
-// and spawns the first workshop round asynchronously if appropriate.
-func (h *Handler) maybeAutoWorkshop(item BacklogItem, autoWorkshop *bool, forceOverride bool) {
-	if !workshop.ShouldAutoInitialize(autoWorkshop) {
+// maybeAutoWorkshop checks the global auto_initialize_workshop setting,
+// dependency readiness, and spawns the first workshop round asynchronously
+// if appropriate.
+func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
+	cfg, err := settings.NewStore("").Load()
+	if err != nil {
+		log.Printf("[backlog] auto-workshop: settings load error for %s/%s: %v, using defaults", item.Kind, item.Name, err)
+		cfg = settings.DefaultSettings()
+	}
+	if !workshop.ShouldAutoInitialize(cfg.AutoInitializeWorkshop) {
 		return
 	}
 	if !forceOverride && len(item.DependsOn) > 0 {
@@ -502,7 +526,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var update apipb.UpdateBacklogItemRequest
-	if err := httputil.DecodeProtoJSON(r, &update); err != nil {
+	if err := httputil.DecodeProtoJSONStrict(r, &update); err != nil {
 		httputil.BadRequest(w, "[backlog] update", "invalid request body")
 		return
 	}
@@ -537,6 +561,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if update.Initiative != nil {
 		existing.Initiative = strings.TrimSpace(*update.Initiative)
+	}
+	if err := h.validateInitiativeReference(existing.Initiative); err != nil {
+		httputil.BadRequest(w, "[backlog] update", err.Error())
+		return
 	}
 	if existing.Kind == KindResearch && update.ResearchTarget != nil {
 		normalized, err := normalizeResearchTarget(*update.ResearchTarget)
@@ -601,7 +629,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if oldStatus != existing.Status &&
 		workshop.IsWorkshopReady(string(existing.Status)) &&
 		!workshop.IsWorkshopReady(string(oldStatus)) {
-		go h.cascadeWorkshopTrigger(existing)
+		cfg, cfgErr := settings.NewStore("").Load()
+		if cfgErr != nil {
+			log.Printf("[backlog] cascade: settings load error: %v, using defaults", cfgErr)
+			cfg = settings.DefaultSettings()
+		}
+		if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
+			go h.cascadeWorkshopTrigger(existing)
+		}
 	}
 
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}

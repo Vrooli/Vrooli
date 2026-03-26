@@ -3,12 +3,12 @@
 package backlog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,10 +19,35 @@ import (
 // InitiativeAssigner abstracts initiative operations needed by batch create,
 // avoiding a direct import of the initiatives package (which imports backlog).
 type InitiativeAssigner interface {
-	// EnsureExists verifies the named initiative exists, creating it if not.
-	EnsureExists(name string) error
+	// Get loads the current state of an initiative for validation or rollback.
+	Get(name string) (*InitiativeSnapshot, error)
+	// Create persists a new initiative with explicit metadata.
+	Create(spec InitiativeSpec) error
+	// Update mutates initiative metadata without changing item membership.
+	Update(spec InitiativeSpec) error
+	// Replace restores an initiative snapshot, including item membership.
+	Replace(snapshot InitiativeSnapshot) error
+	// Delete removes an initiative entirely.
+	Delete(name string) error
 	// AddItems appends item references ("kind/name") to the named initiative.
 	AddItems(name string, items []string) error
+}
+
+// InitiativeSpec describes the canonical metadata for an initiative.
+type InitiativeSpec struct {
+	Name        string
+	Title       string
+	Description string
+	Status      string
+}
+
+// InitiativeSnapshot captures the full persisted state of an initiative.
+type InitiativeSnapshot struct {
+	Name        string
+	Title       string
+	Description string
+	Status      string
+	Items       []string
 }
 
 // SetInitiativeAssigner injects the initiative assigner for batch operations.
@@ -33,8 +58,9 @@ func (h *Handler) SetInitiativeAssigner(ia InitiativeAssigner) {
 
 // batchCreateRequest is the JSON request body for batch-creating backlog items.
 type batchCreateRequest struct {
-	Items      []batchCreateItem `json:"items"`
-	Initiative string            `json:"initiative,omitempty"`
+	Items       []batchCreateItem       `json:"items"`
+	Initiatives []batchCreateInitiative `json:"initiatives,omitempty"`
+	Preview     bool                    `json:"preview,omitempty"`
 }
 
 // batchCreateItem mirrors the fields of a single backlog item creation request.
@@ -47,18 +73,43 @@ type batchCreateItem struct {
 	Tags            []string `json:"tags,omitempty"`
 	ResearchTarget  *string  `json:"research_target,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
+	Initiative      string   `json:"initiative,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
-	AutoWorkshop    *bool    `json:"auto_workshop,omitempty"`
+}
+
+// batchCreateInitiative describes initiative metadata supplied with a batch import.
+type batchCreateInitiative struct {
+	Name        string  `json:"name"`
+	Title       string  `json:"title"`
+	Description *string `json:"description,omitempty"`
+	Status      *string `json:"status,omitempty"`
+}
+
+// batchCreateInitiativeResult reports what the batch import will do or did for
+// initiative metadata.
+type batchCreateInitiativeResult struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	Action      string `json:"action"`
+}
+
+type resolvedInitiativePlan struct {
+	spec     InitiativeSpec
+	existing *InitiativeSnapshot
+	action   string
 }
 
 // batchCreateResponse is the JSON response for a successful batch create.
 type batchCreateResponse struct {
-	Items      []BacklogItem `json:"items"`
-	Initiative string        `json:"initiative,omitempty"`
-	Count      int           `json:"count"`
-	Warnings   []string      `json:"warnings,omitempty"`
+	Items       []BacklogItem                `json:"items"`
+	Initiatives []batchCreateInitiativeResult `json:"initiatives,omitempty"`
+	Count       int                          `json:"count"`
+	Preview     bool                         `json:"preview,omitempty"`
+	Warnings    []string                     `json:"warnings,omitempty"`
 }
 
 // BatchCreate creates multiple backlog items atomically.
@@ -66,7 +117,7 @@ type batchCreateResponse struct {
 // no items are created. If initiative is specified, all items are assigned to it.
 func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	var req batchCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
 		httputil.BadRequest(w, "[backlog] batch-create", "invalid request body: "+httputil.TruncateErrorMessage(err, 240))
 		return
 	}
@@ -85,15 +136,49 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 
 	// Phase 1: Validate all items and check for duplicate names within the batch.
 	type validatedItem struct {
-		item         BacklogItem
-		kind         BacklogKind
-		autoWorkshop *bool
+		item BacklogItem
+		kind BacklogKind
 	}
 	validated := make([]validatedItem, 0, len(req.Items))
 	batchNames := make(map[string]bool, len(req.Items))
+	referencedInitiatives := make(map[string]bool)
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	initiativeName := strings.TrimSpace(req.Initiative)
+	providedInitiatives := make(map[string]batchCreateInitiative, len(req.Initiatives))
+	for i, raw := range req.Initiatives {
+		name := strings.TrimSpace(raw.Name)
+		if name == "" {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: name is required", i))
+			return
+		}
+		if strings.TrimSpace(raw.Title) == "" {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: title is required", i))
+			return
+		}
+		if raw.Status != nil {
+			status := strings.TrimSpace(*raw.Status)
+			if !isValidInitiativeStatus(status) {
+				httputil.BadRequest(w, "[backlog] batch-create",
+					fmt.Sprintf("initiatives[%d]: status must be active, completed, or archived", i))
+				return
+			}
+		}
+		if _, exists := providedInitiatives[name]; exists {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiatives[%d]: duplicate initiative %q", i, name))
+			return
+		}
+		raw.Name = name
+		raw.Title = strings.TrimSpace(raw.Title)
+		if raw.Description != nil {
+			description := strings.TrimSpace(*raw.Description)
+			raw.Description = &description
+		}
+		if raw.Status != nil {
+			status := strings.TrimSpace(*raw.Status)
+			raw.Status = &status
+		}
+		providedInitiatives[name] = raw
+	}
 
 	for i, raw := range req.Items {
 		// Validate kind.
@@ -168,6 +253,10 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		if dependsOn == nil {
 			dependsOn = []string{}
 		}
+		initiativeName := strings.TrimSpace(raw.Initiative)
+		if initiativeName != "" {
+			referencedInitiatives[initiativeName] = true
+		}
 
 		effort := ""
 		if raw.Effort != nil {
@@ -206,7 +295,31 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			AcceptanceDeny:  raw.AcceptanceDeny,
 		}
 
-		validated = append(validated, validatedItem{item: item, kind: kind, autoWorkshop: raw.AutoWorkshop})
+		validated = append(validated, validatedItem{item: item, kind: kind})
+	}
+
+	for name := range providedInitiatives {
+		if !referencedInitiatives[name] {
+			httputil.BadRequest(w, "[backlog] batch-create", fmt.Sprintf("initiative %q is not referenced by any item", name))
+			return
+		}
+	}
+
+	var (
+		initiativePlans   map[string]resolvedInitiativePlan
+		initiativeResults []batchCreateInitiativeResult
+		err               error
+	)
+	if len(referencedInitiatives) > 0 {
+		if h.initiativeAssigner == nil {
+			httputil.InternalError(w, "[backlog] batch-create", "initiative support not configured")
+			return
+		}
+		initiativePlans, initiativeResults, err = h.resolveInitiativePlans(referencedInitiatives, providedInitiatives)
+		if err != nil {
+			httputil.BadRequest(w, "[backlog] batch-create", err.Error())
+			return
+		}
 	}
 
 	// Phase 2: Validate dependencies — references must exist either in the
@@ -252,17 +365,43 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Phase 4: If initiative specified, verify it exists or create it.
-	if initiativeName != "" {
-		if h.initiativeAssigner == nil {
-			httputil.InternalError(w, "[backlog] batch-create", "initiative support not configured")
-			return
+	if req.Preview {
+		previewItems := make([]BacklogItem, 0, len(validated))
+		for _, validatedItem := range validated {
+			previewItems = append(previewItems, validatedItem.item)
 		}
-		if ensureErr := h.initiativeAssigner.EnsureExists(initiativeName); ensureErr != nil {
-			log.Printf("[backlog] batch-create: failed to ensure initiative %q: %v", initiativeName, ensureErr)
-			httputil.InternalError(w, "[backlog] batch-create", "failed to ensure initiative exists: "+ensureErr.Error())
-			return
+		resp := batchCreateResponse{
+			Items:       previewItems,
+			Initiatives: initiativeResults,
+			Count:       len(validated),
+			Preview:     true,
 		}
+		if err := httputil.JSON(w, resp); err != nil {
+			httputil.InternalError(w, "[backlog] batch-create", "failed to encode response")
+		}
+		return
+	}
+
+	// Phase 4: Apply initiative metadata changes before item creation so the full
+	// import can roll back to a clean state if any later step fails.
+	appliedInitiatives := make([]resolvedInitiativePlan, 0, len(initiativePlans))
+	for _, name := range orderedInitiativeNames(initiativePlans) {
+		plan := initiativePlans[name]
+		switch plan.action {
+		case "create":
+			if createErr := h.initiativeAssigner.Create(plan.spec); createErr != nil {
+				log.Printf("[backlog] batch-create: failed to create initiative %q: %v", name, createErr)
+				httputil.InternalError(w, "[backlog] batch-create", "failed to create initiative: "+httputil.TruncateErrorMessage(createErr, 240))
+				return
+			}
+		case "update":
+			if updateErr := h.initiativeAssigner.Update(plan.spec); updateErr != nil {
+				log.Printf("[backlog] batch-create: failed to update initiative %q: %v", name, updateErr)
+				httputil.InternalError(w, "[backlog] batch-create", "failed to update initiative: "+httputil.TruncateErrorMessage(updateErr, 240))
+				return
+			}
+		}
+		appliedInitiatives = append(appliedInitiatives, plan)
 	}
 
 	// Phase 5: Create all items atomically. Track created directories for rollback.
@@ -272,10 +411,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	for _, v := range validated {
 		itemDir := h.store.ItemDir(v.kind, v.item.Name)
 		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
-			// Rollback all created directories.
-			for _, dir := range createdDirs {
-				_ = os.RemoveAll(dir)
-			}
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
 			log.Printf("[backlog] batch-create: failed to create directory for %q: %v", v.item.Name, mkErr)
 			httputil.InternalError(w, "[backlog] batch-create", "failed to create item directory")
 			return
@@ -283,10 +419,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		createdDirs = append(createdDirs, itemDir)
 
 		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
-			// Rollback all created directories.
-			for _, dir := range createdDirs {
-				_ = os.RemoveAll(dir)
-			}
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
 			log.Printf("[backlog] batch-create: failed to save %q: %v", v.item.Name, saveErr)
 			httputil.InternalError(w, "[backlog] batch-create", "failed to save item")
 			return
@@ -295,34 +428,167 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		createdItems = append(createdItems, v.item)
 	}
 
-	// Phase 6: If initiative specified, add all items to it.
-	var warnings []string
-	if initiativeName != "" && h.initiativeAssigner != nil {
-		itemRefs := make([]string, 0, len(createdItems))
-		for _, item := range createdItems {
-			itemRefs = append(itemRefs, string(item.Kind)+"/"+item.Name)
-		}
-		if addErr := h.initiativeAssigner.AddItems(initiativeName, itemRefs); addErr != nil {
-			log.Printf("[backlog] batch-create: failed to add items to initiative %q: %v", initiativeName, addErr)
-			warnings = append(warnings, fmt.Sprintf("items created but initiative assignment failed: %s",
-				httputil.TruncateErrorMessage(addErr, 240)))
+	// Phase 6: Add new items to each initiative. This is part of the atomic
+	// import contract, so failures trigger a full rollback.
+	for name, refs := range groupItemRefsByInitiative(createdItems) {
+		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
+			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
+			log.Printf("[backlog] batch-create: failed to add items to initiative %q: %v", name, addErr)
+			httputil.InternalError(w, "[backlog] batch-create", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240))
+			return
 		}
 	}
 
 	// Phase 7: Auto-trigger workshops for items whose dependencies are met.
-	for i, item := range createdItems {
-		h.maybeAutoWorkshop(item, validated[i].autoWorkshop, false)
+	for _, item := range createdItems {
+		h.maybeAutoWorkshop(item, false)
 	}
 
 	log.Printf("[backlog] batch-created %d items", len(createdItems))
 
 	resp := batchCreateResponse{
-		Items:      createdItems,
-		Initiative: initiativeName,
-		Count:      len(createdItems),
-		Warnings:   warnings,
+		Items:       createdItems,
+		Initiatives: initiativeResults,
+		Count:       len(createdItems),
 	}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		httputil.InternalError(w, "[backlog] batch-create", "failed to encode response")
 	}
+}
+
+func isValidInitiativeStatus(status string) bool {
+	switch status {
+	case "active", "completed", "archived":
+		return true
+	default:
+		return false
+	}
+}
+
+func orderedInitiativeNames(plans map[string]resolvedInitiativePlan) []string {
+	names := make([]string, 0, len(plans))
+	for name := range plans {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func groupItemRefsByInitiative(items []BacklogItem) map[string][]string {
+	grouped := make(map[string][]string)
+	for _, item := range items {
+		if strings.TrimSpace(item.Initiative) == "" {
+			continue
+		}
+		ref := string(item.Kind) + "/" + item.Name
+		grouped[item.Initiative] = append(grouped[item.Initiative], ref)
+	}
+	return grouped
+}
+
+func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInitiativePlan, assigner InitiativeAssigner) {
+	for _, dir := range createdDirs {
+		_ = os.RemoveAll(dir)
+	}
+	if assigner == nil {
+		return
+	}
+	for i := len(appliedInitiatives) - 1; i >= 0; i-- {
+		plan := appliedInitiatives[i]
+		switch plan.action {
+		case "create":
+			_ = assigner.Delete(plan.spec.Name)
+		default:
+			if plan.existing != nil {
+				_ = assigner.Replace(*plan.existing)
+			}
+		}
+	}
+}
+
+func (h *Handler) resolveInitiativePlans(
+	referenced map[string]bool,
+	provided map[string]batchCreateInitiative,
+) (map[string]resolvedInitiativePlan, []batchCreateInitiativeResult, error) {
+	plans := make(map[string]resolvedInitiativePlan, len(referenced))
+	results := make([]batchCreateInitiativeResult, 0, len(referenced))
+
+	for name := range referenced {
+		providedSpec, hasProvided := provided[name]
+		existing, err := h.initiativeAssigner.Get(name)
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return nil, nil, fmt.Errorf("failed to load initiative %q: %w", name, err)
+		}
+
+		if !hasProvided {
+			if existing == nil {
+				return nil, nil, fmt.Errorf("initiative %q does not exist; include it in the initiatives list with metadata", name)
+			}
+			plans[name] = resolvedInitiativePlan{
+				spec: InitiativeSpec{
+					Name:        existing.Name,
+					Title:       existing.Title,
+					Description: existing.Description,
+					Status:      existing.Status,
+				},
+				existing: existing,
+				action:   "reuse",
+			}
+			results = append(results, batchCreateInitiativeResult{
+				Name:        existing.Name,
+				Title:       existing.Title,
+				Description: existing.Description,
+				Status:      existing.Status,
+				Action:      "reuse",
+			})
+			continue
+		}
+
+		description := ""
+		if providedSpec.Description != nil {
+			description = *providedSpec.Description
+		} else if existing != nil {
+			description = existing.Description
+		}
+		status := "active"
+		switch {
+		case providedSpec.Status != nil:
+			status = *providedSpec.Status
+		case existing != nil:
+			status = existing.Status
+		}
+		spec := InitiativeSpec{
+			Name:        name,
+			Title:       providedSpec.Title,
+			Description: description,
+			Status:      status,
+		}
+		action := "create"
+		if existing != nil {
+			action = "reuse"
+			if existing.Title != spec.Title || existing.Description != spec.Description || existing.Status != spec.Status {
+				action = "update"
+			}
+		}
+
+		plans[name] = resolvedInitiativePlan{
+			spec: InitiativeSpec{
+				Name:        spec.Name,
+				Title:       spec.Title,
+				Description: spec.Description,
+				Status:      spec.Status,
+			},
+			existing: existing,
+			action:   action,
+		}
+		results = append(results, batchCreateInitiativeResult{
+			Name:        spec.Name,
+			Title:       spec.Title,
+			Description: spec.Description,
+			Status:      spec.Status,
+			Action:      action,
+		})
+	}
+
+	return plans, results, nil
 }

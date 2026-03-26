@@ -50,7 +50,12 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Approve").closest("button")!);
+    const approveButton = screen.getByText("Approve").closest("button");
+    expect(approveButton).not.toBeNull();
+    if (!approveButton) {
+      throw new Error("Approve button not found");
+    }
+    fireEvent.click(approveButton);
     expect(onApprove).toHaveBeenCalledOnce();
   });
 
@@ -66,7 +71,12 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Flag").closest("button")!);
+    const flagButton = screen.getByText("Flag").closest("button");
+    expect(flagButton).not.toBeNull();
+    if (!flagButton) {
+      throw new Error("Flag button not found");
+    }
+    fireEvent.click(flagButton);
     expect(onFlag).toHaveBeenCalledOnce();
   });
 
@@ -82,7 +92,12 @@ describe("BulkActionToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Agent").closest("button")!);
+    const agentButton = screen.getByText("Agent").closest("button");
+    expect(agentButton).not.toBeNull();
+    if (!agentButton) {
+      throw new Error("Agent button not found");
+    }
+    fireEvent.click(agentButton);
     expect(onSend).toHaveBeenCalledOnce();
   });
 

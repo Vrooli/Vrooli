@@ -98,34 +98,31 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[backlog] workshop-save: saved %s/%s %s (%d bytes)", kind, name, roundFile, fileSize)
 
 	// Determine auto-advance.
-	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "opt_out"}
+	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
 
-	optOut := req.AutoWorkshop != nil && !*req.AutoWorkshop
-	if !optOut {
-		// Load settings to get maxAutoRounds.
-		cfg, cfgErr := settings.NewStore("").Load()
-		if cfgErr != nil {
-			log.Printf("[backlog] workshop-save: failed to load settings for auto-advance: %v", cfgErr)
-			cfg = settings.DefaultSettings()
-		}
-		// Load rounds to get the accurate count after save.
-		_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
-		if loadErr != nil {
-			log.Printf("[backlog] workshop-save: failed to load rounds for auto-advance check: %v", loadErr)
-			autoAdvance.Reason = "error"
-		} else {
-			result := workshop.ShouldAutoAdvance(&round, roundCount, string(kind), cfg.MaxAutoRounds)
-			autoAdvance.Reason = result.Reason
-			if result.Advance {
-				runID, taskID, spawnErr := h.spawnWorkshopAsync(item, ResearchModeWorkshop)
-				if spawnErr != nil {
-					log.Printf("[backlog] workshop-save: auto-advance spawn failed for %s/%s: %v", kind, name, spawnErr)
-					autoAdvance.Reason = "error"
-				} else {
-					autoAdvance.Triggered = true
-					autoAdvance.RunId = &runID
-					autoAdvance.TaskId = &taskID
-				}
+	// Load settings to check auto_advance_workshop and maxAutoRounds.
+	cfg, cfgErr := settings.NewStore("").Load()
+	if cfgErr != nil {
+		log.Printf("[backlog] workshop-save: failed to load settings for auto-advance: %v", cfgErr)
+		cfg = settings.DefaultSettings()
+	}
+	// Load rounds to get the accurate count after save.
+	_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
+	if loadErr != nil {
+		log.Printf("[backlog] workshop-save: failed to load rounds for auto-advance check: %v", loadErr)
+		autoAdvance.Reason = "error"
+	} else {
+		result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, &round, roundCount, string(kind), cfg.MaxAutoRounds)
+		autoAdvance.Reason = result.Reason
+		if result.Advance {
+			runID, taskID, spawnErr := h.spawnWorkshopAsync(item, ResearchModeWorkshop)
+			if spawnErr != nil {
+				log.Printf("[backlog] workshop-save: auto-advance spawn failed for %s/%s: %v", kind, name, spawnErr)
+				autoAdvance.Reason = "error"
+			} else {
+				autoAdvance.Triggered = true
+				autoAdvance.RunId = &runID
+				autoAdvance.TaskId = &taskID
 			}
 		}
 	}

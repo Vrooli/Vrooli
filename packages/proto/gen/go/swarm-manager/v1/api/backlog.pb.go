@@ -44,9 +44,6 @@ type CreateBacklogItemRequest struct {
 	DependsOn []string `protobuf:"bytes,8,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	// Initiative this item belongs to.
 	Initiative *string `protobuf:"bytes,9,opt,name=initiative,proto3,oneof" json:"initiative,omitempty"`
-	// When true (default), auto-initialize workshop for the new item.
-	// Set to false to skip auto-initialization.
-	AutoWorkshop *bool `protobuf:"varint,10,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
 	// Effort estimate: XS, S, M, L, XL.
 	Effort *string `protobuf:"bytes,11,opt,name=effort,proto3,oneof" json:"effort,omitempty"`
 	// Glob patterns for file paths expected to be modified.
@@ -148,13 +145,6 @@ func (x *CreateBacklogItemRequest) GetInitiative() string {
 		return *x.Initiative
 	}
 	return ""
-}
-
-func (x *CreateBacklogItemRequest) GetAutoWorkshop() bool {
-	if x != nil && x.AutoWorkshop != nil {
-		return *x.AutoWorkshop
-	}
-	return false
 }
 
 func (x *CreateBacklogItemRequest) GetEffort() string {
@@ -1344,10 +1334,7 @@ type WorkshopSaveRequest struct {
 	// The round number being saved.
 	RoundNumber int32 `protobuf:"varint,1,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
 	// The round content as a JSON string.
-	Content string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	// When true (default), auto-advance to the next round if the item is not
-	// yet ready. Set to false to save without auto-advancing.
-	AutoWorkshop  *bool `protobuf:"varint,3,opt,name=auto_workshop,json=autoWorkshop,proto3,oneof" json:"auto_workshop,omitempty"`
+	Content       string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1394,13 +1381,6 @@ func (x *WorkshopSaveRequest) GetContent() string {
 		return x.Content
 	}
 	return ""
-}
-
-func (x *WorkshopSaveRequest) GetAutoWorkshop() bool {
-	if x != nil && x.AutoWorkshop != nil {
-		return *x.AutoWorkshop
-	}
-	return false
 }
 
 // WorkshopSaveResponse returns the result of saving a workshop round.
@@ -1468,7 +1448,7 @@ type WorkshopAutoAdvance struct {
 	// Agent-manager task ID (set only when triggered=true).
 	TaskId *string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
 	// Reason for the decision: "not_ready", "ready", "max_rounds",
-	// "pending_decisions", "opt_out", "error", "no_rounds".
+	// "pending_decisions", "disabled", "error", "no_rounds".
 	Reason        string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1638,7 +1618,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xbe\x05\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\x88\x05\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -1652,18 +1632,16 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"depends_on\x18\b \x03(\tR\tdependsOn\x12#\n" +
 	"\n" +
 	"initiative\x18\t \x01(\tH\x03R\n" +
-	"initiative\x88\x01\x01\x12(\n" +
-	"\rauto_workshop\x18\n" +
-	" \x01(\bH\x04R\fautoWorkshop\x88\x01\x01\x123\n" +
-	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x05R\x06effort\x88\x01\x01\x12)\n" +
+	"initiative\x88\x01\x01\x123\n" +
+	"\x06effort\x18\v \x01(\tB\x16\xbaH\x13r\x11R\x02XSR\x01SR\x01MR\x01LR\x02XLH\x04R\x06effort\x88\x01\x01\x12)\n" +
 	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDenyB\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\x12\n" +
 	"\x10_research_targetB\r\n" +
-	"\v_initiativeB\x10\n" +
-	"\x0e_auto_workshopB\t\n" +
-	"\a_effortJ\x04\b\f\x10\r\"\xec\x04\n" +
+	"\v_initiativeB\t\n" +
+	"\a_effortJ\x04\b\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xec\x04\n" +
 	"\x18UpdateBacklogItemRequest\x12\x1d\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12l\n" +
@@ -1787,12 +1765,10 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\fImportChange\x12\x12\n" +
 	"\x04item\x18\x01 \x01(\tR\x04item\x12\x16\n" +
 	"\x06action\x18\x02 \x01(\tR\x06action\x12\x18\n" +
-	"\adetails\x18\x03 \x03(\tR\adetails\"\xa0\x01\n" +
+	"\adetails\x18\x03 \x03(\tR\adetails\"j\n" +
 	"\x13WorkshopSaveRequest\x12*\n" +
 	"\fround_number\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\vroundNumber\x12!\n" +
-	"\acontent\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontent\x12(\n" +
-	"\rauto_workshop\x18\x03 \x01(\bH\x00R\fautoWorkshop\x88\x01\x01B\x10\n" +
-	"\x0e_auto_workshop\"\x93\x01\n" +
+	"\acontent\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontentJ\x04\b\x03\x10\x04\"\x93\x01\n" +
 	"\x14WorkshopSaveResponse\x121\n" +
 	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileR\x04file\x12H\n" +
 	"\fauto_advance\x18\x02 \x01(\v2%.swarm_manager.v1.WorkshopAutoAdvanceR\vautoAdvance\"\x9c\x01\n" +
@@ -1878,7 +1854,6 @@ func file_swarm_manager_v1_api_backlog_proto_init() {
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[10].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[12].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[13].OneofWrappers = []any{}
-	file_swarm_manager_v1_api_backlog_proto_msgTypes[16].OneofWrappers = []any{}
 	file_swarm_manager_v1_api_backlog_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

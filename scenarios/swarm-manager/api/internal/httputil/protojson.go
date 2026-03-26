@@ -48,6 +48,17 @@ func DecodeProtoJSON(r *http.Request, msg proto.Message) error {
 	return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(body, msg)
 }
 
+// DecodeProtoJSONStrict reads JSON from the request body into a proto message
+// and rejects unknown fields.
+func DecodeProtoJSONStrict(r *http.Request, msg proto.Message) error {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+	return protojson.UnmarshalOptions{DiscardUnknown: false}.Unmarshal(body, msg)
+}
+
 // ValidateProto enforces protovalidate constraints on a proto message.
 func ValidateProto(msg proto.Message) error {
 	protoValidatorOnce.Do(func() {

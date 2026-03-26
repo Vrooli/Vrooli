@@ -44,6 +44,9 @@ message UpdateSettingsRequest {
 
   // Workshop settings.
   optional int32 max_auto_rounds = 9;
+  optional bool auto_initialize_workshop = 16;
+  optional bool auto_advance_workshop = 17;
+  optional bool auto_cascade_workshop = 18;
 
   // Agent behavior settings.
   optional int32 agent_max_turns = 10;

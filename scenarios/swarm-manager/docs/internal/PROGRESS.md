@@ -4,6 +4,7 @@
 
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
+| 2026-03-26 | Codex | Backlog contract reset and meta-orchestrator alignment | Implemented strict JSON decoding for backlog and initiative request bodies; removed the last explicit legacy backlog `scope` migration path; added batch-create preview plus inline initiative metadata support across API/CLI/docs; initiative updates are now partial; added canonical API/CLI reference docs; rewrote Swarm Manager backlog/meta-orchestrator skills to match the real multi-initiative preview-first flow; added tests covering unknown-field rejection, preview behavior, rollback, and CLI strict parsing |
 | 2026-01-28 | Generator Agent | Initialization complete | Scenario scaffold from react-vite template |
 | 2026-01-28 | Claude Opus 4.5 | PRD + Requirements complete | Full PRD with 25 operational targets, 20 requirement modules |
 | 2026-01-28 | Claude Opus 4.5 | Documentation initialized | README.md, PROGRESS.md, PROBLEMS.md, RESEARCH.md created |

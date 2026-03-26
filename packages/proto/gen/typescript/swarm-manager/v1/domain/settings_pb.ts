@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLrAwoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjQKDGRlZmF1bHRfbW9kZRgFIAEoCUIeukgbchlSBm1hbnVhbFIJc2NoZWR1bGVkUgR5b2xvEiYKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0IHukgEIgIoABISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigBEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgISgQIAhADSgQIAxAESgQIBBAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLLBAoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjQKDGRlZmF1bHRfbW9kZRgFIAEoCUIeukgbchlSBm1hbnVhbFIJc2NoZWR1bGVkUgR5b2xvEiYKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0IHukgEIgIoABISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgISgQIAhADSgQIAxAESgQIBBAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -54,6 +54,21 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
    * @generated from field: int32 max_auto_rounds = 9;
    */
   maxAutoRounds: number;
+
+  /**
+   * @generated from field: bool auto_initialize_workshop = 16;
+   */
+  autoInitializeWorkshop: boolean;
+
+  /**
+   * @generated from field: bool auto_advance_workshop = 17;
+   */
+  autoAdvanceWorkshop: boolean;
+
+  /**
+   * @generated from field: bool auto_cascade_workshop = 18;
+   */
+  autoCascadeWorkshop: boolean;
 
   /**
    * Agent behavior settings.

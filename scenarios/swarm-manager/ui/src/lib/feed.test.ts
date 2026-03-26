@@ -54,8 +54,15 @@ describe("buildFeed", () => {
     const cap = makeCapture();
     const item = makeItem({ priority: 1 });
     const feed = buildFeed([cap], [item], [], []);
-    expect(feed[0]!.type).toBe("capture");
-    expect(feed[1]!.type).toBe("backlog");
+    const first = feed[0];
+    const second = feed[1];
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    if (!first || !second) {
+      throw new Error("Expected two feed items");
+    }
+    expect(first.type).toBe("capture");
+    expect(second.type).toBe("backlog");
   });
 
   it("attention items are boosted above normal backlog items with the same priority", () => {
@@ -63,8 +70,13 @@ describe("buildFeed", () => {
     const attention = makeItem({ name: "attention", priority: 2 });
     const feedback: FeedbackItem[] = [{ kind: "idea", name: "attention", pendingDecisions: 3 }];
     const feed = buildFeed([], [normal, attention], feedback, []);
+    const first = feed[0];
     expect(itemNames(feed)).toEqual(["attention", "normal"]);
-    expect(feed[0]!.type).toBe("attention");
+    expect(first).toBeDefined();
+    if (!first) {
+      throw new Error("Expected one feed item");
+    }
+    expect(first.type).toBe("attention");
   });
 
   it("excludes archived items by default", () => {
@@ -187,9 +199,14 @@ describe("buildFeed", () => {
     const item = makeItem({ name: "has-decisions" });
     const feedback: FeedbackItem[] = [{ kind: "idea", name: "has-decisions", pendingDecisions: 2 }];
     const feed = buildFeed([], [item], feedback, []);
-    expect(feed[0]!.type).toBe("attention");
-    if (feed[0]!.type === "attention") {
-      expect(feed[0]!.reasons).toEqual([{ kind: "pending-decisions", count: 2 }]);
+    const first = feed[0];
+    expect(first).toBeDefined();
+    if (!first) {
+      throw new Error("Expected one feed item");
+    }
+    expect(first.type).toBe("attention");
+    if (first.type === "attention") {
+      expect(first.reasons).toEqual([{ kind: "pending-decisions", count: 2 }]);
     }
   });
 
@@ -197,18 +214,28 @@ describe("buildFeed", () => {
     const item = makeItem({ name: "ready-item" });
     const maturity: MaturityItem[] = [{ kind: "idea", name: "ready-item", ready: true, pendingItems: 0 }];
     const feed = buildFeed([], [item], [], maturity);
-    expect(feed[0]!.type).toBe("attention");
-    if (feed[0]!.type === "attention") {
-      expect(feed[0]!.reasons).toContainEqual({ kind: "plan-ready" });
+    const first = feed[0];
+    expect(first).toBeDefined();
+    if (!first) {
+      throw new Error("Expected one feed item");
+    }
+    expect(first.type).toBe("attention");
+    if (first.type === "attention") {
+      expect(first.reasons).toContainEqual({ kind: "plan-ready" });
     }
   });
 
   it("marks researching items as research-complete attention", () => {
     const item = makeItem({ name: "researching-item", status: "researching" });
     const feed = buildFeed([], [item], [], []);
-    expect(feed[0]!.type).toBe("attention");
-    if (feed[0]!.type === "attention") {
-      expect(feed[0]!.reasons).toContainEqual({ kind: "research-complete" });
+    const first = feed[0];
+    expect(first).toBeDefined();
+    if (!first) {
+      throw new Error("Expected one feed item");
+    }
+    expect(first.type).toBe("attention");
+    if (first.type === "attention") {
+      expect(first.reasons).toContainEqual({ kind: "research-complete" });
     }
   });
 });

@@ -524,7 +524,7 @@ export function BacklogDetailsPage() {
         return next.slice(0, RECENT_FILES_LIMIT);
       });
     }
-  }, [setSearchParams]);
+  }, [setActiveTab, setSearchParams]);
 
   const handleUploadComplete = useCallback(() => {
     if (!backlogKind || !name) return;
@@ -1039,7 +1039,6 @@ export function BacklogDetailsPage() {
     ? convertMutation.error instanceof Error ? convertMutation.error.message : "Failed to convert backlog item. Please try again."
     : null;
 
-  const canQueue = itemActions?.canRun ?? false;
   const canWorkshopAction = itemActions?.canWorkshop ?? false;
   const canConvert = itemActions?.canConvert ?? false;
   const convertTarget = canConvert && item?.researchTarget ? (item.researchTarget as BacklogKind) : null;
@@ -2303,8 +2302,8 @@ export function BacklogDetailsPage() {
               </TabsList>
             </div>
             {activeTab === "info" && mobileInfoView}
-            {activeTab === "prompt" && (
-              <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name!} className="flex-1 overflow-y-auto" />
+            {activeTab === "prompt" && backlogKind && name && (
+              <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
             )}
             {activeTab === "files" && fileWorkspace}
           </Tabs>
@@ -2529,10 +2528,10 @@ export function BacklogDetailsPage() {
                   {executionHistorySection}
                 </div>
               )}
-              {activeTab === "prompt" && (
+              {activeTab === "prompt" && backlogKind && name && (
                 <PlanPanel
                   backlogKind={backlogKind as BacklogKind}
-                  backlogName={name!}
+                  backlogName={name}
                   className="mt-6 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50"
                 />
               )}

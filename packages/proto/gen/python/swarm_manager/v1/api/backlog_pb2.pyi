@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "auto_workshop", "effort", "acceptance_allow", "acceptance_deny")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "research_target", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -19,7 +19,6 @@ class CreateBacklogItemRequest(_message.Message):
     RESEARCH_TARGET_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INITIATIVE_FIELD_NUMBER: _ClassVar[int]
-    AUTO_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_ALLOW_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_DENY_FIELD_NUMBER: _ClassVar[int]
@@ -32,11 +31,10 @@ class CreateBacklogItemRequest(_message.Message):
     research_target: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     initiative: str
-    auto_workshop: bool
     effort: str
     acceptance_allow: _containers.RepeatedScalarFieldContainer[str]
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., auto_workshop: _Optional[bool] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., research_target: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
     __slots__ = ("title", "description", "status", "priority", "tags", "research_target", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny")
@@ -235,14 +233,12 @@ class ImportChange(_message.Message):
     def __init__(self, item: _Optional[str] = ..., action: _Optional[str] = ..., details: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class WorkshopSaveRequest(_message.Message):
-    __slots__ = ("round_number", "content", "auto_workshop")
+    __slots__ = ("round_number", "content")
     ROUND_NUMBER_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
-    AUTO_WORKSHOP_FIELD_NUMBER: _ClassVar[int]
     round_number: int
     content: str
-    auto_workshop: bool
-    def __init__(self, round_number: _Optional[int] = ..., content: _Optional[str] = ..., auto_workshop: _Optional[bool] = ...) -> None: ...
+    def __init__(self, round_number: _Optional[int] = ..., content: _Optional[str] = ...) -> None: ...
 
 class WorkshopSaveResponse(_message.Message):
     __slots__ = ("file", "auto_advance")

@@ -140,7 +140,7 @@ describe("PlanPanel", () => {
       path: "plan.md",
       name: "plan.md",
       size: 100,
-      modified_at: "2026-03-26T10:00:00Z",
+      type: "file",
     });
 
     renderWithProviders(

@@ -224,16 +224,54 @@ type initiativeAssignerAdapter struct {
 	service *initiatives.Service
 }
 
-func (a *initiativeAssignerAdapter) EnsureExists(name string) error {
-	_, err := a.service.Get(name)
-	if err == nil {
-		return nil // already exists
+func (a *initiativeAssignerAdapter) Get(name string) (*backlog.InitiativeSnapshot, error) {
+	result, err := a.service.Get(name)
+	if err != nil {
+		return nil, err
 	}
-	_, createErr := a.service.Create(initiatives.CreateRequest{
-		Name:  name,
-		Title: name,
+	return &backlog.InitiativeSnapshot{
+		Name:        result.Initiative.Name,
+		Title:       result.Initiative.Title,
+		Description: result.Initiative.Description,
+		Status:      result.Initiative.Status,
+		Items:       append([]string(nil), result.Initiative.Items...),
+	}, nil
+}
+
+func (a *initiativeAssignerAdapter) Create(spec backlog.InitiativeSpec) error {
+	_, err := a.service.Create(initiatives.CreateRequest{
+		Name:        spec.Name,
+		Title:       spec.Title,
+		Description: spec.Description,
+		Status:      spec.Status,
 	})
-	return createErr
+	return err
+}
+
+func (a *initiativeAssignerAdapter) Update(spec backlog.InitiativeSpec) error {
+	title := spec.Title
+	description := spec.Description
+	status := spec.Status
+	_, err := a.service.Update(spec.Name, initiatives.UpdateRequest{
+		Title:       &title,
+		Description: &description,
+		Status:      &status,
+	})
+	return err
+}
+
+func (a *initiativeAssignerAdapter) Replace(snapshot backlog.InitiativeSnapshot) error {
+	return a.service.Replace(initiatives.Initiative{
+		Name:        snapshot.Name,
+		Title:       snapshot.Title,
+		Description: snapshot.Description,
+		Status:      snapshot.Status,
+		Items:       append([]string(nil), snapshot.Items...),
+	})
+}
+
+func (a *initiativeAssignerAdapter) Delete(name string) error {
+	return a.service.Delete(name)
 }
 
 func (a *initiativeAssignerAdapter) AddItems(name string, items []string) error {

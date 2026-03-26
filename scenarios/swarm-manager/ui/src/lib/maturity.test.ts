@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildReadinessData, computeNextNudge, READINESS_DIMENSIONS } from "./maturity";
+import { buildReadinessData, computeNextNudge } from "./maturity";
 import type { ReadinessIndicatorData } from "./maturity";
 import type { MaturityItemSummary, ReadinessDimension } from "../types/domain";
 

@@ -372,6 +372,9 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     autoFixup: protoSettings.autoFixup ?? false,
     maxFixupAttempts: protoSettings.maxFixupAttempts ?? 0,
     maxAutoRounds: protoSettings.maxAutoRounds ?? 10,
+    autoInitializeWorkshop: protoSettings.autoInitializeWorkshop ?? true,
+    autoAdvanceWorkshop: protoSettings.autoAdvanceWorkshop ?? true,
+    autoCascadeWorkshop: protoSettings.autoCascadeWorkshop ?? true,
     agentMaxTurns: protoSettings.agentMaxTurns ?? 60,
     agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
     agentRequiresApproval: protoSettings.agentRequiresApproval ?? true,
@@ -429,4 +432,3 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionR
   }
   return record;
 }
-

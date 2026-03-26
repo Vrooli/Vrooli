@@ -171,9 +171,21 @@ This package is imported by `internal/backlog/` (batch create validation, batch 
 `api/internal/initiatives/` provides initiative CRUD and rollup status computation.
 
 - **BacklogLoader interface**: Seam between initiatives and the backlog store -- initiatives need to list backlog items to compute rollup status, but do not depend on the backlog HTTP handlers
+- **Partial update contract**: Initiative updates accept only the fields that are changing (`title`, `description`, `status`, `items`)
 - **Rollup status**: Derived from member item statuses (pending if all backlog, active if any in_progress, completed if all done, blocked if any has unmet deps)
 
 **Testing at the seam**: Mock `BacklogLoader` to test rollup computation without touching the filesystem.
+
+### Backlog Import Boundary
+
+`api/internal/backlog/batch_handler.go` is the backlog-import seam for meta-orchestration and batch backlog creation.
+
+- **Strict request decoding**: Unknown fields are rejected at the HTTP boundary. Legacy `scope` payloads are invalid.
+- **Preview mode**: The same endpoint validates item payloads, dependency refs, and initiative actions without mutating disk when `preview=true`.
+- **Initiative planning**: Each item carries its own `initiative` reference, while initiative metadata is supplied separately through the request's `initiatives` array.
+- **Rollback behavior**: Real creates are atomic across initiative metadata changes, backlog item creation, and initiative membership assignment. Failures roll back the batch instead of returning warnings for partial success.
+
+**Testing at the seam**: Unit tests cover preview, invalid legacy fields, rollback on initiative-assignment failure, and dependency validation.
 
 ### Overview Service Boundary
 
@@ -245,18 +257,21 @@ The truncation recovery algorithm (ported from the former `idea-agent-files.ts`)
 
 ### Workshop Auto-Trigger Boundary
 
-`api/internal/workshop/autotrigger.go` contains pure decision functions for auto-advancing workshop rounds:
+`api/internal/workshop/autotrigger.go` contains pure decision functions for auto-execution:
 
-- **`ShouldAutoAdvance(latestRound, roundCount, kind)`**: Decides whether to auto-trigger the next round after saving responses. Returns false when: item is ready (all dimensions >= 3), round cap reached (10), pending decisions exist, or no rounds exist. Returns a reason string for API consumers.
-- **`ShouldAutoInitialize(autoWorkshop *bool)`**: Decides whether a newly-created item should get auto-initialized. Default true, opt-out via explicit false.
+- **`ShouldAutoAdvance(enabled bool, latestRound, roundCount, kind, maxAutoRounds)`**: Decides whether to auto-trigger the next round after saving responses. Returns false when: disabled via setting, item is ready (all dimensions >= 3), round cap reached, pending decisions exist, or no rounds exist. Returns a reason string for API consumers.
+- **`ShouldAutoInitialize(enabled bool)`**: Decides whether a newly-created item should get its first workshop round auto-triggered. Controlled by the global `auto_initialize_workshop` setting.
+- **`ShouldCascade(enabled bool)`**: Decides whether dependency resolution should auto-trigger downstream workshops. Controlled by the global `auto_cascade_workshop` setting.
+
+All three auto-execution behaviors are controlled by global settings in `.vrooli/settings.json`, loaded via `settings.NewStore("").Load()`. There are no per-item overrides.
 
 `api/internal/backlog/workshop_save.go` is the integration boundary that wires auto-trigger decisions to agent spawning:
 
-- **`WorkshopSave` handler**: Dedicated endpoint (`POST /api/v1/backlog/{kind}/{name}/workshop/save`) that saves round JSON and auto-advances when appropriate. Replaces the generic `UploadFile` for workshop rounds.
+- **`WorkshopSave` handler**: Dedicated endpoint (`POST /api/v1/backlog/{kind}/{name}/workshop/save`) that saves round JSON and auto-advances when appropriate.
 - **`spawnWorkshopAsync` helper**: Shared by both auto-advance (WorkshopSave) and auto-initialize (Create). Acquires an idempotency lock, fetches prompt from prompt-manager, and spawns via agent-manager. Fire-and-forget with background context.
 - **Idempotency lock**: `.workshop-lock` file in item dir prevents concurrent spawns. 30-minute TTL auto-cleans stale locks.
 
-**Testing at the seam**: Pure decision functions are unit tested in `autotrigger_test.go`. Integration tests in `workshop_save_test.go` use `mockAgentService` to verify spawn/no-spawn decisions, lock behavior, and error resilience. Create auto-init tests in `handler_test.go` use channel-based synchronization for goroutine testing.
+**Testing at the seam**: Pure decision functions are unit tested in `autotrigger_test.go`. Integration tests in `workshop_save_test.go` use `mockAgentService` and per-test settings fixtures to verify spawn/no-spawn decisions, lock behavior, and error resilience. Tests disable auto-workshop by default via `disableAutoWorkshopSettings()` and selectively re-enable for specific test cases.
 
 ### Execution Review Boundary
 
@@ -1487,7 +1502,8 @@ These are documented here for future consideration when test complexity demands 
 | Research context path validation | `backlog/research.go` | Validates context paths exist via `os.Stat()` before adding to prompt. Missing paths skipped with log warning, not hard failure. | Research proceeds without invalid paths |
 | Create atomicity | `backlog/handler.go:Create` | Uses `os.Mkdir` (not `MkdirAll`) for atomic conflict detection — eliminates TOCTOU race between stat and create. Falls back to parent creation + retry if parent dir doesn't exist. | Existing create/conflict tests |
 | Spec.json merge safety | `backlog/store.go:SaveItem` | Logs warning on malformed existing spec.json instead of silently discarding. Prevents silent metadata loss during batch operations. | Observable via log output |
-| Batch-create warnings | `backlog/batch_handler.go` | Response includes optional `warnings []string` for non-fatal failures (e.g., initiative assignment fails but items created). Clients should check `warnings` even on 201. | `TestBatchCreate_InitiativeAddItemsFails_ReturnsWarning` |
+| Strict backlog import contract | `backlog/batch_handler.go`, `backlog/handler.go`, `initiatives/handler.go` | Request bodies reject unknown fields. Legacy `scope` payloads fail fast at the HTTP boundary instead of being silently translated. | `TestBatchCreate_RejectsUnknownField`, `TestCreate_RejectsUnknownField`, `TestUpdate_RejectsUnknownField`, `TestHandler_Create_RejectsUnknownField`, `TestHandler_Update_RejectsUnknownField` |
+| Batch-create preview and rollback | `backlog/batch_handler.go` | Preview validates multi-initiative imports without writes. Real create applies initiative metadata first, then rolls back both items and initiative changes if membership assignment fails. | `TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives`, `TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything` |
 | Cycle detection contract | `backlog/batch_handler.go`, `batch_queue_handler.go` | Both batch-create and batch-queue use `depgraph.DetectCycle()` for informative error messages (cycle path included) before `TopologicalSort()`. | `TestBatchQueue_CycleDetection_ShowsPath` |
 | Error truncation boundary | `batch_handler.go`, `batch_queue_handler.go` | All handler-layer system error messages use `httputil.TruncateErrorMessage(err, 240)` to prevent information leakage. Validation errors (kind/name/title) are not truncated. | Consistent with `queue_ops.go` pattern |
 | Dependency helper locality | `backlog/queue_ops.go` | `appendDependencyBlockingReasons` consolidated into `queue_ops.go` (its only caller). Batch-queue uses separate `computeUnmetDependencies` for batch-context-aware dependency checking (tracks items queued within the batch). | `TestBatchQueue_PartialSuccess_DependencyChain` |

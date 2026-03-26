@@ -9,7 +9,6 @@ import { ChevronDown, ChevronRight, MoreHorizontal, Play, Save, Trash2 } from "l
 import { Button } from "../ui/button";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
-import { cn } from "../../lib";
 import { buildWorkshopRoundContent, getPendingDecisionCount } from "../../lib/workshop-files";
 import type { WorkshopRound, WorkshopItem, BacklogKind } from "../../types/domain";
 
@@ -69,8 +68,8 @@ interface WorkshopPanelProps {
 
 export function WorkshopPanel({
   rounds,
-  backlogKind,
-  backlogName,
+  backlogKind: _backlogKind,
+  backlogName: _backlogName,
   disabled,
   isSaving,
   isRunningWorkshop,
@@ -192,7 +191,7 @@ export function WorkshopPanel({
         </div>
       </div>
 
-      {[...rounds].reverse().map((round, reversedIdx) => {
+      {[...rounds].reverse().map((round) => {
         const isExpanded = expandedRounds.has(round.round);
         const effectiveItems = getEffectiveItems(round);
         const pendingDecisions = getPendingDecisionCount({ ...round, items: effectiveItems });

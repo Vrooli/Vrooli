@@ -124,10 +124,15 @@ describe("InlineQuestionStepper", () => {
     render(<InlineQuestionStepper {...defaultProps} questions={[makeWorkshopQuestion()]} />);
 
     const options = screen.getAllByTestId("question-stepper-workshop-option");
-    fireEvent.click(options[0]!); // Click option A
+    const firstOption = options[0];
+    expect(firstOption).toBeDefined();
+    if (!firstOption) {
+      throw new Error("First option not found");
+    }
+    fireEvent.click(firstOption); // Click option A
 
     // Option A button should have the selected styling (emerald border)
-    expect(options[0]!.className).toContain("emerald");
+    expect(firstOption.className).toContain("emerald");
   });
 
   it("review: clicking Approve sets status", () => {
@@ -186,7 +191,12 @@ describe("InlineQuestionStepper", () => {
 
     // Select option A
     const options = screen.getAllByTestId("question-stepper-workshop-option");
-    fireEvent.click(options[0]!);
+    const firstOption = options[0];
+    expect(firstOption).toBeDefined();
+    if (!firstOption) {
+      throw new Error("First option not found");
+    }
+    fireEvent.click(firstOption);
 
     // Click Done (last question)
     fireEvent.click(screen.getByTestId("question-stepper-next"));

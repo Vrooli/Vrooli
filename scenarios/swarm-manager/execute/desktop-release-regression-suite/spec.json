@@ -1,0 +1,31 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**",
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/landing-page-business-suite/**",
+    "scenarios/vrooli-emulator/**",
+    "scenarios/prompt-manager/store/skills/packs/core/landing-page-desktop-upload/**"
+  ],
+  "created": "2026-03-26T16:35:59Z",
+  "depends_on": [
+    "execute/lpbs-desktop-release-contract-hardening",
+    "execute/deployment-manager-lpbs-desktop-release-orchestration",
+    "execute/adopt-vrooli-emulator-in-deployment-flows"
+  ],
+  "description": "Add end-to-end regression coverage for the monetized desktop release flow.\n\nThe suite should cover, as current infrastructure allows:\n- approval gating\n- visual validation and review linkage\n- LPBS artifact publication and promotion\n- update manifest verification\n- cross-platform release sanity checks\n\nThe purpose is to catch release regressions before paid desktop bundles ship.",
+  "effort": "L",
+  "initiative": "emulator-platform",
+  "kind": "execute",
+  "name": "desktop-release-regression-suite",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "testing",
+    "desktop-release",
+    "approval-gating",
+    "updates",
+    "regression"
+  ],
+  "title": "Build The Desktop Release Regression Suite",
+  "updated": "2026-03-26T16:35:59Z"
+}

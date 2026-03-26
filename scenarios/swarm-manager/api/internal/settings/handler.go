@@ -37,7 +37,10 @@ type Settings struct {
 	MaxFixupAttempts    int    `json:"max_fixup_attempts"`
 
 	// Workshop.
-	MaxAutoRounds int `json:"max_auto_rounds"`
+	MaxAutoRounds          int  `json:"max_auto_rounds"`
+	AutoInitializeWorkshop bool `json:"auto_initialize_workshop"`
+	AutoAdvanceWorkshop    bool `json:"auto_advance_workshop"`
+	AutoCascadeWorkshop    bool `json:"auto_cascade_workshop"`
 
 	// Agent behavior.
 	AgentMaxTurns         int  `json:"agent_max_turns"`
@@ -59,7 +62,10 @@ type SettingsPatch struct {
 	AutoFixup           *bool   `json:"auto_fixup,omitempty"`
 	MaxFixupAttempts    *int    `json:"max_fixup_attempts,omitempty"`
 
-	MaxAutoRounds *int `json:"max_auto_rounds,omitempty"`
+	MaxAutoRounds          *int  `json:"max_auto_rounds,omitempty"`
+	AutoInitializeWorkshop *bool `json:"auto_initialize_workshop,omitempty"`
+	AutoAdvanceWorkshop    *bool `json:"auto_advance_workshop,omitempty"`
+	AutoCascadeWorkshop    *bool `json:"auto_cascade_workshop,omitempty"`
 
 	AgentMaxTurns         *int  `json:"agent_max_turns,omitempty"`
 	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`
@@ -102,6 +108,9 @@ func DefaultSettings() Settings {
 		AutoFixup:                 false,
 		MaxFixupAttempts:          2,
 		MaxAutoRounds:             10,
+		AutoInitializeWorkshop:    true,
+		AutoAdvanceWorkshop:       true,
+		AutoCascadeWorkshop:       true,
 		AgentMaxTurns:             60,
 		AgentTimeoutSeconds:       900,
 		AgentRequiresApproval:     true,
@@ -111,52 +120,23 @@ func DefaultSettings() Settings {
 	}
 }
 
-// isUninitialized detects whether settings were loaded from an old file
-// that lacks the new fields (all zero values). MaxAutoRounds must be >= 1
-// in valid settings, so 0 is our sentinel for uninitialized.
-func isUninitialized(s Settings) bool {
-	return s.MaxAutoRounds == 0
-}
-
 // Load retrieves settings from disk, returning defaults when missing.
 func (s *Store) Load() (Settings, error) {
 	data, err := storage.ReadJSONBytes(s.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			defaults := DefaultSettings()
-			// Attempt migration from legacy execution-policy.json.
-			migrateExecutionPolicy(&defaults, s.path)
-			return defaults, nil
+			return DefaultSettings(), nil
 		}
 		return Settings{}, err
 	}
 	if len(data) == 0 {
-		defaults := DefaultSettings()
-		migrateExecutionPolicy(&defaults, s.path)
-		return defaults, nil
+		return DefaultSettings(), nil
 	}
 
+	// Unmarshal into defaults so missing fields get sane values.
 	settings := DefaultSettings()
 	if err := json.Unmarshal(data, &settings); err != nil {
 		return Settings{}, err
-	}
-
-	// If loaded from an old file with only theme, fill in defaults.
-	if isUninitialized(settings) {
-		defaults := DefaultSettings()
-		settings.DefaultMode = defaults.DefaultMode
-		settings.DefaultDelaySeconds = defaults.DefaultDelaySeconds
-		settings.AutoFixup = defaults.AutoFixup
-		settings.MaxFixupAttempts = defaults.MaxFixupAttempts
-		settings.MaxAutoRounds = defaults.MaxAutoRounds
-		settings.AgentMaxTurns = defaults.AgentMaxTurns
-		settings.AgentTimeoutSeconds = defaults.AgentTimeoutSeconds
-		settings.AgentRequiresApproval = defaults.AgentRequiresApproval
-		settings.SearchDebounceMs = defaults.SearchDebounceMs
-		settings.ToastDurationMs = defaults.ToastDurationMs
-		settings.ConfirmDestructiveActions = defaults.ConfirmDestructiveActions
-		// Try to absorb execution-policy.json values.
-		migrateExecutionPolicy(&settings, s.path)
 	}
 
 	normalized := normalizeSettings(settings)
@@ -164,40 +144,6 @@ func (s *Store) Load() (Settings, error) {
 		return Settings{}, err
 	}
 	return normalized, nil
-}
-
-// legacyPolicy is the shape of the old execution-policy.json.
-type legacyPolicy struct {
-	DefaultMode         string `json:"default_mode"`
-	DefaultDelaySeconds int64  `json:"default_delay_seconds"`
-	AutoFixup           bool   `json:"auto_fixup"`
-	MaxFixupAttempts    int    `json:"max_fixup_attempts"`
-}
-
-// migrateExecutionPolicy reads legacy execution-policy.json, merges values
-// into settings, and removes the old file.
-func migrateExecutionPolicy(settings *Settings, settingsPath string) {
-	policyPath := filepath.Join(filepath.Dir(settingsPath), "execution-policy.json")
-	data, err := os.ReadFile(policyPath)
-	if err != nil {
-		return // no legacy file
-	}
-	var policy legacyPolicy
-	if err := json.Unmarshal(data, &policy); err != nil {
-		return
-	}
-	if policy.DefaultMode != "" {
-		settings.DefaultMode = policy.DefaultMode
-	}
-	if policy.DefaultDelaySeconds > 0 {
-		settings.DefaultDelaySeconds = policy.DefaultDelaySeconds
-	}
-	settings.AutoFixup = policy.AutoFixup
-	if policy.MaxFixupAttempts > 0 {
-		settings.MaxFixupAttempts = policy.MaxFixupAttempts
-	}
-	// Remove legacy file after migration.
-	_ = os.Remove(policyPath)
 }
 
 // Save persists settings to disk with validation and atomic writes.
@@ -243,7 +189,7 @@ func normalizeSettings(settings Settings) Settings {
 	settings.MaxFixupAttempts = clampInt(settings.MaxFixupAttempts, 0, 5)
 
 	// Workshop.
-	settings.MaxAutoRounds = clampInt(settings.MaxAutoRounds, 1, 50)
+	settings.MaxAutoRounds = clampInt(settings.MaxAutoRounds, 0, 50)
 
 	// Agent behavior.
 	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 200)
@@ -373,6 +319,15 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.MaxAutoRounds != nil {
 		current.MaxAutoRounds = *patch.MaxAutoRounds
 	}
+	if patch.AutoInitializeWorkshop != nil {
+		current.AutoInitializeWorkshop = *patch.AutoInitializeWorkshop
+	}
+	if patch.AutoAdvanceWorkshop != nil {
+		current.AutoAdvanceWorkshop = *patch.AutoAdvanceWorkshop
+	}
+	if patch.AutoCascadeWorkshop != nil {
+		current.AutoCascadeWorkshop = *patch.AutoCascadeWorkshop
+	}
 	if patch.AgentMaxTurns != nil {
 		current.AgentMaxTurns = *patch.AgentMaxTurns
 	}
@@ -402,6 +357,9 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		AutoFixup:                 s.AutoFixup,
 		MaxFixupAttempts:          int32(s.MaxFixupAttempts),
 		MaxAutoRounds:             int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop:    s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:       s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:       s.AutoCascadeWorkshop,
 		AgentMaxTurns:             int32(s.AgentMaxTurns),
 		AgentTimeoutSeconds:       int32(s.AgentTimeoutSeconds),
 		AgentRequiresApproval:     s.AgentRequiresApproval,
@@ -438,6 +396,18 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.MaxAutoRounds != nil {
 		v := int(*req.MaxAutoRounds)
 		patch.MaxAutoRounds = &v
+	}
+	if req.AutoInitializeWorkshop != nil {
+		v := *req.AutoInitializeWorkshop
+		patch.AutoInitializeWorkshop = &v
+	}
+	if req.AutoAdvanceWorkshop != nil {
+		v := *req.AutoAdvanceWorkshop
+		patch.AutoAdvanceWorkshop = &v
+	}
+	if req.AutoCascadeWorkshop != nil {
+		v := *req.AutoCascadeWorkshop
+		patch.AutoCascadeWorkshop = &v
 	}
 	if req.AgentMaxTurns != nil {
 		v := int(*req.AgentMaxTurns)
@@ -476,6 +446,9 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
 		req.MaxAutoRounds == nil &&
+		req.AutoInitializeWorkshop == nil &&
+		req.AutoAdvanceWorkshop == nil &&
+		req.AutoCascadeWorkshop == nil &&
 		req.AgentMaxTurns == nil &&
 		req.AgentTimeoutSeconds == nil &&
 		req.AgentRequiresApproval == nil &&

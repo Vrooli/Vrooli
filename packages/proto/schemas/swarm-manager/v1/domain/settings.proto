@@ -38,7 +38,10 @@ message Settings {
   int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
 
   // Workshop settings.
-  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = { gte: 1, lte: 50 }];
+  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = { gte: 0, lte: 50 }];
+  bool auto_initialize_workshop = 16;
+  bool auto_advance_workshop = 17;
+  bool auto_cascade_workshop = 18;
 
   // Agent behavior settings.
   int32 agent_max_turns = 10 [(buf.validate.field).int32 = { gte: 5, lte: 200 }];

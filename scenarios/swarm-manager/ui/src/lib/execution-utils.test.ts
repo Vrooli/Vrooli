@@ -119,8 +119,11 @@ describe("execution-utils", () => {
     it('"all" tab includes validating and needs_fixup', () => {
       const allTab = EXECUTION_TAB_CONFIG.find((tab) => tab.id === "all");
       expect(allTab).toBeDefined();
-      expect(allTab!.statuses).toContain("validating");
-      expect(allTab!.statuses).toContain("needs_fixup");
+      if (!allTab) {
+        throw new Error("All tab config not found");
+      }
+      expect(allTab.statuses).toContain("validating");
+      expect(allTab.statuses).toContain("needs_fixup");
     });
   });
 });

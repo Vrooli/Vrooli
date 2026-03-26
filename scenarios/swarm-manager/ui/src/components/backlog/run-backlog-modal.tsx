@@ -110,7 +110,10 @@ export function RunBacklogModal({
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
 
   const isBulk = Boolean(targets && targets.length > 0);
-  const effectiveTargets = isBulk && targets ? targets : target ? [target] : [];
+  const effectiveTargets = useMemo(
+    () => (isBulk && targets ? targets : target ? [target] : []),
+    [isBulk, target, targets],
+  );
   const queueDepth = pendingCount + runningCount;
 
   // Reset state and fetch queue depth when modal opens

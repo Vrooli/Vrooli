@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadFromStorage, saveToStorage, clearStorage, type StorePersistConfig } from "./store-utils";
 
+function parseJSON<T>(raw: string): T {
+  return JSON.parse(raw) as T;
+}
+
 const TEST_CONFIG: StorePersistConfig = {
   key: "test-store.v1",
   version: 1,
@@ -87,14 +91,22 @@ describe("saveToStorage", () => {
 
     const raw = localStorage.getItem(TEST_CONFIG.key);
     expect(raw).not.toBeNull();
-    const parsed = JSON.parse(raw!);
+    if (!raw) {
+      throw new Error("Expected saved localStorage payload");
+    }
+    const parsed = parseJSON<{ data: string[]; fetchedAt: number; version: number }>(raw);
     expect(parsed).toEqual({ data: ["a", "b"], fetchedAt: now, version: 1 });
   });
 
   it("truncates arrays to maxItems before saving", () => {
     saveToStorage(TEST_CONFIG, [1, 2, 3, 4, 5, 6, 7], Date.now());
 
-    const parsed = JSON.parse(localStorage.getItem(TEST_CONFIG.key)!);
+    const raw = localStorage.getItem(TEST_CONFIG.key);
+    expect(raw).not.toBeNull();
+    if (!raw) {
+      throw new Error("Expected saved localStorage payload");
+    }
+    const parsed = parseJSON<{ data: number[]; fetchedAt: number; version: number }>(raw);
     expect(parsed.data).toEqual([1, 2, 3, 4, 5]);
   });
 

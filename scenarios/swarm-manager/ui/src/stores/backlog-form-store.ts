@@ -35,6 +35,9 @@ const buildFormValues = (
     researchTarget: initialValues?.researchTarget ?? "idea",
     dependsOn: initialValues?.dependsOn ?? [],
     initiative: initialValues?.initiative ?? "",
+    effort: initialValues?.effort ?? "",
+    acceptanceAllow: initialValues?.acceptanceAllow ?? [],
+    acceptanceDeny: initialValues?.acceptanceDeny ?? [],
   };
 };
 

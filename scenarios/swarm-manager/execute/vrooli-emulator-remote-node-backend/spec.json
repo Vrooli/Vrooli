@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-bridge/**",
+    "scenarios/vrooli-emulator/**",
+    "scenarios/scenario-to-desktop/**"
+  ],
+  "created": "2026-03-26T16:36:02Z",
+  "depends_on": [
+    "execute/vrooli-emulator-linux-first",
+    "execute/greenfield-vrooli-bridge-core-runtime"
+  ],
+  "description": "Implement the emulator remote-node backend over the new bridge so emulator sessions can run on another trusted Vrooli machine while presenting the same control and validation surface to local operators and higher-level deployment tools.",
+  "effort": "L",
+  "initiative": "trusted-node-bridge",
+  "kind": "execute",
+  "name": "vrooli-emulator-remote-node-backend",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "vrooli-bridge",
+    "emulator",
+    "remote-validation",
+    "integration"
+  ],
+  "title": "Add The Emulator Remote Node Backend Over Bridge",
+  "updated": "2026-03-26T16:36:02Z"
+}

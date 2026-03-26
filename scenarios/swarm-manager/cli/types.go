@@ -42,13 +42,18 @@ type ListBacklogResponse struct {
 }
 
 type CreateBacklogRequest struct {
-	Name           string   `json:"name"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description,omitempty"`
-	Priority       int      `json:"priority,omitempty"`
-	Tags           []string `json:"tags,omitempty"`
-	Kind           string   `json:"kind"`
-	ResearchTarget string   `json:"researchTarget,omitempty"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Priority        int      `json:"priority,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	Kind            string   `json:"kind"`
+	ResearchTarget  string   `json:"research_target,omitempty"`
+	DependsOn       []string `json:"depends_on,omitempty"`
+	Initiative      string   `json:"initiative,omitempty"`
+	Effort          string   `json:"effort,omitempty"`
+	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 }
 
 type BacklogFile struct {
@@ -347,6 +352,25 @@ type InitiativeResponse struct {
 // ListInitiativesResponse wraps the initiative list endpoint response.
 type ListInitiativesResponse struct {
 	Items []InitiativeResponse `json:"items"`
+}
+
+type InitiativeCreateRequest struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	Items       []string `json:"items,omitempty"`
+}
+
+type InitiativeUpdateRequest struct {
+	Title       *string   `json:"title,omitempty"`
+	Description *string   `json:"description,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Items       *[]string `json:"items,omitempty"`
+}
+
+func (r InitiativeUpdateRequest) HasChanges() bool {
+	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil
 }
 
 // Capture represents a quick-capture entry.

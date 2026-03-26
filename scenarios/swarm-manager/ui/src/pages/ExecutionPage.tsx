@@ -38,6 +38,28 @@ import {
 
 const AUTO_REFRESH_MS = 6000;
 
+type AgentManagerRunLookup = {
+  run?: {
+    sandboxId?: string;
+  };
+};
+
+function parseAgentManagerRunLookup(value: unknown): AgentManagerRunLookup | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const candidate = value as { run?: unknown };
+  if (typeof candidate.run !== "object" || candidate.run === null) {
+    return {};
+  }
+
+  const run = candidate.run as { sandboxId?: unknown };
+  return {
+    run: typeof run.sandboxId === "string" ? { sandboxId: run.sandboxId } : {},
+  };
+}
+
 export function ExecutionPage() {
   const { items, status, error, isRefreshing, fetchExecutions, upsertExecution } = useExecutionStore();
   const navigate = useNavigate();
@@ -216,7 +238,8 @@ export function ExecutionPage() {
     const baseUrl = workspaceSandboxBaseUrl ?? `/embedded/workspace-sandbox/`;
     try {
       const runResp = await fetch(`/api/v1/agent-manager/runs/${encodeURIComponent(exec.runId)}`);
-      const runData = runResp.ok ? await runResp.json() : null;
+      const rawRunData: unknown = runResp.ok ? await runResp.json() : null;
+      const runData = parseAgentManagerRunLookup(rawRunData);
       const sandboxId = runData?.run?.sandboxId;
       if (sandboxId) {
         window.open(`${baseUrl.replace(/\/$/, "")}?sandbox=${sandboxId}&review=true`, "_blank");

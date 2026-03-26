@@ -83,6 +83,12 @@ func (a *App) cmdBacklogList(args []string) error {
 		if item.Effort != "" {
 			fmt.Printf("    Effort: %s\n", item.Effort)
 		}
+		if len(item.AcceptanceAllow) > 0 {
+			fmt.Printf("    Acceptance Allow: %s\n", strings.Join(item.AcceptanceAllow, ", "))
+		}
+		if len(item.AcceptanceDeny) > 0 {
+			fmt.Printf("    Acceptance Deny: %s\n", strings.Join(item.AcceptanceDeny, ", "))
+		}
 		fmt.Println()
 	}
 
@@ -149,6 +155,12 @@ func (a *App) cmdBacklogGet(args []string) error {
 	if item.Effort != "" {
 		fmt.Printf("  Effort: %s\n", item.Effort)
 	}
+	if len(item.AcceptanceAllow) > 0 {
+		fmt.Printf("  Acceptance Allow: %s\n", strings.Join(item.AcceptanceAllow, ", "))
+	}
+	if len(item.AcceptanceDeny) > 0 {
+		fmt.Printf("  Acceptance Deny: %s\n", strings.Join(item.AcceptanceDeny, ", "))
+	}
 	fmt.Printf("  Created: %s\n", item.Created)
 	fmt.Printf("  Updated: %s\n", item.Updated)
 
@@ -177,7 +189,7 @@ func (a *App) cmdBacklogCreate(args []string) error {
 	}
 
 	var req CreateBacklogRequest
-	if err := json.Unmarshal(payload, &req); err != nil {
+	if err := decodeJSONStrict(payload, &req); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
