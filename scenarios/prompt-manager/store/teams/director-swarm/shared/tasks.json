@@ -3,12 +3,12 @@
     {
       "id": "task-1774217969536112668",
       "title": "Commit prompt-manager 3 files (highest leverage)",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-22T22:19:29Z",
-      "updatedAt": "2026-03-24T22:18:55Z",
+      "updatedAt": "2026-03-25T22:18:31Z",
       "notes": [
         {
           "at": "2026-03-23T22:19:02Z",
@@ -19,6 +19,11 @@
           "at": "2026-03-24T22:18:55Z",
           "by": "",
           "text": "Now 22 files (was 4). Major expansion from sprint work."
+        },
+        {
+          "at": "2026-03-25T22:18:31Z",
+          "by": "",
+          "text": "Verified: all prompt-manager code committed in prior sessions. Remaining modified files are runtime state (heartbeats, indexes, queues)."
         }
       ]
     },
@@ -110,17 +115,22 @@
     {
       "id": "task-1774304344695568032",
       "title": "Commit swarm-manager 18 files: batch ops and initiatives p9",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-24T22:18:55Z",
+      "updatedAt": "2026-03-25T22:18:37Z",
       "notes": [
         {
           "at": "2026-03-24T22:18:55Z",
           "by": "",
           "text": "Now 21 files (was 18). Active development ongoing."
+        },
+        {
+          "at": "2026-03-25T22:18:37Z",
+          "by": "",
+          "text": "16 of 18 files committed in swarm-manager follow-ups p1-p9. 2 remaining UI files (BacklogDetailsPage, ScenarioDetailsPage) are minor cache optimization — will be next commit."
         }
       ]
     },
@@ -144,17 +154,22 @@
     {
       "id": "task-1774304344809727499",
       "title": "Commit web-console 3 files: apply appearance to all sessions",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P2",
       "createdBy": "director",
       "createdAt": "2026-03-23T22:19:04Z",
-      "updatedAt": "2026-03-24T22:18:55Z",
+      "updatedAt": "2026-03-25T22:18:38Z",
       "notes": [
         {
           "at": "2026-03-24T22:18:55Z",
           "by": "",
           "text": "Now 2 files (was 3). One file committed."
+        },
+        {
+          "at": "2026-03-25T22:18:38Z",
+          "by": "",
+          "text": "web-console always-on series (p1-p12) committed in prior sessions. No uncommitted web-console files remain."
         }
       ]
     },
@@ -178,12 +193,29 @@
     {
       "id": "task-1774390739698314289",
       "title": "Commit packages/proto 12 generated files (swarm-manager proto changes)",
-      "status": "todo",
+      "status": "done",
       "assignee": "director",
       "priority": "P1",
       "createdBy": "director",
       "createdAt": "2026-03-24T22:18:59Z",
-      "updatedAt": "2026-03-24T22:18:59Z"
+      "updatedAt": "2026-03-25T22:18:39Z",
+      "notes": [
+        {
+          "at": "2026-03-25T22:18:39Z",
+          "by": "",
+          "text": "No uncommitted proto files found. Already committed in prior sessions."
+        }
+      ]
+    },
+    {
+      "id": "task-1774477135637295224",
+      "title": "Commit 2 swarm-manager UI files (BacklogDetailsPage + ScenarioDetailsPage cache optimization)",
+      "status": "todo",
+      "assignee": "director",
+      "priority": "P2",
+      "createdBy": "director",
+      "createdAt": "2026-03-25T22:18:55Z",
+      "updatedAt": "2026-03-25T22:18:55Z"
     }
   ]
 }

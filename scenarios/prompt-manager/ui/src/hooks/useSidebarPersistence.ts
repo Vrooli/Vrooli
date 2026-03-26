@@ -14,6 +14,7 @@
 import { useEffect, useCallback, useRef } from 'react'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
 import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_DETAIL_MODE } from '@/types/filterSort'
+import type { SkillSearchMode } from '@/types'
 
 /** localStorage key for sidebar state */
 const STORAGE_KEY = 'pm.sidebarState'
@@ -39,7 +40,7 @@ export interface SidebarPersistedState {
   /** Search query for skills */
   searchQuery: string
   /** Search mode for skills */
-  searchMode: 'quick' | 'content'
+  searchMode: SkillSearchMode
   /** Content search options */
   contentSearchOptions: {
     caseSensitive: boolean
@@ -90,7 +91,7 @@ export function loadSidebarState(): SidebarPersistedState {
       detailMode: validateDetailMode(parsed.detailMode),
       activeTab: typeof parsed.activeTab === 'string' ? parsed.activeTab : DEFAULT_STATE.activeTab,
       searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : DEFAULT_STATE.searchQuery,
-      searchMode: parsed.searchMode === 'content' ? 'content' : DEFAULT_STATE.searchMode,
+      searchMode: parsed.searchMode === 'content' || parsed.searchMode === 'ai' ? parsed.searchMode : DEFAULT_STATE.searchMode,
       contentSearchOptions: validateContentSearchOptions(parsed.contentSearchOptions),
     }
   } catch {
@@ -180,7 +181,7 @@ export interface UseSidebarPersistenceOptions {
   /** Current search query */
   searchQuery: string
   /** Current search mode */
-  searchMode: 'quick' | 'content'
+  searchMode: SkillSearchMode
   /** Current content search options */
   contentSearchOptions: {
     caseSensitive: boolean

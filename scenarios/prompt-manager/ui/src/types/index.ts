@@ -47,7 +47,7 @@ export interface SearchFilters {
 /**
  * Sidebar search mode.
  */
-export type SkillSearchMode = 'quick' | 'content'
+export type SkillSearchMode = 'quick' | 'content' | 'ai'
 
 /**
  * Content search options (UI state).

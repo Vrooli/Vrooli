@@ -27,6 +27,8 @@ import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { TeamEditorPanel } from '../editor/TeamEditorPanel'
 import { RunEditorPanel } from '../editor/RunEditorPanel'
+import { TopicEditorPanel } from '../topic/TopicEditorPanel'
+import { TopicSelectionWizard } from '../topic/TopicSelectionWizard'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useAgentData } from '@/hooks/useAgentData'
 import { useTeamData, useTeamDetails } from '@/hooks/useTeamData'
@@ -133,6 +135,10 @@ export function SkillManagerLayout() {
     setSelectedTeamId,
     selectedRunId,
     setSelectedRunId,
+    selectedTopicId,
+    setSelectedTopicId,
+    topicWizardActive,
+    setTopicWizardActive,
     graphViewActive,
     setGraphViewActive,
   } = useSelectionStore(useShallow((state) => ({
@@ -144,6 +150,10 @@ export function SkillManagerLayout() {
     setSelectedTeamId: state.setSelectedTeamId,
     selectedRunId: state.selectedRunId,
     setSelectedRunId: state.setSelectedRunId,
+    selectedTopicId: state.selectedTopicId,
+    setSelectedTopicId: state.setSelectedTopicId,
+    topicWizardActive: state.topicWizardActive,
+    setTopicWizardActive: state.setTopicWizardActive,
     graphViewActive: state.graphViewActive,
     setGraphViewActive: state.setGraphViewActive,
   })))
@@ -267,13 +277,13 @@ export function SkillManagerLayout() {
     setIsCombineCopying,
   } = useCombineStore(useShallow((state) => ({
     combineMode: state.isActive,
-    combineSelectedIds: state.selectedSkillIds,
+    combineSelectedIds: state.selectedIds,
     combineFormat: state.format,
     isCombineCopying: state.isCopying,
     enterCombineMode: state.enterCombineMode,
     exitCombineMode: state.exitCombineMode,
-    toggleCombineSkillSelection: state.toggleSkillSelection,
-    toggleCombineMultipleSkills: state.toggleMultipleSkills,
+    toggleCombineSkillSelection: state.toggleSelection,
+    toggleCombineMultipleSkills: state.toggleMultiple,
     setCombineFormat: state.setFormat,
     setIsCombineCopying: state.setIsCopying,
   })))
@@ -1358,11 +1368,22 @@ export function SkillManagerLayout() {
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
-            {selectedRunId ? (
+            {topicWizardActive ? (
+              <TopicSelectionWizard
+                onClose={() => setTopicWizardActive(false)}
+                className="h-full"
+              />
+            ) : selectedRunId ? (
               <RunEditorPanel
                 runId={selectedRunId}
                 onClose={() => setSelectedRunId(null)}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
+                className="h-full"
+              />
+            ) : selectedTopicId ? (
+              <TopicEditorPanel
+                topicId={selectedTopicId}
+                onClose={() => setSelectedTopicId(null)}
                 className="h-full"
               />
             ) : selectedTeamId ? (
@@ -1622,6 +1643,10 @@ export function SkillManagerLayout() {
                 }}
                 onSelectRunFromMenu={(id) => {
                   setSelectedRunId(id)
+                  setIsMobileSidebarOpen(false)
+                }}
+                onSelectTopicFromMenu={(id) => {
+                  setSelectedTopicId(id)
                   setIsMobileSidebarOpen(false)
                 }}
                 onSaveSkill={handleSaveSkillById}

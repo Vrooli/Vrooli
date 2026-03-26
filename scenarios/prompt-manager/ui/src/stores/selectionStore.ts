@@ -36,6 +36,12 @@ interface SelectionStore {
   // Run selection for detail view
   selectedRunId: string | null
 
+  // Topic selection for editing
+  selectedTopicId: string | null
+
+  // Topic selection wizard active
+  topicWizardActive: boolean
+
   // Graph view toggle (when no skill selected)
   graphViewActive: boolean
 
@@ -50,6 +56,8 @@ interface SelectionStore {
   setSelectedAgentId: (id: string | null) => void
   setSelectedTeamId: (id: string | null) => void
   setSelectedRunId: (id: string | null) => void
+  setSelectedTopicId: (id: string | null) => void
+  setTopicWizardActive: (v: boolean) => void
   setGraphViewActive: (v: boolean) => void
 }
 
@@ -59,6 +67,8 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedAgentId: null,
   selectedTeamId: null,
   selectedRunId: null,
+  selectedTopicId: null,
+  topicWizardActive: false,
   graphViewActive: loadGraphViewActive(),
 
   setSelectedSkillId: (id) => {
@@ -67,10 +77,12 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // When selecting a single skill for editing, also update multi-selection
       // This ensures the 3D tree highlights the selected skill
       selectedSkillIds: id ? [id] : [],
-      // Clear agent, team, and run selection when selecting a skill
+      // Clear agent, team, run, and topic selection when selecting a skill
       selectedAgentId: null,
       selectedTeamId: null,
       selectedRunId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
   },
@@ -139,6 +151,8 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedAgentId: null,
       selectedTeamId: null,
       selectedRunId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
   },
@@ -146,11 +160,13 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   setSelectedAgentId: (id) => {
     set({
       selectedAgentId: id,
-      // Clear skill, team, and run selection when selecting an agent
+      // Clear skill, team, run, and topic selection when selecting an agent
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedTeamId: null,
       selectedRunId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
   },
@@ -158,11 +174,13 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   setSelectedTeamId: (id) => {
     set({
       selectedTeamId: id,
-      // Clear skill, agent, and run selection when selecting a team
+      // Clear skill, agent, run, and topic selection when selecting a team
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedAgentId: null,
       selectedRunId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
   },
@@ -170,11 +188,43 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
   setSelectedRunId: (id) => {
     set({
       selectedRunId: id,
-      // Clear skill, agent, and team selection when selecting a run
+      // Clear skill, agent, team, and topic selection when selecting a run
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedAgentId: null,
       selectedTeamId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
+    })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+
+  setSelectedTopicId: (id) => {
+    set({
+      selectedTopicId: id,
+      // Clear skill, agent, team, and run selection when selecting a topic
+      selectedSkillId: null,
+      selectedSkillIds: [],
+      selectedAgentId: null,
+      selectedTeamId: null,
+      selectedRunId: null,
+      topicWizardActive: false,
+    })
+    usePerformanceStore.getState().recordInteractionStoreWrite()
+  },
+
+  setTopicWizardActive: (v) => {
+    set({
+      topicWizardActive: v,
+      // Clear all entity selections when activating wizard
+      ...(v ? {
+        selectedSkillId: null,
+        selectedSkillIds: [],
+        selectedAgentId: null,
+        selectedTeamId: null,
+        selectedRunId: null,
+        selectedTopicId: null,
+      } : {}),
     })
     usePerformanceStore.getState().recordInteractionStoreWrite()
   },

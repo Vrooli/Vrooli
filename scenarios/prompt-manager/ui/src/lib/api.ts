@@ -60,6 +60,7 @@ import {
   ContentSearchResponseSchema,
   AIAgentSearchResponseSchema,
   AITeamSearchResponseSchema,
+  DiscoverResponseSchema,
   LinkPreviewDataSchema,
   TeamArraySchema,
   TeamDetailsSchema,
@@ -122,6 +123,7 @@ import {
   type ContentSearchResponse,
   type AIAgentSearchResponse,
   type AITeamSearchResponse,
+  type DiscoverResponse,
   type LinkPreviewData,
   type FolderType,
   type Team,
@@ -529,6 +531,18 @@ class ApiClient {
         body: JSON.stringify({ query, limit }),
       },
       AITeamSearchResponseSchema
+    )
+  }
+
+  // Unified discover - topic + skill search with budgeting
+  async discover(queries: string[], complexity?: string, limit = 10): Promise<DiscoverResponse> {
+    return this.request<DiscoverResponse>(
+      '/discover',
+      {
+        method: 'POST',
+        body: JSON.stringify({ queries, complexity, limit }),
+      },
+      DiscoverResponseSchema
     )
   }
 

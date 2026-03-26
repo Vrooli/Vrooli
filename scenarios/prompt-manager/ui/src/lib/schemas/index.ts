@@ -164,6 +164,14 @@ export {
   type TeamContentSearchMatch,
   type TeamContentSearchResponse,
   type LinkPreviewData,
+  DiscoverSourceSchema,
+  BudgetStatusSchema,
+  DiscoverResultSchema,
+  DiscoverResponseSchema,
+  type DiscoverSource,
+  type BudgetStatus,
+  type DiscoverResult,
+  type DiscoverResponse,
 } from './search.schema'
 
 // Team schemas

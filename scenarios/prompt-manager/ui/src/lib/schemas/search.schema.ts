@@ -288,3 +288,54 @@ export const LinkPreviewDataSchema = z.object({
 })
 
 export type LinkPreviewData = z.infer<typeof LinkPreviewDataSchema>
+
+// --- Unified discover (topic + skill) search ---
+
+/**
+ * Source of a discover result.
+ */
+export const DiscoverSourceSchema = z.enum(['topic', 'search'])
+export type DiscoverSource = z.infer<typeof DiscoverSourceSchema>
+
+/**
+ * Budget status relative to complexity budget.
+ */
+export const BudgetStatusSchema = z.enum(['under', 'over', 'at'])
+export type BudgetStatus = z.infer<typeof BudgetStatusSchema>
+
+/**
+ * A single unified discovery result with content size and source tracking.
+ */
+export const DiscoverResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional().transform((val) => val ?? ''),
+  tags: nullableStringArray,
+  modes: nullableStringArray,
+  score: z.number(),
+  scorePercent: z.number(),
+  source: DiscoverSourceSchema,
+  topicDepth: z.number().nullable().optional(),
+  topicId: z.string().optional().default(''),
+  contentChars: z.number(),
+})
+
+export type DiscoverResult = z.infer<typeof DiscoverResultSchema>
+
+/**
+ * Response from the unified discover endpoint.
+ */
+export const DiscoverResponseSchema = z.object({
+  results: z.array(DiscoverResultSchema).nullable().optional().transform((val) => val ?? []),
+  total: z.number(),
+  query: z.string(),
+  method: z.string(), // "ai", "text", or "mixed"
+  totalContentChars: z.number(),
+  readCommand: z.string(),
+  budgetChars: z.number().optional(),
+  budgetStatus: BudgetStatusSchema.optional(),
+  recommendedReadCommand: z.string().optional(),
+  complexity: z.string().optional(),
+})
+
+export type DiscoverResponse = z.infer<typeof DiscoverResponseSchema>

@@ -175,6 +175,7 @@ export function ScenarioDetailsPage() {
   const queryClient = useQueryClient();
   const upsertScenario = useScenariosStore((state) => state.upsertScenario);
   const removeScenario = useScenariosStore((state) => state.removeScenario);
+  const cachedScenario = useScenariosStore((state) => state.scenarios.find((s) => s.name === name));
 
   // Local state for optimistic UI updates
   const [localGreenfield, setLocalGreenfield] = useState<boolean | null>(null);
@@ -229,6 +230,7 @@ export function ScenarioDetailsPage() {
       return scenariosService.get(name);
     },
     enabled: !!name,
+    placeholderData: cachedScenario,
     ...defaultQueryOptions,
   });
 

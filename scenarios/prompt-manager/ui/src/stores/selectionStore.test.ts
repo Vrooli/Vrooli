@@ -20,6 +20,10 @@ describe('selectionStore', () => {
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedAgentId: null,
+      selectedTeamId: null,
+      selectedRunId: null,
+      selectedTopicId: null,
+      topicWizardActive: false,
     })
   })
 
@@ -259,6 +263,108 @@ describe('selectionStore', () => {
       const state = useSelectionStore.getState()
       expect(state.selectedSkillId).toBeNull()
       expect(state.selectedAgentId).toBe('agent-1')
+    })
+  })
+
+  describe('setSelectedTopicId', () => {
+    it('should set topic selection', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBe('topic-1')
+    })
+
+    it('should clear skill, agent, team, and run selection', () => {
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedSkillIds).toEqual([])
+      expect(state.selectedAgentId).toBeNull()
+      expect(state.selectedTeamId).toBeNull()
+      expect(state.selectedRunId).toBeNull()
+      expect(state.topicWizardActive).toBe(false)
+    })
+
+    it('should clear topic selection when set to null', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+      useSelectionStore.getState().setSelectedTopicId(null)
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBeNull()
+    })
+  })
+
+  describe('topic mutual exclusivity with other selections', () => {
+    it('should clear topic when selecting skill', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBeNull()
+      expect(state.selectedSkillId).toBe('skill-1')
+    })
+
+    it('should clear topic when selecting agent', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBeNull()
+    })
+
+    it('should clear topic when selecting team', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+      useSelectionStore.getState().setSelectedTeamId('team-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBeNull()
+    })
+
+    it('should clear topic when selecting run', () => {
+      useSelectionStore.getState().setSelectedTopicId('topic-1')
+      useSelectionStore.getState().setSelectedRunId('run-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedTopicId).toBeNull()
+    })
+  })
+
+  describe('setTopicWizardActive', () => {
+    it('should activate topic wizard', () => {
+      useSelectionStore.getState().setTopicWizardActive(true)
+
+      const state = useSelectionStore.getState()
+      expect(state.topicWizardActive).toBe(true)
+    })
+
+    it('should clear all selections when activating wizard', () => {
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setTopicWizardActive(true)
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedAgentId).toBeNull()
+      expect(state.selectedTeamId).toBeNull()
+      expect(state.selectedRunId).toBeNull()
+      expect(state.selectedTopicId).toBeNull()
+    })
+
+    it('should not clear selections when deactivating wizard', () => {
+      useSelectionStore.getState().setTopicWizardActive(true)
+      useSelectionStore.getState().setTopicWizardActive(false)
+
+      const state = useSelectionStore.getState()
+      expect(state.topicWizardActive).toBe(false)
+    })
+
+    it('should be cleared by clearAllSelection', () => {
+      useSelectionStore.getState().setTopicWizardActive(true)
+      useSelectionStore.getState().clearAllSelection()
+
+      const state = useSelectionStore.getState()
+      expect(state.topicWizardActive).toBe(false)
     })
   })
 })

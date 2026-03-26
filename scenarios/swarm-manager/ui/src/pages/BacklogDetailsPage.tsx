@@ -228,6 +228,10 @@ export function BacklogDetailsPage() {
   const upsertItem = useBacklogStore((state) => state.upsertItem);
   const allBacklogItems = useBacklogStore((state) => state.items);
   const removeItem = useBacklogStore((state) => state.removeItem);
+  const cachedItem = useMemo(
+    () => allBacklogItems.find((i) => i.kind === backlogKind && i.name === name),
+    [allBacklogItems, backlogKind, name],
+  );
   const upsertSpawnedRun = useAgentRunsStore((state) => state.upsertSpawnedRun);
   const refreshRun = useAgentRunsStore((state) => state.refreshRun);
   const stopRun = useAgentRunsStore((state) => state.stopRun);
@@ -354,6 +358,7 @@ export function BacklogDetailsPage() {
       return backlogService.get(backlogKind, name);
     },
     enabled: !!backlogKind && !!name,
+    placeholderData: cachedItem,
     ...defaultQueryOptions,
   });
 

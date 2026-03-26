@@ -24,6 +24,31 @@ vi.mock('@/services/skillService', () => ({
   searchSkillContent: vi.fn().mockResolvedValue({ matches: [] }),
 }))
 
+vi.mock('@/lib/api', () => ({
+  api: {
+    aiSearch: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
+    aiSearchAgents: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
+    aiSearchTeams: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
+    discover: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
+    matchTopics: vi.fn().mockResolvedValue([]),
+  },
+}))
+
+vi.mock('@/hooks/useTopicData', () => ({
+  useTopics: vi.fn().mockReturnValue({
+    topics: [],
+    isLoading: false,
+    isError: false,
+    createTopic: vi.fn(),
+    updateTopic: vi.fn(),
+    deleteTopic: vi.fn(),
+    isCreating: false,
+    isUpdating: false,
+    isDeleting: false,
+    refetch: vi.fn(),
+  }),
+}))
+
 // Helper to create a test skill
 function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
@@ -379,14 +404,16 @@ describe('SkillTreeSidebar', () => {
       expect(onSelectItem).toHaveBeenCalledWith('p1')
     })
 
-    it('should open AI search when Enter is pressed with no results', async () => {
+    it('should switch to AI mode when Enter is pressed with no results', async () => {
       vi.mocked(getAISearchStatus).mockResolvedValueOnce({ available: true } as Awaited<ReturnType<typeof getAISearchStatus>>)
 
+      const onSearchModeChange = vi.fn()
       render(
         <SkillTreeSidebar
           {...defaultProps}
           searchQuery="nonexistent"
           treeNodes={[]}
+          onSearchModeChange={onSearchModeChange}
         />
       )
 
@@ -397,9 +424,7 @@ describe('SkillTreeSidebar', () => {
       const input = screen.getByPlaceholderText('Search skills... (Ctrl+K)')
       fireEvent.keyDown(input, { key: 'Enter' })
 
-      await waitFor(() => {
-        expect(screen.getByRole('dialog', { name: 'AI Search' })).toBeInTheDocument()
-      })
+      expect(onSearchModeChange).toHaveBeenCalledWith('ai')
     })
   })
 
@@ -553,6 +578,55 @@ describe('SkillTreeSidebar', () => {
       buttons.forEach((button) => {
         expect(button).toHaveAttribute('type', 'button')
       })
+    })
+  })
+
+  describe('AI search mode', () => {
+    it('should render AI toggle button on skills tab', async () => {
+      vi.mocked(getAISearchStatus).mockResolvedValueOnce({ available: true } as Awaited<ReturnType<typeof getAISearchStatus>>)
+      render(<SkillTreeSidebar {...defaultProps} />)
+
+      await waitFor(() => {
+        const aiButton = screen.getByTitle('AI semantic search')
+        expect(aiButton).toBeInTheDocument()
+        expect(aiButton).not.toBeDisabled()
+      })
+    })
+
+    it('should disable AI button when AI search is unavailable', async () => {
+      vi.mocked(getAISearchStatus).mockResolvedValueOnce({ available: false } as Awaited<ReturnType<typeof getAISearchStatus>>)
+      render(<SkillTreeSidebar {...defaultProps} />)
+
+      await waitFor(() => {
+        const aiButton = screen.getByTitle('AI search unavailable (Ollama not running)')
+        expect(aiButton).toBeDisabled()
+      })
+    })
+
+    it('should call onSearchModeChange with ai when AI button clicked', async () => {
+      vi.mocked(getAISearchStatus).mockResolvedValueOnce({ available: true } as Awaited<ReturnType<typeof getAISearchStatus>>)
+      const onSearchModeChange = vi.fn()
+      render(<SkillTreeSidebar {...defaultProps} onSearchModeChange={onSearchModeChange} />)
+
+      await waitFor(() => {
+        expect(screen.getByTitle('AI semantic search')).not.toBeDisabled()
+      })
+
+      fireEvent.click(screen.getByTitle('AI semantic search'))
+      expect(onSearchModeChange).toHaveBeenCalledWith('ai')
+    })
+
+    it('should show DiscoverControls when AI mode on skills tab', () => {
+      render(<SkillTreeSidebar {...defaultProps} searchMode="ai" />)
+
+      expect(screen.getByText('Include topic context')).toBeInTheDocument()
+    })
+
+    it('should show normal listing when AI mode with empty query', () => {
+      render(<SkillTreeSidebar {...defaultProps} searchMode="ai" searchQuery="" />)
+
+      // Should show the normal empty state, not AI results
+      expect(screen.getByText('No skills yet')).toBeInTheDocument()
     })
   })
 })

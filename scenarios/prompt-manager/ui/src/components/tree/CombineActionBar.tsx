@@ -17,6 +17,8 @@ interface CombineActionBarProps {
   onCancel: () => void
   isCopying: boolean
   copySuccess: boolean
+  /** Entity label for selection count (default: "skill"). Pluralized automatically. */
+  entityLabel?: string
 }
 
 const FORMAT_OPTIONS: Array<{ value: CombineFormat; label: string; icon: React.ReactNode }> = [
@@ -34,13 +36,14 @@ export function CombineActionBar({
   onCancel,
   isCopying,
   copySuccess,
+  entityLabel = 'skill',
 }: CombineActionBarProps) {
   return (
     <div className="flex flex-col gap-2">
       {/* Selection count and format selector */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          {selectedCount} skill{selectedCount !== 1 ? 's' : ''} selected
+          {selectedCount} {entityLabel}{selectedCount !== 1 ? 's' : ''} selected
         </span>
         <div className="flex items-center gap-1">
           {FORMAT_OPTIONS.map((option) => (

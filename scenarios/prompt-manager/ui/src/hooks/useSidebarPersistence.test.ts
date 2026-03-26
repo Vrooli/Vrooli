@@ -128,6 +128,30 @@ describe('useSidebarPersistence', () => {
       expect(state).toEqual(savedState)
     })
 
+    it('should load ai searchMode from localStorage', () => {
+      const savedState: SidebarPersistedState = {
+        isCollapsed: false,
+        expandedNodes: [],
+        filterState: DEFAULT_FILTER_STATE,
+        sortConfig: DEFAULT_SORT_CONFIG,
+        viewMode: DEFAULT_VIEW_MODE,
+        detailMode: DEFAULT_DETAIL_MODE,
+        activeTab: 'skills',
+        searchQuery: '',
+        searchMode: 'ai',
+        contentSearchOptions: {
+          caseSensitive: false,
+          wholeWord: false,
+          regex: false,
+        },
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
+
+      const state = loadSidebarState()
+
+      expect(state.searchMode).toBe('ai')
+    })
+
     it('should handle invalid JSON gracefully', () => {
       localStorage.setItem(STORAGE_KEY, 'not valid json')
 

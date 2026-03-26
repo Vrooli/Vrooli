@@ -14,14 +14,14 @@
 
 import { type ReactNode, type RefObject, type KeyboardEvent as ReactKeyboardEvent, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, ChevronRight, Settings, User, Users, Sparkles, Layers, Loader2, Activity, List, GitBranch, AlertCircle } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { Agent } from '@/types/agent'
 import type { CombineFormat } from '@/stores/combineStore'
-import type { ContentSearchMatch } from '@/lib/schemas'
+import type { ContentSearchMatch, AISearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
@@ -35,9 +35,14 @@ import { AgentListPanel } from '../agent/AgentListPanel'
 import { TeamListPanel } from '../team/TeamListPanel'
 import { RunListPanel } from '../run/RunListPanel'
 import { TopicListPanel } from '../topic/TopicListPanel'
+import { TopicTreeView } from '../topic/TopicTreeView'
+import { useTopics } from '@/hooks/useTopicData'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
-import { AISearchModal } from '../search/AISearchModal'
+import { SearchResultsList } from '../search/SearchResultsList'
+import { DiscoverControls } from '../search/DiscoverControls'
+import { api } from '@/lib/api'
+import type { CombineEntityType } from '@/stores/combineStore'
 import { CombineActionBar } from './CombineActionBar'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
@@ -59,11 +64,19 @@ const CONTENT_SEARCH_MIN_CHARS = 2
  */
 const TAB_SEARCH_FEATURES = {
   skills:  { contentSearch: true, aiSearch: true, tagFilter: true },
-  agents:  { contentSearch: false, aiSearch: false, tagFilter: false },
-  teams:   { contentSearch: false, aiSearch: false, tagFilter: false },
+  agents:  { contentSearch: false, aiSearch: true, tagFilter: false },
+  teams:   { contentSearch: false, aiSearch: true, tagFilter: false },
   runs:    { contentSearch: false, aiSearch: false, tagFilter: false },
-  topics:  { contentSearch: false, aiSearch: false, tagFilter: false },
+  topics:  { contentSearch: false, aiSearch: true, tagFilter: false },
 } as const
+
+/** Map sidebar tab names to CombineEntityType */
+const TAB_TO_ENTITY_TYPE: Record<string, CombineEntityType> = {
+  skills: 'skills',
+  agents: 'agents',
+  teams: 'teams',
+  topics: 'topics',
+}
 
 type SearchableTab = keyof typeof TAB_SEARCH_FEATURES
 
@@ -335,6 +348,8 @@ interface SkillTreeSidebarProps {
   onSelectTeamFromMenu?: (teamId: string) => void
   /** Callback to select/open a run from sidebar (wraps selection + sidebar close on mobile) */
   onSelectRunFromMenu?: (runId: string) => void
+  /** Callback to select/open a topic from sidebar (wraps selection + sidebar close on mobile) */
+  onSelectTopicFromMenu?: (topicId: string) => void
   /** Callback to save a specific skill */
   onSaveSkill?: (skillId: string) => Promise<void>
   /** Callback to discard changes for a specific skill */
@@ -438,6 +453,7 @@ export function SkillTreeSidebar({
   onSelectAgentFromMenu,
   onSelectTeamFromMenu,
   onSelectRunFromMenu,
+  onSelectTopicFromMenu,
   onSaveSkill,
   onDiscardSkill,
   onSaveAgent,
@@ -484,6 +500,9 @@ export function SkillTreeSidebar({
     setSelectedTeamId,
     selectedRunId,
     setSelectedRunId,
+    selectedTopicId,
+    setSelectedTopicId,
+    setTopicWizardActive,
   } = useSelectionStore(useShallow((state) => ({
     selectedAgentId: state.selectedAgentId,
     setSelectedAgentId: state.setSelectedAgentId,
@@ -491,6 +510,9 @@ export function SkillTreeSidebar({
     setSelectedTeamId: state.setSelectedTeamId,
     selectedRunId: state.selectedRunId,
     setSelectedRunId: state.setSelectedRunId,
+    selectedTopicId: state.selectedTopicId,
+    setSelectedTopicId: state.setSelectedTopicId,
+    setTopicWizardActive: state.setTopicWizardActive,
   })))
 
   // Active tab state
@@ -501,9 +523,8 @@ export function SkillTreeSidebar({
   const [teamSearchQuery, setTeamSearchQuery] = useState('')
   const [runSearchQuery, setRunSearchQuery] = useState('')
   const [topicSearchQuery, setTopicSearchQuery] = useState('')
-
-  // Topic selection state
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null)
+  const [topicViewMode, setTopicViewMode] = useState<'list' | 'tree'>('list')
+  const { topics: allTopics } = useTopics()
 
   // Unified search query for the current tab
   const currentSearchQuery = activeTab === 'skills' ? searchQuery
@@ -546,9 +567,18 @@ export function SkillTreeSidebar({
     y: number
   } | null>(null)
 
-  // AI Search modal state
-  const [isAISearchOpen, setIsAISearchOpen] = useState(false)
+  // AI Search state (inline, no modal)
   const [aiSearchAvailable, setAISearchAvailable] = useState(false)
+  const [aiLoading, setAILoading] = useState(false)
+  const [aiError, setAIError] = useState<string | null>(null)
+  const [skillAIResults, setSkillAIResults] = useState<AISearchResponse | null>(null)
+  const [agentAIResults, setAgentAIResults] = useState<AIAgentSearchResponse | null>(null)
+  const [teamAIResults, setTeamAIResults] = useState<AITeamSearchResponse | null>(null)
+  const [topicAIResults, setTopicAIResults] = useState<TopicMatchResponse | null>(null)
+  const [discoverResults, setDiscoverResults] = useState<DiscoverResponse | null>(null)
+  const [useDiscover, setUseDiscover] = useState(true)
+  const [complexity, setComplexity] = useState<string | undefined>(undefined)
+  const [aiDebouncedQuery, setAIDebouncedQuery] = useState('')
 
   // Content search state
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
@@ -619,14 +649,11 @@ export function SkillTreeSidebar({
       .catch(() => setAISearchAvailable(false))
   }, [])
 
-  const handleAISearch = useCallback(() => {
-    setIsAISearchOpen(true)
-  }, [])
-
   const handleSearchInputKeyDown = useCallback((event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Enter' || searchMode !== 'quick') {
-      return
-    }
+    if (event.key !== 'Enter') return
+    if (searchMode === 'ai') return // AI search is debounced, no Enter action needed
+
+    if (searchMode !== 'quick') return
 
     event.preventDefault()
 
@@ -636,15 +663,11 @@ export function SkillTreeSidebar({
       return
     }
 
+    // No results in quick mode — switch to AI mode if available
     if (searchQuery.trim() && aiSearchAvailable) {
-      handleAISearch()
+      onSearchModeChange('ai')
     }
-  }, [searchMode, treeNodes, onSelectItem, searchQuery, aiSearchAvailable, handleAISearch])
-
-  const handleAISearchSelect = useCallback((skillId: string) => {
-    onSelectItem(skillId)
-    setIsAISearchOpen(false)
-  }, [onSelectItem])
+  }, [searchMode, treeNodes, onSelectItem, searchQuery, aiSearchAvailable, onSearchModeChange])
 
   const handleToggleContentGroup = useCallback((file: string) => {
     setExpandedContentFiles((prev) => {
@@ -719,6 +742,120 @@ export function SkillTreeSidebar({
   useEffect(() => {
     onContentMatchesChange?.(contentMatches)
   }, [contentMatches, onContentMatchesChange])
+
+  // AI search: debounce the query
+  useEffect(() => {
+    if (searchMode !== 'ai') return
+    const trimmed = currentSearchQuery.trim()
+    const timer = setTimeout(() => {
+      setAIDebouncedQuery(trimmed)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [currentSearchQuery, searchMode])
+
+  // AI search: clear results when switching away from AI mode
+  useEffect(() => {
+    if (searchMode !== 'ai') {
+      setSkillAIResults(null)
+      setAgentAIResults(null)
+      setTeamAIResults(null)
+      setTopicAIResults(null)
+      setDiscoverResults(null)
+      setAIError(null)
+      setAILoading(false)
+    }
+  }, [searchMode])
+
+  // AI search: execute search when debounced query or params change
+  useEffect(() => {
+    if (searchMode !== 'ai') return
+    if (!aiDebouncedQuery) {
+      setSkillAIResults(null)
+      setAgentAIResults(null)
+      setTeamAIResults(null)
+      setTopicAIResults(null)
+      setDiscoverResults(null)
+      setAIError(null)
+      setAILoading(false)
+      return
+    }
+
+    let cancelled = false
+    setAILoading(true)
+    setAIError(null)
+
+    const doSearch = async () => {
+      try {
+        if (activeTab === 'skills') {
+          if (useDiscover) {
+            const result = await api.discover([aiDebouncedQuery], complexity, 10)
+            if (!cancelled) {
+              setDiscoverResults(result)
+              setSkillAIResults(null)
+            }
+          } else {
+            const result = await api.aiSearch(aiDebouncedQuery, 10)
+            if (!cancelled) {
+              setSkillAIResults(result)
+              setDiscoverResults(null)
+            }
+          }
+        } else if (activeTab === 'agents') {
+          const result = await api.aiSearchAgents(aiDebouncedQuery, 10)
+          if (!cancelled) setAgentAIResults(result)
+        } else if (activeTab === 'teams') {
+          const result = await api.aiSearchTeams(aiDebouncedQuery, 10)
+          if (!cancelled) setTeamAIResults(result)
+        } else if (activeTab === 'topics') {
+          const result = await api.matchTopics([aiDebouncedQuery], 10)
+          if (!cancelled) setTopicAIResults(result)
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setAIError(err instanceof Error ? err.message : 'Search failed')
+        }
+      } finally {
+        if (!cancelled) setAILoading(false)
+      }
+    }
+
+    void doSearch()
+    return () => { cancelled = true }
+  }, [aiDebouncedQuery, searchMode, activeTab, useDiscover, complexity])
+
+  // AI search: compute over-budget IDs for discover mode
+  const overBudgetIds = useMemo(() => {
+    if (!discoverResults?.results || !discoverResults.budgetChars) return undefined
+    const ids = new Set<string>()
+    let cumulative = 0
+    for (const r of discoverResults.results) {
+      cumulative += r.contentChars
+      if (cumulative > discoverResults.budgetChars) {
+        ids.add(r.id)
+      }
+    }
+    return ids.size > 0 ? ids : undefined
+  }, [discoverResults])
+
+  // Helper: navigate to entity from AI results
+  const handleAIResultNavigate = useCallback((id: string) => {
+    if (activeTab === 'skills') {
+      onSelectItem(id)
+    } else if (activeTab === 'agents') {
+      onSelectAgentFromMenu?.(id) ?? setSelectedAgentId(id)
+    } else if (activeTab === 'teams') {
+      onSelectTeamFromMenu?.(id) ?? setSelectedTeamId(id)
+    } else if (activeTab === 'topics') {
+      onSelectTopicFromMenu?.(id) ?? setSelectedTopicId(id)
+    }
+  }, [activeTab, onSelectItem, onSelectAgentFromMenu, setSelectedAgentId, onSelectTeamFromMenu, setSelectedTeamId, onSelectTopicFromMenu, setSelectedTopicId])
+
+  // Helper: toggle selection from AI results
+  const handleAIResultToggle = useCallback((id: string, _contentChars?: number) => {
+    if (combineMode) {
+      onCombineToggle?.({ id: `item-${id}`, label: '', isCategory: false, children: [], itemId: id, depth: 0 })
+    }
+  }, [combineMode, onCombineToggle])
 
   const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
     setSkillContextMenu(null) // Close any open skill menu
@@ -961,22 +1098,22 @@ export function SkillTreeSidebar({
             />
           </div>
 
-          {/* Skills-only: search mode + AI search */}
-          {tabFeatures?.contentSearch && (
-            <div className="flex items-center justify-between mt-2 gap-2">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => onSearchModeChange('quick')}
-                  className={cn(
-                    'px-2 py-1 text-[10px] rounded border transition-colors',
-                    searchMode === 'quick'
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                  )}
-                >
-                  Quick
-                </button>
+          {/* Search mode toggle: Quick [+ Content] [+ AI] based on tab features */}
+          {(tabFeatures?.contentSearch || tabFeatures?.aiSearch) && (
+            <div className="flex items-center gap-1 mt-2">
+              <button
+                type="button"
+                onClick={() => onSearchModeChange('quick')}
+                className={cn(
+                  'px-2 py-1 text-[10px] rounded border transition-colors',
+                  searchMode === 'quick'
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                )}
+              >
+                Quick
+              </button>
+              {tabFeatures?.contentSearch && (
                 <button
                   type="button"
                   onClick={() => onSearchModeChange('content')}
@@ -989,24 +1126,42 @@ export function SkillTreeSidebar({
                 >
                   Content
                 </button>
-              </div>
-              {tabFeatures.aiSearch && (
+              )}
+              {tabFeatures?.aiSearch && (
                 <button
                   type="button"
-                  onClick={handleAISearch}
+                  onClick={() => onSearchModeChange('ai')}
                   disabled={!aiSearchAvailable}
                   className={cn(
                     'flex items-center gap-1 px-2 py-1 text-[10px] rounded border transition-colors',
-                    aiSearchAvailable
-                      ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
-                      : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
+                    searchMode === 'ai'
+                      ? 'bg-primary/10 text-primary border-primary/40'
+                      : aiSearchAvailable
+                        ? 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+                        : 'text-muted-foreground/60 border-border/60 cursor-not-allowed'
                   )}
-                  title={aiSearchAvailable ? 'Open AI search' : 'AI search unavailable'}
+                  title={aiSearchAvailable ? 'AI semantic search' : 'AI search unavailable (Ollama not running)'}
                 >
                   <Sparkles className="h-3 w-3" />
                   AI
                 </button>
               )}
+            </div>
+          )}
+
+          {/* AI mode: discover controls (skills tab only) */}
+          {searchMode === 'ai' && activeTab === 'skills' && (
+            <div className="mt-2">
+              <DiscoverControls
+                useDiscover={useDiscover}
+                onToggleDiscover={setUseDiscover}
+                complexity={complexity}
+                onComplexityChange={setComplexity}
+                budgetChars={discoverResults?.budgetChars}
+                budgetStatus={discoverResults?.budgetStatus}
+                totalContentChars={discoverResults?.totalContentChars}
+                selectedContentChars={combineMode ? undefined : undefined}
+              />
             </div>
           )}
 
@@ -1064,8 +1219,8 @@ export function SkillTreeSidebar({
             </div>
           )}
 
-          {/* Skills-only: filter/sort/view toolbar */}
-          {tabFeatures?.tagFilter && (
+          {/* Skills-only: filter/sort/view toolbar (hidden in AI mode) */}
+          {tabFeatures?.tagFilter && searchMode !== 'ai' && (
             <>
               <FilterSortToolbar
                 filterState={filterState}
@@ -1110,9 +1265,73 @@ export function SkillTreeSidebar({
 
         {/* Skills Tab */}
         <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          {/* Tree */}
+          {/* Tree / Results */}
           <div className="flex-1 overflow-y-auto py-1">
-            {searchMode === 'content' ? (
+            {searchMode === 'ai' && currentSearchQuery.trim() ? (
+              <div className="px-3 py-2">
+                {aiLoading && (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 mb-2 animate-spin" />
+                    <p className="text-xs">Searching...</p>
+                  </div>
+                )}
+
+                {aiError && (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <AlertCircle className="h-6 w-6 mb-2 text-destructive" />
+                    <p className="text-xs text-destructive">{aiError}</p>
+                  </div>
+                )}
+
+                {!aiLoading && !aiError && (() => {
+                  const results = activeTab === 'skills'
+                    ? (useDiscover ? discoverResults?.results : skillAIResults?.results)
+                    : activeTab === 'agents' ? agentAIResults?.results
+                    : activeTab === 'teams' ? teamAIResults?.results
+                    : activeTab === 'topics' ? topicAIResults
+                    : undefined
+                  const method = activeTab === 'skills'
+                    ? (useDiscover ? undefined : skillAIResults?.method)
+                    : activeTab === 'agents' ? agentAIResults?.method
+                    : activeTab === 'teams' ? teamAIResults?.method
+                    : undefined
+                  const hasResults = results && results.length > 0
+
+                  return (
+                    <>
+                      {method && method !== 'ai' && (
+                        <div className="mb-2 px-2 py-1 text-[10px] bg-yellow-500/10 text-yellow-500 rounded">
+                          {method === 'text' ? 'Using text fallback (AI unavailable)' : 'Mixed AI + text results'}
+                        </div>
+                      )}
+
+                      {hasResults ? (
+                        <SearchResultsList
+                          entityType={(activeTab in TAB_TO_ENTITY_TYPE ? TAB_TO_ENTITY_TYPE[activeTab] : 'skills') as 'skills' | 'agents' | 'teams' | 'topics'}
+                          skillResults={!useDiscover ? skillAIResults?.results : undefined}
+                          discoverResults={useDiscover ? discoverResults?.results : undefined}
+                          agentResults={agentAIResults?.results}
+                          teamResults={teamAIResults?.results}
+                          topicResults={topicAIResults ?? undefined}
+                          isSelectMode={combineMode}
+                          selectedIds={combineSelectedIds}
+                          onToggleSelection={handleAIResultToggle}
+                          onNavigate={handleAIResultNavigate}
+                          discoverMode={activeTab === 'skills' && useDiscover}
+                          overBudgetIds={overBudgetIds}
+                          compact
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                          <Search className="h-8 w-8 mb-2 opacity-60" />
+                          <p className="text-xs">No results found</p>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+            ) : searchMode === 'content' ? (
               <div className="px-3 py-4">
                 {contentError && (
                   <div className="px-3 py-2 text-xs text-destructive bg-destructive/10 rounded-md">
@@ -1209,7 +1428,7 @@ export function SkillTreeSidebar({
                     {searchQuery && aiSearchAvailable && (
                       <button
                         type="button"
-                        onClick={handleAISearch}
+                        onClick={() => onSearchModeChange('ai')}
                         className={cn(
                           'mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs',
                           'bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors'
@@ -1367,26 +1586,96 @@ export function SkillTreeSidebar({
 
         {/* Agents Tab */}
         <Tabs.Content value="agents" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <AgentListPanel
-            selectedAgentId={selectedAgentId}
-            onSelectAgent={onSelectAgentFromMenu ?? setSelectedAgentId}
-            searchQuery={agentSearchQuery}
-            onDuplicateAgent={onDuplicateAgent}
-            onCustomizeAgent={onCustomizeAgent}
-            onPreviewPrompt={onPreviewPrompt}
-            className="flex-1"
-          />
+          {searchMode === 'ai' && agentSearchQuery.trim() ? (
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 mb-2 animate-spin" />
+                  <p className="text-xs">Searching agents...</p>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <AlertCircle className="h-6 w-6 mb-2 text-destructive" />
+                  <p className="text-xs text-destructive">{aiError}</p>
+                </div>
+              )}
+              {!aiLoading && !aiError && (
+                agentAIResults?.results && agentAIResults.results.length > 0 ? (
+                  <SearchResultsList
+                    entityType="agents"
+                    agentResults={agentAIResults.results}
+                    isSelectMode={combineMode}
+                    selectedIds={combineSelectedIds}
+                    onToggleSelection={handleAIResultToggle}
+                    onNavigate={handleAIResultNavigate}
+                    compact
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Search className="h-8 w-8 mb-2 opacity-60" />
+                    <p className="text-xs">No results found</p>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <AgentListPanel
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={onSelectAgentFromMenu ?? setSelectedAgentId}
+              searchQuery={agentSearchQuery}
+              onDuplicateAgent={onDuplicateAgent}
+              onCustomizeAgent={onCustomizeAgent}
+              onPreviewPrompt={onPreviewPrompt}
+              className="flex-1"
+            />
+          )}
         </Tabs.Content>
 
         {/* Teams Tab */}
         <Tabs.Content value="teams" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <TeamListPanel
-            selectedTeamId={selectedTeamId}
-            onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
-            searchQuery={teamSearchQuery}
-            onToggleTeamEnabled={onToggleTeamEnabled}
-            className="flex-1"
-          />
+          {searchMode === 'ai' && teamSearchQuery.trim() ? (
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 mb-2 animate-spin" />
+                  <p className="text-xs">Searching teams...</p>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <AlertCircle className="h-6 w-6 mb-2 text-destructive" />
+                  <p className="text-xs text-destructive">{aiError}</p>
+                </div>
+              )}
+              {!aiLoading && !aiError && (
+                teamAIResults?.results && teamAIResults.results.length > 0 ? (
+                  <SearchResultsList
+                    entityType="teams"
+                    teamResults={teamAIResults.results}
+                    isSelectMode={combineMode}
+                    selectedIds={combineSelectedIds}
+                    onToggleSelection={handleAIResultToggle}
+                    onNavigate={handleAIResultNavigate}
+                    compact
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Search className="h-8 w-8 mb-2 opacity-60" />
+                    <p className="text-xs">No results found</p>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <TeamListPanel
+              selectedTeamId={selectedTeamId}
+              onSelectTeam={onSelectTeamFromMenu ?? setSelectedTeamId}
+              searchQuery={teamSearchQuery}
+              onToggleTeamEnabled={onToggleTeamEnabled}
+              className="flex-1"
+            />
+          )}
         </Tabs.Content>
 
         {/* Runs Tab */}
@@ -1401,22 +1690,94 @@ export function SkillTreeSidebar({
 
         {/* Topics Tab */}
         <Tabs.Content value="topics" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <TopicListPanel
-            selectedTopicId={selectedTopicId}
-            onSelectTopic={setSelectedTopicId}
-            searchQuery={topicSearchQuery}
-            className="flex-1"
-          />
+          {searchMode === 'ai' && topicSearchQuery.trim() ? (
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 mb-2 animate-spin" />
+                  <p className="text-xs">Searching topics...</p>
+                </div>
+              )}
+              {aiError && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <AlertCircle className="h-6 w-6 mb-2 text-destructive" />
+                  <p className="text-xs text-destructive">{aiError}</p>
+                </div>
+              )}
+              {!aiLoading && !aiError && (
+                topicAIResults && topicAIResults.length > 0 ? (
+                  <SearchResultsList
+                    entityType="topics"
+                    topicResults={topicAIResults}
+                    isSelectMode={combineMode}
+                    selectedIds={combineSelectedIds}
+                    onToggleSelection={handleAIResultToggle}
+                    onNavigate={handleAIResultNavigate}
+                    compact
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Search className="h-8 w-8 mb-2 opacity-60" />
+                    <p className="text-xs">No results found</p>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <>
+              {/* View mode toggle + Discover button */}
+              <div className="flex items-center justify-between px-2 py-1 border-b border-border">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTopicViewMode('list')}
+                    className={cn(
+                      'p-1 rounded hover:bg-muted',
+                      topicViewMode === 'list' && 'bg-muted text-primary',
+                    )}
+                    title="List view"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setTopicViewMode('tree')}
+                    className={cn(
+                      'p-1 rounded hover:bg-muted',
+                      topicViewMode === 'tree' && 'bg-muted text-primary',
+                    )}
+                    title="Tree view"
+                  >
+                    <GitBranch className="w-4 h-4" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setTopicWizardActive(true)}
+                  className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  title="Discover skills through topics"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span className="hidden sm:inline">Discover</span>
+                </button>
+              </div>
+              {topicViewMode === 'list' ? (
+                <TopicListPanel
+                  selectedTopicId={selectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  searchQuery={topicSearchQuery}
+                  className="flex-1"
+                />
+              ) : (
+                <TopicTreeView
+                  topics={allTopics}
+                  selectedTopicId={selectedTopicId}
+                  onSelectTopic={onSelectTopicFromMenu ?? setSelectedTopicId}
+                  className="flex-1"
+                />
+              )}
+            </>
+          )}
         </Tabs.Content>
       </Tabs.Root>
 
-      {/* AI Search Modal */}
-      <AISearchModal
-        isOpen={isAISearchOpen}
-        onClose={() => setIsAISearchOpen(false)}
-        initialQuery={searchQuery}
-        onSelectSkill={handleAISearchSelect}
-      />
     </div>
   )
 }

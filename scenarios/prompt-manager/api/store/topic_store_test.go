@@ -66,7 +66,7 @@ func TestTopicStore_CRUD(t *testing.T) {
 	}
 
 	// GetWithContent
-	got, content, err := store.GetWithContent(ctx, "test-topic")
+	_, content, err := store.GetWithContent(ctx, "test-topic")
 	if err != nil {
 		t.Fatalf("GetWithContent: %v", err)
 	}

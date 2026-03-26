@@ -1,20 +1,25 @@
 /**
- * Zustand store for combine mode state.
+ * Zustand store for combine/select mode state.
  *
- * This store manages the combine mode that allows users to select multiple
- * skills and copy their combined output to clipboard in different formats.
+ * This store manages two mutually exclusive selection modes:
+ * - 'skill-combine': Multi-select skills for combined copy (original behavior)
+ * - 'ai-select': Multi-select AI search results for copy across entity types
  */
 
 import { create } from 'zustand'
 
 export type CombineFormat = 'xml' | 'markdown' | 'json' | 'cli'
+export type CombineMode = 'skill-combine' | 'ai-select'
+export type CombineEntityType = 'skills' | 'agents' | 'teams' | 'topics'
 
 interface CombineStore {
   // Mode state
   isActive: boolean
+  mode: CombineMode
+  entityType: CombineEntityType
 
   // Selection state
-  selectedSkillIds: Set<string>
+  selectedIds: Set<string>
 
   // Format state
   format: CombineFormat
@@ -22,61 +27,120 @@ interface CombineStore {
   // Loading state
   isCopying: boolean
 
-  // Actions
+  // Budget tracking (AI select / discover mode only)
+  contentCharsMap: Map<string, number>
+  budgetChars: number | null
+  budgetStatus: string | null
+
+  // Actions — skill combine mode
   enterCombineMode: () => void
   exitCombineMode: () => void
-  toggleSkillSelection: (skillId: string) => void
-  toggleMultipleSkills: (skillIds: string[], select: boolean) => void
+
+  // Actions — AI select mode
+  enterAISelectMode: (entityType: CombineEntityType) => void
+
+  // Actions — shared
+  toggleSelection: (id: string) => void
+  toggleMultiple: (ids: string[], select: boolean) => void
+  selectMultiple: (ids: string[], contentCharsEntries?: Array<[string, number]>) => void
   setFormat: (format: CombineFormat) => void
   setIsCopying: (copying: boolean) => void
   clearSelection: () => void
+  setBudget: (chars: number | null, status: string | null) => void
+  getSelectedContentChars: () => number
 }
 
-export const useCombineStore = create<CombineStore>((set) => ({
+const INITIAL_STATE = {
   isActive: false,
-  selectedSkillIds: new Set(),
-  format: 'xml',
+  mode: 'skill-combine' as CombineMode,
+  entityType: 'skills' as CombineEntityType,
+  selectedIds: new Set<string>(),
+  format: 'xml' as CombineFormat,
   isCopying: false,
+  contentCharsMap: new Map<string, number>(),
+  budgetChars: null as number | null,
+  budgetStatus: null as string | null,
+}
+
+export const useCombineStore = create<CombineStore>((set, get) => ({
+  ...INITIAL_STATE,
 
   enterCombineMode: () => {
     set({
       isActive: true,
-      selectedSkillIds: new Set(),
+      mode: 'skill-combine',
+      entityType: 'skills',
+      selectedIds: new Set(),
       isCopying: false,
+      contentCharsMap: new Map(),
+      budgetChars: null,
+      budgetStatus: null,
     })
   },
 
   exitCombineMode: () => {
     set({
       isActive: false,
-      selectedSkillIds: new Set(),
+      selectedIds: new Set(),
       isCopying: false,
+      contentCharsMap: new Map(),
+      budgetChars: null,
+      budgetStatus: null,
     })
   },
 
-  toggleSkillSelection: (skillId) => {
+  enterAISelectMode: (entityType) => {
+    set({
+      isActive: true,
+      mode: 'ai-select',
+      entityType,
+      selectedIds: new Set(),
+      isCopying: false,
+      contentCharsMap: new Map(),
+      budgetChars: null,
+      budgetStatus: null,
+    })
+  },
+
+  toggleSelection: (id) => {
     set((state) => {
-      const next = new Set(state.selectedSkillIds)
-      if (next.has(skillId)) {
-        next.delete(skillId)
+      const next = new Set(state.selectedIds)
+      if (next.has(id)) {
+        next.delete(id)
       } else {
-        next.add(skillId)
+        next.add(id)
       }
-      return { selectedSkillIds: next }
+      return { selectedIds: next }
     })
   },
 
-  toggleMultipleSkills: (skillIds, select) => {
+  toggleMultiple: (ids, select) => {
     set((state) => {
-      const next = new Set(state.selectedSkillIds)
-      for (const id of skillIds) {
+      const next = new Set(state.selectedIds)
+      for (const id of ids) {
         if (select) {
           next.add(id)
         } else {
           next.delete(id)
         }
       }
-      return { selectedSkillIds: next }
+      return { selectedIds: next }
+    })
+  },
+
+  selectMultiple: (ids, contentCharsEntries) => {
+    set((state) => {
+      const next = new Set(state.selectedIds)
+      const nextMap = new Map(state.contentCharsMap)
+      for (const id of ids) {
+        next.add(id)
+      }
+      if (contentCharsEntries) {
+        for (const [id, chars] of contentCharsEntries) {
+          nextMap.set(id, chars)
+        }
+      }
+      return { selectedIds: next, contentCharsMap: nextMap }
     })
   },
 
@@ -89,6 +153,19 @@ export const useCombineStore = create<CombineStore>((set) => ({
   },
 
   clearSelection: () => {
-    set({ selectedSkillIds: new Set() })
+    set({ selectedIds: new Set(), contentCharsMap: new Map() })
+  },
+
+  setBudget: (chars, status) => {
+    set({ budgetChars: chars, budgetStatus: status })
+  },
+
+  getSelectedContentChars: () => {
+    const { selectedIds, contentCharsMap } = get()
+    let total = 0
+    for (const id of selectedIds) {
+      total += contentCharsMap.get(id) ?? 0
+    }
+    return total
   },
 }))
