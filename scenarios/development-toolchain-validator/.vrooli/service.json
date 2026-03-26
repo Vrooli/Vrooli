@@ -182,14 +182,6 @@
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "development-toolchain-validator"
-      }
-    }
+    "resources": {}
   }
 }

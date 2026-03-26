@@ -12,16 +12,15 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
+	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/reference"
 	"development-toolchain-validator/domain/skill"
 	apihandlers "development-toolchain-validator/handlers"
-	"development-toolchain-validator/infrastructure/postgres"
+	"development-toolchain-validator/infrastructure/sqlite"
 	"development-toolchain-validator/internal/config"
 )
 
@@ -32,8 +31,9 @@ type Server struct {
 	config config.Config
 
 	// Domain services
-	referenceService *reference.Service
-	skillService     *skill.Service
+	referenceService   *reference.Service
+	skillService       *skill.Service
+	expectationService *expectation.Service
 }
 
 // NewServer initializes database connections, repositories, services, and routes.
@@ -43,8 +43,10 @@ func NewServer(db *sql.DB) *Server {
 	cfg := config.LoadFromEnv()
 
 	// Initialize repositories (storage layer)
-	referenceRepo := postgres.NewReferenceRepository(db)
-	skillRepo := postgres.NewSkillRepository(db)
+	referenceRepo := sqlite.NewReferenceRepository(db)
+	skillRepo := sqlite.NewSkillRepository(db)
+	structuralRepo := sqlite.NewStructuralExpectationsRepository(db)
+	cliRepo := sqlite.NewCLIAssertionsRepository(db)
 
 	// Initialize services (business logic layer) with configuration
 	serviceConfig := reference.ServiceConfig{
@@ -53,13 +55,15 @@ func NewServer(db *sql.DB) *Server {
 	}
 	referenceService := reference.NewService(referenceRepo, reference.WithConfig(serviceConfig))
 	skillService := skill.NewService(skillRepo)
+	expectationService := expectation.NewService(structuralRepo, cliRepo)
 
 	srv := &Server{
-		db:               db,
-		router:           mux.NewRouter(),
-		config:           cfg,
-		referenceService: referenceService,
-		skillService:     skillService,
+		db:                 db,
+		router:             mux.NewRouter(),
+		config:             cfg,
+		referenceService:   referenceService,
+		skillService:       skillService,
+		expectationService: expectationService,
 	}
 	srv.setupRoutes()
 	return srv
@@ -84,9 +88,8 @@ func (s *Server) setupRoutes() {
 	skillHandler := apihandlers.NewSkillHandler(s.skillService)
 	skillHandler.RegisterRoutes(s.router)
 
-	// NOTE: Expectation handlers require postgres repositories that don't exist yet.
-	// The expectation domain has service and handlers but no persistence layer.
-	// See PROBLEMS.md for follow-up tasks.
+	expectationHandler := apihandlers.NewExpectationHandler(s.expectationService)
+	expectationHandler.RegisterRoutes(s.router)
 }
 
 // Handler returns the HTTP handler with recovery middleware.
@@ -135,10 +138,8 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Connect to database with automatic retry and backoff
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
-	})
+	// Connect to SQLite database via storage resolver
+	db, err := sqlite.NewDB()
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
