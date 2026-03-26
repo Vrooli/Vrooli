@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "description": "CLI Surface domain - command-line interface for all brand operations",
+    "domain": "cli-surface",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-CLI-CRUD",
+      "category": "cli-surface",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "CLI CRUD commands",
+      "description": "CLI commands: create, list, get, update",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/app_test.go:TestNewApp",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests CLI app initialization and command registration"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app_test.go:TestApiPath_Prefix",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests API path prefix construction for CLI commands"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app_test.go:TestRun_UnknownCommand",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests error handling for unknown CLI commands"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-CLI-GEN",
+      "category": "cli-surface",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "CLI generate command",
+      "description": "CLI command: generate with option selection",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "cli/app.go:cmdGenerate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI generate command with --elements, --image, --model, and --json flags"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app_test.go:TestNewApp",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests CLI app registers generate command in Operations group"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-CLI-DISCOVER",
+      "category": "cli-surface",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "CLI discover command",
+      "description": "CLI command: discover {scenario}",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "cli/app.go:cmdDiscover",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI discover command with --import flag and --json output"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-CLI-APPLY",
+      "category": "cli-surface",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "CLI apply command",
+      "description": "CLI command: apply {brand_id} --scenario {name} with --elements filter",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "cli/app.go:cmdApply",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI apply command with --scenario, --elements filter, and --json output"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-CLI-STATUS",
+      "category": "cli-surface",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "CLI status command",
+      "description": "CLI command: status {scenario}",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "cli/app.go:cmdScan",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI scan command showing inline brand markers with --json output"
+        }
+      ]
+    }
+  ]
+}

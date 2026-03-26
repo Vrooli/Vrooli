@@ -1,0 +1,26 @@
+{
+  "_metadata": {
+    "description": "Lighthouse Integration domain - WCAG accessibility audits on applied branding",
+    "domain": "lighthouse-integration",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-LIGHTHOUSE",
+      "category": "lighthouse-integration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Lighthouse WCAG accessibility audits",
+      "description": "test-genie lighthouse audits for WCAG accessibility on applied branding",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/lighthouse_test.go",
+          "scenario": "brand-manager",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "_metadata": {
+    "description": "Programmatic Application domain - CSS, JSON, asset, and partial application",
+    "domain": "programmatic-application",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-APPLY-CSS",
+      "category": "programmatic-application",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "CSS custom properties with comment markers",
+      "description": "CSS custom properties with brand-manager:<element> comment markers",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestApplyBrand_Colors",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies CSS file creation with --brand-primary and brand-manager:primary markers"
+        },
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestGenerateColorCSS",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies :root selector and brand-manager comment markers in generated CSS"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-APPLY-JSON",
+      "category": "programmatic-application",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Manifest.json updates with _brand keys",
+      "description": "Manifest.json updates with _brand keys for tracking applied brand data",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestApplyBrand_JSON",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies manifest.json created with _brand_display_name, _brand_id, _brand_version keys"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-APPLY-ASSETS",
+      "category": "programmatic-application",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Favicon and static asset directory writes",
+      "description": "Favicon and static asset directory writes during brand application",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestApplyBrand_AssetCopy",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies favicon.ico copied from asset store to scenario ui/public directory"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-APPLY-PARTIAL",
+      "category": "programmatic-application",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Partial application support",
+      "description": "Partial application support for applying individual elements independently",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestApplyBrand_Partial",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies only requested elements are applied; identity not applied when only colors requested"
+        },
+        {
+          "type": "test",
+          "ref": "handlers/apply_test.go:TestApplyBrand_SkipsUndefinedElements",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies empty brand reports skipped elements with reasons"
+        }
+      ]
+    }
+  ]
+}
