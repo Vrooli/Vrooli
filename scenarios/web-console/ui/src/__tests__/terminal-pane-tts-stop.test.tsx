@@ -165,7 +165,7 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     // Verify cursor was advanced
     const session = useConversationStore.getState().sessions[SESSION_ID];
     expect(session).toBeDefined();
-    expect(session!.cursor.lastListenedSequence).toBeGreaterThanOrEqual(42);
+    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(42);
 
     // Reject the pending speakParagraphs to unblock handleConversationEvent
     rejectSpeak?.(new DOMException("The operation was aborted.", "AbortError"));
@@ -205,6 +205,6 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
 
     // Cursor should be at sequence 103 (the highest assistant event)
     const session = useConversationStore.getState().sessions[SESSION_ID];
-    expect(session!.cursor.lastListenedSequence).toBeGreaterThanOrEqual(103);
+    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(103);
   });
 });

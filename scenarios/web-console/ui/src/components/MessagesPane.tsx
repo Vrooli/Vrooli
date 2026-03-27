@@ -1,23 +1,35 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, ChevronUp, Copy, Play, Search, Volume2 } from "lucide-react";
+import {
+  ArrowDown,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Copy,
+  Play,
+  Search,
+  Volume2,
+} from "lucide-react";
 import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { summarizeEvent } from "../lib/api";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
+import { MarkdownRenderer } from "./markdown";
 import MessagesSearchDrawer from "./MessagesSearchDrawer";
+import MessageJumpList from "./MessageJumpList";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface MessagesPaneProps {
   sessionId: string;
-  /** Speak from this event through all subsequent events. */
   onSpeakFromHere: (eventId: string) => void;
-  /** Speak only this event's text (with optional pre-computed paragraphs). */
   onSpeakOne: (eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => void;
-  /** Event ID currently being spoken, or null. */
   activeSpeakingEventId: string | null;
-  /** Whether TTS is active on this pane. */
   isTtsSpeaking: boolean;
 }
 
@@ -34,6 +46,15 @@ interface AudioPopoverContentProps {
   onClose: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// Collapse threshold (px of rendered content before collapsing)
+// ---------------------------------------------------------------------------
+const COLLAPSE_THRESHOLD_PX = 400;
+
+// ---------------------------------------------------------------------------
+// AudioPopoverContent (unchanged from original)
+// ---------------------------------------------------------------------------
+
 function AudioPopoverContent({
   eventId,
   volume,
@@ -48,7 +69,6 @@ function AudioPopoverContent({
 }: AudioPopoverContentProps) {
   return (
     <div className="space-y-3">
-      {/* Volume slider */}
       <div>
         <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
           Volume
@@ -74,7 +94,6 @@ function AudioPopoverContent({
         </div>
       </div>
 
-      {/* Summarization toggle — shown when event already has both versions */}
       {hasSummary && (
         <div className="border-t border-wc-default pt-3">
           <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
@@ -109,7 +128,6 @@ function AudioPopoverContent({
         </div>
       )}
 
-      {/* Request summarization — shown when no summary exists yet */}
       {!hasSummary && (
         <div className="border-t border-wc-default pt-3">
           <button
@@ -139,6 +157,10 @@ function AudioPopoverContent({
   );
 }
 
+// ---------------------------------------------------------------------------
+// MessagesPane
+// ---------------------------------------------------------------------------
+
 export default function MessagesPane({
   sessionId,
   onSpeakFromHere,
@@ -148,10 +170,11 @@ export default function MessagesPane({
 }: MessagesPaneProps) {
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
   const isMobile = useMediaQuery("(max-width: 767px)");
-  // Sync message text size with the terminal's font size for this pane
   const fontSize = useWorkspaceStore(
     useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
   );
+
+  // --- Audio popover state ---
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [volume, setVolume] = useState(1);
   const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
@@ -159,7 +182,7 @@ export default function MessagesPane({
   const [summarizeErrors, setSummarizeErrors] = useState<Record<string, string>>({});
   const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-  // --- Copy-to-clipboard state ---
+  // --- Copy ---
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const handleCopy = useCallback((eventId: string, text: string) => {
     void navigator.clipboard.writeText(text);
@@ -167,36 +190,120 @@ export default function MessagesPane({
     setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
   }, []);
 
-  // --- Search & navigation state ---
+  // --- Search & navigation ---
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  // The single focused event ID drives both the accent border highlight and
-  // the starting point for chevron navigation. Set by clicking a card or
-  // pressing the up/down chevrons.
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  // Event IDs matching the current search query (case-insensitive)
+  // --- Jump list ---
+  const [jumpListOpen, setJumpListOpen] = useState(false);
+
+  // --- Collapse ---
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [tallIds, setTallIds] = useState<Set<string>>(new Set());
+  const contentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // --- Auto-scroll ---
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const [newMessageCount, setNewMessageCount] = useState(0);
+  const prevEventCountRef = useRef(events.length);
+
+  // Track "near bottom" via IntersectionObserver on the sentinel div
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry) {
+          isNearBottomRef.current = entry.isIntersecting;
+          if (entry.isIntersecting) setNewMessageCount(0);
+        }
+      },
+      { threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-scroll to bottom on initial load
+  useEffect(() => {
+    if (events.length > 0) {
+      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight });
+    }
+    // Only run on first hydration
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events.length > 0]);
+
+  // Auto-scroll on new events (when near bottom) or show pill
+  useEffect(() => {
+    const newCount = events.length - prevEventCountRef.current;
+    prevEventCountRef.current = events.length;
+
+    if (newCount <= 0) return;
+
+    if (isNearBottomRef.current) {
+      requestAnimationFrame(() => {
+        scrollContainerRef.current?.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+    } else {
+      setNewMessageCount((prev) => prev + newCount);
+    }
+  }, [events.length]);
+
+  const scrollToBottom = useCallback(() => {
+    scrollContainerRef.current?.scrollTo({
+      top: scrollContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+    setNewMessageCount(0);
+  }, []);
+
+  // --- Collapse: measure content heights ---
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const eventId = (entry.target as HTMLElement).dataset.eventId;
+        if (!eventId) continue;
+        const isTall = entry.contentRect.height > COLLAPSE_THRESHOLD_PX;
+        setTallIds((prev) => {
+          const next = new Set(prev);
+          if (isTall) next.add(eventId);
+          else next.delete(eventId);
+          return next;
+        });
+      }
+    });
+
+    for (const [, el] of contentRefs.current) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [events.length]); // Re-observe when events change
+
+  // Search match IDs
   const searchMatchIds = useMemo(() => {
     if (!searchQuery) return [];
     const q = searchQuery.toLowerCase();
     return events.filter((e) => e.text.toLowerCase().includes(q)).map((e) => e.id);
   }, [events, searchQuery]);
 
-  // The navigable list depends on mode: search matches when searching,
-  // all events when not searching (so tapping any message + using arrows works).
   const navIds = useMemo(
     () => (searchQuery ? searchMatchIds : events.map((e) => e.id)),
     [searchQuery, searchMatchIds, events],
   );
 
-  // Index of the focused event within the navigable list
   const focusedNavIndex = useMemo(
     () => (focusedEventId ? navIds.indexOf(focusedEventId) : -1),
     [focusedEventId, navIds],
   );
 
-  // Index of focused event within search matches (for the "N of M" label)
   const currentMatchIndex = useMemo(
     () => (focusedEventId ? searchMatchIds.indexOf(focusedEventId) : -1),
     [focusedEventId, searchMatchIds],
@@ -209,24 +316,24 @@ export default function MessagesPane({
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
     scrollToEvent(eventId);
-  }, [scrollToEvent]);
+    // Auto-expand if collapsed and a search match
+    if (searchQuery) {
+      setExpandedIds((prev) => new Set(prev).add(eventId));
+    }
+  }, [scrollToEvent, searchQuery]);
 
-  // Navigate to the previous item in the navigable list
   const handleNavUp = useCallback(() => {
     if (navIds.length === 0) return;
     const prev = focusedNavIndex <= 0 ? navIds.length - 1 : focusedNavIndex - 1;
     const targetId = navIds[prev];
-    if (!targetId) return;
-    focusAndScroll(targetId);
+    if (targetId) focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
-  // Navigate to the next item in the navigable list
   const handleNavDown = useCallback(() => {
     if (navIds.length === 0) return;
     const next = focusedNavIndex < 0 ? 0 : (focusedNavIndex + 1) % navIds.length;
     const targetId = navIds[next];
-    if (!targetId) return;
-    focusAndScroll(targetId);
+    if (targetId) focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
   const handleCloseSearch = useCallback(() => {
@@ -235,6 +342,7 @@ export default function MessagesPane({
     setFocusedEventId(null);
   }, []);
 
+  // --- Audio helpers ---
   const handleToggleSummarized = useCallback((eventId: string, useSummarized: boolean) => {
     setPlaybackModes((prev) => ({ ...prev, [eventId]: useSummarized }));
   }, []);
@@ -269,7 +377,7 @@ export default function MessagesPane({
           });
         }
       } else if (res.error) {
-        setSummarizeErrors((prev) => ({ ...prev, [eventId]: res.error! }));
+        setSummarizeErrors((prev) => ({ ...prev, [eventId]: res.error ?? "Unknown error" }));
       }
     }).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : "Summarization failed";
@@ -287,83 +395,75 @@ export default function MessagesPane({
     const btn = audioButtonRefs.current[eventId];
     if (!btn) return { position: "fixed", top: 100, right: 16 };
     const rect = btn.getBoundingClientRect();
-    // Position below the button, clamped to viewport
     const top = Math.min(rect.bottom + 4, window.innerHeight - 200);
     const right = Math.max(8, window.innerWidth - rect.right);
     return { position: "fixed", top, right };
   }, []);
 
-  /**
-   * Splits `text` on case-insensitive occurrences of `query`, wrapping each
-   * match in a <mark> element. The currently focused match gets a stronger
-   * highlight so the user can tell which result they navigated to.
-   */
-  const highlightMatches = useCallback(
-    (text: string, query: string, isFocusedMatch: boolean): React.ReactNode => {
-      if (!query) return text;
-      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-      return parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <mark
-            key={i}
-            className={cn(
-              "rounded-sm text-wc-text-primary",
-              isFocusedMatch ? "bg-wc-accent/50" : "bg-wc-accent/20",
-            )}
-          >
-            {part}
-          </mark>
-        ) : (
-          part
-        ),
-      );
-    },
-    [],
-  );
+  // --- Current message position for jump trigger ---
+  const focusedEventIndex = focusedEventId ? events.findIndex((e) => e.id === focusedEventId) : -1;
+  const jumpLabel = focusedEventIndex >= 0
+    ? `${focusedEventIndex + 1} / ${events.length}`
+    : `${events.length}`;
 
   return (
     <div
+      ref={scrollContainerRef}
       data-testid={`messages-pane-${sessionId}`}
-      className="h-full overflow-auto bg-wc-surface-base px-4 pb-4 pt-3"
+      className="relative h-full overflow-auto bg-wc-surface-base px-2 pb-4 pt-1 select-text"
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-3">
-        {/* Control strip: search + jump navigation (sticky at top of scroll).
-         * pr-12 reserves space for the view-toggle button (h-9 w-9 at right-3)
-         * that Workspace.tsx positions absolutely over this pane. */}
+      <div className="flex flex-col">
+        {/* Control strip */}
         <div
           data-testid="messages-control-strip"
-          className="sticky top-0 z-10 flex items-center justify-end gap-1.5 bg-wc-surface-base/80 pb-1 pr-12 backdrop-blur-sm"
+          className="sticky top-0 z-10 flex items-center justify-end gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
         >
           <button
             data-testid="messages-search-btn"
             onClick={() => setSearchOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
             title="Search messages"
+            type="button"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-3.5 w-3.5" />
           </button>
+
+          {/* Jump trigger */}
+          <button
+            data-testid="msg-jump-trigger"
+            onClick={() => setJumpListOpen((v) => !v)}
+            disabled={events.length === 0}
+            className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+            title="Jump to message"
+            type="button"
+          >
+            <ChevronsUpDown className="h-3.5 w-3.5" />
+            <span className="font-mono">{jumpLabel}</span>
+          </button>
+
           <button
             data-testid="messages-nav-up"
             onClick={handleNavUp}
             disabled={navIds.length === 0}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
             title={searchQuery ? "Previous match" : "Previous message"}
+            type="button"
           >
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp className="h-3.5 w-3.5" />
           </button>
           <button
             data-testid="messages-nav-down"
             onClick={handleNavDown}
             disabled={navIds.length === 0}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
             title={searchQuery ? "Next match" : "Next message"}
+            type="button"
           >
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        {/* Search drawer (bottom sheet on mobile, portal on desktop) */}
+        {/* Search drawer */}
         <MessagesSearchDrawer
           open={searchOpen}
           onClose={handleCloseSearch}
@@ -378,6 +478,17 @@ export default function MessagesPane({
           onNextMatch={handleNavDown}
         />
 
+        {/* Jump list */}
+        {jumpListOpen && (
+          <MessageJumpList
+            events={events}
+            focusedEventId={focusedEventId}
+            onSelect={focusAndScroll}
+            onClose={() => setJumpListOpen(false)}
+          />
+        )}
+
+        {/* Messages */}
         {events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-wc-default bg-wc-surface px-4 py-6 text-sm text-wc-text-muted">
             No conversation events yet for this session.
@@ -391,36 +502,45 @@ export default function MessagesPane({
             const useSummarized = playbackModes[event.id] ?? event.summarized;
             const isPopoverOpen = openPopoverId === event.id;
 
+            // Collapse logic
+            const isTall = tallIds.has(event.id);
+            const isExpanded = expandedIds.has(event.id);
+            const isCollapsed = isTall && !isExpanded;
+
+            // Accent bar color
+            const accentColor = isTtsActive
+              ? "border-l-wc-accent"
+              : isUser
+                ? "border-l-sky-500/60"
+                : "border-l-emerald-500/60";
+
             return (
               <article
                 key={event.id}
                 ref={(el) => { if (el) messageRefs.current.set(event.id, el); else messageRefs.current.delete(event.id); }}
                 data-testid={`msg-card-${event.id}`}
-                onClick={() => setFocusedEventId(event.id)}
                 className={cn(
-                  "cursor-pointer rounded-2xl border px-4 py-3 shadow-sm transition-colors",
-                  isUser
-                    ? "ml-auto max-w-[85%] bg-wc-accent/10"
-                    : "bg-wc-surface",
-                  // Focused card gets accent border; otherwise default gray
-                  isFocused
-                    ? "border-wc-accent"
-                    : "border-wc-default",
-                  isTtsActive && "border-l-[3px] border-l-wc-accent",
+                  "border-b border-wc-default border-l-[3px] py-3 pl-3 pr-1 transition-colors",
+                  accentColor,
+                  isFocused && "bg-wc-accent/5",
+                  // Dim non-matching messages during search
+                  searchQuery && !searchMatchIds.includes(event.id) && "opacity-40",
                 )}
               >
-                <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-                  {/* Copy button — shown for all messages (user + assistant) */}
+                {/* Header row */}
+                <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
                   <button
                     data-testid={`msg-copy-${event.id}`}
                     onClick={() => handleCopy(event.id, event.text)}
                     className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
                     title="Copy message"
+                    type="button"
                   >
                     {copiedEventId === event.id
                       ? <Check className="h-3.5 w-3.5 text-green-400" />
                       : <Copy className="h-3.5 w-3.5" />}
                   </button>
+
                   {!isUser && (
                     <>
                       <button
@@ -428,6 +548,7 @@ export default function MessagesPane({
                         onClick={() => onSpeakFromHere(event.id)}
                         className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
                         title="Read from here"
+                        type="button"
                       >
                         <Play className="h-3.5 w-3.5" />
                       </button>
@@ -445,18 +566,16 @@ export default function MessagesPane({
                             : "text-wc-text-faint hover:text-wc-text-muted hover:bg-wc-accent/10",
                         )}
                         title="Audio options"
+                        type="button"
                       >
                         <Volume2 className="h-3 w-3" />
                       </button>
 
-                      {/* Popover / bottom sheet — always via portal */}
+                      {/* Audio popover */}
                       {isPopoverOpen && createPortal(
                         isMobile ? (
                           <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
-                            <div
-                              className="absolute inset-0 bg-wc-backdrop"
-                              onClick={() => setOpenPopoverId(null)}
-                            />
+                            <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
                             <div
                               data-testid={`audio-popover-${event.id}`}
                               className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
@@ -481,10 +600,7 @@ export default function MessagesPane({
                           </div>
                         ) : (
                           <>
-                            <div
-                              className="fixed inset-0 z-[60]"
-                              onClick={() => setOpenPopoverId(null)}
-                            />
+                            <div className="fixed inset-0 z-[60]" onClick={() => setOpenPopoverId(null)} />
                             <div
                               data-testid={`audio-popover-${event.id}`}
                               className="z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
@@ -509,13 +625,11 @@ export default function MessagesPane({
                       )}
                     </>
                   )}
+
                   <span className="flex-1">
-                    {isUser
-                      ? "You"
-                      : event.source === "claude_hook"
-                        ? "Claude Code"
-                        : "Codex"}
+                    {isUser ? "You" : event.source === "claude_hook" ? "Claude Code" : "Codex"}
                   </span>
+
                   {hasSummary && (
                     <span
                       data-testid={`msg-summarized-badge-${event.id}`}
@@ -531,16 +645,70 @@ export default function MessagesPane({
                   )}
                   <span>#{event.sequence}</span>
                 </div>
-                <div className="whitespace-pre-wrap text-wc-text-primary" style={{ fontSize: `${fontSize}px` }}>
-                  {searchQuery
-                    ? highlightMatches(event.text, searchQuery, searchMatchIds[currentMatchIndex] === event.id)
-                    : event.text}
+
+                {/* Message content with markdown rendering */}
+                <div
+                  className={cn("relative", isCollapsed && "max-h-[400px] overflow-hidden")}
+                >
+                  <div
+                    ref={(el) => { if (el) contentRefs.current.set(event.id, el); else contentRefs.current.delete(event.id); }}
+                    data-event-id={event.id}
+                    data-testid={`msg-markdown-${event.id}`}
+                    style={{ fontSize: `${fontSize}px` }}
+                    className="text-wc-text-primary"
+                  >
+                    <MarkdownRenderer
+                      content={event.text}
+                      searchQuery={searchQuery || undefined}
+                      isSearchFocused={searchMatchIds[currentMatchIndex] === event.id}
+                    />
+                  </div>
+
+                  {/* Gradient fade when collapsed */}
+                  {isCollapsed && (
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-wc-surface-base to-transparent pointer-events-none" />
+                  )}
                 </div>
+
+                {/* Collapse toggle */}
+                {isTall && (
+                  <button
+                    data-testid={`msg-collapse-${event.id}`}
+                    onClick={() => {
+                      setExpandedIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(event.id)) next.delete(event.id);
+                        else next.add(event.id);
+                        return next;
+                      });
+                    }}
+                    className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
+                    type="button"
+                  >
+                    {isExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
               </article>
             );
           })
         )}
+
+        {/* Sentinel for auto-scroll detection */}
+        <div ref={sentinelRef} className="h-1" aria-hidden="true" />
       </div>
+
+      {/* "New messages" pill */}
+      {newMessageCount > 0 && (
+        <button
+          data-testid="msg-new-pill"
+          onClick={scrollToBottom}
+          className="fixed bottom-16 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
+          type="button"
+        >
+          <ArrowDown className="mr-1.5 inline-block h-3.5 w-3.5" />
+          {newMessageCount} new message{newMessageCount !== 1 ? "s" : ""}
+        </button>
+      )}
     </div>
   );
 }

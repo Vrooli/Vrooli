@@ -331,7 +331,7 @@ export default function VoiceInputSection() {
       setEnrollmentState("error");
       setEnrollmentMessage(toErrorInfo(error).message);
     }
-  }, [loadSpeakerStatus, profileDisplayName, stopEnrollmentRecording]);
+  }, [loadSpeakerStatus, profileDisplayName, reEnrollTargetId, stopEnrollmentRecording]);
 
   const clearSpeakerBinding = useCallback(async () => {
     setSpeakerError(null);

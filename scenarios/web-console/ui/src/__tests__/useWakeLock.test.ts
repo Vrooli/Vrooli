@@ -80,7 +80,6 @@ describe("useWakeLock", () => {
   afterEach(() => {
     // Restore original state
     if (original === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete (navigator as unknown as Record<string, unknown>).wakeLock;
     } else {
       Object.defineProperty(navigator, "wakeLock", {
@@ -154,7 +153,6 @@ describe("useWakeLock", () => {
   });
 
   it('returns "unsupported" when API is unavailable', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (navigator as unknown as Record<string, unknown>).wakeLock;
 
     const { result } = renderHook(() => useWakeLock(true));
@@ -299,7 +297,6 @@ describe("useWakeLock", () => {
 
   it("handles unsupported browser gracefully", async () => {
     // Ensure wakeLock is not present
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (navigator as unknown as Record<string, unknown>).wakeLock;
 
     // Should not throw
@@ -435,9 +432,10 @@ describe("useWakeLock", () => {
 
       const video = videoSpy.getVideo();
       expect(video).not.toBeNull();
-      expect(video!.play).toHaveBeenCalled();
-      expect(video!.muted).toBe(true);
-      expect(video!.loop).toBe(true);
+      if (!video) return;
+      expect(video.play).toHaveBeenCalled();
+      expect(video.muted).toBe(true);
+      expect(video.loop).toBe(true);
 
       videoSpy.restore();
     });
@@ -453,7 +451,8 @@ describe("useWakeLock", () => {
 
       const video = videoSpy.getVideo();
       expect(video).not.toBeNull();
-      const removeSpy = vi.spyOn(video!, "remove");
+      if (!video) return;
+      const removeSpy = vi.spyOn(video, "remove");
 
       rerender({ enabled: false });
       await act(async () => {});
@@ -471,13 +470,14 @@ describe("useWakeLock", () => {
 
       const video = videoSpy.getVideo();
       expect(video).not.toBeNull();
+      if (!video) return;
       // Clear the initial play() call count
-      vi.mocked(video!.play).mockClear();
+      vi.mocked(video.play).mockClear();
 
       // Simulate iOS pausing the video (audio session change)
       videoSpy.triggerPause();
 
-      expect(video!.play).toHaveBeenCalled();
+      expect(video.play).toHaveBeenCalled();
 
       videoSpy.restore();
     });
@@ -526,15 +526,16 @@ describe("useWakeLock", () => {
 
       const video = videoSpy.getVideo();
       expect(video).not.toBeNull();
-      vi.mocked(video!.play).mockClear();
+      if (!video) return;
+      vi.mocked(video.play).mockClear();
 
       // Simulate video being paused
-      Object.defineProperty(video!, "paused", { value: true, configurable: true });
+      Object.defineProperty(video, "paused", { value: true, configurable: true });
 
       // Advance to heartbeat
       await act(async () => { vi.advanceTimersByTime(30_000); });
 
-      expect(video!.play).toHaveBeenCalled();
+      expect(video.play).toHaveBeenCalled();
 
       videoSpy.restore();
     });

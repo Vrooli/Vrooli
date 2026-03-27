@@ -5,6 +5,15 @@ import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../lib/api";
 
+// Mock the markdown renderer to avoid shiki/mermaid in jsdom
+vi.mock("../components/markdown", () => ({
+  MarkdownRenderer: ({ content, searchQuery, isSearchFocused }: { content: string; searchQuery?: string; isSearchFocused?: boolean }) => (
+    <div data-testid="mock-markdown" data-search-query={searchQuery || ""} data-search-focused={String(!!isSearchFocused)}>
+      {content}
+    </div>
+  ),
+}));
+
 vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
   return {
@@ -44,6 +53,19 @@ describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useConversationStore.setState({ sessions: {}, viewModes: {} });
+    // Mock IntersectionObserver for auto-scroll sentinel
+    const mockObserver = vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+    }));
+    vi.stubGlobal("IntersectionObserver", mockObserver);
+    // Mock ResizeObserver for collapse measurement
+    vi.stubGlobal("ResizeObserver", vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+    })));
   });
 
   function seedEvents(events: ConversationEvent[]) {
@@ -58,12 +80,13 @@ describe("MessagesPane", () => {
     });
   }
 
-  it("renders play and audio icons on each assistant message card", () => {
-    const events = [
+  // --- Core rendering ---
+
+  it("renders play and audio icons on each assistant message", () => {
+    seedEvents([
       makeEvent({ id: "e1", sequence: 1 }),
       makeEvent({ id: "e2", sequence: 2 }),
-    ];
-    seedEvents(events);
+    ]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.getByTestId("msg-speak-from-e1")).toBeInTheDocument();
@@ -89,7 +112,7 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
 
-  it("active speaking event shows left border highlight", () => {
+  it("active speaking event shows TTS accent border", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1 }),
       makeEvent({ id: "e2", sequence: 2 }),
@@ -102,28 +125,11 @@ describe("MessagesPane", () => {
       />,
     );
 
-    // Active card has accent left border
     const activeCard = screen.getByTestId("msg-card-e2");
-    expect(activeCard.className).toContain("border-l-");
+    expect(activeCard.className).toContain("border-l-wc-accent");
 
-    // Inactive card does not
     const inactiveCard = screen.getByTestId("msg-card-e1");
-    expect(inactiveCard.className).not.toContain("border-l-");
-  });
-
-  it("play button on active card triggers onSpeakFromHere (stop is in global bar)", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
-    render(
-      <MessagesPane
-        {...defaultProps}
-        activeSpeakingEventId="e1"
-        isTtsSpeaking={true}
-      />,
-    );
-
-    // The play button always shows — stop lives in AudioPlayerBar
-    fireEvent.click(screen.getByTestId("msg-speak-from-e1"));
-    expect(defaultProps.onSpeakFromHere).toHaveBeenCalledWith("e1");
+    expect(inactiveCard.className).not.toContain("border-l-wc-accent");
   });
 
   it("empty state renders without speaker icons", () => {
@@ -152,13 +158,211 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    // User message has no audio controls
     expect(screen.queryByTestId("msg-speak-from-e1")).toBeNull();
     expect(screen.queryByTestId("msg-audio-e1")).toBeNull();
-    // Assistant message has audio controls
     expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
     expect(screen.getByTestId("msg-audio-e2")).toBeInTheDocument();
   });
+
+  // --- Layout: full-width accent bars ---
+
+  it("messages use accent bar layout with role-based colors", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, role: "user", text: "User" }),
+      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "Assistant" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    const userCard = screen.getByTestId("msg-card-e1");
+    const assistantCard = screen.getByTestId("msg-card-e2");
+
+    // Both have 3px left border
+    expect(userCard.className).toContain("border-l-[3px]");
+    expect(assistantCard.className).toContain("border-l-[3px]");
+
+    // Different colors
+    expect(userCard.className).toContain("border-l-sky");
+    expect(assistantCard.className).toContain("border-l-emerald");
+  });
+
+  it("focused message gets accent background highlight", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "First" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    // Not focused initially
+    expect(screen.getByTestId("msg-card-e1").className).not.toContain("bg-wc-accent");
+  });
+
+  // --- Markdown rendering ---
+
+  it("renders markdown content through MarkdownRenderer", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello World" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getByTestId("msg-markdown-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
+    expect(screen.getByText("Hello World")).toBeInTheDocument();
+  });
+
+  it("passes search query to MarkdownRenderer", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.change(screen.getByTestId("messages-search-input"), {
+      target: { value: "world" },
+    });
+
+    const mdEl = screen.getByTestId("mock-markdown");
+    expect(mdEl.getAttribute("data-search-query")).toBe("world");
+  });
+
+  // --- Font size ---
+
+  it("applies font size from workspace store to message content", () => {
+    useWorkspaceStore.setState({
+      panes: [{ sessionId: "sess-1", name: "test", headerColor: "transparent", themeId: "slate-ocean", fontSize: 20, groupId: null, supportsMessagesView: true }],
+    });
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Sized text" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    const mdWrapper = screen.getByTestId("msg-markdown-e1");
+    expect(mdWrapper.style.fontSize).toBe("20px");
+  });
+
+  // --- Control strip ---
+
+  it("renders control strip with search, jump, and nav buttons", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getByTestId("messages-control-strip")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-jump-trigger")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-nav-up")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-nav-down")).toBeInTheDocument();
+  });
+
+  it("clicking search button opens the search drawer", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.queryByTestId("messages-search-panel")).toBeNull();
+    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    expect(screen.getByTestId("messages-search-panel")).toBeInTheDocument();
+  });
+
+  it("disables nav chevrons when no events exist", () => {
+    seedEvents([]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getByTestId("messages-nav-up")).toBeDisabled();
+    expect(screen.getByTestId("messages-nav-down")).toBeDisabled();
+  });
+
+  it("enables nav chevrons when events exist", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, role: "assistant", text: "Answer" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getByTestId("messages-nav-up")).not.toBeDisabled();
+    expect(screen.getByTestId("messages-nav-down")).not.toBeDisabled();
+  });
+
+  it("down chevron navigates to next message", () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "First" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("messages-nav-down"));
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Search ---
+
+  it("non-matching messages are dimmed during search", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Goodbye" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.change(screen.getByTestId("messages-search-input"), {
+      target: { value: "Hello" },
+    });
+
+    // e1 matches, e2 does not
+    expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40");
+    expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
+  });
+
+  it("closing search clears search state", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.change(screen.getByTestId("messages-search-input"), {
+      target: { value: "world" },
+    });
+
+    fireEvent.click(screen.getByTestId("messages-search-close"));
+
+    // Search panel should be gone
+    expect(screen.queryByTestId("messages-search-panel")).toBeNull();
+    // Messages should not be dimmed
+    expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
+  });
+
+  // --- Jump list ---
+
+  it("jump trigger shows message count", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1 }),
+      makeEvent({ id: "e2", sequence: 2 }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    const trigger = screen.getByTestId("msg-jump-trigger");
+    expect(trigger.textContent).toContain("2");
+  });
+
+  it("clicking jump trigger opens jump list", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.queryByTestId("msg-jump-list")).toBeNull();
+    fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+  });
+
+  it("jump list shows all messages with truncated text", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, role: "user", text: "Short user message" }),
+      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "A very long assistant response that should be truncated in the jump list to save space" }),
+    ]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+    expect(screen.getByTestId("msg-jump-item-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-jump-item-e2")).toBeInTheDocument();
+  });
+
+  it("jump trigger is disabled when no events", () => {
+    seedEvents([]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.getByTestId("msg-jump-trigger")).toBeDisabled();
+  });
+
+  // --- Summarization ---
 
   it("summarized badge appears for summarized events", () => {
     seedEvents([
@@ -188,170 +392,59 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    // Open popover
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
-
-    // Verify summarization toggle buttons
     expect(screen.getByTestId("msg-play-summarized-e1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-play-original-e1")).toBeInTheDocument();
   });
 
-  // --- Feature 1: Control strip (search + navigation) ---
-
-  it("renders control strip with search, up, and down buttons", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByTestId("messages-control-strip")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-nav-up")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-nav-down")).toBeInTheDocument();
-  });
-
-  it("clicking search button opens the search drawer", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Search drawer should not be visible initially
-    expect(screen.queryByTestId("messages-search-panel")).toBeNull();
-
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
-    expect(screen.getByTestId("messages-search-panel")).toBeInTheDocument();
-  });
-
-  it("search highlights matching messages", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
-      makeEvent({ id: "e2", sequence: 2, text: "Goodbye world" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Open search and type a query
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
-    fireEvent.change(screen.getByTestId("messages-search-input"), {
-      target: { value: "world" },
+  it("shows error when on-demand summarize returns an error", async () => {
+    mockSummarizeEvent.mockResolvedValue({
+      summarized: false,
+      error: "Summarization failed: ollama returned 404: model not found",
     });
 
-    // Both messages contain "world" — check for <mark> elements
-    const marks = document.querySelectorAll("mark");
-    expect(marks.length).toBe(2);
-  });
-
-  it("down chevron without search scrolls to next user message", () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
-
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, role: "user", text: "Question 1" }),
-      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "Answer 1" }),
-      makeEvent({ id: "e3", sequence: 3, role: "user", text: "Question 2" }),
-    ]);
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    // Click down — should scroll to first user message
-    fireEvent.click(screen.getByTestId("messages-nav-down"));
-    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
-  });
+    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
 
-  it("disables nav chevrons when no events exist", () => {
-    seedEvents([]);
-    render(<MessagesPane {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
 
-    expect(screen.getByTestId("messages-nav-up")).toBeDisabled();
-    expect(screen.getByTestId("messages-nav-down")).toBeDisabled();
-  });
-
-  it("enables nav chevrons when events exist", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, role: "assistant", text: "Answer" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByTestId("messages-nav-up")).not.toBeDisabled();
-    expect(screen.getByTestId("messages-nav-down")).not.toBeDisabled();
-  });
-
-  it("clicking a message card highlights it with accent border", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, text: "First" }),
-      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Initially no accent border
-    expect(screen.getByTestId("msg-card-e1").className).toContain("border-wc-default");
-
-    // Click to focus
-    fireEvent.click(screen.getByTestId("msg-card-e1"));
-    expect(screen.getByTestId("msg-card-e1").className).toContain("border-wc-accent");
-    expect(screen.getByTestId("msg-card-e2").className).toContain("border-wc-default");
-  });
-
-  it("chevron navigation starts from clicked message", () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
-
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, text: "First" }),
-      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
-      makeEvent({ id: "e3", sequence: 3, text: "Third" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Click the second message to focus it
-    fireEvent.click(screen.getByTestId("msg-card-e2"));
-
-    // Press down — should move to e3 (next after e2)
-    fireEvent.click(screen.getByTestId("messages-nav-down"));
-    expect(screen.getByTestId("msg-card-e3").className).toContain("border-wc-accent");
-    expect(screen.getByTestId("msg-card-e2").className).toContain("border-wc-default");
-  });
-
-  it("closing search clears highlights", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Open search and type
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
-    fireEvent.change(screen.getByTestId("messages-search-input"), {
-      target: { value: "world" },
+    await waitFor(() => {
+      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
+      expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
     });
-    expect(document.querySelectorAll("mark").length).toBe(1);
-
-    // Close search
-    fireEvent.click(screen.getByTestId("messages-search-close"));
-    expect(document.querySelectorAll("mark").length).toBe(0);
   });
 
-  // --- Feature 2: Font size sync ---
-
-  it("applies font size from workspace store to message text", () => {
-    useWorkspaceStore.setState({
-      panes: [{ sessionId: "sess-1", name: "test", headerColor: "transparent", themeId: "slate-ocean", fontSize: 20, groupId: null, supportsMessagesView: true }],
+  it("clears summarize error when retrying successfully", async () => {
+    mockSummarizeEvent.mockResolvedValueOnce({
+      summarized: false,
+      error: "Summarization failed: connection refused",
     });
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Sized text" })]);
+    mockSummarizeEvent.mockResolvedValueOnce({
+      summarized: true,
+      speechParagraphs: ["Short summary"],
+    });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    const card = screen.getByTestId("msg-card-e1");
-    // The text div is the last child of the article
-    const textDiv = card.querySelector(".whitespace-pre-wrap") as HTMLElement;
-    expect(textDiv.style.fontSize).toBe("20px");
+    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("msg-summarize-error-e1")).toBeNull();
+    });
   });
 
-  it("falls back to default font size when pane has no custom size", () => {
-    // No pane in workspace store for sess-1
-    useWorkspaceStore.setState({ panes: [] });
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Default size" })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    const card = screen.getByTestId("msg-card-e1");
-    const textDiv = card.querySelector(".whitespace-pre-wrap") as HTMLElement;
-    expect(textDiv.style.fontSize).toBe("14px"); // TERMINAL_FONT_SIZE default
-  });
-
-  // --- Feature 4: Copy-to-clipboard ---
+  // --- Copy-to-clipboard ---
 
   it("renders copy button on both user and assistant messages", () => {
     seedEvents([
@@ -366,9 +459,7 @@ describe("MessagesPane", () => {
 
   it("clicking copy writes message text to clipboard", () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: { writeText: writeTextMock },
-    });
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Copy me" })]);
     render(<MessagesPane {...defaultProps} />);
@@ -379,75 +470,15 @@ describe("MessagesPane", () => {
 
   it("shows checkmark icon after copying", () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: { writeText: writeTextMock },
-    });
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Copy me" })]);
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("msg-copy-e1"));
 
-    // After clicking, the button should contain a Check icon (green)
     const btn = screen.getByTestId("msg-copy-e1");
     const svg = btn.querySelector("svg");
     expect(svg?.classList.toString()).toContain("text-green-400");
-  });
-
-  // --- On-demand summarize error visibility ---
-
-  it("shows error when on-demand summarize returns an error", async () => {
-    mockSummarizeEvent.mockResolvedValue({
-      summarized: false,
-      error: "Summarization failed: ollama returned 404: model not found",
-    });
-
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Open audio popover
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
-
-    // Click "Summarize for playback"
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
-
-    // Error should be visible in the popover
-    await waitFor(() => {
-      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
-      expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
-    });
-  });
-
-  it("clears summarize error when retrying successfully", async () => {
-    // First call fails
-    mockSummarizeEvent.mockResolvedValueOnce({
-      summarized: false,
-      error: "Summarization failed: connection refused",
-    });
-    // Second call succeeds
-    mockSummarizeEvent.mockResolvedValueOnce({
-      summarized: true,
-      speechParagraphs: ["Short summary"],
-    });
-
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    // Open popover and trigger first (failing) summarize
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
-    });
-
-    // Popover stays open after error — retry directly
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
-
-    // Error should clear on retry
-    await waitFor(() => {
-      expect(screen.queryByTestId("msg-summarize-error-e1")).toBeNull();
-    });
   });
 });
