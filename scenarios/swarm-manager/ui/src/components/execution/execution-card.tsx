@@ -15,6 +15,14 @@ import { ReviewStatusBadge, ReviewValidatingIndicator, ReviewSkipIndicator } fro
 
 // ============================================================================
 // ExecutionCard
+//
+// Layout zones (top → bottom):
+//   1. Header row:  status dot + label  |  operation badge + mode badge
+//   2. Title:       clickable — navigates to the backlog item detail page
+//   3. Meta row:    started-by  |  timestamps (updated / created)
+//   4. Failure:     only when failureReason is present
+//   5. Review:      ReviewStatusBadge / validating / skip indicator
+//   6. Actions:     primary (Start/Cancel/Retry/Follow Up) + secondary (Run link, Trace, IDs)
 // ============================================================================
 
 interface ExecutionCardProps {
@@ -60,9 +68,13 @@ export function ExecutionCard({
   const backlogKindLabel = BACKLOG_KIND_LABELS[(item.backlogKind as BacklogKind)] ?? item.backlogKind;
   const canFollowUp = canFollowUpExecution(item.status) && onFollowUp;
 
+  const hasPrimaryActions = canStart || canCancel || canRetry || canFollowUp;
+  const hasReviewTrigger = !item.reviewResult && !item.reviewSkipReason && item.status !== "validating"
+    && onTriggerReview && (item.status === "completed" || item.status === "needs_fixup");
+
   return (
-    <article className="group block space-y-3" data-testid={testId}>
-      {/* Header: status + mode */}
+    <article className="group block space-y-2.5" data-testid={testId}>
+      {/* ── Zone 1: Header — status + badges ── */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
@@ -72,30 +84,56 @@ export function ExecutionCard({
             {formatExecutionStatus(item.status)}
           </span>
         </div>
-        <span className="rounded bg-slate-700/50 px-2 py-0.5 text-[11px] text-slate-400">
-          {formatExecutionMode(item.mode)}
+        <div className="flex items-center gap-1.5">
+          {item.operation ? (
+            <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] text-slate-400">
+              {item.operation}
+            </span>
+          ) : null}
+          <span className="rounded bg-slate-700/50 px-1.5 py-0.5 text-[11px] text-slate-400">
+            {formatExecutionMode(item.mode)}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Zone 2: Clickable title — navigates to backlog item ── */}
+      <button
+        type="button"
+        className={cn(
+          "w-full text-left text-base font-medium text-slate-100",
+          "hover:text-cyan-300 transition-colors cursor-pointer",
+          "flex items-center gap-1.5",
+        )}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onViewBacklog(item.backlogKind, item.backlogName);
+        }}
+        data-testid="execution-backlog-link"
+      >
+        <span className="truncate">
+          {backlogKindLabel}: {item.backlogName}
+        </span>
+        <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 text-cyan-400" />
+      </button>
+
+      {/* ── Zone 3: Meta row — source + timestamps ── */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+        {item.startedBy ? <span>by {item.startedBy}</span> : null}
+        <span className="ml-auto flex items-center gap-3">
+          <span title={new Date(item.updatedAt).toLocaleString()}>Updated {formatRelativeTime(item.updatedAt)}</span>
+          <span title={new Date(item.createdAt).toLocaleString()}>Created {formatRelativeTime(item.createdAt)}</span>
         </span>
       </div>
 
-      {/* Title */}
-      <h3 className="text-base font-medium text-slate-100">
-        {backlogKindLabel}: {item.backlogName}
-      </h3>
-
-      {/* Metadata row: operation + source */}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        {item.operation ? <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-slate-400">{item.operation}</span> : null}
-        {item.startedBy ? <span>by {item.startedBy}</span> : null}
-      </div>
-
-      {/* Failure reason */}
+      {/* ── Zone 4: Failure reason ── */}
       {item.failureReason ? (
         <p className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300">
           {item.failureReason}
         </p>
       ) : null}
 
-      {/* Review status */}
+      {/* ── Zone 5: Review status ── */}
       {item.reviewResult ? (
         <ReviewStatusBadge
           result={item.reviewResult}
@@ -112,8 +150,7 @@ export function ExecutionCard({
       ) : null}
 
       {/* Run Review button for terminal executions without a review */}
-      {!item.reviewResult && !item.reviewSkipReason && item.status !== "validating" && onTriggerReview &&
-        (item.status === "completed" || item.status === "needs_fixup") && (
+      {hasReviewTrigger && (
         <Button
           size="sm"
           variant="outline"
@@ -128,14 +165,9 @@ export function ExecutionCard({
         </Button>
       )}
 
-      {/* Timestamps — both labeled */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span title={new Date(item.updatedAt).toLocaleString()}>Updated {formatRelativeTime(item.updatedAt)}</span>
-        <span title={new Date(item.createdAt).toLocaleString()}>Created {formatRelativeTime(item.createdAt)}</span>
-      </div>
-
+      {/* ── Zone 6: Actions ── */}
       {/* Primary actions: Start / Cancel / Retry / Follow Up */}
-      {(canStart || canCancel || canRetry || canFollowUp) && (
+      {hasPrimaryActions && (
         <div className="flex flex-wrap gap-2">
           {canStart && (
             <Button
@@ -202,24 +234,8 @@ export function ExecutionCard({
         </div>
       )}
 
-      {/* Divider between primary and secondary actions */}
-      <div className="border-t border-white/5" />
-
-      {/* Secondary actions: navigation + trace */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-slate-600/40 text-slate-400 hover:text-slate-200"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onViewBacklog(item.backlogKind, item.backlogName);
-          }}
-        >
-          <ArrowUpRight className="mr-1.5 h-3 w-3" />
-          {backlogKindLabel}
-        </Button>
+      {/* Secondary actions: external links + trace + IDs */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
         {item.runId && agentManagerUiUrl ? (
           <a
             href={`${agentManagerUiUrl}/runs/${item.runId}`}

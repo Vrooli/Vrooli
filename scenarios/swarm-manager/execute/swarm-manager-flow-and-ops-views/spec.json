@@ -9,7 +9,7 @@
     "execute/swarm-manager-graph-data-foundation",
     "execute/swarm-manager-graph-workspace-shell"
   ],
-  "description": "Implement the graph/workspace views that explain how swarm-manager works and what is happening right now.\n\nThis work should:\n- build lifecycle/flow views for capture classification, backlog refinement, finalize, queue, execution, follow-up, and archive paths\n- make prompts and agent usage visible as step-level drilldowns instead of primary navigation\n- add operations overlays or lenses for active runs, blocked work, aging items, throughput, and other bottleneck signals\n- ensure the reference/explainer surfaces and live operations surfaces share the same underlying flow model where appropriate\n- keep the default experience calm and readable; avoid turning the canvas into constant animation noise\n\nThis item should make swarm-manager legible both as a system model and as an operator dashboard.",
+  "description": "Implement the Flow lens (BacklogItems + ExecutionRecords with executes/follow_up edges, showing lifecycle progression) and Operations lens (Scenarios + ExecutionRecords + Runs with targets/spawned_run/executes edges).\n\nFlow lens:\n- shows BacklogItems and ExecutionRecords\n- edges: depends_on, executes, follow_up\n- purpose: lifecycle progression from backlog → execution → review → completion\n- default filter: show items in active statuses (queued, in_progress, needs_review, needs_fixup), hide completed chains\n- inspector actions: BacklogItem (queue, view execution history, follow-up), ExecutionRecord (view prompt trace, follow-up, retry, trigger review, cancel)\n\nOperations lens:\n- shows Scenarios, ExecutionRecords, Runs\n- edges: targets, spawned_run, executes\n- purpose: live operational state — what's running, what's healthy, what needs attention\n- default filter: show only running/active entities\n- connects to SSE stream endpoint (`GET /api/v1/graph/stream?lens=operations`) for real-time push updates\n- open EventSource when lens is active, close on lens switch\n- automatic reconnection with exponential backoff\n- full-fetch fallback on reconnect before resuming stream\n- inspector actions: Scenario (start, stop, restart, view logs), ExecutionRecord (view prompt trace, stop run, view logs), Run (stop, view in agent-manager)",
   "effort": "L",
   "initiative": "swarm-manager-graph-workspace",
   "kind": "execute",
@@ -19,10 +19,11 @@
   "tags": [
     "swarm-manager",
     "ux",
-    "flows",
+    "graph",
+    "flow",
     "operations",
-    "prompts"
+    "sse"
   ],
-  "title": "Build Lifecycle, Flow, and Operations Views in the Graph Workspace",
-  "updated": "2026-03-27T18:40:16Z"
+  "title": "Implement Flow and Operations Views in the Graph Workspace",
+  "updated": "2026-03-27T22:00:00Z"
 }

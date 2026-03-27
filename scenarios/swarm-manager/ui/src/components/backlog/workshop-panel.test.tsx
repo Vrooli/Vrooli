@@ -249,4 +249,116 @@ describe("WorkshopPanel", () => {
 
     vi.useRealTimers();
   });
+
+  // --- Finalization indicator & post-finalize confirmation ---
+
+  it("shows 'Plan finalized' badge when isFinalized is true", () => {
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        isFinalized
+        deliverableLabel="Plan"
+      />,
+    );
+
+    expect(screen.getByText("Plan finalized")).toBeInTheDocument();
+  });
+
+  it("shows 'Conclusion finalized' badge for research items", () => {
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        backlogKind="research"
+        rounds={[makeRound()]}
+        isFinalized
+        deliverableLabel="Conclusion"
+      />,
+    );
+
+    expect(screen.getByText("Conclusion finalized")).toBeInTheDocument();
+  });
+
+  it("does not show finalized badge when isFinalized is false", () => {
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        isFinalized={false}
+      />,
+    );
+
+    expect(screen.queryByText("Plan finalized")).not.toBeInTheDocument();
+  });
+
+  it("fires onRunWorkshop directly when not finalized", () => {
+    const onRunWorkshop = vi.fn();
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        onRunWorkshop={onRunWorkshop}
+        isFinalized={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Next Round"));
+    // Should fire immediately — no confirmation dialog
+    expect(onRunWorkshop).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows confirmation dialog instead of firing immediately when finalized", () => {
+    const onRunWorkshop = vi.fn();
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        onRunWorkshop={onRunWorkshop}
+        isFinalized
+        deliverableLabel="Plan"
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Next Round"));
+    // Should NOT fire yet — confirmation dialog should appear
+    expect(onRunWorkshop).not.toHaveBeenCalled();
+    expect(screen.getByText("Start new workshop round?")).toBeInTheDocument();
+    expect(screen.getByText(/plan has already been finalized/i)).toBeInTheDocument();
+  });
+
+  it("fires onRunWorkshop after confirming post-finalize dialog", () => {
+    const onRunWorkshop = vi.fn();
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        onRunWorkshop={onRunWorkshop}
+        isFinalized
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Next Round"));
+    // Confirm in the dialog
+    fireEvent.click(screen.getByText("Start Round"));
+    expect(onRunWorkshop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire onRunWorkshop when cancelling post-finalize dialog", () => {
+    const onRunWorkshop = vi.fn();
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        onRunWorkshop={onRunWorkshop}
+        isFinalized
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Next Round"));
+    // Cancel
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(onRunWorkshop).not.toHaveBeenCalled();
+    // Dialog should close
+    expect(screen.queryByText("Start new workshop round?")).not.toBeInTheDocument();
+  });
 });

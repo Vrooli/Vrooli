@@ -1,12 +1,13 @@
 {
   "round": 3,
   "generated_at": "2026-03-26T19:30:00Z",
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 3,
-    "testable": 2,
-    "risk_awareness": 3
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -47,9 +48,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -74,9 +73,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     }
   ],
   "plan_updates": "Rewrote conclusion.md from old 13-section plan format into canonical research conclusion format. All findings, system contracts, action inventory, and gap recommendations preserved. Added 4 concrete actions for P1/P2 gaps. Added Limitations section with 5 documented limitations."

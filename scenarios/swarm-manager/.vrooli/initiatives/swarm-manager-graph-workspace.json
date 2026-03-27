@@ -9,8 +9,9 @@
     "execute/swarm-manager-graph-workspace-shell",
     "execute/swarm-manager-topology-impact-views",
     "execute/swarm-manager-flow-and-ops-views",
+    "execute/swarm-manager-mobile-graph-interaction",
     "chore/swarm-manager-remove-legacy-tabbed-surfaces"
   ],
   "created": "2026-03-27T18:40:16Z",
-  "updated": "2026-03-27T18:40:16Z"
+  "updated": "2026-03-27T22:00:00Z"
 }

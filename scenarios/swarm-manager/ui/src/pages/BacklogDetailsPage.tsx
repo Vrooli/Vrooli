@@ -466,6 +466,10 @@ export function BacklogDetailsPage() {
   const deliverableLabel = backlogKind === "research" ? "Conclusion" : "Plan";
   const deliverableLabelLower = deliverableLabel.toLowerCase();
   const workshopActionLabel = workshopRounds.length > 0 ? "Next Round" : "Workshop";
+  // Finalization is complete when a finalize-mode round exists and there is no
+  // pending synthesis (i.e. the deliverable is current with workshop answers).
+  const isWorkshopFinalized = workshopRounds.some((r) => r.mode === "finalize")
+    && !(readinessData?.pendingSynthesis ?? false);
 
   const {
     data: archiveTargets,
@@ -1800,6 +1804,8 @@ export function BacklogDetailsPage() {
         workshopActionLabel={workshopActionLabel}
         onDeleteRound={isTerminal ? undefined : setRoundToDelete}
         isDeletingRound={workshopDeleteRoundMutation.isPending}
+        isFinalized={isWorkshopFinalized}
+        deliverableLabel={deliverableLabel}
       />
     </div>
   );

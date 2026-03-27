@@ -15,7 +15,7 @@
   "kind": "research",
   "name": "swarm-manager-graph-workspace-contract",
   "priority": 1,
-  "status": "backlog",
+  "status": "failed",
   "tags": [
     "swarm-manager",
     "ux",
@@ -24,5 +24,5 @@
     "greenfield"
   ],
   "title": "Define the Swarm Manager Graph Workspace Contract",
-  "updated": "2026-03-27T18:40:16Z"
+  "updated": "2026-03-27T20:14:04Z"
 }

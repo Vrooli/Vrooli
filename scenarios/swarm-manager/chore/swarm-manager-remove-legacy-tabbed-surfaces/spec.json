@@ -9,7 +9,7 @@
     "execute/swarm-manager-topology-impact-views",
     "execute/swarm-manager-flow-and-ops-views"
   ],
-  "description": "After the graph workspace is in place, remove the obsolete tabbed-shell assumptions and stale dashboard-specific surfaces so swarm-manager stays greenfield and coherent.\n\nThis cleanup should:\n- remove or rewrite legacy navigation, routes, and UI structures that only existed for the old tabbed model\n- delete stale dashboard-specific code paths, docs, and prompt/reference surfaces that conflict with the graph workspace\n- ensure there is one authoritative swarm-manager UX instead of a compatibility layer between old and new patterns\n- leave the codebase cleaner than before, with dead branches and stale abstractions removed rather than preserved\n\nThis item exists specifically to prevent the refactor from shipping with long-lived duplicate surfaces or legacy compatibility baggage.",
+  "description": "Remove the old MainLayout tab bar, BacklogPage list view, ScenariosPage list view, ExecutionPage list view, and any dead routes/components after the graph workspace is live.\n\nThis cleanup should:\n- remove PromptsPage as a top-level route (content moves to reference drawer)\n- remove SettingsPage as a top-level route (content moves to settings modal)\n- clean up unused stores, services, and types from the old tabbed model\n- verify 301 redirects from old paths (`/backlog/:kind/:name`, `/scenarios/:name`, `/execution`) work correctly\n- update agent-manager deep links to use new `/graph?...` URLs directly instead of relying on redirects\n- delete stale dashboard-specific code paths, docs, and compatibility shims\n- leave the codebase cleaner than before, with dead branches and stale abstractions removed\n\nThis item exists specifically to prevent the refactor from shipping with long-lived duplicate surfaces or legacy compatibility baggage.",
   "effort": "M",
   "initiative": "swarm-manager-graph-workspace",
   "kind": "chore",
@@ -23,5 +23,5 @@
     "legacy-removal"
   ],
   "title": "Remove Legacy Tabbed Surfaces and Obsolete Dashboard Assumptions",
-  "updated": "2026-03-27T18:40:16Z"
+  "updated": "2026-03-27T22:00:00Z"
 }

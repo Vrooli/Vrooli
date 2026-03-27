@@ -5,8 +5,9 @@
  * Users can answer questions, decide on proposals, and trigger the next round.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, MoreHorizontal, Play, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
 import { buildWorkshopRoundContent, getPendingDecisionCount } from "../../lib/workshop-files";
@@ -67,6 +68,15 @@ interface WorkshopPanelProps {
   workshopActionLabel?: string;
   onDeleteRound?: (roundNumber: number) => void;
   isDeletingRound?: boolean;
+  /**
+   * Whether the workshop has been finalized (plan/conclusion generated from
+   * workshop answers). When true, a "Finalized" badge is shown and the
+   * "Next Round" button requires confirmation because running a new round
+   * will invalidate the current plan/conclusion and require re-finalization.
+   */
+  isFinalized?: boolean;
+  /** Human label for the deliverable produced by finalization (e.g. "Plan", "Conclusion"). */
+  deliverableLabel?: string;
 }
 
 export function WorkshopPanel({
@@ -83,7 +93,12 @@ export function WorkshopPanel({
   workshopActionLabel = "Next Round",
   onDeleteRound,
   isDeletingRound,
+  isFinalized,
+  deliverableLabel = "Plan",
 }: WorkshopPanelProps) {
+  // Confirmation dialog for running a new round after finalization.
+  const [showPostFinalizeConfirm, setShowPostFinalizeConfirm] = useState(false);
+
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
     if (rounds.length === 0) return new Set();
     const last = rounds[rounds.length - 1];
@@ -169,6 +184,15 @@ export function WorkshopPanel({
     prevIsSaving.current = isSaving;
   }, [isSaving]);
 
+  /** Gate "Next Round" behind a confirmation if finalization already happened. */
+  const handleWorkshopClick = useCallback(() => {
+    if (isFinalized) {
+      setShowPostFinalizeConfirm(true);
+    } else {
+      onRunWorkshop?.();
+    }
+  }, [isFinalized, onRunWorkshop]);
+
   if (rounds.length === 0) {
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
@@ -190,10 +214,32 @@ export function WorkshopPanel({
 
   return (
     <div className="space-y-3">
+      {/* Confirmation dialog shown when user tries to run a new workshop round
+          after finalization. A new round will invalidate the current deliverable
+          and require another finalization pass. */}
+      <ConfirmDialog
+        isOpen={showPostFinalizeConfirm}
+        onClose={() => setShowPostFinalizeConfirm(false)}
+        onConfirm={() => {
+          setShowPostFinalizeConfirm(false);
+          onRunWorkshop?.();
+        }}
+        title="Start new workshop round?"
+        description={`The ${deliverableLabel.toLowerCase()} has already been finalized from the current workshop answers. Running a new round will require re-finalization before this item can be executed.`}
+        confirmLabel="Start Round"
+      />
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-200">
-          Workshop Rounds ({rounds.length})
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium text-slate-200">
+            Workshop Rounds ({rounds.length})
+          </h3>
+          {isFinalized && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              {deliverableLabel} finalized
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {onPrimaryAction && (
             <Button
@@ -210,7 +256,7 @@ export function WorkshopPanel({
               variant="outline"
               size="sm"
               disabled={disabled || isRunningWorkshop}
-              onClick={onRunWorkshop}
+              onClick={handleWorkshopClick}
             >
               <Play className="mr-2 h-3.5 w-3.5" />
               {isRunningWorkshop ? "Running..." : workshopActionLabel}

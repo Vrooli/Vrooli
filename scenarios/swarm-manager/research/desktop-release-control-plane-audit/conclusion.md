@@ -12,7 +12,7 @@ Map the real desktop monetization release path end-to-end across deployment-mana
 
 ## Summary
 
-The desktop release pipeline is a 4-system relay: **deployment-manager** (approval gate + orchestration) → **scenario-to-desktop** (build + publish pipeline) → **LPBS** (artifact storage + update manifests), with **scenario-to-cloud** ensuring LPBS itself is deployed and healthy. Each system owns distinct state, but there are 7 identified gaps — most critically, no git-commit traceability in LPBS artifacts and no version feedback loop from LPBS back to deployment-manager. The pipeline works end-to-end today via prompt-manager skills that encode the correct sequence of CLI commands, but several implicit contracts (service secret sync, deploy target config, version propagation) should be made explicit via API contracts.
+The desktop release pipeline is a 4-system relay: **deployment-manager** (approval gate + orchestration) → **scenario-to-desktop** (build + publish pipeline) → **LPBS** (artifact storage + update manifests), with **scenario-to-cloud** ensuring LPBS itself is deployed and healthy. Each system owns distinct state, but there are 7 identified gaps — most critically, no git-commit traceability in LPBS artifacts and no version feedback loop from LPBS back to deployment-manager. The pipeline works end-to-end today via prompt-manager skills that encode the correct sequence of CLI commands, but several implicit contracts (service secret sync, deploy target config, version propagation) should be made explicit via API contracts. All 7 gaps have been translated into prioritized backlog items (P1–P4) to be created when this research item is processed.
 
 ## Methodology
 
@@ -195,7 +195,9 @@ Skills depend on all 4 scenario CLIs being installed and use `--auto-start` for 
 
 ## Actions
 
-### Action 1: Create backlog item — Add git commit hash to LPBS download_artifacts
+All 7 identified gaps are translated into backlog items below (per round 3 d1=A). Items should be created via swarm-manager CLI when this research item is processed (per round 3 d2=A).
+
+### Action 1: Create backlog item — Add git commit hash to LPBS download_artifacts [P1]
 
 - **Kind**: fix
 - **Title**: Add git_commit_hash field to LPBS download_artifacts table
@@ -205,7 +207,7 @@ Skills depend on all 4 scenario CLIs being installed and use `--auto-start` for 
 - **Effort**: S
 - **Tags**: lpbs, traceability, database
 
-### Action 2: Create backlog item — Add version sync callback from scenario-to-desktop to deployment-manager
+### Action 2: Create backlog item — Add version sync callback from scenario-to-desktop to deployment-manager [P1]
 
 - **Kind**: execute
 - **Title**: Add post-publish version sync from scenario-to-desktop to deployment-manager
@@ -215,7 +217,7 @@ Skills depend on all 4 scenario CLIs being installed and use `--auto-start` for 
 - **Effort**: M
 - **Tags**: deployment-manager, scenario-to-desktop, version-sync
 
-### Action 3: Create backlog item — Add rollback API to desktop release pipeline
+### Action 3: Create backlog item — Add rollback API to desktop release pipeline [P2]
 
 - **Kind**: execute
 - **Title**: Add rollback API for desktop releases
@@ -225,7 +227,7 @@ Skills depend on all 4 scenario CLIs being installed and use `--auto-start` for 
 - **Effort**: M
 - **Tags**: deployment-manager, lpbs, rollback
 
-### Action 4: Create backlog item — Add publish webhook from LPBS
+### Action 4: Create backlog item — Add publish webhook from LPBS [P2]
 
 - **Kind**: execute
 - **Title**: Add webhook/event notification on LPBS artifact publish
@@ -234,3 +236,33 @@ Skills depend on all 4 scenario CLIs being installed and use `--auto-start` for 
 - **Priority**: 2
 - **Effort**: M
 - **Tags**: lpbs, webhook, event-driven
+
+### Action 5: Create backlog item — Add approval-to-deploy automation [P3]
+
+- **Kind**: execute
+- **Title**: Automate deployment trigger after all platform approvals are complete
+- **Description**: Currently, after all required platforms are approved in deployment-manager, a human or skill must manually invoke `POST /deploy-desktop` to start the deployment. Add an optional auto-deploy flag on deployment profiles that, when all required platform approvals for the latest commit are satisfied, automatically triggers the deployment pipeline. This eliminates the manual step between approval and deploy. See research conclusion Finding 9 gap #4.
+- **Initiative**: desktop-release-governance
+- **Priority**: 3
+- **Effort**: S
+- **Tags**: deployment-manager, automation, approval-gating
+
+### Action 6: Create backlog item — Add LPBS_SERVICE_SECRET validation endpoint [P3]
+
+- **Kind**: execute
+- **Title**: Add service secret validation check between scenario-to-desktop and LPBS
+- **Description**: The `LPBS_SERVICE_SECRET` must match between scenario-to-desktop and LPBS for service auth to work, but there is no validation endpoint to check this before a deploy attempt. Add a lightweight `GET /api/v1/service/verify` endpoint to LPBS that returns 200 if the provided service secret is valid, and integrate this into scenario-to-desktop's deploy target health check. This surfaces mismatches early instead of failing mid-deploy. See research conclusion Finding 9 implicit contract #1.
+- **Initiative**: desktop-release-governance
+- **Priority**: 3
+- **Effort**: S
+- **Tags**: lpbs, scenario-to-desktop, service-auth, health-check
+
+### Action 7: Create backlog item — Clarify entitlement vs approval documentation [P4]
+
+- **Kind**: chore
+- **Title**: Clarify entitlement vs approval terminology in desktop release documentation
+- **Description**: The terms "entitlement" (LPBS download gating for paid users) and "approval" (deployment-manager release gating for platform quality) are used in overlapping contexts, creating confusion about which system controls what. Add a terminology section to the desktop release system contract (this conclusion) and update inline code comments in `download_hosting.go` (entitlement) and `approvals_handler.go` (approval) to cross-reference the distinction. See research conclusion Finding 9 gap #5.
+- **Initiative**: desktop-release-governance
+- **Priority**: 4
+- **Effort**: XS
+- **Tags**: documentation, lpbs, deployment-manager, terminology
