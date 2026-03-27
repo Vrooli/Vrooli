@@ -9,70 +9,46 @@
 //
 // Raw validation results (pass/fail per assertion) are too granular for
 // decision-making. This domain aggregates them into:
-//   - Comprehensive validation reports per reference
-//   - Skill maturity scores
-//   - Coverage maps
-//   - Health summaries
+//   - Conflicts: Cross-skill contradictions on references
+//   - Drift: Skills whose content hash changed since connection
+//   - Maturity: Skill maturity scoring based on expectation coverage
+//   - Tool Baselines: Tool accuracy regression checks
 //
-// # Why This Domain Exists
+// # Report Types
 //
-// The meta optimization team and ecosystem-manager need high-level signals:
-//   - "Is reference X healthy?" (not "Did assertion 47 pass?")
-//   - "Which skills are poorly configured?" (not raw pass counts)
-//   - "Where are coverage gaps?" (not file-by-file results)
+//   ConflictsReport: Cross-skill contradictions
+//     - Structural: incompatible expectations from different skills
+//     - CLI: overlapping assertions with different expected values
 //
-// This domain transforms detailed validation data into actionable insights.
+//   DriftReport: Aggregated drift across all connections
+//     - Compares stored hashes to current hashes
+//     - Unlike per-connection drift in skill domain, aggregates all at once
+//
+//   MaturityReport: Skill expectation coverage scoring
+//     - Low: no expectations
+//     - Medium: only structural OR only CLI
+//     - High: both structural AND CLI expectations
+//
+//   ToolBaselinesReport: Tool accuracy regression checks
+//     - Groups CLI results by tool name
+//     - Pass/fail/error counts per tool per reference
+//
+// # Integration Points
+//
+//   - skill.Repository: Fetch connections (bypasses service pagination)
+//   - expectation repos: Fetch expectations per connection
+//   - validation_runs/cli_results: Latest CLI results per reference
 //
 // # Domain Boundaries
 //
 // This domain handles:
 //   - Aggregating validation results by reference, skill, category
 //   - Calculating skill maturity scores
-//   - Building coverage maps (which skills cover which files)
-//   - Producing health summaries combining multiple signals
+//   - Detecting cross-skill conflicts
+//   - Aggregating drift across connections
 //
 // This domain does NOT:
 //   - Run validations (see: validation domain)
 //   - Store raw results (validation domain stores those)
-//   - Define what "healthy" means (configuration-driven)
-//
-// # Key Decisions (to be implemented)
-//
-// 1. Health Score Formula: Weighted combination of pass rates + tooling baselines
-// 2. Maturity Score: Has config (weighted) + assertions pass (weighted) + no conflicts
-// 3. Coverage Map: File-tree with skill coverage annotations
-// 4. Report Caching: Cache aggregated reports, invalidate on validation run
-//
-// # Report Types
-//
-//   ValidationReport: Full breakdown for one reference
-//     - All skill connections
-//     - Per-skill structural/CLI results
-//     - Overlaps and conflicts
-//     - Unconfigured skills
-//
-//   HealthSummary: Single health score with breakdown
-//     - Validation pass rate
-//     - Tooling baseline status (auditor/test-genie/completeness)
-//     - Skill maturity distribution
-//     - Coverage percentage
-//
-//   CoverageMap: File-tree visualization data
-//     - Files/folders with covering skills
-//     - Uncovered areas
-//     - Overlap zones
-//
-// # Integration Points
-//
-//   - validation domain: Fetch validation results
-//   - skill domain: Fetch skill metadata for maturity calculation
-//   - reference domain: Reference metadata for reports
-//   - External tooling: Baseline results from auditor/test-genie/completeness
-//
-// # Status: PLACEHOLDER
-//
-// This package is a placeholder documenting intent. Implementation will include:
-//   - model.go: ValidationReport, HealthSummary, CoverageMap, SkillMaturity
-//   - service.go: Report generation and aggregation logic
-//   - cache.go: Report caching with invalidation
+//   - Manage connections (see: skill domain)
 package report

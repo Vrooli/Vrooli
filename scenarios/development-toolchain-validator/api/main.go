@@ -18,6 +18,7 @@ import (
 
 	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/report"
 	"development-toolchain-validator/domain/skill"
 	apihandlers "development-toolchain-validator/handlers"
 	"development-toolchain-validator/infrastructure/sqlite"
@@ -34,6 +35,7 @@ type Server struct {
 	referenceService   *reference.Service
 	skillService       *skill.Service
 	expectationService *expectation.Service
+	reportService      *report.Service
 }
 
 // NewServer initializes database connections, repositories, services, and routes.
@@ -57,6 +59,11 @@ func NewServer(db *sql.DB) *Server {
 	skillService := skill.NewService(skillRepo)
 	expectationService := expectation.NewService(structuralRepo, cliRepo)
 
+	// Report service uses raw repositories to avoid pagination limits.
+	reportRepo := sqlite.NewReportRepository(db)
+	expectationAdapter := report.NewExpectationRepoAdapter(structuralRepo, cliRepo)
+	reportService := report.NewService(skillRepo, expectationAdapter, reportRepo)
+
 	srv := &Server{
 		db:                 db,
 		router:             mux.NewRouter(),
@@ -64,6 +71,7 @@ func NewServer(db *sql.DB) *Server {
 		referenceService:   referenceService,
 		skillService:       skillService,
 		expectationService: expectationService,
+		reportService:      reportService,
 	}
 	srv.setupRoutes()
 	return srv
@@ -90,6 +98,9 @@ func (s *Server) setupRoutes() {
 
 	expectationHandler := apihandlers.NewExpectationHandler(s.expectationService)
 	expectationHandler.RegisterRoutes(s.router)
+
+	reportHandler := apihandlers.NewReportHandler(s.reportService)
+	reportHandler.RegisterRoutes(s.router)
 }
 
 // Handler returns the HTTP handler with recovery middleware.
