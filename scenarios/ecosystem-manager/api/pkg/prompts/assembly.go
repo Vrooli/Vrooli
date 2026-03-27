@@ -489,31 +489,55 @@ func (a *Assembler) assemblePromptFromTemplate(templatePath string, task tasks.T
 }
 
 func (a *Assembler) applyTemplatePlaceholders(template string, task tasks.TaskItem) string {
+	originSource := "(not provided)"
+	originBacklogItem := "(not provided)"
+	originItemFolder := "(not provided)"
+	originHandoffDir := "(not provided)"
+	originHandoffBriefPath := "(not provided)"
+	originHandoffManifestPath := "(not provided)"
+	originHandoffSourceIndexPath := "(not provided)"
+	if task.Origin != nil {
+		originSource = placeholderValue(task.Origin.Source, originSource)
+		originBacklogItem = placeholderValue(task.Origin.BacklogItem, originBacklogItem)
+		originItemFolder = placeholderValue(task.Origin.ItemFolder, originItemFolder)
+		originHandoffDir = placeholderValue(task.Origin.HandoffDir, originHandoffDir)
+		originHandoffBriefPath = placeholderValue(task.Origin.HandoffBriefPath, originHandoffBriefPath)
+		originHandoffManifestPath = placeholderValue(task.Origin.HandoffManifestPath, originHandoffManifestPath)
+		originHandoffSourceIndexPath = placeholderValue(task.Origin.HandoffSourceIndexPath, originHandoffSourceIndexPath)
+	}
+
 	replacements := map[string]string{
-		"{{TASK_ID}}":            placeholderValue(task.ID, "unknown-task"),
-		"{{TITLE}}":              placeholderValue(task.Title, "Untitled Task"),
-		"{{TYPE}}":               placeholderValue(task.Type, "unknown"),
-		"{{OPERATION}}":          placeholderValue(task.Operation, "unknown"),
-		"{{PRIORITY}}":           placeholderValue(task.Priority, "unspecified"),
-		"{{CATEGORY}}":           placeholderValue(task.Category, "uncategorized"),
-		"{{STATUS}}":             placeholderValue(task.Status, "pending"),
-		"{{CURRENT_PHASE}}":      placeholderValue(task.CurrentPhase, "not-started"),
-		"{{URGENCY}}":            placeholderValue(task.Urgency, "unspecified"),
-		"{{EFFORT}}":             placeholderValue(task.EffortEstimate, "unknown"),
-		"{{TARGET}}":             placeholderValue(task.Target, "(none)"),
-		"{{TARGETS}}":            joinOrPlaceholder(task.Targets, "(none)"),
-		"{{DEPENDENCIES}}":       joinOrPlaceholder(task.Dependencies, "(none)"),
-		"{{BLOCKS}}":             joinOrPlaceholder(task.Blocks, "(none)"),
-		"{{RELATED_SCENARIOS}}":  joinOrPlaceholder(task.RelatedScenarios, "(none)"),
-		"{{RELATED_RESOURCES}}":  joinOrPlaceholder(task.RelatedResources, "(none)"),
-		"{{TAGS}}":               joinOrPlaceholder(task.Tags, "(none)"),
-		"{{NOTES}}":              placeholderValue(task.Notes, "No notes provided."),
-		"{{CREATED_AT}}":         placeholderValue(task.CreatedAt, ""),
-		"{{UPDATED_AT}}":         placeholderValue(task.UpdatedAt, ""),
-		"{{STARTED_AT}}":         placeholderValue(task.StartedAt, ""),
-		"{{COMPLETED_AT}}":       placeholderValue(task.CompletedAt, ""),
-		"{{CREATED_BY}}":         placeholderValue(task.CreatedBy, ""),
-		"{{LATEST_OUTPUT_PATH}}": placeholderValue(task.LatestOutputPath, "(not available)"),
+		"{{TASK_ID}}":                          placeholderValue(task.ID, "unknown-task"),
+		"{{TITLE}}":                            placeholderValue(task.Title, "Untitled Task"),
+		"{{TYPE}}":                             placeholderValue(task.Type, "unknown"),
+		"{{OPERATION}}":                        placeholderValue(task.Operation, "unknown"),
+		"{{PRIORITY}}":                         placeholderValue(task.Priority, "unspecified"),
+		"{{CATEGORY}}":                         placeholderValue(task.Category, "uncategorized"),
+		"{{STATUS}}":                           placeholderValue(task.Status, "pending"),
+		"{{CURRENT_PHASE}}":                    placeholderValue(task.CurrentPhase, "not-started"),
+		"{{URGENCY}}":                          placeholderValue(task.Urgency, "unspecified"),
+		"{{EFFORT}}":                           placeholderValue(task.EffortEstimate, "unknown"),
+		"{{TARGET}}":                           placeholderValue(task.Target, "(none)"),
+		"{{TARGETS}}":                          joinOrPlaceholder(task.Targets, "(none)"),
+		"{{DEPENDENCIES}}":                     joinOrPlaceholder(task.Dependencies, "(none)"),
+		"{{BLOCKS}}":                           joinOrPlaceholder(task.Blocks, "(none)"),
+		"{{RELATED_SCENARIOS}}":                joinOrPlaceholder(task.RelatedScenarios, "(none)"),
+		"{{RELATED_RESOURCES}}":                joinOrPlaceholder(task.RelatedResources, "(none)"),
+		"{{TAGS}}":                             joinOrPlaceholder(task.Tags, "(none)"),
+		"{{NOTES}}":                            placeholderValue(task.Notes, "No notes provided."),
+		"{{CREATED_AT}}":                       placeholderValue(task.CreatedAt, ""),
+		"{{UPDATED_AT}}":                       placeholderValue(task.UpdatedAt, ""),
+		"{{STARTED_AT}}":                       placeholderValue(task.StartedAt, ""),
+		"{{COMPLETED_AT}}":                     placeholderValue(task.CompletedAt, ""),
+		"{{CREATED_BY}}":                       placeholderValue(task.CreatedBy, ""),
+		"{{LATEST_OUTPUT_PATH}}":               placeholderValue(task.LatestOutputPath, "(not available)"),
+		"{{ORIGIN_SOURCE}}":                    originSource,
+		"{{ORIGIN_BACKLOG_ITEM}}":              originBacklogItem,
+		"{{ORIGIN_ITEM_FOLDER}}":               originItemFolder,
+		"{{ORIGIN_HANDOFF_DIR}}":               originHandoffDir,
+		"{{ORIGIN_HANDOFF_BRIEF_PATH}}":        originHandoffBriefPath,
+		"{{ORIGIN_HANDOFF_MANIFEST_PATH}}":     originHandoffManifestPath,
+		"{{ORIGIN_HANDOFF_SOURCE_INDEX_PATH}}": originHandoffSourceIndexPath,
 	}
 
 	projectRoot := placeholderValue(a.ProjectRoot, "")

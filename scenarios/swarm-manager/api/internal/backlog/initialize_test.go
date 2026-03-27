@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/workshop"
 )
 
 func TestResearch_InitializeMode_SpawnsAgent(t *testing.T) {
@@ -197,15 +200,211 @@ func TestParseResearchMode_Initialize(t *testing.T) {
 	}
 }
 
+func TestParseResearchMode_Finalize(t *testing.T) {
+	got, err := parseResearchMode("finalize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != ResearchModeFinalize {
+		t.Errorf("expected ResearchModeFinalize, got %q", got)
+	}
+}
+
 func TestResearchSkillID_Initialize(t *testing.T) {
 	kinds := []BacklogKind{KindIdea, KindFix, KindExecute, KindResearch, KindChore}
 	for _, kind := range kinds {
 		t.Run(string(kind), func(t *testing.T) {
-			got := researchSkillID(ResearchModeInitialize, kind)
+			entry, ok := promptcatalog.ResolveBacklogSkill(string(ResearchModeInitialize), string(kind))
+			if !ok {
+				t.Fatalf("expected prompt catalog entry for initialize/%s", kind)
+			}
+			got := entry.SkillID
 			want := "swarm-manager-initialize-backlog"
 			if got != want {
-				t.Errorf("researchSkillID(initialize, %s) = %q, want %q", kind, got, want)
+				t.Errorf("ResolveBacklogSkill(initialize, %s) = %q, want %q", kind, got, want)
 			}
 		})
+	}
+}
+
+func TestResearchSkillID_Finalize(t *testing.T) {
+	kinds := []struct {
+		kind BacklogKind
+		want string
+	}{
+		{KindIdea, "swarm-manager-workshop-finalize"},
+		{KindFix, "swarm-manager-workshop-finalize"},
+		{KindExecute, "swarm-manager-workshop-finalize"},
+		{KindResearch, "swarm-manager-workshop-research-finalize"},
+		{KindChore, "swarm-manager-workshop-finalize"},
+	}
+	for _, tt := range kinds {
+		t.Run(string(tt.kind), func(t *testing.T) {
+			entry, ok := promptcatalog.ResolveBacklogSkill(string(ResearchModeFinalize), string(tt.kind))
+			if !ok {
+				t.Fatalf("expected prompt catalog entry for finalize/%s", tt.kind)
+			}
+			got := entry.SkillID
+			if got != tt.want {
+				t.Errorf("ResolveBacklogSkill(finalize, %s) = %q, want %q", tt.kind, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResearch_FinalizeMode_RejectsWithoutPendingSynthesis(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:     "finalize-no-pending",
+		Title:    "Finalize No Pending",
+		Status:   StatusResearching,
+		Priority: 3,
+		Tags:     []string{},
+		Created:  "2026-03-09T00:00:00Z",
+		Updated:  "2026-03-09T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", item.Name, "workshop", "round-001.json"), workshop.Round{
+		RoundNum:  1,
+		Readiness: map[string]int{"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+		Items:     []workshop.Item{{ID: "i1", Type: "info", Text: "already current"}},
+	})
+
+	body := `{"mode":"finalize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/finalize-no-pending/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": item.Name})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestResearch_FinalizeMode_RejectsWhenNotReady(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:     "finalize-not-ready",
+		Title:    "Finalize Not Ready",
+		Status:   StatusResearching,
+		Priority: 3,
+		Tags:     []string{},
+		Created:  "2026-03-09T00:00:00Z",
+		Updated:  "2026-03-09T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", item.Name, "workshop", "round-001.json"), workshop.Round{
+		RoundNum:         1,
+		PendingSynthesis: true,
+		Readiness:        map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 2, "testable": 1, "risk_awareness": 2},
+		Items:            []workshop.Item{{ID: "d1", Type: "decision", Selected: strPtr("A")}},
+	})
+
+	body := `{"mode":"finalize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/finalize-not-ready/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": item.Name})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task-finalize", RunID: "run-finalize", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:     "finalize-ok",
+		Title:    "Finalize Ok",
+		Status:   StatusResearching,
+		Priority: 3,
+		Tags:     []string{},
+		Created:  "2026-03-09T00:00:00Z",
+		Updated:  "2026-03-09T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindIdea, item)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", item.Name, "workshop", "round-001.json"), workshop.Round{
+		RoundNum:         1,
+		PendingSynthesis: true,
+		Readiness:        map[string]int{"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+		Items:            []workshop.Item{{ID: "d1", Type: "decision", Selected: strPtr("A")}},
+	})
+
+	body := `{"mode":"finalize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/finalize-ok/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": item.Name})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected SpawnBacklog to be called")
+	}
+	if agent.lastReq.Title != "Finalize: Finalize Ok" {
+		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
+	}
+}
+
+func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{TaskID: "task-legacy", RunID: "run-legacy", BaseURL: "http://agent", CreatedAt: "now"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	item := BacklogItem{
+		Name:     "legacy-finalize-ok",
+		Title:    "Legacy Finalize Ok",
+		Status:   StatusResearching,
+		Priority: 3,
+		Tags:     []string{},
+		Created:  "2026-03-09T00:00:00Z",
+		Updated:  "2026-03-09T00:00:00Z",
+	}
+	createTestItem(t, rootDir, KindResearch, item)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "research", item.Name, "workshop", "round-001.json"), workshop.Round{
+		RoundNum:  1,
+		Readiness: map[string]int{"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+		Items: []workshop.Item{
+			{ID: "d1", Type: "decision", Selected: strPtr("A")},
+			{ID: "i1", Type: "info", Text: "legacy"},
+		},
+	})
+
+	body := `{"mode":"finalize"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/research/legacy-finalize-ok/research", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"kind": "research", "name": item.Name})
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected SpawnBacklog to be called")
+	}
+	if agent.lastReq.Title != "Finalize: Legacy Finalize Ok" {
+		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
 	}
 }

@@ -348,6 +348,7 @@ type MockClient struct {
 	Err          error
 	Skills       []PromptSkill
 	Skill        PromptSkill
+	SkillByID    map[string]PromptSkill
 	Versions     PromptSkillVersions
 	UpdatedSkill PromptSkill
 }
@@ -363,7 +364,12 @@ func (m *MockClient) ListSkills(_ context.Context, _ string) ([]PromptSkill, err
 }
 
 // GetSkill returns mock skill details.
-func (m *MockClient) GetSkill(_ context.Context, _ string) (PromptSkill, error) {
+func (m *MockClient) GetSkill(_ context.Context, skillID string) (PromptSkill, error) {
+	if m.SkillByID != nil {
+		if skill, ok := m.SkillByID[skillID]; ok {
+			return skill, m.Err
+		}
+	}
 	return m.Skill, m.Err
 }
 

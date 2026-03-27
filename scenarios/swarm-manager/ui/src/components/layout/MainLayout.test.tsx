@@ -38,6 +38,12 @@ describe("MainLayout", () => {
       searchDebounceMs: 300,
       toastDurationMs: 5000,
       confirmDestructiveActions: true,
+      reviewCodeQualityMinScore: 60,
+      reviewTestMinPassRate: 1.0,
+      reviewMaxBlockingViolations: 0,
+      reviewMaxWarnings: -1,
+      reviewRequireScreenshots: true,
+      reviewRequireTests: true,
     });
   });
 

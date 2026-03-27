@@ -37,7 +37,7 @@ func (s *Server) handleReviewSummary(w http.ResponseWriter, r *http.Request) {
 		detailCount = 0
 	}
 
-	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName, detailCount)
+	summary := s.buildReviewSummary(hctx.Ctx, hctx.RepoID, hctx.RepoDir, scenarioName, detailCount, DefaultReadinessThresholds())
 	hctx.Resp.OK(summary)
 }
 
@@ -88,8 +88,13 @@ func (s *Server) handleReviewRun(w http.ResponseWriter, r *http.Request) {
 		detailCount = 0
 	}
 
+	thresholds := DefaultReadinessThresholds()
+	if req.Thresholds != nil {
+		thresholds = *req.Thresholds
+	}
+
 	jobID := uuid.New().String()
-	s.reviewJobStore.Create(jobID, checks, scenarioName, detailCount)
+	s.reviewJobStore.Create(jobID, checks, scenarioName, detailCount, thresholds)
 
 	repoID := hctx.RepoID
 	repoDir := hctx.RepoDir
@@ -125,7 +130,7 @@ func (s *Server) handleReviewJobStatus(w http.ResponseWriter, r *http.Request) {
 // buildReviewSummary fans out concurrently to available downstream services and
 // assembles a ReviewSummaryResponse. When detailCount > 0, each dimension
 // includes top-K detail items extracted from the already-fetched service data.
-func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string, detailCount int) *ReviewSummaryResponse {
+func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, scenarioName string, detailCount int, thresholds ReadinessThresholds) *ReviewSummaryResponse {
 	var dims ReviewDimensions
 	caps := make(map[string]bool)
 	var mu sync.Mutex
@@ -301,14 +306,16 @@ func (s *Server) buildReviewSummary(ctx context.Context, repoID int64, repoDir, 
 
 	wg.Wait()
 
-	readiness := CalculateReadiness(dims)
+	readiness := CalculateReadiness(dims, thresholds)
+	dimStatuses := CalculateDimensionStatuses(dims, thresholds)
 
 	return &ReviewSummaryResponse{
-		ScenarioName: scenarioName,
-		Readiness:    readiness,
-		Dimensions:   dims,
-		Capabilities: caps,
-		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		ScenarioName:      scenarioName,
+		Readiness:         readiness,
+		Dimensions:        dims,
+		DimensionStatuses: dimStatuses,
+		Capabilities:      caps,
+		Timestamp:         time.Now().UTC().Format(time.RFC3339),
 	}
 }
 
@@ -517,6 +524,7 @@ func (s *Server) executeReviewRun(jobID, scenarioName string, checks []string, r
 
 	// Build final summary after at least one check succeeded.
 	dc := s.reviewJobStore.DetailCount(jobID)
-	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName, dc)
+	th := s.reviewJobStore.Thresholds(jobID)
+	summary := s.buildReviewSummary(ctx, repoID, repoDir, scenarioName, dc, th)
 	s.reviewJobStore.Complete(jobID, summary)
 }

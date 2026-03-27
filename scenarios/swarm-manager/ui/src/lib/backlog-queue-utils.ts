@@ -101,6 +101,8 @@ export interface ActionContext {
   allItems: BacklogItem[];
   /** Whether the item's plan is ready for execution. null = no readiness data loaded. */
   readinessReady: boolean | null;
+  /** Whether the latest answered workshop round still needs a synthesis/finalize pass. */
+  pendingSynthesis: boolean;
   /** Whether an agent run is currently active for this item. */
   agentRunning: boolean;
   /** Whether the item has unanswered workshop decisions. */
@@ -110,7 +112,7 @@ export interface ActionContext {
 }
 
 /** Which single CTA should receive primary visual emphasis. */
-export type PrimaryCta = "run" | "workshop" | "followUp" | "archive" | null;
+export type PrimaryCta = "run" | "workshop" | "finalize" | "followUp" | "archive" | null;
 
 /** Computed action states for a backlog item. */
 export interface ItemActions {
@@ -132,6 +134,10 @@ export interface ItemActions {
   canWorkshop: boolean;
   /** "Workshop" button: visible but disabled (agent running or blocked). */
   workshopDisabled: boolean;
+  /** "Finalize" button: visible and enabled. */
+  canFinalize: boolean;
+  /** "Finalize" button: visible but disabled (agent running or blocked). */
+  finalizeDisabled: boolean;
   /** "Follow Up" button: visible (terminal + has execution history). */
   canFollowUp: boolean;
   /** "Archive" button: visible (terminal items). */
@@ -153,9 +159,10 @@ export interface ItemActions {
  * |  0   | Blocked by deps                    | disabled        |
  * |  1   | Agent running                      | disabled        |
  * |  2   | Unanswered decisions               | stepper/panel   |
- * |  3   | Readiness not met (no decisions)    | workshop        |
- * |  4   | Ready, no active run               | run             |
- * |  5   | Terminal (completed/failed)         | follow-up/archive |
+ * |  3   | Latest answers pending synthesis    | finalize/workshop |
+ * |  4   | Readiness not met (no decisions)    | workshop        |
+ * |  5   | Ready, no active run               | run             |
+ * |  6   | Terminal (completed/failed)         | follow-up/archive |
  */
 export function getItemActions(ctx: ActionContext): ItemActions {
   const { item, allItems, agentRunning } = ctx;
@@ -178,6 +185,8 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     runDisabled: false,
     canWorkshop: false,
     workshopDisabled: false,
+    canFinalize: false,
+    finalizeDisabled: false,
     canFollowUp: false,
     canArchive: false,
     showDecisionStepper: false,
@@ -201,15 +210,18 @@ export function getItemActions(ctx: ActionContext): ItemActions {
 
   // Step 0: Blocked by deps — show actions as disabled.
   if (blocked && queueable) {
+    const needsFinalize = ctx.pendingSynthesis && ctx.readinessReady === true;
     const needsWorkshop = ctx.readinessReady === false;
     return {
       ...base,
       showDecisionStepper: ctx.hasPendingDecisions,
       canWorkshop: false,
       workshopDisabled: needsWorkshop,
+      canFinalize: false,
+      finalizeDisabled: needsFinalize,
       canRun: false,
-      runDisabled: !needsWorkshop,
-      primaryCta: needsWorkshop ? "workshop" : "run",
+      runDisabled: !needsWorkshop && !needsFinalize,
+      primaryCta: needsFinalize ? "finalize" : needsWorkshop ? "workshop" : "run",
     };
   }
 
@@ -222,6 +234,27 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       canWorkshop: needsWorkshop && !agentRunning,
       workshopDisabled: needsWorkshop && agentRunning,
       primaryCta: needsWorkshop ? "workshop" : null,
+    };
+  }
+
+  // Step 3a: Latest answers need synthesis — finalize if ready, otherwise run
+  // another workshop round to incorporate them.
+  if (queueable && ctx.pendingSynthesis) {
+    if (ctx.readinessReady === true) {
+      return {
+        ...base,
+        canFinalize: !agentRunning,
+        finalizeDisabled: agentRunning,
+        canWorkshop: !agentRunning,
+        workshopDisabled: agentRunning,
+        primaryCta: "finalize",
+      };
+    }
+    return {
+      ...base,
+      canWorkshop: !agentRunning,
+      workshopDisabled: agentRunning,
+      primaryCta: "workshop",
     };
   }
 
@@ -241,6 +274,8 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       ...base,
       canRun: !agentRunning,
       runDisabled: agentRunning,
+      canWorkshop: !agentRunning,
+      workshopDisabled: agentRunning,
       primaryCta: "run",
     };
   }

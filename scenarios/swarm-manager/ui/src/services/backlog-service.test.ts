@@ -219,7 +219,7 @@ describe("Backlog Service", () => {
     it("calls the correct endpoint with round data", async () => {
       vi.mocked(mockApiClient.post).mockResolvedValue({
         file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 200 },
-        auto_advance: { triggered: false, reason: "ready" },
+        auto_advance: { triggered: false, reason: "disabled", next_mode: "finalize" },
       });
 
       const result = await service.workshopSave("idea", "my-idea", 1, '{"round":1}');
@@ -230,13 +230,14 @@ describe("Backlog Service", () => {
       );
       expect(result.file.name).toBe("round-001.json");
       expect(result.autoAdvance.triggered).toBe(false);
-      expect(result.autoAdvance.reason).toBe("ready");
+      expect(result.autoAdvance.reason).toBe("disabled");
+      expect(result.autoAdvance.nextMode).toBe("finalize");
     });
 
     it("returns auto-advance data when triggered", async () => {
       vi.mocked(mockApiClient.post).mockResolvedValue({
         file: { name: "round-002.json", path: "workshop/round-002.json", type: "file", size: 300 },
-        auto_advance: { triggered: true, run_id: "run-123", task_id: "task-456", reason: "not_ready" },
+        auto_advance: { triggered: true, run_id: "run-123", task_id: "task-456", reason: "finalizing", next_mode: "finalize" },
       });
 
       const result = await service.workshopSave("idea", "my-idea", 2, '{"round":2}');
@@ -244,7 +245,8 @@ describe("Backlog Service", () => {
       expect(result.autoAdvance.triggered).toBe(true);
       expect(result.autoAdvance.runId).toBe("run-123");
       expect(result.autoAdvance.taskId).toBe("task-456");
-      expect(result.autoAdvance.reason).toBe("not_ready");
+      expect(result.autoAdvance.reason).toBe("finalizing");
+      expect(result.autoAdvance.nextMode).toBe("finalize");
     });
 
   });

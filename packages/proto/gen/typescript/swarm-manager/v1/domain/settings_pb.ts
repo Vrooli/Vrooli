@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/settings.proto.
  */
 export const file_swarm_manager_v1_domain_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLLBAoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjQKDGRlZmF1bHRfbW9kZRgFIAEoCUIeukgbchlSBm1hbnVhbFIJc2NoZWR1bGVkUgR5b2xvEiYKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0IHukgEIgIoABISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgISgQIAhADSgQIAxAESgQIBBAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSLpBgoIU2V0dGluZ3MSKQoFdGhlbWUYASABKAlCGrpIF3IVUgRkYXJrUgVsaWdodFIGc3lzdGVtEjQKDGRlZmF1bHRfbW9kZRgFIAEoCUIeukgbchlSBm1hbnVhbFIJc2NoZWR1bGVkUgR5b2xvEiYKFWRlZmF1bHRfZGVsYXlfc2Vjb25kcxgGIAEoA0IHukgEIgIoABISCgphdXRvX2ZpeHVwGAcgASgIEiUKEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUIJukgGGgQYBSgAEiIKD21heF9hdXRvX3JvdW5kcxgJIAEoBUIJukgGGgQYMigAEiAKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCBIdChVhdXRvX2FkdmFuY2Vfd29ya3Nob3AYESABKAgSHQoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgIEiMKD2FnZW50X21heF90dXJucxgKIAEoBUIKukgHGgUYyAEoBRIpChVhZ2VudF90aW1lb3V0X3NlY29uZHMYCyABKAVCCrpIBxoFGJAcKDwSHwoXYWdlbnRfcmVxdWlyZXNfYXBwcm92YWwYDCABKAgSJgoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFQgq6SAcaBRjQDyhkEicKEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFQgy6SAkaBxiw6gEo6AcSIwobY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zGA8gASgIEj4KHXJldmlld19jb2RlX3F1YWxpdHlfbWluX3Njb3JlGBMgASgBQhe6SBQSEhkAAAAAAABZQCkAAAAAAAAAABI6ChlyZXZpZXdfdGVzdF9taW5fcGFzc19yYXRlGBQgASgBQhe6SBQSEhkAAAAAAADwPykAAAAAAAAAABIvCh5yZXZpZXdfbWF4X2Jsb2NraW5nX3Zpb2xhdGlvbnMYFSABKAVCB7pIBBoCKAASLQoTcmV2aWV3X21heF93YXJuaW5ncxgWIAEoBUIQukgNGgso////////////ARIiChpyZXZpZXdfcmVxdWlyZV9zY3JlZW5zaG90cxgXIAEoCBIcChRyZXZpZXdfcmVxdWlyZV90ZXN0cxgYIAEoCEoECAIQA0oECAMQBEoECAQQBUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Settings captures persisted configuration for Swarm Manager.
@@ -103,6 +103,38 @@ export type Settings = Message<"swarm_manager.v1.Settings"> & {
    * @generated from field: bool confirm_destructive_actions = 15;
    */
   confirmDestructiveActions: boolean;
+
+  /**
+   * Review thresholds.
+   *
+   * @generated from field: double review_code_quality_min_score = 19;
+   */
+  reviewCodeQualityMinScore: number;
+
+  /**
+   * @generated from field: double review_test_min_pass_rate = 20;
+   */
+  reviewTestMinPassRate: number;
+
+  /**
+   * @generated from field: int32 review_max_blocking_violations = 21;
+   */
+  reviewMaxBlockingViolations: number;
+
+  /**
+   * @generated from field: int32 review_max_warnings = 22;
+   */
+  reviewMaxWarnings: number;
+
+  /**
+   * @generated from field: bool review_require_screenshots = 23;
+   */
+  reviewRequireScreenshots: boolean;
+
+  /**
+   * @generated from field: bool review_require_tests = 24;
+   */
+  reviewRequireTests: boolean;
 };
 
 /**

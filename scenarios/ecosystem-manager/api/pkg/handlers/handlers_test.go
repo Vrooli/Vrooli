@@ -555,6 +555,51 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 			t.Errorf("Expected status 400, got %d", w.Code)
 		}
 	})
+
+	t.Run("PersistsNotesAndOriginContext", func(t *testing.T) {
+		taskBody := map[string]any{
+			"type":      "scenario",
+			"operation": "generator",
+			"target":    "alpha",
+			"notes":     "brief content",
+			"origin": map[string]any{
+				"source":                    "swarm-manager",
+				"backlog_item":              "idea/alpha",
+				"item_folder":               "/tmp/ideas/alpha",
+				"handoff_dir":               "/tmp/ideas/alpha/handoff",
+				"handoff_brief_path":        "/tmp/ideas/alpha/handoff/brief.md",
+				"handoff_manifest_path":     "/tmp/ideas/alpha/handoff/manifest.json",
+				"handoff_source_index_path": "/tmp/ideas/alpha/handoff/source-index.json",
+			},
+		}
+
+		bodyBytes, _ := json.Marshal(taskBody)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Task tasks.TaskItem `json:"task"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("parse response: %v", err)
+		}
+		if resp.Task.Notes != "brief content" {
+			t.Fatalf("notes = %q", resp.Task.Notes)
+		}
+		if resp.Task.Origin == nil || resp.Task.Origin.HandoffManifestPath == "" {
+			t.Fatalf("origin not persisted: %#v", resp.Task.Origin)
+		}
+		if resp.Task.Origin.BacklogItem != "idea/alpha" {
+			t.Fatalf("backlog item = %q", resp.Task.Origin.BacklogItem)
+		}
+	})
 }
 
 func TestTaskHandlers_CreateTask_TargetValidation(t *testing.T) {
@@ -1036,6 +1081,60 @@ func TestTaskHandlers_UpdateTask(t *testing.T) {
 	expectedTitle := deriveTaskTitle("", current.Operation, current.Type, "")
 	if resp.Task.Title != expectedTitle {
 		t.Fatalf("expected derived title %q, got %q", expectedTitle, resp.Task.Title)
+	}
+}
+
+func TestTaskHandlers_UpdateTask_PreservesOriginWhenOmitted(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	current := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "update-origin-task",
+		Type:      "scenario",
+		Operation: "generator",
+		Target:    "delta",
+		Title:     "Original Title",
+		Origin: &tasks.TaskOrigin{
+			Source:              "swarm-manager",
+			BacklogItem:         "idea/delta",
+			HandoffManifestPath: "/tmp/ideas/delta/handoff/manifest.json",
+		},
+	})
+
+	updateBody := map[string]any{
+		"notes": "updated notes only",
+	}
+	bodyBytes, _ := json.Marshal(updateBody)
+
+	req := httptest.NewRequest("PUT", "/api/tasks/update-origin-task", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": current.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	taskHandlers.UpdateTaskHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool           `json:"success"`
+		Task    tasks.TaskItem `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Task.Origin == nil {
+		t.Fatal("expected origin to be preserved")
+	}
+	if resp.Task.Origin.BacklogItem != "idea/delta" {
+		t.Fatalf("backlog item = %q", resp.Task.Origin.BacklogItem)
+	}
+	if resp.Task.Notes != "updated notes only" {
+		t.Fatalf("notes = %q", resp.Task.Notes)
 	}
 }
 

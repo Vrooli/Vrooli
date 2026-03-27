@@ -47,6 +47,8 @@ EOF
 {
   "round": {{ROUND_NUMBER}},
   "generated_at": "<ISO-8601 timestamp>",
+  "mode": "workshop",
+  "pending_synthesis": false,
   "readiness": {
     "problem_clarity": 0,
     "scope_defined": 0,
@@ -78,6 +80,8 @@ EOF
   "plan_updates": "Brief description of what plan sections were created or updated this round"
 }
 ```
+
+Every workshop-generated round must set `"mode": "workshop"` and `"pending_synthesis": false`. Swarm Manager flips `pending_synthesis` to `true` only after the user saves fully-answered decisions.
 
 ### Item Types
 

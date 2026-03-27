@@ -8,7 +8,7 @@
  * (computed by `getItemActions()` in the parent) — this component only renders.
  */
 
-import { Archive, ArrowRight, CheckSquare, Loader2, Lock, MessageSquare, MessageSquareText, Play } from "lucide-react";
+import { Archive, ArrowRight, CheckSquare, Loader2, Lock, MessageSquare, MessageSquareText, Play, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
@@ -46,9 +46,12 @@ export interface BacklogCardProps {
   onRun: () => void;
   onArchive: () => void;
   onFollowUp: () => void;
+  onFinalize: () => void;
   onWorkshop: () => void;
   archivePending: boolean;
+  finalizePending: boolean;
   workshopPending: boolean;
+  workshopLabel?: string;
 }
 
 export function BacklogCard({
@@ -67,12 +70,21 @@ export function BacklogCard({
   onRun,
   onArchive,
   onFollowUp,
+  onFinalize,
   onWorkshop,
   archivePending,
+  finalizePending,
   workshopPending,
+  workshopLabel = "Workshop",
 }: BacklogCardProps) {
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
+  const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";
+  const hasPrimaryActionRow = (
+    (itemActions.canFinalize || itemActions.finalizeDisabled || itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled)
+    && !itemActions.blocked
+  );
+  const actionRowClass = "mt-3 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1";
 
   return (
     <>
@@ -119,15 +131,25 @@ export function BacklogCard({
         />
       ) : transitionResult ? (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-2.5 text-sm text-cyan-300">
-          {transitionResult.autoAdvance?.triggered ? (
+          {transitionResult.autoAdvance?.triggered && transitionResult.autoAdvance?.nextMode === "finalize" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              {`Finalizing ${deliverableLabel}...`}
+            </>
+          ) : transitionResult.autoAdvance?.triggered ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               Generating next workshop round...
             </>
-          ) : transitionResult.autoAdvance?.reason === "ready" ? (
+          ) : transitionResult.autoAdvance?.nextMode === "finalize" ? (
             <>
               <CheckSquare className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span className="text-emerald-300">All decisions answered — item is ready!</span>
+              <span className="text-emerald-300">{`All decisions answered — ${deliverableLabel} ready to finalize.`}</span>
+            </>
+          ) : transitionResult.autoAdvance?.nextMode === "workshop" ? (
+            <>
+              <CheckSquare className="h-4 w-4 shrink-0" />
+              All decisions answered — run the next workshop round to continue.
             </>
           ) : (
             <>
@@ -173,26 +195,41 @@ export function BacklogCard({
           {/* Blocked state */}
           {itemActions.blocked && !itemActions.locked && (
             <div className="mt-3 space-y-2" onClick={(event) => event.preventDefault()}>
-              {(itemActions.workshopDisabled) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled
-                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                >
-                  <MessageSquareText className="mr-1 h-3 w-3" />
-                  Workshop
-                </Button>
-              )}
-              {(itemActions.runDisabled && !itemActions.workshopDisabled) && (
-                <Button
-                  size="sm"
-                  disabled
-                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                >
-                  <Play className="mr-1 h-3 w-3" />
-                  Run
-                </Button>
+              {(itemActions.finalizeDisabled || itemActions.workshopDisabled || (itemActions.runDisabled && !itemActions.workshopDisabled && !itemActions.finalizeDisabled)) && (
+                <div className={actionRowClass} data-testid="backlog-card-actions">
+                  {(itemActions.finalizeDisabled) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                    >
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Finalize
+                    </Button>
+                  )}
+                  {(itemActions.workshopDisabled) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                    >
+                      <MessageSquareText className="mr-1 h-3 w-3" />
+                      {workshopLabel}
+                    </Button>
+                  )}
+                  {(itemActions.runDisabled && !itemActions.workshopDisabled && !itemActions.finalizeDisabled) && (
+                    <Button
+                      size="sm"
+                      disabled
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                    >
+                      <Play className="mr-1 h-3 w-3" />
+                      Run
+                    </Button>
+                  )}
+                </div>
               )}
               <p className="text-xs text-slate-500">
                 Blocked by dependencies
@@ -200,46 +237,60 @@ export function BacklogCard({
             </div>
           )}
 
-          {/* Workshop button */}
-          {(itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked && (
-            <div className="mt-3" onClick={(event) => event.preventDefault()}>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={itemActions.workshopDisabled || workshopPending}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onWorkshop();
-                }}
-              >
-                <MessageSquareText className="mr-1 h-3 w-3" />
-                {itemActions.agentRunning ? "Agent running..." : workshopPending ? "Starting..." : "Workshop"}
-              </Button>
-            </div>
-          )}
-
-          {/* Run button */}
-          {(itemActions.canRun || itemActions.runDisabled) && !itemActions.blocked && (
-            <div className="mt-3" onClick={(event) => event.preventDefault()}>
-              <Button
-                size="sm"
-                disabled={itemActions.runDisabled}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onRun();
-                }}
-              >
-                <Play className="mr-1 h-3 w-3" />
-                {itemActions.agentRunning ? "Agent running..." : "Run"}
-              </Button>
+          {/* Primary action row */}
+          {hasPrimaryActionRow && (
+            <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
+              {(itemActions.canFinalize || itemActions.finalizeDisabled) && (
+                <Button
+                  size="sm"
+                  variant={itemActions.primaryCta === "finalize" ? "default" : "outline"}
+                  disabled={itemActions.finalizeDisabled || finalizePending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onFinalize();
+                  }}
+                >
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  {itemActions.agentRunning ? "Agent running..." : finalizePending ? "Starting..." : "Finalize"}
+                </Button>
+              )}
+              {(itemActions.canRun || itemActions.runDisabled) && (
+                <Button
+                  size="sm"
+                  variant={itemActions.primaryCta === "run" ? "default" : "outline"}
+                  disabled={itemActions.runDisabled}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onRun();
+                  }}
+                >
+                  <Play className="mr-1 h-3 w-3" />
+                  {itemActions.agentRunning ? "Agent running..." : "Run"}
+                </Button>
+              )}
+              {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
+                <Button
+                  size="sm"
+                  variant={itemActions.primaryCta === "workshop" ? "default" : "outline"}
+                  disabled={itemActions.workshopDisabled || workshopPending}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onWorkshop();
+                  }}
+                >
+                  <MessageSquareText className="mr-1 h-3 w-3" />
+                  {itemActions.agentRunning ? "Agent running..." : workshopPending ? "Starting..." : workshopLabel}
+                </Button>
+              )}
             </div>
           )}
 
           {/* Terminal actions: Follow Up + Archive in a single row */}
           {(itemActions.canFollowUp || itemActions.canArchive) && (
-            <div className="mt-3 flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+            <div className={actionRowClass} data-testid="backlog-card-actions" onClick={(event) => event.preventDefault()}>
               {itemActions.canFollowUp && (
                 <Button
                   size="sm"

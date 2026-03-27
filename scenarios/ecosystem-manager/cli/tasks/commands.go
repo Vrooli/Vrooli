@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -18,34 +19,47 @@ import (
 
 // TaskCreateRequest represents the request body for creating a task.
 type TaskCreateRequest struct {
-	Title            string   `json:"title"`
-	Type             string   `json:"type"`
-	Operation        string   `json:"operation"`
-	Target           string   `json:"target,omitempty"`
-	Category         string   `json:"category,omitempty"`
-	Priority         string   `json:"priority,omitempty"`
-	SteerMode        string   `json:"steer_mode,omitempty"`
-	SteeringQueue    []string `json:"steering_queue,omitempty"`
-	AutoSteerProfile string   `json:"auto_steer_profile_id,omitempty"`
+	Title            string      `json:"title"`
+	Type             string      `json:"type"`
+	Operation        string      `json:"operation"`
+	Target           string      `json:"target,omitempty"`
+	Category         string      `json:"category,omitempty"`
+	Priority         string      `json:"priority,omitempty"`
+	Notes            string      `json:"notes,omitempty"`
+	Origin           *TaskOrigin `json:"origin,omitempty"`
+	SteerMode        string      `json:"steer_mode,omitempty"`
+	SteeringQueue    []string    `json:"steering_queue,omitempty"`
+	AutoSteerProfile string      `json:"auto_steer_profile_id,omitempty"`
+}
+
+type TaskOrigin struct {
+	Source                 string `json:"source,omitempty"`
+	BacklogItem            string `json:"backlog_item,omitempty"`
+	ItemFolder             string `json:"item_folder,omitempty"`
+	HandoffDir             string `json:"handoff_dir,omitempty"`
+	HandoffBriefPath       string `json:"handoff_brief_path,omitempty"`
+	HandoffManifestPath    string `json:"handoff_manifest_path,omitempty"`
+	HandoffSourceIndexPath string `json:"handoff_source_index_path,omitempty"`
 }
 
 // TaskResponse represents a task from the API.
 type TaskResponse struct {
-	ID                 string `json:"id"`
-	Title              string `json:"title"`
-	Type               string `json:"type"`
-	Operation          string `json:"operation"`
-	AutoSteerProfileID string `json:"auto_steer_profile_id,omitempty"`
-	Category           string `json:"category"`
-	Priority           string `json:"priority"`
-	Status             string `json:"status"`
-	CurrentPhase       string `json:"current_phase,omitempty"`
-	CompletionCount    int    `json:"completion_count"`
-	LastCompletedAt    string `json:"last_completed_at,omitempty"`
-	CreatedAt          string `json:"created_at,omitempty"`
-	UpdatedAt          string `json:"updated_at,omitempty"`
-	SteerMode          string `json:"steer_mode,omitempty"`
-	Notes              string `json:"notes,omitempty"`
+	ID                 string      `json:"id"`
+	Title              string      `json:"title"`
+	Type               string      `json:"type"`
+	Operation          string      `json:"operation"`
+	AutoSteerProfileID string      `json:"auto_steer_profile_id,omitempty"`
+	Category           string      `json:"category"`
+	Priority           string      `json:"priority"`
+	Status             string      `json:"status"`
+	CurrentPhase       string      `json:"current_phase,omitempty"`
+	CompletionCount    int         `json:"completion_count"`
+	LastCompletedAt    string      `json:"last_completed_at,omitempty"`
+	CreatedAt          string      `json:"created_at,omitempty"`
+	UpdatedAt          string      `json:"updated_at,omitempty"`
+	SteerMode          string      `json:"steer_mode,omitempty"`
+	Notes              string      `json:"notes,omitempty"`
+	Origin             *TaskOrigin `json:"origin,omitempty"`
 }
 
 // TaskListResponse represents a list of tasks.
@@ -152,6 +166,7 @@ Subcommands:
 
 Examples:
   ecosystem-manager task add scenario my-app --steer-profile balanced
+  ecosystem-manager task add scenario my-app --handoff-dir /tmp/handoff --origin-source swarm-manager --origin-backlog-item idea/my-app
   ecosystem-manager task improve scenario my-app --steer-profile production-ready
   ecosystem-manager task list --status pending --type scenario
   ecosystem-manager task show <task-id> --json`
@@ -164,6 +179,12 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	steerQueue := fs.String("steer-queue", "", "Comma-separated ordered list of steer modes (improver tasks only)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
 	category := fs.String("category", "general", "Category")
+	notes := fs.String("notes", "", "Inline notes to persist on the task")
+	notesFile := fs.String("notes-file", "", "Read task notes from a file")
+	originSource := fs.String("origin-source", "", "Upstream system creating this task (e.g. swarm-manager)")
+	originBacklogItem := fs.String("origin-backlog-item", "", "Upstream backlog item reference (e.g. idea/my-item)")
+	originItemFolder := fs.String("origin-item-folder", "", "Absolute path to the upstream backlog item folder")
+	handoffDir := fs.String("handoff-dir", "", "Absolute path to an upstream handoff directory")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -186,6 +207,14 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 		Target:    name,
 		Category:  *category,
 		Priority:  *priority,
+	}
+	if err := applyTaskContextFlags(&req, *notes, *notesFile, taskOriginInput{
+		source:      *originSource,
+		backlogItem: *originBacklogItem,
+		itemFolder:  *originItemFolder,
+		handoffDir:  *handoffDir,
+	}); err != nil {
+		return err
 	}
 
 	if *steerProfile != "" {
@@ -230,6 +259,12 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 	steerMode := fs.String("steer-mode", "", "Single steer mode (e.g. test)")
 	steerQueue := fs.String("steer-queue", "", "Comma-separated ordered list of steer modes (improver tasks only)")
 	priority := fs.String("priority", "medium", "Priority (low, medium, high, critical)")
+	notes := fs.String("notes", "", "Inline notes to persist on the task")
+	notesFile := fs.String("notes-file", "", "Read task notes from a file")
+	originSource := fs.String("origin-source", "", "Upstream system creating this task (e.g. swarm-manager)")
+	originBacklogItem := fs.String("origin-backlog-item", "", "Upstream backlog item reference (e.g. idea/my-item)")
+	originItemFolder := fs.String("origin-item-folder", "", "Absolute path to the upstream backlog item folder")
+	handoffDir := fs.String("handoff-dir", "", "Absolute path to an upstream handoff directory")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -252,6 +287,14 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 		Target:    name,
 		Category:  "improvement",
 		Priority:  *priority,
+	}
+	if err := applyTaskContextFlags(&req, *notes, *notesFile, taskOriginInput{
+		source:      *originSource,
+		backlogItem: *originBacklogItem,
+		itemFolder:  *originItemFolder,
+		handoffDir:  *handoffDir,
+	}); err != nil {
+		return err
 	}
 
 	if *steerProfile != "" {
@@ -288,6 +331,89 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 		)
 	}
 	return nil
+}
+
+type taskOriginInput struct {
+	source      string
+	backlogItem string
+	itemFolder  string
+	handoffDir  string
+}
+
+func applyTaskContextFlags(req *TaskCreateRequest, inlineNotes string, notesFile string, origin taskOriginInput) error {
+	if req == nil {
+		return fmt.Errorf("task request is required")
+	}
+	if strings.TrimSpace(inlineNotes) != "" && strings.TrimSpace(notesFile) != "" {
+		return fmt.Errorf("--notes and --notes-file are mutually exclusive")
+	}
+
+	if strings.TrimSpace(notesFile) != "" {
+		data, err := os.ReadFile(strings.TrimSpace(notesFile))
+		if err != nil {
+			return fmt.Errorf("read notes file: %w", err)
+		}
+		req.Notes = strings.TrimSpace(string(data))
+	} else {
+		req.Notes = strings.TrimSpace(inlineNotes)
+	}
+
+	itemFolder, err := normalizeOptionalAbsPath(origin.itemFolder)
+	if err != nil {
+		return fmt.Errorf("resolve origin item folder: %w", err)
+	}
+	handoffDir, err := normalizeOptionalAbsPath(origin.handoffDir)
+	if err != nil {
+		return fmt.Errorf("resolve handoff dir: %w", err)
+	}
+
+	if strings.TrimSpace(origin.source) == "" &&
+		strings.TrimSpace(origin.backlogItem) == "" &&
+		itemFolder == "" &&
+		handoffDir == "" {
+		return nil
+	}
+
+	req.Origin = &TaskOrigin{
+		Source:      strings.TrimSpace(origin.source),
+		BacklogItem: strings.TrimSpace(origin.backlogItem),
+		ItemFolder:  itemFolder,
+		HandoffDir:  handoffDir,
+	}
+	if req.Origin.HandoffDir != "" {
+		req.Origin.HandoffBriefPath = filepath.Join(req.Origin.HandoffDir, "brief.md")
+		req.Origin.HandoffManifestPath = filepath.Join(req.Origin.HandoffDir, "manifest.json")
+		req.Origin.HandoffSourceIndexPath = filepath.Join(req.Origin.HandoffDir, "source-index.json")
+		for _, path := range []string{
+			req.Origin.HandoffBriefPath,
+			req.Origin.HandoffManifestPath,
+			req.Origin.HandoffSourceIndexPath,
+		} {
+			if _, err := os.Stat(path); err != nil {
+				return fmt.Errorf("invalid handoff package: %s: %w", path, err)
+			}
+		}
+		if req.Notes == "" {
+			data, err := os.ReadFile(req.Origin.HandoffBriefPath)
+			if err != nil {
+				return fmt.Errorf("read handoff brief: %w", err)
+			}
+			req.Notes = strings.TrimSpace(string(data))
+		}
+	}
+	return nil
+}
+
+func normalizeOptionalAbsPath(path string) (string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", nil
+	}
+	absolute, err := filepath.Abs(trimmed)
+	if err != nil {
+		return "", err
+	}
+	return absolute, nil
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -392,6 +518,20 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 	if task.Notes != "" {
 		fmt.Printf("Notes: %s\n", task.Notes)
+	}
+	if task.Origin != nil {
+		if task.Origin.Source != "" {
+			fmt.Printf("Origin Source: %s\n", task.Origin.Source)
+		}
+		if task.Origin.BacklogItem != "" {
+			fmt.Printf("Origin Backlog Item: %s\n", task.Origin.BacklogItem)
+		}
+		if task.Origin.ItemFolder != "" {
+			fmt.Printf("Origin Item Folder: %s\n", task.Origin.ItemFolder)
+		}
+		if task.Origin.HandoffDir != "" {
+			fmt.Printf("Origin Handoff Dir: %s\n", task.Origin.HandoffDir)
+		}
 	}
 	return nil
 }

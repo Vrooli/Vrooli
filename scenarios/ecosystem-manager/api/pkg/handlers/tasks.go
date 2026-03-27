@@ -593,7 +593,7 @@ func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerSet bool
 }
 
 // applyUserEditableFields copies non-status user-editable fields from src into dst.
-func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided bool) {
+func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided, originProvided bool) {
 	dst.Title = src.Title
 	dst.Priority = src.Priority
 	dst.Category = src.Category
@@ -613,6 +613,9 @@ func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvi
 	dst.ProcessorAutoRequeue = src.ProcessorAutoRequeue
 	if notesProvided {
 		dst.Notes = src.Notes
+	}
+	if originProvided {
+		dst.Origin = src.Origin
 	}
 }
 
@@ -972,9 +975,13 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		systemlog.Warnf("UpdateTaskHandler: could not decode raw body for presence detection: %v", err)
 	}
 	notesProvided := false
+	originProvided := false
 	if raw != nil {
 		if _, ok := raw["notes"]; ok {
 			notesProvided = true
+		}
+		if _, ok := raw["origin"]; ok {
+			originProvided = true
 		}
 	}
 
@@ -1020,6 +1027,9 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Notes: only preserve when not provided; allow explicit clearing
 	if !notesProvided {
 		updatedTask.Notes = currentTask.Notes
+	}
+	if !originProvided {
+		updatedTask.Origin = currentTask.Origin
 	}
 
 	if !validateAndNormalizeSteerSet(&updatedTask, w) {
@@ -1083,7 +1093,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		TransitionContext: ctx,
 	}, tasks.ApplyOptions{
 		Mutate: func(t *tasks.TaskItem) {
-			applyUserEditableFields(t, updatedTask, notesProvided)
+			applyUserEditableFields(t, updatedTask, notesProvided, originProvided)
 			t.Title = deriveTaskTitle("", t.Operation, t.Type, t.Target)
 		},
 		BroadcastEvent: "task_updated",

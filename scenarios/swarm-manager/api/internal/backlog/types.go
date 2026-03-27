@@ -82,6 +82,7 @@ type ResearchMode string
 
 const (
 	ResearchModeWorkshop   ResearchMode = "workshop"
+	ResearchModeFinalize   ResearchMode = "finalize"
 	ResearchModeInitialize ResearchMode = "initialize"
 )
 

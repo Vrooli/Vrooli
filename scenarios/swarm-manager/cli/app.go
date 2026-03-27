@@ -160,9 +160,9 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 		},
 		{
 			Name:        "prompts",
-			Description: "Prompt bindings and skill operations",
+			Description: "Prompt catalog and skill operations",
 			Subcommands: []cliapp.Command{
-				{Name: "map", NeedsAPI: true, Description: "List prompt trigger-to-skill bindings", Run: a.cmdPromptsMap},
+				{Name: "catalog", NeedsAPI: true, Description: "List the swarm-manager prompt catalog", Run: a.cmdPromptsCatalog},
 				{Name: "skills", NeedsAPI: true, Description: "List prompt skills used by swarm-manager", Run: a.cmdPromptsSkills},
 				{Name: "skill-get", NeedsAPI: true, Description: "Get prompt skill details (--id ID)", Run: a.cmdPromptsSkillGet},
 				{Name: "skill-update", NeedsAPI: true, Description: "Update prompt skill fields (--id ID --data JSON)", Run: a.cmdPromptsSkillUpdate},

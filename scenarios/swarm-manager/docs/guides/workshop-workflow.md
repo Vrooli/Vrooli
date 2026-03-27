@@ -213,6 +213,14 @@ The mandatory section structure, convergence patterns, quality gates, and guardr
 
 The execution agent reads `plan.md` as its primary input. Workshop rounds are supporting evidence, not the execution spec.
 
+For `idea` backlog items, swarm-manager also generates a derived `handoff/` package when execution begins:
+
+- `handoff/brief.md`
+- `handoff/manifest.json`
+- `handoff/source-index.json`
+
+That package is not a separate planning surface. It is a frozen execution bridge into ecosystem-manager, regenerated from the latest finalized backlog state so downstream task creation can preserve the full context without re-reading raw workshop artifacts.
+
 ## Where Workshop Fits in the Pipeline
 
 ```
@@ -244,6 +252,10 @@ The execution agent reads `plan.md` as its primary input. Workshop rounds are su
 - [CODE: ui/src/types/domain.ts#WorkshopRound] -- Type definitions for rounds, items, readiness
 - [CODE: ui/src/services/backlog-service.ts#research] -- API client method
 
-### Prompts (managed by prompt-manager)
-- `swarm-manager-workshop-{kind}` -- Workshop skill per backlog kind
-- [DOC: docs/guides/research-notes.md#references] -- Prompt-manager and integration references
+### Prompts (managed by prompt-manager and cataloged in swarm-manager)
+- `swarm-manager-workshop` -- Workshop rounds for `idea`, `fix`, `execute`, and `chore`
+- `swarm-manager-workshop-research` -- Workshop rounds for `research`
+- `swarm-manager-initialize-backlog` -- First-round bootstrap for every backlog kind
+- `swarm-manager-workshop-finalize` -- Finalize rounds for non-research backlog kinds
+- `swarm-manager-workshop-research-finalize` -- Finalize rounds for research backlog items
+- [DOC: docs/reference/api-endpoints.md#prompts] -- Catalog and simulation endpoints

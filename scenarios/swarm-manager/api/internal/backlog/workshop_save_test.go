@@ -27,6 +27,7 @@ type workshopAutoAdv struct {
 	RunID     *string `json:"run_id,omitempty"`
 	TaskID    *string `json:"task_id,omitempty"`
 	Reason    string  `json:"reason"`
+	NextMode  *string `json:"next_mode,omitempty"`
 }
 
 func makeWorkshopSaveBody(roundNumber int, round workshop.Round) []byte {
@@ -67,7 +68,10 @@ func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
 }
 
 func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "run-finalize", TaskID: "task-finalize"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
 	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-test", Title: "WS Test", Status: StatusBacklog,
@@ -100,8 +104,26 @@ func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
 	if resp.File.Name != "round-001.json" {
 		t.Errorf("expected file name 'round-001.json', got %q", resp.File.Name)
 	}
-	if resp.AutoAdvance.Reason != "ready" {
-		t.Errorf("expected reason 'ready', got %q", resp.AutoAdvance.Reason)
+	if !resp.AutoAdvance.Triggered {
+		t.Fatal("expected finalize auto-advance to trigger")
+	}
+	if resp.AutoAdvance.Reason != "finalizing" {
+		t.Errorf("expected reason 'finalizing', got %q", resp.AutoAdvance.Reason)
+	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
+		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
+	}
+
+	data, err := os.ReadFile(roundPath)
+	if err != nil {
+		t.Fatalf("failed to read saved round: %v", err)
+	}
+	var saved workshop.Round
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatalf("failed to unmarshal saved round: %v", err)
+	}
+	if !saved.PendingSynthesis {
+		t.Error("expected saved round to be marked pending_synthesis=true")
 	}
 }
 
@@ -190,12 +212,15 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 	if resp.AutoAdvance.Reason != "not_ready" {
 		t.Errorf("expected reason 'not_ready', got %q", resp.AutoAdvance.Reason)
 	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
+	}
 	if agent.lastReq == nil {
 		t.Fatal("expected agent spawn to be called")
 	}
 }
 
-func TestWorkshopSave_Ready_NoAutoAdvance(t *testing.T) {
+func TestWorkshopSave_Ready_AutoFinalizes(t *testing.T) {
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
@@ -226,14 +251,20 @@ func TestWorkshopSave_Ready_NoAutoAdvance(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
-	if resp.AutoAdvance.Triggered {
-		t.Error("expected auto-advance NOT to be triggered when ready")
+	if !resp.AutoAdvance.Triggered {
+		t.Error("expected auto-finalize to be triggered when ready")
 	}
-	if resp.AutoAdvance.Reason != "ready" {
-		t.Errorf("expected reason 'ready', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "finalizing" {
+		t.Errorf("expected reason 'finalizing', got %q", resp.AutoAdvance.Reason)
 	}
-	if agent.lastReq != nil {
-		t.Error("expected no agent spawn when item is ready")
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
+		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
+	}
+	if agent.lastReq == nil {
+		t.Fatal("expected finalize agent spawn when item is ready")
+	}
+	if agent.lastReq.Title != "Finalize: WS Ready" {
+		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
 	}
 }
 
@@ -285,6 +316,9 @@ func TestWorkshopSave_MaxRounds_NoAutoAdvance(t *testing.T) {
 	}
 	if resp.AutoAdvance.Reason != "max_rounds" {
 		t.Errorf("expected reason 'max_rounds', got %q", resp.AutoAdvance.Reason)
+	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
 	}
 }
 
@@ -380,8 +414,68 @@ func TestWorkshopSave_AutoAdvanceDisabledViaSetting(t *testing.T) {
 	if resp.AutoAdvance.Reason != "disabled" {
 		t.Errorf("expected reason 'disabled', got %q", resp.AutoAdvance.Reason)
 	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
+	}
 	if agent.lastReq != nil {
 		t.Error("expected no agent spawn when auto-advance disabled")
+	}
+}
+
+func TestWorkshopSave_AutoAdvanceDisabled_ReadyRequiresManualFinalize(t *testing.T) {
+	agent := &mockAgentService{
+		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
+	}
+	h, rootDir := setupTestHandlerWithAgent(t, agent)
+
+	t.Setenv("SCENARIO_ROOT", rootDir)
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+		"theme":                       "dark",
+		"default_mode":                "manual",
+		"max_auto_rounds":             10,
+		"auto_initialize_workshop":    false,
+		"auto_advance_workshop":       false,
+		"auto_cascade_workshop":       false,
+		"agent_max_turns":             60,
+		"agent_timeout_seconds":       900,
+		"agent_requires_approval":     true,
+		"search_debounce_ms":          300,
+		"toast_duration_ms":           5000,
+		"confirm_destructive_actions": true,
+	})
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "ws-disabled-ready", Title: "WS Disabled Ready", Status: StatusBacklog,
+		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+	})
+
+	round := workshop.Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		Readiness:   map[string]int{"problem_clarity": 3, "scope_defined": 3, "approach_solid": 3, "testable": 3, "risk_awareness": 3},
+		Items:       []workshop.Item{{ID: "q1", Type: "decision", Selected: strPtr("A")}},
+	}
+
+	body := makeWorkshopSaveBody(1, round)
+	w := httptest.NewRecorder()
+	h.WorkshopSave(w, workshopSaveRequest("idea", "ws-disabled-ready", body))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp workshopSaveResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if resp.AutoAdvance.Triggered {
+		t.Error("expected auto-finalize not to trigger when auto-advance is disabled")
+	}
+	if resp.AutoAdvance.Reason != "disabled" {
+		t.Errorf("expected reason 'disabled', got %q", resp.AutoAdvance.Reason)
+	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
+		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
 	}
 }
 
@@ -441,6 +535,9 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 	}
 	if resp.AutoAdvance.Reason != "error" {
 		t.Errorf("expected reason 'error', got %q", resp.AutoAdvance.Reason)
+	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
 	}
 }
 
@@ -502,6 +599,9 @@ func TestWorkshopSave_ConcurrentSaves_LockPreventsDouble(t *testing.T) {
 	}
 	if resp.AutoAdvance.Reason != "error" {
 		t.Errorf("expected reason 'error', got %q", resp.AutoAdvance.Reason)
+	}
+	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
 	}
 	// Agent should NOT have been called.
 	if agent.lastReq != nil {

@@ -13,8 +13,8 @@
   "kind": "execute",
   "name": "swarm-manager-initiative-management-ui",
   "priority": 3,
-  "status": "backlog",
+  "status": "archived",
   "tags": [],
   "title": "Build Initiative Detail View with Edit, Item Management, and Create Flow",
-  "updated": "2026-03-26T21:08:47Z"
+  "updated": "2026-03-27T18:40:24Z"
 }

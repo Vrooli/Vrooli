@@ -45,8 +45,15 @@ type Settings struct {
 	SearchDebounceMs          int32 `protobuf:"varint,13,opt,name=search_debounce_ms,json=searchDebounceMs,proto3" json:"search_debounce_ms,omitempty"`
 	ToastDurationMs           int32 `protobuf:"varint,14,opt,name=toast_duration_ms,json=toastDurationMs,proto3" json:"toast_duration_ms,omitempty"`
 	ConfirmDestructiveActions bool  `protobuf:"varint,15,opt,name=confirm_destructive_actions,json=confirmDestructiveActions,proto3" json:"confirm_destructive_actions,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Review thresholds.
+	ReviewCodeQualityMinScore   float64 `protobuf:"fixed64,19,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3" json:"review_code_quality_min_score,omitempty"`
+	ReviewTestMinPassRate       float64 `protobuf:"fixed64,20,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3" json:"review_test_min_pass_rate,omitempty"`
+	ReviewMaxBlockingViolations int32   `protobuf:"varint,21,opt,name=review_max_blocking_violations,json=reviewMaxBlockingViolations,proto3" json:"review_max_blocking_violations,omitempty"`
+	ReviewMaxWarnings           int32   `protobuf:"varint,22,opt,name=review_max_warnings,json=reviewMaxWarnings,proto3" json:"review_max_warnings,omitempty"`
+	ReviewRequireScreenshots    bool    `protobuf:"varint,23,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3" json:"review_require_screenshots,omitempty"`
+	ReviewRequireTests          bool    `protobuf:"varint,24,opt,name=review_require_tests,json=reviewRequireTests,proto3" json:"review_require_tests,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -184,11 +191,54 @@ func (x *Settings) GetConfirmDestructiveActions() bool {
 	return false
 }
 
+func (x *Settings) GetReviewCodeQualityMinScore() float64 {
+	if x != nil {
+		return x.ReviewCodeQualityMinScore
+	}
+	return 0
+}
+
+func (x *Settings) GetReviewTestMinPassRate() float64 {
+	if x != nil {
+		return x.ReviewTestMinPassRate
+	}
+	return 0
+}
+
+func (x *Settings) GetReviewMaxBlockingViolations() int32 {
+	if x != nil {
+		return x.ReviewMaxBlockingViolations
+	}
+	return 0
+}
+
+func (x *Settings) GetReviewMaxWarnings() int32 {
+	if x != nil {
+		return x.ReviewMaxWarnings
+	}
+	return 0
+}
+
+func (x *Settings) GetReviewRequireScreenshots() bool {
+	if x != nil {
+		return x.ReviewRequireScreenshots
+	}
+	return false
+}
+
+func (x *Settings) GetReviewRequireTests() bool {
+	if x != nil {
+		return x.ReviewRequireTests
+	}
+	return false
+}
+
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xdb\x06\n" +
+	"&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\x89\n" +
+	"\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x12A\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19R\x06manualR\tscheduledR\x04yoloR\vdefaultMode\x12;\n" +
@@ -209,7 +259,13 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x12search_debounce_ms\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x128\n" +
 	"\x11toast_duration_ms\x18\x0e \x01(\x05B\f\xbaH\t\x1a\a\x18\xb0\xea\x01(\xe8\aR\x0ftoastDurationMs\x12>\n" +
-	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bR\x19confirmDestructiveActionsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x1bconfirm_destructive_actions\x18\x0f \x01(\bR\x19confirmDestructiveActions\x12Y\n" +
+	"\x1dreview_code_quality_min_score\x18\x13 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n" +
+	"\x19review_test_min_pass_rate\x18\x14 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n" +
+	"\x1ereview_max_blocking_violations\x18\x15 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n" +
+	"\x13review_max_warnings\x18\x16 \x01(\x05B\x10\xbaH\r\x1a\v(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n" +
+	"\x1areview_require_screenshots\x18\x17 \x01(\bR\x18reviewRequireScreenshots\x120\n" +
+	"\x14review_require_tests\x18\x18 \x01(\bR\x12reviewRequireTestsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_settings_proto_rawDescOnce sync.Once

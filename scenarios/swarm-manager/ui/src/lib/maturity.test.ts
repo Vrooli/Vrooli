@@ -20,6 +20,7 @@ const makeSummary = (overrides?: Partial<MaturityItemSummary>): MaturityItemSumm
   effective_scores: allScores(2),
   ready: false,
   pending_items: 0,
+  pending_synthesis: false,
   has_plan: false,
   ...overrides,
 });
@@ -30,6 +31,7 @@ const makeData = (overrides?: Partial<ReadinessIndicatorData>): ReadinessIndicat
   roundsCompleted: 1,
   ready: false,
   pendingItems: 0,
+  pendingSynthesis: false,
   hasPlan: false,
   nextNudge: null,
   ...overrides,
@@ -53,6 +55,7 @@ describe("buildReadinessData", () => {
     expect(result.effectiveScores).toEqual(allScores(2));
     expect(result.ready).toBe(false);
     expect(result.pendingItems).toBe(2);
+    expect(result.pendingSynthesis).toBe(false);
     expect(result.hasPlan).toBe(true);
   });
 
@@ -69,6 +72,12 @@ describe("buildReadinessData", () => {
     });
     const result = buildReadinessData(summary);
     expect(result.nextNudge).toMatch(/Ready for execution/);
+  });
+
+  it("surfaces pending synthesis state", () => {
+    const summary = makeSummary({ pending_synthesis: true });
+    const result = buildReadinessData(summary);
+    expect(result.pendingSynthesis).toBe(true);
   });
 });
 
@@ -92,6 +101,11 @@ describe("computeNextNudge", () => {
   it("returns ready nudge when ready", () => {
     const result = computeNextNudge(makeData({ ready: true, effectiveScores: allScores(3) }));
     expect(result).toMatch(/Ready for execution/);
+  });
+
+  it("returns finalize nudge when ready but pending synthesis", () => {
+    const result = computeNextNudge(makeData({ ready: true, effectiveScores: allScores(3), pendingSynthesis: true }));
+    expect(result).toMatch(/Finalize the latest workshop answers/i);
   });
 
   it("lists weak dimensions when some scores are below 3", () => {

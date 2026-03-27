@@ -332,6 +332,49 @@ func TestCountPendingDecisions_AllAnswered(t *testing.T) {
 	}
 }
 
+func TestNeedsSynthesis_ExplicitFlag(t *testing.T) {
+	round := &Round{
+		PendingSynthesis: true,
+		Items:            []Item{{Type: "info", Text: "Already marked"}},
+	}
+	if !NeedsSynthesis(round) {
+		t.Fatal("expected explicit pending_synthesis=true to require synthesis")
+	}
+}
+
+func TestNeedsSynthesis_LegacyAnsweredDecisions(t *testing.T) {
+	round := &Round{
+		Items: []Item{
+			{Type: "decision", Topic: "Auth method", Options: []Option{{Key: "A", Label: "OAuth", Rationale: "Standard"}}, Selected: strPtr("A")},
+			{Type: "decision", Topic: "Platform", Options: []Option{{Key: "A", Label: "Web", Rationale: "Broad"}}, Selected: strPtr("B")},
+			{Type: "info", Text: "Background info"},
+		},
+	}
+	if !NeedsSynthesis(round) {
+		t.Fatal("expected legacy answered round to require synthesis")
+	}
+}
+
+func TestNeedsSynthesis_NoDecisionItems(t *testing.T) {
+	round := &Round{
+		Items: []Item{{Type: "info", Text: "Fully informational round"}},
+	}
+	if NeedsSynthesis(round) {
+		t.Fatal("expected info-only round to not require synthesis")
+	}
+}
+
+func TestNeedsSynthesis_FinalizeRound(t *testing.T) {
+	round := &Round{
+		Mode:             "finalize",
+		PendingSynthesis: false,
+		Items:            []Item{{Type: "decision", Topic: "Legacy", Selected: strPtr("A")}},
+	}
+	if NeedsSynthesis(round) {
+		t.Fatal("expected finalize rounds to not require synthesis")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // HasPlan / LoadPlanContent
 // ---------------------------------------------------------------------------

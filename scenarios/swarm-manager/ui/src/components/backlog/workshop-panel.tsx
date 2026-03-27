@@ -5,7 +5,7 @@
  * Users can answer questions, decide on proposals, and trigger the next round.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, MoreHorizontal, Play, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Play, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
@@ -61,7 +61,10 @@ interface WorkshopPanelProps {
   isSaving?: boolean;
   isRunningWorkshop?: boolean;
   onSaveRound?: (roundNumber: number, content: string) => void;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
   onRunWorkshop?: () => void;
+  workshopActionLabel?: string;
   onDeleteRound?: (roundNumber: number) => void;
   isDeletingRound?: boolean;
 }
@@ -74,7 +77,10 @@ export function WorkshopPanel({
   isSaving,
   isRunningWorkshop,
   onSaveRound,
+  primaryActionLabel,
+  onPrimaryAction,
   onRunWorkshop,
+  workshopActionLabel = "Next Round",
   onDeleteRound,
   isDeletingRound,
 }: WorkshopPanelProps) {
@@ -123,6 +129,8 @@ export function WorkshopPanel({
       });
   }, [localUpdates, deletedItems]);
 
+  const hasUnsavedChanges = localUpdates.size > 0 || deletedItems.size > 0;
+
   const handleSaveAll = useCallback(() => {
     for (const round of rounds) {
       const hasChangesInRound = round.items.some((item) => {
@@ -138,7 +146,28 @@ export function WorkshopPanel({
     }
   }, [rounds, getEffectiveItems, onSaveRound, localUpdates, deletedItems]);
 
-  const hasUnsavedChanges = localUpdates.size > 0 || deletedItems.size > 0;
+  // Auto-save: debounce changes and persist automatically.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!hasUnsavedChanges || !onSaveRound) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      handleSaveAll();
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [hasUnsavedChanges, handleSaveAll, onSaveRound]);
+
+  // Clear local edits once the parent finishes saving (isSaving transitions false).
+  const prevIsSaving = useRef(isSaving);
+  useEffect(() => {
+    if (prevIsSaving.current && !isSaving) {
+      setLocalUpdates(new Map());
+      setDeletedItems(new Set());
+    }
+    prevIsSaving.current = isSaving;
+  }, [isSaving]);
 
   if (rounds.length === 0) {
     return (
@@ -149,10 +178,10 @@ export function WorkshopPanel({
             variant="outline"
             size="sm"
             disabled={disabled || isRunningWorkshop}
-            onClick={onRunWorkshop}
+            onClick={onPrimaryAction ?? onRunWorkshop}
           >
             <Play className="mr-2 h-3.5 w-3.5" />
-            Start Workshop
+            {primaryActionLabel ?? "Start Workshop"}
           </Button>
         </div>
       </div>
@@ -166,15 +195,14 @@ export function WorkshopPanel({
           Workshop Rounds ({rounds.length})
         </h3>
         <div className="flex items-center gap-2">
-          {hasUnsavedChanges && (
+          {onPrimaryAction && (
             <Button
-              variant="outline"
               size="sm"
-              disabled={disabled || isSaving}
-              onClick={handleSaveAll}
+              disabled={disabled || isRunningWorkshop}
+              onClick={onPrimaryAction}
             >
-              <Save className="mr-2 h-3.5 w-3.5" />
-              {isSaving ? "Saving..." : "Save Responses"}
+              <Play className="mr-2 h-3.5 w-3.5" />
+              {isRunningWorkshop ? "Running..." : primaryActionLabel}
             </Button>
           )}
           {onRunWorkshop && (
@@ -185,7 +213,7 @@ export function WorkshopPanel({
               onClick={onRunWorkshop}
             >
               <Play className="mr-2 h-3.5 w-3.5" />
-              {isRunningWorkshop ? "Running..." : "Next Round"}
+              {isRunningWorkshop ? "Running..." : workshopActionLabel}
             </Button>
           )}
         </div>

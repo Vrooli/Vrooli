@@ -275,9 +275,271 @@ func TestCalculateReadiness(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := CalculateReadiness(tc.dims)
+			got := CalculateReadiness(tc.dims, DefaultReadinessThresholds())
 			if got != tc.want {
 				t.Errorf("CalculateReadiness() = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCalculateReadiness_CustomThresholds(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		dims       ReviewDimensions
+		thresholds ReadinessThresholds
+		want       Readiness
+	}{
+		{
+			name: "lower_quality_threshold_allows_green",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 3},
+				Tests:       &TestsDimension{Available: true, Total: 5, Passed: true, PassedCount: 5},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 45, Stale: false},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 40, TestMinPassRate: 1.0,
+				RequireScreenshots: true, RequireTests: true, MaxWarnings: -1,
+			},
+			want: ReadinessGreen,
+		},
+		{
+			name: "partial_test_pass_rate_allows_green",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				Tests:       &TestsDimension{Available: true, Total: 10, Passed: false, PassedCount: 8, FailedCount: 2},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 0.8,
+				RequireScreenshots: true, RequireTests: true, MaxWarnings: -1,
+			},
+			want: ReadinessGreen,
+		},
+		{
+			name: "allow_blocking_violations",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				Tests:       &TestsDimension{Available: true, Total: 5, Passed: true, PassedCount: 5},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+				Standards:   &StandardsDimension{Available: true, BlockingViolations: 3},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 1.0,
+				MaxBlockingViolations: 5, RequireScreenshots: true, RequireTests: true, MaxWarnings: -1,
+			},
+			want: ReadinessGreen,
+		},
+		{
+			name: "screenshots_not_required",
+			dims: ReviewDimensions{
+				Tests:       &TestsDimension{Available: true, Total: 5, Passed: true, PassedCount: 5},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 1.0,
+				RequireScreenshots: false, RequireTests: true, MaxWarnings: -1,
+			},
+			want: ReadinessGreen,
+		},
+		{
+			name: "tests_not_required",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 1.0,
+				RequireScreenshots: true, RequireTests: false, MaxWarnings: -1,
+			},
+			want: ReadinessGreen,
+		},
+		{
+			name: "max_warnings_enforced",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				Tests:       &TestsDimension{Available: true, Total: 5, Passed: true, PassedCount: 5},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+				Standards:   &StandardsDimension{Available: true, BlockingViolations: 0, Warnings: 15},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 1.0,
+				MaxBlockingViolations: 0, MaxWarnings: 10,
+				RequireScreenshots: true, RequireTests: true,
+			},
+			want: ReadinessYellow,
+		},
+		{
+			name: "pass_rate_below_threshold_prevents_green",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				Tests:       &TestsDimension{Available: true, Total: 10, Passed: false, PassedCount: 7, FailedCount: 3},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 0.8,
+				RequireScreenshots: true, RequireTests: true, MaxWarnings: -1,
+			},
+			want: ReadinessYellow,
+		},
+		{
+			name: "max_warnings_unlimited_ignores_warnings",
+			dims: ReviewDimensions{
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 1},
+				Tests:       &TestsDimension{Available: true, Total: 5, Passed: true, PassedCount: 5},
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false},
+				Standards:   &StandardsDimension{Available: true, BlockingViolations: 0, Warnings: 100},
+			},
+			thresholds: ReadinessThresholds{
+				CodeQualityMinScore: 60, TestMinPassRate: 1.0,
+				MaxBlockingViolations: 0, MaxWarnings: -1,
+				RequireScreenshots: true, RequireTests: true,
+			},
+			want: ReadinessGreen,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := CalculateReadiness(tc.dims, tc.thresholds)
+			if got != tc.want {
+				t.Errorf("CalculateReadiness() = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCalculateDimensionStatuses(t *testing.T) {
+	t.Parallel()
+	thresholds := DefaultReadinessThresholds()
+
+	tests := []struct {
+		name     string
+		dims     ReviewDimensions
+		wantKeys map[string]string
+	}{
+		{
+			name: "all_green",
+			dims: ReviewDimensions{
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false, Violations: 0},
+				Tests:       &TestsDimension{Available: true, Total: 5, PassedCount: 5},
+				Standards:   &StandardsDimension{Available: true, BlockingViolations: 0, Warnings: 0},
+				Visual:      &VisualDimension{Available: true, ScreenshotCount: 3, Stale: false},
+				Provenance:  &ProvenanceDimension{Available: true, TracedFiles: 5},
+			},
+			wantKeys: map[string]string{
+				"codeQuality": "green",
+				"tests":       "green",
+				"standards":   "green",
+				"visual":      "green",
+				"provenance":  "green",
+			},
+		},
+		{
+			name: "all_unavailable",
+			dims: ReviewDimensions{},
+			wantKeys: map[string]string{
+				"codeQuality": "skipped",
+				"tests":       "skipped",
+				"standards":   "skipped",
+				"visual":      "skipped",
+				"provenance":  "skipped",
+			},
+		},
+		{
+			name: "code_quality_red",
+			dims: ReviewDimensions{
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 30, Stale: false},
+			},
+			wantKeys: map[string]string{
+				"codeQuality": "red",
+			},
+		},
+		{
+			name: "code_quality_yellow_violations",
+			dims: ReviewDimensions{
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: false, Violations: 5},
+			},
+			wantKeys: map[string]string{
+				"codeQuality": "yellow",
+			},
+		},
+		{
+			name: "code_quality_yellow_stale",
+			dims: ReviewDimensions{
+				CodeQuality: &CodeQualityDimension{Available: true, Score: 80, Stale: true},
+			},
+			wantKeys: map[string]string{
+				"codeQuality": "yellow",
+			},
+		},
+		{
+			name: "tests_red_all_failed",
+			dims: ReviewDimensions{
+				Tests: &TestsDimension{Available: true, Total: 5, PassedCount: 0, FailedCount: 5},
+			},
+			wantKeys: map[string]string{
+				"tests": "red",
+			},
+		},
+		{
+			name: "tests_yellow_partial",
+			dims: ReviewDimensions{
+				Tests: &TestsDimension{Available: true, Total: 5, PassedCount: 3, FailedCount: 2},
+			},
+			wantKeys: map[string]string{
+				"tests": "yellow",
+			},
+		},
+		{
+			name: "standards_red_blocking",
+			dims: ReviewDimensions{
+				Standards: &StandardsDimension{Available: true, BlockingViolations: 2},
+			},
+			wantKeys: map[string]string{
+				"standards": "red",
+			},
+		},
+		{
+			name: "standards_yellow_warnings",
+			dims: ReviewDimensions{
+				Standards: &StandardsDimension{Available: true, BlockingViolations: 0, Warnings: 5},
+			},
+			wantKeys: map[string]string{
+				"standards": "yellow",
+			},
+		},
+		{
+			name: "visual_red_no_screenshots",
+			dims: ReviewDimensions{
+				Visual: &VisualDimension{Available: true, ScreenshotCount: 0},
+			},
+			wantKeys: map[string]string{
+				"visual": "red",
+			},
+		},
+		{
+			name: "visual_yellow_stale",
+			dims: ReviewDimensions{
+				Visual: &VisualDimension{Available: true, ScreenshotCount: 3, Stale: true},
+			},
+			wantKeys: map[string]string{
+				"visual": "yellow",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := CalculateDimensionStatuses(tc.dims, thresholds)
+			for key, want := range tc.wantKeys {
+				if got[key] != want {
+					t.Errorf("dimension %s: got %s, want %s", key, got[key], want)
+				}
 			}
 		})
 	}
@@ -292,7 +554,7 @@ func TestReviewJobStore_Lifecycle(t *testing.T) {
 	store := NewReviewJobStore()
 
 	// Create
-	job := store.Create("job-1", []string{"tidiness", "tests"}, "test-scenario", 0)
+	job := store.Create("job-1", []string{"tidiness", "tests"}, "test-scenario", 0, DefaultReadinessThresholds())
 	if job.Status != "running" {
 		t.Errorf("expected running, got %s", job.Status)
 	}
@@ -328,7 +590,7 @@ func TestReviewJobStore_Lifecycle(t *testing.T) {
 	}
 
 	// Fail a different job
-	store.Create("job-2", []string{"rules"}, "test-scenario-2", 0)
+	store.Create("job-2", []string{"rules"}, "test-scenario-2", 0, DefaultReadinessThresholds())
 	store.Fail("job-2", "something went wrong")
 	got, _ = store.Get("job-2")
 	if got.Status != "failed" {
@@ -355,7 +617,7 @@ func TestReviewJobStore_ActiveJobForScenario(t *testing.T) {
 	}
 
 	// Create a running job.
-	store.Create("job-1", []string{"tests"}, "foo", 0)
+	store.Create("job-1", []string{"tests"}, "foo", 0, DefaultReadinessThresholds())
 	if id := store.ActiveJobForScenario("foo"); id != "job-1" {
 		t.Errorf("expected job-1, got %s", id)
 	}
@@ -377,13 +639,13 @@ func TestReviewJobStore_Cleanup(t *testing.T) {
 	store := NewReviewJobStore()
 
 	// Create a job with a timestamp in the past.
-	store.Create("old-job", []string{"tests"}, "scenario", 0)
+	store.Create("old-job", []string{"tests"}, "scenario", 0, DefaultReadinessThresholds())
 	// Manually backdate the entry.
 	store.mu.Lock()
 	store.jobs["old-job"].status.StartedAt = time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
 	store.mu.Unlock()
 
-	store.Create("recent-job", []string{"tests"}, "scenario2", 0)
+	store.Create("recent-job", []string{"tests"}, "scenario2", 0, DefaultReadinessThresholds())
 
 	store.Cleanup()
 
@@ -398,7 +660,7 @@ func TestReviewJobStore_Cleanup(t *testing.T) {
 func TestReviewJobStore_GetReturnsCopy(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-1", []string{"tests"}, "scenario", 0)
+	store.Create("job-1", []string{"tests"}, "scenario", 0, DefaultReadinessThresholds())
 
 	got1, _ := store.Get("job-1")
 	got1.Checks["tests"] = CheckCompleted // mutate the copy
@@ -518,7 +780,7 @@ func TestBuildReviewSummary_AllServicesAvailable(t *testing.T) {
 		},
 	}
 
-	readiness := CalculateReadiness(dims)
+	readiness := CalculateReadiness(dims, DefaultReadinessThresholds())
 	if readiness != ReadinessGreen {
 		t.Errorf("expected green, got %s", readiness)
 	}
@@ -559,7 +821,7 @@ func TestBuildReviewSummary_PartialAvailability(t *testing.T) {
 			PassedCount: 3,
 		},
 	}
-	readiness := CalculateReadiness(dims)
+	readiness := CalculateReadiness(dims, DefaultReadinessThresholds())
 	if readiness != ReadinessYellow {
 		t.Errorf("expected yellow with partial availability, got %s", readiness)
 	}
@@ -568,7 +830,7 @@ func TestBuildReviewSummary_PartialAvailability(t *testing.T) {
 func TestBuildReviewSummary_NoServicesAvailable(t *testing.T) {
 	t.Parallel()
 	dims := ReviewDimensions{}
-	readiness := CalculateReadiness(dims)
+	readiness := CalculateReadiness(dims, DefaultReadinessThresholds())
 	if readiness != ReadinessRed {
 		t.Errorf("expected red with no services, got %s", readiness)
 	}
@@ -581,7 +843,7 @@ func TestBuildReviewSummary_NoServicesAvailable(t *testing.T) {
 func TestExecuteReviewRun_AllFailed(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-fail", []string{"tidiness", "tests"}, "my-scenario", 0)
+	store.Create("job-fail", []string{"tidiness", "tests"}, "my-scenario", 0, DefaultReadinessThresholds())
 
 	// Simulate all checks failing.
 	store.UpdateCheck("job-fail", "tidiness", CheckFailed)
@@ -617,7 +879,7 @@ func TestExecuteReviewRun_AllFailed(t *testing.T) {
 func TestExecuteReviewRun_AllSkipped(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-skip", []string{"tidiness", "tests"}, "my-scenario", 0)
+	store.Create("job-skip", []string{"tidiness", "tests"}, "my-scenario", 0, DefaultReadinessThresholds())
 
 	store.UpdateCheck("job-skip", "tidiness", CheckSkipped)
 	store.UpdateCheck("job-skip", "tests", CheckSkipped)
@@ -638,7 +900,7 @@ func TestExecuteReviewRun_AllSkipped(t *testing.T) {
 func TestExecuteReviewRun_MixedResults(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-mix", []string{"tidiness", "tests", "rules"}, "my-scenario", 0)
+	store.Create("job-mix", []string{"tidiness", "tests", "rules"}, "my-scenario", 0, DefaultReadinessThresholds())
 
 	store.UpdateCheck("job-mix", "tidiness", CheckCompleted)
 	store.UpdateCheck("job-mix", "tests", CheckFailed)
@@ -665,7 +927,7 @@ func TestReviewJobStore_ConcurrencyGuard(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
 
-	store.Create("job-1", []string{"tests"}, "my-scenario", 0)
+	store.Create("job-1", []string{"tests"}, "my-scenario", 0, DefaultReadinessThresholds())
 
 	// Same scenario should be blocked.
 	if id := store.ActiveJobForScenario("my-scenario"); id != "job-1" {
@@ -749,7 +1011,7 @@ func TestCalculateReadiness_StandardsEdgeCases(t *testing.T) {
 		t.Parallel()
 		dims := base
 		dims.Standards = nil
-		if got := CalculateReadiness(dims); got != ReadinessGreen {
+		if got := CalculateReadiness(dims, DefaultReadinessThresholds()); got != ReadinessGreen {
 			t.Errorf("expected green, got %s", got)
 		}
 	})
@@ -758,7 +1020,7 @@ func TestCalculateReadiness_StandardsEdgeCases(t *testing.T) {
 		t.Parallel()
 		dims := base
 		dims.Standards = &StandardsDimension{Available: false, BlockingViolations: 99}
-		if got := CalculateReadiness(dims); got != ReadinessGreen {
+		if got := CalculateReadiness(dims, DefaultReadinessThresholds()); got != ReadinessGreen {
 			t.Errorf("expected green, got %s", got)
 		}
 	})
@@ -767,7 +1029,7 @@ func TestCalculateReadiness_StandardsEdgeCases(t *testing.T) {
 		t.Parallel()
 		dims := base
 		dims.Standards = &StandardsDimension{Available: true, BlockingViolations: 0, Warnings: 10}
-		if got := CalculateReadiness(dims); got != ReadinessGreen {
+		if got := CalculateReadiness(dims, DefaultReadinessThresholds()); got != ReadinessGreen {
 			t.Errorf("expected green, got %s", got)
 		}
 	})
@@ -776,7 +1038,7 @@ func TestCalculateReadiness_StandardsEdgeCases(t *testing.T) {
 		t.Parallel()
 		dims := base
 		dims.Standards = &StandardsDimension{Available: true, BlockingViolations: 1}
-		if got := CalculateReadiness(dims); got != ReadinessYellow {
+		if got := CalculateReadiness(dims, DefaultReadinessThresholds()); got != ReadinessYellow {
 			t.Errorf("expected yellow, got %s", got)
 		}
 	})
@@ -822,7 +1084,7 @@ func TestReviewJobStore_StartStopCleanup(t *testing.T) {
 	store := NewReviewJobStore()
 	store.StartCleanup(50 * time.Millisecond)
 
-	store.Create("old-job", []string{"tests"}, "scenario", 0)
+	store.Create("old-job", []string{"tests"}, "scenario", 0, DefaultReadinessThresholds())
 	store.mu.Lock()
 	store.jobs["old-job"].status.StartedAt = time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339)
 	store.mu.Unlock()
@@ -1079,7 +1341,7 @@ func TestReviewDetailCount_BackwardCompat(t *testing.T) {
 func TestReviewJobStore_DetailCount(t *testing.T) {
 	t.Parallel()
 	store := NewReviewJobStore()
-	store.Create("job-1", []string{"tests"}, "scenario", 5)
+	store.Create("job-1", []string{"tests"}, "scenario", 5, DefaultReadinessThresholds())
 
 	dc := store.DetailCount("job-1")
 	if dc != 5 {

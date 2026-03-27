@@ -24,11 +24,22 @@ type ReviewClient interface {
 	Ping(ctx context.Context) error
 }
 
+// ReviewThresholds configures readiness criteria passed to git-control-tower.
+type ReviewThresholds struct {
+	CodeQualityMinScore   float64 `json:"codeQualityMinScore"`
+	TestMinPassRate       float64 `json:"testMinPassRate"`
+	MaxBlockingViolations int     `json:"maxBlockingViolations"`
+	MaxWarnings           int     `json:"maxWarnings"`
+	RequireScreenshots    bool    `json:"requireScreenshots"`
+	RequireTests          bool    `json:"requireTests"`
+}
+
 // ReviewRequest describes what to review.
 type ReviewRequest struct {
-	ScenarioName  string   `json:"scenarioName"`
-	ExpectedPaths []string `json:"expectedPaths,omitempty"`
-	SandboxID     string   `json:"sandboxId,omitempty"`
+	ScenarioName  string            `json:"scenarioName"`
+	ExpectedPaths []string          `json:"expectedPaths,omitempty"`
+	SandboxID     string            `json:"sandboxId,omitempty"`
+	Thresholds    *ReviewThresholds `json:"thresholds,omitempty"`
 }
 
 // HTTPReviewClient implements ReviewClient using git-control-tower's HTTP API.
@@ -70,11 +81,12 @@ type reviewJobStatus struct {
 
 // reviewSummaryResponse mirrors git-control-tower's ReviewSummaryResponse.
 type reviewSummaryResponse struct {
-	ScenarioName string          `json:"scenarioName"`
-	Readiness    string          `json:"readiness"`
-	Dimensions   json.RawMessage `json:"dimensions"`
-	Capabilities map[string]bool `json:"capabilities"`
-	Timestamp    string          `json:"timestamp"`
+	ScenarioName      string            `json:"scenarioName"`
+	Readiness         string            `json:"readiness"`
+	Dimensions        json.RawMessage   `json:"dimensions"`
+	DimensionStatuses map[string]string `json:"dimensionStatuses,omitempty"`
+	Capabilities      map[string]bool   `json:"capabilities"`
+	Timestamp         string            `json:"timestamp"`
 }
 
 // TriggerReview starts a review run and returns the job ID.
@@ -166,7 +178,7 @@ func mapJobToResult(job reviewJobStatus) (*ReviewResult, bool, error) {
 		if job.Summary != nil {
 			result.Classification = mapReadinessToClassification(job.Summary.Readiness)
 			result.Summary = fmt.Sprintf("Scenario %s readiness: %s", job.Summary.ScenarioName, job.Summary.Readiness)
-			result.Dimensions = parseDimensions(job.Summary.Dimensions)
+			result.Dimensions = parseDimensions(job.Summary.Dimensions, job.Summary.DimensionStatuses)
 		} else {
 			result.Classification = "not_assessable"
 			result.Summary = "review completed without summary"
@@ -242,7 +254,9 @@ func (c *HTTPReviewClient) Ping(ctx context.Context) error {
 	return nil
 }
 
-func parseDimensions(raw json.RawMessage) []ReviewDimension {
+// parseDimensions builds ReviewDimension entries using GCT-provided statuses
+// (single source of truth) and raw dimension data for detail text.
+func parseDimensions(raw json.RawMessage, statuses map[string]string) []ReviewDimension {
 	if len(raw) == 0 {
 		return nil
 	}
@@ -252,49 +266,33 @@ func parseDimensions(raw json.RawMessage) []ReviewDimension {
 	}
 	var result []ReviewDimension
 	for name, dim := range dims {
-		if !dim.Available {
-			result = append(result, ReviewDimension{
-				Name:   name,
-				Status: "skipped",
-			})
-			continue
+		status := statuses[name]
+		if status == "" {
+			if !dim.Available {
+				status = "skipped"
+			} else {
+				status = "green"
+			}
 		}
-		status := "green"
+
 		var details string
 		switch name {
 		case "codeQuality":
-			if dim.Violations > 0 {
-				status = "yellow"
+			if dim.Violations > 0 || dim.Score > 0 {
 				details = fmt.Sprintf("%.1f score, %d violations", dim.Score, dim.Violations)
 			}
-			if dim.Score < 0.5 {
-				status = "red"
-			}
 		case "tests":
-			if !dim.Passed {
-				status = "red"
-				details = fmt.Sprintf("%d/%d passed", dim.PassedCount, dim.Total)
-			} else if dim.FailedCount > 0 {
-				status = "yellow"
+			if dim.Total > 0 {
 				details = fmt.Sprintf("%d/%d passed", dim.PassedCount, dim.Total)
 			}
 		case "standards":
 			if dim.BlockingViolations > 0 {
-				status = "red"
 				details = fmt.Sprintf("%d blocking violations", dim.BlockingViolations)
 			} else if dim.Warnings > 0 {
-				status = "yellow"
 				details = fmt.Sprintf("%d warnings", dim.Warnings)
 			}
 		}
-		if dim.Stale {
-			status = "yellow"
-			if details != "" {
-				details += " (stale)"
-			} else {
-				details = "stale data"
-			}
-		}
+
 		result = append(result, ReviewDimension{
 			Name:    name,
 			Status:  status,

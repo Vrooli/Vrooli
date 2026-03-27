@@ -28,11 +28,12 @@ var validReviewChecks = map[string]bool{
 
 // ReviewSummaryResponse is the unified review summary for a scenario.
 type ReviewSummaryResponse struct {
-	ScenarioName string           `json:"scenarioName"`
-	Readiness    Readiness        `json:"readiness"`
-	Dimensions   ReviewDimensions `json:"dimensions"`
-	Capabilities map[string]bool  `json:"capabilities"`
-	Timestamp    string           `json:"timestamp"`
+	ScenarioName      string            `json:"scenarioName"`
+	Readiness         Readiness         `json:"readiness"`
+	Dimensions        ReviewDimensions  `json:"dimensions"`
+	DimensionStatuses map[string]string `json:"dimensionStatuses,omitempty"`
+	Capabilities      map[string]bool   `json:"capabilities"`
+	Timestamp         string            `json:"timestamp"`
 }
 
 // ReviewDimensions holds per-dimension review data.
@@ -132,11 +133,12 @@ const (
 
 // ReviewRunRequest is the request body for POST /api/v1/review/run.
 type ReviewRunRequest struct {
-	ScenarioName  string   `json:"scenarioName"`
-	Checks        []string `json:"checks,omitempty"`
-	ExpectedPaths []string `json:"expectedPaths,omitempty"`
-	SandboxID     string   `json:"sandboxId,omitempty"`
-	Details       int      `json:"details,omitempty"`
+	ScenarioName  string               `json:"scenarioName"`
+	Checks        []string             `json:"checks,omitempty"`
+	ExpectedPaths []string             `json:"expectedPaths,omitempty"`
+	SandboxID     string               `json:"sandboxId,omitempty"`
+	Details       int                  `json:"details,omitempty"`
+	Thresholds    *ReadinessThresholds `json:"thresholds,omitempty"`
 }
 
 // ReviewRunResponse is the immediate response from starting a review run.

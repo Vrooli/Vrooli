@@ -12,8 +12,8 @@
   "kind": "execute",
   "name": "swarm-manager-dashboard-page",
   "priority": 2,
-  "status": "backlog",
+  "status": "archived",
   "tags": [],
   "title": "Build the Dashboard Page with Initiative Cards, Stats Bar, and Needs Attention Feed",
-  "updated": "2026-03-26T21:08:47Z"
+  "updated": "2026-03-27T18:40:24Z"
 }

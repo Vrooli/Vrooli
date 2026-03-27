@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
@@ -131,6 +131,18 @@ describe("BacklogDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getAllByTestId("backlog-details-queue").length).toBeGreaterThan(0);
     });
+  });
+
+  it("shows only the primary CTA in the header", async () => {
+    vi.mocked(backlogService.get).mockResolvedValue(mockItem);
+    vi.mocked(backlogService.getFiles).mockResolvedValue(mockFiles);
+
+    renderPage();
+
+    const header = await screen.findByTestId("backlog-details-header");
+    expect(within(header).getByRole("button", { name: "Run" })).toBeInTheDocument();
+    expect(within(header).queryByRole("button", { name: "Workshop" })).not.toBeInTheDocument();
+    expect(within(header).queryByRole("button", { name: /Next Round/i })).not.toBeInTheDocument();
   });
 
   it("shows queue button for research items (research items are queueable)", async () => {

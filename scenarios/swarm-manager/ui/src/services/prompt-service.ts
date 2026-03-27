@@ -3,7 +3,7 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
   BacklogKind,
-  PromptBinding,
+  PromptCatalogEntry,
   PromptSkillSummary,
   PromptSkillVersions,
   PromptTrace,
@@ -19,7 +19,6 @@ export interface PromptPreviewResponse {
 export interface PromptSimulateRequest {
   kind: BacklogKind;
   mode?: string;
-  operation?: "generator" | "improver";
   item_name?: string;
   item_title?: string;
   item_description?: string;
@@ -31,17 +30,18 @@ export interface PromptSimulateRequest {
 }
 
 export interface PromptSimulateResponse {
-  area: "research" | "process";
+  entry_id: string;
+  group: "backlog";
+  usage_type: "direct_runtime";
   kind: string;
   mode?: string;
-  operation?: string;
   skill_id: string;
   variables: Record<string, string>;
   prompt: string;
 }
 
 export interface IPromptService {
-  listBindings(): Promise<PromptBinding[]>;
+  listCatalog(): Promise<PromptCatalogEntry[]>;
   listSkills(): Promise<PromptSkillSummary[]>;
   getSkill(skillId: string): Promise<PromptSkillSummary>;
   updateSkill(
@@ -63,8 +63,8 @@ export interface IPromptService {
 
 export function createPromptService(apiClient: IApiClient = defaultApiClient): IPromptService {
   return {
-    async listBindings(): Promise<PromptBinding[]> {
-      const data = await apiClient.get<{ items?: PromptBinding[] }>(API_ENDPOINTS.promptsMap);
+    async listCatalog(): Promise<PromptCatalogEntry[]> {
+      const data = await apiClient.get<{ items?: PromptCatalogEntry[] }>(API_ENDPOINTS.promptsCatalog);
       return data.items ?? [];
     },
 

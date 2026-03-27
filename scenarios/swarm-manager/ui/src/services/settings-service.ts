@@ -32,6 +32,12 @@ export const DEFAULT_SETTINGS: Settings = {
   searchDebounceMs: 300,
   toastDurationMs: 5000,
   confirmDestructiveActions: true,
+  reviewCodeQualityMinScore: 60,
+  reviewTestMinPassRate: 1.0,
+  reviewMaxBlockingViolations: 0,
+  reviewMaxWarnings: -1,
+  reviewRequireScreenshots: true,
+  reviewRequireTests: true,
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -54,6 +60,12 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     searchDebounceMs: input.searchDebounceMs ?? DEFAULT_SETTINGS.searchDebounceMs,
     toastDurationMs: input.toastDurationMs ?? DEFAULT_SETTINGS.toastDurationMs,
     confirmDestructiveActions: input.confirmDestructiveActions ?? DEFAULT_SETTINGS.confirmDestructiveActions,
+    reviewCodeQualityMinScore: input.reviewCodeQualityMinScore ?? DEFAULT_SETTINGS.reviewCodeQualityMinScore,
+    reviewTestMinPassRate: input.reviewTestMinPassRate ?? DEFAULT_SETTINGS.reviewTestMinPassRate,
+    reviewMaxBlockingViolations: input.reviewMaxBlockingViolations ?? DEFAULT_SETTINGS.reviewMaxBlockingViolations,
+    reviewMaxWarnings: input.reviewMaxWarnings ?? DEFAULT_SETTINGS.reviewMaxWarnings,
+    reviewRequireScreenshots: input.reviewRequireScreenshots ?? DEFAULT_SETTINGS.reviewRequireScreenshots,
+    reviewRequireTests: input.reviewRequireTests ?? DEFAULT_SETTINGS.reviewRequireTests,
   };
 }
 
@@ -87,6 +99,12 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.searchDebounceMs !== undefined ? { searchDebounceMs: patch.searchDebounceMs } : {}),
         ...(patch.toastDurationMs !== undefined ? { toastDurationMs: patch.toastDurationMs } : {}),
         ...(patch.confirmDestructiveActions !== undefined ? { confirmDestructiveActions: patch.confirmDestructiveActions } : {}),
+        ...(patch.reviewCodeQualityMinScore !== undefined ? { reviewCodeQualityMinScore: patch.reviewCodeQualityMinScore } : {}),
+        ...(patch.reviewTestMinPassRate !== undefined ? { reviewTestMinPassRate: patch.reviewTestMinPassRate } : {}),
+        ...(patch.reviewMaxBlockingViolations !== undefined ? { reviewMaxBlockingViolations: patch.reviewMaxBlockingViolations } : {}),
+        ...(patch.reviewMaxWarnings !== undefined ? { reviewMaxWarnings: patch.reviewMaxWarnings } : {}),
+        ...(patch.reviewRequireScreenshots !== undefined ? { reviewRequireScreenshots: patch.reviewRequireScreenshots } : {}),
+        ...(patch.reviewRequireTests !== undefined ? { reviewRequireTests: patch.reviewRequireTests } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

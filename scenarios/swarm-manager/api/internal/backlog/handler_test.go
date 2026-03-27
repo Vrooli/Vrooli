@@ -975,6 +975,39 @@ func TestProcessPreflight_BlocksMissingWorkshopReadiness(t *testing.T) {
 	}
 }
 
+func TestProcessPreflight_ResearchUsesConclusionDeliverable(t *testing.T) {
+	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
+
+	item := BacklogItem{
+		Name:        "research-preflight",
+		Title:       "Research Preflight",
+		Description: "Verify research preflight accepts conclusion deliverables.",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+		Kind:        KindResearch,
+	}
+	createTestItem(t, rootDir, KindResearch, item)
+	testutil.WriteFile(t, filepath.Join(rootDir, "research", "research-preflight", "conclusion.md"), "# Conclusion\nReady for processing.")
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog/research/research-preflight/process-preflight", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "research", "name": "research-preflight"})
+	w := httptest.NewRecorder()
+
+	h.ProcessPreflight(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[processPreflightEnvelope](t, w)
+	if ready, ok := resp.Preflight["ready"].(bool); !ok || !ready {
+		t.Fatalf("expected preflight ready=true, got %#v", resp.Preflight["ready"])
+	}
+	if reasons, ok := resp.Preflight["blocking_reasons"].([]any); ok && len(reasons) > 0 {
+		t.Fatalf("expected no blocking reasons, got %#v", reasons)
+	}
+}
+
 func TestQueue_BlocksWhenProcessPreflightFails(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
 

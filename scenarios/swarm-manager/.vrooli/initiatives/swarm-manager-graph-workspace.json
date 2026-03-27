@@ -1,0 +1,16 @@
+{
+  "name": "swarm-manager-graph-workspace",
+  "title": "Swarm Manager Graph Workspace",
+  "description": "Hard-cut swarm-manager from separate tabbed CRUD surfaces into a sidebar plus graph workspace that makes captures, backlog items, initiatives, scenarios, runs, and system flows visible as one relationship-first operator surface, with no long-lived compatibility UI.",
+  "status": "active",
+  "items": [
+    "research/swarm-manager-graph-workspace-contract",
+    "execute/swarm-manager-graph-data-foundation",
+    "execute/swarm-manager-graph-workspace-shell",
+    "execute/swarm-manager-topology-impact-views",
+    "execute/swarm-manager-flow-and-ops-views",
+    "chore/swarm-manager-remove-legacy-tabbed-surfaces"
+  ],
+  "created": "2026-03-27T18:40:16Z",
+  "updated": "2026-03-27T18:40:16Z"
+}

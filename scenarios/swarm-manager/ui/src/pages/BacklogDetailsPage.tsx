@@ -382,6 +382,7 @@ export function BacklogDetailsPage() {
       return backlogService.getFiles(backlogKind, name);
     },
     enabled: !!backlogKind && !!name,
+    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -435,6 +436,7 @@ export function BacklogDetailsPage() {
       return contents;
     },
     enabled: !!backlogKind && !!name && workshopRoundPaths.length > 0,
+    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -450,6 +452,7 @@ export function BacklogDetailsPage() {
   const { data: maturitySummaryData } = useQuery({
     queryKey: ["backlog-maturity-summary"],
     queryFn: () => backlogService.getMaturitySummary(),
+    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -460,6 +463,9 @@ export function BacklogDetailsPage() {
     );
     return match ? buildReadinessData(match) : null;
   }, [maturitySummaryData, backlogKind, name]);
+  const deliverableLabel = backlogKind === "research" ? "Conclusion" : "Plan";
+  const deliverableLabelLower = deliverableLabel.toLowerCase();
+  const workshopActionLabel = workshopRounds.length > 0 ? "Next Round" : "Workshop";
 
   const {
     data: archiveTargets,
@@ -479,6 +485,7 @@ export function BacklogDetailsPage() {
       item,
       allItems: allBacklogItems,
       readinessReady: readinessData ? readinessData.ready : null,
+      pendingSynthesis: readinessData?.pendingSynthesis ?? false,
       agentRunning: agentRunIsActive,
       hasPendingDecisions: workshopRounds.some(
         (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
@@ -585,6 +592,8 @@ export function BacklogDetailsPage() {
         mode: variables.mode ?? "research",
       });
       void refreshRun(result.runId);
+      void queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     },
   });
 
@@ -599,6 +608,8 @@ export function BacklogDetailsPage() {
       if (!backlogKind || !name) return;
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
       void refetchFiles();
       void refetchWorkshopRounds();
 
@@ -915,6 +926,8 @@ export function BacklogDetailsPage() {
       setRoundToDelete(null);
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
       queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
       void refetchFiles();
       void refetchWorkshopRounds();
     },
@@ -925,13 +938,24 @@ export function BacklogDetailsPage() {
     workshopSaveMutation.mutate({ roundNumber, content });
   }, [workshopSaveMutation]);
 
-  const handleRunWorkshop = useCallback(() => {
+  const startWorkshopMode = useCallback((mode: "workshop" | "finalize", prompt: string) => {
     if (!backlogKind || !name) return;
     agentMutation.mutate({
-      mode: "workshop",
-      prompt: "Run the next workshop round for this backlog item.",
+      mode,
+      prompt,
     });
   }, [backlogKind, name, agentMutation]);
+
+  const handleRunWorkshop = useCallback(() => {
+    startWorkshopMode("workshop", "Run the next workshop round for this backlog item.");
+  }, [startWorkshopMode]);
+
+  const handleFinalizeWorkshop = useCallback(() => {
+    startWorkshopMode(
+      "finalize",
+      `Finalize the latest workshop answers into the ${deliverableLabelLower} for this backlog item.`,
+    );
+  }, [deliverableLabelLower, startWorkshopMode]);
 
   const fileActionMutation = useMutation({
     mutationFn: async ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
@@ -1003,11 +1027,61 @@ export function BacklogDetailsPage() {
   const _workshopSaveError = workshopSaveMutation.isError
     ? workshopSaveMutation.error instanceof Error ? workshopSaveMutation.error.message : "Failed to save workshop round."
     : null;
-  const canWorkshopAction = itemActions?.canWorkshop ?? false;
   const searchResults = useMemo(
     () => collectMatchingFiles(files ?? [], fileSearch),
     [files, fileSearch]
   );
+  const renderHeaderPrimaryAction = (className?: string) => {
+    if (!itemActions) return null;
+
+    switch (itemActions.primaryCta) {
+      case "finalize":
+        if (!itemActions.canFinalize && !itemActions.finalizeDisabled) return null;
+        return (
+          <Button
+            variant="default"
+            size="sm"
+            className={className}
+            onClick={handleFinalizeWorkshop}
+            disabled={itemActions.finalizeDisabled || agentMutation.isPending}
+          >
+            <Sparkles className="mr-1.5 h-4 w-4" />
+            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Finalize"}
+          </Button>
+        );
+      case "run":
+        if (!itemActions.canRun && !itemActions.runDisabled) return null;
+        return (
+          <Button
+            variant="default"
+            size="sm"
+            className={className}
+            onClick={() => setShowRunModal(true)}
+            disabled={itemActions.runDisabled}
+            data-testid={selectors.backlogDetails.queueButton}
+          >
+            <Play className="mr-1.5 h-4 w-4" />
+            {itemActions.agentRunning ? "Agent running..." : "Run"}
+          </Button>
+        );
+      case "workshop":
+        if (!itemActions.canWorkshop && !itemActions.workshopDisabled) return null;
+        return (
+          <Button
+            variant="default"
+            size="sm"
+            className={className}
+            onClick={handleRunWorkshop}
+            disabled={itemActions.workshopDisabled || agentMutation.isPending}
+          >
+            <MessageSquareText className="mr-1.5 h-4 w-4" />
+            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : workshopActionLabel}
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
   const selectedFileParam = searchParams.get("file");
 
   const handleResizeStart = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -1720,7 +1794,10 @@ export function BacklogDetailsPage() {
         isSaving={workshopSaveMutation.isPending}
         isRunningWorkshop={agentMutation.isPending || agentRunIsActive}
         onSaveRound={handleSaveRound}
-        onRunWorkshop={isTerminal ? undefined : handleRunWorkshop}
+        primaryActionLabel={(!isTerminal && !itemActions?.blocked && (itemActions?.canFinalize || itemActions?.finalizeDisabled)) ? `Finalize ${deliverableLabel}` : undefined}
+        onPrimaryAction={(!isTerminal && !itemActions?.blocked && (itemActions?.canFinalize || itemActions?.finalizeDisabled)) ? handleFinalizeWorkshop : undefined}
+        onRunWorkshop={!isTerminal && !itemActions?.blocked ? handleRunWorkshop : undefined}
+        workshopActionLabel={workshopActionLabel}
         onDeleteRound={isTerminal ? undefined : setRoundToDelete}
         isDeletingRound={workshopDeleteRoundMutation.isPending}
       />
@@ -1936,11 +2013,23 @@ export function BacklogDetailsPage() {
 
     return (
       <div className="space-y-2">
+        {(itemActions?.canFinalize || itemActions?.finalizeDisabled) && (
+          <Button
+            variant="default"
+            size="sm"
+            className={itemActions.primaryCta === "finalize" ? primaryRowButtonClass : rowButtonClass}
+            onClick={() => runAction(handleFinalizeWorkshop)}
+            disabled={itemActions.finalizeDisabled || agentMutation.isPending}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : `Finalize ${deliverableLabel}`}
+          </Button>
+        )}
         {(itemActions?.canRun || itemActions?.runDisabled) && (
           <Button
             variant="default"
             size="sm"
-            className={primaryRowButtonClass}
+            className={itemActions.primaryCta === "run" ? primaryRowButtonClass : rowButtonClass}
             onClick={() => runAction(() => setShowRunModal(true))}
             disabled={itemActions.runDisabled}
           >
@@ -1957,10 +2046,10 @@ export function BacklogDetailsPage() {
             disabled={itemActions.workshopDisabled || agentMutation.isPending}
           >
             <MessageSquareText className="mr-2 h-4 w-4" />
-            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Workshop"}
+            {itemActions.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : workshopActionLabel}
           </Button>
         )}
-        {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
+        {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
           <p className="text-xs text-slate-500">{itemActions.notQueueableReason}</p>
         ) : null}
         <Button
@@ -2243,28 +2332,7 @@ export function BacklogDetailsPage() {
                   {BACKLOG_KIND_LABELS[item.kind]} · {formatBacklogStatus(item.status)}
                 </p>
               </div>
-              {itemActions?.canRun && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowRunModal(true)}
-                  data-testid={selectors.backlogDetails.queueButton}
-                >
-                  <Play className="mr-1.5 h-4 w-4" />
-                  Run
-                </Button>
-              )}
-              {canWorkshopAction && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRunWorkshop}
-                  disabled={agentMutation.isPending}
-                >
-                  <MessageSquareText className="mr-1.5 h-4 w-4" />
-                  Workshop
-                </Button>
-              )}
+              {renderHeaderPrimaryAction("shrink-0")}
               <Button
                 variant="outline"
                 size="sm"
@@ -2357,30 +2425,8 @@ export function BacklogDetailsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {(itemActions?.canRun || itemActions?.runDisabled) && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setShowRunModal(true)}
-                    disabled={itemActions.runDisabled}
-                    data-testid={selectors.backlogDetails.queueButton}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    {itemActions.agentRunning ? "Agent running..." : "Run"}
-                  </Button>
-                )}
-                {(itemActions?.canWorkshop || itemActions?.workshopDisabled) && (
-                  <Button
-                    variant={itemActions?.primaryCta === "workshop" ? "default" : "outline"}
-                    size="sm"
-                    onClick={handleRunWorkshop}
-                    disabled={itemActions?.workshopDisabled || agentMutation.isPending}
-                  >
-                    <MessageSquareText className="mr-2 h-4 w-4" />
-                    {itemActions?.agentRunning ? "Agent running..." : agentMutation.isPending ? "Starting..." : "Workshop"}
-                  </Button>
-                )}
-                {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled ? (
+                {renderHeaderPrimaryAction()}
+                {itemActions?.notQueueableReason && !itemActions.locked && !itemActions.terminal && !itemActions.canRun && !itemActions.runDisabled && !itemActions.canWorkshop && !itemActions.workshopDisabled && !itemActions.canFinalize && !itemActions.finalizeDisabled ? (
                   <span className="max-w-xs text-xs text-slate-500">{itemActions.notQueueableReason}</span>
                 ) : null}
                 <Button

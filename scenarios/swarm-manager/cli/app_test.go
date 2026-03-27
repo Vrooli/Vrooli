@@ -136,7 +136,7 @@ func TestScenarioCommandsRegistered(t *testing.T) {
 		{"queue list no-api", []string{"queue", "list"}},
 		{"backlog prompt-trace no-args", []string{"backlog", "prompt-trace"}},
 		{"execution prompt-trace no-args", []string{"execution", "prompt-trace"}},
-		{"prompts map no-api", []string{"prompts", "map"}},
+		{"prompts catalog no-api", []string{"prompts", "catalog"}},
 		{"prompts skill-get no-args", []string{"prompts", "skill-get"}},
 		{"prompts preview no-args", []string{"prompts", "preview"}},
 		{"agent-manager status no-api", []string{"agent-manager", "status"}},
@@ -839,15 +839,15 @@ func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
 	}
 }
 
-func TestCmdPromptsMapRequestsExpectedEndpoint(t *testing.T) {
+func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
-		if r.URL.Path != "/api/v1/prompts/map" {
+		if r.URL.Path != "/api/v1/prompts/catalog" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"area":"research","trigger":"x","skill_id":"swarm-manager-clarify-idea","purpose":"p"}]}`))
+		_, _ = w.Write([]byte(`{"items":[{"id":"backlog-workshop","title":"Backlog Workshop","group":"backlog","usage_type":"direct_runtime","source_type":"skill","trigger":"Backlog workshop round","skill_id":"swarm-manager-workshop","backlog_kinds":["idea"],"modes":["workshop"],"purpose":"Run one workshop round.","output_paths":["workshop/round-NNN.json","plan.md"]}]}`))
 	}))
 	defer server.Close()
 
@@ -856,8 +856,8 @@ func TestCmdPromptsMapRequestsExpectedEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdPromptsMap([]string{}); err != nil {
-		t.Fatalf("cmdPromptsMap returned error: %v", err)
+	if err := app.cmdPromptsCatalog([]string{}); err != nil {
+		t.Fatalf("cmdPromptsCatalog returned error: %v", err)
 	}
 }
 
@@ -877,7 +877,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload["skill_id"] != "swarm-manager-clarify-idea" {
+		if payload["skill_id"] != "swarm-manager-workshop" {
 			t.Fatalf("unexpected skill_id: %v", payload["skill_id"])
 		}
 		if payload["with_scope"] != true {
@@ -890,7 +890,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if vars["ITEM_TITLE"] != "My Idea" {
 			t.Fatalf("unexpected ITEM_TITLE: %v", vars["ITEM_TITLE"])
 		}
-		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-clarify-idea","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
+		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-workshop","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
 	}))
 	defer server.Close()
 
@@ -899,7 +899,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-clarify-idea", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
+	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-workshop", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
 		t.Fatalf("cmdPromptsPreview returned error: %v", err)
 	}
 }

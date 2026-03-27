@@ -206,6 +206,37 @@ describe("InlineQuestionStepper", () => {
     });
   });
 
+  it("passes through finalize auto-advance metadata when workshopSave returns it", async () => {
+    const onAllAnswered = vi.fn();
+    const { backlogService } = await import("../../services/backlog-service");
+    vi.mocked(backlogService.workshopSave).mockResolvedValueOnce({
+      file: { name: "round-001.json", path: "workshop/round-001.json", type: "file", size: 100 },
+      autoAdvance: { triggered: true, reason: "finalizing", nextMode: "finalize", runId: "run-1", taskId: "task-1" },
+    });
+
+    render(
+      <InlineQuestionStepper
+        {...defaultProps}
+        onAllAnswered={onAllAnswered}
+        questions={[makeWorkshopQuestion({ id: "d1" })]}
+      />,
+    );
+
+    const options = screen.getAllByTestId("question-stepper-workshop-option");
+    fireEvent.click(options[0] as HTMLElement);
+    fireEvent.click(screen.getByTestId("question-stepper-next"));
+
+    await waitFor(() => {
+      expect(onAllAnswered).toHaveBeenCalledWith({
+        autoAdvance: expect.objectContaining({
+          reason: "finalizing",
+          nextMode: "finalize",
+          runId: "run-1",
+        }),
+      });
+    });
+  });
+
   it("renders mixed workshop and review questions in sequence", async () => {
     const q1 = makeWorkshopQuestion({ id: "d1", topic: "Workshop Q" });
     const q2 = makeReviewQuestion({ id: "r1", title: "Review Q" });

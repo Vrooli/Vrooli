@@ -221,6 +221,7 @@ message BacklogResearchRequest {
     "clarify",
     "suggest",
     "enhance",
+    "finalize",
     "initialize",
     "workshop"
   ] }];
@@ -344,9 +345,12 @@ message WorkshopAutoAdvance {
   // Agent-manager task ID (set only when triggered=true).
   optional string task_id = 3;
 
-  // Reason for the decision: "not_ready", "ready", "max_rounds",
+  // Reason for the decision: "not_ready", "finalizing", "max_rounds",
   // "pending_decisions", "disabled", "error", "no_rounds".
   string reason = 4;
+
+  // The recommended next mode when manual follow-up is required.
+  optional string next_mode = 5 [(buf.validate.field).string = { in: ["workshop", "finalize"] }];
 }
 
 // WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers

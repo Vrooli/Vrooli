@@ -16,8 +16,8 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/prompttrace"
-	"swarm-manager/internal/skills"
 )
 
 // parseResearchMode normalizes a raw mode string into a ResearchMode constant.
@@ -27,13 +27,15 @@ func parseResearchMode(raw string) (ResearchMode, error) {
 	switch candidate {
 	case "workshop", "":
 		return ResearchModeWorkshop, nil
+	case "finalize":
+		return ResearchModeFinalize, nil
 	case "initialize":
 		return ResearchModeInitialize, nil
 	// Capture-related modes (clarify, suggest, enhance) are treated as workshop.
 	case "clarify", "suggest", "enhance":
 		return ResearchModeWorkshop, nil
 	default:
-		return "", fmt.Errorf("unsupported research mode %q: must be workshop or initialize", candidate)
+		return "", fmt.Errorf("unsupported research mode %q: must be workshop, finalize, or initialize", candidate)
 	}
 }
 
@@ -80,6 +82,8 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 	switch mode {
 	case ResearchModeWorkshop:
 		return "Workshop: " + label
+	case ResearchModeFinalize:
+		return "Finalize: " + label
 	case ResearchModeInitialize:
 		return "Initialize: " + label
 	default:
@@ -87,15 +91,13 @@ func buildResearchTitle(item BacklogItem, mode ResearchMode) string {
 	}
 }
 
-// researchSkillID returns the prompt-manager skill ID for a research mode and item kind,
-// delegating to the centralized skills registry.
-func researchSkillID(mode ResearchMode, kind BacklogKind) string {
-	return skills.Resolve(string(mode), string(kind))
-}
-
 // fetchResearchPrompt loads a research prompt from prompt-manager.
 func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mode ResearchMode) (promptSelection, error) {
-	skillID := researchSkillID(mode, item.Kind)
+	entry, ok := promptcatalog.ResolveBacklogSkill(string(mode), string(item.Kind))
+	if !ok {
+		return promptSelection{}, fmt.Errorf("no prompt catalog entry for mode=%s kind=%s", mode, item.Kind)
+	}
+	skillID := entry.SkillID
 	vars := buildVariableMap(item, h.store.ItemDir(item.Kind, item.Name))
 	withScope := false
 	prompt, err := h.promptClient.ReadSkill(ctx, skillID, vars, withScope)
@@ -175,6 +177,31 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	if mode == ResearchModeInitialize && item.Status != StatusBacklog {
 		httputil.Conflict(w, "[backlog] research", "initialize is only available for items in 'backlog' status")
 		return
+	}
+	if mode == ResearchModeFinalize {
+		itemDir := h.store.ItemDir(kind, item.Name)
+		latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
+		if loadErr != nil {
+			httputil.InternalError(w, "[backlog] research", "failed to load workshop rounds for finalize")
+			return
+		}
+		if latestRound == nil {
+			httputil.Conflict(w, "[backlog] research", "finalize requires at least one workshop round")
+			return
+		}
+		if CountPendingDecisions(latestRound) > 0 {
+			httputil.Conflict(w, "[backlog] research", "finalize is only available after answering all workshop decisions")
+			return
+		}
+		effective := ComputeEffectiveScores(latestRound.Readiness, roundCount, kind)
+		if !IsReady(effective) {
+			httputil.Conflict(w, "[backlog] research", "finalize is only available when the latest workshop round is ready")
+			return
+		}
+		if !NeedsSynthesis(latestRound) {
+			httputil.Conflict(w, "[backlog] research", "finalize is only available when the latest workshop answers have not been synthesized yet")
+			return
+		}
 	}
 
 	scopePath := "." // Always use project root for sandbox overlay.

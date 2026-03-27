@@ -227,6 +227,8 @@ export interface WorkshopItem {
 export interface WorkshopRound {
   round: number;
   generated_at: string;
+  mode?: "workshop" | "finalize";
+  pending_synthesis?: boolean;
   readiness: Record<ReadinessDimension, number>;
   items: WorkshopItem[];
   plan_updates?: string;
@@ -244,6 +246,7 @@ export interface MaturityItemSummary {
   effective_scores: Record<ReadinessDimension, number>;
   ready: boolean;
   pending_items: number;
+  pending_synthesis: boolean;
   has_plan: boolean;
 }
 
@@ -549,7 +552,7 @@ export type ThemePreference = "dark" | "light" | "system";
  */
 export type Settings = Omit<
   ProtoMessage<ProtoSettings>,
-  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs"
+  "theme" | "defaultDelaySeconds" | "maxFixupAttempts" | "maxAutoRounds" | "agentMaxTurns" | "agentTimeoutSeconds" | "searchDebounceMs" | "toastDurationMs" | "reviewMaxBlockingViolations" | "reviewMaxWarnings"
 > & {
   /** UI theme preference */
   theme: ThemePreference;
@@ -571,6 +574,13 @@ export type Settings = Omit<
   searchDebounceMs: number;
   toastDurationMs: number;
   confirmDestructiveActions: boolean;
+  /** Review thresholds */
+  reviewCodeQualityMinScore: number;
+  reviewTestMinPassRate: number;
+  reviewMaxBlockingViolations: number;
+  reviewMaxWarnings: number;
+  reviewRequireScreenshots: boolean;
+  reviewRequireTests: boolean;
 };
 
 /**
@@ -633,15 +643,22 @@ export interface PromptTrace {
   captured_at: string;
 }
 
-export interface PromptBinding {
-  area: "research" | "process";
+export interface PromptCatalogEntry {
+  id: string;
+  title: string;
+  group: "capture" | "backlog" | "execution" | "archive" | "support";
+  usage_type: "direct_runtime" | "generated_runtime" | "support_reference";
+  source_type: "skill" | "generated";
   trigger: string;
-  kind?: string;
-  mode?: string;
-  operation?: string;
+  backlog_kinds?: string[];
+  modes?: string[];
+  operations?: string[];
   skill_id?: string;
+  builder?: string;
   purpose: string;
   output_paths?: string[];
+  variable_keys?: string[];
+  reference_skill_ids?: string[];
 }
 
 export interface PromptSkillSummary {
@@ -652,6 +669,8 @@ export interface PromptSkillSummary {
   draft: boolean;
   updated_at?: string;
   created_at?: string;
+  usage_type: "direct_runtime" | "support_reference";
+  groups?: string[];
   trigger_count: number;
   impact_summary: string;
   current_content?: string;

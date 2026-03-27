@@ -141,3 +141,66 @@ Returns 400 if the execution is not in a terminal status. Returns 500 if ReviewC
 ### GCT Status
 
 Lightweight health check against git-control-tower. Always returns 200 with `{"available": true}` or `{"available": false}`. Uses a 3-second timeout.
+
+## Prompts
+
+Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prompt skill content.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/prompts/catalog` | List the canonical runtime prompt catalog, including generated execution prompts and support/reference skills |
+| GET | `/api/v1/prompts/skills` | List prompt-manager skills referenced by the catalog with usage summaries |
+| GET | `/api/v1/prompts/skills/{id}` | Get one catalog-backed prompt skill |
+| PUT | `/api/v1/prompts/skills/{id}` | Update one catalog-backed prompt skill |
+| GET | `/api/v1/prompts/skills/{id}/versions` | List prompt skill version history |
+| POST | `/api/v1/prompts/skills/{id}/revert/{version}` | Revert a prompt skill to a previous version |
+| POST | `/api/v1/prompts/preview` | Render a catalog-backed prompt-manager skill with variables |
+| POST | `/api/v1/prompts/simulate` | Simulate backlog runtime prompts for `workshop`, `initialize`, or `finalize` |
+
+### Prompt Catalog Entry
+
+`GET /api/v1/prompts/catalog`
+
+```json
+{
+  "items": [
+    {
+      "id": "backlog-workshop",
+      "title": "Backlog Workshop",
+      "group": "backlog",
+      "usage_type": "direct_runtime",
+      "source_type": "skill",
+      "trigger": "Backlog workshop round",
+      "skill_id": "swarm-manager-workshop",
+      "backlog_kinds": ["idea", "fix", "execute", "chore"],
+      "modes": ["workshop"],
+      "purpose": "Run one workshop round for non-research backlog items and update plan.md.",
+      "output_paths": ["workshop/round-NNN.json", "plan.md"]
+    },
+    {
+      "id": "execution-process",
+      "title": "Execution Process Prompt",
+      "group": "execution",
+      "usage_type": "generated_runtime",
+      "source_type": "generated",
+      "trigger": "Execution start / retry",
+      "builder": "execution.buildExecutionPrompt",
+      "operations": ["generator", "improver"],
+      "purpose": "Build the runtime execution prompt from the backlog deliverable."
+    }
+  ]
+}
+```
+
+### Prompt Simulation
+
+`POST /api/v1/prompts/simulate`
+
+```json
+{
+  "kind": "idea",
+  "mode": "workshop",
+  "item_title": "Prompt Catalog",
+  "item_folder": "scenarios/swarm-manager/ideas/prompt-catalog"
+}
+```

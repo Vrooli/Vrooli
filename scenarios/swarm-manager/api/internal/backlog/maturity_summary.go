@@ -8,15 +8,16 @@ import (
 
 // MaturityItemSummary describes the workshop readiness of a single backlog item.
 type MaturityItemSummary struct {
-	Kind            BacklogKind    `json:"kind"`
-	Name            string         `json:"name"`
-	Title           string         `json:"title"`
-	RoundsCompleted int            `json:"rounds_completed"`
-	RawScores       map[string]int `json:"raw_scores"`
-	EffectiveScores map[string]int `json:"effective_scores"`
-	Ready           bool           `json:"ready"`
-	PendingItems    int            `json:"pending_items"`
-	HasPlan         bool           `json:"has_plan"`
+	Kind             BacklogKind    `json:"kind"`
+	Name             string         `json:"name"`
+	Title            string         `json:"title"`
+	RoundsCompleted  int            `json:"rounds_completed"`
+	RawScores        map[string]int `json:"raw_scores"`
+	EffectiveScores  map[string]int `json:"effective_scores"`
+	Ready            bool           `json:"ready"`
+	PendingItems     int            `json:"pending_items"`
+	PendingSynthesis bool           `json:"pending_synthesis"`
+	HasPlan          bool           `json:"has_plan"`
 }
 
 // MaturitySummaryResponse is the response for the maturity-summary endpoint.
@@ -57,15 +58,16 @@ func (h *Handler) MaturitySummary(w http.ResponseWriter, r *http.Request) {
 		effectiveScores := ComputeEffectiveScores(rawScores, roundCount, item.Kind)
 
 		summaryItems = append(summaryItems, MaturityItemSummary{
-			Kind:            item.Kind,
-			Name:            item.Name,
-			Title:           item.Title,
-			RoundsCompleted: roundCount,
-			RawScores:       rawScores,
-			EffectiveScores: effectiveScores,
-			Ready:           IsReady(effectiveScores),
-			PendingItems:    CountPendingDecisions(latestRound),
-			HasPlan:         HasPlan(itemDir),
+			Kind:             item.Kind,
+			Name:             item.Name,
+			Title:            item.Title,
+			RoundsCompleted:  roundCount,
+			RawScores:        rawScores,
+			EffectiveScores:  effectiveScores,
+			Ready:            IsReady(effectiveScores),
+			PendingItems:     CountPendingDecisions(latestRound),
+			PendingSynthesis: NeedsSynthesis(latestRound),
+			HasPlan:          HasPlanByName(itemDir, DeliverableForKind(item.Kind)),
 		})
 	}
 

@@ -251,19 +251,26 @@ type PromptTrace struct {
 	CapturedAt     string `json:"captured_at"`
 }
 
-type PromptBinding struct {
-	Area        string   `json:"area"`
-	Trigger     string   `json:"trigger"`
-	Kind        string   `json:"kind,omitempty"`
-	Mode        string   `json:"mode,omitempty"`
-	Operation   string   `json:"operation,omitempty"`
-	SkillID     string   `json:"skill_id"`
-	Purpose     string   `json:"purpose"`
-	OutputPaths []string `json:"output_paths,omitempty"`
+type PromptCatalogEntry struct {
+	ID                string   `json:"id"`
+	Title             string   `json:"title"`
+	Group             string   `json:"group"`
+	UsageType         string   `json:"usage_type"`
+	SourceType        string   `json:"source_type"`
+	Trigger           string   `json:"trigger"`
+	BacklogKinds      []string `json:"backlog_kinds,omitempty"`
+	Modes             []string `json:"modes,omitempty"`
+	Operations        []string `json:"operations,omitempty"`
+	SkillID           string   `json:"skill_id,omitempty"`
+	Builder           string   `json:"builder,omitempty"`
+	Purpose           string   `json:"purpose"`
+	OutputPaths       []string `json:"output_paths,omitempty"`
+	VariableKeys      []string `json:"variable_keys,omitempty"`
+	ReferenceSkillIDs []string `json:"reference_skill_ids,omitempty"`
 }
 
-type PromptMapResponse struct {
-	Items []PromptBinding `json:"items"`
+type PromptCatalogResponse struct {
+	Items []PromptCatalogEntry `json:"items"`
 }
 
 type PromptSkillSummary struct {
@@ -274,6 +281,8 @@ type PromptSkillSummary struct {
 	Draft           bool     `json:"draft"`
 	UpdatedAt       string   `json:"updated_at,omitempty"`
 	CreatedAt       string   `json:"created_at,omitempty"`
+	UsageType       string   `json:"usage_type"`
+	Groups          []string `json:"groups,omitempty"`
 	TriggerCount    int      `json:"trigger_count"`
 	ImpactSummary   string   `json:"impact_summary"`
 	CurrentContent  string   `json:"current_content,omitempty"`
@@ -310,10 +319,11 @@ type PromptPreviewResponse struct {
 }
 
 type PromptSimulateResponse struct {
-	Area      string            `json:"area"`
+	EntryID   string            `json:"entry_id"`
+	Group     string            `json:"group"`
+	UsageType string            `json:"usage_type"`
 	Kind      string            `json:"kind"`
 	Mode      string            `json:"mode,omitempty"`
-	Operation string            `json:"operation,omitempty"`
 	SkillID   string            `json:"skill_id"`
 	Variables map[string]string `json:"variables,omitempty"`
 	Prompt    string            `json:"prompt"`

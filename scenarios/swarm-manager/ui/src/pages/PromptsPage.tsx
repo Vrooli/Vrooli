@@ -15,12 +15,18 @@ import { InlineLoadingIndicator, PageLoadingState } from "../components/ui/loadi
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { promptService } from "../services";
-import type { BacklogKind, PromptBinding, PromptSkillVersion } from "../types";
+import type { BacklogKind, PromptCatalogEntry, PromptSkillVersion } from "../types";
 
 const KINDS: BacklogKind[] = ["idea", "research", "fix", "execute", "chore"];
-const MODES: string[] = ["workshop", "research", "initialize"];
-const OPERATIONS: Array<"" | "generator" | "improver"> = ["", "generator", "improver"];
-const STAGE_ORDER = ["Backlog", "Research", "Execution"] as const;
+const MODES: string[] = ["workshop", "initialize", "finalize"];
+const GROUP_ORDER = ["capture", "backlog", "execution", "archive", "support"] as const;
+const GROUP_LABELS: Record<(typeof GROUP_ORDER)[number], string> = {
+  capture: "Capture",
+  backlog: "Backlog",
+  execution: "Execution",
+  archive: "Archive",
+  support: "Support",
+};
 
 const MIN_SKILLS_PANEL_WIDTH = 260;
 const MAX_SKILLS_PANEL_WIDTH = 460;
@@ -52,13 +58,12 @@ const EDITOR_OPTIONS = {
   automaticLayout: true,
 } as const;
 
-type PromptStage = (typeof STAGE_ORDER)[number];
-type PromptTab = "map" | "viewer";
+type PromptGroup = (typeof GROUP_ORDER)[number];
+type PromptTab = "catalog" | "viewer";
 
 type SimulationPayload = {
   kind: BacklogKind;
   mode: string;
-  operation?: "generator" | "improver";
   item_name: string;
   item_title: string;
   item_description: string;
@@ -70,8 +75,7 @@ type SimulationPayload = {
 
 const defaultSimulationPayload = (): SimulationPayload => ({
   kind: "idea",
-  mode: "clarify",
-  operation: undefined,
+  mode: "workshop",
   item_name: "sample-item",
   item_title: "Sample Item",
   item_description: "Sample description for simulation preview.",
@@ -82,26 +86,9 @@ const defaultSimulationPayload = (): SimulationPayload => ({
 });
 
 const splitLines = (value: string) => value.replace(/\r\n/g, "\n").split("\n");
-const splitCSV = (value?: string) =>
-  (value ?? "")
-    .split(",")
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0);
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const stageForBinding = (binding: PromptBinding): PromptStage => {
-  if (binding.area === "process" || binding.trigger.startsWith("Execution Start")) {
-    return "Execution";
-  }
-  if (binding.trigger.startsWith("Backlog Research")) {
-    const modes = splitCSV(binding.mode);
-    if (modes.some((mode) => mode === "clarify" || mode === "suggest" || mode === "enhance")) {
-      return "Backlog";
-    }
-  }
-  return "Research";
-};
+const joinParts = (parts?: string[]) => (parts && parts.length > 0 ? parts.join(", ") : "-");
+const formatUsageLabel = (value: string) => value.replace(/_/g, " ");
 
 const buildSimpleDiff = (next: string, previous: string): string[] => {
   const nextLines = splitLines(next);
@@ -125,7 +112,7 @@ export function PromptsPage() {
   const queryClient = useQueryClient();
   const workspaceRef = useRef<HTMLDivElement | null>(null);
 
-  const [activeTab, setActiveTab] = useState<PromptTab>("map");
+  const [activeTab, setActiveTab] = useState<PromptTab>("catalog");
   const [selectedSkillId, setSelectedSkillId] = useState<string>("");
   const [content, setContent] = useState("");
   const [comparisonVersion, setComparisonVersion] = useState<PromptSkillVersion | null>(null);
@@ -137,9 +124,9 @@ export function PromptsPage() {
   const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
   const [lastSimulationPayload, setLastSimulationPayload] = useState<SimulationPayload | null>(null);
 
-  const bindingsQuery = useQuery({
-    queryKey: ["prompts", "bindings"],
-    queryFn: () => promptService.listBindings(),
+  const catalogQuery = useQuery({
+    queryKey: ["prompts", "catalog"],
+    queryFn: () => promptService.listCatalog(),
     ...defaultQueryOptions,
   });
 
@@ -206,11 +193,7 @@ export function PromptsPage() {
   });
 
   const simulateMutation = useMutation({
-    mutationFn: (payload: SimulationPayload) =>
-      promptService.simulate({
-        ...payload,
-        operation: payload.operation || undefined,
-      }),
+    mutationFn: (payload: SimulationPayload) => promptService.simulate(payload),
     onSuccess: () => {
       setShowSimulationModal(false);
       setMarkdownView("rendered");
@@ -225,18 +208,52 @@ export function PromptsPage() {
   }, [comparisonVersion, content]);
   const markdownPreviewSource = simulateMutation.data?.prompt ?? content;
 
-  const stageGroups = useMemo(() => {
-    const grouped = new Map<PromptStage, PromptBinding[]>(
-      STAGE_ORDER.map((stage) => [stage, [] as PromptBinding[]])
+  const groupEntries = useMemo(() => {
+    const grouped = new Map<PromptGroup, PromptCatalogEntry[]>(
+      GROUP_ORDER.map((group) => [group, [] as PromptCatalogEntry[]])
     );
-    for (const binding of bindingsQuery.data ?? []) {
-      grouped.get(stageForBinding(binding))?.push(binding);
+    for (const entry of catalogQuery.data ?? []) {
+      grouped.get(entry.group)?.push(entry);
     }
-    return STAGE_ORDER.map((stage) => ({
-      stage,
-      items: grouped.get(stage) ?? [],
+    return GROUP_ORDER.map((group) => ({
+      group,
+      label: GROUP_LABELS[group],
+      items: grouped.get(group) ?? [],
     }));
-  }, [bindingsQuery.data]);
+  }, [catalogQuery.data]);
+
+  const selectedSkillCatalogEntries = useMemo(
+    () =>
+      (catalogQuery.data ?? []).filter(
+        (entry) =>
+          entry.skill_id === selectedSkillId &&
+          entry.group === "backlog" &&
+          entry.usage_type === "direct_runtime"
+      ),
+    [catalogQuery.data, selectedSkillId]
+  );
+
+  const canSimulateSelectedSkill = selectedSkillCatalogEntries.length > 0;
+  const simulationKindOptions = useMemo(() => {
+    if (!canSimulateSelectedSkill) return KINDS;
+    const allowed = new Set<BacklogKind>();
+    for (const entry of selectedSkillCatalogEntries) {
+      for (const kind of entry.backlog_kinds ?? []) {
+        allowed.add(kind as BacklogKind);
+      }
+    }
+    return KINDS.filter((kind) => allowed.has(kind));
+  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
+  const simulationModeOptions = useMemo(() => {
+    if (!canSimulateSelectedSkill) return MODES;
+    const allowed = new Set<string>();
+    for (const entry of selectedSkillCatalogEntries) {
+      for (const mode of entry.modes ?? []) {
+        allowed.add(mode);
+      }
+    }
+    return MODES.filter((mode) => allowed.has(mode));
+  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
 
   const openInViewer = (skillID?: string) => {
     if (!skillID) return;
@@ -293,28 +310,48 @@ export function PromptsPage() {
     };
   }, [isResizing]);
 
+  useEffect(() => {
+    if (!canSimulateSelectedSkill) return;
+    const [entry] = selectedSkillCatalogEntries;
+    if (!entry) return;
+    setSimulationPayload((prev) => {
+      const nextMode = entry.modes?.[0] ?? prev.mode;
+      const allowedKinds = entry.backlog_kinds ?? [];
+      const nextKind = allowedKinds.includes(prev.kind)
+        ? prev.kind
+        : ((allowedKinds[0] as BacklogKind | undefined) ?? prev.kind);
+      if (nextMode === prev.mode && nextKind === prev.kind) {
+        return prev;
+      }
+      return {
+        ...prev,
+        mode: nextMode,
+        kind: nextKind,
+      };
+    });
+  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
+
   const runSimulation = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const payload: SimulationPayload = {
       ...simulationPayload,
-      operation: simulationPayload.operation || undefined,
     };
     setLastSimulationPayload(payload);
     simulateMutation.mutate(payload);
   };
 
-  if (bindingsQuery.isLoading || skillsQuery.isLoading) {
+  if (catalogQuery.isLoading || skillsQuery.isLoading) {
     return <PageLoadingState variant="settings" label="Loading prompt center..." />;
   }
 
-  if (bindingsQuery.error || skillsQuery.error) {
-    const err = bindingsQuery.error ?? skillsQuery.error;
+  if (catalogQuery.error || skillsQuery.error) {
+    const err = catalogQuery.error ?? skillsQuery.error;
     return (
       <ErrorState
         title="Unable to load prompts"
         message={err instanceof Error ? err.message : "Prompt center failed to load."}
         onRetry={() => {
-          void bindingsQuery.refetch();
+          void catalogQuery.refetch();
           void skillsQuery.refetch();
         }}
       />
@@ -337,6 +374,9 @@ export function PromptsPage() {
           >
             <p className="font-mono text-xs text-cyan-300">{skill.id}</p>
             <p className="mt-1 text-sm text-slate-100">{skill.name}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
+              {formatUsageLabel(skill.usage_type)} • {joinParts(skill.groups)}
+            </p>
             <p className="mt-1 text-xs text-slate-400">{skill.impact_summary}</p>
           </button>
         ))}
@@ -348,46 +388,60 @@ export function PromptsPage() {
     <div className="space-y-6" data-testid={selectors.prompts.page}>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PromptTab)}>
         <TabsList data-testid={selectors.prompts.tabs}>
-          <TabsTrigger value="map" data-testid={selectors.prompts.tabMap}>Prompt Matrix & Map</TabsTrigger>
+          <TabsTrigger value="catalog" data-testid={selectors.prompts.tabMap}>Prompt Catalog</TabsTrigger>
           <TabsTrigger value="viewer" data-testid={selectors.prompts.tabViewer}>Skills Viewer</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="map" data-testid={selectors.prompts.mapPanel}>
+        <TabsContent value="catalog" data-testid={selectors.prompts.mapPanel}>
           <div className="space-y-6">
             <Card className="space-y-3 p-4" data-testid={selectors.prompts.usageMatrix}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-slate-100">Prompt Usage Matrix</h2>
-                <p className="text-xs text-slate-400">Fast stage scan: Backlog -&gt; Research -&gt; Execution</p>
+                <h2 className="text-lg font-semibold text-slate-100">Prompt Inventory</h2>
+                <p className="text-xs text-slate-400">Single source of truth for runtime prompts, generated prompts, and support skills.</p>
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                {stageGroups.map(({ stage, items }) => (
-                  <div key={stage} className="rounded-md border border-slate-700/60 bg-slate-900/30 p-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {groupEntries.map(({ group, label, items }) => (
+                  <div key={group} className="rounded-md border border-slate-700/60 bg-slate-900/30 p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-slate-100">{stage}</h3>
+                      <h3 className="text-sm font-semibold text-slate-100">{label}</h3>
                       <span className="rounded-full border border-slate-600/60 px-2 py-0.5 text-[10px] text-slate-300">
                         {items.length}
                       </span>
                     </div>
                     <div className="space-y-2">
                       {items.length > 0 ? (
-                        items.map((binding) => (
-                          <button
-                            key={`${stage}-${binding.skill_id ?? "plan"}-${binding.trigger}`}
-                            type="button"
-                            className="w-full rounded border border-slate-700/50 px-2 py-1.5 text-left transition hover:border-cyan-500/50 hover:bg-cyan-500/5"
-                            onClick={() => openInViewer(binding.skill_id)}
-                            onKeyDown={(event) => openInViewerOnKey(event, binding.skill_id)}
-                          >
-                            <p className="text-[11px] text-slate-300">{binding.trigger}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
-                              <span>{binding.kind ?? "-"}</span>
-                              <span>{binding.mode ?? binding.operation ?? "-"}</span>
-                              <span className="font-mono text-cyan-300">{binding.skill_id ?? "plan.md"}</span>
+                        items.map((entry) => {
+                          if (entry.skill_id) {
+                            return (
+                              <button
+                                key={entry.id}
+                                type="button"
+                                className="w-full rounded border border-slate-700/50 px-2 py-1.5 text-left transition hover:border-cyan-500/50 hover:bg-cyan-500/5"
+                                onClick={() => openInViewer(entry.skill_id)}
+                                onKeyDown={(event) => openInViewerOnKey(event, entry.skill_id)}
+                              >
+                                <p className="text-[11px] text-slate-300">{entry.title}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                                  <span>{formatUsageLabel(entry.usage_type)}</span>
+                                  <span>{joinParts(entry.modes ?? entry.operations)}</span>
+                                  <span className="font-mono text-cyan-300">{entry.skill_id}</span>
+                                </div>
+                              </button>
+                            );
+                          }
+                          return (
+                            <div key={entry.id} className="rounded border border-slate-700/50 px-2 py-1.5">
+                              <p className="text-[11px] text-slate-300">{entry.title}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                                <span>{formatUsageLabel(entry.usage_type)}</span>
+                                <span>{joinParts(entry.operations)}</span>
+                                <span className="font-mono text-cyan-300">{entry.builder ?? "generated"}</span>
+                              </div>
                             </div>
-                          </button>
-                        ))
+                          );
+                        })
                       ) : (
-                        <p className="text-xs text-slate-500">No prompt bindings</p>
+                        <p className="text-xs text-slate-500">No catalog entries</p>
                       )}
                     </div>
                   </div>
@@ -396,41 +450,67 @@ export function PromptsPage() {
             </Card>
 
             <Card className="space-y-3 p-4" data-testid={selectors.prompts.bindingMap}>
-              <h2 className="text-lg font-semibold text-slate-100">Prompt Map</h2>
+              <h2 className="text-lg font-semibold text-slate-100">Catalog Details</h2>
               <p className="text-sm text-slate-400">
-                This map shows when each prompt runs and what output it is expected to produce.
+                Each entry records how swarm-manager resolves the prompt, when it runs, and which artifacts it affects.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[880px] text-left text-sm">
+                <table className="w-full min-w-[1080px] text-left text-sm">
                   <thead className="text-slate-400">
                     <tr>
-                      <th className="px-2 py-2">Area</th>
+                      <th className="px-2 py-2">Group</th>
+                      <th className="px-2 py-2">Usage</th>
                       <th className="px-2 py-2">Trigger</th>
-                      <th className="px-2 py-2">Kind / Mode</th>
-                      <th className="px-2 py-2">Prompt</th>
+                      <th className="px-2 py-2">Kinds / Modes</th>
+                      <th className="px-2 py-2">Runtime Prompt</th>
                       <th className="px-2 py-2">Purpose</th>
+                      <th className="px-2 py-2">Outputs</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(bindingsQuery.data ?? []).map((binding) => (
-                      <tr
-                        key={`${binding.skill_id ?? "plan"}-${binding.trigger}`}
-                        className="cursor-pointer border-t border-slate-700/60 text-slate-200 transition hover:bg-cyan-500/5"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => openInViewer(binding.skill_id)}
-                        onKeyDown={(event) => openInViewerOnKey(event, binding.skill_id)}
-                      >
-                        <td className="px-2 py-2 uppercase text-xs text-slate-400">{binding.area}</td>
-                        <td className="px-2 py-2">{binding.trigger}</td>
-                        <td className="px-2 py-2 text-slate-300">
-                          {binding.kind ?? "-"} / {binding.mode ?? binding.operation ?? "-"}
-                        </td>
-                        <td className="px-2 py-2">
-                          <span className="font-mono text-cyan-300">{binding.skill_id ?? "plan.md"}</span>
-                        </td>
-                        <td className="px-2 py-2 text-slate-300">{binding.purpose}</td>
-                      </tr>
+                    {(catalogQuery.data ?? []).map((entry) => (
+                      entry.skill_id ? (
+                        <tr
+                          key={entry.id}
+                          className="cursor-pointer border-t border-slate-700/60 text-slate-200 transition hover:bg-cyan-500/5"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openInViewer(entry.skill_id)}
+                          onKeyDown={(event) => openInViewerOnKey(event, entry.skill_id)}
+                        >
+                          <td className="px-2 py-2 uppercase text-xs text-slate-400">{entry.group}</td>
+                          <td className="px-2 py-2 text-slate-300">{formatUsageLabel(entry.usage_type)}</td>
+                          <td className="px-2 py-2">
+                            <p className="text-slate-100">{entry.title}</p>
+                            <p className="text-xs text-slate-400">{entry.trigger}</p>
+                          </td>
+                          <td className="px-2 py-2 text-slate-300">
+                            {joinParts(entry.backlog_kinds)} / {joinParts(entry.modes ?? entry.operations)}
+                          </td>
+                          <td className="px-2 py-2">
+                            <span className="font-mono text-cyan-300">{entry.skill_id}</span>
+                          </td>
+                          <td className="px-2 py-2 text-slate-300">{entry.purpose}</td>
+                          <td className="px-2 py-2 text-xs text-slate-400">{joinParts(entry.output_paths)}</td>
+                        </tr>
+                      ) : (
+                        <tr key={entry.id} className="border-t border-slate-700/60 text-slate-200">
+                          <td className="px-2 py-2 uppercase text-xs text-slate-400">{entry.group}</td>
+                          <td className="px-2 py-2 text-slate-300">{formatUsageLabel(entry.usage_type)}</td>
+                          <td className="px-2 py-2">
+                            <p className="text-slate-100">{entry.title}</p>
+                            <p className="text-xs text-slate-400">{entry.trigger}</p>
+                          </td>
+                          <td className="px-2 py-2 text-slate-300">
+                            {joinParts(entry.backlog_kinds)} / {joinParts(entry.modes ?? entry.operations)}
+                          </td>
+                          <td className="px-2 py-2">
+                            <span className="font-mono text-cyan-300">{entry.builder ?? "generated"}</span>
+                          </td>
+                          <td className="px-2 py-2 text-slate-300">{entry.purpose}</td>
+                          <td className="px-2 py-2 text-xs text-slate-400">{joinParts(entry.output_paths)}</td>
+                        </tr>
+                      )
                     ))}
                   </tbody>
                 </table>
@@ -469,6 +549,7 @@ export function PromptsPage() {
                       <div>
                         <p className="font-mono text-sm text-cyan-300">{selectedSkill.id}</p>
                         <p className="text-xs text-slate-400">
+                          {formatUsageLabel(selectedSkill.usage_type)} • {joinParts(selectedSkill.groups)} • {" "}
                           Updated {selectedSkill.updated_at ? formatRelativeTime(selectedSkill.updated_at) : "unknown"} • {" "}
                           {selectedSkill.impact_summary}
                         </p>
@@ -504,6 +585,7 @@ export function PromptsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setShowSimulationModal(true)}
+                          disabled={!canSimulateSelectedSkill}
                         >
                           Simulation Preview
                         </Button>
@@ -554,7 +636,6 @@ export function PromptsPage() {
                             {lastSimulationPayload ? (
                               <p className="mb-3 text-xs text-cyan-300">
                                 Simulation: {lastSimulationPayload.kind}/{lastSimulationPayload.mode}
-                                {lastSimulationPayload.operation ? `/${lastSimulationPayload.operation}` : ""}
                               </p>
                             ) : null}
                             <div
@@ -635,7 +716,7 @@ export function PromptsPage() {
                 setSimulationPayload((prev) => ({ ...prev, kind: event.target.value as BacklogKind }))
               }
             >
-              {KINDS.map((kind) => (
+              {simulationKindOptions.map((kind) => (
                 <option key={kind} value={kind}>{kind}</option>
               ))}
             </Select>
@@ -645,25 +726,13 @@ export function PromptsPage() {
                 setSimulationPayload((prev) => ({ ...prev, mode: event.target.value }))
               }
             >
-              {MODES.map((mode) => (
+              {simulationModeOptions.map((mode) => (
                 <option key={mode} value={mode}>{mode}</option>
               ))}
             </Select>
-            <Select
-              value={simulationPayload.operation ?? ""}
-              onChange={(event) =>
-                setSimulationPayload((prev) => ({
-                  ...prev,
-                  operation: (event.target.value as "" | "generator" | "improver") || undefined,
-                }))
-              }
-            >
-              {OPERATIONS.map((operation) => (
-                <option key={operation || "none"} value={operation}>
-                  {operation || "research"}
-                </option>
-              ))}
-            </Select>
+            <div className="rounded-md border border-slate-700/70 bg-slate-950 px-3 py-2 text-sm text-slate-400">
+              {selectedSkillId ? `Skill: ${selectedSkillId}` : "Backlog prompt simulation"}
+            </div>
           </div>
 
           <div className="grid gap-2 md:grid-cols-2">
@@ -739,6 +808,9 @@ export function PromptsPage() {
             >
               <p className="font-mono text-xs text-cyan-300">{skill.id}</p>
               <p className="mt-1 text-sm text-slate-100">{skill.name}</p>
+              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
+                {formatUsageLabel(skill.usage_type)} • {joinParts(skill.groups)}
+              </p>
               <p className="mt-1 text-xs text-slate-400">{skill.impact_summary}</p>
             </button>
           ))}

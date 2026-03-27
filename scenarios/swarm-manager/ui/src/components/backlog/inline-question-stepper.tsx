@@ -18,6 +18,7 @@ export interface StepperCompletionResult {
     runId?: string;
     taskId?: string;
     reason: string;
+    nextMode?: "workshop" | "finalize";
   };
 }
 

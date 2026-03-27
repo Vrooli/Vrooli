@@ -78,6 +78,7 @@ export interface WorkshopAutoAdvance {
   runId?: string;
   taskId?: string;
   reason: string;
+  nextMode?: "workshop" | "finalize";
 }
 
 /** Response from saving a workshop round via the dedicated endpoint. */
@@ -499,7 +500,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
       };
       const data = await apiClient.post<{
         file: Record<string, unknown>;
-        auto_advance: { triggered: boolean; run_id?: string; task_id?: string; reason: string };
+        auto_advance: { triggered: boolean; run_id?: string; task_id?: string; reason: string; next_mode?: "workshop" | "finalize" };
       }>(API_ENDPOINTS.backlogWorkshopSave(kind, name), body);
       return {
         file: {
@@ -513,6 +514,7 @@ export function createBacklogService(apiClient: IApiClient = defaultApiClient): 
           runId: data.auto_advance?.run_id,
           taskId: data.auto_advance?.task_id,
           reason: data.auto_advance?.reason ?? "",
+          nextMode: data.auto_advance?.next_mode,
         },
       };
     },

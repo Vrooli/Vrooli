@@ -23,11 +23,13 @@ import (
 
 // Round represents a single workshop round stored on disk.
 type Round struct {
-	RoundNum    int            `json:"round"`
-	GeneratedAt string         `json:"generated_at"`
-	Readiness   map[string]int `json:"readiness"`
-	Items       []Item         `json:"items"`
-	PlanUpdates string         `json:"plan_updates,omitempty"`
+	RoundNum         int            `json:"round"`
+	GeneratedAt      string         `json:"generated_at"`
+	Mode             string         `json:"mode,omitempty"`
+	PendingSynthesis bool           `json:"pending_synthesis,omitempty"`
+	Readiness        map[string]int `json:"readiness"`
+	Items            []Item         `json:"items"`
+	PlanUpdates      string         `json:"plan_updates,omitempty"`
 }
 
 // Item is a single decision or info item within a workshop round.
@@ -179,6 +181,54 @@ func CountPendingDecisions(round *Round) int {
 		}
 	}
 	return count
+}
+
+// CountDecisionItems counts all decision items in a round, answered or not.
+func CountDecisionItems(round *Round) int {
+	if round == nil {
+		return 0
+	}
+	count := 0
+	for _, item := range round.Items {
+		if item.Type == "decision" {
+			count++
+		}
+	}
+	return count
+}
+
+// RoundMode returns the normalized round mode, defaulting to "workshop"
+// for legacy rounds that predate explicit mode metadata.
+func RoundMode(round *Round) string {
+	if round == nil {
+		return ""
+	}
+	mode := strings.ToLower(strings.TrimSpace(round.Mode))
+	if mode == "" {
+		return "workshop"
+	}
+	return mode
+}
+
+// IsFinalizeRound reports whether the round is an explicit finalize round.
+func IsFinalizeRound(round *Round) bool {
+	return RoundMode(round) == "finalize"
+}
+
+// NeedsSynthesis reports whether the latest round should be followed by a
+// finalize pass. This supports both explicit new-format rounds and legacy
+// answered rounds that predate the pending_synthesis marker.
+func NeedsSynthesis(round *Round) bool {
+	if round == nil {
+		return false
+	}
+	if round.PendingSynthesis {
+		return true
+	}
+	if IsFinalizeRound(round) {
+		return false
+	}
+	return CountDecisionItems(round) > 0 && CountPendingDecisions(round) == 0
 }
 
 // HasPlan checks whether a plan.md file exists for the item.

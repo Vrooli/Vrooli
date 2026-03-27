@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/ui/**",
+    "scenarios/swarm-manager/docs/**"
+  ],
+  "created": "2026-03-27T18:40:16Z",
+  "depends_on": [
+    "execute/swarm-manager-graph-data-foundation",
+    "execute/swarm-manager-graph-workspace-shell"
+  ],
+  "description": "Implement the graph/workspace views that explain how swarm-manager works and what is happening right now.\n\nThis work should:\n- build lifecycle/flow views for capture classification, backlog refinement, finalize, queue, execution, follow-up, and archive paths\n- make prompts and agent usage visible as step-level drilldowns instead of primary navigation\n- add operations overlays or lenses for active runs, blocked work, aging items, throughput, and other bottleneck signals\n- ensure the reference/explainer surfaces and live operations surfaces share the same underlying flow model where appropriate\n- keep the default experience calm and readable; avoid turning the canvas into constant animation noise\n\nThis item should make swarm-manager legible both as a system model and as an operator dashboard.",
+  "effort": "L",
+  "initiative": "swarm-manager-graph-workspace",
+  "kind": "execute",
+  "name": "swarm-manager-flow-and-ops-views",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "ux",
+    "flows",
+    "operations",
+    "prompts"
+  ],
+  "title": "Build Lifecycle, Flow, and Operations Views in the Graph Workspace",
+  "updated": "2026-03-27T18:40:16Z"
+}

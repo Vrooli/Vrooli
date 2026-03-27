@@ -67,6 +67,7 @@ export interface ReadinessIndicatorData {
   roundsCompleted: number;
   ready: boolean;
   pendingItems: number;
+  pendingSynthesis: boolean;
   hasPlan: boolean;
   nextNudge: string | null;
 }
@@ -78,6 +79,7 @@ export function buildReadinessData(summary: MaturityItemSummary): ReadinessIndic
     roundsCompleted: summary.rounds_completed,
     ready: summary.ready,
     pendingItems: summary.pending_items,
+    pendingSynthesis: summary.pending_synthesis ?? false,
     hasPlan: summary.has_plan,
     nextNudge: computeNextNudge({
       rawScores: summary.raw_scores,
@@ -85,6 +87,7 @@ export function buildReadinessData(summary: MaturityItemSummary): ReadinessIndic
       roundsCompleted: summary.rounds_completed,
       ready: summary.ready,
       pendingItems: summary.pending_items,
+      pendingSynthesis: summary.pending_synthesis ?? false,
       hasPlan: summary.has_plan,
       nextNudge: null,
     }),
@@ -98,6 +101,13 @@ export function computeNextNudge(data: ReadinessIndicatorData): string | null {
 
   if (data.pendingItems > 0) {
     return `Respond to ${data.pendingItems} pending item${data.pendingItems === 1 ? "" : "s"} from the latest workshop round`;
+  }
+
+  if (data.pendingSynthesis) {
+    if (data.ready) {
+      return "Finalize the latest workshop answers into the deliverable";
+    }
+    return "Run another Workshop round to incorporate the latest answers";
   }
 
   if (data.ready) {

@@ -38,6 +38,10 @@ func CountPendingDecisions(round *WorkshopRound) int {
 	return workshop.CountPendingDecisions(round)
 }
 
+func NeedsSynthesis(round *WorkshopRound) bool {
+	return workshop.NeedsSynthesis(round)
+}
+
 func HasPlan(itemDir string) bool {
 	return workshop.HasPlan(itemDir)
 }

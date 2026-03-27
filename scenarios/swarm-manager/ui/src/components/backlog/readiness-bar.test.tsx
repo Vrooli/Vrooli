@@ -18,6 +18,7 @@ const makeData = (overrides?: Partial<ReadinessIndicatorData>): ReadinessIndicat
   roundsCompleted: 1,
   ready: false,
   pendingItems: 0,
+  pendingSynthesis: false,
   hasPlan: false,
   nextNudge: null,
   ...overrides,

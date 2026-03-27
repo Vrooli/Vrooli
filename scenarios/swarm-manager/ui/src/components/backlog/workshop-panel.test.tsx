@@ -113,6 +113,21 @@ describe("WorkshopPanel", () => {
     expect(screen.getByText("Running...")).toBeInTheDocument();
   });
 
+  it("renders finalize as a primary action alongside next round", () => {
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound()]}
+        primaryActionLabel="Finalize Plan"
+        onPrimaryAction={vi.fn()}
+        onRunWorkshop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Finalize Plan")).toBeInTheDocument();
+    expect(screen.getByText("Next Round")).toBeInTheDocument();
+  });
+
   it("shows pending decision count on round header", () => {
     const round = makeRound({
       items: [
@@ -203,7 +218,8 @@ describe("WorkshopPanel", () => {
     expect(screen.queryByTitle("Round actions")).not.toBeInTheDocument();
   });
 
-  it("shows save button after deleting an item", async () => {
+  it("auto-saves after deleting an item", async () => {
+    vi.useFakeTimers();
     const onSaveRound = vi.fn();
     const round = makeRound();
     render(
@@ -214,9 +230,6 @@ describe("WorkshopPanel", () => {
       />,
     );
 
-    // No save button initially
-    expect(screen.queryByText("Save Responses")).not.toBeInTheDocument();
-
     const deleteButtons = screen.getAllByTitle("Delete item");
     const firstDeleteButton = deleteButtons[0];
     expect(firstDeleteButton).toBeDefined();
@@ -225,6 +238,15 @@ describe("WorkshopPanel", () => {
     }
     await fireEvent.click(firstDeleteButton);
 
-    expect(screen.getByText("Save Responses")).toBeInTheDocument();
+    // No manual save button — auto-save fires after debounce
+    expect(screen.queryByText("Save Responses")).not.toBeInTheDocument();
+    expect(onSaveRound).not.toHaveBeenCalled();
+
+    // Advance past the 600ms debounce
+    vi.advanceTimersByTime(700);
+    expect(onSaveRound).toHaveBeenCalledTimes(1);
+    expect(onSaveRound).toHaveBeenCalledWith(1, expect.any(String));
+
+    vi.useRealTimers();
   });
 });

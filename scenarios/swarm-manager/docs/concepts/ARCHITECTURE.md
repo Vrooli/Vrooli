@@ -100,7 +100,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 ├─────────────────────────────────────────────────────────────┤
 │ DOMAIN LOGIC LAYER                                           │
 │ Backlog + initiatives + depgraph + overview + scenarios +    │
-│ execution + skills + settings orchestration                  │
+│ execution + promptcatalog + settings orchestration           │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
 │ agent-manager + prompt-manager + ecosystem-manager + CLI     │
@@ -170,7 +170,7 @@ api/internal/
 ├── initiatives/       # Initiative CRUD + rollup status
 ├── overview/          # Aggregation endpoint (backlog + initiatives + graph + stats)
 ├── captures/          # Capture CRUD and classification
-├── skills/            # Centralized skill registry (skill name -> prompt-manager path)
+├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
 ├── workshop/          # Readiness scoring, round I/O
 ├── execution/         # Execution run lifecycle
 ├── scenarios/         # Scenario CRUD and lifecycle
@@ -193,7 +193,7 @@ api/internal/
 - `/api/v1/settings/*` - settings persistence
 - `/api/v1/queue/*` - queue state operations
 - `/api/v1/execution/*` - execution runs and policy operations
-- `/api/v1/prompts/*` - prompt skill map, CRUD, versions, revert, preview, simulate
+- `/api/v1/prompts/*` - prompt catalog, skill CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
 
 ## Meta-Orchestrator Skill

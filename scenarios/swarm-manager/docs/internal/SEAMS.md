@@ -198,14 +198,17 @@ The overview endpoint composes these interfaces to produce a summary containing 
 
 **Testing at the seam**: Mock both lister interfaces to test aggregation logic in isolation.
 
-### Skills Registry Boundary
+### Prompt Catalog Boundary
 
-`api/internal/skills/registry.go` provides a centralized mapping from skill names to prompt-manager paths.
+`api/internal/promptcatalog/catalog.go` is the canonical prompt inventory for swarm-manager.
 
-- **Resolve(skillName)**: Returns the prompt-manager skill path for a given skill name
-- Used by both backlog handlers (to resolve workshop/research skills) and captures handlers (to resolve classification skills)
+- **Entries()**: Returns the full catalog exposed by `/api/v1/prompts/catalog`
+- **ResolveBacklogSkill(mode, kind)**: Resolves the runtime workshop/initialize/finalize skill for backlog flows
+- **ResolveCaptureSkill() / ResolveSpecSyncSkill()**: Resolve non-backlog runtime skills
+- **SkillUsageCount() / SkillImpactSummary()**: Drive prompt center summaries from the same inventory used by runtime code
+- Covers both prompt-manager skills and generated runtime prompts, so the catalog reflects actual execution behavior instead of only stored skills
 
-**Testing at the seam**: Pure lookup function, trivially unit testable.
+**Testing at the seam**: Pure lookup and metadata functions with unit tests covering runtime resolution and support-skill references.
 
 ### Backlog Store Boundary
 
@@ -280,8 +283,9 @@ All three auto-execution behaviors are controlled by global settings in `.vrooli
 - **ReviewClient interface**: `TriggerReview(ctx, req)` starts a review job, `PollReview(ctx, jobID)` checks status, `Ping(ctx)` checks GCT availability
 - **HTTPReviewClient**: HTTP implementation using service discovery (`discovery.ResolveScenarioURLDefault("git-control-tower")`)
 - **Review result mapping**: `mapJobToResult` converts git-control-tower readiness (green/yellow/red) to internal classification (ready/ready_with_notes/needs_work)
-- **Dimension parsing**: `parseDimensions` extracts per-dimension health (codeQuality, tests, standards) with traffic-light status
-- **Wired in main.go**: `registerExecutionRoutes` sets `cfg.ReviewClient = NewHTTPReviewClient(nil)`. Auto-triggering is guarded by `shouldTriggerReview()` (requires acceptance_allow with scenario globs)
+- **Dimension statuses**: Per-dimension status (green/yellow/red/skipped) is computed by GCT and included in the response via `dimensionStatuses`. Swarm-manager uses these directly — GCT is the single source of truth for readiness scoring.
+- **Configurable thresholds**: `ReviewRequest` includes an optional `Thresholds` field. When set, GCT uses these thresholds instead of its defaults. Thresholds are loaded from swarm-manager settings via `ReviewThresholdsProvider` interface (implemented by `settingsReviewThresholdsAdapter` in main.go).
+- **Wired in main.go**: `registerExecutionRoutes` sets `cfg.ReviewClient = NewHTTPReviewClient(nil)` and `cfg.ReviewThresholdsProvider = &settingsReviewThresholdsAdapter{...}`. Auto-triggering is guarded by `shouldTriggerReview()` (requires acceptance_allow with scenario globs)
 
 **Testing at the seam**: `review_client_test.go` uses `httptest.NewServer` with mock handlers and `triggerReviewDirect`/`pollReviewDirect`/`pingDirect` helpers that bypass service discovery. `service_test.go` uses `stubReviewClient` for service-level tests.
 

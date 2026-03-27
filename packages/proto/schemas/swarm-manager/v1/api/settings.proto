@@ -57,4 +57,12 @@ message UpdateSettingsRequest {
   optional int32 search_debounce_ms = 13;
   optional int32 toast_duration_ms = 14;
   optional bool confirm_destructive_actions = 15;
+
+  // Review thresholds.
+  optional double review_code_quality_min_score = 19;
+  optional double review_test_min_pass_rate = 20;
+  optional int32 review_max_blocking_violations = 21;
+  optional int32 review_max_warnings = 22;
+  optional bool review_require_screenshots = 23;
+  optional bool review_require_tests = 24;
 }

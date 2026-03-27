@@ -37,6 +37,7 @@ function makeCtx(overrides?: Partial<ActionContext>): ActionContext {
     item: makeItem(),
     allItems: [],
     readinessReady: null,
+    pendingSynthesis: false,
     agentRunning: false,
     hasPendingDecisions: false,
     hasExecutionHistory: false,
@@ -447,13 +448,13 @@ describe("getItemActions", () => {
   // -------------------------------------------------------------------------
 
   describe("ready (step 4)", () => {
-    it("canRun=true, canWorkshop=false, primaryCta=run", () => {
+    it("canRun=true, canWorkshop=true, primaryCta=run", () => {
       const result = getItemActions(makeCtx({
         item: makeItem({ status: "ready" }),
         readinessReady: true,
       }));
       expect(result.canRun).toBe(true);
-      expect(result.canWorkshop).toBe(false);
+      expect(result.canWorkshop).toBe(true);
       expect(result.primaryCta).toBe("run");
     });
 
@@ -489,6 +490,7 @@ describe("getItemActions", () => {
         readinessReady: true,
       }));
       expect(result.canRun).toBe(true);
+      expect(result.canWorkshop).toBe(true);
       expect(result.primaryCta).toBe("run");
     });
 
@@ -527,6 +529,31 @@ describe("getItemActions", () => {
         item: makeItem({ status: "backlog" }),
       }));
       expect(result.notQueueableReason).toBeNull();
+    });
+  });
+
+  describe("pending synthesis", () => {
+    it("shows finalize as primary when latest answers are ready but unsynthesized", () => {
+      const result = getItemActions(makeCtx({
+        item: makeItem({ status: "ready" }),
+        readinessReady: true,
+        pendingSynthesis: true,
+      }));
+      expect(result.canFinalize).toBe(true);
+      expect(result.canRun).toBe(false);
+      expect(result.canWorkshop).toBe(true);
+      expect(result.primaryCta).toBe("finalize");
+    });
+
+    it("shows workshop as primary when latest answers are unsynthesized and still not ready", () => {
+      const result = getItemActions(makeCtx({
+        item: makeItem({ status: "backlog" }),
+        readinessReady: false,
+        pendingSynthesis: true,
+      }));
+      expect(result.canFinalize).toBe(false);
+      expect(result.canWorkshop).toBe(true);
+      expect(result.primaryCta).toBe("workshop");
     });
   });
 });

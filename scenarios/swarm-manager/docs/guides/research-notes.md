@@ -9,8 +9,8 @@ Swarm Manager fills a specific role in Vrooli as the **staging layer** between a
 1. **Staging for Agent Team Plans**
    - Agent teams in prompt-manager (Debug, Feature, QA, Refactor) produce plans and deposit them as backlog items. Swarm Manager is where operators review those plans before anything executes — effectively a "pull request review" for agent work.
 
-2. **Idea Agent Refinement**
-   - The built-in Idea Agent (clarify → suggest → enhance) lets operators iterate on agent-generated plans, asking clarifying questions, reviewing suggestions, and producing refined specs before committing to execution.
+2. **Workshop-Based Refinement**
+   - The built-in workshop loop lets operators iterate on agent-generated plans across every backlog kind, refine deliverables through structured rounds, and inspect the exact runtime prompt catalog that powers those flows.
 
 3. **Execution Governance for Scenario Change**
    - Swarm Manager is the control plane for deciding when and how approved backlog work executes (manual, scheduled, or yolo).

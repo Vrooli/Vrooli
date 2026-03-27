@@ -149,6 +149,26 @@ func (a *settingsPolicyAdapter) LoadPolicy() (execution.Policy, error) {
 	}, nil
 }
 
+// settingsReviewThresholdsAdapter bridges settings.Store to execution.ReviewThresholdsProvider.
+type settingsReviewThresholdsAdapter struct {
+	store *settings.Store
+}
+
+func (a *settingsReviewThresholdsAdapter) LoadReviewThresholds() (*execution.ReviewThresholds, error) {
+	s, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	return &execution.ReviewThresholds{
+		CodeQualityMinScore:   s.ReviewCodeQualityMinScore,
+		TestMinPassRate:       s.ReviewTestMinPassRate,
+		MaxBlockingViolations: s.ReviewMaxBlockingViolations,
+		MaxWarnings:           s.ReviewMaxWarnings,
+		RequireScreenshots:    s.ReviewRequireScreenshots,
+		RequireTests:          s.ReviewRequireTests,
+	}, nil
+}
+
 // NewServer initializes routes using the default scenario root resolved from
 // the environment. Database connection is optional.
 func NewServer() *Server {
@@ -340,12 +360,13 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) {
 
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
-		RootDir:        scenarioRoot,
-		StorePath:      filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
-		PolicyProvider: &settingsPolicyAdapter{store: s.settingsStore},
-		AgentService:   s.agentSvc,
-		Archiver:       archiver,
-		ReviewClient:   execution.NewHTTPReviewClient(nil),
+		RootDir:                  scenarioRoot,
+		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		PolicyProvider:           &settingsPolicyAdapter{store: s.settingsStore},
+		ReviewThresholdsProvider: &settingsReviewThresholdsAdapter{store: s.settingsStore},
+		AgentService:             s.agentSvc,
+		Archiver:                 archiver,
+		ReviewClient:             execution.NewHTTPReviewClient(nil),
 	}
 	s.executionSvc = execution.NewService(cfg)
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)

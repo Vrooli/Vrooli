@@ -114,9 +114,55 @@ Backlog items may contain refined materials that should be incorporated into the
 - Documentation materials → `scenarios/<name>/docs/`
 - Reference configs → `scenarios/<name>/.vrooli/` or noted in README
 
+## Swarm-Manager Idea Handoff
+
+When you are processing an idea backlog item that originated in swarm-manager, look for an execution handoff package at `<item-folder>/handoff/`.
+
+### Handoff Files
+
+- `handoff/brief.md` — agent-facing execution brief; use this as the ecosystem-manager task notes
+- `handoff/manifest.json` — machine-readable execution contract and provenance
+- `handoff/source-index.json` — pointers back to `plan.md`, workshop rounds, research, and archive materials
+
+### Handoff Rules
+
+- Treat the handoff as the authoritative bridge into ecosystem-manager.
+- Read `brief.md`, `manifest.json`, and `plan.md` before choosing task type or steering.
+- Do not reconstruct notes from scattered workshop files when a handoff exists; the handoff was generated from the latest finalized backlog state specifically to avoid context loss.
+- Preserve upstream provenance on the ecosystem-manager task using the origin flags shown below.
+
 ## Ecosystem-Manager Integration
 
 After initializing or updating a scenario, use ecosystem-manager to create an improvement task that drives iterative agent development.
+
+### Creating Tasks from a Swarm-Manager Idea Handoff
+
+When a swarm-manager handoff exists, always pass it through to ecosystem-manager:
+
+```bash
+HANDOFF_DIR="<absolute path to item-folder>/handoff"
+ITEM_FOLDER="<absolute path to item-folder>"
+
+ecosystem-manager task add --steer-profile <profile-id> \
+  --handoff-dir "$HANDOFF_DIR" \
+  --origin-source swarm-manager \
+  --origin-backlog-item idea/<item-name> \
+  --origin-item-folder "$ITEM_FOLDER" \
+  scenario <name>
+```
+
+For existing scenarios, switch `task add` to `task improve`:
+
+```bash
+ecosystem-manager task improve --steer-profile <profile-id> \
+  --handoff-dir "$HANDOFF_DIR" \
+  --origin-source swarm-manager \
+  --origin-backlog-item idea/<item-name> \
+  --origin-item-folder "$ITEM_FOLDER" \
+  scenario <name>
+```
+
+`--handoff-dir` validates the handoff package and auto-loads `brief.md` into task notes if no explicit `--notes` or `--notes-file` was provided. You may still pass `--notes-file "$HANDOFF_DIR/brief.md"` explicitly when you want the command itself to make that coupling obvious.
 
 ### Creating Improvement Tasks
 
@@ -142,6 +188,18 @@ ecosystem-manager task add --steer-profile <profile-id> scenario <name>
 ```bash
 ecosystem-manager task improve --dry-run --steer-profile balanced scenario <name>
 ```
+
+For swarm-manager idea runs, also verify the created task retained the upstream contract:
+
+```bash
+ecosystem-manager task show <task-id> --json
+```
+
+Confirm the response includes:
+- `notes` populated from `handoff/brief.md`
+- `origin.source = "swarm-manager"`
+- `origin.backlog_item`
+- `origin.handoff_dir` and the three derived handoff file paths
 
 ### Ensure Queue is Running
 

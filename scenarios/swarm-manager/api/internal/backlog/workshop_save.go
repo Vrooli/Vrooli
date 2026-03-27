@@ -2,9 +2,9 @@
 // DOC: docs/reference/api-endpoints.md#workshop-save
 //
 // Dedicated workshop save endpoint and shared async spawn helper.
-// The WorkshopSave handler saves round responses and auto-triggers the next
-// round when the item is not yet ready. The spawnWorkshopAsync helper is
-// reused by both WorkshopSave (auto-advance) and Create (auto-initialize).
+// The WorkshopSave handler saves round responses and auto-triggers either the
+// next workshop round or a final synthesis pass. The spawnWorkshopAsync helper
+// is reused by both WorkshopSave (auto-advance) and Create (auto-initialize).
 package backlog
 
 import (
@@ -33,7 +33,7 @@ const workshopLockFile = ".workshop-lock"
 const workshopLockTTL = 30 * time.Minute
 
 // WorkshopSave saves a workshop round's responses and optionally auto-triggers
-// the next round if the item is not yet ready.
+// the next workshop round or a final synthesis pass.
 func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "workshop-save")
 	if !ok {
@@ -65,6 +65,12 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		httputil.BadRequest(w, "[backlog] workshop-save", "content is not valid workshop round JSON")
 		return
 	}
+	round.PendingSynthesis = workshop.NeedsSynthesis(&round)
+	content, err := json.MarshalIndent(round, "", "  ")
+	if err != nil {
+		httputil.InternalError(w, "[backlog] workshop-save", "failed to encode round content")
+		return
+	}
 
 	// Write the round file.
 	itemDir := h.store.ItemDir(kind, name)
@@ -77,7 +83,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 
 	roundFile := fmt.Sprintf("round-%03d.json", req.RoundNumber)
 	roundPath := filepath.Join(workshopDir, roundFile)
-	if err := os.WriteFile(roundPath, []byte(req.Content), 0o644); err != nil {
+	if err := os.WriteFile(roundPath, content, 0o644); err != nil {
 		log.Printf("[backlog] workshop-save: failed to write %s: %v", roundPath, err)
 		httputil.InternalError(w, "[backlog] workshop-save", "failed to save round file")
 		return
@@ -113,9 +119,20 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		autoAdvance.Reason = "error"
 	} else {
 		result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, &round, roundCount, string(kind), cfg.MaxAutoRounds)
+		if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(&round) {
+			result.Advance = false
+			result.NextMode = ""
+		}
 		autoAdvance.Reason = result.Reason
+		if nextMode := resolveNextMode(result, cfg.AutoAdvanceWorkshop, &round, roundCount, kind, cfg.MaxAutoRounds); nextMode != "" {
+			autoAdvance.NextMode = &nextMode
+		}
 		if result.Advance {
-			runID, taskID, spawnErr := h.spawnWorkshopAsync(item, ResearchModeWorkshop)
+			runMode := ResearchModeWorkshop
+			if result.NextMode == string(ResearchModeFinalize) {
+				runMode = ResearchModeFinalize
+			}
+			runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
 			if spawnErr != nil {
 				log.Printf("[backlog] workshop-save: auto-advance spawn failed for %s/%s: %v", kind, name, spawnErr)
 				autoAdvance.Reason = "error"
@@ -136,7 +153,30 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// spawnWorkshopAsync spawns a workshop/initialize agent for the given item.
+func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool, round *workshop.Round, roundCount int, kind BacklogKind, maxAutoRounds int) string {
+	if strings.TrimSpace(result.NextMode) != "" {
+		if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(round) {
+			return ""
+		}
+		return result.NextMode
+	}
+	if round == nil || workshop.CountPendingDecisions(round) > 0 {
+		return ""
+	}
+	if !workshop.NeedsSynthesis(round) {
+		return ""
+	}
+	effective := workshop.ComputeEffectiveScores(round.Readiness, roundCount, string(kind))
+	if workshop.IsReady(effective) {
+		return string(ResearchModeFinalize)
+	}
+	if !autoAdvanceEnabled || roundCount >= maxAutoRounds {
+		return string(ResearchModeWorkshop)
+	}
+	return ""
+}
+
+// spawnWorkshopAsync spawns a workshop/finalize/initialize agent for the given item.
 // It acquires an idempotency lock, fetches the prompt, and spawns via
 // agent-manager. Returns run/task IDs on success.
 func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID, taskID string, err error) {

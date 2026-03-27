@@ -88,6 +88,22 @@ ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario <
 **Optional flags for task creation:**
 - `--priority <level>`: Set task priority (`low`, `medium`, `high`, `critical`). Default: `medium`.
 - `--category <name>`: Category for generator tasks (`task add` only). Default: `general`.
+- `--notes <text>` / `--notes-file <path>`: Persist task notes that become prompt context on every loop.
+- `--origin-source <name>`: Record the upstream system that created the task.
+- `--origin-backlog-item <kind/name>`: Record the upstream backlog item reference.
+- `--origin-item-folder <abs-path>`: Record the absolute path to the upstream item folder.
+- `--handoff-dir <abs-path>`: Record and validate an upstream handoff package. The CLI derives `brief.md`, `manifest.json`, and `source-index.json` from this directory and auto-loads `brief.md` into task notes when notes were not provided explicitly.
+
+For swarm-manager idea execution, the standard task-creation pattern is:
+
+```bash
+ecosystem-manager task add --steer-profile <profile-id> \
+  --handoff-dir "<item-folder>/handoff" \
+  --origin-source swarm-manager \
+  --origin-backlog-item "idea/<item-name>" \
+  --origin-item-folder "<item-folder>" \
+  scenario <name>
+```
 
 > **Tip:** Most commands support `--json` for machine-readable output. Use it when you need to parse or pipe results.
 
@@ -146,7 +162,8 @@ After completing the workflow:
 
 1. `ecosystem-manager task show <id>` -- confirms task exists with type, operation, priority, and steer mode
 2. `ecosystem-manager task show <id> --json` -- use JSON output to verify the full steering configuration including auto-steer profile ID
-3. `ecosystem-manager queue status` -- confirms processor is running and will pick up the task
+3. `ecosystem-manager task show <id> --json` -- when using upstream handoff context, also verify `notes` plus the `origin.*` fields
+4. `ecosystem-manager queue status` -- confirms processor is running and will pick up the task
 
 ## Guardrails
 

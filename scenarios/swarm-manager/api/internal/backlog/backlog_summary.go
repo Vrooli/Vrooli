@@ -69,15 +69,16 @@ func (h *Handler) BacklogSummary(w http.ResponseWriter, r *http.Request) {
 		}
 		effectiveScores := ComputeEffectiveScores(rawScores, roundCount, item.Kind)
 		maturityItems = append(maturityItems, MaturityItemSummary{
-			Kind:            item.Kind,
-			Name:            item.Name,
-			Title:           item.Title,
-			RoundsCompleted: roundCount,
-			RawScores:       rawScores,
-			EffectiveScores: effectiveScores,
-			Ready:           IsReady(effectiveScores),
-			PendingItems:    CountPendingDecisions(latestRound),
-			HasPlan:         HasPlan(itemDir),
+			Kind:             item.Kind,
+			Name:             item.Name,
+			Title:            item.Title,
+			RoundsCompleted:  roundCount,
+			RawScores:        rawScores,
+			EffectiveScores:  effectiveScores,
+			Ready:            IsReady(effectiveScores),
+			PendingItems:     CountPendingDecisions(latestRound),
+			PendingSynthesis: NeedsSynthesis(latestRound),
+			HasPlan:          HasPlanByName(itemDir, DeliverableForKind(item.Kind)),
 		})
 
 		// --- Pending questions ---

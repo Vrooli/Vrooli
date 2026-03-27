@@ -7,7 +7,7 @@ Central command center for managing the Vrooli scenario ecosystem - orchestratin
 Swarm Manager is the **staging and review layer** between agent teams and scenario execution. Agent teams in [prompt-manager](../prompt-manager/README.md) analyze codebases and produce plans (fixes, ideas, refactors), but instead of executing directly, they deposit those plans as backlog items here. This gives operators a single place to:
 
 - **Review** all agent-generated plans before anything executes
-- **Refine** plans using the built-in Idea Agent (clarify → suggest → enhance)
+- **Refine** plans using the built-in workshop loop and prompt catalog
 - **Control Execution**: Run approved work in manual, scheduled, or YOLO mode
 - **Manage Scenarios**: View, configure, and manage the lifecycle of all scenarios
 - **Track Progress**: Monitor scenario health and execution runs
@@ -56,7 +56,7 @@ make stop
 1. **Backlog** - Tabbed backlog for research, ideas, fixes, and execution
 2. **Scenarios** - Grid of scenario cards with search/filter, click for lifecycle controls
 3. **Execution** - Pending/scheduled, running, completed, and failed runs
-4. **Prompts** - View, edit, preview, simulate, and version prompt-manager skills
+4. **Prompts** - View the runtime prompt catalog, inspect prompt-manager skills, preview backlog prompts, and track generated execution prompts
 5. **Settings** - Theme, execution policy, and insights configuration
 
 ## Backlog Structure
@@ -67,6 +67,11 @@ Backlog items are stored as git-tracked folders by kind:
 ideas/
 ├── my-scenario-idea/
 │   ├── spec.json        # Required: name, title, description, status, priority
+│   ├── plan.md          # Workshop-authored implementation plan
+│   ├── handoff/         # Generated at idea execution time for ecosystem-manager handoff
+│   │   ├── brief.md
+│   │   ├── manifest.json
+│   │   └── source-index.json
 │   ├── notes.md         # Optional context
 │   ├── mockup.png       # Optional visuals
 │   └── research/        # Optional supporting files
@@ -149,14 +154,14 @@ swarm-manager queue delete --id <id>
 
 swarm-manager agent-manager status
 
-swarm-manager prompts map
+swarm-manager prompts catalog
 swarm-manager prompts skills [--contains FILTER]
 swarm-manager prompts skill-get --id <skill-id>
 swarm-manager prompts skill-update --id <skill-id> --data '<json-or-@file>'
 swarm-manager prompts skill-versions --id <skill-id>
 swarm-manager prompts skill-revert --id <skill-id> --version <version>
 swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-scope]
-swarm-manager prompts simulate --kind <kind> [--mode MODE] [--operation OP] [--item-title TITLE] [--item-folder PATH]
+swarm-manager prompts simulate --kind <kind> [--mode workshop|initialize|finalize] [--item-title TITLE] [--item-folder PATH]
 ```
 
 `swarm-manager backlog update` uses sparse patch semantics. Omitted fields stay unchanged, empty strings clear scalar fields like `description`, and empty arrays clear list fields like `tags`, `depends_on`, or `acceptance_allow`.
@@ -171,8 +176,9 @@ CLI usage guardrail:
 ## Integration Points
 
 - All agent work via `agent-manager` API (never direct agent calls)
+- Idea processing bridges into `ecosystem-manager` through a generated `handoff/` package plus task `notes` and `origin` metadata
 - All scenario operations via `ecosystem-manager` API
-- Prompt skill resolution, preview, and simulation via `prompt-manager` API
+- Prompt catalog inventory from swarm-manager, with skill rendering via `prompt-manager` API
 - Execution run orchestration via `agent-manager` APIs
 
 ## Documentation

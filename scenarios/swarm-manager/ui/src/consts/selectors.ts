@@ -258,6 +258,12 @@ export const literalSelectors = {
     workshopSettings: "workshop-settings",
     agentSettings: "agent-settings",
     uiPreferences: "ui-preferences",
+    reviewSettings: "review-settings",
+    settingsTabs: "settings-tabs",
+    tabGeneral: "settings-tab-general",
+    tabExecution: "settings-tab-execution",
+    tabWorkshop: "settings-tab-workshop",
+    tabReview: "settings-tab-review",
     saveButton: "settings-save",
   },
   // Execution page selectors

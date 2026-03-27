@@ -102,6 +102,7 @@ const isBacklogStatusOrEmpty = (v: string): v is BacklogStatus | "" => VALID_STA
 const FINISHED_STATUSES: BacklogStatus[] = ["archived"];
 
 const SEARCH_DEBOUNCE_MS = 300;
+const ACTIVE_BACKLOG_REFRESH_MS = 6000;
 
 const BACKLOG_KIND_TABS: Array<{
   kind: TabKind;
@@ -264,6 +265,7 @@ export function BacklogPage() {
     queryKey: ["backlog-summary"],
     queryFn: () => backlogService.getBacklogSummary(),
     staleTime: 60_000,
+    refetchInterval: activeRunKeys.size > 0 ? ACTIVE_BACKLOG_REFRESH_MS : false,
   });
   const feedbackSummary = summaryQuery.data?.feedback;
 
@@ -340,13 +342,23 @@ export function BacklogPage() {
     },
   });
 
-  /** Trigger a workshop round directly from a card. */
+  /** Trigger a workshop/finalize round directly from a card. */
   const [workshopError, setWorkshopError] = useState<string | null>(null);
   const workshopMutation = useMutation({
-    mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
+    mutationFn: ({
+      kind,
+      name: itemName,
+      mode,
+      prompt,
+    }: {
+      kind: BacklogKind;
+      name: string;
+      mode: "workshop" | "finalize";
+      prompt: string;
+    }) =>
       backlogService.research(kind, itemName, {
-        mode: "workshop",
-        prompt: "Run the next workshop round for this backlog item.",
+        mode,
+        prompt,
       }),
     onSuccess: (result, variables) => {
       setWorkshopError(null);
@@ -358,6 +370,7 @@ export function BacklogPage() {
           backlogKind: variables.kind,
           backlogName: variables.name,
           createdAt: new Date().toISOString(),
+          mode: variables.mode,
         });
       }
       void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
@@ -902,6 +915,7 @@ export function BacklogPage() {
                   }
                   const item = entry.item;
                   const itemKey = `${item.kind}/${item.name}`;
+                  const readiness = readinessMap.get(itemKey);
                   const reasons = entry.type === "attention"
                     ? entry.reasons
                     : (attentionReasonsMap.get(itemKey) ?? []);
@@ -918,14 +932,12 @@ export function BacklogPage() {
                       <BacklogCard
                         item={item}
                         allItems={items}
-                        readinessData={item.kind === "idea" ? readinessMap.get(itemKey) : undefined}
+                        readinessData={readiness}
                         itemActions={getItemActions({
                           item,
                           allItems: items,
-                          readinessReady: (() => {
-                            const rd = item.kind === "idea" ? readinessMap.get(itemKey) : undefined;
-                            return rd ? rd.ready : null;
-                          })(),
+                          readinessReady: readiness ? readiness.ready : null,
+                          pendingSynthesis: readiness?.pendingSynthesis ?? false,
                           agentRunning: activeRunKeys.has(itemKey),
                           hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
                           hasExecutionHistory: item.status === "completed" || item.status === "failed",
@@ -941,9 +953,32 @@ export function BacklogPage() {
                         onRun={() => setRunModalTarget({ kind: item.kind, name: item.name, title: item.title })}
                         onArchive={() => archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, item })}
                         onFollowUp={() => navigate(`/backlog/${item.kind}/${item.name}?action=followup`)}
-                        onWorkshop={() => workshopMutation.mutate({ kind: item.kind as BacklogKind, name: item.name })}
+                        onFinalize={() => workshopMutation.mutate({
+                          kind: item.kind as BacklogKind,
+                          name: item.name,
+                          mode: "finalize",
+                          prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
+                        })}
+                        onWorkshop={() => workshopMutation.mutate({
+                          kind: item.kind as BacklogKind,
+                          name: item.name,
+                          mode: "workshop",
+                          prompt: "Run the next workshop round for this backlog item.",
+                        })}
                         archivePending={archiveMutation.isPending}
-                        workshopPending={workshopMutation.isPending}
+                        finalizePending={
+                          workshopMutation.isPending &&
+                          workshopMutation.variables?.kind === item.kind &&
+                          workshopMutation.variables?.name === item.name &&
+                          workshopMutation.variables?.mode === "finalize"
+                        }
+                        workshopPending={
+                          workshopMutation.isPending &&
+                          workshopMutation.variables?.kind === item.kind &&
+                          workshopMutation.variables?.name === item.name &&
+                          workshopMutation.variables?.mode === "workshop"
+                        }
+                        workshopLabel={(readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop"}
                       />
                     </ResponsiveListItem>
                   );

@@ -35,7 +35,7 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
-	mustWritePlanFile(t, root, "idea", "request-fail-idea")
+	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
 		RootDir:      root,

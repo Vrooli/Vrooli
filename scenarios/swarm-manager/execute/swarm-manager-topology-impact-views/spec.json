@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/ui/**",
+    "scenarios/swarm-manager/docs/**"
+  ],
+  "created": "2026-03-27T18:40:16Z",
+  "depends_on": [
+    "execute/swarm-manager-graph-data-foundation",
+    "execute/swarm-manager-graph-workspace-shell"
+  ],
+  "description": "Implement the relationship-focused graph lenses that help operators understand work structure and execution context.\n\nThis work should:\n- build the work-topology view for initiatives, backlog items, dependencies, and key scenario relationships\n- show how backlog items affect scenarios based on resolved acceptance boundaries and related graph logic\n- surface run relationships so operators can inspect workshop/execution/fixup/follow-up history from the same workspace\n- make it easy to jump from a selected run to the corresponding agent-manager surface\n- support sidebar filtering by initiative, backlog kind, scenario, status, and other high-value controls\n- keep the topology readable with sensible defaults, clustering, and selection behavior\n\nThis item should focus on the relationship graph itself, not the explanatory flow/reference surfaces.",
+  "effort": "L",
+  "initiative": "swarm-manager-graph-workspace",
+  "kind": "execute",
+  "name": "swarm-manager-topology-impact-views",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "ux",
+    "graph",
+    "initiatives",
+    "scenario-impact"
+  ],
+  "title": "Build Topology and Scenario Impact Views in the Graph Workspace",
+  "updated": "2026-03-27T18:40:16Z"
+}

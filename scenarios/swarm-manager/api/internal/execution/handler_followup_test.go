@@ -51,7 +51,7 @@ func TestFollowUp_NewRunFromCompleted(t *testing.T) {
 		"priority":    3,
 		"tags":        []string{},
 	})
-	mustWritePlanFile(t, root, "idea", "followup-idea")
+	mustWriteDeliverableFile(t, root, "idea", "followup-idea")
 
 	agent := &stubAgentService{}
 	parentRecord := Record{
@@ -116,7 +116,7 @@ func TestFollowUp_FixupFromNeedsFixup(t *testing.T) {
 		"priority":    2,
 		"tags":        []string{},
 	})
-	mustWritePlanFile(t, root, "fix", "fixup-item")
+	mustWriteDeliverableFile(t, root, "fix", "fixup-item")
 
 	agent := &stubAgentService{}
 	parentRecord := Record{

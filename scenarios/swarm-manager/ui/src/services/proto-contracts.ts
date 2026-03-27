@@ -373,6 +373,12 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
     toastDurationMs: protoSettings.toastDurationMs ?? 5000,
     confirmDestructiveActions: protoSettings.confirmDestructiveActions ?? true,
+    reviewCodeQualityMinScore: protoSettings.reviewCodeQualityMinScore ?? 60,
+    reviewTestMinPassRate: protoSettings.reviewTestMinPassRate ?? 1.0,
+    reviewMaxBlockingViolations: protoSettings.reviewMaxBlockingViolations ?? 0,
+    reviewMaxWarnings: protoSettings.reviewMaxWarnings ?? -1,
+    reviewRequireScreenshots: protoSettings.reviewRequireScreenshots ?? true,
+    reviewRequireTests: protoSettings.reviewRequireTests ?? true,
   };
 }
 

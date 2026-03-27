@@ -1371,9 +1371,11 @@ type WorkshopAutoAdvance struct {
 	RunId *string `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3,oneof" json:"run_id,omitempty"`
 	// Agent-manager task ID (set only when triggered=true).
 	TaskId *string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
-	// Reason for the decision: "not_ready", "ready", "max_rounds",
+	// Reason for the decision: "not_ready", "finalizing", "max_rounds",
 	// "pending_decisions", "disabled", "error", "no_rounds".
-	Reason        string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	Reason string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	// The recommended next mode when manual follow-up is required.
+	NextMode      *string `protobuf:"bytes,5,opt,name=next_mode,json=nextMode,proto3,oneof" json:"next_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1432,6 +1434,13 @@ func (x *WorkshopAutoAdvance) GetTaskId() string {
 func (x *WorkshopAutoAdvance) GetReason() string {
 	if x != nil {
 		return x.Reason
+	}
+	return ""
+}
+
+func (x *WorkshopAutoAdvance) GetNextMode() string {
+	if x != nil && x.NextMode != nil {
+		return *x.NextMode
 	}
 	return ""
 }
@@ -1633,11 +1642,11 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10blocking_reasons\x18\t \x03(\tR\x0fblockingReasons\x121\n" +
 	"\x14unanswered_questions\x18\n" +
 	" \x01(\x05R\x13unansweredQuestions\x12/\n" +
-	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\xea\x02\n" +
+	"\x13pending_suggestions\x18\v \x01(\x05R\x12pendingSuggestions\"\xf4\x02\n" +
 	"\x16BacklogResearchRequest\x12\x1b\n" +
 	"\x06prompt\x18\x01 \x01(\tH\x00R\x06prompt\x88\x01\x01\x12&\n" +
-	"\fproject_root\x18\x03 \x01(\tH\x01R\vprojectRoot\x88\x01\x01\x12O\n" +
-	"\x04mode\x18\x04 \x01(\tB6\xbaH3r1R\aclarifyR\asuggestR\aenhanceR\n" +
+	"\fproject_root\x18\x03 \x01(\tH\x01R\vprojectRoot\x88\x01\x01\x12Y\n" +
+	"\x04mode\x18\x04 \x01(\tB@\xbaH=r;R\aclarifyR\asuggestR\aenhanceR\bfinalizeR\n" +
 	"initializeR\bworkshopH\x02R\x04mode\x88\x01\x01\x12#\n" +
 	"\rcontext_paths\x18\x06 \x03(\tR\fcontextPaths\x12,\n" +
 	"\x12context_target_ids\x18\a \x03(\tR\x10contextTargetIds\x126\n" +
@@ -1686,15 +1695,18 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\acontent\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontentJ\x04\b\x03\x10\x04\"\x93\x01\n" +
 	"\x14WorkshopSaveResponse\x121\n" +
 	"\x04file\x18\x01 \x01(\v2\x1d.swarm_manager.v1.BacklogFileR\x04file\x12H\n" +
-	"\fauto_advance\x18\x02 \x01(\v2%.swarm_manager.v1.WorkshopAutoAdvanceR\vautoAdvance\"\x9c\x01\n" +
+	"\fauto_advance\x18\x02 \x01(\v2%.swarm_manager.v1.WorkshopAutoAdvanceR\vautoAdvance\"\xe7\x01\n" +
 	"\x13WorkshopAutoAdvance\x12\x1c\n" +
 	"\ttriggered\x18\x01 \x01(\bR\ttriggered\x12\x1a\n" +
 	"\x06run_id\x18\x02 \x01(\tH\x00R\x05runId\x88\x01\x01\x12\x1c\n" +
 	"\atask_id\x18\x03 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reasonB\t\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12;\n" +
+	"\tnext_mode\x18\x05 \x01(\tB\x19\xbaH\x16r\x14R\bworkshopR\bfinalizeH\x02R\bnextMode\x88\x01\x01B\t\n" +
 	"\a_run_idB\n" +
 	"\n" +
-	"\b_task_id\"H\n" +
+	"\b_task_idB\f\n" +
+	"\n" +
+	"_next_mode\"H\n" +
 	"\x1aWorkshopDeleteRoundRequest\x12*\n" +
 	"\fround_number\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\vroundNumber\"m\n" +
 	"\x1bWorkshopDeleteRoundResponse\x12#\n" +

@@ -159,5 +159,17 @@ Use this block as your final response structure; ecosystem-manager parses it to 
 **Status**: {{STATUS}}
 **Current Phase**: {{CURRENT_PHASE}}
 
+### Origin Handoff
+
+- Source: {{ORIGIN_SOURCE}}
+- Backlog item: {{ORIGIN_BACKLOG_ITEM}}
+- Item folder: {{ORIGIN_ITEM_FOLDER}}
+- Handoff dir: {{ORIGIN_HANDOFF_DIR}}
+- Handoff brief: {{ORIGIN_HANDOFF_BRIEF_PATH}}
+- Handoff manifest: {{ORIGIN_HANDOFF_MANIFEST_PATH}}
+- Handoff source index: {{ORIGIN_HANDOFF_SOURCE_INDEX_PATH}}
+
+If a swarm-manager handoff is present, treat the handoff brief and manifest as the authoritative upstream planning contract. Read them before making product or scope decisions.
+
 ### Notes
 {{NOTES}}

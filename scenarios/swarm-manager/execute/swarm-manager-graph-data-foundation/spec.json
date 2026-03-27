@@ -1,0 +1,31 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/ui/**",
+    "scenarios/swarm-manager/docs/**",
+    "scenarios/prompt-manager/ui/src/components/graph/**",
+    "scenarios/prompt-manager/ui/src/services/graphService.ts",
+    "scenarios/prompt-manager/ui/src/stores/graphStore.ts",
+    "packages/**"
+  ],
+  "created": "2026-03-27T18:40:16Z",
+  "depends_on": [
+    "research/swarm-manager-graph-workspace-contract"
+  ],
+  "description": "Implement the reusable technical foundation for the new graph workspace after the contract research is settled.\n\nThis work should:\n- extract, parameterize, or otherwise cleanly adapt the prompt-manager graph primitives where reuse is actually warranted\n- avoid copy-pasting prompt-manager-specific node/edge assumptions into swarm-manager\n- add swarm-manager graph data services/contracts for captures, backlog items, initiatives, scenarios, and runs\n- formalize typed edges such as depends_on, initiative membership, scenario impact, capture-to-item lineage, and backlog-to-run relationships\n- expose agent-manager deep links and run metadata needed by the inspector\n- formalize how scenario impact is computed from acceptance allow/deny patterns instead of leaving it as scattered UI-only logic\n- handle graph filtering, clustering, and node-count guardrails needed for a professional large-graph UX\n\nThis is the foundation item that makes the rest of the redesign possible. Keep it greenfield and type-safe rather than layering compatibility shims on the old tabbed surfaces.",
+  "effort": "L",
+  "initiative": "swarm-manager-graph-workspace",
+  "kind": "execute",
+  "name": "swarm-manager-graph-data-foundation",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "ux",
+    "graph",
+    "data-model",
+    "greenfield"
+  ],
+  "title": "Build Swarm Manager Graph Data Foundation",
+  "updated": "2026-03-27T18:40:16Z"
+}

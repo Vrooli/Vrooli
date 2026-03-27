@@ -51,16 +51,22 @@ func TestShouldAutoAdvance_NotReadyBelowCap(t *testing.T) {
 	if result.Reason != "not_ready" {
 		t.Errorf("expected reason 'not_ready', got %q", result.Reason)
 	}
+	if result.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %q", result.NextMode)
+	}
 }
 
 func TestShouldAutoAdvance_AlreadyReady(t *testing.T) {
 	round := makeRound(allMaxScores(), 0)
 	result := ShouldAutoAdvance(true, round, 3, "idea", 10)
-	if result.Advance {
-		t.Error("expected Advance=false when item is ready")
+	if !result.Advance {
+		t.Error("expected Advance=true when item should auto-finalize")
 	}
-	if result.Reason != "ready" {
-		t.Errorf("expected reason 'ready', got %q", result.Reason)
+	if result.Reason != "finalizing" {
+		t.Errorf("expected reason 'finalizing', got %q", result.Reason)
+	}
+	if result.NextMode != "finalize" {
+		t.Errorf("expected next mode 'finalize', got %q", result.NextMode)
 	}
 }
 
@@ -72,6 +78,9 @@ func TestShouldAutoAdvance_AtMaxRounds(t *testing.T) {
 	}
 	if result.Reason != "max_rounds" {
 		t.Errorf("expected reason 'max_rounds', got %q", result.Reason)
+	}
+	if result.NextMode != "workshop" {
+		t.Errorf("expected next mode 'workshop', got %q", result.NextMode)
 	}
 }
 
@@ -108,11 +117,25 @@ func TestShouldAutoAdvance_BoostPushesToReady(t *testing.T) {
 	}
 	round := makeRound(scores, 0)
 	result := ShouldAutoAdvance(true, round, 3, "fix", 10)
-	if result.Advance {
-		t.Error("expected Advance=false when boost pushes all scores to 3")
+	if !result.Advance {
+		t.Error("expected Advance=true when boost pushes all scores to 3 and should finalize")
 	}
-	if result.Reason != "ready" {
-		t.Errorf("expected reason 'ready', got %q", result.Reason)
+	if result.Reason != "finalizing" {
+		t.Errorf("expected reason 'finalizing', got %q", result.Reason)
+	}
+}
+
+func TestShouldAutoAdvance_ReadyStillFinalizesAtMaxRounds(t *testing.T) {
+	round := makeRound(allMaxScores(), 0)
+	result := ShouldAutoAdvance(true, round, 10, "idea", 10)
+	if !result.Advance {
+		t.Error("expected Advance=true when ready, even at max rounds")
+	}
+	if result.Reason != "finalizing" {
+		t.Errorf("expected reason 'finalizing', got %q", result.Reason)
+	}
+	if result.NextMode != "finalize" {
+		t.Errorf("expected next mode 'finalize', got %q", result.NextMode)
 	}
 }
 
@@ -153,11 +176,11 @@ func TestShouldAutoAdvance_AllKindBoostDivisors(t *testing.T) {
 
 			// At minRoundsReady: should be ready, no advance.
 			result := ShouldAutoAdvance(true, round, tt.minRoundsReady, tt.kind, 10)
-			if result.Advance {
-				t.Errorf("%s: expected Advance=false at %d rounds (should be ready)", tt.kind, tt.minRoundsReady)
+			if !result.Advance {
+				t.Errorf("%s: expected Advance=true at %d rounds (should finalize)", tt.kind, tt.minRoundsReady)
 			}
-			if result.Reason != "ready" {
-				t.Errorf("%s: expected reason 'ready' at %d rounds, got %q", tt.kind, tt.minRoundsReady, result.Reason)
+			if result.Reason != "finalizing" {
+				t.Errorf("%s: expected reason 'finalizing' at %d rounds, got %q", tt.kind, tt.minRoundsReady, result.Reason)
 			}
 		})
 	}

@@ -235,16 +235,18 @@ class WorkshopSaveResponse(_message.Message):
     def __init__(self, file: _Optional[_Union[_backlog_pb2.BacklogFile, _Mapping]] = ..., auto_advance: _Optional[_Union[WorkshopAutoAdvance, _Mapping]] = ...) -> None: ...
 
 class WorkshopAutoAdvance(_message.Message):
-    __slots__ = ("triggered", "run_id", "task_id", "reason")
+    __slots__ = ("triggered", "run_id", "task_id", "reason", "next_mode")
     TRIGGERED_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    NEXT_MODE_FIELD_NUMBER: _ClassVar[int]
     triggered: bool
     run_id: str
     task_id: str
     reason: str
-    def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+    next_mode: str
+    def __init__(self, triggered: _Optional[bool] = ..., run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., reason: _Optional[str] = ..., next_mode: _Optional[str] = ...) -> None: ...
 
 class WorkshopDeleteRoundRequest(_message.Message):
     __slots__ = ("round_number",)

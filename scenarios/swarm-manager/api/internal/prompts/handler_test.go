@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
 )
 
@@ -26,21 +27,24 @@ func setupPromptHandler() *Handler {
 }
 
 func setupPromptHandlerWithMock() (*Handler, *mockClient) {
+	skillsByID := make(map[string]promptmanager.PromptSkill)
+	for _, entry := range promptcatalog.SkillEntries() {
+		skillsByID[entry.SkillID] = promptmanager.PromptSkill{
+			ID:          entry.SkillID,
+			Name:        entry.Title,
+			Description: entry.Purpose,
+			Content:     "Use {{ITEM_TITLE}} in {{ITEM_FOLDER}}",
+			Draft:       false,
+			UpdatedAt:   "2026-02-16T00:00:00Z",
+		}
+	}
 	client := &mockClient{
 		MockClient: promptmanager.MockClient{
-			Skills: []promptmanager.PromptSkill{
-				{
-					ID:          "swarm-manager-workshop",
-					Name:        "Clarify",
-					Description: "Clarify prompts",
-					Draft:       false,
-					UpdatedAt:   "2026-02-16T00:00:00Z",
-				},
-			},
+			SkillByID: skillsByID,
 			Skill: promptmanager.PromptSkill{
 				ID:          "swarm-manager-workshop",
-				Name:        "Clarify",
-				Description: "Clarify prompts",
+				Name:        "Backlog Workshop",
+				Description: "Run a backlog workshop round.",
 				Content:     "Use {{ITEM_TITLE}} in {{ITEM_FOLDER}}",
 				Draft:       false,
 				UpdatedAt:   "2026-02-16T00:00:00Z",
@@ -49,7 +53,7 @@ func setupPromptHandlerWithMock() (*Handler, *mockClient) {
 				SkillID: "swarm-manager-workshop",
 				Current: 2,
 				Versions: []promptmanager.PromptSkillVersion{
-					{Version: 1, Content: "old", Name: "Clarify", UpdatedAt: "2026-02-15T00:00:00Z"},
+					{Version: 1, Content: "old", Name: "Backlog Workshop", UpdatedAt: "2026-02-15T00:00:00Z"},
 				},
 			},
 			Result: "rendered prompt",
@@ -58,22 +62,28 @@ func setupPromptHandlerWithMock() (*Handler, *mockClient) {
 	return NewHandler("", client), client
 }
 
-func TestMap_ReturnsBindings(t *testing.T) {
+func TestCatalog_ReturnsCurrentEntries(t *testing.T) {
 	h := setupPromptHandler()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/prompts/map", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/prompts/catalog", nil)
 	w := httptest.NewRecorder()
 
-	h.Map(w, req)
+	h.Catalog(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", w.Code)
 	}
-	if !bytes.Contains(w.Body.Bytes(), []byte(`"skill_id":"swarm-manager-workshop"`)) {
-		t.Fatalf("expected workshop binding, got %s", w.Body.String())
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"id":"backlog-workshop"`)) {
+		t.Fatalf("expected backlog workshop entry, got %s", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"id":"execution-process"`)) {
+		t.Fatalf("expected generated execution entry, got %s", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"skill_id":"spec-sync"`)) {
+		t.Fatalf("expected spec-sync entry, got %s", w.Body.String())
 	}
 }
 
-func TestListSkills_OnlySwarmManagerIDs(t *testing.T) {
+func TestListSkills_UsesPromptCatalog(t *testing.T) {
 	h := setupPromptHandler()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/prompts/skills", nil)
 	w := httptest.NewRecorder()
@@ -84,7 +94,13 @@ func TestListSkills_OnlySwarmManagerIDs(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", w.Code)
 	}
 	if !bytes.Contains(w.Body.Bytes(), []byte(`"id":"swarm-manager-workshop"`)) {
-		t.Fatalf("expected swarm-manager skill in response, got %s", w.Body.String())
+		t.Fatalf("expected workshop skill in response, got %s", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"id":"spec-sync"`)) {
+		t.Fatalf("expected spec-sync skill in response, got %s", w.Body.String())
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"usage_type":"support_reference"`)) {
+		t.Fatalf("expected support reference summary in response, got %s", w.Body.String())
 	}
 }
 
@@ -136,6 +152,43 @@ func TestSimulate_DisablesScopeByDefault(t *testing.T) {
 	}
 	if client.lastWithScope {
 		t.Fatalf("expected simulate ReadSkill with scope disabled")
+	}
+}
+
+func TestSimulate_ResearchFinalizeUsesResearchFinalizeSkill(t *testing.T) {
+	h, client := setupPromptHandlerWithMock()
+	body := map[string]any{
+		"kind": "research",
+		"mode": "finalize",
+	}
+	payload, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/prompts/simulate", bytes.NewReader(payload))
+	w := httptest.NewRecorder()
+
+	h.Simulate(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+	if client.lastSkillID != "swarm-manager-workshop-research-finalize" {
+		t.Fatalf("expected research finalize skill, got %q", client.lastSkillID)
+	}
+}
+
+func TestSimulate_RejectsUnsupportedMode(t *testing.T) {
+	h := setupPromptHandler()
+	body := map[string]any{
+		"kind": "idea",
+		"mode": "enhance",
+	}
+	payload, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/prompts/simulate", bytes.NewReader(payload))
+	w := httptest.NewRecorder()
+
+	h.Simulate(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
 	}
 }
 

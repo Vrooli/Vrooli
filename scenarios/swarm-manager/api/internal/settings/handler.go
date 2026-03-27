@@ -51,6 +51,14 @@ type Settings struct {
 	SearchDebounceMs          int  `json:"search_debounce_ms"`
 	ToastDurationMs           int  `json:"toast_duration_ms"`
 	ConfirmDestructiveActions bool `json:"confirm_destructive_actions"`
+
+	// Review thresholds.
+	ReviewCodeQualityMinScore   float64 `json:"review_code_quality_min_score"`
+	ReviewTestMinPassRate       float64 `json:"review_test_min_pass_rate"`
+	ReviewMaxBlockingViolations int     `json:"review_max_blocking_violations"`
+	ReviewMaxWarnings           int     `json:"review_max_warnings"`
+	ReviewRequireScreenshots    bool    `json:"review_require_screenshots"`
+	ReviewRequireTests          bool    `json:"review_require_tests"`
 }
 
 // SettingsPatch allows partial updates.
@@ -74,6 +82,13 @@ type SettingsPatch struct {
 	SearchDebounceMs          *int  `json:"search_debounce_ms,omitempty"`
 	ToastDurationMs           *int  `json:"toast_duration_ms,omitempty"`
 	ConfirmDestructiveActions *bool `json:"confirm_destructive_actions,omitempty"`
+
+	ReviewCodeQualityMinScore   *float64 `json:"review_code_quality_min_score,omitempty"`
+	ReviewTestMinPassRate       *float64 `json:"review_test_min_pass_rate,omitempty"`
+	ReviewMaxBlockingViolations *int     `json:"review_max_blocking_violations,omitempty"`
+	ReviewMaxWarnings           *int     `json:"review_max_warnings,omitempty"`
+	ReviewRequireScreenshots    *bool    `json:"review_require_screenshots,omitempty"`
+	ReviewRequireTests          *bool    `json:"review_require_tests,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -117,6 +132,13 @@ func DefaultSettings() Settings {
 		SearchDebounceMs:          300,
 		ToastDurationMs:           5000,
 		ConfirmDestructiveActions: true,
+
+		ReviewCodeQualityMinScore:   60,
+		ReviewTestMinPassRate:       1.0,
+		ReviewMaxBlockingViolations: 0,
+		ReviewMaxWarnings:           -1,
+		ReviewRequireScreenshots:    true,
+		ReviewRequireTests:          true,
 	}
 }
 
@@ -170,6 +192,16 @@ func clampInt(v, min, max int) int {
 	return v
 }
 
+func clampFloat(v, min, max float64) float64 {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
 func normalizeSettings(settings Settings) Settings {
 	if strings.TrimSpace(settings.Theme) == "" {
 		settings.Theme = "dark"
@@ -198,6 +230,16 @@ func normalizeSettings(settings Settings) Settings {
 	// UI preferences.
 	settings.SearchDebounceMs = clampInt(settings.SearchDebounceMs, 100, 2000)
 	settings.ToastDurationMs = clampInt(settings.ToastDurationMs, 1000, 30000)
+
+	// Review thresholds.
+	settings.ReviewCodeQualityMinScore = clampFloat(settings.ReviewCodeQualityMinScore, 0, 100)
+	settings.ReviewTestMinPassRate = clampFloat(settings.ReviewTestMinPassRate, 0, 1)
+	if settings.ReviewMaxBlockingViolations < 0 {
+		settings.ReviewMaxBlockingViolations = 0
+	}
+	if settings.ReviewMaxWarnings < -1 {
+		settings.ReviewMaxWarnings = -1
+	}
 
 	return settings
 }
@@ -346,26 +388,50 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ConfirmDestructiveActions != nil {
 		current.ConfirmDestructiveActions = *patch.ConfirmDestructiveActions
 	}
+	if patch.ReviewCodeQualityMinScore != nil {
+		current.ReviewCodeQualityMinScore = *patch.ReviewCodeQualityMinScore
+	}
+	if patch.ReviewTestMinPassRate != nil {
+		current.ReviewTestMinPassRate = *patch.ReviewTestMinPassRate
+	}
+	if patch.ReviewMaxBlockingViolations != nil {
+		current.ReviewMaxBlockingViolations = *patch.ReviewMaxBlockingViolations
+	}
+	if patch.ReviewMaxWarnings != nil {
+		current.ReviewMaxWarnings = *patch.ReviewMaxWarnings
+	}
+	if patch.ReviewRequireScreenshots != nil {
+		current.ReviewRequireScreenshots = *patch.ReviewRequireScreenshots
+	}
+	if patch.ReviewRequireTests != nil {
+		current.ReviewRequireTests = *patch.ReviewRequireTests
+	}
 	return current
 }
 
 func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:                     s.Theme,
-		DefaultMode:               s.DefaultMode,
-		DefaultDelaySeconds:       s.DefaultDelaySeconds,
-		AutoFixup:                 s.AutoFixup,
-		MaxFixupAttempts:          int32(s.MaxFixupAttempts),
-		MaxAutoRounds:             int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop:    s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:       s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:       s.AutoCascadeWorkshop,
-		AgentMaxTurns:             int32(s.AgentMaxTurns),
-		AgentTimeoutSeconds:       int32(s.AgentTimeoutSeconds),
-		AgentRequiresApproval:     s.AgentRequiresApproval,
-		SearchDebounceMs:          int32(s.SearchDebounceMs),
-		ToastDurationMs:           int32(s.ToastDurationMs),
-		ConfirmDestructiveActions: s.ConfirmDestructiveActions,
+		Theme:                       s.Theme,
+		DefaultMode:                 s.DefaultMode,
+		DefaultDelaySeconds:         s.DefaultDelaySeconds,
+		AutoFixup:                   s.AutoFixup,
+		MaxFixupAttempts:            int32(s.MaxFixupAttempts),
+		MaxAutoRounds:               int32(s.MaxAutoRounds),
+		AutoInitializeWorkshop:      s.AutoInitializeWorkshop,
+		AutoAdvanceWorkshop:         s.AutoAdvanceWorkshop,
+		AutoCascadeWorkshop:         s.AutoCascadeWorkshop,
+		AgentMaxTurns:               int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:         int32(s.AgentTimeoutSeconds),
+		AgentRequiresApproval:       s.AgentRequiresApproval,
+		SearchDebounceMs:            int32(s.SearchDebounceMs),
+		ToastDurationMs:             int32(s.ToastDurationMs),
+		ConfirmDestructiveActions:   s.ConfirmDestructiveActions,
+		ReviewCodeQualityMinScore:   s.ReviewCodeQualityMinScore,
+		ReviewTestMinPassRate:       s.ReviewTestMinPassRate,
+		ReviewMaxBlockingViolations: int32(s.ReviewMaxBlockingViolations),
+		ReviewMaxWarnings:           int32(s.ReviewMaxWarnings),
+		ReviewRequireScreenshots:    s.ReviewRequireScreenshots,
+		ReviewRequireTests:          s.ReviewRequireTests,
 	}
 }
 
@@ -433,6 +499,30 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ConfirmDestructiveActions
 		patch.ConfirmDestructiveActions = &v
 	}
+	if req.ReviewCodeQualityMinScore != nil {
+		v := *req.ReviewCodeQualityMinScore
+		patch.ReviewCodeQualityMinScore = &v
+	}
+	if req.ReviewTestMinPassRate != nil {
+		v := *req.ReviewTestMinPassRate
+		patch.ReviewTestMinPassRate = &v
+	}
+	if req.ReviewMaxBlockingViolations != nil {
+		v := int(*req.ReviewMaxBlockingViolations)
+		patch.ReviewMaxBlockingViolations = &v
+	}
+	if req.ReviewMaxWarnings != nil {
+		v := int(*req.ReviewMaxWarnings)
+		patch.ReviewMaxWarnings = &v
+	}
+	if req.ReviewRequireScreenshots != nil {
+		v := *req.ReviewRequireScreenshots
+		patch.ReviewRequireScreenshots = &v
+	}
+	if req.ReviewRequireTests != nil {
+		v := *req.ReviewRequireTests
+		patch.ReviewRequireTests = &v
+	}
 	return patch
 }
 
@@ -454,5 +544,11 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AgentRequiresApproval == nil &&
 		req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
-		req.ConfirmDestructiveActions == nil
+		req.ConfirmDestructiveActions == nil &&
+		req.ReviewCodeQualityMinScore == nil &&
+		req.ReviewTestMinPassRate == nil &&
+		req.ReviewMaxBlockingViolations == nil &&
+		req.ReviewMaxWarnings == nil &&
+		req.ReviewRequireScreenshots == nil &&
+		req.ReviewRequireTests == nil
 }

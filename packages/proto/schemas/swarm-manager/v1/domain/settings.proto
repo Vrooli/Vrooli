@@ -52,4 +52,12 @@ message Settings {
   int32 search_debounce_ms = 13 [(buf.validate.field).int32 = { gte: 100, lte: 2000 }];
   int32 toast_duration_ms = 14 [(buf.validate.field).int32 = { gte: 1000, lte: 30000 }];
   bool confirm_destructive_actions = 15;
+
+  // Review thresholds.
+  double review_code_quality_min_score = 19 [(buf.validate.field).double = { gte: 0, lte: 100 }];
+  double review_test_min_pass_rate = 20 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  int32 review_max_blocking_violations = 21 [(buf.validate.field).int32.gte = 0];
+  int32 review_max_warnings = 22 [(buf.validate.field).int32.gte = -1];
+  bool review_require_screenshots = 23;
+  bool review_require_tests = 24;
 }

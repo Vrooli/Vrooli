@@ -7,16 +7,17 @@ package workshop
 
 // AutoAdvanceResult holds the decision and reason from ShouldAutoAdvance.
 type AutoAdvanceResult struct {
-	Advance bool
-	Reason  string // "not_ready", "ready", "max_rounds", "pending_decisions", "disabled", "no_rounds"
+	Advance  bool
+	Reason   string // "not_ready", "finalizing", "max_rounds", "pending_decisions", "disabled", "no_rounds"
+	NextMode string // "workshop" | "finalize" | ""
 }
 
-// ShouldAutoAdvance decides whether the next workshop round should be
+// ShouldAutoAdvance decides whether the next workshop step should be
 // auto-triggered after saving round responses. Returns true only when:
 //   - Auto-advance is enabled globally
 //   - The latest round exists and has no pending (unanswered) decisions
-//   - The item is not yet ready (effective scores < 3 on at least one dimension)
-//   - The round count is below maxAutoRounds
+//   - Either the item is ready and should finalize, or it is not yet ready and
+//     the round count is below maxAutoRounds
 func ShouldAutoAdvance(enabled bool, latestRound *Round, roundCount int, kind string, maxAutoRounds int) AutoAdvanceResult {
 	if !enabled {
 		return AutoAdvanceResult{Advance: false, Reason: "disabled"}
@@ -29,12 +30,12 @@ func ShouldAutoAdvance(enabled bool, latestRound *Round, roundCount int, kind st
 	}
 	effective := ComputeEffectiveScores(latestRound.Readiness, roundCount, kind)
 	if IsReady(effective) {
-		return AutoAdvanceResult{Advance: false, Reason: "ready"}
+		return AutoAdvanceResult{Advance: true, Reason: "finalizing", NextMode: "finalize"}
 	}
 	if roundCount >= maxAutoRounds {
-		return AutoAdvanceResult{Advance: false, Reason: "max_rounds"}
+		return AutoAdvanceResult{Advance: false, Reason: "max_rounds", NextMode: "workshop"}
 	}
-	return AutoAdvanceResult{Advance: true, Reason: "not_ready"}
+	return AutoAdvanceResult{Advance: true, Reason: "not_ready", NextMode: "workshop"}
 }
 
 // ShouldAutoInitialize decides whether a newly-created backlog item should

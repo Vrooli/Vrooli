@@ -18,6 +18,7 @@ Every backlog item lives at `{{ITEM_FOLDER}}` and follows this layout.
 item-folder/
 ├── spec.json              # Item metadata (kind, title, description, status)
 ├── plan.md                # Implementation plan (primary artifact for execution)
+├── handoff/               # (idea only, generated at process-time) downstream execution package
 ├── workshop/
 │   ├── round-001.json     # First workshop round (decisions, info, readiness)
 │   ├── round-002.json     # Second workshop round
@@ -35,6 +36,7 @@ item-folder/
 | Subfolder | Creator | Purpose |
 |-----------|---------|---------|
 | `workshop/` | workshop agent | Stores workshop round files with decisions, info items, and readiness scores |
+| `handoff/` | swarm-manager execution code | Idea-only execution package generated from the latest finalized backlog state; contains `brief.md`, `manifest.json`, and `source-index.json` for downstream ecosystem-manager tasks |
 | `research/` | research agent | Stores feasibility research and findings |
 | `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts. Agents should read but not modify. |
 | root | user / system | `spec.json` metadata, `plan.md` implementation plan, user-uploaded context files |
@@ -91,6 +93,16 @@ String label grouping this item with other items under a shared initiative. Used
 ### `plan.md`
 
 Markdown implementation plan. This is the primary artifact that executing agents receive as context. The mandatory section structure, convergence patterns, quality gates, and guardrails are defined by the `implementation-plan-authoring` skill (`prompt-manager skill read implementation-plan-authoring`). Sections may be `<!-- TBD -->` until populated through workshop rounds.
+
+### `handoff/` (idea only, generated during processing)
+
+`handoff/` is not a workshop artifact. It is a derived execution package written by swarm-manager when an idea backlog item is processed. It exists to preserve the finalized backlog context when work is handed off to ecosystem-manager.
+
+- `handoff/brief.md` — agent-facing execution brief; use as ecosystem-manager task notes
+- `handoff/manifest.json` — machine-readable contract with provenance, boundaries, and resolved decisions
+- `handoff/source-index.json` — pointers back to the source files used to derive the package
+
+Do not manually maintain `handoff/` during workshop rounds. Update `plan.md` and workshop state; swarm-manager regenerates the handoff package from those authoritative sources when execution begins.
 
 ### `workshop/round-NNN.json`
 
@@ -194,6 +206,8 @@ Least refined / lowest authority
 ```
 
 **Key principle:** `plan.md` is the most up-to-date and authoritative source. It represents the fully synthesized output of all workshop rounds. When `plan.md` exists, treat it as the primary source of truth. When it doesn't, reconstruct the specification from lower-authority sources.
+
+For idea execution, `handoff/` is a derived transport artifact, not a competing planning authority. If `plan.md` changes, regenerate the handoff rather than editing the handoff by hand.
 
 ### How Refinement Accumulates
 

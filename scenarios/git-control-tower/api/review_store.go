@@ -18,6 +18,7 @@ type reviewJobEntry struct {
 	status       *ReviewJobStatus
 	scenarioName string
 	detailCount  int
+	thresholds   ReadinessThresholds
 }
 
 // NewReviewJobStore creates a new empty ReviewJobStore.
@@ -28,7 +29,7 @@ func NewReviewJobStore() *ReviewJobStore {
 }
 
 // Create initialises a new job with the given checks set to pending.
-func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName string, detailCount int) *ReviewJobStatus {
+func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName string, detailCount int, thresholds ReadinessThresholds) *ReviewJobStatus {
 	checkMap := make(map[string]CheckStatus, len(checks))
 	for _, c := range checks {
 		checkMap[c] = CheckPending
@@ -42,7 +43,7 @@ func (s *ReviewJobStore) Create(jobID string, checks []string, scenarioName stri
 	}
 
 	s.mu.Lock()
-	s.jobs[jobID] = &reviewJobEntry{status: job, scenarioName: scenarioName, detailCount: detailCount}
+	s.jobs[jobID] = &reviewJobEntry{status: job, scenarioName: scenarioName, detailCount: detailCount, thresholds: thresholds}
 	s.mu.Unlock()
 
 	return job
@@ -57,6 +58,17 @@ func (s *ReviewJobStore) DetailCount(jobID string) int {
 		return entry.detailCount
 	}
 	return 0
+}
+
+// Thresholds returns the readiness thresholds stored for the given job.
+func (s *ReviewJobStore) Thresholds(jobID string) ReadinessThresholds {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if entry, ok := s.jobs[jobID]; ok {
+		return entry.thresholds
+	}
+	return DefaultReadinessThresholds()
 }
 
 // ActiveJobForScenario returns the job ID of a running job for the given scenario, or "".

@@ -16,8 +16,10 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/handoff"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/storage"
 	"swarm-manager/internal/workshop"
@@ -59,6 +61,11 @@ type PolicyProvider interface {
 	LoadPolicy() (Policy, error)
 }
 
+// ReviewThresholdsProvider reads review threshold settings.
+type ReviewThresholdsProvider interface {
+	LoadReviewThresholds() (*ReviewThresholds, error)
+}
+
 // defaultPolicyProvider returns hardcoded defaults when no provider is configured.
 type defaultPolicyProvider struct{}
 
@@ -73,28 +80,30 @@ func (d *defaultPolicyProvider) LoadPolicy() (Policy, error) {
 
 // ServiceConfig configures execution service dependencies.
 type ServiceConfig struct {
-	RootDir        string
-	StorePath      string
-	PolicyProvider PolicyProvider
-	AgentService   agentSpawner
-	PromptClient   promptmanager.Client
-	Archiver       Archiver
-	ReviewClient   ReviewClient
+	RootDir                  string
+	StorePath                string
+	PolicyProvider           PolicyProvider
+	ReviewThresholdsProvider ReviewThresholdsProvider
+	AgentService             agentSpawner
+	PromptClient             promptmanager.Client
+	Archiver                 Archiver
+	ReviewClient             ReviewClient
 }
 
 // Service owns execution lifecycle logic.
 type Service struct {
-	rootDir        string
-	store          Store
-	policyProvider PolicyProvider
-	agentService   agentSpawner
-	promptClient   promptmanager.Client
-	archiver       Archiver
-	reviewClient   ReviewClient
-	inspector      runInspector
-	stopper        runStopper
-	continuer      runContinuer
-	mu             sync.Mutex
+	rootDir                  string
+	store                    Store
+	policyProvider           PolicyProvider
+	reviewThresholdsProvider ReviewThresholdsProvider
+	agentService             agentSpawner
+	promptClient             promptmanager.Client
+	archiver                 Archiver
+	reviewClient             ReviewClient
+	inspector                runInspector
+	stopper                  runStopper
+	continuer                runContinuer
+	mu                       sync.Mutex
 }
 
 // NewService creates a new execution service.
@@ -112,14 +121,16 @@ func NewService(cfg ServiceConfig) *Service {
 	if pp == nil {
 		pp = &defaultPolicyProvider{}
 	}
+	rtp := cfg.ReviewThresholdsProvider
 	service := &Service{
-		rootDir:        rootDir,
-		store:          NewStore(cfg.StorePath),
-		policyProvider: pp,
-		agentService:   cfg.AgentService,
-		promptClient:   pc,
-		archiver:       cfg.Archiver,
-		reviewClient:   cfg.ReviewClient,
+		rootDir:                  rootDir,
+		store:                    NewStore(cfg.StorePath),
+		policyProvider:           pp,
+		reviewThresholdsProvider: rtp,
+		agentService:             cfg.AgentService,
+		promptClient:             pc,
+		archiver:                 cfg.Archiver,
+		reviewClient:             cfg.ReviewClient,
 	}
 	if inspector, ok := cfg.AgentService.(runInspector); ok {
 		service.inspector = inspector
@@ -279,11 +290,16 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		UpdatedAt:      now,
 	}
 
+	specSyncEntry, ok := promptcatalog.ResolveSpecSyncSkill()
+	if !ok {
+		return Record{}, fmt.Errorf("spec-sync prompt catalog entry missing")
+	}
+
 	// Fetch spec-sync prompt from prompt-manager
 	specSyncVars := map[string]string{
 		"TARGET": ac.ScenarioName,
 	}
-	prompt, promptErr := s.promptClient.ReadSkill(ctx, "spec-sync", specSyncVars, false)
+	prompt, promptErr := s.promptClient.ReadSkill(ctx, specSyncEntry.SkillID, specSyncVars, false)
 	if promptErr != nil {
 		log.Printf("[execution] spec-sync prompt fetch failed: %v", promptErr)
 		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
@@ -367,18 +383,25 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	}
 
 	itemDir := s.itemDir(item.Kind, item.Name)
-	planContent := workshop.LoadPlanContent(itemDir)
-	usedFallback := strings.TrimSpace(planContent) == ""
+	deliverablePath := deliverableForKind(item.Kind)
+	deliverableContent := workshop.LoadPlanContentByName(itemDir, deliverablePath)
+	usedFallback := strings.TrimSpace(deliverableContent) == ""
 	if usedFallback {
-		log.Printf("[execution] plan.md empty or missing in %s", itemDir)
+		log.Printf("[execution] %s empty or missing in %s", deliverablePath, itemDir)
+	}
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight)
+	if handoffErr != nil {
+		return Record{}, handoffErr
 	}
 	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:        item.Kind,
-		Name:        item.Name,
-		Title:       item.Title,
-		ItemFolder:  itemDir,
-		RunType:     "process",
-		PlanContent: planContent,
+		Kind:               item.Kind,
+		Name:               item.Name,
+		Title:              item.Title,
+		ItemFolder:         itemDir,
+		RunType:            "process",
+		DeliverablePath:    deliverablePath,
+		DeliverableContent: deliverableContent,
+		IdeaHandoff:        ideaHandoff,
 	})
 	record.PromptTrace = &PromptTrace{
 		Purpose:        "process",
@@ -540,10 +563,16 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 		expectedPaths = item.AcceptanceAllow
 	}
 
-	jobID, triggerErr := s.reviewClient.TriggerReview(ctx, ReviewRequest{
+	req := ReviewRequest{
 		ScenarioName:  scenarioName,
 		ExpectedPaths: expectedPaths,
-	})
+	}
+	if s.reviewThresholdsProvider != nil {
+		if th, thErr := s.reviewThresholdsProvider.LoadReviewThresholds(); thErr == nil {
+			req.Thresholds = th
+		}
+	}
+	jobID, triggerErr := s.reviewClient.TriggerReview(ctx, req)
 	if triggerErr != nil {
 		return Record{}, fmt.Errorf("trigger review: %w", triggerErr)
 	}
@@ -762,10 +791,16 @@ func (s *Service) refreshRunningLocked(ctx context.Context) error {
 					// Check if this execution should trigger a review
 					scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
 					if s.shouldTriggerReview(item, *record) && len(scenarios) > 0 {
-						jobID, triggerErr := s.reviewClient.TriggerReview(ctx, ReviewRequest{
+						req := ReviewRequest{
 							ScenarioName:  scenarios[0],
 							ExpectedPaths: item.AcceptanceAllow,
-						})
+						}
+						if s.reviewThresholdsProvider != nil {
+							if th, thErr := s.reviewThresholdsProvider.LoadReviewThresholds(); thErr == nil {
+								req.Thresholds = th
+							}
+						}
+						jobID, triggerErr := s.reviewClient.TriggerReview(ctx, req)
 						if triggerErr != nil {
 							log.Printf("[execution] review trigger failed for %s: %v", record.ExecutionID, triggerErr)
 							record.ReviewSkipReason = fmt.Sprintf("GCT unavailable: %v", triggerErr)
@@ -834,15 +869,22 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
 	now := nowRFC3339()
 	itemDir := s.itemDir(item.Kind, item.Name)
+	deliverablePath := deliverableForKind(item.Kind)
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
+	if handoffErr != nil {
+		log.Printf("[execution] failed to build idea handoff for fixup %s/%s: %v", item.Kind, item.Name, handoffErr)
+	}
 
 	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:           item.Kind,
-		Name:           item.Name,
-		Title:          item.Title,
-		ItemFolder:     itemDir,
-		RunType:        "fixup",
-		PlanContent:    workshop.LoadPlanContent(itemDir),
-		ReviewFeedback: buildReviewFeedback(record.ReviewResult),
+		Kind:               item.Kind,
+		Name:               item.Name,
+		Title:              item.Title,
+		ItemFolder:         itemDir,
+		RunType:            "fixup",
+		DeliverablePath:    deliverablePath,
+		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
+		ReviewFeedback:     buildReviewFeedback(record.ReviewResult),
+		IdeaHandoff:        ideaHandoff,
 	})
 
 	fixupRecord := Record{
@@ -955,15 +997,22 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	if runType == "" {
 		runType = "followup"
 	}
+	deliverablePath := deliverableForKind(item.Kind)
+	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
+	if handoffErr != nil {
+		log.Printf("[execution] failed to build idea handoff for follow-up %s/%s: %v", item.Kind, item.Name, handoffErr)
+	}
 	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:           item.Kind,
-		Name:           item.Name,
-		Title:          item.Title,
-		ItemFolder:     itemDir,
-		RunType:        runType,
-		PlanContent:    workshop.LoadPlanContent(itemDir),
-		ReviewFeedback: buildReviewFeedback(parent.ReviewResult),
-		FollowUpNote:   strings.TrimSpace(req.Context),
+		Kind:               item.Kind,
+		Name:               item.Name,
+		Title:              item.Title,
+		ItemFolder:         itemDir,
+		RunType:            runType,
+		DeliverablePath:    deliverablePath,
+		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
+		ReviewFeedback:     buildReviewFeedback(parent.ReviewResult),
+		FollowUpNote:       strings.TrimSpace(req.Context),
+		IdeaHandoff:        ideaHandoff,
 	})
 
 	now := nowRFC3339()
@@ -1292,16 +1341,45 @@ func buildProcessingTitle(item backlogItem) string {
 	}
 }
 
+func deliverableForKind(kind string) string {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "research":
+		return "conclusion.md"
+	default:
+		return "plan.md"
+	}
+}
+
+func deliverablePromptTag(kind string) string {
+	switch deliverableForKind(kind) {
+	case "conclusion.md":
+		return "research-conclusion"
+	default:
+		return "implementation-plan"
+	}
+}
+
+func missingDeliverableReason(kind, deliverablePath string) string {
+	switch deliverableForKind(kind) {
+	case "conclusion.md":
+		return fmt.Sprintf("no research conclusion (%s) exists — run workshop first", deliverablePath)
+	default:
+		return fmt.Sprintf("no implementation plan (%s) exists — run workshop first", deliverablePath)
+	}
+}
+
 // executionPromptParams holds all inputs for building a unified execution prompt.
 type executionPromptParams struct {
-	Kind           string // backlog item kind (idea, fix, execute, etc.)
-	Name           string // backlog item name
-	Title          string // human-readable title
-	ItemFolder     string // absolute path to the backlog item directory
-	RunType        string // process, fixup, followup, custom
-	PlanContent    string // full plan.md text (empty if missing)
-	ReviewFeedback string // review summary for fixup runs
-	FollowUpNote   string // user-provided context for follow-up/custom runs
+	Kind               string // backlog item kind (idea, fix, execute, etc.)
+	Name               string // backlog item name
+	Title              string // human-readable title
+	ItemFolder         string // absolute path to the backlog item directory
+	RunType            string // process, fixup, followup, custom
+	DeliverablePath    string // primary workshop artifact path (plan.md or conclusion.md)
+	DeliverableContent string // full primary workshop artifact text (empty if missing)
+	ReviewFeedback     string // review summary for fixup runs
+	FollowUpNote       string // user-provided context for follow-up/custom runs
+	IdeaHandoff        *handoff.Package
 }
 
 // buildExecutionPrompt constructs a single unified prompt for all execution
@@ -1333,11 +1411,30 @@ func buildExecutionPrompt(p executionPromptParams) string {
 		b.WriteString("\n</follow-up-context>\n")
 	}
 
-	// Implementation plan — always present when available.
-	if strings.TrimSpace(p.PlanContent) != "" {
-		b.WriteString("\n<implementation-plan>\n")
-		b.WriteString(p.PlanContent)
-		b.WriteString("\n</implementation-plan>\n")
+	// Primary workshop deliverable — always present when available.
+	if strings.TrimSpace(p.DeliverableContent) != "" {
+		tag := deliverablePromptTag(p.Kind)
+		b.WriteString(fmt.Sprintf("\n<%s path=\"%s\">\n", tag, p.DeliverablePath))
+		b.WriteString(p.DeliverableContent)
+		b.WriteString(fmt.Sprintf("\n</%s>\n", tag))
+	}
+
+	if p.IdeaHandoff != nil {
+		b.WriteString("\n<idea-handoff>\n")
+		b.WriteString(fmt.Sprintf("Handoff directory: %s\n", p.IdeaHandoff.Dir))
+		b.WriteString(fmt.Sprintf("Brief path: %s\n", p.IdeaHandoff.BriefPath))
+		b.WriteString(fmt.Sprintf("Manifest path: %s\n", p.IdeaHandoff.ManifestPath))
+		b.WriteString(fmt.Sprintf("Source index path: %s\n", p.IdeaHandoff.SourceIndexPath))
+		b.WriteString("Use brief.md as the ecosystem-manager task notes when creating the downstream task.\n")
+		b.WriteString("Preserve the handoff origin metadata on the ecosystem-manager task so later loops can trace back to swarm-manager.\n")
+		b.WriteString("When creating the downstream task, pass: --handoff-dir, --origin-source swarm-manager, --origin-backlog-item, and --origin-item-folder.\n")
+		b.WriteString("</idea-handoff>\n")
+
+		if strings.TrimSpace(p.IdeaHandoff.BriefMarkdown) != "" {
+			b.WriteString(fmt.Sprintf("\n<idea-handoff-brief path=\"%s\">\n", p.IdeaHandoff.BriefPath))
+			b.WriteString(p.IdeaHandoff.BriefMarkdown)
+			b.WriteString("\n</idea-handoff-brief>\n")
+		}
 	}
 
 	return b.String()
@@ -1395,8 +1492,9 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 
 	// Check workshop readiness instead of clarify questions.
 	itemDir := s.itemDir(item.Kind, item.Name)
-	if !workshop.HasPlan(itemDir) {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, "no implementation plan (plan.md) exists — run workshop first")
+	deliverablePath := deliverableForKind(item.Kind)
+	if !workshop.HasPlanByName(itemDir, deliverablePath) {
+		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, deliverablePath))
 	}
 	rounds, _ := workshop.LoadRounds(itemDir)
 	if len(rounds) > 0 {
@@ -1413,8 +1511,9 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 				preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("readiness dimension %q is %d/3 — needs more workshop refinement", dim, effective[dim]))
 			}
 		}
-	} else if workshop.HasPlan(itemDir) {
-		// Plan exists but no workshop rounds — allow execution (manually created plan)
+	} else if workshop.HasPlanByName(itemDir, deliverablePath) {
+		// Primary deliverable exists but no workshop rounds — allow execution
+		// (manually created artifact).
 	} else {
 		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
@@ -1433,6 +1532,26 @@ func resolveTargetScenario(item backlogItem) (string, bool) {
 		return source, true
 	}
 	return strings.TrimSpace(item.Name), strings.EqualFold(strings.TrimSpace(item.Status), "archived")
+}
+
+func (s *Service) buildIdeaHandoffPackage(item backlogItem, itemDir string, preflight ProcessPreflight) (*handoff.Package, error) {
+	if strings.TrimSpace(item.Kind) != "idea" {
+		return nil, nil
+	}
+	targetScenarioID, _ := resolveTargetScenario(item)
+	return handoff.BuildIdeaPackage(handoff.BuildRequest{
+		BacklogKind:             item.Kind,
+		BacklogName:             item.Name,
+		BacklogTitle:            item.Title,
+		BacklogDescription:      item.Description,
+		ItemFolder:              itemDir,
+		DeliverableFileName:     deliverableForKind(item.Kind),
+		TargetScenario:          targetScenarioID,
+		Operation:               preflight.SuggestedOperation,
+		SuggestedSteerProfileID: preflight.SuggestedSteerProfileID,
+		AcceptanceAllow:         item.AcceptanceAllow,
+		AcceptanceDeny:          item.AcceptanceDeny,
+	})
 }
 
 func hasNonForceableExecutionReasons(reasons []string) bool {
