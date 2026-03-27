@@ -857,7 +857,8 @@ func main() {
 	srv := NewServer(db)
 
 	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
+		Handler:      srv.Handler(),
+		WriteTimeout: 150 * time.Second,
 		Cleanup: func(ctx context.Context) error {
 			srv.sweeper.Stop()
 			if srv.codexTailer != nil {

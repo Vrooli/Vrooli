@@ -43,6 +43,7 @@ interface AudioPopoverContentProps {
   onVolumeChange: (level: number) => void;
   onToggleSummarized: (useSummarized: boolean) => void;
   onRequestSummarize: () => void;
+  onCancelSummarize: () => void;
   onClose: () => void;
 }
 
@@ -65,6 +66,7 @@ function AudioPopoverContent({
   onVolumeChange,
   onToggleSummarized,
   onRequestSummarize,
+  onCancelSummarize,
   onClose,
 }: AudioPopoverContentProps) {
   return (
@@ -130,19 +132,23 @@ function AudioPopoverContent({
 
       {!hasSummary && (
         <div className="border-t border-wc-default pt-3">
-          <button
-            data-testid={`msg-request-summarize-${eventId}`}
-            disabled={isSummarizing}
-            className={cn(
-              "w-full rounded-lg px-3 py-2 text-xs font-medium transition",
-              isSummarizing
-                ? "bg-wc-surface-base text-wc-text-faint cursor-wait"
-                : "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25",
-            )}
-            onClick={onRequestSummarize}
-          >
-            {isSummarizing ? "Summarizing…" : "Summarize for playback"}
-          </button>
+          {isSummarizing ? (
+            <button
+              data-testid={`msg-cancel-summarize-${eventId}`}
+              className="w-full rounded-lg px-3 py-2 text-xs font-medium transition bg-red-500/10 text-red-400 hover:bg-red-500/20"
+              onClick={onCancelSummarize}
+            >
+              Cancel summarization
+            </button>
+          ) : (
+            <button
+              data-testid={`msg-request-summarize-${eventId}`}
+              className="w-full rounded-lg px-3 py-2 text-xs font-medium transition bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+              onClick={onRequestSummarize}
+            >
+              Summarize for playback
+            </button>
+          )}
           {summarizeError && (
             <div
               data-testid={`msg-summarize-error-${eventId}`}
@@ -180,6 +186,7 @@ export default function MessagesPane({
   const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
   const [summarizingIds, setSummarizingIds] = useState<Set<string>>(new Set());
   const [summarizeErrors, setSummarizeErrors] = useState<Record<string, string>>({});
+  const summarizeAbortControllers = useRef<Record<string, AbortController>>({});
   const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // --- Copy ---
@@ -356,13 +363,18 @@ export default function MessagesPane({
   }, [onSpeakOne, playbackModes]);
 
   const handleRequestSummarize = useCallback((eventId: string) => {
+    // Abort any in-flight request for this event
+    summarizeAbortControllers.current[eventId]?.abort();
+    const controller = new AbortController();
+    summarizeAbortControllers.current[eventId] = controller;
+
     setSummarizingIds((prev) => new Set(prev).add(eventId));
     setSummarizeErrors((prev) => {
       const next = { ...prev };
       delete next[eventId];
       return next;
     });
-    void summarizeEvent(sessionId, eventId).then((res) => {
+    void summarizeEvent(sessionId, eventId, controller.signal).then((res) => {
       if (res.summarized && res.speechParagraphs) {
         const convState = useConversationStore.getState();
         const session = convState.sessions[sessionId];
@@ -380,9 +392,11 @@ export default function MessagesPane({
         setSummarizeErrors((prev) => ({ ...prev, [eventId]: res.error ?? "Unknown error" }));
       }
     }).catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       const message = err instanceof Error ? err.message : "Summarization failed";
       setSummarizeErrors((prev) => ({ ...prev, [eventId]: message }));
     }).finally(() => {
+      delete summarizeAbortControllers.current[eventId];
       setSummarizingIds((prev) => {
         const next = new Set(prev);
         next.delete(eventId);
@@ -390,6 +404,26 @@ export default function MessagesPane({
       });
     });
   }, [sessionId]);
+
+  const handleCancelSummarize = useCallback((eventId: string) => {
+    summarizeAbortControllers.current[eventId]?.abort();
+    delete summarizeAbortControllers.current[eventId];
+    setSummarizingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(eventId);
+      return next;
+    });
+  }, []);
+
+  // Abort all in-flight summarizations on unmount
+  useEffect(() => {
+    const controllers = summarizeAbortControllers.current;
+    return () => {
+      for (const controller of Object.values(controllers)) {
+        controller.abort();
+      }
+    };
+  }, []);
 
   const getPopoverStyle = useCallback((eventId: string): React.CSSProperties => {
     const btn = audioButtonRefs.current[eventId];
@@ -594,6 +628,7 @@ export default function MessagesPane({
                                 onVolumeChange={setVolume}
                                 onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
                                 onRequestSummarize={() => handleRequestSummarize(event.id)}
+                                onCancelSummarize={() => handleCancelSummarize(event.id)}
                                 onClose={() => setOpenPopoverId(null)}
                               />
                             </div>
@@ -616,6 +651,7 @@ export default function MessagesPane({
                                 onVolumeChange={setVolume}
                                 onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
                                 onRequestSummarize={() => handleRequestSummarize(event.id)}
+                                onCancelSummarize={() => handleCancelSummarize(event.id)}
                                 onClose={() => setOpenPopoverId(null)}
                               />
                             </div>

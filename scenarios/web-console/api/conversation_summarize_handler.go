@@ -76,7 +76,7 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 5 * time.Second
+		timeout = 120 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()

@@ -17,7 +17,7 @@ type TTSSummarizeConfig struct {
 	CharThreshold  int    `json:"charThreshold"`  // default: 500
 	Level          string `json:"level"`          // "light" | "moderate" | "heavy"
 	Model          string `json:"model"`          // default: env WC_TTS_SUMMARIZE_MODEL or "qwen3:1.7b"
-	TimeoutSeconds int    `json:"timeoutSeconds"` // default: 5
+	TimeoutSeconds int    `json:"timeoutSeconds"` // default: 120
 }
 
 // DefaultTTSSummarizeConfig returns the default TTS summarization config.
@@ -31,7 +31,7 @@ func DefaultTTSSummarizeConfig() TTSSummarizeConfig {
 		CharThreshold:  500,
 		Level:          "moderate",
 		Model:          model,
-		TimeoutSeconds: 30,
+		TimeoutSeconds: 120,
 	}
 }
 
@@ -88,7 +88,7 @@ func loadTTSSummarizeConfig(path string) (TTSSummarizeConfig, error) {
 		cfg.Model = DefaultTTSSummarizeConfig().Model
 	}
 	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 30
+		cfg.TimeoutSeconds = 120
 	}
 	return cfg, nil
 }
@@ -160,8 +160,8 @@ func (s *Server) handleUpdateTTSSummarizeConfig(w http.ResponseWriter, r *http.R
 		writeCatalogError(w, "invalid_body", "charThreshold must be non-negative")
 		return
 	}
-	if updated.TimeoutSeconds < 1 || updated.TimeoutSeconds > 60 {
-		writeCatalogError(w, "invalid_body", "timeoutSeconds must be between 1 and 60")
+	if updated.TimeoutSeconds < 1 || updated.TimeoutSeconds > 300 {
+		writeCatalogError(w, "invalid_body", "timeoutSeconds must be between 1 and 300")
 		return
 	}
 	if updated.Model == "" {

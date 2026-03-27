@@ -927,11 +927,13 @@ export interface SummarizeEventResponse {
 export async function summarizeEvent(
   sessionId: string,
   eventId: string,
+  signal?: AbortSignal,
 ): Promise<SummarizeEventResponse> {
   const url = buildApiUrl(`/sessions/${sessionId}/conversation/${eventId}/summarize`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal,
   });
   if (!res.ok) throw await extractAPIError(res, "Failed to summarize event");
   return (await res.json()) as SummarizeEventResponse;

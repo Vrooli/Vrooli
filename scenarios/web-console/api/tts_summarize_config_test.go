@@ -114,8 +114,8 @@ func TestTTSSummarizeConfig_LoadFillsDefaults(t *testing.T) {
 	if cfg.Level != "moderate" {
 		t.Errorf("expected default level, got %q", cfg.Level)
 	}
-	if cfg.TimeoutSeconds != 30 {
-		t.Errorf("expected default timeoutSeconds, got %d", cfg.TimeoutSeconds)
+	if cfg.TimeoutSeconds != 120 {
+		t.Errorf("expected default timeoutSeconds 120, got %d", cfg.TimeoutSeconds)
 	}
 }
 
@@ -169,6 +169,57 @@ func TestHandleUpdateTTSSummarizeConfig(t *testing.T) {
 	}
 	if cfg.Level != "heavy" {
 		t.Errorf("expected level heavy, got %q", cfg.Level)
+	}
+}
+
+func TestHandleUpdateTTSSummarizeConfig_TimeoutAcceptsLargeValues(t *testing.T) {
+	dir := t.TempDir()
+	srv := newFakeTestServer()
+	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
+	srv.ttsSummarizePath = filepath.Join(dir, "config.json")
+
+	// 120s should be accepted — Ollama cold-loads + reasoning models need this
+	body := strings.NewReader(`{"timeoutSeconds":120}`)
+	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	srv.handleUpdateTTSSummarizeConfig(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for 120s timeout, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var cfg TTSSummarizeConfig
+	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if cfg.TimeoutSeconds != 120 {
+		t.Errorf("expected timeoutSeconds 120, got %d", cfg.TimeoutSeconds)
+	}
+}
+
+func TestHandleUpdateTTSSummarizeConfig_TimeoutRejectsOver300(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.ttsSummarizeConfig = DefaultTTSSummarizeConfig()
+
+	body := strings.NewReader(`{"timeoutSeconds":301}`)
+	req := httptest.NewRequest("PUT", "/api/v1/tts/summarize/config", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	srv.handleUpdateTTSSummarizeConfig(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for 301s timeout, got %d", rec.Code)
+	}
+}
+
+func TestDefaultTTSSummarizeConfig_TimeoutSufficientForColdStart(t *testing.T) {
+	cfg := DefaultTTSSummarizeConfig()
+	if cfg.TimeoutSeconds < 60 {
+		t.Errorf("default timeout %ds is too short for Ollama cold model loads; need >= 60s",
+			cfg.TimeoutSeconds)
 	}
 }
 
