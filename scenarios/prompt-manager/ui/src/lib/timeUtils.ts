@@ -38,6 +38,18 @@ export function formatDate(dateString?: string): string {
   return new Date(dateString).toLocaleString()
 }
 
+/** Format a Date into a date group label (e.g. "Today", "Yesterday", "Mar 24"). */
+export function formatDateGroup(date: Date): string {
+  if (Number.isNaN(date.getTime())) return 'Unknown'
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86_400_000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 /** Format a duration in milliseconds to a compact string (e.g. "2m 14s"). */
 export function formatDuration(ms: number): string {
   if (ms < 0 || Number.isNaN(ms)) return '—'

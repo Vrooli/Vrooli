@@ -192,27 +192,29 @@ type TaskBoardResponse struct {
 
 // AddDecisionRequest is the request body for adding a decision.
 type AddDecisionRequest struct {
-	By         string                 `json:"by"`
-	Decision   string                 `json:"decision"`
-	Rationale  string                 `json:"rationale"`
-	Context    string                 `json:"context,omitempty"`
-	Supersedes string                 `json:"supersedes,omitempty"`
-	Topic      string                 `json:"topic,omitempty"`
-	Options    []store.DecisionOption `json:"options,omitempty"`
+	By          string                 `json:"by"`
+	Decision    string                 `json:"decision"`
+	Rationale   string                 `json:"rationale"`
+	Context     string                 `json:"context,omitempty"`
+	Supersedes  string                 `json:"supersedes,omitempty"`
+	Topic       string                 `json:"topic,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Options     []store.DecisionOption `json:"options,omitempty"`
 }
 
 // UpdateDecisionRequest is the request body for updating a decision.
 type UpdateDecisionRequest struct {
-	Decision   *string                 `json:"decision,omitempty"`
-	Rationale  *string                 `json:"rationale,omitempty"`
-	Context    *string                 `json:"context,omitempty"`
-	Status     *string                 `json:"status,omitempty"` // "pending", "accepted", "rejected"
-	Supersedes *string                 `json:"supersedes,omitempty"`
-	Topic      *string                 `json:"topic,omitempty"`
-	Options    *[]store.DecisionOption `json:"options,omitempty"`
-	Selected   *string                 `json:"selected,omitempty"`
-	Freeform   *string                 `json:"freeform,omitempty"`
-	Notes      *string                 `json:"notes,omitempty"`
+	Decision    *string                 `json:"decision,omitempty"`
+	Rationale   *string                 `json:"rationale,omitempty"`
+	Context     *string                 `json:"context,omitempty"`
+	Status      *string                 `json:"status,omitempty"` // "pending", "accepted", "rejected"
+	Supersedes  *string                 `json:"supersedes,omitempty"`
+	Topic       *string                 `json:"topic,omitempty"`
+	Description *string                 `json:"description,omitempty"`
+	Options     *[]store.DecisionOption `json:"options,omitempty"`
+	Selected    *string                 `json:"selected,omitempty"`
+	Freeform    *string                 `json:"freeform,omitempty"`
+	Notes       *string                 `json:"notes,omitempty"`
 }
 
 // --- Knowledge API models ---

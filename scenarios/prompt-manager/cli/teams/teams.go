@@ -169,26 +169,28 @@ type UpdateTaskRequest struct {
 
 // DecisionOption represents a lettered choice in a multi-option decision.
 type DecisionOption struct {
-	Key       string `json:"key"`
-	Label     string `json:"label"`
-	Rationale string `json:"rationale"`
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Rationale   string `json:"rationale"`
+	Recommended bool   `json:"recommended,omitempty"`
 }
 
 // DecisionEntry represents a decision log entry.
 type DecisionEntry struct {
-	ID         string           `json:"id"`
-	At         string           `json:"at"`
-	By         string           `json:"by"`
-	Decision   string           `json:"decision"`
-	Rationale  string           `json:"rationale"`
-	Context    string           `json:"context,omitempty"`
-	Supersedes string           `json:"supersedes,omitempty"`
-	Status     string           `json:"status,omitempty"`
-	Topic      string           `json:"topic,omitempty"`
-	Options    []DecisionOption `json:"options,omitempty"`
-	Selected   string           `json:"selected,omitempty"`
-	Freeform   string           `json:"freeform,omitempty"`
-	Notes      string           `json:"notes,omitempty"`
+	ID          string           `json:"id"`
+	At          string           `json:"at"`
+	By          string           `json:"by"`
+	Decision    string           `json:"decision"`
+	Rationale   string           `json:"rationale"`
+	Context     string           `json:"context,omitempty"`
+	Supersedes  string           `json:"supersedes,omitempty"`
+	Status      string           `json:"status,omitempty"`
+	Topic       string           `json:"topic,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Options     []DecisionOption `json:"options,omitempty"`
+	Selected    string           `json:"selected,omitempty"`
+	Freeform    string           `json:"freeform,omitempty"`
+	Notes       string           `json:"notes,omitempty"`
 }
 
 // DecisionListResponse represents the decision list API response.
@@ -201,13 +203,14 @@ type DecisionListResponse struct {
 
 // AddDecisionRequest is the request body for adding a decision.
 type AddDecisionRequest struct {
-	By         string           `json:"by"`
-	Decision   string           `json:"decision"`
-	Rationale  string           `json:"rationale"`
-	Context    string           `json:"context,omitempty"`
-	Supersedes string           `json:"supersedes,omitempty"`
-	Topic      string           `json:"topic,omitempty"`
-	Options    []DecisionOption `json:"options,omitempty"`
+	By          string           `json:"by"`
+	Decision    string           `json:"decision"`
+	Rationale   string           `json:"rationale"`
+	Context     string           `json:"context,omitempty"`
+	Supersedes  string           `json:"supersedes,omitempty"`
+	Topic       string           `json:"topic,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Options     []DecisionOption `json:"options,omitempty"`
 }
 
 // KnowledgeEntry represents a knowledge log entry.
@@ -2215,13 +2218,14 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 	contextTag := fs.String("context", "", "Context tag for grouping")
 	supersedes := fs.String("supersedes", "", "ID of decision this replaces")
 	topic := fs.String("topic", "", "What is being decided (multi-option mode, required with --options)")
-	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"Option A","rationale":"Why A"}]'`)
+	description := fs.String("description", "", "Background/context for the decision (multi-option mode)")
+	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"Option A","rationale":"Why A","recommended":true}]'`)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --options='[...]']")
+		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --description=\"...\" --options='[...]']")
 	}
 	teamID := fs.Arg(0)
 
@@ -2246,6 +2250,7 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 			return fmt.Errorf("invalid options JSON: %w", err)
 		}
 		req.Topic = *topic
+		req.Description = *description
 		req.Options = opts
 	} else {
 		// Simple mode
@@ -2328,6 +2333,9 @@ func cmdDecisionList(ctx appctx.Context, args []string) error {
 
 		if len(entry.Options) > 0 {
 			fmt.Printf("Topic: %s\n", entry.Topic)
+			if entry.Description != "" {
+				fmt.Printf("Description: %s\n", entry.Description)
+			}
 			if entry.Rationale != "" {
 				fmt.Printf("Rationale: %s\n", entry.Rationale)
 			}
@@ -2336,7 +2344,11 @@ func cmdDecisionList(ctx appctx.Context, args []string) error {
 				if entry.Selected == opt.Key {
 					marker = "→ "
 				}
-				fmt.Printf("  %s%s) %s — %s\n", marker, opt.Key, opt.Label, opt.Rationale)
+				rec := ""
+				if opt.Recommended {
+					rec = " [RECOMMENDED]"
+				}
+				fmt.Printf("  %s%s) %s%s — %s\n", marker, opt.Key, opt.Label, rec, opt.Rationale)
 			}
 			if entry.Selected != "" {
 				if entry.Selected == "__other__" {

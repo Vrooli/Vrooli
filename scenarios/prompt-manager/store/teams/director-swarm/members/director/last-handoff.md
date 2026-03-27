@@ -1,52 +1,53 @@
-**Status**: Completed eleventh strategic assessment heartbeat. 122 files uncommitted (was 69). All builds GREEN, all tests PASS. Capability trap worsening — 11 active initiatives, 0 completions across 51 items.
+**Status**: Completed twelfth strategic assessment heartbeat. 46 uncommitted files (down from 122). All builds GREEN, all tests PASS. Capability trap worsening — 12 active initiatives, 55 items, 1 completion (1.8%).
 
 **Completed this heartbeat**:
 - Spawned intelligence-officer, operations-chief, strategist — all returned structured briefs
-- Intelligence briefing: 122 files across 5 areas, 77% growth, 11 initiatives all at 0% completion, zero items in-progress
-- Operations assessment: 7 commit batches defined, all READY, universal AC gap identified (0/56 items have acceptance criteria), ~6 runtime state files should be excluded from commits
-- Strategic analysis: capability trap dramatically worse (10/11 initiatives are infrastructure), portfolio dilution extreme, "Focused 3" proposal targeting paid desktop delivery
-- Logged 3 decisions: portfolio pruning options (dec-1774559948691098880), commit inventory (dec-1774559950887013427), revised NOW/NEAR/FAR (dec-1774559959752588284)
-- Added 2 knowledge entries: acceptance-criteria-gap, capability-trap-metrics
-- Created 2 tasks: P0 awaiting human decisions, P1 commit batch
+- Intelligence: 46 files across 4 areas, 5 new initiatives created today (23 items), 1.8% completion rate, DTV only initiative with progress
+- Operations: brand-manager-readiness Grade A (most execution-ready), DTV Grade B+ (60% done), desktop-monetization-assurance Grade C+ (transitively blocked), 3 runtime state files to exclude
+- Strategy: capability trap deepening, revenue critical path is ~7 items across 3 initiatives, Option B recommended (revenue-first + momentum)
+- Logged 2 decisions: portfolio focus (dec-1774564978089289501), initiative moratorium (dec-1774564980037232996)
+- Added 2 knowledge entries: cross-initiative dependency mapping, capability trap metrics
+- Created 3 tasks: 2 P1 awaiting human decisions, 1 P2 commit batch
 
-**AWAITING HUMAN (2 decisions, should be resolved together)**:
+**AWAITING HUMAN (2 decisions)**:
 
-1. **Portfolio pruning (dec-1774559948691098880)** — 4 options:
-   - **A (recommended)**: Defer 8 initiatives, keep 3 desktop-convergent (monetization-assurance, release-governance trimmed, emulator-platform). ~8-9 items instead of 51.
-   - **B**: Defer all 11, create single "LPBS Paid Desktop v1" initiative. Maximum focus.
-   - **C**: Defer 4 lowest, keep 7. Continues current pattern.
-   - **D**: Status quo. Not recommended.
+1. **Portfolio focus (dec-1774564978089289501)** — 4 options:
+   - **A**: Revenue-first only (3 initiatives, ~7 items). Maximum focus.
+   - **B (recommended)**: Revenue-first + momentum (5 initiatives, ~13 items). Adds DTV (60% done) and brand-manager-readiness (Grade A) as completion targets.
+   - **C**: Moderate pruning (5-7 initiatives). Evidence says this fails.
+   - **D**: Status quo (12 initiatives). Not recommended.
 
-2. **Infra-vs-revenue pivot (dec-1774555790967023913)** — Now subsumed by the portfolio pruning decision. If A or B is chosen, the pivot happens automatically.
+2. **Initiative moratorium (dec-1774564980037232996)** — No new initiatives until first completion. New ideas as standalone backlog items only.
 
-**Commit batch plan** (all READY, all GREEN):
+**Uncommitted work** (46 files in 4 batches):
 
-| Batch | Area | Files | Order |
-|-------|------|-------|-------|
-| A | Proto schemas + generated | 17 | 1st (dependency) |
-| B | Swarm-manager API+CLI | 9 | 2nd |
-| C | Swarm-manager UI | 5 | 3rd |
-| D | Swarm-manager docs+specs+initiatives | 40 | 4th |
-| E | Prompt-manager code+config (excl runtime) | ~25 | 2nd (parallel w/ B) |
-| F | System-monitor + ecosystem | 4 | Any time |
-| SKIP | Prompt-manager runtime state | ~6 | Do not commit |
+| Batch | Area | Files | Notes |
+|---|---|---|---|
+| 1 | DTV report domain | 9 | New domain implementation, tests pass |
+| 2 | Swarm-manager backlog system | 6 | API improvements, tests pass |
+| 3 | Swarm-manager items + initiatives | ~25 | Deletions, new items, specs |
+| 4 | Ecosystem + prompt-manager | 7 | Queue entries, config, runtime state |
+| SKIP | Runtime state files | 3 | heartbeat-active-runs.json, heartbeat.json, execution-runs.json |
 
-**Key metrics this heartbeat**:
-- Uncommitted files: 34 → 69 → 122 (accelerating)
-- Active initiatives: ~5 → ~5 → 11 (doubled)
-- Completed items: 0 (unchanged across 5+ heartbeats)
-- Infrastructure ratio: 4/5 → 10/11
-- Acceptance criteria defined: 0/56 items
+**Key metrics**:
+- Uncommitted files: 122 → 46 (commits happening, good)
+- Active initiatives: 11 → 12 (still growing, bad)
+- Total items: 51 → 55 (still growing, bad)
+- Completed items: 0 → 1 (DTV report generation)
+- Completion rate: 0% → 1.8%
+- In-progress items: 0 (unchanged — nothing executing)
+- Infrastructure ratio: 9/12 (75%)
+- Acceptance criteria defined: 0/4 checked
 
 **Next priorities**:
-1. **IMMEDIATE**: Human resolves portfolio pruning + pivot decisions
-2. **IMMEDIATE**: Commit proto batch (17 files, zero risk, unblocks all)
-3. **NEAR (post-decision)**: Execute desktop-monetization-assurance as first completion target
-4. **NEAR**: AC refinement pass on top 5-10 backlog items before deploying execution teams
-5. **FAR**: Full desktop release governance + data-driven reactivation of deferred initiatives
+1. **IMMEDIATE**: Human resolves portfolio focus + moratorium decisions
+2. **IMMEDIATE**: Commit DTV report domain (9 files, zero risk)
+3. **POST-DECISION**: Start desktop-release-governance research audit (unblocks entire monetization path)
+4. **POST-DECISION**: Complete DTV remaining 2 items (first initiative completion ever)
+5. **POST-DECISION**: Deploy brand-manager-readiness items in parallel (4 items, Grade A)
 
-**Notes for teammates**:
-- The capability trap is the #1 strategic risk. 11 initiatives generating 0 completions is not a planning problem — it's a focus problem.
-- Runtime state files (heartbeat-active-runs.json, team-queue, heartbeat.json, decisions.jsonl, handoff-history.jsonl, tasks.json) should be excluded from commits or .gitignored.
-- 5 prompt-manager files have MM status (staged + unstaged changes) — need `git add` before committing to capture latest changes.
-- Every deferred initiative retains its backlog items. Nothing is deleted. Deferral = "not consuming attention now."
+**Notes for next heartbeat**:
+- Prior heartbeat decisions (dec-1774559948691098880, dec-1774559950887013427, dec-1774559959752588284) are no longer in the decision store — they were either cleared or lost. The new decisions (dec-1774564978089289501, dec-1774564980037232996) supersede them.
+- If portfolio focus Option B is accepted, next heartbeat should prepare detailed execution proposals for DTV and brand-manager-readiness team deployment.
+- The zero-in-progress metric is the operational bottleneck — nothing is executing. Portfolio decisions must translate into actual item state changes.
+- Runtime state files should be gitignored to stop them from appearing in every assessment.

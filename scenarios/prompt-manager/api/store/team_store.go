@@ -708,12 +708,77 @@ func (s *FileTeamStore) GetHandoffHistory(_ context.Context, teamID, agentID str
 		entries = append(entries, entry)
 	}
 
-	// Return the last N entries (most recent last in file order)
+	// Return the last N entries
 	if last > 0 && len(entries) > last {
 		entries = entries[len(entries)-last:]
 	}
 
+	// Reverse to newest-first order
+	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+
 	return entries, nil
+}
+
+// ClearHandoffHistory removes handoff history entries. If agentID is empty, all
+// entries are removed. Otherwise only entries for the given agent are removed.
+func (s *FileTeamStore) ClearHandoffHistory(_ context.Context, teamID, agentID string) error {
+	path := filepath.Join(s.teamsDir(), teamID, "shared", "handoff-history.jsonl")
+	if !FileExists(path) {
+		return nil
+	}
+
+	if agentID == "" {
+		return os.Remove(path)
+	}
+
+	// Read all, filter out the target agent, rewrite.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading handoff history: %w", err)
+	}
+
+	var kept [][]byte
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var entry HandoffEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			kept = append(kept, []byte(line))
+			continue
+		}
+		if entry.AgentID == agentID {
+			continue
+		}
+		kept = append(kept, []byte(line))
+	}
+
+	if len(kept) == 0 {
+		return os.Remove(path)
+	}
+
+	tmp := path + ".tmp"
+	lines := make([]string, len(kept))
+	for i, b := range kept {
+		lines[i] = string(b)
+	}
+	content := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("writing temp handoff history: %w", err)
+	}
+	return os.Rename(tmp, path)
+}
+
+// ClearLastHandoff removes the last handoff file for a team member.
+func (s *FileTeamStore) ClearLastHandoff(_ context.Context, teamID, agentID string) error {
+	path := filepath.Join(s.memberDir(teamID, agentID), "last-handoff.md")
+	if !FileExists(path) {
+		return nil
+	}
+	return os.Remove(path)
 }
 
 // --- Task Board methods ---

@@ -1792,6 +1792,32 @@ func (h *Handlers) GetHandoffHistory(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ClearHandoffHistory handles DELETE /teams/{id}/handoff-history
+func (h *Handlers) ClearHandoffHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentFilter := r.URL.Query().Get("agent")
+
+	if err := h.teamStore.ClearHandoffHistory(r.Context(), teamID, agentFilter); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ClearLastHandoff handles DELETE /teams/{id}/members/{agentId}/handoff
+func (h *Handlers) ClearLastHandoff(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	agentID := vars["agentId"]
+
+	if err := h.teamStore.ClearLastHandoff(r.Context(), teamID, agentID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Task Board handlers ---
 
 // GetTaskBoard handles GET /teams/{id}/tasks
@@ -2012,16 +2038,17 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entry := &store.DecisionEntry{
-		ID:         fmt.Sprintf("dec-%s", generateID()),
-		At:         time.Now().UTC().Format(time.RFC3339),
-		By:         req.By,
-		Decision:   req.Decision,
-		Rationale:  req.Rationale,
-		Context:    req.Context,
-		Supersedes: req.Supersedes,
-		Status:     store.DecisionStatusPending,
-		Topic:      req.Topic,
-		Options:    req.Options,
+		ID:          fmt.Sprintf("dec-%s", generateID()),
+		At:          time.Now().UTC().Format(time.RFC3339),
+		By:          req.By,
+		Decision:    req.Decision,
+		Rationale:   req.Rationale,
+		Context:     req.Context,
+		Supersedes:  req.Supersedes,
+		Status:      store.DecisionStatusPending,
+		Topic:       req.Topic,
+		Description: req.Description,
+		Options:     req.Options,
 	}
 
 	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
@@ -2112,6 +2139,9 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		}
 		if req.Topic != nil {
 			d.Topic = *req.Topic
+		}
+		if req.Description != nil {
+			d.Description = *req.Description
 		}
 		if req.Options != nil {
 			d.Options = *req.Options

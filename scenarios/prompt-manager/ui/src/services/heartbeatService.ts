@@ -164,6 +164,7 @@ export interface DecisionOption {
   key: string
   label: string
   rationale: string
+  recommended?: boolean
 }
 
 export interface DecisionEntry {
@@ -176,6 +177,7 @@ export interface DecisionEntry {
   supersedes?: string
   status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
   topic?: string
+  description?: string
   options?: DecisionOption[]
   selected?: string | null
   freeform?: string | null
@@ -189,6 +191,7 @@ export interface UpdateDecisionRequest {
   status?: string
   supersedes?: string
   topic?: string
+  description?: string
   options?: DecisionOption[]
   selected?: string | null
   freeform?: string | null
@@ -1083,6 +1086,19 @@ export async function getHandoffHistory(
   if (opts?.last) params.set('last', String(opts.last))
   const qs = params.toString()
   return apiRequest<HandoffHistoryResponse>(`/teams/${encodeURIComponent(teamId)}/handoff-history${qs ? `?${qs}` : ''}`)
+}
+
+export async function clearHandoffHistory(teamId: string, agentId?: string): Promise<void> {
+  const params = agentId ? `?agent=${encodeURIComponent(agentId)}` : ''
+  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/handoff-history${params}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function clearLastHandoff(teamId: string, agentId: string): Promise<void> {
+  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(agentId)}/handoff`, {
+    method: 'DELETE',
+  })
 }
 
 export async function getTaskBoard(teamId: string): Promise<TaskBoardResponse> {

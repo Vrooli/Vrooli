@@ -529,7 +529,9 @@ func main() {
 
 	// Team state routes (handoff, task board, decisions)
 	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.ClearLastHandoff).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
+	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.ClearHandoffHistory).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.GetTaskBoard).Methods("GET")
 	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
 	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")

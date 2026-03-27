@@ -93,8 +93,85 @@ func TestAppendAndGetHandoffHistory(t *testing.T) {
 	if len(limited) != 2 {
 		t.Fatalf("expected 2 entries with limit, got %d", len(limited))
 	}
-	if limited[0].Content != "Second" {
-		t.Errorf("expected 'Second' first in limited results, got: %s", limited[0].Content)
+	if limited[0].Content != "Third" {
+		t.Errorf("expected 'Third' first in limited results (newest-first), got: %s", limited[0].Content)
+	}
+	if limited[1].Content != "Second" {
+		t.Errorf("expected 'Second' second in limited results (newest-first), got: %s", limited[1].Content)
+	}
+}
+
+func TestClearHandoffHistory(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	entries := []HandoffEntry{
+		{AgentID: "agent-1", RunID: "r1", Timestamp: "2025-01-01T00:00:00Z", Content: "A1"},
+		{AgentID: "agent-2", RunID: "r2", Timestamp: "2025-01-01T01:00:00Z", Content: "A2"},
+		{AgentID: "agent-1", RunID: "r3", Timestamp: "2025-01-01T02:00:00Z", Content: "A1b"},
+	}
+	for i := range entries {
+		if err := s.AppendHandoffHistory(ctx, "team-1", &entries[i]); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	}
+
+	// Clear by agent
+	if err := s.ClearHandoffHistory(ctx, "team-1", "agent-1"); err != nil {
+		t.Fatalf("ClearHandoffHistory agent-1: %v", err)
+	}
+	remaining, err := s.GetHandoffHistory(ctx, "team-1", "", 0)
+	if err != nil {
+		t.Fatalf("GetHandoffHistory after agent clear: %v", err)
+	}
+	if len(remaining) != 1 {
+		t.Fatalf("expected 1 entry after agent clear, got %d", len(remaining))
+	}
+	if remaining[0].AgentID != "agent-2" {
+		t.Errorf("expected agent-2, got %s", remaining[0].AgentID)
+	}
+
+	// Clear all
+	if err := s.ClearHandoffHistory(ctx, "team-1", ""); err != nil {
+		t.Fatalf("ClearHandoffHistory all: %v", err)
+	}
+	all, err := s.GetHandoffHistory(ctx, "team-1", "", 0)
+	if err != nil {
+		t.Fatalf("GetHandoffHistory after full clear: %v", err)
+	}
+	if len(all) != 0 {
+		t.Errorf("expected 0 entries after full clear, got %d", len(all))
+	}
+
+	// Idempotent: clearing again should not error
+	if err := s.ClearHandoffHistory(ctx, "team-1", ""); err != nil {
+		t.Errorf("expected idempotent clear, got error: %v", err)
+	}
+}
+
+func TestClearLastHandoff(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+
+	if err := s.SetLastHandoff(ctx, "team-1", "agent-1", "test content"); err != nil {
+		t.Fatalf("SetLastHandoff: %v", err)
+	}
+
+	if err := s.ClearLastHandoff(ctx, "team-1", "agent-1"); err != nil {
+		t.Fatalf("ClearLastHandoff: %v", err)
+	}
+
+	content, err := s.GetLastHandoff(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatalf("GetLastHandoff after clear: %v", err)
+	}
+	if content != "" {
+		t.Errorf("expected empty after clear, got: %s", content)
+	}
+
+	// Idempotent
+	if err := s.ClearLastHandoff(ctx, "team-1", "agent-1"); err != nil {
+		t.Errorf("expected idempotent clear, got error: %v", err)
 	}
 }
 

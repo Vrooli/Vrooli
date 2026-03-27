@@ -49,10 +49,10 @@ export function TeamActivityTab({ teamId, members, allAgents, decisionMode, init
         className="flex-1 flex flex-col min-h-0"
       >
         <TabList>
-          <TabTrigger compact value="handoffs" icon={<Clock className="h-3.5 w-3.5" />} label="Handoffs" />
-          <TabTrigger compact value="tasks" icon={<ListTodo className="h-3.5 w-3.5" />} label="Tasks" />
-          <TabTrigger compact value="decisions" icon={<Scale className="h-3.5 w-3.5" />} label="Decisions" />
-          <TabTrigger compact value="knowledge" icon={<BookOpen className="h-3.5 w-3.5" />} label="Knowledge" />
+          <TabTrigger compact alwaysShowLabel value="handoffs" icon={<Clock className="h-3.5 w-3.5" />} label="Handoffs" />
+          <TabTrigger compact alwaysShowLabel value="tasks" icon={<ListTodo className="h-3.5 w-3.5" />} label="Tasks" />
+          <TabTrigger compact alwaysShowLabel value="decisions" icon={<Scale className="h-3.5 w-3.5" />} label="Decisions" />
+          <TabTrigger compact alwaysShowLabel value="knowledge" icon={<BookOpen className="h-3.5 w-3.5" />} label="Knowledge" />
         </TabList>
 
         <div className="flex-1 min-h-0 flex flex-col">

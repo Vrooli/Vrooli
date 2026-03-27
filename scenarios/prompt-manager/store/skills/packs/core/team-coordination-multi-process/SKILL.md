@@ -127,9 +127,10 @@ Record important decisions so future heartbeats (yours and teammates') understan
 prompt-manager team decision-add <team-id> --by=<your-id> --decision="..." --rationale="..." [--context=<tag>]
 
 # Multi-option decision — presenting choices for human/lead to pick
+# Use "recommended":true on the option you suggest, and --description for background context
 prompt-manager team decision-add <team-id> --by=<your-id> --topic="Which database for user data?" \
-  --options='[{"key":"A","label":"PostgreSQL","rationale":"Already running locally"},{"key":"B","label":"SQLite","rationale":"Simpler deployment"}]' \
-  --rationale="Need persistent storage for the new feature"
+  --description="Need persistent storage for the new feature" \
+  --options='[{"key":"A","label":"PostgreSQL","rationale":"Already running locally","recommended":true},{"key":"B","label":"SQLite","rationale":"Simpler deployment"}]'
 
 # List decisions
 prompt-manager team decision-list <team-id> [--context=<tag>] [--last=10]

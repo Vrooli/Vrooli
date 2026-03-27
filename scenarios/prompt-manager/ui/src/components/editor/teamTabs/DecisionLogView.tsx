@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle } from 'lucide-react'
+import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -125,6 +125,12 @@ function MultiOptionCard({
         </div>
       </div>
 
+      {entry.description && (
+        <div className="text-xs text-muted-foreground mt-1.5">
+          {entry.description}
+        </div>
+      )}
+
       {entry.rationale && (
         <div className="text-xs text-muted-foreground mt-1.5">
           <span className="font-medium text-foreground/70">Context:</span> {entry.rationale}
@@ -150,12 +156,20 @@ function MultiOptionCard({
                 'text-left px-2.5 py-1.5 rounded-md border text-xs transition-colors',
                 isSelected
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                  : 'border-border hover:border-primary/30 hover:bg-muted text-foreground',
+                  : opt.recommended
+                    ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:border-cyan-400/50 hover:bg-cyan-500/15'
+                    : 'border-border hover:border-primary/30 hover:bg-muted text-foreground',
                 isThisStatusLoading && 'opacity-50 cursor-not-allowed'
               )}
             >
               <span className="font-bold mr-1">{opt.key})</span>
               <span>{opt.label}</span>
+              {opt.recommended && (
+                <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-400">
+                  <Star className="h-2.5 w-2.5 fill-cyan-400" />
+                  Recommended
+                </span>
+              )}
             </button>
           )
         })}
